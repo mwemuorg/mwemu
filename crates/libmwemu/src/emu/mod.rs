@@ -186,7 +186,7 @@ impl Emu {
     pub fn x86_instruction(&self) -> Option<iced_x86::Instruction> {
         match &self.arch_state {
             ArchState::X86 { instruction, .. } => *instruction,
-            ArchState::AArch64 { .. } => panic!("x86_instruction called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("x86_instruction called on aarch64 emu"),
         }
     }
 
@@ -195,7 +195,7 @@ impl Emu {
     pub fn set_x86_instruction(&mut self, ins: Option<iced_x86::Instruction>) {
         match &mut self.arch_state {
             ArchState::X86 { instruction, .. } => *instruction = ins,
-            ArchState::AArch64 { .. } => panic!("set_x86_instruction called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("set_x86_instruction called on aarch64 emu"),
         }
     }
 
@@ -204,7 +204,7 @@ impl Emu {
     pub fn x86_formatter(&mut self) -> &mut iced_x86::IntelFormatter {
         match &mut self.arch_state {
             ArchState::X86 { formatter, .. } => formatter,
-            ArchState::AArch64 { .. } => panic!("x86_formatter called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("x86_formatter called on aarch64 emu"),
         }
     }
 
@@ -215,7 +215,7 @@ impl Emu {
             ArchState::X86 {
                 instruction_cache, ..
             } => instruction_cache,
-            ArchState::AArch64 { .. } => panic!("x86_instruction_cache called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("x86_instruction_cache called on aarch64 emu"),
         }
     }
 
@@ -226,7 +226,7 @@ impl Emu {
             ArchState::X86 {
                 instruction_cache, ..
             } => instruction_cache,
-            ArchState::AArch64 { .. } => panic!("x86_instruction_cache_ref called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("x86_instruction_cache_ref called on aarch64 emu"),
         }
     }
 
@@ -239,7 +239,7 @@ impl Emu {
             ArchState::AArch64 {
                 instruction_cache, ..
             } => instruction_cache,
-            ArchState::X86 { .. } => panic!("aarch64_instruction_cache called on x86 emu"),
+            ArchState::X86 { .. } => unreachable!("aarch64_instruction_cache called on x86 emu"),
         }
     }
 
@@ -252,7 +252,7 @@ impl Emu {
             ArchState::AArch64 {
                 instruction_cache, ..
             } => instruction_cache,
-            ArchState::X86 { .. } => panic!("aarch64_instruction_cache_ref called on x86 emu"),
+            ArchState::X86 { .. } => unreachable!("aarch64_instruction_cache_ref called on x86 emu"),
         }
     }
 
@@ -263,7 +263,7 @@ impl Emu {
             ArchState::X86 {
                 decoder_position, ..
             } => *decoder_position,
-            ArchState::AArch64 { .. } => panic!("x86_decoder_position called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("x86_decoder_position called on aarch64 emu"),
         }
     }
 
@@ -274,7 +274,7 @@ impl Emu {
             ArchState::X86 {
                 decoder_position, ..
             } => *decoder_position = pos,
-            ArchState::AArch64 { .. } => panic!("set_x86_decoder_position called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("set_x86_decoder_position called on aarch64 emu"),
         }
     }
 
@@ -287,7 +287,7 @@ impl Emu {
                 use iced_x86::Formatter as _;
                 formatter.format(ins, &mut output);
             }
-            ArchState::AArch64 { .. } => panic!("x86_format_instruction called on aarch64 emu"),
+            ArchState::AArch64 { .. } => unreachable!("x86_format_instruction called on aarch64 emu"),
         }
         output
     }

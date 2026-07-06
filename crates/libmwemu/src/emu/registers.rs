@@ -7,14 +7,14 @@ impl Emu {
     pub fn regs(&self) -> &Regs64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs,
-            _ => panic!("regs() called on aarch64 emu"),
+            _ => unreachable!("regs() called on aarch64 emu"),
         }
     }
 
     pub fn regs_mut(&mut self) -> &mut Regs64 {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs,
-            _ => panic!("regs_mut() called on aarch64 emu"),
+            _ => unreachable!("regs_mut() called on aarch64 emu"),
         }
     }
 
@@ -22,14 +22,14 @@ impl Emu {
     pub fn regs_aarch64(&self) -> &RegsAarch64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::AArch64 { regs, .. } => regs,
-            _ => panic!("regs_aarch64 called on non-aarch64 emu"),
+            _ => unreachable!("regs_aarch64 called on non-aarch64 emu"),
         }
     }
 
     pub fn regs_aarch64_mut(&mut self) -> &mut RegsAarch64 {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::AArch64 { regs, .. } => regs,
-            _ => panic!("regs_aarch64_mut called on non-aarch64 emu"),
+            _ => unreachable!("regs_aarch64_mut called on non-aarch64 emu"),
         }
     }
 
@@ -66,42 +66,42 @@ impl Emu {
     pub fn set_pre_op_regs(&mut self, new_regs: Regs64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { pre_op_regs, .. } => *pre_op_regs = new_regs,
-            _ => panic!("set_pre_op_regs called on aarch64 emu"),
+            _ => unreachable!("set_pre_op_regs called on aarch64 emu"),
         }
     }
 
     pub fn set_post_op_regs(&mut self, new_regs: Regs64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { post_op_regs, .. } => *post_op_regs = new_regs,
-            _ => panic!("set_post_op_regs called on aarch64 emu"),
+            _ => unreachable!("set_post_op_regs called on aarch64 emu"),
         }
     }
 
     pub fn pre_op_regs(&self) -> &Regs64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { pre_op_regs, .. } => pre_op_regs,
-            _ => panic!("pre_op_regs called on aarch64 emu"),
+            _ => unreachable!("pre_op_regs called on aarch64 emu"),
         }
     }
 
     pub fn pre_op_regs_mut(&mut self) -> &mut Regs64 {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { pre_op_regs, .. } => pre_op_regs,
-            _ => panic!("pre_op_regs_mut called on aarch64 emu"),
+            _ => unreachable!("pre_op_regs_mut called on aarch64 emu"),
         }
     }
 
     pub fn post_op_regs(&self) -> &Regs64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { post_op_regs, .. } => post_op_regs,
-            _ => panic!("post_op_regs called on aarch64 emu"),
+            _ => unreachable!("post_op_regs called on aarch64 emu"),
         }
     }
 
     pub fn post_op_regs_mut(&mut self) -> &mut Regs64 {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { post_op_regs, .. } => post_op_regs,
-            _ => panic!("post_op_regs_mut called on aarch64 emu"),
+            _ => unreachable!("post_op_regs_mut called on aarch64 emu"),
         }
     }
 
@@ -109,14 +109,14 @@ impl Emu {
     pub fn pre_op_regs_aarch64(&self) -> &RegsAarch64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::AArch64 { pre_op_regs, .. } => pre_op_regs,
-            _ => panic!("pre_op_regs_aarch64 called on x86 emu"),
+            _ => unreachable!("pre_op_regs_aarch64 called on x86 emu"),
         }
     }
 
     pub fn post_op_regs_aarch64(&self) -> &RegsAarch64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::AArch64 { post_op_regs, .. } => post_op_regs,
-            _ => panic!("post_op_regs_aarch64 called on x86 emu"),
+            _ => unreachable!("post_op_regs_aarch64 called on x86 emu"),
         }
     }
 }

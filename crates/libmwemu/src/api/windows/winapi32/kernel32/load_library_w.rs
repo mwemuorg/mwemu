@@ -4,7 +4,7 @@ use crate::winapi::winapi32::kernel32::load_library;
 pub fn LoadLibraryW(emu: &mut emu::Emu) {
     let dllptr = match emu.maps.read_dword(emu.regs().get_esp()) {
         Some(v) => v as u64,
-        None => panic!("bad LoadLibraryW parameter"),
+        None => { log::warn!("bad LoadLibraryW parameter"); return; },
     };
     let dll = emu.maps.read_wide_string(dllptr);
     log_red!(emu, "LoadLibraryW  '{}'", dll);

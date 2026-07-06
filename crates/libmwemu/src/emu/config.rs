@@ -30,7 +30,7 @@ impl Emu {
     /// 3: same than 2 but also in the case of a rep prefix will see every rep iteration.
     pub fn set_verbose(&mut self, n: u32) {
         if n > 3 {
-            panic!("verbose is from 0 to 3 display (0:apis, 1:msgs, 2:asm, 3:rep)");
+            { log::warn!("verbose is from 0 to 3 display (0:apis, 1:msgs, 2:asm, 3:rep)"); return; }
         }
         self.cfg.verbose = n;
     }

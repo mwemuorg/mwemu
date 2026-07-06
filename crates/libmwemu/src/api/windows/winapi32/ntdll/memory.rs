@@ -66,14 +66,14 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
     };
 
     if size == 0 {
-        panic!("NtAllocateVirtualMemory mapping zero bytes.")
+        { log::warn!("NtAllocateVirtualMemory mapping zero bytes."); return; }
     }
 
     let alloc_addr: u64 = if do_alloc {
         match emu.maps.alloc(size) {
             Some(a) => a,
             None => {
-                panic!("/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory ")
+                { log::warn!("/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory "); return; }
             }
         }
     } else {
@@ -98,7 +98,7 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         .expect("ntdll!NtAllocateVirtualMemory cannot create map");
 
     if !emu.maps.write_dword(addr_ptr, alloc_addr as u32) {
-        panic!("NtAllocateVirtualMemory: cannot write on address pointer");
+        { log::warn!("NtAllocateVirtualMemory: cannot write on address pointer"); return; }
     }
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;

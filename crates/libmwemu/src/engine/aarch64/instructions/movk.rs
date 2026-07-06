@@ -10,7 +10,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
         Operand::ImmShift(v, s) => (v as u64, s as u64),
         Operand::Immediate(v) => (v as u64, 0_u64),
         Operand::Imm16(v) => (v as u64, 0_u64),
-        _ => panic!("MOVK unexpected operand: {:?}", ins.operands[1]),
+        _ => unreachable!("MOVK unexpected operand: {:?}", ins.operands[1]),
     };
     let mask = 0xFFFF_u64 << shift;
     let result = (cur & !mask) | ((imm & 0xFFFF) << shift);

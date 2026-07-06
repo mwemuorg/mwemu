@@ -147,7 +147,7 @@ fn GetFileVersionInfoSizeA(emu: &mut emu::Emu) {
         let file_size = metadata.len() as u64;
         emu.regs_mut().rax = file_size;
     } else {
-        panic!("TODO: {}", filename);
+        unimplemented!("TODO: {}", filename);
     }
 }
 
@@ -207,7 +207,7 @@ fn GetFileVersionInfoA(emu: &mut emu::Emu) {
 
         emu.regs_mut().rax = 1; // Success
     } else {
-        panic!("TODO: {}", filename);
+        unimplemented!("TODO: {}", filename);
     }
 }
 
@@ -298,12 +298,12 @@ fn _initterm(emu: &mut emu::Emu) {
 
 fn exit(emu: &mut emu::Emu) {
     log_red!(emu, "kernelbase!exit");
-    panic!("exit called");
+    emu.process_terminated = true;
 }
 
 fn _exit(emu: &mut emu::Emu) {
     log_red!(emu, "kernelbase!_exit");
-    panic!("_exit called");
+    emu.process_terminated = true;
 }
 
 fn atexit(emu: &mut emu::Emu) {

@@ -293,7 +293,7 @@ impl PE64 {
 
                     let off = PE32::vaddr_to_off(&sect, delay_load.name_ptr) as usize;
                     if off > raw.len() {
-                        panic!("the delay_load.name of pe64 is out of buffer");
+                        { log::warn!("the delay_load.name of pe64 is out of buffer"); return; }
                     }
                     let libname = PE32::read_string(&raw, off);
                     delay_load.name = libname.to_string();
@@ -314,7 +314,7 @@ impl PE64 {
                     }
                     let off = PE32::vaddr_to_off(&sect, iid.name_ptr) as usize;
                     if off > raw.len() {
-                        panic!("the name of pe64 iid is out of buffer");
+                        { log::warn!("the name of pe64 iid is out of buffer"); return; }
                     }
 
                     let libname = PE32::read_string(&raw, off);
@@ -408,7 +408,7 @@ impl PE64 {
 
     pub fn get_section_ptr(&self, id: usize) -> &[u8] {
         if id > self.sect_hdr.len() {
-            panic!("/!\\ warning: invalid section id {}", id);
+            { log::warn!("/!\\ warning: invalid section id {}", id); return; }
         }
         let off = self.sect_hdr[id].pointer_to_raw_data as usize;
         let sz = self.sect_hdr[id].size_of_raw_data as usize; //TODO: coger sz en disk
@@ -478,10 +478,8 @@ impl PE64 {
                 continue;
             }
             if winapi64::kernel32::load_library(emu, &dld.name) == 0 {
-                panic!(
-                    "cannot found the library `{}` on {}",
-                    &dld.name, emu.cfg.maps_folder
-                );
+                log::warn!("cannot found the library `{}` on {}",
+                    &dld.name, emu.cfg.maps_folder);
             }
 
             let mut off_name = PE32::vaddr_to_off(&self.sect_hdr, dld.name_table) as usize;

@@ -628,7 +628,7 @@ impl Emu {
                     .unwrap();
 
                 if mem_addr != addr {
-                    panic!("something wrong");
+                    unreachable!("something wrong");
                 }
                 */
                 // case when address is relative to rip then just return temp_displace

@@ -430,7 +430,7 @@ fn NtReadFile(emu: &mut emu::Emu) {
             emu.regs_mut().rax = constants::STATUS_SUCCESS;
         }
     } else {
-        panic!("TODO: read {}", filename);
+        unimplemented!("TODO: read {}", filename);
     }
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;

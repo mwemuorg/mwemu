@@ -221,7 +221,7 @@ impl ImageSectionHeader {
 
     pub fn set_name(&mut self, newname: &str) {
         if newname.len() + 1 > IMAGE_SIZEOF_SHORT_NAME {
-            panic!("fixing a name bigger than IMAGE_SIZEOF_SHORT_NAME");
+            { log::warn!("pe: section name too long, skipping"); return; }
         }
         let mut vname: Vec<u8> = newname.as_bytes().to_vec();
         vname.push(0);

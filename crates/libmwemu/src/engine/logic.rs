@@ -346,7 +346,7 @@ pub fn idiv64(emu: &mut Emu, value0: u64) {
     if resq > 0xffffffffffffffff {
         log::trace!("/!\\ int overflow exception on division");
         if emu.break_on_alert {
-            panic!();
+            unreachable!();
         }
     } else if ((value1 as i128) > 0 && (resq as i64) < 0)
         || ((value1 as i128) < 0 && (resq as i64) > 0)
@@ -378,7 +378,7 @@ pub fn idiv32(emu: &mut Emu, value0: u64) {
     if resq > 0xffffffff {
         log::trace!("/!\\ int overflow exception on division");
         if emu.break_on_alert {
-            panic!();
+            unreachable!();
         }
     } else if ((value1 as i64) > 0 && (resq as i32) < 0)
         || ((value1 as i64) < 0 && (resq as i32) > 0)
@@ -409,7 +409,7 @@ pub fn idiv16(emu: &mut Emu, value0: u64) {
     if resq > 0xffff {
         log::trace!("/!\\ int overflow exception on division");
         if emu.break_on_alert {
-            panic!();
+            unreachable!();
         }
     } else if ((value1 as i32) > 0 && (resq as i16) < 0)
         || ((value1 as i32) < 0 && (resq as i16) > 0)
@@ -440,7 +440,7 @@ pub fn idiv8(emu: &mut Emu, value0: u64) {
     if resq > 0xff {
         log::trace!("/!\\ int overflow exception on division");
         if emu.break_on_alert {
-            panic!();
+            unreachable!();
         }
     } else if ((value1 as i16) > 0 && (resq as i8) < 0) || ((value1 as i16) < 0 && (resq as i8) > 0)
     {

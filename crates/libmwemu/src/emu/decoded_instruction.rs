@@ -57,7 +57,7 @@ impl DecodedInstruction {
     pub fn as_x86(&self) -> &iced_x86::Instruction {
         match self {
             DecodedInstruction::X86(ins) => ins,
-            DecodedInstruction::AArch64(_) => panic!("as_x86() called on aarch64 instruction"),
+            DecodedInstruction::AArch64(_) => unreachable!("as_x86() called on aarch64 instruction"),
         }
     }
 
@@ -66,7 +66,7 @@ impl DecodedInstruction {
     pub fn as_aarch64(&self) -> &yaxpeax_arm::armv8::a64::Instruction {
         match self {
             DecodedInstruction::AArch64(ins) => ins,
-            DecodedInstruction::X86(_) => panic!("as_aarch64() called on x86 instruction"),
+            DecodedInstruction::X86(_) => unreachable!("as_aarch64() called on x86 instruction"),
         }
     }
 

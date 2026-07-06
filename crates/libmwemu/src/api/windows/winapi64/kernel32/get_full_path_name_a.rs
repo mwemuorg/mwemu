@@ -10,5 +10,5 @@ pub fn GetFullPathNameA(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GetFullPathNameA file: {}", filename);
     // TODO: save the path to buff.
     //emu.regs_mut().rax = 10;
-    panic!("TODO");
+    unimplemented!("TODO");
 }

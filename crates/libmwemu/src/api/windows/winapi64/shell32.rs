@@ -187,7 +187,7 @@ fn SHGetFolderPathW(emu: &mut emu::Emu) {
         0x0036 => "C:\\Users\\Public\\Pictures", // CSIDL_COMMON_PICTURES
         0x0037 => "C:\\Users\\Public\\Videos", // CSIDL_COMMON_VIDEO
         0x0038 => "C:\\Windows\\Resources",   // CSIDL_RESOURCES
-        _ => panic!("Unimplemented CSIDL value: 0x{:x} at {}", csidl, emu.pos),
+        _ => unimplemented!("Unimplemented CSIDL value: 0x{:x} at {}", csidl, emu.pos),
     };
 
     if psz_path != 0 {

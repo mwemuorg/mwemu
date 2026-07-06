@@ -6,7 +6,7 @@ impl Emu {
     /// NOTE: x86 operand syntax only. Will panic on aarch64.
     pub fn memory_operand_to_address(&mut self, operand: &str) -> u64 {
         if self.cfg.arch.is_aarch64() {
-            panic!("memory_operand_to_address() uses x86 operand syntax, not available on aarch64");
+            unreachable!("memory_operand_to_address() uses x86 operand syntax, not available on aarch64");
         }
         let spl: Vec<&str> = operand.split('[').collect::<Vec<&str>>()[1]
             .split(']')
@@ -70,7 +70,7 @@ impl Emu {
                 return 1;
             }
 
-            panic!("not implemented: {}", operand);
+            unimplemented!("memory operand not implemented: {}", operand);
         }
 
         if spl.len() == 3 {
@@ -81,7 +81,7 @@ impl Emu {
             if spl[2].contains('*') {
                 let spl2: Vec<&str> = spl[2].split('*').collect();
                 if spl2.len() != 2 {
-                    panic!(
+                    unreachable!(
                         "case ie [esi + eax*4] bad parsed the *  operand:{}",
                         operand
                     );
@@ -93,7 +93,7 @@ impl Emu {
                     .expect("bad num conversion");
 
                 if sign != "+" && sign != "-" {
-                    panic!("weird sign2 {}", sign);
+                    unreachable!("weird sign2 {}", sign);
                 }
 
                 if sign == "+" {
@@ -118,7 +118,7 @@ impl Emu {
             };
 
             if sign != "+" && sign != "-" {
-                panic!("weird sign {}", sign);
+                unreachable!("weird sign {}", sign);
             }
 
             if sign == "+" {
@@ -176,7 +176,7 @@ impl Emu {
             //hack: redirect stack
             let esp = stack.get_base() + 0x1ff;
             self.regs_mut().set_esp(esp);
-            panic!("/!\\ fixing stack.")
+            log::warn!("fixing stack: esp was outside the stack map, redirected to 0x{:x}", esp);
         }
 
         match bits {
@@ -305,7 +305,7 @@ impl Emu {
                 }
                 None => None,
             },
-            _ => panic!("weird size: {}", operand),
+            _ => unreachable!("weird size: {}", operand),
         }
     }
 
@@ -323,9 +323,6 @@ impl Emu {
 
         let addr: u64 = self.memory_operand_to_address(operand);
 
-        /*if !self.maps.is_mapped(addr) {
-        panic!("writting in non mapped memory");
-        }*/
 
         let name = self.maps.get_addr_name(addr).unwrap_or("error");
 
@@ -410,7 +407,7 @@ impl Emu {
             }
         }
 
-        panic!("weird size: {}", operand);
+        unreachable!("weird size: {}", operand);
     }
 
     /// Attempt to auto-extend the thread stack to cover `fault_addr`.

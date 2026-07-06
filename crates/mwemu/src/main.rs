@@ -103,7 +103,7 @@ impl CustomLogFormat {
     }
 }
 
-fn main() {
+fn main() -> process::ExitCode {
     let matches = App::new("MWEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
@@ -200,7 +200,7 @@ fn main() {
 
     if !matches.is_present("filename") {
         log::error!("the filename is mandatory, try -f <FILENAME> or --help");
-        return;
+        return process::ExitCode::from(1u8);
     }
 
     let mut emu: libmwemu::emu::Emu;
@@ -290,7 +290,7 @@ fn main() {
     // emulate winapi via syscall dispatcher (currently x64 only)
     if matches.is_present("ssdt") {
         if !emu.cfg.is_x64() {
-            panic!("SSDT mode is not supported in 32-bit mode yet.");
+            unimplemented!("SSDT mode is not supported in 32-bit mode yet");
         }
         emu.cfg.emulate_winapi = true;
     }
@@ -298,7 +298,7 @@ fn main() {
     // Linux real-libc execution mode (counterpart of --ssdt).
     if matches.is_present("libc") {
         if !emu.cfg.is_x64() {
-            panic!("--libc real-libc mode is only supported in 64-bit mode yet.");
+            unimplemented!("--libc real-libc mode is only supported in 64-bit mode yet");
         }
         emu.cfg.linux_real_libc = true;
     }
@@ -377,7 +377,7 @@ fn main() {
             Ok(()) => eprintln!("[mwemu] system32 ready: {}", emu.cfg.maps_folder),
             Err(e) => {
                 eprintln!("[mwemu] --iso failed: {}", e);
-                std::process::exit(1);
+                return process::ExitCode::from(1u8);
             }
         }
     } else if is_non_windows_target {
@@ -393,7 +393,7 @@ fn main() {
             Ok(()) => eprintln!("[mwemu] system32 ready: {}", emu.cfg.maps_folder),
             Err(e) => {
                 eprintln!("[mwemu] --winver failed: {}", e);
-                std::process::exit(1);
+                return process::ExitCode::from(1u8);
             }
         }
     } else if matches.is_present("maps") {
@@ -434,7 +434,7 @@ fn main() {
         .expect("invalid address");
         if !matches.is_present("entry_point") {
             log::error!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
-            std::process::exit(1);
+            return process::ExitCode::from(1u8);
         }
     }
 
@@ -644,7 +644,6 @@ fn main() {
         log::logger().flush();
         // invoke the default handler and exit the process
         orig_hook(panic_info);
-        process::exit(1);
     }));
 
     // set current
@@ -657,7 +656,7 @@ fn main() {
     let result_ok = init_file_system(None as Option<PathBuf>);
     if result_ok.is_err() {
         log::error!("Cannot initialize file system (see error above).");
-        return;
+        return process::ExitCode::from(1u8);
     }
 
     // override all from dump?
@@ -728,7 +727,9 @@ fn main() {
             if e.message != "empty code block" {
                 log::error!("{}", msg);
             }
-            process::exit(1);
+            return process::ExitCode::from(1u8);
         }
     }
+
+    process::ExitCode::SUCCESS
 }

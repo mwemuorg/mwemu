@@ -34,7 +34,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         8 => emu
             .flags_overwrite_mut()
             .sub8_borrow(value0, value1 & 0xff, cf),
-        _ => panic!("weird size"),
+        _ => unreachable!("weird size"),
     };
 
     if !emu.set_operand_value(ins, 0, res) {

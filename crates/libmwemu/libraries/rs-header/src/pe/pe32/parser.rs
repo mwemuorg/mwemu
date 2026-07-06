@@ -78,7 +78,7 @@ impl PE32 {
                     }
                     let off = PE32::vaddr_to_off(&sect, iid.name_ptr) as usize;
                     if off > raw.len() {
-                        panic!("the name of pe32 iid is out of buffer");
+                        { log::warn!("pe32: iid name out of buffer, skipping"); break; }
                     }
                     let libname = read_c_string(raw, off);
                     if libname.is_empty() {
@@ -192,7 +192,7 @@ impl PE32 {
         tls.print();
 
         if tls.tls_callbacks < self.opt.image_base - 0xf000 + 0xa400 {
-            panic!("error loading tls callbacks");
+            { log::warn!("pe32: bad tls callbacks pointer"); return Vec::new(); }
         }
         let mut cb_off = (tls.tls_callbacks - self.opt.image_base - 0xf000 + 0xa400) as usize;
 

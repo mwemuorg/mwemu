@@ -24,7 +24,7 @@ impl Banzai {
         if self.api_params.contains_key(unimplemented_api) {
             return self.api_params[unimplemented_api];
         }
-        panic!("banzai list dont have the params of {}", unimplemented_api);
+        { log::warn!("banzai list dont have the params of {}", unimplemented_api); return -1; }
     }
 
     pub fn add(&mut self, name: &str, nparams: i32) {

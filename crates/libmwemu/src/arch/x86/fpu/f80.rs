@@ -363,7 +363,7 @@ impl F80 {
         let is_negative = match bcd[9] & 0x0F {
             BCD_SIGN_NEGATIVE => true,
             BCD_SIGN_POSITIVE => false,
-            _ => panic!("Invalid BCD sign"),
+            _ => unreachable!("Invalid BCD sign"),
         };
 
         self.st = F80::encode_from_u128(value, is_negative);

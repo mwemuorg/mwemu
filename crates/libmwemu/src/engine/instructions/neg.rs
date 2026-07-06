@@ -21,7 +21,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         32 => emu.flags_mut().neg32(value0),
         16 => emu.flags_mut().neg16(value0),
         8 => emu.flags_mut().neg8(value0),
-        _ => panic!("weird size"),
+        _ => unreachable!("weird size"),
     };
 
     emu.flags_mut().f_cf = value0 != 0;

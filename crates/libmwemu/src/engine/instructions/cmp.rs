@@ -70,7 +70,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.flags_overwrite_mut().sub8(value0, value1);
         }
         _ => {
-            panic!("wrong size {}", emu.get_operand_sz(ins, 0));
+            unreachable!("wrong size {}", emu.get_operand_sz(ins, 0));
         }
     }
     true

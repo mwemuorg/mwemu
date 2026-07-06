@@ -54,10 +54,8 @@ pub fn CreateThread(emu: &mut emu::Emu) {
             f
         }
         None => {
-            panic!(
-                "Failed to read flags from 0x{:x} - unmapped memory",
-                flags_addr
-            );
+            { log::warn!("Failed to read flags from 0x{:x} - unmapped memory",
+                flags_addr); return; };
         }
     };
 
@@ -67,10 +65,8 @@ pub fn CreateThread(emu: &mut emu::Emu) {
             t
         }
         None => {
-            panic!(
-                "Failed to read tid_ptr from 0x{:x} - unmapped memory",
-                tid_ptr_addr
-            );
+            { log::warn!("Failed to read tid_ptr from 0x{:x} - unmapped memory",
+                tid_ptr_addr); return; };
         }
     };
 
@@ -134,7 +130,7 @@ pub fn CreateThread(emu: &mut emu::Emu) {
                 stack_base + stack_sz
             );
         } else {
-            panic!("Failed to allocate stack of size 0x{:x}", stack_sz);
+            { log::warn!("Failed to allocate stack of size 0x{:x}", stack_sz); return; }
         }
     }
 
@@ -160,10 +156,8 @@ pub fn CreateThread(emu: &mut emu::Emu) {
             log::trace!("Writing thread ID {} to 0x{:x}", new_thread_id, tid_ptr);
             emu.maps.write_dword(tid_ptr, new_thread_id as u32);
         } else {
-            panic!(
-                "CANNOT WRITE: tid_ptr 0x{:x} points to unmapped memory!",
-                tid_ptr
-            );
+            { log::warn!("CANNOT WRITE: tid_ptr 0x{:x} points to unmapped memory!",
+                tid_ptr); return; };
         }
     } else {
         log::trace!("tid_ptr is NULL, not writing thread ID");

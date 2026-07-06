@@ -233,10 +233,16 @@ impl Macho64 {
 
             let perm = prot_to_permission(seg.initprot);
 
-            let mem = maps
-                .create_map(&seg.name, seg.vmaddr, seg.vmsize, perm)
-                .unwrap_or_else(|_| panic!("cannot create map for segment '{}' at 0x{:x}",
-                    seg.name, seg.vmaddr));
+            let mem = match maps.create_map(&seg.name, seg.vmaddr, seg.vmsize, perm) {
+                Ok(m) => m,
+                Err(_) => {
+                    log::warn!(
+                        "cannot create map for segment '{}' at 0x{:x}, skipping",
+                        seg.name, seg.vmaddr
+                    );
+                    continue;
+                }
+            };
 
             if !seg.data.is_empty() {
                 mem.force_write_bytes(seg.vmaddr, &seg.data);

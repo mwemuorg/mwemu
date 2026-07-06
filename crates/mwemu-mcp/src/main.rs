@@ -81,8 +81,8 @@ fn parse_args() -> Result<Options, String> {
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "-h" | "--help" => {
-                print_help();
-                std::process::exit(0);
+                // Signal a clean help-and-quit to main via an empty error.
+                return Err(String::new());
             }
             "--http" => {
                 opts.http = Some(args.next().ok_or("--http requires an address")?);
@@ -139,6 +139,11 @@ fn main() -> ExitCode {
     let opts = match parse_args() {
         Ok(o) => o,
         Err(e) => {
+            // Empty error = `--help` was requested: print help and exit cleanly.
+            if e.is_empty() {
+                print_help();
+                return ExitCode::SUCCESS;
+            }
             eprintln!("error: {e}\n");
             print_help();
             return ExitCode::FAILURE;

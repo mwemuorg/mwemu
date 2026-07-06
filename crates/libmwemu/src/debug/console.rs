@@ -269,7 +269,7 @@ impl Console {
             }
 
             match cmd.as_str() {
-                "q" => std::process::exit(1),
+                "q" => { emu.process_terminated = true; return; }
                 "h" => con.help(),
                 "r" => {
                     if emu.cfg.arch.is_aarch64() {
@@ -1148,7 +1148,8 @@ impl Console {
             } // match commands
 
             if emu.cfg.command.is_some() {
-                std::process::exit(1);
+                emu.process_terminated = true;
+                return;
             }
         } // end loop
     } // end commands function

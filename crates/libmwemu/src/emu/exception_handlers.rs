@@ -12,56 +12,56 @@ impl Emu {
     pub fn veh(&self) -> u64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { veh, .. } => *veh,
-            _ => panic!("veh() called on aarch64 emu"),
+            _ => unreachable!("veh() called on aarch64 emu"),
         }
     }
 
     pub fn set_veh(&mut self, value: u64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { veh, .. } => *veh = value,
-            _ => panic!("set_veh() called on aarch64 emu"),
+            _ => unreachable!("set_veh() called on aarch64 emu"),
         }
     }
 
     pub fn uef(&self) -> u64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { uef, .. } => *uef,
-            _ => panic!("uef() called on aarch64 emu"),
+            _ => unreachable!("uef() called on aarch64 emu"),
         }
     }
 
     pub fn set_uef(&mut self, value: u64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { uef, .. } => *uef = value,
-            _ => panic!("set_uef() called on aarch64 emu"),
+            _ => unreachable!("set_uef() called on aarch64 emu"),
         }
     }
 
     pub fn eh_ctx(&self) -> u64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { eh_ctx, .. } => *eh_ctx,
-            _ => panic!("eh_ctx() called on aarch64 emu"),
+            _ => unreachable!("eh_ctx() called on aarch64 emu"),
         }
     }
 
     pub fn set_eh_ctx(&mut self, value: u64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { eh_ctx, .. } => *eh_ctx = value,
-            _ => panic!("set_eh_ctx() called on aarch64 emu"),
+            _ => unreachable!("set_eh_ctx() called on aarch64 emu"),
         }
     }
 
     pub fn seh(&self) -> u64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { seh, .. } => *seh,
-            _ => panic!("seh() called on aarch64 emu"),
+            _ => unreachable!("seh() called on aarch64 emu"),
         }
     }
 
     pub fn set_seh(&mut self, value: u64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { seh, .. } => *seh = value,
-            _ => panic!("set_seh() called on aarch64 emu"),
+            _ => unreachable!("set_seh() called on aarch64 emu"),
         }
     }
 

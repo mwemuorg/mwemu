@@ -24,7 +24,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             32 => emu.flags_overwrite_mut().shr1p32(value0),
             16 => emu.flags_overwrite_mut().shr1p16(value0),
             8 => emu.flags_overwrite_mut().shr1p8(value0),
-            _ => panic!("weird size"),
+            _ => unreachable!("weird size"),
         };
 
         if !emu.set_operand_value(ins, 0, result) {
@@ -44,7 +44,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             32 => emu.flags_overwrite_mut().shr2p32(value0, value1),
             16 => emu.flags_overwrite_mut().shr2p16(value0, value1),
             8 => emu.flags_overwrite_mut().shr2p8(value0, value1),
-            _ => panic!("weird size"),
+            _ => unreachable!("weird size"),
         };
 
         //log::trace!("0x{:x} SHR 0x{:x} >> 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);

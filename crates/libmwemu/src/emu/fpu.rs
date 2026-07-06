@@ -12,14 +12,14 @@ impl Emu {
     pub fn fpu(&self) -> &FPU {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { fpu, .. } => fpu,
-            _ => panic!("fpu() called on aarch64 emu"),
+            _ => unreachable!("fpu() called on aarch64 emu"),
         }
     }
 
     pub fn fpu_mut(&mut self) -> &mut FPU {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { fpu, .. } => fpu,
-            _ => panic!("fpu_mut() called on aarch64 emu"),
+            _ => unreachable!("fpu_mut() called on aarch64 emu"),
         }
     }
 }

@@ -59,7 +59,7 @@ impl PE64 {
                     }
                     let off = PE64::vaddr_to_off(&sect, delay_load.name_ptr) as usize;
                     if off > raw.len() {
-                        panic!("the delay_load.name of pe64 is out of buffer");
+                        { log::warn!("pe64: delay_load.name out of buffer, skipping"); break; }
                     }
                     delay_load.name = read_c_string(raw, off);
                     delay_load_dir.push(delay_load);
@@ -78,7 +78,7 @@ impl PE64 {
                     }
                     let off = PE64::vaddr_to_off(&sect, iid.name_ptr) as usize;
                     if off > raw.len() {
-                        panic!("the name of pe64 iid is out of buffer");
+                        { log::warn!("pe64: iid name out of buffer, skipping"); break; }
                     }
                     iid.name = read_c_string(raw, off);
                     image_import_descriptor.push(iid);
@@ -172,7 +172,7 @@ impl PE64 {
 
     pub fn get_section_ptr<'a>(&self, raw: &'a [u8], id: usize) -> &'a [u8] {
         if id > self.sect_hdr.len() {
-            panic!("/!\\ warning: invalid section id {}", id);
+            { log::warn!("pe64: invalid section id {}", id); return &[]; }
         }
         let off = self.sect_hdr[id].pointer_to_raw_data as usize;
         let sz = self.sect_hdr[id].size_of_raw_data as usize;

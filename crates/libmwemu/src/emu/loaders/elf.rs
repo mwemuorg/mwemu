@@ -96,7 +96,7 @@ impl Emu {
         }
 
         if text_addr == 0 {
-            panic!(".text not found on this elf64");
+            { log::warn!(".text not found on this elf64"); return; }
         }
 
         // entry point logic:
@@ -126,10 +126,8 @@ impl Emu {
 
         // 4. Entry point points below .text, weird case.
         } else {
-            panic!(
-                "Entry points is pointing below .text 0x{:x}",
-                elf64.elf_hdr.e_entry
-            );
+            log::warn!("Entry points is pointing below .text 0x{:x}",
+                elf64.elf_hdr.e_entry);
         }
 
         // Write the Linux initial stack layout (argc, argv, envp, auxv)

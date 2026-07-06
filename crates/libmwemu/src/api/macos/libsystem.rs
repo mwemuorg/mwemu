@@ -14,7 +14,7 @@ fn arg(emu: &Emu, idx: usize) -> u64 {
             3 => emu.regs().rcx,
             4 => emu.regs().r8,
             5 => emu.regs().r9,
-            _ => panic!("arg index {} not supported for x86_64 SysV ABI", idx),
+            _ => unreachable!("arg index {} not supported for x86_64 SysV ABI", idx),
         }
     }
 }

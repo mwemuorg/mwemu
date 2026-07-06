@@ -96,7 +96,7 @@ impl ThreadContext {
                 fpu,
                 ..
             } => (regs, flags, eflags, fpu),
-            _ => panic!("x86() called on aarch64 thread"),
+            _ => unreachable!("x86() called on aarch64 thread"),
         }
     }
 
@@ -104,7 +104,7 @@ impl ThreadContext {
     pub fn regs_x86(&self) -> &Regs64 {
         match &self.arch {
             ArchThreadState::X86 { regs, .. } => regs,
-            _ => panic!("regs_x86 called on aarch64 thread"),
+            _ => unreachable!("regs_x86 called on aarch64 thread"),
         }
     }
 
@@ -112,7 +112,7 @@ impl ThreadContext {
     pub fn regs_x86_mut(&mut self) -> &mut Regs64 {
         match &mut self.arch {
             ArchThreadState::X86 { regs, .. } => regs,
-            _ => panic!("regs_x86_mut called on aarch64 thread"),
+            _ => unreachable!("regs_x86_mut called on aarch64 thread"),
         }
     }
 
@@ -120,7 +120,7 @@ impl ThreadContext {
     pub fn regs_aarch64(&self) -> &RegsAarch64 {
         match &self.arch {
             ArchThreadState::AArch64 { regs, .. } => regs,
-            _ => panic!("regs_aarch64 called on x86 thread"),
+            _ => unreachable!("regs_aarch64 called on x86 thread"),
         }
     }
 
@@ -128,7 +128,7 @@ impl ThreadContext {
     pub fn regs_aarch64_mut(&mut self) -> &mut RegsAarch64 {
         match &mut self.arch {
             ArchThreadState::AArch64 { regs, .. } => regs,
-            _ => panic!("regs_aarch64_mut called on x86 thread"),
+            _ => unreachable!("regs_aarch64_mut called on x86 thread"),
         }
     }
 }

@@ -1835,7 +1835,7 @@ impl Flags {
             32 => 0xffff_ffff,
             16 => 0xffff,
             8 => 0xff,
-            _ => panic!("Unsupported size for ROL: {}", sz),
+            _ => unreachable!("Unsupported size for ROL: {}", sz),
         };
 
         let count = (value1 & mask) as u32;

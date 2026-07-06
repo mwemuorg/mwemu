@@ -14,7 +14,7 @@ impl Emu {
         } else if self.cfg.arch.is_x64() {
             self.init_macos64();
         } else {
-            panic!("unsupported Mach-O architecture: {:?}", self.cfg.arch);
+            unimplemented!("unsupported Mach-O architecture: {:?}", self.cfg.arch);
         }
         self.set_pc(macho.entry);
 
@@ -96,11 +96,13 @@ impl Emu {
             let seg_addr = base + seg.vmaddr; // Rebase: dylib vmaddr is relative to 0
             let map_name = format!("{}.{}", base_name, seg.name);
 
-            let mem = self
-                .maps
-                .create_map(&map_name, seg_addr, seg.vmsize, perm)
-                .unwrap_or_else(|_| panic!("cannot create map for dylib segment '{}'",
-                    map_name));
+            let mem = match self.maps.create_map(&map_name, seg_addr, seg.vmsize, perm) {
+                Ok(m) => m,
+                Err(_) => {
+                    log::warn!("cannot create map for dylib segment '{}', skipping", map_name);
+                    continue;
+                }
+            };
 
             if !seg.data.is_empty() {
                 mem.force_write_bytes(seg_addr, &seg.data);

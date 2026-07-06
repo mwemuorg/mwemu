@@ -30,7 +30,7 @@ pub fn read_reg(emu: &Emu, op: &Operand) -> u64 {
             let val = regs.get_x_or_sp(*n as usize);
             if is_64(sz) { val } else { val & 0xffffffff }
         }
-        _ => panic!("expected register operand, got {:?}", op),
+        _ => unreachable!("expected register operand, got {:?}", op),
     }
 }
 
@@ -44,7 +44,7 @@ pub fn write_reg(emu: &mut Emu, op: &Operand, val: u64) {
             let val = if is_64(sz) { val } else { val & 0xffffffff };
             emu.regs_aarch64_mut().set_x_or_sp(*n as usize, val);
         }
-        _ => panic!("expected register operand, got {:?}", op),
+        _ => unreachable!("expected register operand, got {:?}", op),
     }
 }
 
@@ -53,7 +53,7 @@ pub fn read_imm(op: &Operand) -> u64 {
         Operand::Immediate(v) => *v as u64,
         Operand::Imm64(v) => *v,
         Operand::Imm16(v) => *v as u64,
-        _ => panic!("expected immediate operand, got {:?}", op),
+        _ => unreachable!("expected immediate operand, got {:?}", op),
     }
 }
 
@@ -68,7 +68,7 @@ pub fn read_operand_value(emu: &Emu, op: &Operand) -> u64 {
             let val = emu.regs_aarch64().get_x(*reg as usize);
             apply_shift(val, *style, *amt as u32)
         }
-        _ => panic!("unsupported operand for read_operand_value: {:?}", op),
+        _ => unreachable!("unsupported operand for read_operand_value: {:?}", op),
     }
 }
 
@@ -121,7 +121,7 @@ pub fn resolve_mem_addr(emu: &Emu, op: &Operand) -> (u64, Option<(usize, u64)>) 
             let addr = regs.pc.wrapping_add(*offset as u64);
             (addr, None)
         }
-        _ => panic!("unsupported memory operand: {:?}", op),
+        _ => unreachable!("unsupported memory operand: {:?}", op),
     }
 }
 

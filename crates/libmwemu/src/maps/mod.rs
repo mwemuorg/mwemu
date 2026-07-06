@@ -629,7 +629,7 @@ impl Maps {
         let id = self
             .name_map
             .get(name)
-            .unwrap_or_else(|| panic!("map name {} not found", name));
+            .unwrap_or_else(|| unreachable!("map name {} not found", name));
         let mem = self.mem_slab.get_mut(*id).unwrap();
         mem.clear();
         self.maps.remove(&mem.get_base());
@@ -738,7 +738,7 @@ impl Maps {
             if prev > base {
                 // we shouldn't care about this we just skip this memory region
                 continue;
-                // panic!("alloc error prev:0x{:x} > base:0x{:x}", prev, base);
+                // aborted:("alloc error prev:0x{:x} > base:0x{:x}", prev, base);
             }
             if debug {
                 log::trace!("space: 0x{:x}", base - prev);

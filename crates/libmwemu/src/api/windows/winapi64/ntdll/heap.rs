@@ -27,7 +27,7 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
     }
     let alloc_addr = match emu.maps.alloc(size) {
         Some(a) => a,
-        None => panic!("/!\\ out of memory cannot allocate ntdll!RtlAllocateHeap"),
+        None => { log::warn!("/!\\ out of memory cannot allocate ntdll!RtlAllocateHeap"); return; },
     };
 
     let map_name = format!("valloc_{:x}", alloc_addr);

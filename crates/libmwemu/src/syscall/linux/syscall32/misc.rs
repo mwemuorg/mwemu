@@ -757,7 +757,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                     trace_socketcall32(emu, "sendmmsg");
                 }
 
-                _ => panic!("invalid socket call {} ", emu.regs().rbx),
+                _ => unreachable!("invalid socket call {} ", emu.regs().rbx),
             }
         }
 

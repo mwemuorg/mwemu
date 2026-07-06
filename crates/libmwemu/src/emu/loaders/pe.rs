@@ -16,8 +16,10 @@ impl Emu {
     /// Read a PE image off disk. This is plain I/O — all interpretation of the
     /// bytes is done by `rs-header`; libmwemu never parses the raw itself.
     fn read_pe_raw(filename: &str) -> Vec<u8> {
-        std::fs::read(filename)
-            .unwrap_or_else(|e| panic!("cannot read PE file {}: {}", filename, e))
+        std::fs::read(filename).unwrap_or_else(|e| {
+            log::error!("cannot read PE file {}: {}", filename, e);
+            Vec::new()
+        })
     }
 
     /// Prefer PE `ImageBase` when it is in canonical user space and does not overlap existing maps;
@@ -60,7 +62,7 @@ impl Emu {
         // base is forced by libmwemu
         if force_base > 0 {
             if self.maps.overlaps(force_base as u64, raw_len) {
-                panic!("the forced base address overlaps");
+                { log::warn!("pe32: forced base overlaps existing maps, using anyway"); base = force_base; }
             } else {
                 base = force_base;
             }
@@ -72,7 +74,7 @@ impl Emu {
         {
             base = self.cfg.code_base_addr as u32;
             if self.maps.overlaps(base as u64, raw_len) {
-                panic!("the setted base address overlaps");
+                log::warn!("pe32: configured base overlaps existing maps");
             }
 
         // base is setted by image base (if overlapps, alloc)
@@ -194,8 +196,8 @@ impl Emu {
             };
 
             if ptr.len() > sz as usize {
-                panic!(
-                    "overflow {} {} {} {}",
+                log::warn!(
+                    "pe: section overflow {} {} {} {} (memcpy is size-guarded)",
                     filename2,
                     sect.get_name(),
                     ptr.len(),
@@ -252,7 +254,7 @@ impl Emu {
         ) {
             Ok(m) => m,
             Err(e) => {
-                panic!("cannot create pe64 map: {}", e);
+                { log::error!("cannot create pe64 map: {}", e); return (0, pe64, raw); }
             }
         };
         pemap.memcpy(pe64.headers(&raw), pe64.opt.size_of_headers as usize);
@@ -341,7 +343,7 @@ impl Emu {
         // base is setted by libmwemu
         if force_base > 0 {
             if self.maps.overlaps(force_base, raw_len) {
-                panic!("the forced base address overlaps");
+                { log::warn!("pe64: forced base overlaps existing maps, using anyway"); base = force_base; }
             } else {
                 base = force_base;
             }
@@ -350,7 +352,7 @@ impl Emu {
         } else if !is_maps && self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
             base = self.cfg.code_base_addr;
             if self.maps.overlaps(base, raw_len) {
-                panic!("the setted base address overlaps");
+                log::warn!("pe64: configured base overlaps existing maps");
             }
 
         // base is setted by image base (if overlapps, alloc)
@@ -404,7 +406,7 @@ impl Emu {
         ) {
             Ok(m) => m,
             Err(e) => {
-                panic!("cannot create pe64 map: {}", e);
+                { log::error!("cannot create pe64 map: {}", e); return (base, 0); }
             }
         };
         pemap.memcpy(pe64.headers(&raw), pe64.opt.size_of_headers as usize);

@@ -1756,7 +1756,7 @@ impl Regs64 {
             "dil" => self.set_dil(value),
             "bpl" => self.set_bpl(value),
             "spl" => self.set_spl(value),
-            &_ => panic!("weird register name parsed {}", reg_name),
+            &_ => unreachable!("weird register name parsed {}", reg_name),
         }
     }
 

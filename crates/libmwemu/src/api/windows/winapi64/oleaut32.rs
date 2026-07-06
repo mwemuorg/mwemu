@@ -1,3 +1,8 @@
+// This module is unwrap/expect-free: fallible ops on guest data must degrade
+// gracefully (log + return / default), never panic. `unimplemented!`/`todo!`
+// stay — they're deliberate coverage markers.
+#![deny(clippy::unwrap_used, clippy::expect_used)]
+
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::serialization;
@@ -16,11 +21,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
         _ => {
             if !emu.cfg.skip_unimplemented {
-                if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                    serialization::Serialization::dump(
-                        emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
-                    );
+                if emu.cfg.dump_on_exit {
+                    if let Some(dump_file) = emu.cfg.dump_filename.as_ref() {
+                        serialization::Serialization::dump(emu, dump_file);
+                    }
                 }
 
                 unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
@@ -58,10 +62,19 @@ fn SysAllocStringLen(emu: &mut emu::Emu) {
     // optimizations
 
     // Allocate memory (no extra padding needed)
-    let bstr = emu
-        .maps
-        .alloc(total_alloc_size)
-        .expect("oleaut32!SysAllocStringLen out of memory");
+    let bstr = match emu.maps.alloc(total_alloc_size) {
+        Some(a) => a,
+        None => {
+            // A hostile length can request an absurd allocation; degrade to a
+            // null BSTR instead of aborting the whole run.
+            log::warn!(
+                "oleaut32!SysAllocStringLen: out of memory for {} bytes",
+                total_alloc_size
+            );
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
     let name = format!("bstr_alloc_{:x}", bstr);
     emu.maps
@@ -76,10 +89,21 @@ fn SysAllocStringLen(emu: &mut emu::Emu) {
             emu.maps.write_word(bstr + 4 + (i * 2), 0);
         }
     } else {
-        // Copy exactly char_count characters from input
+        // Copy exactly char_count characters from input. A hostile/short source
+        // pointer can leave a char unmapped: truncate there (like a real fault)
+        // instead of panicking and killing the whole analysis.
         for i in 0..char_count {
             let char_addr = str_ptr + (i * 2);
-            let wide_char = emu.maps.read_word(char_addr).unwrap();
+            let wide_char = match emu.maps.read_word(char_addr) {
+                Some(w) => w,
+                None => {
+                    log::warn!(
+                        "oleaut32!SysAllocStringLen: unreadable source at 0x{:x}, truncating",
+                        char_addr
+                    );
+                    break;
+                }
+            };
             emu.maps.write_word(bstr + 4 + (i * 2), wide_char);
         }
     }
@@ -135,8 +159,10 @@ fn SysFreeString(emu: &mut emu::Emu) {
             emu.maps.write_byte(alloc_base + i, 0);
         }
     } else {
-        panic!(
-            "** {} SysFreeString: Could not read length prefix at 0x{:x}",
+        // Guest handed us a BSTR pointer whose length prefix we can't read — a
+        // garbage/hostile handle. Warn and no-op instead of crashing.
+        log::warn!(
+            "{} oleaut32!SysFreeString: unreadable length prefix at 0x{:x}, ignoring",
             emu.pos, alloc_base,
         );
     }
@@ -210,10 +236,17 @@ fn SysReAllocStringLen(emu: &mut emu::Emu) {
     let total_alloc_size = 4 + byte_len + 2; // 4-byte prefix + string + null terminator
 
     // Always allocate new memory (simpler than trying to realloc)
-    let new_base = emu
-        .maps
-        .alloc(total_alloc_size + 100)
-        .expect("oleaut32!SysReAllocStringLen out of memory");
+    let new_base = match emu.maps.alloc(total_alloc_size + 100) {
+        Some(a) => a,
+        None => {
+            log::warn!(
+                "oleaut32!SysReAllocStringLen: out of memory for {} bytes",
+                total_alloc_size + 100
+            );
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
     let name = format!("bstr_{:x}", new_base);
     emu.maps.create_map(

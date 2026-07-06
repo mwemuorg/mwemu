@@ -552,7 +552,7 @@ impl SerializableEmu {
                 regs: current_regs, ..
             } => *current_regs = regs,
             SerializableCurrentThreadState::AArch64 { .. } => {
-                panic!("set_regs called on aarch64 serialized thread state")
+                unreachable!("set_regs called on aarch64 serialized thread state")
             }
         }
     }
@@ -570,7 +570,7 @@ impl SerializableEmu {
                 *post_op_flags = flags;
             }
             SerializableCurrentThreadState::AArch64 { .. } => {
-                panic!("set_flags called on aarch64 serialized thread state")
+                unreachable!("set_flags called on aarch64 serialized thread state")
             }
         }
     }
@@ -599,7 +599,7 @@ impl SerializableEmu {
                 *post_op_regs = regs;
             }
             SerializableCurrentThreadState::X86 { .. } => {
-                panic!("set_regs_aarch64 called on x86 serialized thread state")
+                unreachable!("set_regs_aarch64 called on x86 serialized thread state")
             }
         }
     }

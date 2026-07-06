@@ -170,7 +170,7 @@ impl Flink {
     pub fn get_mod_base(&mut self, emu: &mut emu::Emu) {
         self.mod_base = self.ldr_entry.dll_base as u64;
         if self.mod_base == 0 {
-            panic!("modbase is zero");
+            { log::warn!("modbase is zero"); return; }
         }
         /*
         self.mod_base = emu
@@ -496,7 +496,7 @@ pub fn create_ldr_entry(
             .alloc(sz)
             .expect("out of memory, cannot create the .ldr entry");
         if addr > u32::MAX as u64 {
-            panic!("allocating .ldr  > u32::MAX");
+            { log::warn!("allocating .ldr  > u32::MAX"); return 0; }
         }
         base_addr = addr as u32;
     }

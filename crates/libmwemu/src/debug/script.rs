@@ -54,14 +54,14 @@ impl Script {
             let a = match self.to_hex(arg) {
                 Some(v) => v,
                 None => {
-                    panic!("error in line {}, bad hexa", i);
+                    { log::warn!("error in line {}, bad hexa", i); return 0; }
                 }
             };
             return a;
         }
         if emu.cfg.arch.is_aarch64() {
             emu.regs_aarch64().get_by_name(arg).unwrap_or_else(|| {
-                panic!("error in line {}, unknown aarch64 register: {}", i, arg);
+                { log::warn!("error in line {}, unknown aarch64 register: {}", i, arg); 0 }
             })
         } else {
             emu.regs().get_by_name(arg)
@@ -144,7 +144,7 @@ impl Script {
 
                     log::trace!("{}", msg);
                 }
-                "q" => std::process::exit(1),
+                "q" => { emu.process_terminated = true; return; }
                 "r" => {
                     if args.len() == 1 {
                         if emu.cfg.arch.is_aarch64() {
@@ -1063,7 +1063,7 @@ impl Script {
                 "call" => {
                     // call <addr> <args>
                     if args.len() < 2 {
-                        panic!("error in line {}, call with no address", i);
+                        { log::warn!("error in line {}, call with no address", i); return; }
                     }
 
                     let addr = self.resolve(args[1], i, emu);
@@ -1095,7 +1095,7 @@ impl Script {
                 "set" => {
                     //set <hexnum>
                     if args.len() < 2 {
-                        panic!("error in line {}, call with no value", i);
+                        { log::warn!("error in line {}, call with no value", i); return; }
                     }
 
                     let value = self.resolve(args[1], i, emu);
@@ -1119,7 +1119,7 @@ impl Script {
                     self.trace = true;
                 }
 
-                _ => panic!("error in line {}, unknown command", i),
+                _ => unreachable!("error in line {}, unknown command", i),
             }
         }
     }
