@@ -1,13 +1,9 @@
 .PHONY: all tests clippy clippy-release smoke maps sloppy samples
 
-# Detect Apple Silicon and set cross-compile target
-UNAME_S := $(shell uname -s)
-UNAME_M := $(shell uname -m)
-ifeq ($(UNAME_S)$(UNAME_M),Darwinarm64)
-  CARGO_TARGET := --target x86_64-apple-darwin
-else
-  CARGO_TARGET :=
-endif
+# Build natively for the host — no cross-compile. The emulator is pure Rust and
+# host-arch agnostic (it emulates x86/x64/arm64 in software), so a Mac builds for
+# the Mac, Linux for Linux and Windows for Windows.
+CARGO_TARGET :=
 
 all:
 	cargo build --release $(CARGO_TARGET)

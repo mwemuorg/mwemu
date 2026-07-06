@@ -31,10 +31,6 @@ jobs:
         with:
           components: clippy
 
-      - name: Add x86_64 target (macOS ARM)
-        if: runner.os == 'macOS'
-        run: rustup target add x86_64-apple-darwin
-
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
