@@ -8,7 +8,7 @@ pub fn peb_teb_ldr_structures_test() {
 
     let mut emu = emu32();
     emu.cfg.maps_folder = helpers::win32_maps_folder();
-    emu.load_code(&helpers::test_data_path("exe32win_minecraft.bin"));
+    emu.load_code(&sample!("exe32win_minecraft.bin"));
 
     let peb = emu.maps.get_mem("peb");
     let peb_addr = peb.get_base();
@@ -125,7 +125,7 @@ pub fn peb_teb_ldr_structures_test() {
 
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
-    emu.load_code(&helpers::test_data_path("exe64win_msgbox.bin"));
+    emu.load_code(&sample!("exe64win_msgbox.bin"));
 
     let ntdll_addr = emu.maps.get_mem("ntdll.pe").get_base();
 

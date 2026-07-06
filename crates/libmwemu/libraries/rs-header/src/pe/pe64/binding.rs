@@ -97,7 +97,7 @@ impl PE64 {
     /// Bind the import address table: resolve each import and patch its slot in
     /// guest memory via `loader`.
     pub fn iat_binding<L: PeLoader>(&mut self, raw: &[u8], loader: &mut L, base_addr: u64) {
-        log::debug!(
+        log::trace!(
             "IAT binding started, {} import descriptors",
             self.image_import_descriptor.len()
         );
@@ -190,13 +190,18 @@ impl PE64 {
                 self.iat_names
                     .insert(func_name_addr_or_ordinal, format!("{}!{}", import_dll, api_name));
                 unresolved += 1;
-                log::trace!("unresolved import {}!{} (IAT rva 0x{:x})", import_dll, api_name, rva);
+                // api-set contracts (api-ms-win-*, ext-ms-*) are name-forwarders
+                // resolved by the gateway, not the IAT — expected "unresolved", so
+                // don't log them (they'd flood the output).
+                if !is_api_set_contract(import_dll) {
+                    log::trace!("unresolved import {}!{} (IAT rva 0x{:x})", import_dll, api_name, rva);
+                }
             }
 
             rva += 8;
         }
 
-        if unresolved > 0 {
+        if unresolved > 0 && !is_api_set_contract(import_dll) {
             log::debug!("{} unresolved imports from {}", unresolved, import_dll);
         }
     }
@@ -264,7 +269,9 @@ impl PE64 {
                 self.iat_names
                     .insert(thunk_data, format!("{}!{}", import_dll, func_name));
                 unresolved += 1;
-                log::trace!("unresolved import {}!{} (IAT rva 0x{:x})", import_dll, func_name, rva);
+                if !is_api_set_contract(import_dll) {
+                    log::trace!("unresolved import {}!{} (IAT rva 0x{:x})", import_dll, func_name, rva);
+                }
             }
 
             off_name += 8;
@@ -272,7 +279,7 @@ impl PE64 {
             rva += 8;
         }
 
-        if unresolved > 0 {
+        if unresolved > 0 && !is_api_set_contract(import_dll) {
             log::debug!("{} unresolved imports from {}", unresolved, import_dll);
         }
     }

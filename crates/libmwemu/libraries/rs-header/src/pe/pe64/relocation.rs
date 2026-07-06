@@ -49,7 +49,7 @@ impl PE64 {
         }
 
         let end_off = off + reloc_sz as usize;
-        log::debug!("applying base relocations (delta 0x{:x})...", delta);
+        log::trace!("applying base relocations (delta 0x{:x})...", delta);
 
         while off < end_off && off + 8 <= raw.len() {
             let page_va = read_u32_le!(raw, off);
@@ -90,6 +90,6 @@ impl PE64 {
             off += block_sz as usize;
         }
 
-        log::debug!("base relocations applied.");
+        log::trace!("base relocations applied.");
     }
 }

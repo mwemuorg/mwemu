@@ -15,7 +15,7 @@ pub fn should_serialize() {
             emu.cfg.maps_folder = helpers::win64_maps_folder();
 
             // load binary
-            emu.load_code(&helpers::test_data_path("exe64win_msgbox.bin"));
+            emu.load_code(&sample!("exe64win_msgbox.bin"));
 
             // set registers
             emu.regs_mut().rdx = 0x1;

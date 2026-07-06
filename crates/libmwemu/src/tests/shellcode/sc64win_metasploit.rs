@@ -9,7 +9,7 @@ pub fn sc64win_metasploit() {
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
 
-    let sample = helpers::test_data_path("sc64win_metasploit.bin");
+    let sample = sample!("sc64win_metasploit.bin");
     emu.load_code(&sample);
     //emu.set_verbose(3);
     emu.run(Some(0x3c00c8));

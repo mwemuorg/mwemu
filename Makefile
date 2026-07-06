@@ -5,17 +5,26 @@
 # the Mac, Linux for Linux and Windows for Windows.
 CARGO_TARGET :=
 
-# Test samples live where libmwemu's tests look for them: CARGO_MANIFEST_DIR/test
-# = crates/libmwemu/test/ (see tests/helpers.rs::test_data_path). The bundle is
-# non-redistributable, so it's gitignored and fetched on demand.
-TEST_DIR := crates/libmwemu/test
+# Test samples + Windows DLLs live at the repo root (test/ and maps/), the single
+# canonical location shared by the CLI and the tests (tests/helpers.rs resolves
+# them relative to the workspace root). The bundle is non-redistributable, so
+# it's gitignored and fetched on demand.
+TEST_DIR := test
 
 all:
 	cargo build --release $(CARGO_TARGET)
 
-# Full workspace test suite. Depends on `samples` because many loader/shellcode
-# tests emulate real binaries from the sample bundle (in $(TEST_DIR)/).
+# Full local run: fetch the sample bundle, then run EVERYTHING (loader/shellcode
+# tests emulate real binaries from $(TEST_DIR)/).
 tests: samples
+	cargo build $(CARGO_TARGET)
+	cargo test --verbose $(CARGO_TARGET)
+
+# CI run: no bundle, no network. Binary-dependent tests skip themselves via the
+# `sample!` macro when their sample isn't present, so CI runs the self-contained
+# suite green. (The committed maps support files — banzai.csv, loader.exe — are
+# enough for the tests that only need a maps folder.)
+test-ci:
 	cargo build $(CARGO_TARGET)
 	cargo test --verbose $(CARGO_TARGET)
 
@@ -38,7 +47,7 @@ $(TEST_DIR)/exe64win_msgbox.bin:
 	else \
 		curl -fsSL -o test.zip https://github.com/mwemuorg/mwemu/releases/download/maps/test.zip; \
 	fi
-	@unzip -o -P mwemuTestSystem test.zip -d crates/libmwemu; rm -f test.zip
+	@unzip -o -P mwemuTestSystem test.zip; rm -f test.zip
 
 samples: $(TEST_DIR)/exe64win_msgbox.bin
 
@@ -69,6 +78,6 @@ test_syscall: samples
 test_linux:
 	cargo run --release -- -f /bin/ls -A '"-l"' -6
 test_windows: samples
-	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11 -v
+	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11  -v
 test_inception:
 	cargo run --release -- -f target/release/mwemu -6 -v

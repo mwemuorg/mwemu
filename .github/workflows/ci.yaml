@@ -36,11 +36,13 @@ jobs:
         with:
           shared-key: ${{ runner.os }}
 
+      # cargo directly (not `make`) so the same steps run on Windows too, whose
+      # runners have no GNU make. These mirror the `clippy-release` / `test-ci`
+      # Makefile targets for local use.
       - name: Clippy
-        run: make clippy-release
+        run: cargo clippy --release --lib --bins
 
-      # `make tests` runs the workspace library suite (libmwemu, rs-header,
-      # cmwemu, and the mwemu CLI). It needs no external sample bundle — the
-      # tests embed their fixtures via include_bytes!.
+      # Self-contained suite only: no sample bundle, no network. Binary-dependent
+      # tests skip themselves (the `sample!` macro) when their sample is absent.
       - name: Test
-        run: make tests
+        run: cargo test --verbose

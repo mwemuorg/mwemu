@@ -8,5 +8,5 @@ pub fn exception_handler32() {
 
     let mut emu = emu32();
     emu.cfg.maps_folder = helpers::win32_maps_folder();
-    emu.load_code(&helpers::test_data_path("exe32win_exception_handler.bin"));
+    emu.load_code(&sample!("exe32win_exception_handler.bin"));
 }

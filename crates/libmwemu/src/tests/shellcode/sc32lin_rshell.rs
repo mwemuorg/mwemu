@@ -8,7 +8,7 @@ pub fn sc32lin_rshell() {
     let mut emu = emu32();
     emu.cfg.maps_folder = helpers::win32_maps_folder();
 
-    let sample = helpers::test_data_path("sc32lin_rshell.bin");
+    let sample = sample!("sc32lin_rshell.bin");
     emu.load_code(&sample);
     emu.run_to(31);
     let sockaddr = emu.maps.read_bytes(emu.regs().get_ecx(), 9);

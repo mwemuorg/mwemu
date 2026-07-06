@@ -62,7 +62,7 @@ impl PE32 {
 
     /// Bind the import address table into guest memory via `loader`.
     pub fn iat_binding<L: PeLoader>(&mut self, raw: &[u8], loader: &mut L, base_addr: u32) {
-        log::debug!(
+        log::trace!(
             "IAT binding started, {} import descriptors",
             self.image_import_descriptor.len()
         );
@@ -135,10 +135,19 @@ impl PE32 {
                     // hook now that the file bytes are not kept around).
                     self.iat_names
                         .insert(thunk, format!("{}!{}", iim_name, func_name));
-                    log::trace!(
-                        "unresolved import {}!{} (IAT rva 0x{:x}); named by slot 0x{:x}",
-                        iim_name, func_name, rva, thunk
-                    );
+                    // api-set contracts (api-ms-win-*, ext-ms-*) are name-forwarders
+                    // resolved by the gateway, not the IAT — expected "unresolved",
+                    // so don't log them (they'd flood the output).
+                    let is_apiset = {
+                        let m = iim_name.trim().to_ascii_lowercase();
+                        m.starts_with("api-ms-win-") || m.starts_with("ext-ms-")
+                    };
+                    if !is_apiset {
+                        log::trace!(
+                            "unresolved import {}!{} (IAT rva 0x{:x}); named by slot 0x{:x}",
+                            iim_name, func_name, rva, thunk
+                        );
+                    }
                 }
 
                 off_name += HintNameItem::size();

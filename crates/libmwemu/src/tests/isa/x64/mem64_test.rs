@@ -52,7 +52,7 @@ pub fn mem64_test() {
     let mut mem2 = Mem64::default();
     mem2.set_base(0x400000);
     mem2.set_size(16);
-    mem2.load(&helpers::test_data_path("sc32win_donut.bin"));
+    mem2.load(&sample!("sc32win_donut.bin"));
     let md5 = format!("{:x}", mem2.md5());
     assert!(md5 == "66d6376c2dd0b8d4d35461844e5b0e6c" || md5 == "4ae71336e44bf9bf79d2752e234818a5");
     // its weird but in windows CI the md5 changes to 4ae... prolly defender patches it

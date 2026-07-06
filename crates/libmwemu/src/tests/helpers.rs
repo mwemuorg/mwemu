@@ -12,19 +12,22 @@ pub fn setup() {
     });
 }
 
+/// Workspace root. `CARGO_MANIFEST_DIR` is `.../crates/libmwemu`, so go up two
+/// levels: the canonical `test/` and `maps/` data live at the repo root (shared
+/// with the CLI), not duplicated per crate.
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
+}
+
 /// `rel` is a filename inside the repo top-level `test/` directory (e.g. `exe64win_msgbox.bin`).
-/// Resolves via `CARGO_MANIFEST_DIR` so tests work even when the current working directory is not `crates/libmwemu`.
+/// Resolves relative to the workspace root so tests work regardless of the CWD.
 pub fn test_data_path(rel: &str) -> String {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("test")
-        .join(rel)
-        .to_string_lossy()
-        .into_owned()
+    repo_root().join("test").join(rel).to_string_lossy().into_owned()
 }
 
 /// Maps folder for 32-bit Windows samples (`maps/windows/x86/`).
 pub fn win32_maps_folder() -> String {
-    let mut s = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let mut s = repo_root()
         .join("maps/windows/x86")
         .to_string_lossy()
         .into_owned();
@@ -63,7 +66,7 @@ pub fn set_winver_maps(emu: &mut crate::emu::Emu, version: &str) -> bool {
 
 /// Maps folder for 64-bit Windows samples (`maps/windows/x86_64/`).
 pub fn win64_maps_folder() -> String {
-    let mut s = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let mut s = repo_root()
         .join("maps/windows/x86_64")
         .to_string_lossy()
         .into_owned();

@@ -46,7 +46,7 @@ fn sc32win_donut_emulation_throughput_regression_guard() {
     let mut emu = emu32();
     emu.cfg.maps_folder = helpers::win32_maps_folder();
 
-    let sample = helpers::test_data_path("sc32win_donut.bin");
+    let sample = sample!("sc32win_donut.bin");
     emu.load_code(&sample);
 
     // `-vv` → verbose level 2 (assembly tracing; same cost profile as CLI)
@@ -102,7 +102,7 @@ fn benchmark32win_donut() {
     emu.cfg.console_enabled = false;
     emu.disable_ctrlc();
 
-    let sample = helpers::test_data_path("sc32win_donut.bin");
+    let sample = sample!("sc32win_donut.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing {}",
@@ -157,7 +157,7 @@ fn benchmark64with_enigma() {
     emu.cfg.console_enabled = false;
     emu.disable_ctrlc();
 
-    let sample = helpers::test_data_path("exe64win_enigma.bin");
+    let sample = sample!("exe64win_enigma.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing {}",

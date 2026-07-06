@@ -11,7 +11,7 @@ pub fn exe64win_msgbox() {
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
 
-    let sample = helpers::test_data_path("exe64win_msgbox.bin");
+    let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);
     emu.run(Some(0x14000123f));
 

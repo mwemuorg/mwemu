@@ -30,7 +30,7 @@ pub fn sc64win_winver() {
 
     // End-to-end: the same metasploit shellcode the static-maps test uses must
     // load and run to the same point under winver maps.
-    let sample = helpers::test_data_path("sc64win_metasploit.bin");
+    let sample = sample!("sc64win_metasploit.bin");
     emu.load_code(&sample);
     emu.run(Some(0x3c00c8));
     emu.step();

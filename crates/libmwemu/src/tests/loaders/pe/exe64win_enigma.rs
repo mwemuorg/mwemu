@@ -10,7 +10,7 @@ pub fn exe64win_enigma() {
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
 
-    let sample = helpers::test_data_path("exe64win_enigma.bin");
+    let sample = sample!("exe64win_enigma.bin");
     emu.load_code(&sample);
     emu.run_to(5_000_000 + 5);
     assert!(emu.pos >= 5_000_000);

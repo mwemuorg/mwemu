@@ -21,7 +21,7 @@ fn exe64win_msgbox_ssdt_reaches_cli_trace_window() {
     emu.cfg.maps_folder = helpers::win64_maps_folder();
     emu.cfg.emulate_winapi = true; // same behavior as command line --ssdt
 
-    let sample = helpers::test_data_path("exe64win_msgbox.bin");
+    let sample = sample!("exe64win_msgbox.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing test sample (run from mwemu repo): {}",
@@ -63,7 +63,7 @@ fn exe64win_msgbox_ssdt_hits_first_windows_syscall() {
     }
     emu.cfg.emulate_winapi = true;
 
-    let sample = helpers::test_data_path("exe64win_msgbox.bin");
+    let sample = sample!("exe64win_msgbox.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing {}",
@@ -125,7 +125,7 @@ fn exe64win_enigma_ssdt_reaches_unpacker() {
     emu.cfg.maps_folder = helpers::win64_maps_folder();
     emu.cfg.emulate_winapi = true; // same behavior as command line --ssdt
 
-    let sample = helpers::test_data_path("exe64win_enigma.bin");
+    let sample = sample!("exe64win_enigma.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing test sample: {}",
@@ -184,7 +184,7 @@ fn exe64win_enigma_ssdt_runs_deep() {
     }
     emu.cfg.emulate_winapi = true; // --ssdt / --syscall-mode
 
-    let sample = helpers::test_data_path("exe64win_enigma.bin");
+    let sample = sample!("exe64win_enigma.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing test sample: {}",
@@ -214,7 +214,7 @@ fn exe64win_mingw_ssdt_reaches_early_execution_window() {
     emu.cfg.maps_folder = helpers::win64_maps_folder();
     emu.cfg.emulate_winapi = true; // same behavior as command line --ssdt
 
-    let sample = helpers::test_data_path("exe64win_mingw.bin");
+    let sample = sample!("exe64win_mingw.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing {}",
@@ -256,7 +256,7 @@ fn ssdt_ldr_initialize_thunk() {
     emu.cfg.skip_unimplemented = true; // --banzai: skip unimplemented, keep going
     emu.maps.set_banzai(true);
 
-    let sample = helpers::test_data_path("exe64win_msgbox.bin");
+    let sample = sample!("exe64win_msgbox.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing test sample: {}",
@@ -315,7 +315,7 @@ fn ssdt_msgbox_reaches_messageboxa() {
     }
     emu.cfg.emulate_winapi = true; // --ssdt
 
-    let sample = helpers::test_data_path("exe64win_msgbox.bin");
+    let sample = sample!("exe64win_msgbox.bin");
     assert!(
         std::path::Path::new(&sample).is_file(),
         "missing test sample: {}",

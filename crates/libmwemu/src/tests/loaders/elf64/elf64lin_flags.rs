@@ -9,7 +9,7 @@ pub fn elf64lin_flags() {
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
 
-    let sample = helpers::test_data_path("elf64lin_flags.bin");
+    let sample = sample!("elf64lin_flags.bin");
     emu.load_code(&sample);
 
     // test instruction add

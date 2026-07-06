@@ -8,7 +8,7 @@ pub fn elf64lin_static_helloworld() {
 
     let mut emu = emu64();
 
-    let sample = helpers::test_data_path("elf64lin_static_helloworld.bin");
+    let sample = sample!("elf64lin_static_helloworld.bin");
     emu.load_code(&sample);
     emu.run(Some(0x44ab87));
 

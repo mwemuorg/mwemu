@@ -7,7 +7,7 @@ fn pe64_loader_sets_entrypoint_and_maps_main_image() {
 
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
-    emu.load_code(&helpers::test_data_path("exe64win_msgbox.bin"));
+    emu.load_code(&sample!("exe64win_msgbox.bin"));
 
     assert!(emu.pe64.is_some(), "PE64 metadata should be loaded");
     assert!(
@@ -34,7 +34,7 @@ fn pe64_loader_adds_core_ldr_modules() {
 
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
-    emu.load_code(&helpers::test_data_path("exe64win_msgbox.bin"));
+    emu.load_code(&sample!("exe64win_msgbox.bin"));
 
     assert!(emu.maps.get_map_by_name("ntdll.pe").is_some());
     assert!(emu.maps.get_map_by_name("kernel32.pe").is_some());
@@ -47,7 +47,7 @@ fn pe64_loader_normalizes_api_set_dependencies() {
 
     let mut emu = emu64();
     emu.cfg.maps_folder = helpers::win64_maps_folder();
-    emu.load_code(&helpers::test_data_path("exe64win_mingw.bin"));
+    emu.load_code(&sample!("exe64win_mingw.bin"));
 
     let pe = emu.pe64.take().expect("PE64 metadata should be present");
     let deps = pe.get_dependencies();
