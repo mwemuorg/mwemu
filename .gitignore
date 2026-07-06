@@ -19,7 +19,9 @@ maps/winver/
 # the stray top-level maps64/ extraction dir.
 **/maps/iso/
 **/maps/winver/
-crates/**/maps/
+# Only the runtime DLL cache at a crate's ROOT (crates/<crate>/maps/), NOT the
+# src/maps/ source module — a single `*` doesn't cross `/`, so src/maps/ is safe.
+crates/*/maps/
 /maps64/
 win32_2022/
 shellcodes32/
@@ -35,6 +37,8 @@ x
 *.swp
 *.idb
 *.bin
+# ...but test fixtures are source (embedded via include_bytes!), so ship them.
+!crates/**/tests/fixtures/**
 .venv/
 .env/
 deps/

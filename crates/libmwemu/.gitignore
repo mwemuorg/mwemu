@@ -35,6 +35,8 @@ x
 *.swp
 *.idb
 *.bin
+# ...but test fixtures are source (embedded via include_bytes!), so ship them.
+!src/tests/fixtures/**
 .venv/
 .env/
 deps/
