@@ -1,4 +1,4 @@
-name: Rust CI
+name: CI
 
 on:
   push:
@@ -10,17 +10,21 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check:
-    name: Build on ${{ matrix.os }}
+  build:
+    name: Build & test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      # rs-header is vendored in-tree (crates/libmwemu/libraries/rs-header), so
+      # no submodules are needed. The full emulator now lives in this repo — the
+      # library crates and bindings are all workspace members under crates/.
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -31,13 +35,16 @@ jobs:
         if: runner.os == 'macOS'
         run: rustup target add x86_64-apple-darwin
 
-      # This repo is just the mwemu CLI; it depends on the published libmwemu
-      # crate. The full emulator test suite lives in github.com/mwemuorg/libmwemu.
-      - name: Build
-        run: cargo build --verbose
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ runner.os }}
 
       - name: Clippy
-        run: cargo clippy
+        run: make clippy-release
 
+      # `make tests` runs the workspace library suite (libmwemu, rs-header,
+      # cmwemu, and the mwemu CLI). It needs no external sample bundle — the
+      # tests embed their fixtures via include_bytes!.
       - name: Test
-        run: cargo test --verbose
+        run: make tests

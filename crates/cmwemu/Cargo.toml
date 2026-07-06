@@ -1,0 +1,19 @@
+[package]
+name = "cmwemu"
+version = "0.25.2"
+edition = "2024"
+authors = ["sha0coder"]
+license = "GPL-3.0-only"
+rust-version = "1.85"
+description = "C ABI bindings for libmwemu (x86/x64/arm64 emulator)."
+repository = "https://github.com/mwemuorg/cmwemu"
+
+[lib]
+name = "cmwemu"
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+libmwemu = { path = "../libmwemu" }
+
+[build-dependencies]
+cbindgen = "0.29"

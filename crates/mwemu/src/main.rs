@@ -359,6 +359,14 @@ fn main() {
         emu.maps.set_banzai(true);
     }
 
+    // A non-Windows guest (ELF / Mach-O) never touches the Windows system DLLs,
+    // so skip the winver fetch (including the default win11 one) entirely. We ask
+    // libmwemu to classify with the very same detectors `load_code` uses, so a
+    // shellcode whose first bytes happen to look like an ELF isn't misjudged, and
+    // --is_shellcode still forces the Windows shellcode path.
+    let is_non_windows_target =
+        libmwemu::emu::Emu::is_non_windows_file(&filename, matches.is_present("is_shellcode"));
+
     // maps
     if matches.is_present("iso") {
         let iso = matches.value_of("iso").expect("specify the ISO path");
@@ -371,6 +379,13 @@ fn main() {
                 eprintln!("[mwemu] --iso failed: {}", e);
                 std::process::exit(1);
             }
+        }
+    } else if is_non_windows_target {
+        // Linux/macOS guest: no Windows system DLLs needed. Honor an explicit
+        // --maps if the user gave one, otherwise leave maps untouched — the ELF/
+        // Mach-O loader maps the binary's own segments.
+        if matches.is_present("maps") {
+            emu.set_maps_folder(matches.value_of("maps").expect("specify the maps folder"));
         }
     } else if matches.is_present("winver") {
         let winver = matches.value_of("winver").expect("specify the Windows version");

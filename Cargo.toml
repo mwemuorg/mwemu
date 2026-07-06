@@ -2,9 +2,23 @@
 resolver = "2"
 members = [
     "crates/mwemu",
+    "crates/libmwemu",
+    "crates/libmwemu/libraries/rs-header",
+    "crates/pymwemu",
+    "crates/cmwemu",
+    "crates/mwemu-mcp",
 ]
 default-members = [
+    # The library crates + the CLI. `mwemu` is the only binary here (pymwemu ships
+    # a second bin `stub_gen`, and mwemu-mcp is a server bin — both excluded), so a
+    # bare `cargo run` unambiguously runs the mwemu CLI while a bare `cargo test`
+    # still runs the whole library suite (libmwemu, rs-header, cmwemu).
+    # For the excluded crates: `cargo test -p pymwemu`, `cargo run -p mwemu-mcp`,
+    # or `--workspace` for everything at once.
     "crates/mwemu",
+    "crates/libmwemu",
+    "crates/libmwemu/libraries/rs-header",
+    "crates/cmwemu",
 ]
 
 [workspace.package]
@@ -22,7 +36,7 @@ clap = "2.33.3"
 log = "0.4.22"
 fast_log = "1.7"
 env_logger = "0.11.8"
-libmwemu = "0.25"
+libmwemu = { path = "crates/libmwemu" }
 
 [profile.release]
 debug = 0

@@ -1,0 +1,35 @@
+[package]
+name = "mwemu-mcp"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "GPL-3.0-only"
+repository = "https://github.com/mwemuorg/mwemu-mcp"
+homepage = "https://github.com/mwemuorg/mwemu-mcp"
+readme = "README.md"
+description = "Model Context Protocol (MCP) server for the mwemu x86/x64/arm64 emulator (libmwemu). Open a binary, configure, prepare memory and emulate step by step over MCP."
+keywords = ["mcp", "emulator", "x86", "malware", "reverse-engineering"]
+categories = ["development-tools", "emulators"]
+
+[[bin]]
+name = "mwemu-mcp"
+path = "src/main.rs"
+
+[dependencies]
+libmwemu = { path = "../libmwemu" }
+serde_json = "1.0"
+log = "0.4.22"
+env_logger = "0.11.8"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dependencies.tiny_http]
+version = "0.12"
+optional = true
+
+[features]
+default = []
+# Optional local TCP/HTTP transport (loopback only). Off by default to keep the
+# base server minimal (stdio only, like radare2-mcp).
+http = ["dep:tiny_http"]

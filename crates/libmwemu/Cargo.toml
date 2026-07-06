@@ -1,0 +1,66 @@
+[package]
+name = "libmwemu"
+version = "0.25.3"
+edition = "2024"
+authors = ["sha0coder"]
+license = "GPL-3.0-only"
+rust-version = "1.85"
+description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
+documentation = "https://docs.rs/libmwemu"
+homepage = "https://mwemu.github.io/"
+repository = "https://github.com/mwemuorg/libmwemu"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rs-header = { path = "./libraries/rs-header" }
+iced-x86 = { version = "1.21.0", features = ["serde"] }
+yaxpeax-arm = "0.4.0"
+yaxpeax-arch = "0.3.2"
+goblin = "0.9"
+uint = "0.9.5"
+md5 = "0.7.0"
+lazy_static = "1.4.0"
+rand = "0.9.1"
+ctrlc = "3.2.2"
+scan_fmt = "0.2.6"
+atty = "0.2.14"
+csv = "1.3.0"
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4.22"
+serde = { version = "1.0.217", features = ["derive"] }
+bitcode = { version = "0.6.3", features = ["std", "serde"] }
+ahash = { version = "0.8.12", features = ["serde"] }
+bitfield = "0.19.1"
+ureq = { version = "2.10", default-features = false, features = ["tls"] }
+zip = "0.6"
+serde_arrays = "0.2.0"
+serde_json = "1"
+slab = { version = "0.4.10", features = ["serde"] }
+bytemuck = "1.23.1"
+minidump = "0.26.0"
+fast_log = "1.7"
+nohash-hasher = "0.2.0"
+memmap2 = "0.9.7"
+byteorder = "1.5.0"
+thiserror = "2.0.12"
+tempfile = "3.23.0"
+tempdir = "0.3.7"
+gdbstub = "0.7.10"
+gdbstub_arch = "0.3.3"
+serial_test = "3.4.0"
+dunce = "1.0.5"
+soft-canonicalize = { version = "0.5", features = ["dunce"] }
+flate2 = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62.2", features = ["Win32_System_SystemInformation"] }
+windows-sys = { version = "0.59", features = ["Win32", "Win32_Storage_FileSystem"] }
+
+[dev-dependencies]
+env_logger = "0.11.8"
+hex = "0.4.3"
+
+[features]
+default = []
+log_mem_read = []
+log_mem_write = []

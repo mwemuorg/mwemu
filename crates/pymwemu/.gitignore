@@ -1,0 +1,58 @@
+/target/
+.gitconfig
+# memory maps: ship only mwemu's own support files (banzai.csv, loader.exe,
+# m*.bin, the *_stub.c sources and the small libc/libSystem stubs). The
+# Microsoft/Apple proprietary binaries are NOT redistributable, so keep them
+# out of the repo (they are fetched on demand, extracted via --iso, or copied
+# from the host System32 in CI).
+maps/**/*.dll
+maps/**/*.DLL
+maps/**/*.drv
+maps/**/*.DRV
+maps/**/*.nls
+maps/**/*.NLS
+maps/**/ntoskrnl.exe
+maps/iso/
+maps/winver/
+# the winver cache is written relative to the CWD, so running tests from a
+# crate dir creates crates/<crate>/maps/... — ignore caches at any depth, plus
+# the stray top-level maps64/ extraction dir.
+**/maps/iso/
+**/maps/winver/
+crates/**/maps/
+/maps64/
+win32_2022/
+shellcodes32/
+shellcodes64/
+.DS_Store
+prompt.md
+private/
+trace_LdrInitializeThunk.txt
+.offcode.ctx
+*prompt*
+x
+*.txt
+*.swp
+*.idb
+*.bin
+.venv/
+.env/
+deps/
+dumps/
+*.zip
+test/
+test.zip*
+.gdb_history
+*.log
+*.pyc
+.idea
+.claude
+__pycache__
+node_modules/
+.cache/
+.zig*
+CACHEDIR.TARGET
+.package-cache
+.cargo/registry
+
+.kilo/

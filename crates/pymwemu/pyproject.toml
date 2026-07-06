@@ -1,0 +1,32 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "pymwemu"
+version = "0.11.6"
+readme = "README.md"
+description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+# Location of the source code for the python module
+python-source = "python"
+# Internal name of the Rust library, as defined in Cargo.toml
+module-name = "pymwemu._pymwemu"
+# Tell Maturin to explicitly include the stub files (generated from the lib) in the final wheel
+include = ["python/pymwemu/_pymwemu/*.pyi"]
+
+# Generate __init__.py for the module
+[tool.pyo3-stub-gen]
+generate-init-py = true
+
+[metadata]
+description = "x86 32/64bits and systems emulation"

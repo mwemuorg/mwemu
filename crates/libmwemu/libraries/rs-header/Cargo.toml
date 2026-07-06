@@ -1,0 +1,12 @@
+[package]
+name = "rs-header"
+version = "0.1.0"
+edition = "2024"
+authors = ["sha0coder"]
+license = "GPL-3.0-only"
+rust-version = "1.85"
+description = "Generic executable-header parsers and loaders (PE32/PE64 and ELF32/ELF64): headers, sections/segments, imports, relocations, resources. Loaders are generic over a backend trait, so any project can map and bind a binary into its own memory without pulling in an emulator."
+repository = "https://github.com/mwemuorg/rs-header"
+
+[dependencies]
+log = "0.4"

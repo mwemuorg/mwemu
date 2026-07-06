@@ -1,0 +1,3 @@
+[submodule "libraries/rs-header"]
+	path = libraries/rs-header
+	url = https://github.com/mwemuorg/rs-header
