@@ -1,6 +1,9 @@
 # MWEmu 
-[![Rust CI](https://github.com/mwemuorg/mwemu/actions/workflows/ci.yaml/badge.svg)](https://github.com/mwemuorg/mwemu/actions/workflows/ci.yaml)
+[![CI](https://github.com/mwemuorg/mwemu/actions/workflows/ci.yaml/badge.svg)](https://github.com/mwemuorg/mwemu/actions/workflows/ci.yaml)
 [![mwemu crates.io](https://img.shields.io/crates/v/mwemu.svg)](https://crates.io/crates/mwemu)
+[![libmwemu crates.io](https://img.shields.io/crates/v/libmwemu.svg)](https://crates.io/crates/libmwemu)
+[![Docs.rs](https://docs.rs/libmwemu/badge.svg)](https://docs.rs/libmwemu)
+[![PyPI](https://img.shields.io/pypi/v/pymwemu.svg)](https://pypi.org/project/pymwemu/)
 [![codecov](https://codecov.io/gh/mwemuorg/mwemu/branch/main/graph/badge.svg)](https://codecov.io/gh/mwemuorg/mwemu)
 
 ## Official documentation
@@ -430,7 +433,7 @@ And here we have the error routine 0x4f96f4 and the filter 0x51068c
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=mwemuorg/mwemu&type=date&legend=top-left)](https://www.star-history.com/#mwemuorg/mwemu&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/chart?repos=mwemuorg/mwemu&type=date&legend=top-left)](https://www.star-history.com/?repos=mwemuorg%2Fmwemu&type=date&legend=top-left)
 
 
 
