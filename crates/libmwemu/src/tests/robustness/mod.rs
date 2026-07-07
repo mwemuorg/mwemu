@@ -10,3 +10,5 @@ mod loader;
 mod instructions;
 mod flags_diff;
 mod shifts_diff;
+mod rotates_diff;
+mod misc_diff;

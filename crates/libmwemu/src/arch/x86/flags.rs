@@ -1846,33 +1846,31 @@ impl Flags {
             _ => unreachable!("Unsupported size for ROL: {}", sz),
         };
 
-        let count = (value1 & mask) as u32;
         let width = sz;
-
         let value0 = value0 & res_mask;
 
-        let count = (value1 & mask) % width as u64;
-        let res = if count == 0 {
+        // The MASKED count decides whether flags change; the effective rotation
+        // is that masked count mod width. These differ when the masked count is a
+        // multiple of the width (e.g. `rol r8, 8`): the value is unchanged but the
+        // flags ARE still updated — conflating them silently drops the CF update.
+        let masked = value1 & mask;
+        let rot = masked % width as u64;
+        let res = if rot == 0 {
             value0
         } else {
-            ((value0 << count) | (value0 >> (width as u64 - count))) & res_mask
+            ((value0 << rot) | (value0 >> (width as u64 - rot))) & res_mask
         };
 
-        // CF = least significant bit of the result after the rotate
-        self.f_cf = if count != 0 {
-            (res & 0x1) == 1
-        } else {
-            self.f_cf // unchanged
-        };
-
-        // OF is defined only when count == 1 for ROL
-        self.f_of = if count == 1 {
-            let msb = (res >> (width - 1)) & 0x1;
-            let lsb = res & 0x1;
-            (msb ^ lsb) == 1
-        } else {
-            self.f_of // unchanged
-        };
+        if masked != 0 {
+            // CF = least significant bit of the result after the rotate.
+            self.f_cf = (res & 0x1) == 1;
+            // OF is defined only for a single-bit rotate (masked count == 1).
+            if masked == 1 {
+                let msb = (res >> (width - 1)) & 0x1;
+                let lsb = res & 0x1;
+                self.f_of = (msb ^ lsb) == 1;
+            }
+        }
 
         res
     }

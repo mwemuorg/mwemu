@@ -337,8 +337,11 @@ fn setup_memmove_emulator() -> (emu::Emu, u64, usize) {
     emu.cfg.trace_mem = true; // Enable memory tracing
     emu.cfg.trace_regs = true; // Enable register tracing
 
-    // thread local storage
-    emu_context::set_current_emu(&emu);
+    // NOTE: do NOT register this emu as the thread-local "current emu" here —
+    // `emu` is moved out of this setup fn on return, so `&emu` would immediately
+    // dangle, and it was never cleared, leaving a stale pointer that later tests
+    // on the same thread deref through `with_current_emu` (flaky UB). Trace
+    // logging (the only consumer) simply no-ops without it.
 
     // Set up stack
     let stack_addr = 0x1000000;
