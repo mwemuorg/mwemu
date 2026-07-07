@@ -1,31 +1,39 @@
+// Bounds-safe: a malformed/hostile PE can point offsets past the buffer. Out-of-
+// range bytes read as 0 (so parsing yields garbage-but-no-crash) instead of
+// panicking with an index-out-of-bounds and killing the analysis.
+#[inline]
+fn byte(raw: &[u8], off: usize) -> u8 {
+    raw.get(off).copied().unwrap_or(0)
+}
+
 #[inline]
 pub fn read_u8(raw: &[u8], off: usize) -> u8 {
-    raw[off]
+    byte(raw, off)
 }
 
 #[inline]
 pub fn read_u16_le(raw: &[u8], off: usize) -> u16 {
-    ((raw[off + 1] as u16) << 8) | (raw[off] as u16)
+    ((byte(raw, off + 1) as u16) << 8) | (byte(raw, off) as u16)
 }
 
 #[inline]
 pub fn read_u32_le(raw: &[u8], off: usize) -> u32 {
-    ((raw[off + 3] as u32) << 24)
-        | ((raw[off + 2] as u32) << 16)
-        | ((raw[off + 1] as u32) << 8)
-        | (raw[off] as u32)
+    ((byte(raw, off + 3) as u32) << 24)
+        | ((byte(raw, off + 2) as u32) << 16)
+        | ((byte(raw, off + 1) as u32) << 8)
+        | (byte(raw, off) as u32)
 }
 
 #[inline]
 pub fn read_u64_le(raw: &[u8], off: usize) -> u64 {
-    ((raw[off + 7] as u64) << 56)
-        | ((raw[off + 6] as u64) << 48)
-        | ((raw[off + 5] as u64) << 40)
-        | ((raw[off + 4] as u64) << 32)
-        | ((raw[off + 3] as u64) << 24)
-        | ((raw[off + 2] as u64) << 16)
-        | ((raw[off + 1] as u64) << 8)
-        | (raw[off] as u64)
+    ((byte(raw, off + 7) as u64) << 56)
+        | ((byte(raw, off + 6) as u64) << 48)
+        | ((byte(raw, off + 5) as u64) << 40)
+        | ((byte(raw, off + 4) as u64) << 32)
+        | ((byte(raw, off + 3) as u64) << 24)
+        | ((byte(raw, off + 2) as u64) << 16)
+        | ((byte(raw, off + 1) as u64) << 8)
+        | (byte(raw, off) as u64)
 }
 
 #[inline]

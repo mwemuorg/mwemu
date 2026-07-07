@@ -23,5 +23,6 @@ macro_rules! sample {
 mod isa;
 mod loaders;
 mod os;
+mod robustness;
 mod shellcode;
 mod unit;
