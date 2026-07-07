@@ -933,7 +933,10 @@ impl Flags {
 
     pub fn neg64(&mut self, value: u64) -> u64 {
         self.f_of = value == 0x8000000000000000;
-        self.f_cf = true;
+        // NEG: CF = (operand != 0); only 0 negates to 0 with no borrow.
+        self.f_cf = value != 0;
+        // AF = borrow out of bit 3 of (0 - value) = low nibble non-zero.
+        self.f_af = (value & 0x0f) != 0;
 
         let mut ival = value as i64;
         if ival != i64::MIN {
@@ -949,7 +952,8 @@ impl Flags {
 
     pub fn neg32(&mut self, value: u64) -> u64 {
         self.f_of = value == 0x80000000;
-        self.f_cf = true;
+        self.f_cf = (value & 0xffff_ffff) != 0;
+        self.f_af = (value & 0x0f) != 0;
 
         let mut ival = value as i32;
         if ival != i32::MIN {
@@ -965,7 +969,8 @@ impl Flags {
 
     pub fn neg16(&mut self, value: u64) -> u64 {
         self.f_of = value == 0x8000;
-        self.f_cf = true;
+        self.f_cf = (value & 0xffff) != 0;
+        self.f_af = (value & 0x0f) != 0;
 
         let mut ival = value as i16;
         if ival != i16::MIN {
@@ -981,7 +986,8 @@ impl Flags {
 
     pub fn neg8(&mut self, value: u64) -> u64 {
         self.f_of = value == 0x80;
-        self.f_cf = true;
+        self.f_cf = (value & 0xff) != 0;
+        self.f_af = (value & 0x0f) != 0;
 
         let mut ival = value as i8;
         if ival != i8::MIN {
@@ -1129,10 +1135,10 @@ impl Flags {
 
         let result = s_result as u16 as u64;
 
-        self.f_cf = if count <= 16 {
+        self.f_cf = if count < 16 {
             ((value0 >> (count - 1)) & 0x1) == 1
         } else {
-            false
+            ((value0 >> 15) & 0x1) == 1
         };
 
         self.f_of = false;
@@ -1174,10 +1180,12 @@ impl Flags {
 
         let result = s_result as u8 as u64;
 
-        self.f_cf = if count <= 8 {
+        self.f_cf = if count < 8 {
             ((value0 >> (count - 1)) & 0x1) == 0x1
         } else {
-            false
+            // count >= 8: shifted past the operand width; SAR fills with the sign
+            // bit, so the last bit shifted out is the sign bit (bit 7).
+            ((value0 >> 7) & 0x1) == 0x1
         };
 
         self.f_of = false;

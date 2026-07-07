@@ -8,3 +8,5 @@ mod pe_parse;
 mod elf_parse;
 mod loader;
 mod instructions;
+mod flags_diff;
+mod shifts_diff;
