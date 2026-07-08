@@ -320,7 +320,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: read w/o permission at 0x{:x}", addr); return &[]; }
+            {
+                log::warn!("mem: read w/o permission at 0x{:x}", addr);
+                return &[];
+            }
         }
 
         let idx = (addr - self.base_addr) as usize;
@@ -350,7 +353,10 @@ impl Mem64 {
     #[inline(always)]
     pub fn read_bytes(&self, addr: u64, sz: usize) -> &[u8] {
         if !self.can_read() {
-            { log::warn!("mem: read w/o permission at 0x{:x}", addr); return &[]; }
+            {
+                log::warn!("mem: read w/o permission at 0x{:x}", addr);
+                return &[];
+            }
         }
 
         if addr >= self.base_addr + self.mem.len() as u64 {
@@ -424,7 +430,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: read w/o permission at 0x{:x}", addr); return 0; }
+            {
+                log::warn!("mem: read w/o permission at 0x{:x}", addr);
+                return 0;
+            }
         }
 
         let idx = (addr - self.base_addr) as usize;
@@ -546,7 +555,10 @@ impl Mem64 {
     #[inline(always)]
     pub fn write_byte(&mut self, addr: u64, value: u8) {
         if !self.can_write() {
-            { log::warn!("mem: write w/o permission at 0x{:x}", addr); return; }
+            {
+                log::warn!("mem: write w/o permission at 0x{:x}", addr);
+                return;
+            }
         }
 
         let idx = (addr - self.base_addr) as usize;
@@ -569,7 +581,10 @@ impl Mem64 {
     #[inline(always)]
     pub fn write_bytes(&mut self, addr: u64, bs: &[u8]) {
         if !self.can_write() {
-            { log::warn!("mem: write w/o permission at 0x{:x}", addr); return; }
+            {
+                log::warn!("mem: write w/o permission at 0x{:x}", addr);
+                return;
+            }
         }
 
         let idx = (addr - self.base_addr) as usize;
@@ -622,7 +637,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: write w/o permission at 0x{:x}", addr); return; }
+            {
+                log::warn!("mem: write w/o permission at 0x{:x}", addr);
+                return;
+            }
         }
 
         let mut v = s.as_bytes().to_vec();
@@ -660,7 +678,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: read w/o permission at 0x{:x}", addr); return String::new(); }
+            {
+                log::warn!("mem: read w/o permission at 0x{:x}", addr);
+                return String::new();
+            }
         }
 
         // Scan the backing slice directly for the NUL terminator instead of a
@@ -702,7 +723,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: write w/o permission at 0x{:x}", addr); return; }
+            {
+                log::warn!("mem: write w/o permission at 0x{:x}", addr);
+                return;
+            }
         }
 
         let mut wide_string: Vec<u16> = s.encode_utf16().collect();
@@ -799,7 +823,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: write w/o permission at 0x{:x}", addr); return; }
+            {
+                log::warn!("mem: write w/o permission at 0x{:x}", addr);
+                return;
+            }
         }
         let idx = (addr - self.base_addr) as usize;
         let mut buf = [0u8; 16];
@@ -862,7 +889,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: read w/o permission at 0x{:x}", addr); return String::new(); }
+            {
+                log::warn!("mem: read w/o permission at 0x{:x}", addr);
+                return String::new();
+            }
         }
 
         let MAX_SIZE_STR = 1_000_000;
@@ -891,12 +921,8 @@ impl Mem64 {
         }
 
         match String::from_utf16(&s) {
-            Ok(s) => {
-                s
-            }
-            Err(_) => {
-                "".to_string()
-            }
+            Ok(s) => s,
+            Err(_) => "".to_string(),
         }
     }
 
@@ -912,7 +938,10 @@ impl Mem64 {
                 }
             })
             .unwrap();
-            { log::warn!("mem: read w/o permission at 0x{:x}", addr); return String::new(); }
+            {
+                log::warn!("mem: read w/o permission at 0x{:x}", addr);
+                return String::new();
+            }
         }
 
         let mut s: Vec<u16> = Vec::new();

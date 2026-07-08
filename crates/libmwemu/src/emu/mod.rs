@@ -117,9 +117,9 @@ pub struct Emu {
     pub rng: RefCell<rand::rngs::ThreadRng>,
 
     // --- Platform & loaded binary ---
-    pub os: OperatingSystem,      // target OS (set by loader / init)
-    pub pe64: Option<PE64>,       // parsed PE64 for runtime import resolution & resources
-    pub pe32: Option<PE32>,       // parsed PE32 for runtime import resolution & resources
+    pub os: OperatingSystem, // target OS (set by loader / init)
+    pub pe64: Option<PE64>,  // parsed PE64 for runtime import resolution & resources
+    pub pe32: Option<PE32>,  // parsed PE32 for runtime import resolution & resources
     // rs-header's PE parser is borrow-based (it does not keep the file bytes),
     // so libmwemu owns the raw image and passes it to rs-header methods that
     // need it (resource lookups, serialization re-parse). Never parsed here.
@@ -215,7 +215,9 @@ impl Emu {
             ArchState::X86 {
                 instruction_cache, ..
             } => instruction_cache,
-            ArchState::AArch64 { .. } => unreachable!("x86_instruction_cache called on aarch64 emu"),
+            ArchState::AArch64 { .. } => {
+                unreachable!("x86_instruction_cache called on aarch64 emu")
+            }
         }
     }
 
@@ -226,7 +228,9 @@ impl Emu {
             ArchState::X86 {
                 instruction_cache, ..
             } => instruction_cache,
-            ArchState::AArch64 { .. } => unreachable!("x86_instruction_cache_ref called on aarch64 emu"),
+            ArchState::AArch64 { .. } => {
+                unreachable!("x86_instruction_cache_ref called on aarch64 emu")
+            }
         }
     }
 
@@ -252,7 +256,9 @@ impl Emu {
             ArchState::AArch64 {
                 instruction_cache, ..
             } => instruction_cache,
-            ArchState::X86 { .. } => unreachable!("aarch64_instruction_cache_ref called on x86 emu"),
+            ArchState::X86 { .. } => {
+                unreachable!("aarch64_instruction_cache_ref called on x86 emu")
+            }
         }
     }
 
@@ -274,7 +280,9 @@ impl Emu {
             ArchState::X86 {
                 decoder_position, ..
             } => *decoder_position = pos,
-            ArchState::AArch64 { .. } => unreachable!("set_x86_decoder_position called on aarch64 emu"),
+            ArchState::AArch64 { .. } => {
+                unreachable!("set_x86_decoder_position called on aarch64 emu")
+            }
         }
     }
 
@@ -287,7 +295,9 @@ impl Emu {
                 use iced_x86::Formatter as _;
                 formatter.format(ins, &mut output);
             }
-            ArchState::AArch64 { .. } => unreachable!("x86_format_instruction called on aarch64 emu"),
+            ArchState::AArch64 { .. } => {
+                unreachable!("x86_format_instruction called on aarch64 emu")
+            }
         }
         output
     }

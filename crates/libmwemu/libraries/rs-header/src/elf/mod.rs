@@ -5,12 +5,12 @@
 //! concrete emulator, so any project can map and relocate an ELF into its own
 //! memory. See `design/ARCHITECTURE.md`.
 
-pub mod loader;
 pub mod elf32;
 pub mod elf64;
+pub mod loader;
 
-pub use loader::{ElfLoader, Perm};
 pub use elf64::{EM_386, EM_AARCH64, EM_X86_64};
+pub use loader::{ElfLoader, Perm};
 
 /// Error returned when an ELF image is too small or malformed to parse.
 #[derive(Debug, Clone, PartialEq, Eq)]

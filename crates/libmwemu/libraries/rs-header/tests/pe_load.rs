@@ -4,8 +4,8 @@
 
 use std::collections::HashMap;
 
-use rs_header::pe::pe64::PE64;
 use rs_header::pe::PeLoader;
+use rs_header::pe::pe64::PE64;
 
 /// Minimal in-memory PeLoader: records writes and hands out fake, stable
 /// addresses for resolved imports.
@@ -57,7 +57,11 @@ impl PeLoader for Mock {
         a
     }
     fn search_api_name(&mut self, name: &str) -> (u64, String, String) {
-        (self.resolve_api_name(name), "mock".to_string(), name.to_string())
+        (
+            self.resolve_api_name(name),
+            "mock".to_string(),
+            name.to_string(),
+        )
     }
 }
 

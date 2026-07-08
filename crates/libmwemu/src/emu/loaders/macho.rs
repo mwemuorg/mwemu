@@ -99,7 +99,10 @@ impl Emu {
             let mem = match self.maps.create_map(&map_name, seg_addr, seg.vmsize, perm) {
                 Ok(m) => m,
                 Err(_) => {
-                    log::warn!("cannot create map for dylib segment '{}', skipping", map_name);
+                    log::warn!(
+                        "cannot create map for dylib segment '{}', skipping",
+                        map_name
+                    );
                     continue;
                 }
             };

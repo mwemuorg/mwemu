@@ -102,7 +102,9 @@ pub fn handler_exist(hndl: u64) -> bool {
 
 pub fn handler_put_bytes(hndl: u64, data: &[u8]) {
     let mut handles = HANDLERS.lock().unwrap();
-    if let Some(idx) = handles.iter().position(|h| h.id == hndl) { handles[idx].data = data.to_vec() }
+    if let Some(idx) = handles.iter().position(|h| h.id == hndl) {
+        handles[idx].data = data.to_vec()
+    }
 }
 
 pub fn handler_get_uri(hndl: u64) -> String {

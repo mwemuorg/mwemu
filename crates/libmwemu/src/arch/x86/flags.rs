@@ -1257,7 +1257,7 @@ impl Flags {
             return value0 & 0xff;
         }
 
-        let result = (value0 << count) & 0xff ;
+        let result = (value0 << count) & 0xff;
 
         self.f_cf = if count <= 8 {
             ((value0 >> (8 - count)) & 0x1) == 0x1
@@ -1281,7 +1281,7 @@ impl Flags {
             return value0 & 0xffff;
         }
 
-        let result = (value0 << count) & 0xffff ;
+        let result = (value0 << count) & 0xffff;
 
         self.f_cf = if count <= 16 {
             ((value0 >> (16 - count)) & 0x1) == 0x1
@@ -1305,7 +1305,7 @@ impl Flags {
             return value0 & 0xffff_ffff;
         }
 
-        let result = (value0 << count) & 0xffff_ffff ;
+        let result = (value0 << count) & 0xffff_ffff;
 
         self.f_cf = if count <= 32 {
             ((value0 >> (32 - count)) & 0x1) == 0x1
@@ -1353,7 +1353,7 @@ impl Flags {
         }
 
         let count = value1 & 0x3f;
-        let result = value0 << count ;
+        let result = value0 << count;
         self.f_cf = ((value0 >> (64 - count)) & 0x1) == 0x1;
         self.f_of = (self.f_cf as u64 ^ (result >> 63)) == 0x1;
         self.calc_flags(result, 64);
@@ -1401,7 +1401,7 @@ impl Flags {
 
     // TODO: update shl1 the same as shl2
     pub fn shl1p64(&mut self, value: u64) -> u64 {
-        let result = value << 1 ;
+        let result = value << 1;
         self.f_cf = ((value >> 63) & 0x1) == 0x1;
         self.f_of = (self.f_cf as u64 ^ (result >> 63)) == 0x1;
         self.calc_flags(result, 64);
@@ -1438,7 +1438,7 @@ impl Flags {
             return value0 & 0xff;
         }
 
-        let result = (value0 >> count) & 0xff ;
+        let result = (value0 >> count) & 0xff;
 
         self.f_cf = if count <= 8 {
             ((value0 >> (count - 1)) & 0x1) == 1
@@ -1462,7 +1462,7 @@ impl Flags {
             return value0 & 0xffff;
         }
 
-        let result = (value0 >> count) & 0xffff ;
+        let result = (value0 >> count) & 0xffff;
 
         self.f_cf = if count <= 16 {
             ((value0 >> (count - 1)) & 0x1) == 1
@@ -1486,7 +1486,7 @@ impl Flags {
             return value0 & 0xffff_ffff;
         }
 
-        let result = (value0 >> count) & 0xffff_ffff ;
+        let result = (value0 >> count) & 0xffff_ffff;
 
         self.f_cf = if count <= 32 {
             ((value0 >> (count - 1)) & 0x1) == 1
@@ -1534,7 +1534,7 @@ impl Flags {
         }
 
         let count = value1 & 0x3f;
-        let result = value0 >> count ;
+        let result = value0 >> count;
         self.f_cf = ((value0 >> (count - 1)) & 0x1) == 0x1;
         self.f_of = (((result << 1) ^ result) >> 63 & 0x1) == 0x1;
         self.calc_flags(result, 64);
@@ -1581,7 +1581,7 @@ impl Flags {
     }
 
     pub fn shr1p64(&mut self, value: u64) -> u64 {
-        let result = value >> 1 ;
+        let result = value >> 1;
         self.f_cf = (value & 0x1) == 0x1;
         self.f_of = (((result << 1) ^ result) >> 63) == 0x1;
         self.calc_flags(result, 64);
@@ -1664,7 +1664,6 @@ impl Flags {
             self.f_of = false;
         }
 
-        
         (uresult & 0xffff) as u64
     }
 
@@ -1680,7 +1679,6 @@ impl Flags {
             self.f_of = false;
         }
 
-        
         (uresult & 0xff) as u64
     }
 

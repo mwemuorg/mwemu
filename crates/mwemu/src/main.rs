@@ -3,16 +3,16 @@
 extern crate clap;
 
 use clap::{App, Arg};
+use libmwemu::emu_aarch64;
 use libmwemu::emu32;
 use libmwemu::emu64;
-use libmwemu::emu_aarch64;
 use libmwemu::serialization;
-use std::{panic, process};
 use std::path::PathBuf;
+use std::{panic, process};
 //use libmwemu::definitions;
+use fast_log::Config;
 use fast_log::appender::{Command, FastLogRecord, RecordFormat};
 use fast_log::filter::Filter;
-use fast_log::Config;
 use libmwemu::disable_color;
 use libmwemu::emu::object_handle::file_handle::init_file_system;
 
@@ -28,8 +28,21 @@ impl Filter for DropNoisyDepsFilter {
         // goblin (PE parsing) and the HTTPS/TLS stack behind `--winver` fetches
         // (ureq/rustls/ring/webpki spam OCSP responses and HTTP headers at debug).
         const NOISY: &[&str] = &[
-            "goblin", "ureq", "rustls", "webpki", "ring", "native_tls", "openssl",
-            "hyper", "h2", "mio", "want", "tungstenite", "sct", "http", "httparse",
+            "goblin",
+            "ureq",
+            "rustls",
+            "webpki",
+            "ring",
+            "native_tls",
+            "openssl",
+            "hyper",
+            "h2",
+            "mio",
+            "want",
+            "tungstenite",
+            "sct",
+            "http",
+            "httparse",
             "tokio",
         ];
         !NOISY.iter().any(|p| m.starts_with(p))
@@ -388,7 +401,9 @@ fn main() -> process::ExitCode {
             emu.set_maps_folder(matches.value_of("maps").expect("specify the maps folder"));
         }
     } else if matches.is_present("winver") {
-        let winver = matches.value_of("winver").expect("specify the Windows version");
+        let winver = matches
+            .value_of("winver")
+            .expect("specify the Windows version");
         match emu.set_maps_from_winver(winver) {
             Ok(()) => eprintln!("[mwemu] system32 ready: {}", emu.cfg.maps_folder),
             Err(e) => {
@@ -433,7 +448,9 @@ fn main() -> process::ExitCode {
         )
         .expect("invalid address");
         if !matches.is_present("entry_point") {
-            log::error!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
+            log::error!(
+                "if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000"
+            );
             return process::ExitCode::from(1u8);
         }
     }
@@ -633,10 +650,7 @@ fn main() -> process::ExitCode {
 
             // dump on exit
             if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
-                    emu,
-                    emu.cfg.dump_filename.as_ref().unwrap(),
-                );
+                serialization::Serialization::dump(emu, emu.cfg.dump_filename.as_ref().unwrap());
             }
         });
 

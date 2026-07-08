@@ -163,7 +163,7 @@ impl F80 {
     }
 
     fn get_mantissa_with_integer_bit(&self) -> u64 {
-        let mantissa = self.st & MANTISSA_MASK_NOINT ;
+        let mantissa = self.st & MANTISSA_MASK_NOINT;
         let int_bit = ((self.st & INT_BIT_MASK) >> 63) as u64;
         (mantissa as u64) | (int_bit << 63)
     }

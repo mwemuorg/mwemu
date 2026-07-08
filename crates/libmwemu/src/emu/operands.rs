@@ -293,7 +293,6 @@ impl Emu {
                 }
                 0x58 => {
                     // Get or create static TLS array (for __declspec(thread) variables)
-                    
 
                     match self.maps.get_mem2("static_tls_array") {
                         Some(mem) => mem.get_base(),
@@ -406,10 +405,7 @@ impl Emu {
             };
 
             if self.cfg.trace_mem {
-                let name = self
-                    .maps
-                    .get_addr_name(mem_addr)
-                    .unwrap_or("not mapped");
+                let name = self.maps.get_addr_name(mem_addr).unwrap_or("not mapped");
                 let memory_operation = MemoryOperation {
                     pos: self.pos,
                     rip: self.regs().rip,
@@ -849,10 +845,7 @@ impl Emu {
                 }
 
                 if self.cfg.trace_mem {
-                    let name = self
-                        .maps
-                        .get_addr_name(mem_addr)
-                        .unwrap_or("not mapped");
+                    let name = self.maps.get_addr_name(mem_addr).unwrap_or("not mapped");
                     let memory_operation = MemoryOperation {
                         pos: self.pos,
                         rip: self.regs().rip,
@@ -1038,7 +1031,6 @@ impl Emu {
                     }
 
                     let bytes = self.maps.read_bytes_array::<32>(mem_addr);
-                    
 
                     regs64::U256::from_little_endian(&bytes)
                 } else {

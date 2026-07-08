@@ -9,5 +9,5 @@
 //!
 //! See `design/ARCHITECTURE.md` and `design/PE_EXTRACTION.md`.
 
-pub mod pe;
 pub mod elf;
+pub mod pe;

@@ -407,10 +407,9 @@ impl Maps {
 
         let mem_key = entry.get_mem();
         match self.mem_slab.get(mem_key) {
-            Some(mem)
-                if mem.inside(addr) => {
-                    return Some(mem); // Clone the &Mem64
-                }
+            Some(mem) if mem.inside(addr) => {
+                return Some(mem); // Clone the &Mem64
+            }
             _ => (), // TLB miss now search in maps
         };
 

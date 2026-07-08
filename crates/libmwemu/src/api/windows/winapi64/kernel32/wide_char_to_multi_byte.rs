@@ -49,14 +49,15 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
 
     // 2. Handle special code pages
     if (code_page == constants::CP_UTF7 || code_page == constants::CP_UTF8)
-        && (lp_default_char != 0 || lp_used_default_char != 0) {
-            // Set last error to ERROR_INVALID_PARAMETER
-            log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
-            let mut err = LAST_ERROR.lock().unwrap();
-            *err = constants::ERROR_INVALID_PARAMETER;
-            emu.regs_mut().rax = 0;
-            return;
-        }
+        && (lp_default_char != 0 || lp_used_default_char != 0)
+    {
+        // Set last error to ERROR_INVALID_PARAMETER
+        log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
+        let mut err = LAST_ERROR.lock().unwrap();
+        *err = constants::ERROR_INVALID_PARAMETER;
+        emu.regs_mut().rax = 0;
+        return;
+    }
 
     // 3. Read input string and get its length
     let s = emu.maps.read_wide_string(lp_wide_char_str as u64);

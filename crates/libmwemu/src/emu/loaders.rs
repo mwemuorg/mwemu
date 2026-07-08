@@ -3,15 +3,15 @@ use iced_x86::Register;
 use crate::arch::Arch;
 use crate::emu::Emu;
 use crate::loaders::macho::macho64::Macho64;
+use crate::maps::mem64::Permission;
+use crate::winapi::winapi64;
+use crate::windows::constants;
+use crate::windows::peb::{peb32, peb64};
 use rs_header::elf::elf32::Elf32;
 use rs_header::elf::elf64::Elf64;
 use rs_header::pe::{
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_ARM64, IMAGE_FILE_MACHINE_I386, pe_machine_type,
 };
-use crate::maps::mem64::Permission;
-use crate::winapi::winapi64;
-use crate::windows::constants;
-use crate::windows::peb::{peb32, peb64};
 
 mod elf;
 mod macho;
@@ -55,7 +55,10 @@ impl Emu {
             Ok(bytes) => bytes,
             Err(e) => {
                 log::error!("cannot read '{}': {}", filename, e);
-                eprintln!("[mwemu] cannot open '{}': {} — check the -f path", filename, e);
+                eprintln!(
+                    "[mwemu] cannot open '{}': {} — check the -f path",
+                    filename, e
+                );
                 return;
             }
         };
@@ -141,8 +144,7 @@ impl Emu {
             self.load_elf64(filename);
 
         // PE: use COFF Machine field to distinguish x86 / x86_64 / ARM64
-        } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_I386)
-        {
+        } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_I386) {
             log::trace!(
                 "PE32 x86 header detected (Machine=0x{:04x}).",
                 IMAGE_FILE_MACHINE_I386
@@ -177,8 +179,7 @@ impl Emu {
             self.regs_mut().rip = ep;
 
         // PE64 ARM64
-        } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_ARM64)
-        {
+        } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_ARM64) {
             log::trace!(
                 "PE64 ARM64 header detected (Machine=0x{:04x}). Windows AArch64 PE recognized.",
                 IMAGE_FILE_MACHINE_ARM64
@@ -219,8 +220,7 @@ impl Emu {
             self.set_pc(ep);
 
         // PE64 x86_64
-        } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_AMD64)
-        {
+        } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_AMD64) {
             log::trace!(
                 "PE64 x86_64 header detected (Machine=0x{:04x}).",
                 IMAGE_FILE_MACHINE_AMD64

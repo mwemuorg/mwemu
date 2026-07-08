@@ -139,7 +139,15 @@ fn rcr16_matches_cpu() {
     }
 }
 
-const VALS32: &[u32] = &[0, 1, 0x8000_0000, 0x7fff_ffff, 0xffff_ffff, 0xaaaa_aaaa, 0xdead_beef];
+const VALS32: &[u32] = &[
+    0,
+    1,
+    0x8000_0000,
+    0x7fff_ffff,
+    0xffff_ffff,
+    0xaaaa_aaaa,
+    0xdead_beef,
+];
 
 #[test]
 fn rol32_matches_cpu() {

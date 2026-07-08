@@ -83,12 +83,14 @@ pub fn nt_query_system_information(emu: &mut Emu) {
         return;
     }
 
-    if len > 0 && info != 0
-        && (!emu.maps.is_mapped(info) || !emu.maps.is_mapped(info + u64::from(len).saturating_sub(1)))
-        {
-            emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
-            return;
-        }
+    if len > 0
+        && info != 0
+        && (!emu.maps.is_mapped(info)
+            || !emu.maps.is_mapped(info + u64::from(len).saturating_sub(1)))
+    {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+        return;
+    }
 
     match class {
         // Both return the same x64 `SYSTEM_BASIC_INFORMATION`; the emulation

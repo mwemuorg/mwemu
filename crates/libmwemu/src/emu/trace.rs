@@ -26,7 +26,9 @@ impl Emu {
     pub fn capture_pre_op(&mut self) {
         if self.cfg.arch.is_aarch64() {
             let regs = *self.regs_aarch64();
-            if let crate::threading::context::ArchThreadState::AArch64 { pre_op_regs, .. } = &mut self.threads[self.current_thread_id].arch {
+            if let crate::threading::context::ArchThreadState::AArch64 { pre_op_regs, .. } =
+                &mut self.threads[self.current_thread_id].arch
+            {
                 *pre_op_regs = regs
             }
         } else {
@@ -40,7 +42,9 @@ impl Emu {
     pub fn capture_post_op(&mut self) {
         if self.cfg.arch.is_aarch64() {
             let regs = *self.regs_aarch64();
-            if let crate::threading::context::ArchThreadState::AArch64 { post_op_regs, .. } = &mut self.threads[self.current_thread_id].arch {
+            if let crate::threading::context::ArchThreadState::AArch64 { post_op_regs, .. } =
+                &mut self.threads[self.current_thread_id].arch
+            {
                 *post_op_regs = regs
             }
         } else {

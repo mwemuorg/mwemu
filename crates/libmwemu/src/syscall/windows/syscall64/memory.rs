@@ -291,10 +291,10 @@ pub fn nt_query_virtual_memory(emu: &mut Emu) {
         && !emu
             .maps
             .write_qword(return_length_ptr, MemoryBasicInformation64::SIZE)
-        {
-            emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
-            return;
-        }
+    {
+        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+        return;
+    }
 
     emu.regs_mut().rax = STATUS_SUCCESS;
 }

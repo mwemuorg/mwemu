@@ -9,8 +9,8 @@ use rs_header::elf::elf64::Elf64;
 /// Read an ELF64 off disk and parse it through rs-header. Plain I/O here; all
 /// byte interpretation lives in rs-header.
 fn parse_elf64_file(path: &str) -> Result<Elf64, ElfError> {
-    let raw = std::fs::read(path)
-        .map_err(|e| ElfError::new(&format!("cannot read {}: {}", path, e)))?;
+    let raw =
+        std::fs::read(path).map_err(|e| ElfError::new(&format!("cannot read {}: {}", path, e)))?;
     Elf64::parse(&raw)
 }
 
@@ -96,7 +96,10 @@ impl Emu {
         }
 
         if text_addr == 0 {
-            { log::warn!(".text not found on this elf64"); return; }
+            {
+                log::warn!(".text not found on this elf64");
+                return;
+            }
         }
 
         // entry point logic:
@@ -126,8 +129,10 @@ impl Emu {
 
         // 4. Entry point points below .text, weird case.
         } else {
-            log::warn!("Entry points is pointing below .text 0x{:x}",
-                elf64.elf_hdr.e_entry);
+            log::warn!(
+                "Entry points is pointing below .text 0x{:x}",
+                elf64.elf_hdr.e_entry
+            );
         }
 
         // Write the Linux initial stack layout (argc, argv, envp, auxv)

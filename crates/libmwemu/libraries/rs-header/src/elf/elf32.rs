@@ -1,5 +1,5 @@
-use crate::elf::loader::{ElfLoader, Perm};
 use crate::elf::ElfError;
+use crate::elf::loader::{ElfLoader, Perm};
 
 // Load address / segment type previously sourced from
 // `libmwemu::windows::constants`. Kept here so the parser is self-contained.
@@ -89,11 +89,7 @@ impl Elf32 {
 
         // Dynamic/PIE ELF32 binaries have segments starting at vaddr 0;
         // rebase them to a sensible load address so we never write to 0x0.
-        let base: u64 = if self.is_dynamic() {
-            ELF32_DYN_BASE
-        } else {
-            0
-        };
+        let base: u64 = if self.is_dynamic() { ELF32_DYN_BASE } else { 0 };
         self.base = base;
 
         let mut seg_idx = 0u32;

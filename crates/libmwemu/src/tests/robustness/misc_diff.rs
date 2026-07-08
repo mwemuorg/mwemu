@@ -56,7 +56,11 @@ fn mul8_matches_cpu() {
                 e.regs_mut().rax = a as u64;
                 e.regs_mut().rbx = b as u64;
             });
-            assert_eq!((emu.regs().rax & 0xffff) as u16, ax_cpu, "mul8({a:#x},{b:#x}) ax");
+            assert_eq!(
+                (emu.regs().rax & 0xffff) as u16,
+                ax_cpu,
+                "mul8({a:#x},{b:#x}) ax"
+            );
             assert_eq!(cf(&mut emu), cpu_cf, "mul8({a:#x},{b:#x}) CF");
             assert_eq!(of(&mut emu), cpu_of, "mul8({a:#x},{b:#x}) OF");
         }
@@ -83,7 +87,11 @@ fn imul8_matches_cpu() {
                 e.regs_mut().rax = a as u64;
                 e.regs_mut().rbx = b as u64;
             });
-            assert_eq!((emu.regs().rax & 0xffff) as u16, ax_cpu, "imul8({a:#x},{b:#x}) ax");
+            assert_eq!(
+                (emu.regs().rax & 0xffff) as u16,
+                ax_cpu,
+                "imul8({a:#x},{b:#x}) ax"
+            );
             assert_eq!(cf(&mut emu), cpu_cf, "imul8({a:#x},{b:#x}) CF");
             assert_eq!(of(&mut emu), cpu_of, "imul8({a:#x},{b:#x}) OF");
         }
@@ -92,7 +100,15 @@ fn imul8_matches_cpu() {
 
 // ---- BT r/m32, r32 (0F A3 /r = bt eax, ebx): CF = tested bit ----
 
-const V32: &[u32] = &[0, 1, 0x8000_0000, 0x7fff_ffff, 0xffff_ffff, 0xaaaa_aaaa, 0x0000_ff00];
+const V32: &[u32] = &[
+    0,
+    1,
+    0x8000_0000,
+    0x7fff_ffff,
+    0xffff_ffff,
+    0xaaaa_aaaa,
+    0x0000_ff00,
+];
 
 #[test]
 fn bt32_matches_cpu() {
@@ -131,7 +147,11 @@ fn bsf32_matches_cpu() {
         });
         assert_eq!(zf(&mut emu), cpu_zf, "bsf32({v:#x}) ZF");
         if v != 0 {
-            assert_eq!((emu.regs().rax & 0xffff_ffff) as u32, dst_cpu, "bsf32({v:#x}) index");
+            assert_eq!(
+                (emu.regs().rax & 0xffff_ffff) as u32,
+                dst_cpu,
+                "bsf32({v:#x}) index"
+            );
         }
     }
 }
@@ -154,7 +174,11 @@ fn bsr32_matches_cpu() {
         });
         assert_eq!(zf(&mut emu), cpu_zf, "bsr32({v:#x}) ZF");
         if v != 0 {
-            assert_eq!((emu.regs().rax & 0xffff_ffff) as u32, dst_cpu, "bsr32({v:#x}) index");
+            assert_eq!(
+                (emu.regs().rax & 0xffff_ffff) as u32,
+                dst_cpu,
+                "bsr32({v:#x}) index"
+            );
         }
     }
 }

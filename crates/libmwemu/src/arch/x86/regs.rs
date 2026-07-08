@@ -902,7 +902,6 @@ impl Regs64 {
     }
 
     pub fn get_xmm_reg(&self, reg: Register) -> u128 {
-        
         match reg {
             Register::XMM0 => self.xmm0,
             Register::XMM1 => self.xmm1,
@@ -1072,7 +1071,6 @@ impl Regs64 {
     }
 
     pub fn get_ymm_reg(&self, reg: Register) -> U256 {
-        
         match reg {
             Register::YMM0 => self.ymm0,
             Register::YMM1 => self.ymm1,
@@ -1142,8 +1140,6 @@ impl Regs64 {
     }
 
     pub fn get_reg(&self, reg: Register) -> u64 {
-        
-
         match reg {
             // 64bits
             Register::RAX => self.rax,

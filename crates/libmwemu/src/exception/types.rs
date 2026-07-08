@@ -57,9 +57,7 @@ pub fn exception_type_code(ex_type: ExceptionType) -> u32 {
         ExceptionType::DWordDereferencing => constants::STATUS_DWORD_DEREFERENCING,
         ExceptionType::WordDereferencing => constants::STATUS_WORD_DEREFERENCING,
         ExceptionType::ByteDereferencing => constants::STATUS_BYTE_DEREFERENCING,
-        ExceptionType::BadAddressDereferencing => {
-            constants::STATUS_BAD_ADDRESS_DEREFERENCING
-        }
+        ExceptionType::BadAddressDereferencing => constants::STATUS_BAD_ADDRESS_DEREFERENCING,
         ExceptionType::SettingXmmOperand => constants::STATUS_SETTING_XMM_OPERAND,
         ExceptionType::ReadingXmmOperand => constants::STATUS_READING_XMM_OPERAND,
     }

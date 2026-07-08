@@ -99,7 +99,9 @@ fn parse_args() -> Result<Options, String> {
                 opts.maps = Some(args.next().ok_or("--maps requires a folder")?);
             }
             "--log" => {
-                opts.log = args.next().ok_or("--log requires a level (off|info|debug|trace)")?;
+                opts.log = args
+                    .next()
+                    .ok_or("--log requires a level (off|info|debug|trace)")?;
             }
             other => return Err(format!("unknown argument: {other}")),
         }

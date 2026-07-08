@@ -12,13 +12,13 @@ use std::collections::BTreeSet;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::{ArchState, Emu};
 use crate::maps::mem64::Permission;
-use rs_header::pe::pe64;
 use crate::windows::peb::{peb32, peb64};
 use crate::{
     api::banzai::Banzai, config::Config, debug::breakpoint::Breakpoints, hooks::Hooks, maps::Maps,
     threading::context::ThreadContext, threading::global_locks::GlobalLocks, utils::colors::Colors,
 };
 use crate::{winapi::winapi32, winapi::winapi64, windows::kuser_shared, windows::structures};
+use rs_header::pe::pe64;
 
 use crate::emu::object_handle::HandleManagement;
 use crate::maps::heap_allocation::O1Heap;
@@ -455,11 +455,12 @@ impl Emu {
             && matches!(
                 self.threads[self.current_thread_id].arch,
                 crate::threading::context::ArchThreadState::X86 { .. }
-            ) {
-                let id = self.threads[self.current_thread_id].id;
-                self.threads[self.current_thread_id] =
-                    crate::threading::context::ThreadContext::new(id, self.cfg.arch);
-            }
+            )
+        {
+            let id = self.threads[self.current_thread_id].id;
+            self.threads[self.current_thread_id] =
+                crate::threading::context::ThreadContext::new(id, self.cfg.arch);
+        }
 
         // Ensure arch_state matches the target architecture
         if self.cfg.arch.is_aarch64() && matches!(self.arch_state, super::ArchState::X86 { .. }) {

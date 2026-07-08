@@ -75,7 +75,10 @@ impl FPUStack {
 
     pub fn push_f64(&mut self, value: f64) {
         if self.depth >= 8 {
-            { log::warn!("FPU stack overflow"); return; }
+            {
+                log::warn!("FPU stack overflow");
+                return;
+            }
             // in linux: terminated by signal SIGFPE (Floating point exception)
         }
         self.top = (self.top.wrapping_sub(1)) & 7;
@@ -86,7 +89,10 @@ impl FPUStack {
 
     pub fn push_f80(&mut self, value: F80) {
         if self.depth >= 8 {
-            { log::warn!("FPU stack overflow"); return; }
+            {
+                log::warn!("FPU stack overflow");
+                return;
+            }
             // in linux: terminated by signal SIGFPE (Floating point exception)
         }
         self.top = (self.top.wrapping_sub(1)) & 7;

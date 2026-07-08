@@ -43,7 +43,10 @@ fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
 
     let result = emu.maps.memcpy(path_ptr, dll_name_ptr, dll_name.len());
     if !result {
-        { log::warn!("LdrGetDllHandleEx failed to copy"); return; }
+        {
+            log::warn!("LdrGetDllHandleEx failed to copy");
+            return;
+        }
     }
 
     let handle = helper::handler_create(&dll_name);

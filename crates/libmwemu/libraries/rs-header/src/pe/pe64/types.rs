@@ -1,11 +1,11 @@
 use crate::pe::readers::{
-    read_u16_le as read_u16_le_shared, read_u32_le as read_u32_le_shared,
-    read_u64_le as read_u64_le_shared, read_u8 as read_u8_shared,
+    read_u8 as read_u8_shared, read_u16_le as read_u16_le_shared,
+    read_u32_le as read_u32_le_shared, read_u64_le as read_u64_le_shared,
 };
 
 use super::{
-    DelayLoadDirectory, ImageDataDirectory, ImageDosHeader, ImageFileHeader, ImageImportDescriptor,
-    ImageNtHeaders, ImageSectionHeader, IMAGE_NUMBEROF_DIRECTORY_ENTRIES,
+    DelayLoadDirectory, IMAGE_NUMBEROF_DIRECTORY_ENTRIES, ImageDataDirectory, ImageDosHeader,
+    ImageFileHeader, ImageImportDescriptor, ImageNtHeaders, ImageSectionHeader,
 };
 
 macro_rules! read_u8 {

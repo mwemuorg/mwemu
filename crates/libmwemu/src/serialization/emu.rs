@@ -377,9 +377,9 @@ impl From<SerializableEmu> for Emu {
             pe32: pe32.map(|x| x.into()),
             pe64_raw,
             pe32_raw,
-            elf64: None,    // TODO: not yet serialized
-            elf32: None,    // TODO: not yet serialized
-            macho64: None,  // TODO: not yet serialized
+            elf64: None,   // TODO: not yet serialized
+            elf32: None,   // TODO: not yet serialized
+            macho64: None, // TODO: not yet serialized
             tls_callbacks,
             library_loaded: false,
             // Thread management

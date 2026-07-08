@@ -170,8 +170,7 @@ fn getaddrinfo(emu: &mut emu::Emu) {
             6
         },
     ); // ai_protocol (IPPROTO_TCP)
-    emu.maps
-        .write_qword(addrinfo_addr + 16, sockaddr_in_size); // ai_addrlen
+    emu.maps.write_qword(addrinfo_addr + 16, sockaddr_in_size); // ai_addrlen
     emu.maps.write_qword(addrinfo_addr + 24, canonname_addr); // ai_canonname
     emu.maps.write_qword(addrinfo_addr + 32, sockaddr_addr); // ai_addr
 

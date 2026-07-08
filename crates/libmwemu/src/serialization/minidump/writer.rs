@@ -200,15 +200,13 @@ fn display_name_for_module(emu: &Emu, prefix: &str) -> String {
         .and_then(|stem| stem.to_str())
         .map(|stem| stem.to_ascii_lowercase());
 
-    if main_stem.as_deref() == Some(prefix_lc.as_str())
-        && !emu.filename.is_empty() {
-            return emu.filename.clone();
-        }
+    if main_stem.as_deref() == Some(prefix_lc.as_str()) && !emu.filename.is_empty() {
+        return emu.filename.clone();
+    }
 
-    if exe_name_stem.as_deref() == Some(prefix_lc.as_str())
-        && !emu.cfg.exe_name.is_empty() {
-            return emu.cfg.exe_name.clone();
-        }
+    if exe_name_stem.as_deref() == Some(prefix_lc.as_str()) && !emu.cfg.exe_name.is_empty() {
+        return emu.cfg.exe_name.clone();
+    }
 
     if !emu.cfg.maps_folder.is_empty() {
         let dll_path = Path::new(&emu.cfg.maps_folder).join(format!("{prefix}.dll"));

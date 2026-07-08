@@ -94,7 +94,10 @@ pub fn get_bytes(a: &Value) -> Result<Vec<u8>, String> {
 pub fn hex_to_bytes(s: &str) -> Result<Vec<u8>, String> {
     let mut joined = String::new();
     for tok in s.replace(',', " ").split_whitespace() {
-        let tok = tok.strip_prefix("0x").or_else(|| tok.strip_prefix("0X")).unwrap_or(tok);
+        let tok = tok
+            .strip_prefix("0x")
+            .or_else(|| tok.strip_prefix("0X"))
+            .unwrap_or(tok);
         joined.push_str(tok);
     }
     if joined.len() % 2 != 0 {
@@ -127,5 +130,8 @@ pub fn bytes_to_hex(b: &[u8]) -> String {
 
 /// Render bytes as a space-separated hex string (the form mwemu's search wants).
 pub fn bytes_to_spaced_hex(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect::<Vec<_>>().join(" ")
+    b.iter()
+        .map(|x| format!("{x:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }

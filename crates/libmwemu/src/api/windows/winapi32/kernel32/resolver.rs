@@ -44,19 +44,18 @@ pub fn resolve_api_name_in_module(emu: &mut emu::Emu, module: &str, name: &str) 
     let first_ptr = flink.get_ptr();
 
     loop {
-        if flink.mod_name.to_lowercase().contains(&module_lc)
-            && flink.export_table_rva > 0 {
-                for i in 0..flink.num_of_funcs {
-                    if flink.pe_hdr == 0 {
-                        continue;
-                    }
+        if flink.mod_name.to_lowercase().contains(&module_lc) && flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
+                }
 
-                    let ordinal = flink.get_function_ordinal(emu, i);
-                    if ordinal.func_name == name {
-                        return ordinal.func_va;
-                    }
+                let ordinal = flink.get_function_ordinal(emu, i);
+                if ordinal.func_name == name {
+                    return ordinal.func_va;
                 }
             }
+        }
         flink.next(emu);
 
         if flink.get_ptr() == first_ptr {
