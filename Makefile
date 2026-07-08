@@ -81,3 +81,5 @@ test_windows: samples
 	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11  -v
 test_inception:
 	cargo run --release -- -f target/release/mwemu -6 -v
+test_engima:
+	cargo run --release -- -f  test/exe64win_enigma.bin -6 -v

@@ -85,22 +85,17 @@ impl Emu {
                 if !import.is_empty() {
                     let (dll, api) = import.split_once('!').unwrap_or(("", ""));
 
-                    // In SSDT mode (`emulate_winapi`), we usually execute the real mapped DLL code.
-                    // But api-set CRT imports are virtual; if they weren't bound, the IAT entry can
-                    // still point into `.idata` (RVA), which is not executable. Handle them
-                    // virtually by name instead of jumping to `addr`.
-                    if self.cfg.emulate_winapi {
-                        self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-                        self.regs_mut().rip = self.gateway_return;
-                        winapi64::gateway_by_import(dll, api, self);
-                        self.force_break = true;
-                        self.is_api_run = true;
-                        return true;
-                    }
-
+                    // The target is an unresolved import: its IAT slot still holds
+                    // the on-disk thunk (an `.idata` RVA), which is not executable.
+                    // This happens most often with api-set CRT imports (their stub
+                    // DLLs are virtual name-forwarders we don't map). Dispatch it
+                    // virtually by name — `gateway_by_import` routes api-ms-win-crt
+                    // to wincrt, msvcrt to msvcrt, and everything else to the
+                    // resolver — so the API actually *runs* (sets rax, etc.) instead
+                    // of being merely named. Applies in both normal and SSDT modes.
                     self.gateway_return = self.stack_pop64(false).unwrap_or(0);
                     self.regs_mut().rip = self.gateway_return;
-                    winapi64::gateway(addr, "not_loaded", self);
+                    winapi64::gateway_by_import(dll, api, self);
                     self.force_break = true;
                     self.is_api_run = true;
                     return true;

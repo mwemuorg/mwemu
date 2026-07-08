@@ -517,6 +517,18 @@ impl Emu {
             }
         }
 
+        // 5b. TLS callbacks — extract and rebase to the load address so the
+        // engine can run them before the entry point (DLL_PROCESS_ATTACH). Only
+        // for the main image; a DLL's callbacks shouldn't overwrite the EXE's.
+        if set_entry {
+            let cbs = pe64.get_tls_callbacks(&raw, 0);
+            if !cbs.is_empty() {
+                let delta = base.wrapping_sub(pe64.opt.image_base);
+                self.tls_callbacks = cbs.into_iter().map(|cb| cb.wrapping_add(delta)).collect();
+                log::trace!("PE has {} TLS callback(s)", self.tls_callbacks.len());
+            }
+        }
+
         // 6. return values
         let pe_hdr_off = pe64.dos.e_lfanew;
         self.pe64 = Some(pe64);

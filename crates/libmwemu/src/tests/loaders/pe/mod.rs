@@ -9,4 +9,5 @@ mod exe64win_msgbox;
 mod mingw_tests;
 mod pe64_loader_tests;
 mod peb_teb_ldr_structures_test;
+mod tls_callbacks_tests;
 mod tls_fls_tests;

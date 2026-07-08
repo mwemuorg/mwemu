@@ -209,14 +209,38 @@ impl PE64 {
         let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
         let _iat = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_IAT].virtual_address;
 
+        // No TLS directory (VA == 0) means no callbacks; reading from off 0 would
+        // decode a garbage TlsDirectory64 and yield bogus callback addresses.
+        if entry_tls == 0 {
+            return callbacks;
+        }
+
         let tls_off = PE64::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
         let tls = TlsDirectory64::load(raw, tls_off);
         tls.print();
 
-        let mut cb_off = PE64::vaddr_to_off(&self.sect_hdr, (tls.tls_callbacks & 0xffff) as u32);
-        loop {
-            let callback: u64 = read_u64_le!(raw, cb_off as usize);
+        // A null AddressOfCallBacks means the TLS directory has no callback array.
+        if tls.tls_callbacks == 0 {
+            return callbacks;
+        }
+
+        // AddressOfCallBacks is a full VA; the RVA is (VA - ImageBase), not a
+        // 16-bit mask (that only worked by luck when the RVA was < 0x10000).
+        let cb_rva = tls.tls_callbacks.wrapping_sub(self.opt.image_base) as u32;
+        let mut cb_off = PE64::vaddr_to_off(&self.sect_hdr, cb_rva) as usize;
+        // Cap iterations: the array is NULL-terminated, but a malformed/garbage
+        // pointer could otherwise loop until it walks off the buffer.
+        for _ in 0..64 {
+            if cb_off + 8 > raw.len() {
+                break;
+            }
+            let callback: u64 = read_u64_le!(raw, cb_off);
             if callback == 0 {
+                break;
+            }
+            // Callbacks are full VAs inside the image; anything below ImageBase is
+            // garbage from a misparsed directory.
+            if callback < self.opt.image_base {
                 break;
             }
             log::trace!("0x{:x} TLS Callback: 0x{:x}", cb_off, callback);

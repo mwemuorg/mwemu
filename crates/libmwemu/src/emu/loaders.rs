@@ -435,14 +435,35 @@ impl Emu {
                     log::trace!("ssdt: could not resolve ntdll!LdrInitializeThunk");
                 }
             }
-            // emulating tls callbacks
-            /*
-            for i in 0..self.tls_callbacks.len() {
-                self.regs_mut().rip = self.tls_callbacks[i];
-                log::trace!("emulating tls_callback {} at 0x{:x}", i + 1, self.regs().rip);
-                self.stack_push64(base);
-                self.run(Some(base));
-            }*/
+            // Run the PE's TLS callbacks before the entry point. Win64 ABI:
+            //   rcx = hModule (image base), rdx = Reason = DLL_PROCESS_ATTACH (1),
+            //   r8  = Reserved (0).
+            // Trampoline: push the image base as the return address and run until
+            // the callback rets back to it. A callback that faults is logged and
+            // the rest are skipped rather than aborting the load.
+            //
+            // TLS callbacks are auto-injected CRT init that runs *before* the
+            // real entry point, so run them best-effort: unimplemented APIs are
+            // skipped (not fatal) during callbacks, then the caller's crash-on-gap
+            // policy is restored for the actual program.
+            if !self.tls_callbacks.is_empty() {
+                let prev_skip = self.cfg.skip_unimplemented;
+                self.cfg.skip_unimplemented = true;
+                for i in 0..self.tls_callbacks.len() {
+                    let cb = self.tls_callbacks[i];
+                    log::trace!("emulating TLS callback {} at 0x{:x}", i + 1, cb);
+                    self.regs_mut().rcx = base;
+                    self.regs_mut().rdx = 1;
+                    self.regs_mut().r8 = 0;
+                    self.stack_push64(base);
+                    self.regs_mut().rip = cb;
+                    if let Err(e) = self.run(Some(base)) {
+                        log::warn!("TLS callback {} at 0x{:x} failed: {}", i + 1, cb, e);
+                        break;
+                    }
+                }
+                self.cfg.skip_unimplemented = prev_skip;
+            }
 
             // If LdrInitializeThunk bailed via NtTerminateProcess, do not
             // continue with the EXE entry point: ntdll's loader state is

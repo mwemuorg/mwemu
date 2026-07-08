@@ -29,6 +29,8 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "__acrt_iob_func" => __acrt_iob_func(emu),
         "__p__commode" => __p__commode(emu),
         "__p__fmode" => __p__fmode(emu),
+        "_set_new_mode" => _set_new_mode(emu),
+        "setvbuf" => setvbuf(emu),
         "__stdio_common_vfprintf" => __stdio_common_vfprintf(emu),
         "puts" => puts(emu),
         "strlen" => strlen(emu),
@@ -73,6 +75,25 @@ fn _initialize_narrow_environment(emu: &mut emu::Emu) {
 fn _configure_narrow_argv(emu: &mut emu::Emu) {
     let mode = emu.regs().rcx;
     log_red!(emu, "wincrt!_configure_narrow_argv mode: 0x{:x}", mode);
+    emu.regs_mut().rax = 0;
+}
+
+fn setvbuf(emu: &mut emu::Emu) {
+    // int setvbuf(FILE *stream, char *buf, int mode, size_t size): configures
+    // stream buffering. We don't do real buffered I/O, so accept it and report
+    // success (0).
+    let stream = emu.regs().rcx;
+    let mode = emu.regs().r8;
+    log_red!(emu, "wincrt!setvbuf stream: 0x{:x} mode: 0x{:x}", stream, mode);
+    emu.regs_mut().rax = 0;
+}
+
+fn _set_new_mode(emu: &mut emu::Emu) {
+    // int _set_new_mode(int newmode): selects whether malloc failures call the
+    // new-handler. Returns the previous mode. We keep no CRT state, so report the
+    // default (0). Pure init-time bookkeeping — a safe no-op for emulation.
+    let newmode = emu.regs().rcx;
+    log_red!(emu, "wincrt!_set_new_mode newmode: 0x{:x}", newmode);
     emu.regs_mut().rax = 0;
 }
 

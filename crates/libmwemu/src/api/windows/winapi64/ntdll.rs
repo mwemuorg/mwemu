@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::serialization;
 use crate::winapi::winapi64::kernel32;
 
 mod file;
@@ -24,18 +23,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         return String::new();
     }
 
-    if !emu.cfg.skip_unimplemented {
-        if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-            serialization::Serialization::dump(emu, emu.cfg.dump_filename.as_ref().unwrap());
-        }
-
-        unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
-    }
-    log::warn!(
-        "calling unimplemented API 0x{:x} {} at 0x{:x}",
-        addr,
-        api,
-        emu.regs().rip
-    );
-    api.to_ascii_lowercase()
+    // Not an ntdll-native API. Windows forwards many kernel32/kernelbase
+    // functions to ntdll-resident implementations (e.g. EnterCriticalSection ->
+    // ntdll!RtlEnterCriticalSection), so an import can land in the ntdll map yet
+    // be owned by our kernel32 gateway. Delegate there before giving up — it
+    // mirrors kernelbase's fallback and only runs for APIs ntdll didn't handle,
+    // so it can't regress anything. (kernel32's gateway never calls back into
+    // ntdll, so there's no recursion; it also owns the unimplemented panic /
+    // skip-unimplemented handling.)
+    kernel32::gateway(addr, emu)
 }
