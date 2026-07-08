@@ -2,47 +2,63 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [main]
   pull_request:
-    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-    name: Build & test on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
+  # ── Run once: lint & format checks ──
+  lint:
+    name: Lint & Format Check
+    runs-on: ubuntu-latest
     steps:
-      # rs-header is vendored in-tree (crates/libmwemu/libraries/rs-header), so
-      # no submodules are needed. The full emulator now lives in this repo — the
-      # library crates and bindings are all workspace members under crates/.
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy
+          components: clippy, rustfmt
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+      # Cache compiled dependencies & build artifacts
+      - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: ${{ runner.os }}
+          shared-key: "lint"  # share cache across runs
+          cache-on-failure: true
 
-      # cargo directly (not `make`) so the same steps run on Windows too, whose
-      # runners have no GNU make. These mirror the `clippy-release` / `test-ci`
-      # Makefile targets for local use.
-      - name: Clippy
-        run: cargo clippy --release --lib --bins
+      - name: Check formatting
+        run: cargo fmt --all -- --check
 
-      # Self-contained suite only: no sample bundle, no network. Binary-dependent
-      # tests skip themselves (the `sample!` macro) when their sample is absent.
+      - name: Run Clippy
+        run: cargo clippy --lib --bins
+
+  # ── Matrix: build & test across platforms/versions ──
+  test:
+    name: Test
+    needs: lint  # optional: fail fast if lint fails
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, beta]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      # Cache per matrix combination (keyed by OS + Rust version)
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "test-${{ matrix.os }}-${{ matrix.rust }}"
+          cache-on-failure: true
+
+      - name: Build
+        run: cargo build --all-targets
+
       - name: Test
-        run: cargo test --verbose
+        run: cargo test --all-features
