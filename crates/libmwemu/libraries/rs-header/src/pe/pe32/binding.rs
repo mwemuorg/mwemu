@@ -1,5 +1,5 @@
-use crate::pe::loader::PeLoader;
 use super::{HintNameItem, PE32};
+use crate::pe::loader::PeLoader;
 
 impl PE32 {
     /// Bind the delay-load import table into guest memory via `loader`.
@@ -145,7 +145,10 @@ impl PE32 {
                     if !is_apiset {
                         log::trace!(
                             "unresolved import {}!{} (IAT rva 0x{:x}); named by slot 0x{:x}",
-                            iim_name, func_name, rva, thunk
+                            iim_name,
+                            func_name,
+                            rva,
+                            thunk
                         );
                     }
                 }

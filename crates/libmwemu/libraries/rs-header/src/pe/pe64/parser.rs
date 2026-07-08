@@ -1,12 +1,11 @@
-
-use crate::pe::readers::{read_c_string, read_u64_le as read_u64_le_shared};
 use super::{
-    DelayLoadDirectory, ImageDosHeader, ImageExportDirectory, ImageFileHeader,
-    ImageImportDescriptor, ImageNtHeaders, ImageOptionalHeader64, ImageSectionHeader, PE64,
-    TlsDirectory64, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
+    DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
     IMAGE_DIRECTORY_ENTRY_IAT, IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS,
-    IMAGE_FILE_DLL, SECTION_HEADER_SZ,
+    IMAGE_FILE_DLL, ImageDosHeader, ImageExportDirectory, ImageFileHeader, ImageImportDescriptor,
+    ImageNtHeaders, ImageOptionalHeader64, ImageSectionHeader, PE64, SECTION_HEADER_SZ,
+    TlsDirectory64,
 };
+use crate::pe::readers::{read_c_string, read_u64_le as read_u64_le_shared};
 
 macro_rules! read_u64_le {
     ($raw:expr, $off:expr) => {
@@ -59,7 +58,10 @@ impl PE64 {
                     }
                     let off = PE64::vaddr_to_off(&sect, delay_load.name_ptr) as usize;
                     if off > raw.len() {
-                        { log::warn!("pe64: delay_load.name out of buffer, skipping"); break; }
+                        {
+                            log::warn!("pe64: delay_load.name out of buffer, skipping");
+                            break;
+                        }
                     }
                     delay_load.name = read_c_string(raw, off);
                     delay_load_dir.push(delay_load);
@@ -78,7 +80,10 @@ impl PE64 {
                     }
                     let off = PE64::vaddr_to_off(&sect, iid.name_ptr) as usize;
                     if off > raw.len() {
-                        { log::warn!("pe64: iid name out of buffer, skipping"); break; }
+                        {
+                            log::warn!("pe64: iid name out of buffer, skipping");
+                            break;
+                        }
                     }
                     iid.name = read_c_string(raw, off);
                     image_import_descriptor.push(iid);
@@ -172,7 +177,10 @@ impl PE64 {
 
     pub fn get_section_ptr<'a>(&self, raw: &'a [u8], id: usize) -> &'a [u8] {
         if id > self.sect_hdr.len() {
-            { log::warn!("pe64: invalid section id {}", id); return &[]; }
+            {
+                log::warn!("pe64: invalid section id {}", id);
+                return &[];
+            }
         }
         let off = self.sect_hdr[id].pointer_to_raw_data as usize;
         let sz = self.sect_hdr[id].size_of_raw_data as usize;

@@ -1,8 +1,6 @@
 use std::str;
 
-use crate::pe::readers::{
-    read_u16_le as read_u16_le_shared, read_u32_le as read_u32_le_shared,
-};
+use crate::pe::readers::{read_u16_le as read_u16_le_shared, read_u32_le as read_u32_le_shared};
 
 macro_rules! read_u16_le {
     ($raw:expr, $off:expr) => {
@@ -221,7 +219,10 @@ impl ImageSectionHeader {
 
     pub fn set_name(&mut self, newname: &str) {
         if newname.len() + 1 > IMAGE_SIZEOF_SHORT_NAME {
-            { log::warn!("pe: section name too long, skipping"); return; }
+            {
+                log::warn!("pe: section name too long, skipping");
+                return;
+            }
         }
         let mut vname: Vec<u8> = newname.as_bytes().to_vec();
         vname.push(0);

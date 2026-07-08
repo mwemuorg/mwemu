@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
+use super::PE64;
 use crate::pe::loader::PeLoader;
 use crate::pe::pe32::HintNameItem;
 use crate::pe::readers::read_u64_le as read_u64_le_shared;
-use super::PE64;
 
 macro_rules! read_u64_le {
     ($raw:expr, $off:expr) => {
@@ -116,12 +116,22 @@ impl PE64 {
             // absent, their functions still resolve via the backing DLLs below, so
             // don't skip them.
             if loader.load_library(&import_dll) == 0 && !is_api_set_contract(&import_dll) {
-                log::debug!("cannot import library `{}` (IAT binding skips it)", import_dll);
+                log::debug!(
+                    "cannot import library `{}` (IAT binding skips it)",
+                    import_dll
+                );
                 continue;
             }
 
             if original_first_thunk == 0 {
-                self.iat_binding_alternative(raw, loader, base_addr, first_thunk, &import_dll, &mut resolved_cache);
+                self.iat_binding_alternative(
+                    raw,
+                    loader,
+                    base_addr,
+                    first_thunk,
+                    &import_dll,
+                    &mut resolved_cache,
+                );
             } else {
                 self.iat_binding_original(
                     raw,
@@ -162,7 +172,10 @@ impl PE64 {
             let is_ordinal = (func_name_addr_or_ordinal & 0x80000000_00000000) != 0;
             if is_ordinal {
                 let ordinal = (func_name_addr_or_ordinal & 0xFFFF) as u16;
-                unimplemented!("ordinal import binding not implemented (ordinal {})", ordinal);
+                unimplemented!(
+                    "ordinal import binding not implemented (ordinal {})",
+                    ordinal
+                );
             }
 
             let func_name_addr = (func_name_addr_or_ordinal & 0x7fff_ffff_ffff_ffff) as u32;
@@ -187,14 +200,21 @@ impl PE64 {
                 // Unresolved: the IAT slot keeps its on-disk value (the
                 // name-entry address). Record it -> name so a call through the
                 // slot is still identified and emulated by name.
-                self.iat_names
-                    .insert(func_name_addr_or_ordinal, format!("{}!{}", import_dll, api_name));
+                self.iat_names.insert(
+                    func_name_addr_or_ordinal,
+                    format!("{}!{}", import_dll, api_name),
+                );
                 unresolved += 1;
                 // api-set contracts (api-ms-win-*, ext-ms-*) are name-forwarders
                 // resolved by the gateway, not the IAT — expected "unresolved", so
                 // don't log them (they'd flood the output).
                 if !is_api_set_contract(import_dll) {
-                    log::trace!("unresolved import {}!{} (IAT rva 0x{:x})", import_dll, api_name, rva);
+                    log::trace!(
+                        "unresolved import {}!{} (IAT rva 0x{:x})",
+                        import_dll,
+                        api_name,
+                        rva
+                    );
                 }
             }
 
@@ -270,7 +290,12 @@ impl PE64 {
                     .insert(thunk_data, format!("{}!{}", import_dll, func_name));
                 unresolved += 1;
                 if !is_api_set_contract(import_dll) {
-                    log::trace!("unresolved import {}!{} (IAT rva 0x{:x})", import_dll, func_name, rva);
+                    log::trace!(
+                        "unresolved import {}!{} (IAT rva 0x{:x})",
+                        import_dll,
+                        func_name,
+                        rva
+                    );
                 }
             }
 

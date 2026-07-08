@@ -3,12 +3,12 @@
 //! panicking. No sample bundle, no Windows DLLs, no network — these run in CI
 //! and lock in the panic!/exit → graceful-degradation work so it can't regress.
 
-mod memory;
-mod pe_parse;
 mod elf_parse;
-mod loader;
-mod instructions;
 mod flags_diff;
-mod shifts_diff;
-mod rotates_diff;
+mod instructions;
+mod loader;
+mod memory;
 mod misc_diff;
+mod pe_parse;
+mod rotates_diff;
+mod shifts_diff;

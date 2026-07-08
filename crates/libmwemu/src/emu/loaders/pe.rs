@@ -62,7 +62,10 @@ impl Emu {
         // base is forced by libmwemu
         if force_base > 0 {
             if self.maps.overlaps(force_base as u64, raw_len) {
-                { log::warn!("pe32: forced base overlaps existing maps, using anyway"); base = force_base; }
+                {
+                    log::warn!("pe32: forced base overlaps existing maps, using anyway");
+                    base = force_base;
+                }
             } else {
                 base = force_base;
             }
@@ -254,7 +257,8 @@ impl Emu {
         ) {
             Ok(m) => m,
             Err(e) => {
-                { log::error!("cannot create pe64 map: {}", e); return (0, pe64, raw); }
+                log::error!("cannot create pe64 map: {}", e);
+                return (0, pe64, raw);
             }
         };
         pemap.memcpy(pe64.headers(&raw), pe64.opt.size_of_headers as usize);
@@ -343,7 +347,10 @@ impl Emu {
         // base is setted by libmwemu
         if force_base > 0 {
             if self.maps.overlaps(force_base, raw_len) {
-                { log::warn!("pe64: forced base overlaps existing maps, using anyway"); base = force_base; }
+                {
+                    log::warn!("pe64: forced base overlaps existing maps, using anyway");
+                    base = force_base;
+                }
             } else {
                 base = force_base;
             }
@@ -406,7 +413,8 @@ impl Emu {
         ) {
             Ok(m) => m,
             Err(e) => {
-                { log::error!("cannot create pe64 map: {}", e); return (base, 0); }
+                log::error!("cannot create pe64 map: {}", e);
+                return (base, 0);
             }
         };
         pemap.memcpy(pe64.headers(&raw), pe64.opt.size_of_headers as usize);

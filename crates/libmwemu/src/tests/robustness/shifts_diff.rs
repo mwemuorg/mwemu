@@ -144,7 +144,15 @@ fn sar16_matches_cpu() {
 
 // ---- 32-bit variable-count shifts ----
 
-const VALS32: &[u32] = &[0, 1, 0x8000_0000, 0x7fff_ffff, 0xffff_ffff, 0xaaaa_aaaa, 0x0000_00ff];
+const VALS32: &[u32] = &[
+    0,
+    1,
+    0x8000_0000,
+    0x7fff_ffff,
+    0xffff_ffff,
+    0xaaaa_aaaa,
+    0x0000_00ff,
+];
 
 #[test]
 fn shl32_matches_cpu() {
@@ -201,8 +209,14 @@ fn sar32_matches_cpu() {
 // For 32-bit, every masked count (0..31) is architecturally defined.
 
 const DBL32: &[(u32, u32)] = &[
-    (0, 0), (1, 0), (0x8000_0000, 0xffff_ffff), (0xdead_beef, 0x1234_5678),
-    (0xffff_ffff, 0), (0, 0xffff_ffff), (0x7fff_ffff, 0x8000_0000), (0xaaaa_aaaa, 0x5555_5555),
+    (0, 0),
+    (1, 0),
+    (0x8000_0000, 0xffff_ffff),
+    (0xdead_beef, 0x1234_5678),
+    (0xffff_ffff, 0),
+    (0, 0xffff_ffff),
+    (0x7fff_ffff, 0x8000_0000),
+    (0xaaaa_aaaa, 0x5555_5555),
 ];
 
 #[test]
@@ -240,8 +254,12 @@ fn shrd32_matches_cpu() {
 }
 
 const DBL64: &[(u64, u64)] = &[
-    (0, 0), (1, 0), (0x8000_0000_0000_0000, u64::MAX), (0xdead_beef_cafe_babe, 0x0123_4567_89ab_cdef),
-    (u64::MAX, 0), (0, u64::MAX),
+    (0, 0),
+    (1, 0),
+    (0x8000_0000_0000_0000, u64::MAX),
+    (0xdead_beef_cafe_babe, 0x0123_4567_89ab_cdef),
+    (u64::MAX, 0),
+    (0, u64::MAX),
 ];
 const COUNTS64: &[u8] = &[0, 1, 2, 31, 32, 33, 63];
 

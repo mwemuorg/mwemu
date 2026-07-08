@@ -2,8 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::maps::Maps;
 
-#[derive(Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Serialize, Deserialize, Default)]
 pub struct SerializableMaps {
     maps: Maps,
 }
@@ -25,7 +24,6 @@ impl From<SerializableMaps> for Maps {
         serialized.maps
     }
 }
-
 
 impl SerializableMaps {
     pub fn new(maps: Maps) -> Self {

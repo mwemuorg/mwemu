@@ -1,5 +1,5 @@
-use crate::elf::loader::{ElfLoader, Perm};
 use crate::elf::ElfError;
+use crate::elf::loader::{ElfLoader, Perm};
 use std::collections::HashMap;
 
 // Load addresses and segment type previously sourced from
@@ -422,11 +422,18 @@ impl Elf64 {
     /// Patch a relocation slot. The consumer's `write_qword` is expected to
     /// handle writing into otherwise read-only maps; we only report a genuinely
     /// unmapped target.
-    fn write_reloc_qword<L: ElfLoader>(&self, loader: &mut L, patch_addr: u64, value: u64, what: &str) {
+    fn write_reloc_qword<L: ElfLoader>(
+        &self,
+        loader: &mut L,
+        patch_addr: u64,
+        value: u64,
+        what: &str,
+    ) {
         if !loader.write_qword(patch_addr, value) {
             log::warn!(
                 "elf64: relocation target 0x{:x} for {} is not mapped",
-                patch_addr, what
+                patch_addr,
+                what
             );
         }
     }
@@ -476,9 +483,7 @@ impl Elf64 {
                 continue;
             }
 
-            if r_type != R_X86_64_GLOB_DAT
-                && r_type != R_X86_64_JUMP_SLOT
-                && r_type != R_X86_64_64
+            if r_type != R_X86_64_GLOB_DAT && r_type != R_X86_64_JUMP_SLOT && r_type != R_X86_64_64
             {
                 off += rela_ent;
                 continue;
@@ -593,9 +598,10 @@ impl Elf64 {
         }
 
         // Fallback: read from raw binary
-        let dynsym_shdr = self.elf_shdr.iter().find(|shdr| {
-            self.get_section_name(shdr.sh_name as usize) == ".dynsym"
-        });
+        let dynsym_shdr = self
+            .elf_shdr
+            .iter()
+            .find(|shdr| self.get_section_name(shdr.sh_name as usize) == ".dynsym");
         let Some(shdr) = dynsym_shdr else {
             return String::new();
         };
@@ -809,7 +815,9 @@ impl Elf64 {
                     None => {
                         log::warn!(
                             "elf64 {} could not map 0x{:x} {}",
-                            map_name, sh_addr, sh_size
+                            map_name,
+                            sh_addr,
+                            sh_size
                         );
                         continue;
                     }
@@ -887,7 +895,9 @@ impl Elf64 {
                 None => {
                     log::warn!(
                         "segment map {} failed at 0x{:x} size 0x{:x}",
-                        map_name, map_start, map_size
+                        map_name,
+                        map_start,
+                        map_size
                     );
                 }
             }

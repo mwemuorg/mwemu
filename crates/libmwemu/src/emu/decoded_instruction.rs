@@ -57,7 +57,9 @@ impl DecodedInstruction {
     pub fn as_x86(&self) -> &iced_x86::Instruction {
         match self {
             DecodedInstruction::X86(ins) => ins,
-            DecodedInstruction::AArch64(_) => unreachable!("as_x86() called on aarch64 instruction"),
+            DecodedInstruction::AArch64(_) => {
+                unreachable!("as_x86() called on aarch64 instruction")
+            }
         }
     }
 

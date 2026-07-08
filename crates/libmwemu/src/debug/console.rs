@@ -269,7 +269,10 @@ impl Console {
             }
 
             match cmd.as_str() {
-                "q" => { emu.process_terminated = true; return; }
+                "q" => {
+                    emu.process_terminated = true;
+                    return;
+                }
                 "h" => con.help(),
                 "r" => {
                     if emu.cfg.arch.is_aarch64() {

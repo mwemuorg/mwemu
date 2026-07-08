@@ -4,10 +4,10 @@
 //! session lifecycle: open -> configure -> prepare -> emulate -> inspect ->
 //! close. Handlers operate on the single open `Emu` held by the `Server`.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use libmwemu::maps::mem64::Permission;
-use libmwemu::{emu32, emu64, emu_aarch64};
+use libmwemu::{emu_aarch64, emu32, emu64};
 
 use crate::server::Server;
 use crate::util::*;
@@ -65,7 +65,9 @@ fn parse_u128_arg(a: &Value, key: &str) -> Result<u128, String> {
             }
         }
         Some(v) if v.is_u64() => Ok(v.as_u64().unwrap() as u128),
-        _ => Err(format!("missing '{key}' (pass a 128-bit value as a hex string)")),
+        _ => Err(format!(
+            "missing '{key}' (pass a 128-bit value as a hex string)"
+        )),
     }
 }
 
@@ -154,13 +156,21 @@ fn t_config(s: &mut Server, a: &Value) -> Result<Value, String> {
         e.cfg.verbose = x as u32;
     }
     if let Some(v) = a.get("max_instructions") {
-        e.cfg.max_instructions = if v.is_null() { None } else { Some(parse_u64(v)?) };
+        e.cfg.max_instructions = if v.is_null() {
+            None
+        } else {
+            Some(parse_u64(v)?)
+        };
     }
     if let Some(v) = a.get("timeout_secs") {
         e.cfg.timeout_secs = if v.is_null() { None } else { v.as_f64() };
     }
     if let Some(v) = a.get("max_faults") {
-        e.cfg.max_faults = if v.is_null() { None } else { Some(parse_u64(v)? as u32) };
+        e.cfg.max_faults = if v.is_null() {
+            None
+        } else {
+            Some(parse_u64(v)? as u32)
+        };
     }
     if let Some(b) = a.get("trace_mem").and_then(|v| v.as_bool()) {
         e.cfg.trace_mem = b;
@@ -380,8 +390,9 @@ fn t_search(s: &mut Server, a: &Value) -> Result<Value, String> {
                 Some(m) => e.maps.search_string(kw, m).unwrap_or_default(),
                 None => {
                     return Err(
-                        "string search needs map_name (use kind=hex for a global search)".to_string(),
-                    )
+                        "string search needs map_name (use kind=hex for a global search)"
+                            .to_string(),
+                    );
                 }
             }
         }
@@ -518,7 +529,9 @@ fn t_set_xmm(s: &mut Server, a: &Value) -> Result<Value, String> {
     if e.regs().is_xmm_by_name(&reg) {
         let prev = e.regs().get_xmm_by_name(&reg);
         e.regs_mut().set_xmm_by_name(&reg, value);
-        Ok(json!({ "reg": reg, "value": format!("0x{value:x}"), "previous": format!("0x{prev:x}") }))
+        Ok(
+            json!({ "reg": reg, "value": format!("0x{value:x}"), "previous": format!("0x{prev:x}") }),
+        )
     } else {
         Err(format!("invalid xmm register '{reg}'"))
     }
@@ -584,9 +597,11 @@ fn t_run(s: &mut Server, a: &Value) -> Result<Value, String> {
     // The server is synchronous; an unbounded run with no terminating address
     // would hang it. Require a bound.
     if end.is_none() && e.cfg.max_instructions.is_none() && e.cfg.timeout_secs.is_none() {
-        return Err("refusing an unbounded run that could hang the server: pass \
+        return Err(
+            "refusing an unbounded run that could hang the server: pass \
                     end_address, or set max_instructions / timeout_secs"
-            .to_string());
+                .to_string(),
+        );
     }
     match e.run(end) {
         Ok(pc) => Ok(json!({
@@ -648,8 +663,10 @@ fn t_call(s: &mut Server, a: &Value) -> Result<Value, String> {
 
     let ret: u64 = if matches!(abi, Some("linux64") | Some("linux")) {
         e.linux_call64(addr, &args).map_err(|er| er.message)?
-    } else if matches!(abi, Some("x86") | Some("stdcall32") | Some("cdecl32") | Some("32"))
-        || (abi.is_none() && !e.cfg.is_x64())
+    } else if matches!(
+        abi,
+        Some("x86") | Some("stdcall32") | Some("cdecl32") | Some("32")
+    ) || (abi.is_none() && !e.cfg.is_x64())
     {
         let a32: Vec<u32> = args.iter().map(|x| *x as u32).collect();
         e.call32(addr, &a32).map_err(|er| er.message)? as u64
@@ -913,7 +930,10 @@ fn sc_stack_pop() -> Value {
     obj(json!({ "size": { "type": "integer" } }), &[])
 }
 fn sc_step() -> Value {
-    obj(json!({ "count": { "type": "integer", "description": "instructions to step (default 1)" } }), &[])
+    obj(
+        json!({ "count": { "type": "integer", "description": "instructions to step (default 1)" } }),
+        &[],
+    )
 }
 fn sc_run() -> Value {
     obj(
@@ -925,7 +945,10 @@ fn sc_run() -> Value {
     )
 }
 fn sc_run_to() -> Value {
-    obj(json!({ "position": { "type": ["string","integer"], "description": "instruction count to reach" } }), &["position"])
+    obj(
+        json!({ "position": { "type": ["string","integer"], "description": "instruction count to reach" } }),
+        &["position"],
+    )
 }
 fn sc_call() -> Value {
     obj(
@@ -938,7 +961,10 @@ fn sc_call() -> Value {
     )
 }
 fn sc_set_pc() -> Value {
-    obj(json!({ "address": { "type": ["string","integer"] } }), &["address"])
+    obj(
+        json!({ "address": { "type": ["string","integer"] } }),
+        &["address"],
+    )
 }
 fn sc_disassemble() -> Value {
     obj(
@@ -950,7 +976,10 @@ fn sc_disassemble() -> Value {
     )
 }
 fn sc_api_addr() -> Value {
-    obj(json!({ "address": { "type": ["string","integer"] } }), &["address"])
+    obj(
+        json!({ "address": { "type": ["string","integer"] } }),
+        &["address"],
+    )
 }
 fn sc_api_name() -> Value {
     obj(json!({ "name": { "type": "string" } }), &["name"])
@@ -969,49 +998,238 @@ fn sc_bp() -> Value {
 // --- registry ----------------------------------------------------------------
 
 pub const TOOLS: &[ToolDef] = &[
-    ToolDef { name: "mwemu_open", description: "Open a new emulator session for an architecture (x86, x64 or arm64). Replaces any previous session.", schema: sc_open, handler: t_open },
-    ToolDef { name: "mwemu_close", description: "Close the current emulator session and free it.", schema: sc_empty, handler: t_close },
-    ToolDef { name: "mwemu_status", description: "Report whether a session is open and its arch, PC, SP and instruction position.", schema: sc_empty, handler: t_status },
-    ToolDef { name: "mwemu_config", description: "Configure the open session: base/stack/entry addresses, verbosity, execution limits (max_instructions, timeout_secs, max_faults), tracing and banzai. All fields optional.", schema: sc_config, handler: t_config },
-
-    ToolDef { name: "mwemu_load_code_bytes", description: "Load raw machine code/shellcode into the session from inline bytes (hex string or byte array). The safe way to feed code.", schema: sc_load_code_bytes, handler: t_load_code_bytes },
-    ToolDef { name: "mwemu_load_binary", description: "Load a PE/ELF/Mach-O binary from a filesystem path (disk-gated; disabled in sandbox mode).", schema: sc_load_binary, handler: t_load_binary },
-    ToolDef { name: "mwemu_load_maps", description: "Set the 32/64-bit maps folder for a realistic memory layout (disk-gated).", schema: sc_load_maps, handler: t_load_maps },
-    ToolDef { name: "mwemu_init_win32", description: "Initialise the Windows simulation environment (PEB/TEB/LDR/DLLs) for the open session.", schema: sc_empty, handler: t_init_win32 },
-    ToolDef { name: "mwemu_init_linux64", description: "Initialise the Linux simulation environment for the open session.", schema: sc_init_linux64, handler: t_init_linux64 },
-    ToolDef { name: "mwemu_alloc", description: "Allocate a named memory region (optionally at a fixed address) and return its base. Permission defaults to rwx.", schema: sc_alloc, handler: t_alloc },
-    ToolDef { name: "mwemu_free", description: "Free a named memory region.", schema: sc_free, handler: t_free },
-
-    ToolDef { name: "mwemu_read_mem", description: "Read N bytes of emulated memory; returns hex plus a little-endian integer for sizes 1/2/4/8.", schema: sc_read_mem, handler: t_read_mem },
-    ToolDef { name: "mwemu_read_string", description: "Read a null-terminated ASCII (or wide UTF-16) string from memory.", schema: sc_read_string, handler: t_read_string },
-    ToolDef { name: "mwemu_write_mem", description: "Write raw bytes (hex string or byte array) to emulated memory.", schema: sc_write_mem, handler: t_write_mem },
-    ToolDef { name: "mwemu_write_string", description: "Write an ASCII (or wide UTF-16) string to memory.", schema: sc_write_string, handler: t_write_string },
-    ToolDef { name: "mwemu_write_int", description: "Write a little-endian integer of 1, 2, 4 or 8 bytes to memory.", schema: sc_write_int, handler: t_write_int },
-    ToolDef { name: "mwemu_memset", description: "Fill a memory region with a repeated byte.", schema: sc_memset, handler: t_memset },
-    ToolDef { name: "mwemu_search", description: "Search memory for a substring (kind=string, needs map_name) or hex bytes (kind=hex, optional map_name for global).", schema: sc_search, handler: t_search },
-    ToolDef { name: "mwemu_maps", description: "List the memory maps (name, base, size, end), optionally filtered by keyword.", schema: sc_maps, handler: t_maps },
-
-    ToolDef { name: "mwemu_get_reg", description: "Read a register by name (e.g. rax, eax, x0).", schema: sc_get_reg, handler: t_get_reg },
-    ToolDef { name: "mwemu_set_reg", description: "Set a register by name; returns the previous value.", schema: sc_set_reg, handler: t_set_reg },
-    ToolDef { name: "mwemu_regs", description: "Dump the general-purpose registers plus the program counter.", schema: sc_empty, handler: t_regs },
-    ToolDef { name: "mwemu_get_xmm", description: "Read a 128-bit XMM register by name (x86 only).", schema: sc_get_xmm, handler: t_get_xmm },
-    ToolDef { name: "mwemu_set_xmm", description: "Set a 128-bit XMM register (x86 only); value as hex string.", schema: sc_set_xmm, handler: t_set_xmm },
-    ToolDef { name: "mwemu_stack_push", description: "Push a value onto the stack (4 or 8 bytes; default by arch).", schema: sc_stack_push, handler: t_stack_push },
-    ToolDef { name: "mwemu_stack_pop", description: "Pop a value from the stack (4 or 8 bytes; default by arch).", schema: sc_stack_pop, handler: t_stack_pop },
-
-    ToolDef { name: "mwemu_step", description: "Single-step the emulator N instructions (default 1).", schema: sc_step, handler: t_step },
-    ToolDef { name: "mwemu_run", description: "Run until end_address (or until a configured limit). Requires a bound to avoid hanging the server.", schema: sc_run, handler: t_run },
-    ToolDef { name: "mwemu_run_to", description: "Run until a given instruction position (count).", schema: sc_run_to, handler: t_run_to },
-    ToolDef { name: "mwemu_run_until_return", description: "Run until the next RET (step over).", schema: sc_empty, handler: t_run_until_return },
-    ToolDef { name: "mwemu_run_until_apicall", description: "Run until the next Windows API call; returns its address and name.", schema: sc_empty, handler: t_run_until_apicall },
-    ToolDef { name: "mwemu_call", description: "Call a function at an address with integer args (pushed in reverse); abi defaults to the session arch.", schema: sc_call, handler: t_call },
-    ToolDef { name: "mwemu_set_pc", description: "Set the program counter (RIP/EIP/PC).", schema: sc_set_pc, handler: t_set_pc },
-
-    ToolDef { name: "mwemu_disassemble", description: "Disassemble N instructions at an address (returns text).", schema: sc_disassemble, handler: t_disassemble },
-    ToolDef { name: "mwemu_call_stack", description: "Return the current call stack (from/to pairs).", schema: sc_empty, handler: t_call_stack },
-    ToolDef { name: "mwemu_prev_mnemonic", description: "Return the last decoded instruction with operands.", schema: sc_empty, handler: t_prev_mnemonic },
-    ToolDef { name: "mwemu_api_addr_to_name", description: "Resolve an API address to its name.", schema: sc_api_addr, handler: t_api_addr_to_name },
-    ToolDef { name: "mwemu_api_name_to_addr", description: "Resolve an API name to its address.", schema: sc_api_name, handler: t_api_name_to_addr },
-
-    ToolDef { name: "mwemu_bp", description: "Manage breakpoints: action set|clear|list, kind addr|inst|mem_read|mem_write.", schema: sc_bp, handler: t_bp },
+    ToolDef {
+        name: "mwemu_open",
+        description: "Open a new emulator session for an architecture (x86, x64 or arm64). Replaces any previous session.",
+        schema: sc_open,
+        handler: t_open,
+    },
+    ToolDef {
+        name: "mwemu_close",
+        description: "Close the current emulator session and free it.",
+        schema: sc_empty,
+        handler: t_close,
+    },
+    ToolDef {
+        name: "mwemu_status",
+        description: "Report whether a session is open and its arch, PC, SP and instruction position.",
+        schema: sc_empty,
+        handler: t_status,
+    },
+    ToolDef {
+        name: "mwemu_config",
+        description: "Configure the open session: base/stack/entry addresses, verbosity, execution limits (max_instructions, timeout_secs, max_faults), tracing and banzai. All fields optional.",
+        schema: sc_config,
+        handler: t_config,
+    },
+    ToolDef {
+        name: "mwemu_load_code_bytes",
+        description: "Load raw machine code/shellcode into the session from inline bytes (hex string or byte array). The safe way to feed code.",
+        schema: sc_load_code_bytes,
+        handler: t_load_code_bytes,
+    },
+    ToolDef {
+        name: "mwemu_load_binary",
+        description: "Load a PE/ELF/Mach-O binary from a filesystem path (disk-gated; disabled in sandbox mode).",
+        schema: sc_load_binary,
+        handler: t_load_binary,
+    },
+    ToolDef {
+        name: "mwemu_load_maps",
+        description: "Set the 32/64-bit maps folder for a realistic memory layout (disk-gated).",
+        schema: sc_load_maps,
+        handler: t_load_maps,
+    },
+    ToolDef {
+        name: "mwemu_init_win32",
+        description: "Initialise the Windows simulation environment (PEB/TEB/LDR/DLLs) for the open session.",
+        schema: sc_empty,
+        handler: t_init_win32,
+    },
+    ToolDef {
+        name: "mwemu_init_linux64",
+        description: "Initialise the Linux simulation environment for the open session.",
+        schema: sc_init_linux64,
+        handler: t_init_linux64,
+    },
+    ToolDef {
+        name: "mwemu_alloc",
+        description: "Allocate a named memory region (optionally at a fixed address) and return its base. Permission defaults to rwx.",
+        schema: sc_alloc,
+        handler: t_alloc,
+    },
+    ToolDef {
+        name: "mwemu_free",
+        description: "Free a named memory region.",
+        schema: sc_free,
+        handler: t_free,
+    },
+    ToolDef {
+        name: "mwemu_read_mem",
+        description: "Read N bytes of emulated memory; returns hex plus a little-endian integer for sizes 1/2/4/8.",
+        schema: sc_read_mem,
+        handler: t_read_mem,
+    },
+    ToolDef {
+        name: "mwemu_read_string",
+        description: "Read a null-terminated ASCII (or wide UTF-16) string from memory.",
+        schema: sc_read_string,
+        handler: t_read_string,
+    },
+    ToolDef {
+        name: "mwemu_write_mem",
+        description: "Write raw bytes (hex string or byte array) to emulated memory.",
+        schema: sc_write_mem,
+        handler: t_write_mem,
+    },
+    ToolDef {
+        name: "mwemu_write_string",
+        description: "Write an ASCII (or wide UTF-16) string to memory.",
+        schema: sc_write_string,
+        handler: t_write_string,
+    },
+    ToolDef {
+        name: "mwemu_write_int",
+        description: "Write a little-endian integer of 1, 2, 4 or 8 bytes to memory.",
+        schema: sc_write_int,
+        handler: t_write_int,
+    },
+    ToolDef {
+        name: "mwemu_memset",
+        description: "Fill a memory region with a repeated byte.",
+        schema: sc_memset,
+        handler: t_memset,
+    },
+    ToolDef {
+        name: "mwemu_search",
+        description: "Search memory for a substring (kind=string, needs map_name) or hex bytes (kind=hex, optional map_name for global).",
+        schema: sc_search,
+        handler: t_search,
+    },
+    ToolDef {
+        name: "mwemu_maps",
+        description: "List the memory maps (name, base, size, end), optionally filtered by keyword.",
+        schema: sc_maps,
+        handler: t_maps,
+    },
+    ToolDef {
+        name: "mwemu_get_reg",
+        description: "Read a register by name (e.g. rax, eax, x0).",
+        schema: sc_get_reg,
+        handler: t_get_reg,
+    },
+    ToolDef {
+        name: "mwemu_set_reg",
+        description: "Set a register by name; returns the previous value.",
+        schema: sc_set_reg,
+        handler: t_set_reg,
+    },
+    ToolDef {
+        name: "mwemu_regs",
+        description: "Dump the general-purpose registers plus the program counter.",
+        schema: sc_empty,
+        handler: t_regs,
+    },
+    ToolDef {
+        name: "mwemu_get_xmm",
+        description: "Read a 128-bit XMM register by name (x86 only).",
+        schema: sc_get_xmm,
+        handler: t_get_xmm,
+    },
+    ToolDef {
+        name: "mwemu_set_xmm",
+        description: "Set a 128-bit XMM register (x86 only); value as hex string.",
+        schema: sc_set_xmm,
+        handler: t_set_xmm,
+    },
+    ToolDef {
+        name: "mwemu_stack_push",
+        description: "Push a value onto the stack (4 or 8 bytes; default by arch).",
+        schema: sc_stack_push,
+        handler: t_stack_push,
+    },
+    ToolDef {
+        name: "mwemu_stack_pop",
+        description: "Pop a value from the stack (4 or 8 bytes; default by arch).",
+        schema: sc_stack_pop,
+        handler: t_stack_pop,
+    },
+    ToolDef {
+        name: "mwemu_step",
+        description: "Single-step the emulator N instructions (default 1).",
+        schema: sc_step,
+        handler: t_step,
+    },
+    ToolDef {
+        name: "mwemu_run",
+        description: "Run until end_address (or until a configured limit). Requires a bound to avoid hanging the server.",
+        schema: sc_run,
+        handler: t_run,
+    },
+    ToolDef {
+        name: "mwemu_run_to",
+        description: "Run until a given instruction position (count).",
+        schema: sc_run_to,
+        handler: t_run_to,
+    },
+    ToolDef {
+        name: "mwemu_run_until_return",
+        description: "Run until the next RET (step over).",
+        schema: sc_empty,
+        handler: t_run_until_return,
+    },
+    ToolDef {
+        name: "mwemu_run_until_apicall",
+        description: "Run until the next Windows API call; returns its address and name.",
+        schema: sc_empty,
+        handler: t_run_until_apicall,
+    },
+    ToolDef {
+        name: "mwemu_call",
+        description: "Call a function at an address with integer args (pushed in reverse); abi defaults to the session arch.",
+        schema: sc_call,
+        handler: t_call,
+    },
+    ToolDef {
+        name: "mwemu_set_pc",
+        description: "Set the program counter (RIP/EIP/PC).",
+        schema: sc_set_pc,
+        handler: t_set_pc,
+    },
+    ToolDef {
+        name: "mwemu_disassemble",
+        description: "Disassemble N instructions at an address (returns text).",
+        schema: sc_disassemble,
+        handler: t_disassemble,
+    },
+    ToolDef {
+        name: "mwemu_call_stack",
+        description: "Return the current call stack (from/to pairs).",
+        schema: sc_empty,
+        handler: t_call_stack,
+    },
+    ToolDef {
+        name: "mwemu_prev_mnemonic",
+        description: "Return the last decoded instruction with operands.",
+        schema: sc_empty,
+        handler: t_prev_mnemonic,
+    },
+    ToolDef {
+        name: "mwemu_api_addr_to_name",
+        description: "Resolve an API address to its name.",
+        schema: sc_api_addr,
+        handler: t_api_addr_to_name,
+    },
+    ToolDef {
+        name: "mwemu_api_name_to_addr",
+        description: "Resolve an API name to its address.",
+        schema: sc_api_name,
+        handler: t_api_name_to_addr,
+    },
+    ToolDef {
+        name: "mwemu_bp",
+        description: "Manage breakpoints: action set|clear|list, kind addr|inst|mem_read|mem_write.",
+        schema: sc_bp,
+        handler: t_bp,
+    },
 ];

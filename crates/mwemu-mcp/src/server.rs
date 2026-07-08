@@ -3,7 +3,7 @@
 
 use std::panic::AssertUnwindSafe;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use libmwemu::emu::Emu;
 
@@ -53,10 +53,12 @@ impl Server {
         if self.allow_disk {
             Ok(())
         } else {
-            Err("disk access is disabled in sandbox mode (network transport). \
+            Err(
+                "disk access is disabled in sandbox mode (network transport). \
                  Provide code as bytes (mwemu_load_code_bytes), or start the \
                  server with --unsafe to allow path-based tools."
-                .to_string())
+                    .to_string(),
+            )
         }
     }
 
@@ -72,7 +74,7 @@ impl Server {
                     Value::Null,
                     jsonrpc::PARSE_ERROR,
                     &format!("parse error: {e}"),
-                ))
+                ));
             }
         };
 
@@ -81,14 +83,21 @@ impl Server {
         let params = v.get("params").cloned().unwrap_or(Value::Null);
 
         match method {
-            "initialize" => Some(jsonrpc::success(id.unwrap_or(Value::Null), self.initialize(&params))),
+            "initialize" => Some(jsonrpc::success(
+                id.unwrap_or(Value::Null),
+                self.initialize(&params),
+            )),
             // notifications: no reply
             "notifications/initialized" | "initialized" | "notifications/cancelled" => None,
             "ping" => Some(jsonrpc::success(id.unwrap_or(Value::Null), json!({}))),
-            "tools/list" => Some(jsonrpc::success(id.unwrap_or(Value::Null), self.tools_list())),
-            "tools/call" => {
-                Some(jsonrpc::success(id.unwrap_or(Value::Null), self.tools_call(&params)))
-            }
+            "tools/list" => Some(jsonrpc::success(
+                id.unwrap_or(Value::Null),
+                self.tools_list(),
+            )),
+            "tools/call" => Some(jsonrpc::success(
+                id.unwrap_or(Value::Null),
+                self.tools_call(&params),
+            )),
             _ => match id {
                 Some(id) => Some(jsonrpc::error(
                     id,
@@ -151,8 +160,7 @@ impl Server {
         // libmwemu loaders/decoders are full of `.unwrap()` and can panic on
         // malformed input. Contain it here so one bad call can't take down a
         // long-running server.
-        let outcome =
-            std::panic::catch_unwind(AssertUnwindSafe(|| (tool.handler)(self, &args)));
+        let outcome = std::panic::catch_unwind(AssertUnwindSafe(|| (tool.handler)(self, &args)));
         let result = match outcome {
             Ok(r) => r,
             Err(_) => Err("internal emulator panic (input may be malformed); \

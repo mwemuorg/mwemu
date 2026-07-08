@@ -267,11 +267,15 @@ impl FPU {
     }
 
     pub fn set_st(&mut self, i: usize, value: f64) {
-        if let Some(st) = self.st.get_mut(i) { st.set_f64(value) }
+        if let Some(st) = self.st.get_mut(i) {
+            st.set_f64(value)
+        }
     }
 
     pub fn set_st_u80(&mut self, i: usize, value: u128) {
-        if let Some(st) = self.st.get_mut(i) { st.set(value) }
+        if let Some(st) = self.st.get_mut(i) {
+            st.set(value)
+        }
     }
 
     // only use from test.rs
@@ -308,38 +312,52 @@ impl FPU {
     }
 
     pub fn clear_st(&mut self, i: usize) {
-        if let Some(st) = self.st.get_mut(i) { st.set(0) }
+        if let Some(st) = self.st.get_mut(i) {
+            st.set(0)
+        }
     }
 
     pub fn neg_st(&mut self, i: usize) {
-        if let Some(st) = self.st.get_mut(i) { st.neg() }
+        if let Some(st) = self.st.get_mut(i) {
+            st.neg()
+        }
     }
 
     pub fn move_to_st0(&mut self, i: usize) {
         let v = self.st.get(i).get();
-        if let Some(st) = self.st.get_mut(0) { st.set(v) }
+        if let Some(st) = self.st.get_mut(0) {
+            st.set(v)
+        }
     }
 
     pub fn add_to_st0(&mut self, i: usize) {
         let v = self.st.get(i);
-        if let Some(st) = self.st.get_mut(0) { st.add(v) }
+        if let Some(st) = self.st.get_mut(0) {
+            st.add(v)
+        }
     }
 
     pub fn add(&mut self, i: usize, j: usize) {
         let v = self.st.get(j);
-        if let Some(st) = self.st.get_mut(i) { st.add(v) }
+        if let Some(st) = self.st.get_mut(i) {
+            st.add(v)
+        }
     }
 
     pub fn sub(&mut self, i: usize, j: usize) {
         let v = self.st.get(j);
-        if let Some(st) = self.st.get_mut(i) { st.sub(v) }
+        if let Some(st) = self.st.get_mut(i) {
+            st.sub(v)
+        }
     }
 
     pub fn subr(&mut self, i: usize, j: usize) {
         let a = self.st.get(i);
         let mut b = self.st.get(j);
         b.sub(a);
-        if let Some(st) = self.st.get_mut(i) { st.set(b.get()) }
+        if let Some(st) = self.st.get_mut(i) {
+            st.set(b.get())
+        }
     }
 
     pub fn push_f64(&mut self, value: f64) {
@@ -363,7 +381,6 @@ impl FPU {
     }
 
     pub fn pop2(&mut self) -> u128 {
-        
         match self.st.pop() {
             Some(f80val) => f80val.get(),
             None => 0,
@@ -371,7 +388,6 @@ impl FPU {
     }
 
     pub fn pop_f64(&mut self) -> f64 {
-        
         match self.st.pop() {
             Some(f80val) => f80val.get_f64(),
             None => 0.0,
@@ -380,13 +396,17 @@ impl FPU {
 
     pub fn fyl2x(&mut self) {
         let v = self.st.get(1).get_f64() * self.st.get(0).get_f64().log2();
-        if let Some(st) = self.st.get_mut(1) { st.set_f64(v) }
+        if let Some(st) = self.st.get_mut(1) {
+            st.set_f64(v)
+        }
         self.st.pop();
     }
 
     pub fn fyl2xp1(&mut self) {
         let v = self.st.get(1).get_f64() * (self.st.get(0).get_f64().log2() + 1.0);
-        if let Some(st) = self.st.get_mut(1) { st.set_f64(v) }
+        if let Some(st) = self.st.get_mut(1) {
+            st.set_f64(v)
+        }
         self.st.pop();
     }
 
@@ -437,13 +457,17 @@ impl FPU {
     pub fn set_streg_f80(&mut self, reg: Register, value: u128) {
         //println!("{:?} {}", reg, value);
         let idx = self.reg_to_idx(reg);
-        if let Some(st) = self.st.get_mut(idx) { st.set(value) }
+        if let Some(st) = self.st.get_mut(idx) {
+            st.set(value)
+        }
     }
 
     pub fn set_streg(&mut self, reg: Register, value: f64) {
         //println!("{:?} {}", reg, value);
         let idx = self.reg_to_idx(reg);
-        if let Some(st) = self.st.get_mut(idx) { st.set_f64(value) }
+        if let Some(st) = self.st.get_mut(idx) {
+            st.set_f64(value)
+        }
     }
 
     pub fn frexp(&self, value: f64) -> (f64, i32) {
@@ -508,7 +532,9 @@ impl FPU {
         // Convert the packed 128-bit ST registers back to f64 values
 
         for i in 0..8 {
-            if let Some(st) = self.st.get_mut(i) { st.fix() }
+            if let Some(st) = self.st.get_mut(i) {
+                st.fix()
+            }
         }
 
         self.xmm = state.xmm;

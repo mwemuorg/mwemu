@@ -4,7 +4,7 @@
 //! with `method`, optional `id` and optional `params`; the response echoes the
 //! `id`. Notifications (no `id`) get no response.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Build a successful JSON-RPC response string.
 pub fn success(id: Value, result: Value) -> String {

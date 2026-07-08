@@ -163,7 +163,8 @@ fn SysFreeString(emu: &mut emu::Emu) {
         // garbage/hostile handle. Warn and no-op instead of crashing.
         log::warn!(
             "{} oleaut32!SysFreeString: unreadable length prefix at 0x{:x}, ignoring",
-            emu.pos, alloc_base,
+            emu.pos,
+            alloc_base,
         );
     }
 

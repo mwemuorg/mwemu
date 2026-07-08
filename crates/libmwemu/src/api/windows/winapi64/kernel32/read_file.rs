@@ -101,18 +101,17 @@ pub fn ReadFile(emu: &mut emu::Emu) {
                 bytes
             );
             // Write the data back to the emulator's memory
-            if bytes > 0
-                && !emu.maps.write_bytes(lp_buffer, &buffer) {
-                    log_red!(
-                        emu,
-                        "** {} kernel32!ReadFile ERROR: Failed to write data to buffer at 0x{:x}",
-                        emu.pos,
-                        lp_buffer
-                    );
-                    emu.last_error = 14; // ERROR_OUTOFMEMORY
-                    emu.regs_mut().rax = 0; // FALSE
-                    return;
-                }
+            if bytes > 0 && !emu.maps.write_bytes(lp_buffer, &buffer) {
+                log_red!(
+                    emu,
+                    "** {} kernel32!ReadFile ERROR: Failed to write data to buffer at 0x{:x}",
+                    emu.pos,
+                    lp_buffer
+                );
+                emu.last_error = 14; // ERROR_OUTOFMEMORY
+                emu.regs_mut().rax = 0; // FALSE
+                return;
+            }
             bytes
         }
         Err(e) => {
@@ -147,17 +146,17 @@ pub fn ReadFile(emu: &mut emu::Emu) {
         && !emu
             .maps
             .write_dword(lp_number_of_bytes_read, bytes_read as u32)
-        {
-            log_red!(
-                emu,
-                "** {} kernel32!ReadFile ERROR: Failed to write bytes read count to 0x{:x}",
-                emu.pos,
-                lp_number_of_bytes_read
-            );
-            emu.last_error = 14; // ERROR_OUTOFMEMORY
-            emu.regs_mut().rax = 0; // FALSE
-            return;
-        }
+    {
+        log_red!(
+            emu,
+            "** {} kernel32!ReadFile ERROR: Failed to write bytes read count to 0x{:x}",
+            emu.pos,
+            lp_number_of_bytes_read
+        );
+        emu.last_error = 14; // ERROR_OUTOFMEMORY
+        emu.regs_mut().rax = 0; // FALSE
+        return;
+    }
 
     // Success!
     emu.last_error = 0; // NO_ERROR

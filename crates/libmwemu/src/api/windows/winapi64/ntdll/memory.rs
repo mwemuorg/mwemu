@@ -63,13 +63,19 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
     };
 
     if size == 0 {
-        { log::warn!("NtAllocateVirtualMemory mapping zero bytes."); return; }
+        {
+            log::warn!("NtAllocateVirtualMemory mapping zero bytes.");
+            return;
+        }
     }
 
     let alloc_addr: u64 = if do_alloc {
         match emu.maps.alloc(size) {
             Some(a) => a,
-            None => { log::warn!("/!\\ out of memory cannot allocate ntdll!NtAllocateVirtualMemory "); return; },
+            None => {
+                log::warn!("/!\\ out of memory cannot allocate ntdll!NtAllocateVirtualMemory ");
+                return;
+            }
         }
     } else {
         addr
@@ -93,7 +99,10 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         .expect("ntdll!NtAllocateVirtualMemory cannot create map");
 
     if !emu.maps.write_qword(addr_ptr, alloc_addr) {
-        { log::warn!("NtAllocateVirtualMemory: cannot write on address pointer"); return; }
+        {
+            log::warn!("NtAllocateVirtualMemory: cannot write on address pointer");
+            return;
+        }
     }
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
@@ -178,7 +187,10 @@ fn RtlCopyMemory(emu: &mut emu::Emu) {
     let sz = emu.regs().r8 as usize;
     let result = ntdll::memcpy(emu, dst, src, sz);
     if !result {
-        { log::warn!("RtlCopyMemory failed to copy"); return; }
+        {
+            log::warn!("RtlCopyMemory failed to copy");
+            return;
+        }
     }
     log_red!(
         emu,

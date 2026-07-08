@@ -1,5 +1,5 @@
-use crate::pe::structures;
 use super::PE32;
+use crate::pe::structures;
 
 macro_rules! read_u16_le {
     ($raw:expr, $off:expr) => {
@@ -53,7 +53,8 @@ impl PE32 {
                 } else {
                     matched = level > 1;
                 }
-            } else if level == 0 && type_name == Some(self.get_resource_name(raw, &entry).as_str()) {
+            } else if level == 0 && type_name == Some(self.get_resource_name(raw, &entry).as_str())
+            {
                 matched = true;
             } else if level == 1 && name == Some(self.get_resource_name(raw, &entry).as_str()) {
                 matched = true;
@@ -64,7 +65,14 @@ impl PE32 {
             if matched {
                 if entry.is_directory() {
                     return self.locate_resource_data_entry(
-                        raw, rsrc, off2, level + 1, type_id, name_id, type_name, name,
+                        raw,
+                        rsrc,
+                        off2,
+                        level + 1,
+                        type_id,
+                        name_id,
+                        type_name,
+                        name,
                     );
                 } else {
                     let mut data_entry = structures::ImageResourceDataEntry32::new();
@@ -92,7 +100,8 @@ impl PE32 {
         let rsrc = self.get_section_ptr_by_name(raw, ".rsrc")?;
         let data_entry =
             self.locate_resource_data_entry(raw, rsrc, 0, 0, type_id, name_id, type_name, name)?;
-        let data_off = PE32::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32) as usize
+        let data_off = PE32::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32)
+            as usize
             - self.opt.image_base as usize;
         Some((data_off as u64, data_entry.size as usize))
     }

@@ -17,7 +17,6 @@ pub struct SystemTime {
 impl SystemTime {
     pub fn now() -> SystemTime {
         let now = Utc::now();
-        
 
         SystemTime {
             year: now.year() as u16,

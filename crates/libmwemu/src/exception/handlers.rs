@@ -63,7 +63,10 @@ pub fn exit(emu: &mut emu::Emu) {
 pub fn enter32(emu: &mut emu::Emu, ex_type: types::ExceptionType, handler_kind: HandlerKind) {
     let ctx_addr = emu.maps.alloc(0x1000).expect("out of memory");
     if (ctx_addr + 0x1000) > u32::MAX as u64 {
-        { log::warn!("32bits allocator is giving a too big memory!! for the context32"); return; }
+        {
+            log::warn!("32bits allocator is giving a too big memory!! for the context32");
+            return;
+        }
     }
     let ctx = emu
         .maps

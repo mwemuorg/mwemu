@@ -87,7 +87,8 @@ impl Transport for HttpTransport {
                 .map(|h| host_is_local(h.value.as_str()))
                 .unwrap_or(true);
             if !host_ok {
-                let _ = req.respond(tiny_http::Response::from_string("forbidden").with_status_code(403));
+                let _ = req
+                    .respond(tiny_http::Response::from_string("forbidden").with_status_code(403));
                 continue;
             }
             if *req.method() != tiny_http::Method::Post {
@@ -99,12 +100,14 @@ impl Transport for HttpTransport {
             }
             let mut body = String::new();
             if req.as_reader().read_to_string(&mut body).is_err() {
-                let _ = req.respond(tiny_http::Response::from_string("bad body").with_status_code(400));
+                let _ =
+                    req.respond(tiny_http::Response::from_string("bad body").with_status_code(400));
                 continue;
             }
             let reply = handler(body.trim()).unwrap_or_default();
             let header =
-                tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..]).unwrap();
+                tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"application/json"[..])
+                    .unwrap();
             let _ = req.respond(tiny_http::Response::from_string(reply).with_header(header));
         }
         Ok(())

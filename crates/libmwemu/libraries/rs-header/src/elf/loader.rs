@@ -16,10 +16,18 @@ pub struct Perm {
 
 impl Perm {
     pub const fn from_flags(read: bool, write: bool, execute: bool) -> Perm {
-        Perm { read, write, execute }
+        Perm {
+            read,
+            write,
+            execute,
+        }
     }
 
-    pub const READ_WRITE: Perm = Perm { read: true, write: true, execute: false };
+    pub const READ_WRITE: Perm = Perm {
+        read: true,
+        write: true,
+        execute: false,
+    };
 }
 
 /// Backend the ELF loader writes through. The consumer maps regions into its

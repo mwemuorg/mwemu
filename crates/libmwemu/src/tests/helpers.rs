@@ -16,13 +16,19 @@ pub fn setup() {
 /// levels: the canonical `test/` and `maps/` data live at the repo root (shared
 /// with the CLI), not duplicated per crate.
 fn repo_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
 }
 
 /// `rel` is a filename inside the repo top-level `test/` directory (e.g. `exe64win_msgbox.bin`).
 /// Resolves relative to the workspace root so tests work regardless of the CWD.
 pub fn test_data_path(rel: &str) -> String {
-    repo_root().join("test").join(rel).to_string_lossy().into_owned()
+    repo_root()
+        .join("test")
+        .join(rel)
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// Maps folder for 32-bit Windows samples (`maps/windows/x86/`).

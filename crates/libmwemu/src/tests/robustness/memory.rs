@@ -70,5 +70,7 @@ fn duplicate_map_name_does_not_panic() {
         .expect("first create");
     // Second create with a colliding name/region: whatever the policy, it must
     // return a Result (Ok or Err), never panic.
-    let _ = emu.maps.create_map("rob_dup", 0x0070_0000, 0x100, Permission::READ_WRITE);
+    let _ = emu
+        .maps
+        .create_map("rob_dup", 0x0070_0000, 0x100, Permission::READ_WRITE);
 }

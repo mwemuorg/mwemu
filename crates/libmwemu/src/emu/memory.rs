@@ -6,7 +6,9 @@ impl Emu {
     /// NOTE: x86 operand syntax only. Will panic on aarch64.
     pub fn memory_operand_to_address(&mut self, operand: &str) -> u64 {
         if self.cfg.arch.is_aarch64() {
-            unreachable!("memory_operand_to_address() uses x86 operand syntax, not available on aarch64");
+            unreachable!(
+                "memory_operand_to_address() uses x86 operand syntax, not available on aarch64"
+            );
         }
         let spl: Vec<&str> = operand.split('[').collect::<Vec<&str>>()[1]
             .split(']')
@@ -176,7 +178,10 @@ impl Emu {
             //hack: redirect stack
             let esp = stack.get_base() + 0x1ff;
             self.regs_mut().set_esp(esp);
-            log::warn!("fixing stack: esp was outside the stack map, redirected to 0x{:x}", esp);
+            log::warn!(
+                "fixing stack: esp was outside the stack map, redirected to 0x{:x}",
+                esp
+            );
         }
 
         match bits {
@@ -212,10 +217,7 @@ impl Emu {
             32 => match self.maps.read_dword(addr) {
                 Some(v) => {
                     if self.cfg.trace_mem {
-                        let name = self
-                            .maps
-                            .get_addr_name(addr)
-                            .unwrap_or("not mapped");
+                        let name = self.maps.get_addr_name(addr).unwrap_or("not mapped");
                         let memory_operation = MemoryOperation {
                             pos: self.pos,
                             rip: self.pc(),
@@ -244,10 +246,7 @@ impl Emu {
             16 => match self.maps.read_word(addr) {
                 Some(v) => {
                     if self.cfg.trace_mem {
-                        let name = self
-                            .maps
-                            .get_addr_name(addr)
-                            .unwrap_or("not mapped");
+                        let name = self.maps.get_addr_name(addr).unwrap_or("not mapped");
                         let memory_operation = MemoryOperation {
                             pos: self.pos,
                             rip: self.pc(),
@@ -276,10 +275,7 @@ impl Emu {
             8 => match self.maps.read_byte(addr) {
                 Some(v) => {
                     if self.cfg.trace_mem {
-                        let name = self
-                            .maps
-                            .get_addr_name(addr)
-                            .unwrap_or("not mapped");
+                        let name = self.maps.get_addr_name(addr).unwrap_or("not mapped");
                         let memory_operation = MemoryOperation {
                             pos: self.pos,
                             rip: self.pc(),
@@ -322,7 +318,6 @@ impl Emu {
         }
 
         let addr: u64 = self.memory_operand_to_address(operand);
-
 
         let name = self.maps.get_addr_name(addr).unwrap_or("error");
 

@@ -1,13 +1,11 @@
-
+use super::{
+    DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
+    IMAGE_DIRECTORY_ENTRY_IAT, IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS,
+    ImageDosHeader, ImageExportDirectory, ImageFileHeader, ImageImportDescriptor, ImageNtHeaders,
+    ImageOptionalHeader, ImageSectionHeader, PE32, SECTION_HEADER_SZ, TlsDirectory32,
+};
 use crate::pe::readers::{
     read_c_string, read_c_string_with_max, read_u32_le as read_u32_le_shared,
-};
-use super::{
-    DelayLoadDirectory, ImageDosHeader, ImageExportDirectory, ImageFileHeader,
-    ImageImportDescriptor, ImageNtHeaders, ImageOptionalHeader, ImageSectionHeader, PE32,
-    TlsDirectory32, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
-    IMAGE_DIRECTORY_ENTRY_IAT, IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS,
-    SECTION_HEADER_SZ,
 };
 
 macro_rules! read_u32_le {
@@ -19,8 +17,7 @@ macro_rules! read_u32_le {
 impl PE32 {
     /// True if `raw` is a 32-bit (x86) PE image, by its COFF `Machine` field.
     pub fn is_pe32(raw: &[u8]) -> bool {
-        crate::pe::shared::pe_machine_type(raw)
-            == Some(crate::pe::shared::IMAGE_FILE_MACHINE_I386)
+        crate::pe::shared::pe_machine_type(raw) == Some(crate::pe::shared::IMAGE_FILE_MACHINE_I386)
     }
 
     pub fn read_string(raw: &[u8], off: usize) -> String {
@@ -78,7 +75,10 @@ impl PE32 {
                     }
                     let off = PE32::vaddr_to_off(&sect, iid.name_ptr) as usize;
                     if off > raw.len() {
-                        { log::warn!("pe32: iid name out of buffer, skipping"); break; }
+                        {
+                            log::warn!("pe32: iid name out of buffer, skipping");
+                            break;
+                        }
                     }
                     let libname = read_c_string(raw, off);
                     if libname.is_empty() {
@@ -192,7 +192,10 @@ impl PE32 {
         tls.print();
 
         if tls.tls_callbacks < self.opt.image_base - 0xf000 + 0xa400 {
-            { log::warn!("pe32: bad tls callbacks pointer"); return Vec::new(); }
+            {
+                log::warn!("pe32: bad tls callbacks pointer");
+                return Vec::new();
+            }
         }
         let mut cb_off = (tls.tls_callbacks - self.opt.image_base - 0xf000 + 0xa400) as usize;
 

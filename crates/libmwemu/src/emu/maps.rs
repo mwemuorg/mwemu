@@ -26,7 +26,12 @@ impl Emu {
             );
             if let Err(e) = self.download_and_extract_maps(folder) {
                 log::error!("Failed to download 32-bit maps '{}': {}", folder, e);
-                { log::warn!("Cannot obtain 32-bit Windows maps. Supply your own with `--maps <dir>`."); return; }
+                {
+                    log::warn!(
+                        "Cannot obtain 32-bit Windows maps. Supply your own with `--maps <dir>`."
+                    );
+                    return;
+                }
             }
             return;
         }

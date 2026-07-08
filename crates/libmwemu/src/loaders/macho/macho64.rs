@@ -238,7 +238,8 @@ impl Macho64 {
                 Err(_) => {
                     log::warn!(
                         "cannot create map for segment '{}' at 0x{:x}, skipping",
-                        seg.name, seg.vmaddr
+                        seg.name,
+                        seg.vmaddr
                     );
                     continue;
                 }

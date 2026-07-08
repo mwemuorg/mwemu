@@ -1,9 +1,9 @@
+use super::PE64;
 use crate::pe::loader::PeLoader;
 use crate::pe::readers::{
     read_u16_le as read_u16_le_shared, read_u32_le as read_u32_le_shared,
     read_u64_le as read_u64_le_shared,
 };
-use super::PE64;
 
 macro_rules! read_u16_le {
     ($raw:expr, $off:expr) => {

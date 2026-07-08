@@ -26,7 +26,11 @@ fn parse_pe64() {
     }
 
     // the struct does NOT own the file bytes anymore
-    assert_eq!(pe.iat_names.len(), 0, "iat_names is filled during load, not parse");
+    assert_eq!(
+        pe.iat_names.len(),
+        0,
+        "iat_names is filled during load, not parse"
+    );
 }
 
 #[test]

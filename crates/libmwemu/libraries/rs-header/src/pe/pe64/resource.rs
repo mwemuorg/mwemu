@@ -1,6 +1,6 @@
+use super::PE64;
 use crate::pe::readers::{read_u16_le as read_u16_le_shared, read_u32_le as read_u32_le_shared};
 use crate::pe::structures;
-use super::PE64;
 
 macro_rules! read_u16_le {
     ($raw:expr, $off:expr) => {
@@ -29,7 +29,11 @@ impl PE64 {
             return None;
         }
         if off + 16 > rsrc.len() {
-            log::warn!("Resource directory at offset {} out of bounds ({})", off, rsrc.len());
+            log::warn!(
+                "Resource directory at offset {} out of bounds ({})",
+                off,
+                rsrc.len()
+            );
             return None;
         }
 
@@ -46,7 +50,11 @@ impl PE64 {
         for i in 0..entries {
             let entry_off = off + (i as usize * 8) + 16;
             if entry_off + 8 > rsrc.len() {
-                log::warn!("Resource directory entry {} at offset {} out of bounds", i, entry_off);
+                log::warn!(
+                    "Resource directory entry {} at offset {} out of bounds",
+                    i,
+                    entry_off
+                );
                 continue;
             }
 
@@ -99,10 +107,13 @@ impl PE64 {
                         return None;
                     }
                     let mut data_entry = structures::ImageResourceDataEntry64::new();
-                    data_entry.offset_to_data = read_u32_le!(rsrc, data_entry_offset as usize) as u64;
+                    data_entry.offset_to_data =
+                        read_u32_le!(rsrc, data_entry_offset as usize) as u64;
                     data_entry.size = read_u32_le!(rsrc, data_entry_offset as usize + 4) as u64;
-                    data_entry.code_page = read_u32_le!(rsrc, data_entry_offset as usize + 8) as u64;
-                    data_entry.reserved = read_u32_le!(rsrc, data_entry_offset as usize + 12) as u64;
+                    data_entry.code_page =
+                        read_u32_le!(rsrc, data_entry_offset as usize + 8) as u64;
+                    data_entry.reserved =
+                        read_u32_le!(rsrc, data_entry_offset as usize + 12) as u64;
                     return Some(data_entry);
                 }
             }
@@ -141,7 +152,8 @@ impl PE64 {
         let rsrc = self.get_section_ptr_by_name(raw, ".rsrc")?;
         let data_entry =
             self.locate_resource_data_entry(rsrc, 0, 0, type_id, name_id, type_name, name)?;
-        let data_off = PE64::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32) as usize
+        let data_off = PE64::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32)
+            as usize
             - self.opt.image_base as usize;
         Some((data_off as u64, data_entry.size as usize))
     }

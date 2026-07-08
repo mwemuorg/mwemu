@@ -81,8 +81,10 @@ fn assert_match(op: &str, a: u8, b: u8, cpu: (u8, F6), mwemu: (u8, F6)) {
         "{op}8({a:#04x},{b:#04x}) result: cpu={:#04x} mwemu={:#04x}",
         cpu.0, mwemu.0
     );
-    let cf = [cpu.1 .0, cpu.1 .1, cpu.1 .2, cpu.1 .3, cpu.1 .4, cpu.1 .5];
-    let mf = [mwemu.1 .0, mwemu.1 .1, mwemu.1 .2, mwemu.1 .3, mwemu.1 .4, mwemu.1 .5];
+    let cf = [cpu.1.0, cpu.1.1, cpu.1.2, cpu.1.3, cpu.1.4, cpu.1.5];
+    let mf = [
+        mwemu.1.0, mwemu.1.1, mwemu.1.2, mwemu.1.3, mwemu.1.4, mwemu.1.5,
+    ];
     for i in 0..6 {
         assert_eq!(
             cf[i], mf[i],
@@ -118,13 +120,31 @@ fn sub8_matches_cpu() {
 
 // ---- wider add/sub (16/32/64) ----
 
-const VALS16: &[u16] = &[0, 1, 0xff, 0x100, 0x7fff, 0x8000, 0x8001, 0xfffe, 0xffff, 0xaaaa, 0x5555];
+const VALS16: &[u16] = &[
+    0, 1, 0xff, 0x100, 0x7fff, 0x8000, 0x8001, 0xfffe, 0xffff, 0xaaaa, 0x5555,
+];
 const VALS32: &[u32] = &[
-    0, 1, 0xffff, 0x1_0000, 0x7fff_ffff, 0x8000_0000, 0x8000_0001, 0xffff_fffe, 0xffff_ffff, 0xaaaa_aaaa,
+    0,
+    1,
+    0xffff,
+    0x1_0000,
+    0x7fff_ffff,
+    0x8000_0000,
+    0x8000_0001,
+    0xffff_fffe,
+    0xffff_ffff,
+    0xaaaa_aaaa,
 ];
 const VALS64: &[u64] = &[
-    0, 1, 0xffff_ffff, 0x1_0000_0000, 0x7fff_ffff_ffff_ffff, 0x8000_0000_0000_0000,
-    0x8000_0000_0000_0001, 0xffff_ffff_ffff_fffe, 0xffff_ffff_ffff_ffff,
+    0,
+    1,
+    0xffff_ffff,
+    0x1_0000_0000,
+    0x7fff_ffff_ffff_ffff,
+    0x8000_0000_0000_0000,
+    0x8000_0000_0000_0001,
+    0xffff_ffff_ffff_fffe,
+    0xffff_ffff_ffff_ffff,
 ];
 
 macro_rules! diff_test {
@@ -161,12 +181,60 @@ macro_rules! diff_test {
     };
 }
 
-diff_test!(add16_matches_cpu, "add16", VALS16, u16, "x", "add", |f: &mut Flags, a, b| f.add16(a, b, false, false));
-diff_test!(add32_matches_cpu, "add32", VALS32, u32, "e", "add", |f: &mut Flags, a, b| f.add32(a, b, false, false));
-diff_test!(add64_matches_cpu, "add64", VALS64, u64, "r", "add", |f: &mut Flags, a, b| f.add64(a, b, false, false));
-diff_test!(sub16_matches_cpu, "sub16", VALS16, u16, "x", "sub", |f: &mut Flags, a, b| f.sub16(a as u64, b as u64));
-diff_test!(sub32_matches_cpu, "sub32", VALS32, u32, "e", "sub", |f: &mut Flags, a, b| f.sub32(a as u64, b as u64));
-diff_test!(sub64_matches_cpu, "sub64", VALS64, u64, "r", "sub", |f: &mut Flags, a, b| f.sub64(a as u64, b as u64));
+diff_test!(
+    add16_matches_cpu,
+    "add16",
+    VALS16,
+    u16,
+    "x",
+    "add",
+    |f: &mut Flags, a, b| f.add16(a, b, false, false)
+);
+diff_test!(
+    add32_matches_cpu,
+    "add32",
+    VALS32,
+    u32,
+    "e",
+    "add",
+    |f: &mut Flags, a, b| f.add32(a, b, false, false)
+);
+diff_test!(
+    add64_matches_cpu,
+    "add64",
+    VALS64,
+    u64,
+    "r",
+    "add",
+    |f: &mut Flags, a, b| f.add64(a, b, false, false)
+);
+diff_test!(
+    sub16_matches_cpu,
+    "sub16",
+    VALS16,
+    u16,
+    "x",
+    "sub",
+    |f: &mut Flags, a, b| f.sub16(a as u64, b as u64)
+);
+diff_test!(
+    sub32_matches_cpu,
+    "sub32",
+    VALS32,
+    u32,
+    "e",
+    "sub",
+    |f: &mut Flags, a, b| f.sub32(a as u64, b as u64)
+);
+diff_test!(
+    sub64_matches_cpu,
+    "sub64",
+    VALS64,
+    u64,
+    "r",
+    "sub",
+    |f: &mut Flags, a, b| f.sub64(a as u64, b as u64)
+);
 
 // ---- adc / sbb (carry-in path — a classic bug spot) ----
 
@@ -190,7 +258,13 @@ fn adc8_matches_cpu() {
                 }
                 let mut f = Flags::new();
                 let res_m = f.add8(a, b, carry, true) as u8;
-                assert_match("adc", a, b, (res_cpu, rflags_bits(rf)), (res_m, mwemu_flags(&mut f)));
+                assert_match(
+                    "adc",
+                    a,
+                    b,
+                    (res_cpu, rflags_bits(rf)),
+                    (res_m, mwemu_flags(&mut f)),
+                );
             }
         }
     }
@@ -216,7 +290,13 @@ fn sbb8_matches_cpu() {
                 }
                 let mut f = Flags::new();
                 let res_m = f.sub8_borrow(a as u64, b as u64, borrow) as u8;
-                assert_match("sbb", a, b, (res_cpu, rflags_bits(rf)), (res_m, mwemu_flags(&mut f)));
+                assert_match(
+                    "sbb",
+                    a,
+                    b,
+                    (res_cpu, rflags_bits(rf)),
+                    (res_m, mwemu_flags(&mut f)),
+                );
             }
         }
     }
@@ -233,7 +313,13 @@ fn inc8_matches_cpu() {
         }
         let mut f = Flags::new(); // CF starts clear, like clc
         let res_m = f.inc8(a as u64) as u8;
-        assert_match("inc", a, 0, (res_cpu, rflags_bits(rf)), (res_m, mwemu_flags(&mut f)));
+        assert_match(
+            "inc",
+            a,
+            0,
+            (res_cpu, rflags_bits(rf)),
+            (res_m, mwemu_flags(&mut f)),
+        );
     }
 }
 
@@ -246,7 +332,13 @@ fn dec8_matches_cpu() {
         }
         let mut f = Flags::new();
         let res_m = f.dec8(a as u64) as u8;
-        assert_match("dec", a, 0, (res_cpu, rflags_bits(rf)), (res_m, mwemu_flags(&mut f)));
+        assert_match(
+            "dec",
+            a,
+            0,
+            (res_cpu, rflags_bits(rf)),
+            (res_m, mwemu_flags(&mut f)),
+        );
     }
 }
 
@@ -259,7 +351,13 @@ fn neg8_matches_cpu() {
         }
         let mut f = Flags::new();
         let res_m = f.neg8(a as u64) as u8;
-        assert_match("neg", a, 0, (res_cpu, rflags_bits(rf)), (res_m, mwemu_flags(&mut f)));
+        assert_match(
+            "neg",
+            a,
+            0,
+            (res_cpu, rflags_bits(rf)),
+            (res_m, mwemu_flags(&mut f)),
+        );
     }
 }
 

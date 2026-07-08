@@ -12,7 +12,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     if emu.cfg.is_x64() {
         let val = match emu.maps.read_qword(emu.regs().rsi) {
             Some(v) => v,
-            None => { log::warn!("lodsq: memory read error"); return false; },
+            None => {
+                log::warn!("lodsq: memory read error");
+                return false;
+            }
         };
 
         emu.regs_mut().rax = val;

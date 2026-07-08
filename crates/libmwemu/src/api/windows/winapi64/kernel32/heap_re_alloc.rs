@@ -26,12 +26,16 @@ pub fn HeapReAlloc(emu: &mut emu::Emu) {
     match emu.maps.alloc(new_size) {
         Some(new_addr) => {
             // Create new memory map for the allocated space
-            if emu.maps.create_map(
-                format!("alloc_{:x}", new_addr).as_str(),
-                new_addr,
-                new_size,
-                Permission::READ_WRITE,
-            ).is_err() {
+            if emu
+                .maps
+                .create_map(
+                    format!("alloc_{:x}", new_addr).as_str(),
+                    new_addr,
+                    new_size,
+                    Permission::READ_WRITE,
+                )
+                .is_err()
+            {
                 emu.regs_mut().rax = 0;
                 return;
             }

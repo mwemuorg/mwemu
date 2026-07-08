@@ -214,7 +214,9 @@ fn catch_load<F: FnOnce() -> InnerEmu>(what: &str, f: F) -> *mut MwemuEmu {
             boxed(inner)
         }
         Err(_) => {
-            set_error(format!("failed to {what}: input is corrupt, truncated, or malformed"));
+            set_error(format!(
+                "failed to {what}: input is corrupt, truncated, or malformed"
+            ));
             std::ptr::null_mut()
         }
     }
@@ -319,7 +321,11 @@ pub extern "C" fn mwemu_set_aarch64(emu: *mut MwemuEmu) {
 
 /// Change the LDR-entry base address of a loaded module.
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_update_ldr_entry_base(emu: *mut MwemuEmu, libname: *const c_char, base: u64) {
+pub extern "C" fn mwemu_update_ldr_entry_base(
+    emu: *mut MwemuEmu,
+    libname: *const c_char,
+    base: u64,
+) {
     let e = emu!(emu, ());
     let name = cstr!(libname, ());
     e.update_ldr_entry_base(name, base);
@@ -435,7 +441,11 @@ pub extern "C" fn mwemu_disable_console(emu: *mut MwemuEmu) {
 
 /// Trace a specific list of registers (array of lowercase names).
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_enable_trace_reg(emu: *mut MwemuEmu, names: *const *const c_char, count: usize) {
+pub extern "C" fn mwemu_enable_trace_reg(
+    emu: *mut MwemuEmu,
+    names: *const *const c_char,
+    count: usize,
+) {
     let e = emu!(emu, ());
     let mut v = Vec::with_capacity(count);
     if !names.is_null() {
@@ -664,7 +674,10 @@ pub extern "C" fn mwemu_alloc_at(
 ) -> i32 {
     let e = emu!(emu, 0);
     let n = cstr!(name, 0);
-    match e.maps.create_map(n, addr, size, Permission::from_bits(perm_bits)) {
+    match e
+        .maps
+        .create_map(n, addr, size, Permission::from_bits(perm_bits))
+    {
         Ok(_) => 1,
         Err(err) => {
             set_error(format!("alloc_at failed: {}", err));
@@ -684,7 +697,10 @@ pub extern "C" fn mwemu_load_map(
     let e = emu!(emu, 0);
     let n = cstr!(name, 0);
     let f = cstr!(filename, 0);
-    match e.maps.create_map(n, base_addr, 1, Permission::READ_WRITE_EXECUTE) {
+    match e
+        .maps
+        .create_map(n, base_addr, 1, Permission::READ_WRITE_EXECUTE)
+    {
         Ok(map) => {
             map.load(f);
             1
@@ -961,7 +977,12 @@ pub extern "C" fn mwemu_step(emu: *mut MwemuEmu) -> i32 {
 /// Run until `end_addr` (when `has_end` != 0) or forever. Writes the final PC
 /// to `out_pc`. Returns 1 on success, 0 on error (see `mwemu_last_error`).
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_run(emu: *mut MwemuEmu, has_end: i32, end_addr: u64, out_pc: *mut u64) -> i32 {
+pub extern "C" fn mwemu_run(
+    emu: *mut MwemuEmu,
+    has_end: i32,
+    end_addr: u64,
+    out_pc: *mut u64,
+) -> i32 {
     let e = emu!(emu, 0);
     let end = if has_end != 0 { Some(end_addr) } else { None };
     match e.run(end) {
@@ -1157,25 +1178,45 @@ pub extern "C" fn mwemu_disassemble(emu: *mut MwemuEmu, addr: u64, amount: u32) 
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_write_qword(emu: *mut MwemuEmu, addr: u64, value: u64) -> i32 {
     let e = emu!(emu, 0);
-    if e.maps.write_qword(addr, value) { 1 } else { set_error("write on non allocated address"); 0 }
+    if e.maps.write_qword(addr, value) {
+        1
+    } else {
+        set_error("write on non allocated address");
+        0
+    }
 }
 /// Write a little-endian dword. Returns 1 on success, 0 if unmapped.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_write_dword(emu: *mut MwemuEmu, addr: u64, value: u32) -> i32 {
     let e = emu!(emu, 0);
-    if e.maps.write_dword(addr, value) { 1 } else { set_error("write on non allocated address"); 0 }
+    if e.maps.write_dword(addr, value) {
+        1
+    } else {
+        set_error("write on non allocated address");
+        0
+    }
 }
 /// Write a little-endian word. Returns 1 on success, 0 if unmapped.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_write_word(emu: *mut MwemuEmu, addr: u64, value: u16) -> i32 {
     let e = emu!(emu, 0);
-    if e.maps.write_word(addr, value) { 1 } else { set_error("write on non allocated address"); 0 }
+    if e.maps.write_word(addr, value) {
+        1
+    } else {
+        set_error("write on non allocated address");
+        0
+    }
 }
 /// Write a byte. Returns 1 on success, 0 if unmapped.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_write_byte(emu: *mut MwemuEmu, addr: u64, value: u8) -> i32 {
     let e = emu!(emu, 0);
-    if e.maps.write_byte(addr, value) { 1 } else { set_error("write on non allocated address"); 0 }
+    if e.maps.write_byte(addr, value) {
+        1
+    } else {
+        set_error("write on non allocated address");
+        0
+    }
 }
 
 /// Read a little-endian qword into `out`. Returns 1 on success, 0 if unmapped.
@@ -1183,8 +1224,16 @@ pub extern "C" fn mwemu_write_byte(emu: *mut MwemuEmu, addr: u64, value: u8) -> 
 pub extern "C" fn mwemu_read_qword(emu: *mut MwemuEmu, addr: u64, out: *mut u64) -> i32 {
     let e = emu!(emu, 0);
     match e.maps.read_qword(addr) {
-        Some(v) => { if !out.is_null() { unsafe { *out = v }; } 1 }
-        None => { set_error("read on non allocated address"); 0 }
+        Some(v) => {
+            if !out.is_null() {
+                unsafe { *out = v };
+            }
+            1
+        }
+        None => {
+            set_error("read on non allocated address");
+            0
+        }
     }
 }
 /// Read a little-endian dword into `out`. Returns 1 on success, 0 if unmapped.
@@ -1192,8 +1241,16 @@ pub extern "C" fn mwemu_read_qword(emu: *mut MwemuEmu, addr: u64, out: *mut u64)
 pub extern "C" fn mwemu_read_dword(emu: *mut MwemuEmu, addr: u64, out: *mut u32) -> i32 {
     let e = emu!(emu, 0);
     match e.maps.read_dword(addr) {
-        Some(v) => { if !out.is_null() { unsafe { *out = v }; } 1 }
-        None => { set_error("read on non allocated address"); 0 }
+        Some(v) => {
+            if !out.is_null() {
+                unsafe { *out = v };
+            }
+            1
+        }
+        None => {
+            set_error("read on non allocated address");
+            0
+        }
     }
 }
 /// Read a little-endian word into `out`. Returns 1 on success, 0 if unmapped.
@@ -1201,8 +1258,16 @@ pub extern "C" fn mwemu_read_dword(emu: *mut MwemuEmu, addr: u64, out: *mut u32)
 pub extern "C" fn mwemu_read_word(emu: *mut MwemuEmu, addr: u64, out: *mut u16) -> i32 {
     let e = emu!(emu, 0);
     match e.maps.read_word(addr) {
-        Some(v) => { if !out.is_null() { unsafe { *out = v }; } 1 }
-        None => { set_error("read on non allocated address"); 0 }
+        Some(v) => {
+            if !out.is_null() {
+                unsafe { *out = v };
+            }
+            1
+        }
+        None => {
+            set_error("read on non allocated address");
+            0
+        }
     }
 }
 /// Read a byte into `out`. Returns 1 on success, 0 if unmapped.
@@ -1210,8 +1275,16 @@ pub extern "C" fn mwemu_read_word(emu: *mut MwemuEmu, addr: u64, out: *mut u16) 
 pub extern "C" fn mwemu_read_byte(emu: *mut MwemuEmu, addr: u64, out: *mut u8) -> i32 {
     let e = emu!(emu, 0);
     match e.maps.read_byte(addr) {
-        Some(v) => { if !out.is_null() { unsafe { *out = v }; } 1 }
-        None => { set_error("read on non allocated address"); 0 }
+        Some(v) => {
+            if !out.is_null() {
+                unsafe { *out = v };
+            }
+            1
+        }
+        None => {
+            set_error("read on non allocated address");
+            0
+        }
     }
 }
 
@@ -1353,7 +1426,11 @@ pub extern "C" fn mwemu_read_wide_string(emu: *mut MwemuEmu, addr: u64) -> *mut 
 
 /// Spaced-hex string of `sz` bytes at `addr`. Free with `mwemu_free_string`.
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_read_string_of_bytes(emu: *mut MwemuEmu, addr: u64, sz: usize) -> *mut c_char {
+pub extern "C" fn mwemu_read_string_of_bytes(
+    emu: *mut MwemuEmu,
+    addr: u64,
+    sz: usize,
+) -> *mut c_char {
     let e = emu!(emu, std::ptr::null_mut());
     ret_string(e.maps.read_string_of_bytes(addr, sz))
 }
@@ -1367,7 +1444,11 @@ pub extern "C" fn mwemu_sizeof_wide(emu: *mut MwemuEmu, ptr: u64) -> usize {
 
 /// Write spaced-hex bytes ("90 90 c3") to memory. Returns 1/0.
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_write_spaced_bytes(emu: *mut MwemuEmu, addr: u64, spaced: *const c_char) -> i32 {
+pub extern "C" fn mwemu_write_spaced_bytes(
+    emu: *mut MwemuEmu,
+    addr: u64,
+    spaced: *const c_char,
+) -> i32 {
     let e = emu!(emu, 0);
     let s = cstr!(spaced, 0);
     if e.maps.write_spaced_bytes(addr, s) {
@@ -1556,7 +1637,11 @@ pub extern "C" fn mwemu_search_spaced_bytes_in_all(
 
 /// Search spaced-hex bytes forward from `saddr`. Returns the address or 0.
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_search_spaced_bytes_from(emu: *mut MwemuEmu, saddr: u64, sbs: *const c_char) -> u64 {
+pub extern "C" fn mwemu_search_spaced_bytes_from(
+    emu: *mut MwemuEmu,
+    saddr: u64,
+    sbs: *const c_char,
+) -> u64 {
     let e = emu!(emu, 0);
     let s = cstr!(sbs, 0);
     e.maps.search_spaced_bytes_from(s, saddr)
@@ -1564,7 +1649,11 @@ pub extern "C" fn mwemu_search_spaced_bytes_from(emu: *mut MwemuEmu, saddr: u64,
 
 /// Search spaced-hex bytes backward from `saddr`. Returns the address or 0.
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_search_spaced_bytes_from_bw(emu: *mut MwemuEmu, saddr: u64, sbs: *const c_char) -> u64 {
+pub extern "C" fn mwemu_search_spaced_bytes_from_bw(
+    emu: *mut MwemuEmu,
+    saddr: u64,
+    sbs: *const c_char,
+) -> u64 {
     let e = emu!(emu, 0);
     let s = cstr!(sbs, 0);
     e.maps.search_spaced_bytes_from_bw(s, saddr)
@@ -1966,7 +2055,12 @@ pub extern "C" fn mwemu_set_cwd_path(emu: *mut MwemuEmu, value: *const c_char) {
 /// Get the Windows directory. Free with `mwemu_free_string`.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_get_windows_directory(emu: *mut MwemuEmu) -> *mut c_char {
-    ret_string(emu!(emu, std::ptr::null_mut()).cfg.windows_directory.clone())
+    ret_string(
+        emu!(emu, std::ptr::null_mut())
+            .cfg
+            .windows_directory
+            .clone(),
+    )
 }
 /// Set the Windows directory.
 #[unsafe(no_mangle)]
@@ -2138,7 +2232,10 @@ mod tests {
     fn null_handle_is_safe() {
         let mut out: u64 = 0;
         let reg = cs("rax");
-        assert_eq!(mwemu_get_reg(std::ptr::null_mut(), reg.as_ptr(), &mut out), 0);
+        assert_eq!(
+            mwemu_get_reg(std::ptr::null_mut(), reg.as_ptr(), &mut out),
+            0
+        );
         assert!(!mwemu_last_error().is_null());
     }
 
@@ -2147,7 +2244,10 @@ mod tests {
         let emu = mwemu_init64();
         let name = cs("scratch");
         let mut base: u64 = 0;
-        assert_eq!(mwemu_alloc(emu, name.as_ptr(), 0x1000, MWEMU_PERM_RWX, &mut base), 1);
+        assert_eq!(
+            mwemu_alloc(emu, name.as_ptr(), 0x1000, MWEMU_PERM_RWX, &mut base),
+            1
+        );
         assert!(base != 0);
         assert_eq!(mwemu_write_qword(emu, base, 0x1122334455667788), 1);
         let mut v: u64 = 0;

@@ -610,10 +610,7 @@ impl FileSystemBuilder {
         if result.is_err() {
             let err = result.err().unwrap();
             println!("Failed to initialize filesystem with err: {}", err);
-            println!(
-                "Please check the file location: {}",
-                root.to_str().unwrap()
-            );
+            println!("Please check the file location: {}", root.to_str().unwrap());
             return Err(err);
         }
         let mut fs = result?;

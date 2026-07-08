@@ -54,14 +54,16 @@ impl Script {
             let a = match self.to_hex(arg) {
                 Some(v) => v,
                 None => {
-                    { log::warn!("error in line {}, bad hexa", i); return 0; }
+                    log::warn!("error in line {}, bad hexa", i);
+                    return 0;
                 }
             };
             return a;
         }
         if emu.cfg.arch.is_aarch64() {
             emu.regs_aarch64().get_by_name(arg).unwrap_or_else(|| {
-                { log::warn!("error in line {}, unknown aarch64 register: {}", i, arg); 0 }
+                log::warn!("error in line {}, unknown aarch64 register: {}", i, arg);
+                0
             })
         } else {
             emu.regs().get_by_name(arg)
@@ -144,7 +146,10 @@ impl Script {
 
                     log::trace!("{}", msg);
                 }
-                "q" => { emu.process_terminated = true; return; }
+                "q" => {
+                    emu.process_terminated = true;
+                    return;
+                }
                 "r" => {
                     if args.len() == 1 {
                         if emu.cfg.arch.is_aarch64() {
@@ -1063,7 +1068,10 @@ impl Script {
                 "call" => {
                     // call <addr> <args>
                     if args.len() < 2 {
-                        { log::warn!("error in line {}, call with no address", i); return; }
+                        {
+                            log::warn!("error in line {}, call with no address", i);
+                            return;
+                        }
                     }
 
                     let addr = self.resolve(args[1], i, emu);
@@ -1095,7 +1103,10 @@ impl Script {
                 "set" => {
                     //set <hexnum>
                     if args.len() < 2 {
-                        { log::warn!("error in line {}, call with no value", i); return; }
+                        {
+                            log::warn!("error in line {}, call with no value", i);
+                            return;
+                        }
                     }
 
                     let value = self.resolve(args[1], i, emu);
