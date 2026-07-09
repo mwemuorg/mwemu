@@ -5,11 +5,14 @@ on:
     branches: [main]
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ── Fast gate: format check (< 3s) ──
   fmt:
     name: Format
     runs-on: ubuntu-latest
@@ -24,7 +27,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  # ── Clippy (parallel with tests) ──
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
@@ -37,22 +39,27 @@ jobs:
         with:
           components: clippy
 
-      - uses: Swatinem/rust-cache@v3
+      - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "ubuntu"
+          shared-key: ubuntu-latest-default
           cache-on-failure: true
 
       - name: Run Clippy
         run: cargo clippy --lib --bins
 
-  # ── Test matrix (parallel with clippy) ──
   test:
     name: Test (${{ matrix.os }})
     needs: fmt
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            cache-key: ubuntu-latest-default
+          - os: windows-latest
+            cache-key: windows-latest-default
+          - os: macos-latest
+            cache-key: macos-latest-default
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -63,10 +70,10 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
 
-      - uses: Swatinem/rust-cache@v3
+      - uses: Swatinem/rust-cache@v2
         with:
-          shared-key: "${{ matrix.os }}"
+          shared-key: ${{ matrix.cache-key }}
           cache-on-failure: true
 
       - name: Test
-        run: cargo nextest run --workspace
+        run: cargo nextest run
