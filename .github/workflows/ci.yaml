@@ -9,56 +9,64 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ── Run once: lint & format checks ──
-  lint:
-    name: Lint & Format Check
+  # ── Fast gate: format check (< 3s) ──
+  fmt:
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust toolchain
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy, rustfmt
-
-      # Cache compiled dependencies & build artifacts
-      - uses: Swatinem/rust-cache@v2
-        with:
-          shared-key: "lint"  # share cache across runs
-          cache-on-failure: true
+          components: rustfmt
 
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+  # ── Clippy (parallel with tests) ──
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    needs: fmt
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v3
+        with:
+          shared-key: "ubuntu"
+          cache-on-failure: true
+
       - name: Run Clippy
         run: cargo clippy --lib --bins
 
-  # ── Matrix: build & test across platforms/versions ──
+  # ── Test matrix (parallel with clippy) ──
   test:
-    name: Test
-    needs: lint  # optional: fail fast if lint fails
+    name: Test (${{ matrix.os }})
+    needs: fmt
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust ${{ matrix.rust }}
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
 
-      # Cache per matrix combination (keyed by OS + Rust version)
-      - uses: Swatinem/rust-cache@v2
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
+
+      - uses: Swatinem/rust-cache@v3
         with:
-          shared-key: "test-${{ matrix.os }}-${{ matrix.rust }}"
+          shared-key: "${{ matrix.os }}"
           cache-on-failure: true
 
-      - name: Build
-        run: cargo build --all-targets
-
       - name: Test
-        run: cargo test
+        run: cargo nextest run --workspace
