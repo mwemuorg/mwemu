@@ -210,7 +210,7 @@ impl InstructionCache<iced_x86::Instruction> {
             }
         }
 
-        assert!(
+        debug_assert!(
             self.lookup_entry(rip_addr, 0),
             "Cache Insertion FAILED: There is support to be entry after insertion using insert_from_decoder"
         );
@@ -312,7 +312,7 @@ impl InstructionCache<yaxpeax_arm::armv8::a64::Instruction> {
             }
         }
 
-        assert!(
+        debug_assert!(
             self.lookup_entry(pc_addr, 0),
             "aarch64 cache insertion failed"
         );

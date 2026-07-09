@@ -825,6 +825,7 @@ impl Emu {
     )]
     pub fn run_single_threaded(&mut self, end_addr: Option<u64>) -> Result<u64, MwemuError> {
         let is_aarch64 = self.cfg.arch.is_aarch64();
+        let is_x64 = self.cfg.is_x64();
 
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
@@ -834,11 +835,28 @@ impl Emu {
         self.is_running.store(1, atomic::Ordering::Relaxed);
         self.install_ctrlc_handler_if_enabled();
 
+        // Cache booleans that drive hot-path gating. The config is effectively
+        // immutable during a run, so evaluating these once up front lets the
+        // inner loop skip entire branches when no observer/debug mode is on.
+        let has_runtime_limits = self.cfg.max_instructions.is_some()
+            || self.cfg.timeout_secs.is_some()
+            || self.cfg.max_faults.is_some();
+        let has_verbose_control = self.cfg.verbose_at.is_some() || self.cfg.verbose_start != 0;
+        let has_pre_trace = self.cfg.trace_regs
+            || self.cfg.trace_reg
+            || self.cfg.trace_flags
+            || self.cfg.trace_string;
+        let has_post_trace = self.cfg.inspect || self.cfg.trace_regs;
+        let has_execution_breakpoints = self.exp != u64::MAX
+            || self.cfg.console2
+            || !self.bp.addr.is_empty()
+            || !self.bp.instruction.is_empty();
+
         let mut looped: Vec<u64> = Vec::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
 
-        let arch = if self.cfg.is_x64() { 64 } else { 32 };
+        let arch = if is_x64 { 64 } else { 32 };
         let mut x86_ins: Instruction = Instruction::default();
         let mut aarch64_ins = yaxpeax_arm::armv8::a64::Instruction::default();
         let mut block: Vec<u8> = Vec::with_capacity(constants::BLOCK_LEN + 1);
@@ -942,7 +960,14 @@ impl Emu {
                         }
                     }
 
-                    self.clear_last_decoded_instruction();
+                    // Skip clearing the decoded slot when no observer needs it;
+                    // saves two unconditional `Option` writes per instruction on
+                    // the hot path. `clear_last_decoded_instruction_if_present`
+                    // preserves the no-observer invariant that the final slot is
+                    // empty (covered by test_run_no_observer_leaves_last_decoded_empty).
+                    if self.last_decoded.is_some() {
+                        self.clear_last_decoded_instruction();
+                    }
                     self.memory_operations.clear();
 
                     // Bulk fast-path for REP string ops (rep stos/scas/movs/lods):
@@ -959,24 +984,16 @@ impl Emu {
                     self.instruction_count += 1;
 
                     // --- Limits ---
-                    if let Some(limit_pc) = self.check_runtime_limits(self.pc()) {
-                        return Ok(limit_pc);
+                    if has_runtime_limits {
+                        if let Some(limit_pc) = self.check_runtime_limits(addr) {
+                            return Ok(limit_pc);
+                        }
                     }
 
-                    self.update_verbose_at();
-
-                    // --- verbose_range activation (-X a,b) ---
-                    if self.cfg.verbose_start != 0 {
-                        let in_range = self.pos >= self.cfg.verbose_start
-                            && (self.cfg.verbose_end == 0 || self.pos <= self.cfg.verbose_end);
-                        if in_range {
-                            if self.cfg.verbose_range_saved.is_none() {
-                                self.cfg.verbose_range_saved = Some(self.cfg.verbose);
-                            }
-                            self.cfg.verbose = 3;
-                        } else if let Some(orig) = self.cfg.verbose_range_saved.take() {
-                            self.cfg.verbose = orig;
-                        }
+                    // --- Verbose-at / verbose-range activation ---
+                    if has_verbose_control {
+                        self.update_verbose_at();
+                        self.update_verbose_range();
                     }
 
                     let mut decoded: Option<DecodedInstruction> = None;
@@ -1124,10 +1141,11 @@ impl Emu {
                     }
 
                     // --- Breakpoints ---
-                    if (self.exp != u64::MAX && self.exp == self.pos)
-                        || self.bp.is_bp_instruction(self.pos)
-                        || self.bp.is_bp(addr)
-                        || (self.cfg.console2 && self.cfg.console_addr == addr)
+                    if has_execution_breakpoints
+                        && ((self.exp != u64::MAX && self.exp == self.pos)
+                            || self.bp.is_bp_instruction(self.pos)
+                            || self.bp.is_bp(addr)
+                            || (self.cfg.console2 && self.cfg.console_addr == addr))
                     {
                         if self.running_script {
                             return Ok(self.pc());
@@ -1174,7 +1192,9 @@ impl Emu {
                     }
 
                     // --- Pre-instruction tracing ---
-                    self.trace_pre_step_state(self.pos);
+                    if has_pre_trace {
+                        self.trace_pre_step_state(self.pos);
+                    }
 
                     // --- Pre-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_pre_instruction.take() {
@@ -1221,7 +1241,11 @@ impl Emu {
                         self.show_instruction(color!("Cyan"), &decoded);
                     }
 
-                    if !is_aarch64 {
+                    // ntdll heap-list walk fixup — fires only under --ssdt to
+                    // redirect empty LIST_ENTRY self-references. Gate at the
+                    // call site so the function-call overhead disappears on the
+                    // common (non-ssdt) path.
+                    if !is_aarch64 && self.cfg.emulate_winapi {
                         win_syscall64_memory::ntdll_heap_list_walk_fixup(self, &x86_ins, addr);
                     }
 
@@ -1257,23 +1281,25 @@ impl Emu {
                     }
 
                     // --- Post-execution tracing ---
-                    if self.cfg.inspect {
-                        self.trace_memory_inspection();
-                    }
+                    if has_post_trace {
+                        if self.cfg.inspect {
+                            self.trace_memory_inspection();
+                        }
 
-                    if self.cfg.trace_regs
-                        && self.cfg.trace_filename.is_some()
-                        && self.pos >= self.cfg.trace_start
-                    {
-                        self.ensure_last_decoded_instruction(
-                            &mut decoded,
-                            is_aarch64,
-                            addr,
-                            x86_ins,
-                            aarch64_ins,
-                        );
-                        self.capture_post_op();
-                        self.write_to_trace_file();
+                        if self.cfg.trace_regs
+                            && self.cfg.trace_filename.is_some()
+                            && self.pos >= self.cfg.trace_start
+                        {
+                            self.ensure_last_decoded_instruction(
+                                &mut decoded,
+                                is_aarch64,
+                                addr,
+                                x86_ins,
+                                aarch64_ins,
+                            );
+                            self.capture_post_op();
+                            self.write_to_trace_file();
+                        }
                     }
 
                     // --- Register trace (aarch64) ---
