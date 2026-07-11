@@ -53,12 +53,12 @@ impl Emu {
         }
 
         // Check for essential files based on architecture
-        let essential_files = if folder.contains("32") {
+        let essential_files = if !self.cfg.arch.is_64bits() {
             println!("self.cfg.emulate_winapi: {}", self.cfg.emulate_winapi);
-            if self.cfg.emulate_winapi {
-                vec!["ntdll.dll", "kernel32.dll"]
-            } else {
+            if self.cfg.skip_unimplemented {
                 vec!["ntdll.dll", "kernel32.dll", "banzai.csv"]
+            } else {
+                vec!["ntdll.dll", "kernel32.dll"]
             }
         } else {
             vec!["ntdll.dll", "kernel32.dll"]
@@ -178,5 +178,28 @@ impl Emu {
             .create_map(name, addr, size, permission)
             .expect("cannot create map from alloc api");
         addr
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn maps_folder_requires_banzai_csv_only_when_skip_unimplemented() {
+        let dir = tempfile::tempdir().expect("temp maps dir");
+        fs::write(dir.path().join("ntdll.dll"), []).expect("ntdll fixture");
+        fs::write(dir.path().join("kernel32.dll"), []).expect("kernel32 fixture");
+        let folder = dir.path().to_str().expect("utf8 temp path");
+
+        let mut emu = crate::emu32();
+        emu.cfg.skip_unimplemented = false;
+        assert!(emu.maps_folder_is_valid(folder));
+
+        emu.cfg.skip_unimplemented = true;
+        assert!(!emu.maps_folder_is_valid(folder));
+
+        fs::write(dir.path().join("banzai.csv"), []).expect("banzai fixture");
+        assert!(emu.maps_folder_is_valid(folder));
     }
 }

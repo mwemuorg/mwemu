@@ -401,8 +401,8 @@ impl Emu {
             self.init_stack32();
         }
 
-        // loading banzai on 32bits
-        if !self.cfg.arch.is_64bits() {
+        // Load banzai metadata only when 32-bit skip-unimplemented mode needs it.
+        if !self.cfg.arch.is_64bits() && self.cfg.skip_unimplemented {
             let mut rdr = ReaderBuilder::new()
                 .from_path(format!("{}/banzai.csv", self.cfg.maps_folder))
                 .expect("banzai.csv not found on maps folder, please download last mwemu maps");
