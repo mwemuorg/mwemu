@@ -15,7 +15,7 @@
 //!
 //! See `.kilo/plans/1783745443585-bulk-rs-header-corpus-parser-plan.md`.
 
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 
 use rs_header::elf::elf32::Elf32;
@@ -325,18 +325,25 @@ fn handle_pe32(path: &Path, raw: &[u8], failures: &mut Vec<Failure>, counts: &mu
             let off = sect.pointer_to_raw_data as usize;
             let sz = sect.virtual_size as usize;
             if off > raw.len() {
-                err = Some(format!("section {i} raw off {off} > raw.len() {}", raw.len()));
+                err = Some(format!(
+                    "section {i} raw off {off} > raw.len() {}",
+                    raw.len()
+                ));
                 break;
             }
             if sz > raw.len() {
-                err = Some(format!("section {i} virtual_size {sz} > raw.len() {}", raw.len()));
+                err = Some(format!(
+                    "section {i} virtual_size {sz} > raw.len() {}",
+                    raw.len()
+                ));
                 break;
             }
             if off.checked_add(sz).map_or(true, |sum| sum > raw.len()) {
                 err = Some(format!("section {i} off+sz > raw.len() {}", raw.len()));
                 break;
             }
-            let _ = pe.get_section_ptr_by_name(raw, sect.get_name().as_str())
+            let _ = pe
+                .get_section_ptr_by_name(raw, sect.get_name().as_str())
                 .unwrap_or(&[]);
         }
     }
@@ -408,18 +415,25 @@ fn handle_pe64(path: &Path, raw: &[u8], failures: &mut Vec<Failure>, counts: &mu
             let off = sect.pointer_to_raw_data as usize;
             let sz = sect.virtual_size as usize;
             if off > raw.len() {
-                err = Some(format!("section {i} raw off {off} > raw.len() {}", raw.len()));
+                err = Some(format!(
+                    "section {i} raw off {off} > raw.len() {}",
+                    raw.len()
+                ));
                 break;
             }
             if sz > raw.len() {
-                err = Some(format!("section {i} virtual_size {sz} > raw.len() {}", raw.len()));
+                err = Some(format!(
+                    "section {i} virtual_size {sz} > raw.len() {}",
+                    raw.len()
+                ));
                 break;
             }
             if off.checked_add(sz).map_or(true, |sum| sum > raw.len()) {
                 err = Some(format!("section {i} off+sz > raw.len() {}", raw.len()));
                 break;
             }
-            let _ = pe.get_section_ptr_by_name(raw, sect.get_name().as_str())
+            let _ = pe
+                .get_section_ptr_by_name(raw, sect.get_name().as_str())
                 .unwrap_or(&[]);
         }
     }
@@ -686,10 +700,7 @@ fn apply_policy(cfg: &Config, counts: &Counts, failures: &[Failure]) {
         .filter(|f| {
             matches!(f.kind, FailureKind::Panic)
                 || (!cfg.allow_malformed
-                    && matches!(
-                        f.kind,
-                        FailureKind::Invariant | FailureKind::ParseError
-                    ))
+                    && matches!(f.kind, FailureKind::Invariant | FailureKind::ParseError))
         })
         .collect();
 
@@ -770,7 +781,11 @@ fn bulk_parse_pe_and_elf_corpus() {
     let (files, mut counts) = collect_files(&cfg);
     println!(
         "[bulk_parse] corpus_dirs={:?} files_to_scan={} max_file_mb={} allow_malformed={} limit={:?}",
-        cfg.corpus_dirs, files.len(), cfg.max_file_bytes / (1024 * 1024), cfg.allow_malformed, cfg.limit
+        cfg.corpus_dirs,
+        files.len(),
+        cfg.max_file_bytes / (1024 * 1024),
+        cfg.allow_malformed,
+        cfg.limit
     );
 
     let mut failures: Vec<Failure> = Vec::new();

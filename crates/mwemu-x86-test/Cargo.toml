@@ -1,0 +1,19 @@
+[package]
+name = "mwemu-x86-test"
+version = "0.1.0"
+authors = ["sha0coder"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Instruction-semantics test harness: drive libmwemu against hardware-oracle x86-64 test vectors (x86Tester pooled corpus) and diff the resulting CPU state."
+
+[[bin]]
+name = "mwemu-x86-test"
+path = "src/main.rs"
+
+[dependencies]
+libmwemu.workspace = true
+clap.workspace = true
+log.workspace = true
+env_logger.workspace = true

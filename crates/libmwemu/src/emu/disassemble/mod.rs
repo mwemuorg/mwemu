@@ -210,8 +210,14 @@ impl InstructionCache<iced_x86::Instruction> {
             }
         }
 
+        // `lookup_entry` is not just a check: it primes the decode cursor
+        // (`current_instruction_slot` / `current_decode_idx` / `current_decode_len`)
+        // for the entry just inserted, so the caller decodes the fresh block.
+        // It MUST run in every build — keep the call outside the assert, which
+        // is stripped in release.
+        let inserted = self.lookup_entry(rip_addr, 0);
         debug_assert!(
-            self.lookup_entry(rip_addr, 0),
+            inserted,
             "Cache Insertion FAILED: There is support to be entry after insertion using insert_from_decoder"
         );
     }
@@ -312,10 +318,10 @@ impl InstructionCache<yaxpeax_arm::armv8::a64::Instruction> {
             }
         }
 
-        debug_assert!(
-            self.lookup_entry(pc_addr, 0),
-            "aarch64 cache insertion failed"
-        );
+        // `lookup_entry` primes the decode cursor for the entry just inserted;
+        // it must run in every build, not only when the assert is compiled in.
+        let inserted = self.lookup_entry(pc_addr, 0);
+        debug_assert!(inserted, "aarch64 cache insertion failed");
     }
 }
 

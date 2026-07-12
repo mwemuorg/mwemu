@@ -1372,6 +1372,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "mwemu-x86-test"
+version = "0.1.0"
+dependencies = [
+ "clap 2.34.0",
+ "env_logger",
+ "libmwemu",
+ "log",
+]
+
+[[package]]
 name = "ndarray"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

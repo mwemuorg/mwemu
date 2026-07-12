@@ -87,8 +87,8 @@ fn build_synthetic_pe32_with_reloc(original_val: u32) -> Vec<u8> {
     const RELOC_RVA: u32 = 0x2000;
     const RELOC_BLOCK_SIZE: u32 = 12; // 8 header + 2 entries * 2 bytes
     const RELOC_TARGET_RVA: u32 = 0x2030;
-    const RELOC_TARGET_RAW: usize = SECTION_RAW_PTR as usize
-        + (RELOC_TARGET_RVA - SECTION_VIRTUAL_ADDRESS) as usize;
+    const RELOC_TARGET_RAW: usize =
+        SECTION_RAW_PTR as usize + (RELOC_TARGET_RVA - SECTION_VIRTUAL_ADDRESS) as usize;
     const TOTAL_SIZE: usize = (SECTION_RAW_PTR + SECTION_RAW_SIZE) as usize;
 
     assert!(TOTAL_SIZE > RELOC_TARGET_RAW + 4);
@@ -114,30 +114,23 @@ fn build_synthetic_pe32_with_reloc(original_val: u32) -> Vec<u8> {
     raw[fh_off + 4..fh_off + 8].copy_from_slice(&0u32.to_le_bytes()); // time_date_stamp
     raw[fh_off + 8..fh_off + 12].copy_from_slice(&0u32.to_le_bytes()); // pointer_to_symbol_table
     raw[fh_off + 12..fh_off + 16].copy_from_slice(&0u32.to_le_bytes()); // number_of_symbols
-    raw[fh_off + 16..fh_off + 18]
-        .copy_from_slice(&SIZE_OF_OPTIONAL_HEADER.to_le_bytes()); // size_of_optional_header
+    raw[fh_off + 16..fh_off + 18].copy_from_slice(&SIZE_OF_OPTIONAL_HEADER.to_le_bytes()); // size_of_optional_header
     raw[fh_off + 18..fh_off + 20].copy_from_slice(&0u16.to_le_bytes()); // characteristics
 
     // Optional header at nt_off + 24, size SIZE_OF_OPTIONAL_HEADER
     let opt_off = nt_off + 24;
     raw[opt_off..opt_off + 2].copy_from_slice(&0x010Bu16.to_le_bytes()); // magic = PE32
-    raw[opt_off + 28..opt_off + 32]
-        .copy_from_slice(&IMAGE_BASE.to_le_bytes()); // image_base
-    raw[opt_off + 32..opt_off + 36]
-        .copy_from_slice(&SECTION_ALIGNMENT.to_le_bytes()); // section_alignment
-    raw[opt_off + 36..opt_off + 40]
-        .copy_from_slice(&FILE_ALIGNMENT.to_le_bytes()); // file_alignment
-    raw[opt_off + 60..opt_off + 64]
-        .copy_from_slice(&SIZE_OF_HEADERS.to_le_bytes()); // size_of_headers
-    raw[opt_off + 92..opt_off + 96]
-        .copy_from_slice(&NUMBER_OF_RVA_AND_SIZES.to_le_bytes()); // number_of_rva_and_sizes
+    raw[opt_off + 28..opt_off + 32].copy_from_slice(&IMAGE_BASE.to_le_bytes()); // image_base
+    raw[opt_off + 32..opt_off + 36].copy_from_slice(&SECTION_ALIGNMENT.to_le_bytes()); // section_alignment
+    raw[opt_off + 36..opt_off + 40].copy_from_slice(&FILE_ALIGNMENT.to_le_bytes()); // file_alignment
+    raw[opt_off + 60..opt_off + 64].copy_from_slice(&SIZE_OF_HEADERS.to_le_bytes()); // size_of_headers
+    raw[opt_off + 92..opt_off + 96].copy_from_slice(&NUMBER_OF_RVA_AND_SIZES.to_le_bytes()); // number_of_rva_and_sizes
 
     // Data directories start at opt_off + 96; entry 5 is BASERELOC.
     let dd_off = opt_off + 96;
     let basereloc_off = dd_off + 5 * 8;
     raw[basereloc_off..basereloc_off + 4].copy_from_slice(&RELOC_RVA.to_le_bytes());
-    raw[basereloc_off + 4..basereloc_off + 8]
-        .copy_from_slice(&RELOC_BLOCK_SIZE.to_le_bytes());
+    raw[basereloc_off + 4..basereloc_off + 8].copy_from_slice(&RELOC_BLOCK_SIZE.to_le_bytes());
 
     // Single section header (40 bytes) at opt_off + SIZE_OF_OPTIONAL_HEADER
     let sect_off = opt_off + SIZE_OF_OPTIONAL_HEADER as usize;
@@ -222,7 +215,11 @@ fn pe32_apply_relocations_highlow_patches_target() {
     assert_eq!(read_dword_le(&mock, EXPECTED_ADDR), EXPECTED_VAL);
     // ABSOLUTE padding entry must not produce any write.
     // Sanity: there is exactly one 4-byte patched DWORD, plus no other writes.
-    assert_eq!(mock.mem.len(), 4, "only the HIGHLOW target should be written");
+    assert_eq!(
+        mock.mem.len(),
+        4,
+        "only the HIGHLOW target should be written"
+    );
 }
 
 #[test]
@@ -234,5 +231,8 @@ fn pe32_apply_relocations_noop_when_base_matches_image_base() {
 
     pe.apply_relocations(&raw, &mut mock, IMAGE_BASE);
 
-    assert!(mock.mem.is_empty(), "zero-delta reload must not write anything");
+    assert!(
+        mock.mem.is_empty(),
+        "zero-delta reload must not write anything"
+    );
 }

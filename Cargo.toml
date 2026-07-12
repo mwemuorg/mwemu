@@ -7,6 +7,7 @@ members = [
     "crates/pymwemu",
     "crates/cmwemu",
     "crates/mwemu-mcp",
+    "crates/mwemu-x86-test",
 ]
 default-members = [
     # The library crates + the CLI. `mwemu` is the only binary here (pymwemu ships
