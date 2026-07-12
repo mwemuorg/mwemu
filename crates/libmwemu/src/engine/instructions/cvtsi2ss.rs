@@ -23,14 +23,20 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         };
         emu.set_operand_xmm_value_128(ins, 0, value1);
     } else if sz0 == 128 && sz1 == 32 {
-        let value1 = match emu.get_operand_value(ins, 1, true) {
-            Some(v) => v,
+        let src = match emu.get_operand_value(ins, 1, true) {
+            Some(v) => v as i32,
             None => {
-                log::trace!("error getting xmm value1");
+                log::trace!("error getting cvtsi2ss src32");
                 return false;
             }
         };
-        emu.set_operand_xmm_value_128(ins, 0, value1 as u128);
+        let dst = match emu.get_operand_xmm_value_128(ins, 0, true) {
+            Some(v) => v,
+            None => return false,
+        };
+        // Convert the signed integer to f32 in bits [31:0]; leave [127:32] intact.
+        let bits = (src as f32).to_bits() as u128;
+        emu.set_operand_xmm_value_128(ins, 0, (dst & !0xFFFF_FFFFu128) | bits);
     } else if sz0 == 32 && sz1 == 128 {
         let value1 = match emu.get_operand_xmm_value_128(ins, 1, true) {
             Some(v) => v,
@@ -41,32 +47,20 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         };
         emu.set_operand_value(ins, 0, value1 as u64);
     } else if sz0 == 128 && sz1 == 64 {
-        let value0 = match emu.get_operand_xmm_value_128(ins, 0, false) {
-            Some(v) => v,
+        let src = match emu.get_operand_value(ins, 1, true) {
+            Some(v) => v as i64,
             None => {
-                log::trace!("error getting xmm address value1");
+                log::trace!("error getting cvtsi2ss src64");
                 return false;
             }
         };
-        let addr = match emu.get_operand_value(ins, 1, false) {
+        let dst = match emu.get_operand_xmm_value_128(ins, 0, true) {
             Some(v) => v,
-            None => {
-                log::trace!("error getting xmm address value1");
-                return false;
-            }
+            None => return false,
         };
-        let value1 = match emu.maps.read_qword(addr) {
-            Some(v) => v,
-            None => {
-                log::trace!("error getting xmm qword value1");
-                return false;
-            }
-        };
-
-        let mask: u128 = 0xFFFFFFFFFFFFFFFF_0000000000000000;
-        let result: u128 = (value0 & mask) | (value1 as u128);
-
-        emu.set_operand_xmm_value_128(ins, 0, result);
+        // Convert the signed 64-bit integer to f32 in bits [31:0]; keep [127:32].
+        let bits = (src as f32).to_bits() as u128;
+        emu.set_operand_xmm_value_128(ins, 0, (dst & !0xFFFF_FFFFu128) | bits);
     } else if sz0 == 64 && sz1 == 128 {
         let value1 = match emu.get_operand_xmm_value_128(ins, 1, true) {
             Some(v) => v,

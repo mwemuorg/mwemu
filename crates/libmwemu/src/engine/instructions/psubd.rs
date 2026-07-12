@@ -31,7 +31,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         for i in 0..4 {
             let dword0 = (value0 >> (32 * i)) & 0xFFFFFFFF;
             let dword1 = (value1 >> (32 * i)) & 0xFFFFFFFF;
-            let res_dword = dword0.wrapping_sub(dword1);
+            // Mask to 32 bits so a lane borrow does not flood the upper lanes.
+            let res_dword = dword0.wrapping_sub(dword1) & 0xFFFFFFFF;
             result |= res_dword << (32 * i);
         }
 

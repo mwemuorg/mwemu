@@ -24,8 +24,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     for i in 0..16 {
         let shift = i * 8;
-        let byte0 = (value0 >> shift) & 0xFF;
-        let byte1 = (value1 >> shift) & 0xFF;
+        // PCMPGTB is a signed byte comparison.
+        let byte0 = ((value0 >> shift) & 0xFF) as u8 as i8;
+        let byte1 = ((value1 >> shift) & 0xFF) as u8 as i8;
 
         let cmp_result = if byte0 > byte1 { 0xFFu128 } else { 0x00u128 };
 

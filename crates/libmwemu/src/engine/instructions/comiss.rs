@@ -23,6 +23,11 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     let f1 = f32::from_bits((value1 & 0xFFFFFFFF) as u32);
     let f2 = f32::from_bits((value2 & 0xFFFFFFFF) as u32);
 
+    // OF, SF and AF are always cleared by the compare.
+    emu.flags_mut().f_of = false;
+    emu.flags_mut().f_sf = false;
+    emu.flags_mut().f_af = false;
+
     if f1.is_nan() || f2.is_nan() {
         emu.flags_mut().f_zf = true;
         emu.flags_mut().f_pf = true;

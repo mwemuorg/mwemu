@@ -6,3 +6,4 @@ mod mem64_test;
 mod memmove_test;
 mod sse_moves;
 mod stack64_test;
+mod x86tester_regressions;

@@ -17,5 +17,14 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     if !emu.set_operand_value(ins, 0, res as u64) {
         return false;
     }
+
+    // ZF is set when the source is zero; every other status flag is cleared.
+    let f = emu.flags_mut();
+    f.f_zf = src == 0;
+    f.f_cf = false;
+    f.f_of = false;
+    f.f_sf = false;
+    f.f_af = false;
+    f.f_pf = false;
     true
 }

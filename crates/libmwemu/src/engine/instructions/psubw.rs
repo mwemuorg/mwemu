@@ -31,7 +31,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         for i in 0..8 {
             let word0 = (value0 >> (16 * i)) & 0xFFFF;
             let word1 = (value1 >> (16 * i)) & 0xFFFF;
-            let res_word = word0.wrapping_sub(word1);
+            // Mask to 16 bits so a lane borrow does not flood the upper lanes
+            // (wrapping_sub here is over u128, not u16).
+            let res_word = word0.wrapping_sub(word1) & 0xFFFF;
             result |= res_word << (16 * i);
         }
 

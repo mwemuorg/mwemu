@@ -86,16 +86,3 @@ test_enigma:
 test_tls:
 	cargo run --release -- -f  test/exe64win_mingw.bin -6 -v
 
-# Instruction-semantics check: replay hardware-oracle x86-64 test vectors through
-# libmwemu (the mwemu-x86-test harness) and diff the resulting CPU state against
-# the oracle. This does NOT run Remill; it shares the same corpus format that
-# remill-tester consumes. CORPUS may be a single pooled .txt file or a directory
-# of them; override it to point at your local corpus, e.g.
-#   make test_x86 CORPUS=~/testdata/public-binit
-CORPUS ?= $(HOME)/soft/remill-tester/tests/smoke_3975wx.txt
-test_x86:
-	@if [ -d "$(CORPUS)" ]; then \
-		cargo run -p mwemu-x86-test --release -- --input-dir "$(CORPUS)"; \
-	else \
-		cargo run -p mwemu-x86-test --release -- "$(CORPUS)"; \
-	fi

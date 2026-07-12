@@ -326,11 +326,9 @@ pub fn div8(emu: &mut Emu, value0: u64) {
 }
 
 pub fn idiv64(emu: &mut Emu, value0: u64) {
-    let mut value1: u128 = emu.regs().rdx as u128;
-    value1 <<= 64;
-    value1 += emu.regs().rax as u128;
-    let value2: u128 = value0 as u128;
-    if value2 == 0 {
+    // IDIV is signed: RDX:RAX / src64 -> RAX = quotient, RDX = remainder.
+    let divisor = (value0 as i64) as i128;
+    if divisor == 0 {
         emu.flags_mut().f_tf = true;
         log::trace!("/!\\ division by 0 exception");
         emu.exception(types::ExceptionType::Div0);
@@ -338,31 +336,28 @@ pub fn idiv64(emu: &mut Emu, value0: u64) {
         return;
     }
 
-    let resq: u128 = value1 / value2;
-    let resr: u128 = value1 % value2;
+    let dividend = (((emu.regs().rdx as u128) << 64) | (emu.regs().rax as u128)) as i128;
+    // checked_div also traps i128::MIN / -1, which would otherwise panic.
+    let (resq, resr) = match (dividend.checked_div(divisor), dividend.checked_rem(divisor)) {
+        (Some(q), Some(r)) if q <= i64::MAX as i128 && q >= i64::MIN as i128 => (q, r),
+        _ => {
+            log::trace!("/!\\ sign change exception on division");
+            emu.exception(types::ExceptionType::SignChangeOnDivision);
+            emu.force_break = true;
+            return;
+        }
+    };
+
     emu.regs_mut().rax = resq as u64;
     emu.regs_mut().rdx = resr as u64;
     emu.flags_mut().calc_pf(resq as u8);
-    if resq > 0xffffffffffffffff {
-        log::trace!("/!\\ int overflow exception on division");
-        if emu.break_on_alert {
-            unreachable!();
-        }
-    } else if ((value1 as i128) > 0 && (resq as i64) < 0)
-        || ((value1 as i128) < 0 && (resq as i64) > 0)
-    {
-        log::trace!("/!\\ sign change exception on division");
-        emu.exception(types::ExceptionType::SignChangeOnDivision);
-        emu.force_break = true;
-    }
+    emu.flags_mut().f_tf = false;
 }
 
 pub fn idiv32(emu: &mut Emu, value0: u64) {
-    let mut value1: u64 = emu.regs().get_edx();
-    value1 <<= 32;
-    value1 += emu.regs().get_eax();
-    let value2: u64 = value0;
-    if value2 == 0 {
+    // IDIV is signed: EDX:EAX / src32 -> EAX = quotient, EDX = remainder.
+    let divisor = ((value0 as u32) as i32) as i128;
+    if divisor == 0 {
         emu.flags_mut().f_tf = true;
         log::trace!("/!\\ division by 0 exception");
         emu.exception(types::ExceptionType::Div0);
@@ -370,29 +365,30 @@ pub fn idiv32(emu: &mut Emu, value0: u64) {
         return;
     }
 
-    let resq: u64 = value1 / value2;
-    let resr: u64 = value1 % value2;
-    emu.regs_mut().set_eax(resq);
-    emu.regs_mut().set_edx(resr);
-    emu.flags_mut().calc_pf(resq as u8);
-    if resq > 0xffffffff {
-        log::trace!("/!\\ int overflow exception on division");
-        if emu.break_on_alert {
-            unreachable!();
-        }
-    } else if ((value1 as i64) > 0 && (resq as i32) < 0)
-        || ((value1 as i64) < 0 && (resq as i32) > 0)
-    {
+    let hi = (emu.regs().get_edx() & 0xffffffff) as u64;
+    let lo = (emu.regs().get_eax() & 0xffffffff) as u64;
+    // Widen to i128 so EDX:EAX = i64::MIN divided by -1 cannot overflow.
+    let dividend = (((hi << 32) | lo) as i64) as i128;
+    let resq = dividend / divisor;
+    let resr = dividend % divisor;
+    emu.flags_mut().f_tf = false;
+
+    if resq > i32::MAX as i128 || resq < i32::MIN as i128 {
         log::trace!("/!\\ sign change exception on division");
         emu.exception(types::ExceptionType::SignChangeOnDivision);
         emu.force_break = true;
+        return;
     }
+
+    emu.regs_mut().set_eax((resq as u32) as u64);
+    emu.regs_mut().set_edx((resr as u32) as u64);
+    emu.flags_mut().calc_pf(resq as u8);
 }
 
 pub fn idiv16(emu: &mut Emu, value0: u64) {
-    let value1: u32 = to32!((emu.regs().get_dx() << 16) + emu.regs().get_ax());
-    let value2: u32 = value0 as u32;
-    if value2 == 0 {
+    // IDIV is signed: DX:AX / src16 -> AX = quotient, DX = remainder.
+    let divisor = ((value0 as u16) as i16) as i64;
+    if divisor == 0 {
         emu.flags_mut().f_tf = true;
         log::trace!("/!\\ division by 0 exception");
         emu.exception(types::ExceptionType::Div0);
@@ -400,30 +396,30 @@ pub fn idiv16(emu: &mut Emu, value0: u64) {
         return;
     }
 
-    let resq: u32 = value1 / value2;
-    let resr: u32 = value1 % value2;
-    emu.regs_mut().set_ax(resq.into());
-    emu.regs_mut().set_dx(resr.into());
-    emu.flags_mut().calc_pf(resq as u8);
+    let hi = (emu.regs().get_dx() as u16) as u32;
+    let lo = (emu.regs().get_ax() as u16) as u32;
+    // Widen to i64 so DX:AX = i32::MIN divided by -1 cannot overflow.
+    let dividend = (((hi << 16) | lo) as i32) as i64;
+    let resq = dividend / divisor;
+    let resr = dividend % divisor;
     emu.flags_mut().f_tf = false;
-    if resq > 0xffff {
-        log::trace!("/!\\ int overflow exception on division");
-        if emu.break_on_alert {
-            unreachable!();
-        }
-    } else if ((value1 as i32) > 0 && (resq as i16) < 0)
-        || ((value1 as i32) < 0 && (resq as i16) > 0)
-    {
+
+    if resq > i16::MAX as i64 || resq < i16::MIN as i64 {
         log::trace!("/!\\ sign change exception on division");
         emu.exception(types::ExceptionType::SignChangeOnDivision);
         emu.force_break = true;
+        return;
     }
+
+    emu.regs_mut().set_ax((resq as u16) as u64);
+    emu.regs_mut().set_dx((resr as u16) as u64);
+    emu.flags_mut().calc_pf(resq as u8);
 }
 
 pub fn idiv8(emu: &mut Emu, value0: u64) {
-    let value1: u32 = to32!(emu.regs().get_ax());
-    let value2: u32 = value0 as u32;
-    if value2 == 0 {
+    // IDIV is signed: AX / src8 -> AL = quotient, AH = remainder.
+    let divisor = ((value0 as u8) as i8) as i32;
+    if divisor == 0 {
         emu.flags_mut().f_tf = true;
         log::trace!("/!\\ division by 0 exception");
         emu.exception(types::ExceptionType::Div0);
@@ -431,23 +427,23 @@ pub fn idiv8(emu: &mut Emu, value0: u64) {
         return;
     }
 
-    let resq: u32 = value1 / value2;
-    let resr: u32 = value1 % value2;
-    emu.regs_mut().set_al(resq.into());
-    emu.regs_mut().set_ah(resr.into());
-    emu.flags_mut().calc_pf(resq as u8);
+    // Widen to i32 so AX=i16::MIN divided by -1 cannot overflow the division.
+    let dividend = ((emu.regs().get_ax() as u16) as i16) as i32;
+    let resq = dividend / divisor;
+    let resr = dividend % divisor;
     emu.flags_mut().f_tf = false;
-    if resq > 0xff {
-        log::trace!("/!\\ int overflow exception on division");
-        if emu.break_on_alert {
-            unreachable!();
-        }
-    } else if ((value1 as i16) > 0 && (resq as i8) < 0) || ((value1 as i16) < 0 && (resq as i8) > 0)
-    {
+
+    // #DE when the signed quotient does not fit in a byte.
+    if resq > i8::MAX as i32 || resq < i8::MIN as i32 {
         log::trace!("/!\\ sign change exception on division");
         emu.exception(types::ExceptionType::SignChangeOnDivision);
         emu.force_break = true;
+        return;
     }
+
+    emu.regs_mut().set_al((resq as u8) as u64);
+    emu.regs_mut().set_ah((resr as u8) as u64);
+    emu.flags_mut().calc_pf(resq as u8);
 }
 
 pub fn shrd(emu: &mut Emu, value0: u64, value1: u64, pcounter: u64, size: u32) -> (u64, bool) {

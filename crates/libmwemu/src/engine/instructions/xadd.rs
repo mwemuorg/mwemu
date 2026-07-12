@@ -49,11 +49,16 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         return false;
     }
 
-    // and then set the src to dest
-    // doing in reverse can cause some error for example
-    // xadd  [rsp+r9*4+16h],r9
-    // which if we assign r9 first then resolve for address make the memory operations fail
-    if !emu.set_operand_value(ins, 1, value0) {
+    // and then set the src to the original dest.
+    // Doing this in reverse (src first) can break memory addressing, e.g.
+    //   xadd [rsp+r9*4+16h], r9
+    // where assigning r9 before resolving the address corrupts the address.
+    // But when both operands are the *same* register, the sum written above is
+    // the architectural result; writing the original dest back would clobber it.
+    let same_reg = ins.op0_kind() == iced_x86::OpKind::Register
+        && ins.op1_kind() == iced_x86::OpKind::Register
+        && ins.op0_register() == ins.op1_register();
+    if !same_reg && !emu.set_operand_value(ins, 1, value0) {
         return false;
     }
     true

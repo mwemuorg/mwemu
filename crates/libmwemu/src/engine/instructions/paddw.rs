@@ -22,48 +22,19 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             return false;
         }
     };
-    let sz = emu.get_operand_sz(ins, 0);
-    let mut result: u128;
+    let lanes = match emu.get_operand_sz(ins, 0) {
+        64 => 4,
+        128 => 8,
+        _ => unimplemented!("bad operand size"),
+    };
 
-    if sz == 64 {
-        result = ((value0 & 0xffff) as u16 + (value1 & 0xffff) as u16) as u128;
-        result |= ((((value0 & 0xffff0000) >> 16) as u16 + ((value1 & 0xffff0000) >> 16) as u16)
-            as u128)
-            << 16;
-        result |= ((((value0 & 0xffff00000000) >> 32) as u16
-            + ((value1 & 0xffff00000000) >> 32) as u16) as u128)
-            << 32;
-        result |= ((((value0 & 0xffff000000000000) >> 48) as u16
-            + ((value1 & 0xffff000000000000) >> 48) as u16) as u128)
-            << 48;
-    } else if sz == 128 {
-        result = ((value0 & 0xffff) as u16 + (value1 & 0xffff) as u16) as u128;
-        result |= ((((value0 & 0xffff0000) >> 16) as u16 + ((value1 & 0xffff0000) >> 16) as u16)
-            as u128)
-            << 16;
-        result |= ((((value0 & 0xffff00000000) >> 32) as u16
-            + ((value1 & 0xffff00000000) >> 32) as u16) as u128)
-            << 32;
-        result |= ((((value0 & 0xffff000000000000) >> 48) as u16
-            + ((value1 & 0xffff000000000000) >> 48) as u16) as u128)
-            << 48;
-
-        result |= ((((value0 & 0xffff_0000000000000000) >> 64) as u16
-            + ((value1 & 0xffff_0000000000000000) >> 64) as u16) as u128)
-            << 64;
-        result |= ((((value0 & 0xffff0000_0000000000000000) >> 80) as u16
-            + ((value1 & 0xffff0000_0000000000000000) >> 80) as u16) as u128)
-            << 80;
-        result |= ((((value0 & 0xffff00000000_0000000000000000) >> 96) as u16
-            + ((value1 & 0xffff00000000_0000000000000000) >> 96) as u16)
-            as u128)
-            << 96;
-        result |= ((((value0 & 0xffff0000000000_0000000000000000) >> 112) as u16
-            + ((value1 & 0xffff0000000000_0000000000000000) >> 112) as u16)
-            as u128)
-            << 112;
-    } else {
-        unimplemented!("bad operand size");
+    // Packed add of independent 16-bit lanes, each wrapping modulo 2^16.
+    let mut result: u128 = 0;
+    for i in 0..lanes {
+        let shift = i * 16;
+        let a = ((value0 >> shift) & 0xffff) as u16;
+        let b = ((value1 >> shift) & 0xffff) as u16;
+        result |= (a.wrapping_add(b) as u128) << shift;
     }
 
     emu.set_operand_xmm_value_128(ins, 0, result);

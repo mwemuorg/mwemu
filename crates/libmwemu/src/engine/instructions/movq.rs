@@ -34,7 +34,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     }
 
     if sz0 == 128 {
-        emu.set_operand_xmm_value_128(ins, 0, value1);
+        // MOVQ moves only 64 bits; when the destination is an XMM register bits
+        // [127:64] are zeroed, they are not left untouched.
+        emu.set_operand_xmm_value_128(ins, 0, value1 & 0xFFFF_FFFF_FFFF_FFFF);
     } else if sz0 < 128 {
         emu.set_operand_value(ins, 0, value1 as u64);
     } else {

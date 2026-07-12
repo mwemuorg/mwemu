@@ -29,9 +29,16 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     emu.flags_mut().f_zf = false;
     emu.flags_mut().f_pf = false;
     emu.flags_mut().f_cf = false;
+    // OF, SF and AF are always cleared by the compare.
+    emu.flags_mut().f_of = false;
+    emu.flags_mut().f_sf = false;
+    emu.flags_mut().f_af = false;
 
     if f1.is_nan() || f2.is_nan() {
+        // Unordered result: ZF, PF and CF are all set.
+        emu.flags_mut().f_zf = true;
         emu.flags_mut().f_pf = true;
+        emu.flags_mut().f_cf = true;
     } else if f1 == f2 {
         emu.flags_mut().f_zf = true;
     } else if f1 < f2 {

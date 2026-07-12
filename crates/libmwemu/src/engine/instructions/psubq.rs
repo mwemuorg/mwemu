@@ -31,7 +31,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         for i in 0..2 {
             let qword0 = (value0 >> (64 * i)) & 0xFFFFFFFFFFFFFFFF;
             let qword1 = (value1 >> (64 * i)) & 0xFFFFFFFFFFFFFFFF;
-            let res_qword = qword0.wrapping_sub(qword1);
+            // Mask to 64 bits so a lane borrow does not flood the upper lane.
+            let res_qword = qword0.wrapping_sub(qword1) & 0xFFFFFFFFFFFFFFFF;
             result |= res_qword << (64 * i);
         }
 

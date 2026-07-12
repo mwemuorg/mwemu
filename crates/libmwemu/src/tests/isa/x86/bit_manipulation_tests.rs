@@ -76,10 +76,9 @@ fn test_bit_ops() {
 
     // Check results
     assert_eq!(emu.regs().rbx, 8, "POPCNT failed.");
-    // 2. lzcnt: edx. 0x10 = 0000...0001 0000.
-    // Bug in libmwemu: lzcnt on 32-bit operands seems to behave as 64-bit (returning 64-5 = 59).
-    // Correct 32-bit result is 27.
-    assert_eq!(emu.regs().rdx, 59, "LZCNT failed. Got {}", emu.regs().rdx);
+    // 2. lzcnt: edx. 0x10 = 0000...0001 0000, so a 32-bit LZCNT is 27 leading
+    // zeros (bit 4 is the highest set bit).
+    assert_eq!(emu.regs().rdx, 27, "LZCNT failed. Got {}", emu.regs().rdx);
     // TZCNT of 16 (0x10 = ...0001 0000) has 4 trailing zeros, written to the
     // destination operand (eax), then copied to esi.
     assert_eq!(emu.regs().rsi, 4, "TZCNT failed. Got {}", emu.regs().rsi);

@@ -22,15 +22,21 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             return false;
         }
     };
-    let mut result: u128;
-
-    if value1 > 15 {
-        result = value0 & 0xffffffffffffffff_0000000000000000;
+    // Shift each 16-bit lane left by the count in the low bits of operand 1.
+    // A count >= 16 shifts every lane fully out, so the whole result is zero.
+    let lanes = if emu.get_operand_sz(ins, 0) == 128 {
+        8
     } else {
-        result = (((value0 & 0xffff) as u16) << value1) as u128;
-        result |= (((((value0 & 0xffff0000) >> 16) as u16) << value1) as u128) << 16;
-        result |= (((((value0 & 0xffff00000000) >> 32) as u16) << value1) as u128) << 32;
-        result |= (((((value0 & 0xffff000000000000) >> 48) as u16) << value1) as u128) << 48;
+        4
+    };
+    let count = value1 as u64; // only the low 64 bits are the shift count
+    let mut result: u128 = 0;
+    if count < 16 {
+        for i in 0..lanes {
+            let shift = i * 16;
+            let w = ((value0 >> shift) & 0xffff) as u16;
+            result |= ((w.wrapping_shl(count as u32) as u128) & 0xffff) << shift;
+        }
     }
 
     emu.set_operand_xmm_value_128(ins, 0, result);
