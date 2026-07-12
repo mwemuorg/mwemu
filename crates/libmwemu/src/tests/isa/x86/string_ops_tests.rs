@@ -49,8 +49,8 @@ fn test_scasb() {
     // repne scasb (F2 AE)
     code_builder.extend_from_slice(&[0xf2, 0xae]);
 
-    // jz found
-    code_builder.extend_from_slice(&[0x74, 0x07]); // Jump 7 bytes forward
+    // jz found, over the not-found move and return
+    code_builder.extend_from_slice(&[0x74, 0x08]);
 
     // mov rbx, 0
     code_builder.extend_from_slice(&[0x48, 0xc7, 0xc3, 0x00, 0x00, 0x00, 0x00]);

@@ -514,7 +514,9 @@ impl Emu {
     #[inline]
     pub fn run_until_ret(&mut self) -> Result<u64, MwemuError> {
         self.run_until_ret = true;
-        self.run(None)
+        let result = self.run(None);
+        self.run_until_ret = false;
+        result
     }
 
     /// Emulate a single step from the current point.
@@ -1249,6 +1251,13 @@ impl Emu {
                         win_syscall64_memory::ntdll_heap_list_walk_fixup(self, &x86_ins, addr);
                     }
 
+                    let should_stop_after_return = self.run_until_ret
+                        && if is_aarch64 {
+                            aarch64_ins.opcode == yaxpeax_arm::armv8::a64::Opcode::RET
+                        } else {
+                            x86_ins.mnemonic() == iced_x86::Mnemonic::Ret
+                        };
+
                     // --- Emulate ---
                     let emulation_ok = if is_aarch64 {
                         engine::aarch64::emulate_instruction(self, &aarch64_ins)
@@ -1336,6 +1345,9 @@ impl Emu {
                     // --- PC advance ---
                     if self.force_reload {
                         self.force_reload = false;
+                        if should_stop_after_return {
+                            return Ok(self.pc());
+                        }
                         break; // break inner loop to re-fetch from new PC
                     }
 
@@ -1350,31 +1362,15 @@ impl Emu {
                         }
                     }
 
+                    // RET is fully emulated before run_until_ret stops at its architectural target.
+                    if should_stop_after_return {
+                        return Ok(self.pc());
+                    }
+
                     if self.force_break {
                         self.force_break = false;
                         break;
                     }
-
-                    // --- Return-based stop ---
-                    // TODO: re-enable this. Correct semantics for `run_until_ret()` on
-                    // BOTH arches (main's run_aarch64 has the equivalent check at
-                    // execution_aarch64.rs:185). Currently disabled because main's x86
-                    // path lacks this check entirely: instead, ret.rs returns true
-                    // without updating rip when run_until_ret is set, the loop then
-                    // advances rip += sz past the ret, execution falls through to
-                    // whatever bytes follow, and eventually crashes into unmapped
-                    // memory — at which point run() returns Err and callers using
-                    // `let _ = emu.run_until_ret()` silently swallow it. The test
-                    // tests::string_ops_tests::test_scasb relies on this quirk: its
-                    // `jz +7` is intentionally aimed at a `ret` that's expected to
-                    // act as a nop so execution falls through to `mov rbx, 1`. To
-                    // turn this on, fix the test bytecode (jz offset 0x07 -> 0x08 so
-                    // it skips both the `mov rbx, 0` AND its trailing ret, landing
-                    // directly on `mov rbx, 1`), then uncomment the block below.
-                    //
-                    // if self.run_until_ret && decoded.is_return() {
-                    //     return Ok(self.pc());
-                    // }
 
                     // Check can_decode for next iteration
                     inner_running = self.instruction_cache_can_decode();

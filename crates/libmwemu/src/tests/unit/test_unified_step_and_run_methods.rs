@@ -74,6 +74,118 @@ pub fn test_unified_step_and_run_methods() {
 }
 
 #[test]
+pub fn test_run_until_ret_32_ret_imm_updates_ip_and_stack() {
+    helpers::setup();
+
+    let mut emu = emu32();
+    emu.maps
+        .create_map("code", 0x1000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps
+        .create_map("stack", 0x2000, 0x1000, Permission::READ_WRITE);
+    emu.maps
+        .create_map("target", 0x3000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps
+        .write_bytes(0x1000, &[0xc2, 0x0c, 0x00, 0xb8, 0xef, 0xbe, 0xad, 0xde]);
+    emu.maps.write_bytes(0x3000, &[0x90]);
+    emu.regs_mut().set_eip(0x1000);
+    emu.regs_mut().set_esp(0x2500);
+    emu.maps.write_dword(0x2500, 0x3000);
+    emu.maps.write_dword(0x2504, 0x1111_1111);
+    emu.maps.write_dword(0x2508, 0x2222_2222);
+    emu.maps.write_dword(0x250c, 0x3333_3333);
+
+    let result = emu.run_until_ret();
+
+    assert_eq!(result.unwrap(), 0x3000);
+    assert_eq!(emu.regs().get_eip(), 0x3000);
+    assert_eq!(emu.regs().get_esp(), 0x2510);
+    assert_ne!(emu.regs().get_eax(), 0xdead_beef);
+    assert!(!emu.run_until_ret);
+}
+
+#[test]
+pub fn test_run_until_ret_64_ret_imm_updates_ip_and_stack() {
+    helpers::setup();
+
+    let mut emu = emu64();
+    emu.maps
+        .create_map("code", 0x1000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps
+        .create_map("stack", 0x4000, 0x1000, Permission::READ_WRITE);
+    emu.maps
+        .create_map("target", 0x6000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps
+        .write_bytes(0x1000, &[0xc2, 0x10, 0x00, 0xb8, 0xef, 0xbe, 0xad, 0xde]);
+    emu.maps.write_bytes(0x6000, &[0x90]);
+    emu.regs_mut().rip = 0x1000;
+    emu.regs_mut().rsp = 0x4500;
+    emu.maps.write_qword(0x4500, 0x6000);
+    emu.maps.write_qword(0x4508, 0x1111_1111_1111_1111);
+    emu.maps.write_qword(0x4510, 0x2222_2222_2222_2222);
+
+    let result = emu.run_until_ret();
+
+    assert_eq!(result.unwrap(), 0x6000);
+    assert_eq!(emu.regs().rip, 0x6000);
+    assert_eq!(emu.regs().rsp, 0x4518);
+    assert_ne!(emu.regs().rax, 0xdead_beef);
+    assert!(!emu.run_until_ret);
+}
+
+#[test]
+pub fn test_run_until_ret_multithreaded_ret_imm_updates_ip_and_stack() {
+    helpers::setup();
+
+    let mut emu = emu32();
+    emu.maps
+        .create_map("code", 0x1000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps
+        .create_map("stack", 0x2000, 0x1000, Permission::READ_WRITE);
+    emu.maps
+        .create_map("target", 0x3000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps.write_bytes(0x1000, &[0xc2, 0x0c, 0x00]);
+    emu.maps.write_bytes(0x3000, &[0x90]);
+    emu.regs_mut().set_eip(0x1000);
+    emu.regs_mut().set_esp(0x2500);
+    emu.maps.write_dword(0x2500, 0x3000);
+
+    let mut second_thread = crate::threading::context::ThreadContext::new(0x1001, emu.cfg.arch);
+    second_thread.suspended = true;
+    emu.threads.push(second_thread);
+    emu.enable_threading(true);
+
+    let result = emu.run_until_ret();
+
+    assert_eq!(result.unwrap(), 0x3000);
+    assert_eq!(emu.regs().get_eip(), 0x3000);
+    assert_eq!(emu.regs().get_esp(), 0x2510);
+    assert!(!emu.run_until_ret);
+}
+
+#[test]
+pub fn test_step_32_ret_imm_updates_ip_and_stack() {
+    helpers::setup();
+
+    let mut emu = emu32();
+    emu.maps
+        .create_map("code", 0x1000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps
+        .create_map("stack", 0x2000, 0x1000, Permission::READ_WRITE);
+    emu.maps
+        .create_map("target", 0x3000, 0x1000, Permission::READ_WRITE_EXECUTE);
+    emu.maps.write_bytes(0x1000, &[0xc2, 0x0c, 0x00]);
+    emu.maps.write_bytes(0x3000, &[0x90]);
+    emu.regs_mut().set_eip(0x1000);
+    emu.regs_mut().set_esp(0x2500);
+    emu.maps.write_dword(0x2500, 0x3000);
+
+    assert!(emu.step());
+    assert_eq!(emu.regs().get_eip(), 0x3000);
+    assert_eq!(emu.regs().get_esp(), 0x2510);
+    assert!(!emu.force_reload);
+}
+
+#[test]
 pub fn test_run_no_observer_leaves_last_decoded_empty() {
     helpers::setup();
 

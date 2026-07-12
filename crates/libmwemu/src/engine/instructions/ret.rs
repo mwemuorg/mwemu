@@ -77,10 +77,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     emu.call_stack_mut().pop();
 
-    if emu.run_until_ret {
-        return true;
-    }
-
     if emu.eh_ctx() != 0 {
         exception::exit(emu);
         return true;
