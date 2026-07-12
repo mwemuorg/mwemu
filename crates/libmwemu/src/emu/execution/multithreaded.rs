@@ -136,6 +136,15 @@ impl Emu {
                     }
                 }
 
+                if self.run_until_ret
+                    && self
+                        .last_decoded
+                        .map(|decoded| decoded.is_return())
+                        .unwrap_or(false)
+                {
+                    return Ok(self.pc());
+                }
+
                 if self.force_break {
                     self.force_break = false;
                     break;
