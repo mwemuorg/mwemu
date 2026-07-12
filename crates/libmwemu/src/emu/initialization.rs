@@ -415,7 +415,7 @@ impl Emu {
                 self.banzai.add(api, params);
             }
         }
-
+  
         //self.init_tests();
     }
 

@@ -212,7 +212,10 @@ impl Emu {
             }
         }
 
-        // 4b. pe binding — sections (incl. the IAT) are mapped now.
+        // 4b. Base relocs on the mapped image before IAT binding.
+        pe32.apply_relocations(&raw, self, base);
+
+        // 4c. pe binding — sections (incl. the IAT) are mapped now.
         if (set_entry || self.cfg.emulate_winapi) && (!is_maps || self.cfg.emulate_winapi) {
             pe32.iat_binding(&raw, self, base);
             pe32.delay_load_binding(&raw, self, base);

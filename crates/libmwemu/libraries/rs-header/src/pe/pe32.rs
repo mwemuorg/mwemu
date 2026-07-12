@@ -4,6 +4,7 @@
 
 mod binding;
 mod parser;
+mod relocation;
 mod resource;
 mod types;
 
