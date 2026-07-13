@@ -458,24 +458,33 @@ impl Maps {
     pub fn print_maps(&self) {
         println!("print_maps");
         log::trace!("--- maps ---");
-        for (mem_name, base) in self.name_map.iter() {
-            let mem = self.get_map_by_name(mem_name).unwrap();
-            let k = mem_name;
 
-            let n = if k.len() < 20 { 20 - k.len() } else { 1 };
-            let mut spcs: String = String::new();
-            for i in 0..n {
-                spcs.push(' ');
-            }
+        // sort the memory according to base key
+        let map_size = self.mem_slab.len();
+        let mut sorted_array: Vec<&Mem64> = Vec::with_capacity(map_size);
+        for (pos, mem) in self.mem_slab.iter() {
+            sorted_array.push(mem);
+        }
+        sorted_array.sort_unstable_by_key(|mem| mem.get_base());
+
+        // Now displaying the sorted_array according to base
+        for mem in sorted_array {
+            let mem_name = mem.get_name();
+            let n = if mem_name.len() < 20 {
+                20 - mem_name.len()
+            } else {
+                1
+            };
+
             log::trace!(
-                "{}{}0x{:x} - 0x{:x} ({})",
-                k,
-                spcs,
+                "{: <32}\t\t0x{:x} - 0x{:x} ({})",
+                mem_name,
                 mem.get_base(),
                 mem.get_bottom(),
                 mem.size()
             );
         }
+
         log::trace!("memory usage: {} bytes", self.size());
         log::trace!("---");
     }
