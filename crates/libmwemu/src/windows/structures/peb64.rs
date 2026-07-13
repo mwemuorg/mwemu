@@ -110,7 +110,7 @@ impl PEB64 {
             oem_code_page_data: 0x7fffffc0228,
             unicode_case_table_data: 0x7fffffd0650,
             number_of_processors: 0x1,
-            nt_global_flag: 0x70,
+            nt_global_flag: 0x0,
             critical_section_timeout: 0xffffe86d079b8000,
             heap_segment_reserve: 0x100000,
             heap_segment_commit: 0x2000,
