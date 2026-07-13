@@ -343,13 +343,14 @@ impl Emu {
         let raw = Self::read_pe_raw(filename);
         let mut pe64 = PE64::parse(filename, &raw);
         let raw_len = raw.len() as u64;
+        let image_span = (pe64.opt.size_of_image as u64).max(raw_len);
         let base: u64;
 
         // 1. base logic
 
         // base is setted by libmwemu
         if force_base > 0 {
-            if self.maps.overlaps(force_base, raw_len) {
+            if self.maps.overlaps(force_base, image_span) {
                 {
                     log::warn!("pe64: forced base overlaps existing maps, using anyway");
                     base = force_base;
@@ -361,7 +362,7 @@ impl Emu {
         // base is setted by user
         } else if !is_maps && self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
             base = self.cfg.code_base_addr;
-            if self.maps.overlaps(base, raw_len) {
+            if self.maps.overlaps(base, image_span) {
                 log::warn!("pe64: configured base overlaps existing maps");
             }
 
@@ -369,12 +370,24 @@ impl Emu {
         } else {
             // user's program
             if set_entry {
-                if pe64.opt.image_base >= constants::LIBS64_MIN {
-                    base = self.maps.alloc(raw_len + 0xff).expect("out of memory");
-                } else if self.maps.overlaps(pe64.opt.image_base, raw_len) {
-                    base = self.maps.alloc(raw_len + 0xff).expect("out of memory");
+                let preferred = pe64.opt.image_base;
+                let preferred_usable = if let Some(end) = preferred.checked_add(image_span) {
+                    preferred >= 0x10000
+                        && preferred < constants::LIBS64_MIN
+                        && end <= constants::LIBS64_MIN
+                        && !self.maps.overlaps(preferred, image_span)
                 } else {
-                    base = pe64.opt.image_base;
+                    false
+                };
+
+                if preferred_usable {
+                    base = preferred;
+                } else {
+                    log::trace!(
+                        "pe64: preferred image base 0x{:x} unavailable or outside program range, relocating",
+                        preferred
+                    );
+                    base = self.maps.alloc(image_span + 0xff).expect("out of memory");
                 }
 
             // system library
