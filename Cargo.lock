@@ -1377,6 +1377,7 @@ version = "0.1.0"
 dependencies = [
  "clap 2.34.0",
  "env_logger",
+ "iced-x86",
  "libmwemu",
  "log",
 ]

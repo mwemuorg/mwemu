@@ -1,0 +1,32 @@
+use crate::color;
+use crate::emu::Emu;
+use crate::engine::instructions::avx;
+use iced_x86::Instruction;
+// VCVTPS2PD: f32 -> f64 (dest width sets lane count).
+pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
+    emu.show_instruction(
+        color!("Cyan"),
+        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
+    );
+    let dsz = emu.get_operand_sz(ins, 0);
+    let n = dsz / 64;
+    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    let mut lo = 0u128;
+    let mut hi = 0u128;
+    for i in 0..n {
+        let f = f32::from_bits(((src >> (i * 32)) & 0xffffffff) as u32);
+        let bits = (f as f64).to_bits() as u128;
+        let pos = i * 64;
+        if pos < 128 {
+            lo |= bits << pos
+        } else {
+            hi |= bits << (pos - 128)
+        }
+    }
+    if dsz == 128 {
+        emu.set_operand_xmm_value_128(ins, 0, lo)
+    } else {
+        emu.set_operand_ymm_value_256(ins, 0, avx::from_pair(lo, hi))
+    }
+    true
+}

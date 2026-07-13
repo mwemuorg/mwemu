@@ -23,6 +23,683 @@ pub fn emulate_instruction(
         Mnemonic::Popcnt => instructions::popcnt::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Lzcnt => instructions::lzcnt::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Pdep => instructions::pdep::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pext => instructions::pext::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Andn => instructions::andn::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Bextr => instructions::bextr::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Blsi => instructions::blsi::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Blsr => instructions::blsr::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Rorx => instructions::rorx::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pabsb => instructions::pabsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pabsw => instructions::pabsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pabsd => instructions::pabsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Psignb => instructions::psignb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Psignw => instructions::psignw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Psignd => instructions::psignd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Palignr => instructions::palignr::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Phaddw => instructions::phaddw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Phaddd => instructions::phaddd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Phsubw => instructions::phsubw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Phsubd => instructions::phsubd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Phaddsw => instructions::phaddsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Phsubsw => instructions::phsubsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmaddubsw => instructions::pmaddubsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmulhrsw => instructions::pmulhrsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovsxbw => instructions::pmovsxbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovsxbd => instructions::pmovsxbd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovsxbq => instructions::pmovsxbq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovsxwd => instructions::pmovsxwd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovsxwq => instructions::pmovsxwq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovsxdq => instructions::pmovsxdq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovzxbw => instructions::pmovzxbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovzxbd => instructions::pmovzxbd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovzxbq => instructions::pmovzxbq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovzxwd => instructions::pmovzxwd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovzxwq => instructions::pmovzxwq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmovzxdq => instructions::pmovzxdq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmulld => instructions::pmulld::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pminsd => instructions::pminsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmaxsd => instructions::pmaxsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pminud => instructions::pminud::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmaxud => instructions::pmaxud::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pcmpeqq => instructions::pcmpeqq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Packusdw => instructions::packusdw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Ptest => instructions::ptest::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pcmpgtq => instructions::pcmpgtq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Crc32 => instructions::crc32::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Adcx => instructions::adcx::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Adox => instructions::adox::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtph2ps => instructions::vcvtph2ps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtps2ph => instructions::vcvtps2ph::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpdpbusd => instructions::vpdpbusd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpdpbusds => instructions::vpdpbusds::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpdpwssd => instructions::vpdpwssd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpdpwssds => instructions::vpdpwssds::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtdq2pd => instructions::vcvtdq2pd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtps2pd => instructions::vcvtps2pd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtpd2ps => instructions::vcvtpd2ps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtpd2dq => instructions::vcvtpd2dq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvttpd2dq => {
+            instructions::vcvttpd2dq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpermq => instructions::vpermq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpermpd => instructions::vpermpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vperm2f128 => {
+            instructions::vperm2f128::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vperm2i128 => {
+            instructions::vperm2i128::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpermd => instructions::vpermd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpermps => instructions::vpermps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpermilps => instructions::vpermilps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpermilpd => instructions::vpermilpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsllvd => instructions::vpsllvd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsllvq => instructions::vpsllvq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsrlvd => instructions::vpsrlvd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsrlvq => instructions::vpsrlvq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsravd => instructions::vpsravd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vrcpps => instructions::vrcpps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vrsqrtps => instructions::vrsqrtps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vrcpss => instructions::vrcpss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vrsqrtss => instructions::vrsqrtss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpinsrb => instructions::vpinsrb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpinsrd => instructions::vpinsrd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpinsrq => instructions::vpinsrq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpinsrw => instructions::vpinsrw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpextrq => instructions::vpextrq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovss => instructions::vmovss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovsd => instructions::vmovsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovapd => instructions::vmovapd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovupd => instructions::vmovupd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovddup => instructions::vmovddup::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovsldup => instructions::vmovsldup::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovshdup => instructions::vmovshdup::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpslldq => instructions::vpslldq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsrldq => instructions::vpsrldq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpalignr => instructions::vpalignr::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vinsertps => instructions::vinsertps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmpsadbw => instructions::vmpsadbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovhlps => instructions::vmovhlps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovlhps => instructions::vmovlhps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vroundss => instructions::vroundss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vroundsd => instructions::vroundsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovmskps => instructions::vmovmskps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmovmskpd => instructions::vmovmskpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vtestps => instructions::vtestps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vtestpd => instructions::vtestpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vxorpd => instructions::vxorpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpcmpgtq => instructions::vpcmpgtq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmuludq => instructions::vpmuludq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmuldq => instructions::vpmuldq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpaddsb => instructions::vpaddsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpaddsw => instructions::vpaddsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpaddusb => instructions::vpaddusb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpaddusw => instructions::vpaddusw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsubsb => instructions::vpsubsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsubsw => instructions::vpsubsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsubusb => instructions::vpsubusb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsubusw => instructions::vpsubusw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vhaddps => instructions::vhaddps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vhsubps => instructions::vhsubps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vhaddpd => instructions::vhaddpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vhsubpd => instructions::vhsubpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vgf2p8mulb => {
+            instructions::vgf2p8mulb::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpblendd => instructions::vpblendd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vdpps => instructions::vdpps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vdppd => instructions::vdppd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vgf2p8affineqb => {
+            instructions::vgf2p8affineqb::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vgf2p8affineinvqb => {
+            instructions::vgf2p8affineinvqb::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpextrb => instructions::pextrb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpextrd => instructions::pextrd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpextrw => instructions::pextrw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vphminposuw => {
+            instructions::phminposuw::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpcmpestri => {
+            instructions::pcmpestri::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpcmpestrm => {
+            instructions::pcmpestrm::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpcmpistri => {
+            instructions::pcmpistri::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpcmpistrm => {
+            instructions::pcmpistrm::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpmovsxbw => instructions::vpmovsxbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovsxbd => instructions::vpmovsxbd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovsxbq => instructions::vpmovsxbq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovsxwd => instructions::vpmovsxwd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovsxwq => instructions::vpmovsxwq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovsxdq => instructions::vpmovsxdq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovzxbw => instructions::vpmovzxbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovzxbd => instructions::vpmovzxbd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovzxbq => instructions::vpmovzxbq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovzxwd => instructions::vpmovzxwd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovzxwq => instructions::vpmovzxwq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmovzxdq => instructions::vpmovzxdq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcmpps => instructions::vcmpps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcmppd => instructions::vcmppd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcmpss => instructions::vcmpss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcmpsd => instructions::vcmpsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtdq2ps => instructions::vcvtdq2ps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtps2dq => instructions::vcvtps2dq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvttps2dq => {
+            instructions::vcvttps2dq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vcvtsd2ss => instructions::vcvtsd2ss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtss2sd => instructions::vcvtss2sd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtsi2sd => instructions::vcvtsi2sd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvtsi2ss => instructions::vcvtsi2ss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vextractf128 => {
+            instructions::vextractf128::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vextracti128 => {
+            instructions::vextracti128::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vinsertf128 => {
+            instructions::vinsertf128::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vinserti128 => {
+            instructions::vinserti128::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vextractps => {
+            instructions::vextractps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vcvtsd2si => instructions::cvtsd2si::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvttsd2si => {
+            instructions::cvttsd2si::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vcvtss2si => instructions::cvtss2si::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcvttss2si => {
+            instructions::cvttss2si::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd132ps => {
+            instructions::vfmadd132ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd132pd => {
+            instructions::vfmadd132pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd132ss => {
+            instructions::vfmadd132ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd132sd => {
+            instructions::vfmadd132sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd213ps => {
+            instructions::vfmadd213ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd213pd => {
+            instructions::vfmadd213pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd213ss => {
+            instructions::vfmadd213ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd213sd => {
+            instructions::vfmadd213sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd231ps => {
+            instructions::vfmadd231ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd231pd => {
+            instructions::vfmadd231pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd231ss => {
+            instructions::vfmadd231ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmadd231sd => {
+            instructions::vfmadd231sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub132ps => {
+            instructions::vfmsub132ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub132pd => {
+            instructions::vfmsub132pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub132ss => {
+            instructions::vfmsub132ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub132sd => {
+            instructions::vfmsub132sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub213ps => {
+            instructions::vfmsub213ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub213pd => {
+            instructions::vfmsub213pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub213ss => {
+            instructions::vfmsub213ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub213sd => {
+            instructions::vfmsub213sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub231ps => {
+            instructions::vfmsub231ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub231pd => {
+            instructions::vfmsub231pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub231ss => {
+            instructions::vfmsub231ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsub231sd => {
+            instructions::vfmsub231sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd132ps => {
+            instructions::vfnmadd132ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd132pd => {
+            instructions::vfnmadd132pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd132ss => {
+            instructions::vfnmadd132ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd132sd => {
+            instructions::vfnmadd132sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd213ps => {
+            instructions::vfnmadd213ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd213pd => {
+            instructions::vfnmadd213pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd213ss => {
+            instructions::vfnmadd213ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd213sd => {
+            instructions::vfnmadd213sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd231ps => {
+            instructions::vfnmadd231ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd231pd => {
+            instructions::vfnmadd231pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd231ss => {
+            instructions::vfnmadd231ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmadd231sd => {
+            instructions::vfnmadd231sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub132ps => {
+            instructions::vfnmsub132ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub132pd => {
+            instructions::vfnmsub132pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub132ss => {
+            instructions::vfnmsub132ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub132sd => {
+            instructions::vfnmsub132sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub213ps => {
+            instructions::vfnmsub213ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub213pd => {
+            instructions::vfnmsub213pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub213ss => {
+            instructions::vfnmsub213ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub213sd => {
+            instructions::vfnmsub213sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub231ps => {
+            instructions::vfnmsub231ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub231pd => {
+            instructions::vfnmsub231pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub231ss => {
+            instructions::vfnmsub231ss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfnmsub231sd => {
+            instructions::vfnmsub231sd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmaddsub132ps => {
+            instructions::vfmaddsub132ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmaddsub132pd => {
+            instructions::vfmaddsub132pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmaddsub213ps => {
+            instructions::vfmaddsub213ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmaddsub213pd => {
+            instructions::vfmaddsub213pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmaddsub231ps => {
+            instructions::vfmaddsub231ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmaddsub231pd => {
+            instructions::vfmaddsub231pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsubadd132ps => {
+            instructions::vfmsubadd132ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsubadd132pd => {
+            instructions::vfmsubadd132pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsubadd213ps => {
+            instructions::vfmsubadd213ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsubadd213pd => {
+            instructions::vfmsubadd213pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsubadd231ps => {
+            instructions::vfmsubadd231ps::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vfmsubadd231pd => {
+            instructions::vfmsubadd231pd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpbroadcastw => {
+            instructions::vpbroadcastw::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpbroadcastd => {
+            instructions::vpbroadcastd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpbroadcastq => {
+            instructions::vpbroadcastq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vbroadcastss => {
+            instructions::vbroadcastss::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vbroadcastsd => {
+            instructions::vbroadcastsd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpshufd => instructions::vpshufd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpshuflw => instructions::vpshuflw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpshufhw => instructions::vpshufhw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vroundps => instructions::vroundps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vroundpd => instructions::vroundpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vshufps => instructions::vshufps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vshufpd => instructions::vshufpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpblendw => instructions::vpblendw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vblendps => instructions::vblendps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vblendpd => instructions::vblendpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vphaddw => instructions::vphaddw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vphsubw => instructions::vphsubw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vphaddd => instructions::vphaddd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vphsubd => instructions::vphsubd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vphaddsw => instructions::vphaddsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vphsubsw => instructions::vphsubsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsignb => instructions::vpsignb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsignw => instructions::vpsignw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsignd => instructions::vpsignd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaddwd => instructions::vpmaddwd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaddubsw => {
+            instructions::vpmaddubsw::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpmulhrsw => instructions::vpmulhrsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsadbw => instructions::vpsadbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vptest => instructions::vptest::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsllw => instructions::vpsllw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpslld => instructions::vpslld::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsllq => instructions::vpsllq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsrlw => instructions::vpsrlw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsrld => instructions::vpsrld::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsrlq => instructions::vpsrlq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsraw => instructions::vpsraw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsrad => instructions::vpsrad::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpunpcklbw => {
+            instructions::vpunpcklbw::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpunpckhbw => {
+            instructions::vpunpckhbw::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpunpcklwd => {
+            instructions::vpunpcklwd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpunpckhwd => {
+            instructions::vpunpckhwd::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpunpckldq => {
+            instructions::vpunpckldq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpunpckhdq => {
+            instructions::vpunpckhdq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpunpcklqdq => {
+            instructions::vpunpcklqdq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpunpckhqdq => {
+            instructions::vpunpckhqdq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpshufb => instructions::vpshufb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpackusdw => instructions::vpackusdw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpacksswb => instructions::vpacksswb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaesenc => instructions::vaesenc::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaesenclast => {
+            instructions::vaesenclast::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vaesdec => instructions::vaesdec::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaesdeclast => {
+            instructions::vaesdeclast::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vaesimc => instructions::vaesimc::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaeskeygenassist => {
+            instructions::vaeskeygenassist::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vpclmulqdq => {
+            instructions::vpclmulqdq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Vcomiss => instructions::vcomiss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vcomisd => instructions::vcomisd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vucomiss => instructions::vucomiss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vucomisd => instructions::vucomisd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaddss => instructions::vaddss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaddsd => instructions::vaddsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsubss => instructions::vsubss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsubsd => instructions::vsubsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmulss => instructions::vmulss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmulsd => instructions::vmulsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vdivss => instructions::vdivss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vdivsd => instructions::vdivsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmaxss => instructions::vmaxss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmaxsd => instructions::vmaxsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vminss => instructions::vminss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vminsd => instructions::vminsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsqrtss => instructions::vsqrtss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsqrtsd => instructions::vsqrtsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaddsubps => instructions::vaddsubps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaddsubpd => instructions::vaddsubpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaddps => instructions::vaddps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vaddpd => instructions::vaddpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsubps => instructions::vsubps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsubpd => instructions::vsubpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmulps => instructions::vmulps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmulpd => instructions::vmulpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vdivps => instructions::vdivps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vdivpd => instructions::vdivpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmaxps => instructions::vmaxps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vmaxpd => instructions::vmaxpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vminps => instructions::vminps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vminpd => instructions::vminpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vunpcklps => instructions::vunpcklps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vunpckhps => instructions::vunpckhps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vunpcklpd => instructions::vunpcklpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vunpckhpd => instructions::vunpckhpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpackuswb => instructions::vpackuswb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpackssdw => instructions::vpackssdw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsqrtps => instructions::vsqrtps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vsqrtpd => instructions::vsqrtpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpabsb => instructions::vpabsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpabsw => instructions::vpabsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpabsd => instructions::vpabsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpand => instructions::vpand::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vandps => instructions::vandps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vandpd => instructions::vandpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vandnps => instructions::vandnps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vandnpd => instructions::vandnpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vorps => instructions::vorps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vorpd => instructions::vorpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpaddw => instructions::vpaddw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpaddd => instructions::vpaddd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpaddq => instructions::vpaddq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsubw => instructions::vpsubw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsubd => instructions::vpsubd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpsubq => instructions::vpsubq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmullw => instructions::vpmullw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmulld => instructions::vpmulld::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmulhw => instructions::vpmulhw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmulhuw => instructions::vpmulhuw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpcmpeqw => instructions::vpcmpeqw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpcmpeqd => instructions::vpcmpeqd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpcmpeqq => instructions::vpcmpeqq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpcmpgtw => instructions::vpcmpgtw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpcmpgtd => instructions::vpcmpgtd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpavgb => instructions::vpavgb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpavgw => instructions::vpavgw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaxub => instructions::vpmaxub::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaxuw => instructions::vpmaxuw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaxud => instructions::vpmaxud::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpminuw => instructions::vpminuw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpminud => instructions::vpminud::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaxsb => instructions::vpmaxsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaxsw => instructions::vpmaxsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpmaxsd => instructions::vpmaxsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpminsb => instructions::vpminsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpminsw => instructions::vpminsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Vpminsd => instructions::vpminsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pcmpestri => instructions::pcmpestri::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pcmpestrm => instructions::pcmpestrm::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sha1msg1 => instructions::sha1msg1::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sha1msg2 => instructions::sha1msg2::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sha1nexte => instructions::sha1nexte::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sha1rnds4 => instructions::sha1rnds4::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sha256msg1 => {
+            instructions::sha256msg1::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Sha256msg2 => {
+            instructions::sha256msg2::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Sha256rnds2 => {
+            instructions::sha256rnds2::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Aesenc => instructions::aesenc::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Aesenclast => {
+            instructions::aesenclast::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Aesdec => instructions::aesdec::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Aesdeclast => {
+            instructions::aesdeclast::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Aesimc => instructions::aesimc::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Aeskeygenassist => {
+            instructions::aeskeygenassist::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Pclmulqdq => instructions::pclmulqdq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Gf2p8mulb => instructions::gf2p8mulb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Gf2p8affineqb => {
+            instructions::gf2p8affineqb::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Gf2p8affineinvqb => {
+            instructions::gf2p8affineinvqb::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Dpps => instructions::dpps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Dppd => instructions::dppd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Mpsadbw => instructions::mpsadbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Phminposuw => {
+            instructions::phminposuw::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Rcpps => instructions::rcpps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Rcpss => instructions::rcpss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Rsqrtps => instructions::rsqrtps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Rsqrtss => instructions::rsqrtss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Roundps => instructions::roundps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Roundpd => instructions::roundpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Roundss => instructions::roundss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Roundsd => instructions::roundsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Blendps => instructions::blendps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Blendpd => instructions::blendpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Blendvps => instructions::blendvps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Blendvpd => instructions::blendvpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pblendw => instructions::pblendw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pblendvb => instructions::pblendvb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pextrb => instructions::pextrb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pextrd => instructions::pextrd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pinsrb => instructions::pinsrb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pinsrd => instructions::pinsrd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pinsrq => instructions::pinsrq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Extractps => instructions::extractps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Insertps => instructions::insertps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Psadbw => instructions::psadbw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmaxsb => instructions::pmaxsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmaxsw => instructions::pmaxsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmaxub => instructions::pmaxub::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmaxuw => instructions::pmaxuw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pminsb => instructions::pminsb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pminsw => instructions::pminsw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pminuw => instructions::pminuw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pavgb => instructions::pavgb::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pavgw => instructions::pavgw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Psubusw => instructions::psubusw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmulhuw => instructions::pmulhuw::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmuludq => instructions::pmuludq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Pmuldq => instructions::pmuldq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Punpckhqdq => {
+            instructions::punpckhqdq::execute(emu, ins, instruction_sz, rep_step)
+        }
+        Mnemonic::Andnps => instructions::andnps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Andnpd => instructions::andnpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Unpcklps => instructions::unpcklps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Unpckhps => instructions::unpckhps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Unpcklpd => instructions::unpcklpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Unpckhpd => instructions::unpckhpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Shufps => instructions::shufps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Movddup => instructions::movddup::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Movsldup => instructions::movsldup::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Movshdup => instructions::movshdup::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Movupd => instructions::movupd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Movmskps => instructions::movmskps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Movmskpd => instructions::movmskpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sahf => instructions::sahf::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Divps => instructions::divps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Divpd => instructions::divpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Divss => instructions::divss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Divsd => instructions::divsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Maxps => instructions::maxps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Maxpd => instructions::maxpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Maxss => instructions::maxss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Maxsd => instructions::maxsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Minps => instructions::minps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Minpd => instructions::minpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Minss => instructions::minss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Minsd => instructions::minsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sqrtps => instructions::sqrtps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sqrtpd => instructions::sqrtpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sqrtss => instructions::sqrtss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Sqrtsd => instructions::sqrtsd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Addsubps => instructions::addsubps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Addsubpd => instructions::addsubpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Haddps => instructions::haddps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Haddpd => instructions::haddpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Hsubps => instructions::hsubps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Hsubpd => instructions::hsubpd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cmpps => instructions::cmpps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cmppd => instructions::cmppd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cmpss => instructions::cmpss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtdq2ps => instructions::cvtdq2ps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtdq2pd => instructions::cvtdq2pd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtps2pd => instructions::cvtps2pd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtpd2ps => instructions::cvtpd2ps::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtsd2ss => instructions::cvtsd2ss::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtss2sd => instructions::cvtss2sd::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtps2dq => instructions::cvtps2dq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvttps2dq => instructions::cvttps2dq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtpd2dq => instructions::cvtpd2dq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvttpd2dq => instructions::cvttpd2dq::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvtss2si => instructions::cvtss2si::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cvttss2si => instructions::cvttss2si::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Cdqe => instructions::cdqe::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Cdq => instructions::cdq::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Cqo => instructions::cqo::execute(emu, ins, instruction_sz, rep_step),
