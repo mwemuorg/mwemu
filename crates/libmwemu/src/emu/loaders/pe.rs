@@ -7,8 +7,11 @@ use rs_header::pe::pe64::PE64;
 
 macro_rules! align_up {
     ($size:expr, $align:expr) => {{
-        // Ensure alignment is a power of two at compile time if possible
-        ($size + $align - 1) & !($align - 1)
+        // A section alignment of 0 means the PE header failed to parse (e.g. the
+        // file couldn't be read); treat it as "no alignment" instead of
+        // underflowing `$align - 1`.
+        let align = if $align == 0 { 1 } else { $align };
+        ($size + align - 1) & !(align - 1)
     }};
 }
 

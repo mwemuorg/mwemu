@@ -413,8 +413,22 @@ impl FileSystem {
             return Err(format!("Only absolute paths can be translated: {}", win_path).into());
         }
 
-        // Check if the path is mapped
+        // Check if the path is mapped. Mappings are operator-configured (via
+        // `FileSystemBuilder::with_mapping`, never by the emulated program) and
+        // are intentionally allowed to point outside `root` — e.g. mapping a
+        // drive letter to a real host directory. That is by design, not a jail
+        // escape; nothing in this codebase currently populates `mappings` from
+        // untrusted/emulated input. Warn if that ever changes so an
+        // out-of-root mapping doesn't slip in unnoticed.
         if let Some(mapped_path) = self.mappings.get(win_path) {
+            if !Self::is_subpath(&self.root, mapped_path) {
+                log::warn!(
+                    "filesystem mapping {} -> {:?} points outside the jail root {:?}",
+                    win_path,
+                    mapped_path,
+                    self.root
+                );
+            }
             return Ok(mapped_path.clone());
         }
 
