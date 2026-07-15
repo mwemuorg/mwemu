@@ -388,8 +388,8 @@ pub fn create_ldr_entry(
     }
     let mut image_sz = 0;
     if base > 0 {
-        let pe_hdr = emu.maps.read_dword(base + 0x3c).unwrap() as u64;
-        image_sz = emu.maps.read_dword(base + pe_hdr + 0x50).unwrap();
+        let pe_hdr = emu.maps.read_dword(base + 0x3c).unwrap_or(0) as u64;
+        image_sz = emu.maps.read_dword(base + pe_hdr + 0x50).unwrap_or(0);
         base_addr = base;
     } else {
         base_addr = space_addr

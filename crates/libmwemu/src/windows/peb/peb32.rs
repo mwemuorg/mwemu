@@ -490,8 +490,11 @@ pub fn create_ldr_entry(
     lib.push_str(".ldr");
     let mut image_sz = 0;
     if base > 0 {
-        let pe_hdr = emu.maps.read_dword(base as u64 + 0x3c).unwrap() as u64;
-        image_sz = emu.maps.read_dword(base as u64 + pe_hdr + 0x50).unwrap() as u64;
+        let pe_hdr = emu.maps.read_dword(base as u64 + 0x3c).unwrap_or(0) as u64;
+        image_sz = emu
+            .maps
+            .read_dword(base as u64 + pe_hdr + 0x50)
+            .unwrap_or(0) as u64;
         base_addr = base;
     } else {
         let addr = emu
