@@ -6,6 +6,7 @@ mod exe32win_minecraft;
 #[cfg(not(debug_assertions))]
 mod exe64win_enigma;
 mod exe64win_msgbox;
+mod loader_exe_peb_order_tests;
 mod mingw_tests;
 mod pe64_loader_tests;
 mod peb_teb_ldr_structures_test;

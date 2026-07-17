@@ -423,51 +423,58 @@ pub fn dynamic_link_module(base: u64, pe_off: u32, libname: &str, emu: &mut emu:
      * LoadLibary* family triggers this.
      */
 
-    let mut flink = Flink::new(emu);
-    flink.load(emu);
-    let first_flink = flink.get_ptr();
-
-    // get last element (walk the circular list to find the node whose Flink == first_flink)
-    let mut iters = 0usize;
-    loop {
-        let next_addr = flink.get_next_flink(emu);
-        if next_addr == 0 || next_addr == first_flink {
-            break;
-        }
-        flink.next(emu);
-        iters += 1;
-        if flink.get_next_flink(emu) == first_flink || iters > 4096 {
-            break;
-        }
+    let peb_addr = emu.maps.get_mem("peb").get_base();
+    let ldr_addr = emu.maps.read_dword(peb_addr + 0x0c).unwrap_or(0) as u64;
+    if ldr_addr == 0 {
+        return;
     }
-    let next_flink: u64 = flink.get_ptr();
 
-    //first_flink = 0x2c18c0;
-    //let space_addr = create_ldr_entry(emu, base, pe_off, libname, last_flink, first_flink);
+    // The 32-bit lists are circular and use the first entry as the head rather
+    // than an in-list sentinel node. Append to the tail so initialization order
+    // remains visible to PEB walkers: EXE, ntdll, kernel32, kernelbase, ... .
+    let first_flink = emu.maps.read_dword(ldr_addr + 0x0c).unwrap_or(0) as u64;
+    if first_flink == 0 {
+        return;
+    }
+    let mut tail = first_flink;
+    for _ in 0..4096 {
+        let next = emu.maps.read_dword(tail).unwrap_or(0) as u64;
+        if next == 0 {
+            return;
+        }
+        if next == first_flink {
+            break;
+        }
+        tail = next;
+    }
+
     let space_addr = create_ldr_entry(
         emu,
         base as u32,
         pe_off,
         libname,
         first_flink as u32,
-        next_flink as u32,
+        tail as u32,
     );
 
-    // point previous flink to this ldr
-    emu.maps.write_dword(next_flink, space_addr as u32); // in_load_order_links.flink
+    // Link the new entry after the current tail and before the first entry.
+    emu.maps.write_dword(tail, space_addr as u32);
     emu.maps
-        .write_dword(next_flink + 0x08, (space_addr + 0x08) as u32); // in_memory_order_links.flink
+        .write_dword(tail + 0x08, (space_addr + 0x08) as u32);
     emu.maps
-        .write_dword(next_flink + 0x10, (space_addr + 0x10) as u32); // in_initialization_order_links.flink
+        .write_dword(tail + 0x10, (space_addr + 0x10) as u32);
+    emu.maps.write_dword(first_flink + 4, space_addr as u32);
+    emu.maps
+        .write_dword(first_flink + 0x0c, (space_addr + 0x08) as u32);
+    emu.maps
+        .write_dword(first_flink + 0x14, (space_addr + 0x10) as u32);
 
-    // blink of first flink will point to last created
-    emu.maps.write_dword(first_flink + 4, space_addr as u32); // in_load_order_links.blink
+    // Keep the list-head Blink values synchronized with the circular entries.
+    emu.maps.write_dword(ldr_addr + 0x10, space_addr as u32);
     emu.maps
-        .write_dword(first_flink + 0x08 + 4, (space_addr + 0x08) as u32); // in_memory_order_links.blink
+        .write_dword(ldr_addr + 0x18, (space_addr + 0x08) as u32);
     emu.maps
-        .write_dword(first_flink + 0x10 + 4, (space_addr + 0x10) as u32); // in_initialization_order_links.blink
-
-    //show_linked_modules(emu);
+        .write_dword(ldr_addr + 0x20, (space_addr + 0x10) as u32);
 }
 
 pub fn create_ldr_entry(

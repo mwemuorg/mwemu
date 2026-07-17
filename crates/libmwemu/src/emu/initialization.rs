@@ -1190,9 +1190,9 @@ impl Emu {
         kuser_shared::init_kuser_shared_data(self);
 
         let mut metadata: Vec<Lib> = Vec::new();
-        let base: Vec<&str> = vec!["kernelbase.dll", "kernel32.dll", "ntdll.dll"];
+        let base: Vec<&str> = vec!["ntdll.dll", "kernel32.dll", "kernelbase.dll"];
 
-        // Stage 1: map kernel32
+        // Stage 1: map the core system libraries in loader order.
         for dll in &base {
             self.ensure_maps_dll(dll); // fetch from the symbol server if missing
             let filepath = self.cfg.get_maps_folder(dll);

@@ -82,28 +82,57 @@ pub fn peb_teb_ldr_structures_test() {
     let sample = sample_w.unwrap();
     assert_eq!(sample, "exe32win_minecraft.pe");
 
-    // follow to next flink
-    ldr_entry = structures::LdrDataTableEntry::load(
-        ldr_entry.in_load_order_links.flink as u64,
-        &mut emu.maps,
-    );
+    // The core libraries follow the executable in loader initialization order.
+    for expected in ["ntdll.dll", "kernel32.dll", "kernelbase.dll"] {
+        ldr_entry = structures::LdrDataTableEntry::load(
+            ldr_entry.in_load_order_links.flink as u64,
+            &mut emu.maps,
+        );
 
-    assert_eq!(
-        ldr_entry.in_memory_order_links.flink,
-        ldr_entry.in_load_order_links.flink + 0x8
-    );
-    assert_eq!(
-        ldr_entry.in_initialization_order_links.flink,
-        ldr_entry.in_memory_order_links.flink + 0x8
-    );
+        assert_eq!(
+            ldr_entry.in_memory_order_links.flink,
+            ldr_entry.in_load_order_links.flink + 0x8
+        );
+        assert_eq!(
+            ldr_entry.in_initialization_order_links.flink,
+            ldr_entry.in_memory_order_links.flink + 0x8
+        );
+        assert_eq!(
+            ldr_entry.in_memory_order_links.blink,
+            ldr_entry.in_load_order_links.blink + 0x8
+        );
+        assert_eq!(
+            ldr_entry.in_initialization_order_links.blink,
+            ldr_entry.in_memory_order_links.blink + 0x8
+        );
+        assert_eq!(
+            emu.maps
+                .read_wide_string(ldr_entry.base_dll_name.buffer as u64),
+            expected
+        );
+    }
 
-    assert_eq!(
-        ldr_entry.in_memory_order_links.blink,
-        ldr_entry.in_load_order_links.blink + 0x8
-    );
-    assert_eq!(
-        ldr_entry.in_initialization_order_links.blink,
-        ldr_entry.in_memory_order_links.blink + 0x8
+    // Dependencies are appended after the core prefix; retain the original
+    // netapi32 assertions without requiring it to occupy a fixed position.
+    let first_entry = ldr_struct.in_load_order_module_list.flink as u64;
+    let mut found_netapi = false;
+    for _ in 0..4096 {
+        let name = emu
+            .maps
+            .read_wide_string(ldr_entry.base_dll_name.buffer as u64);
+        if name == "netapi32.dll" {
+            found_netapi = true;
+            break;
+        }
+        let next = ldr_entry.in_load_order_links.flink as u64;
+        if next == first_entry {
+            break;
+        }
+        ldr_entry = structures::LdrDataTableEntry::load(next, &mut emu.maps);
+    }
+    assert!(
+        found_netapi,
+        "netapi32.dll should remain linked after core modules"
     );
 
     let sample_w = emu.maps.get_addr_name(ldr_entry.dll_base as u64);
@@ -186,7 +215,7 @@ pub fn peb_teb_ldr_structures_test() {
     let sample = sample_w.unwrap();
     assert_eq!(sample, "exe64win_msgbox.pe");
 
-    // follow to next flink
+    // follow to next flink (ntdll)
     ldr_entry =
         structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &mut emu.maps);
 
@@ -197,6 +226,23 @@ pub fn peb_teb_ldr_structures_test() {
     assert_eq!(
         ldr_entry.in_initialization_order_links.flink,
         ldr_entry.in_memory_order_links.flink + 0x10
+    );
+
+    let module = emu.maps.read_wide_string(ldr_entry.base_dll_name.buffer);
+    assert_eq!(module, "ntdll.dll");
+
+    ldr_entry =
+        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &mut emu.maps);
+    assert_eq!(
+        emu.maps.read_wide_string(ldr_entry.base_dll_name.buffer),
+        "kernel32.dll"
+    );
+
+    ldr_entry =
+        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &mut emu.maps);
+    assert_eq!(
+        emu.maps.read_wide_string(ldr_entry.base_dll_name.buffer),
+        "kernelbase.dll"
     );
 
     assert_eq!(

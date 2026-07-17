@@ -170,6 +170,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "lstrcpy" => lstrcpy(emu),
         "lstrcpyn" => lstrcpyn(emu),
         "lstrcpyW" => lstrcpyW(emu),
+        "lstrlen" => lstrlenA(emu),
         "lstrlenA" => lstrlenA(emu),
         "lstrlenW" => lstrlenW(emu),
         "MapViewOfFile" => MapViewOfFile(emu),
