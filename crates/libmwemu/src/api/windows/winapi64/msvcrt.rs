@@ -2,6 +2,7 @@ use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::serialization;
 use crate::winapi::winapi64::kernel32;
+use crate::winapi::winapi64::wincrt;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
@@ -14,6 +15,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
     match api {
         "__set_app_type" => __set_app_type(emu),
         "malloc" => malloc(emu),
+        "realloc" => wincrt::realloc(emu),
         "_errno" => _errno(emu),
         _ => {
             if !emu.cfg.skip_unimplemented {

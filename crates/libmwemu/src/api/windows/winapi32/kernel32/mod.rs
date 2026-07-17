@@ -137,6 +137,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "HeapCreate" => HeapCreate(emu),
         "HeapDestroy" => HeapDestroy(emu),
         "HeapFree" => HeapFree(emu),
+        "HeapReAlloc" => HeapReAlloc(emu),
         "HeapSetInformation" => HeapSetInformation(emu),
         "InitializeCriticalSection" => InitializeCriticalSection(emu),
         "InitializeCriticalSectionAndSpinCount" => InitializeCriticalSectionAndSpinCount(emu),

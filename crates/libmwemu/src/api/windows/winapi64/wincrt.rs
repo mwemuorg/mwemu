@@ -486,7 +486,7 @@ fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
     emu.regs_mut().rax = 1;
 }
 
-fn realloc(emu: &mut emu::Emu) {
+pub fn realloc(emu: &mut emu::Emu) {
     let addr = emu.regs().rcx;
     let size = emu.regs().rdx;
 

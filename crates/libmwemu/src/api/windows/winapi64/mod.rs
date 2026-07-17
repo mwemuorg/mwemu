@@ -6,7 +6,7 @@ mod gdi32;
 pub mod kernel32;
 mod kernelbase;
 mod msvcrt;
-mod ntdll;
+pub mod ntdll;
 mod ole32;
 mod oleaut32;
 mod shell32;

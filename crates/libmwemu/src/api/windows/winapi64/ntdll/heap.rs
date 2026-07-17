@@ -1,6 +1,9 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::helper;
+use crate::windows::constants;
+
+const VALLOC_PREFIX: &str = "valloc_";
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -17,7 +20,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     true
 }
 
-fn RtlAllocateHeap(emu: &mut emu::Emu) {
+pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
     let handle = emu.regs().rcx;
     let flags = emu.regs().rdx;
     let mut size = emu.regs().r8;
@@ -33,7 +36,7 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
         }
     };
 
-    let map_name = format!("valloc_{:x}", alloc_addr);
+    let map_name = format!("{}{:x}", VALLOC_PREFIX, alloc_addr);
     emu.maps
         .create_map(&map_name, alloc_addr, size, Permission::READ_WRITE)
         .expect("ntdll!RtlAllocateHeap cannot create map");
@@ -66,7 +69,7 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
         return;
     }
 
-    if name.starts_with("alloc_") {
+    if name.starts_with(VALLOC_PREFIX) || name.starts_with("alloc_") {
         emu.maps.dealloc(base_addr);
         emu.regs_mut().rax = 1;
     } else {
@@ -77,21 +80,81 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
     }
 }
 
-fn RtlReAllocateHeap(emu: &mut emu::Emu) {
+pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
     let flags = emu.regs().rdx;
-    let sz = emu.regs().r8;
+    let old_ptr = emu.regs().r8;
+    let new_size = emu.regs().r9;
 
-    let mapname = format!("valloc_{:x}", hndl);
-    emu.regs_mut().rax = match emu.maps.get_map_by_name_mut(&mapname) {
-        Some(mem) => {
-            mem.set_size(sz + 1024);
-            mem.get_base()
+    log_red!(
+        emu,
+        "ntdll!RtlReAllocateHeap hndl: {:x} flags: 0x{:x} old: 0x{:x} sz: {}",
+        hndl,
+        flags,
+        old_ptr,
+        new_size
+    );
+
+    // Validate the old pointer: must be the exact base of an ntdll-owned map.
+    if old_ptr == 0 || new_size == 0 {
+        emu.regs_mut().rax = 0;
+        return;
+    }
+
+    let old_mem = match emu.maps.get_mem_by_addr(old_ptr) {
+        Some(m) => m,
+        None => {
+            emu.regs_mut().rax = 0;
+            return;
         }
-        None => 0,
     };
+    let old_base = old_mem.get_base();
+    let old_size = old_mem.size();
+    let old_name = old_mem.get_name().to_string();
+    if old_base != old_ptr || (!old_name.starts_with(VALLOC_PREFIX) && !old_name.starts_with("alloc_")) {
+        emu.regs_mut().rax = 0;
+        return;
+    }
 
-    log_red!(emu, "ntdll!RtlReAllocateHeap hndl: {:x} sz: {}", hndl, sz);
+    if (flags & constants::HEAP_REALLOC_IN_PLACE_ONLY) != 0 {
+        if new_size <= old_size as u64 {
+            emu.regs_mut().rax = old_ptr;
+            return;
+        }
+        emu.regs_mut().rax = 0;
+        return;
+    }
+
+    let new_addr = match emu.maps.alloc(new_size) {
+        Some(a) => a,
+        None => {
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
+    let new_name = format!("{}{:x}", VALLOC_PREFIX, new_addr);
+    if emu
+        .maps
+        .create_map(&new_name, new_addr, new_size, Permission::READ_WRITE)
+        .is_err()
+    {
+        emu.regs_mut().rax = 0;
+        return;
+    }
+
+    let copy_size = std::cmp::min(old_size, new_size as usize);
+    if !emu.maps.memcpy(new_addr, old_ptr, copy_size) {
+        emu.maps.dealloc(new_addr);
+        emu.regs_mut().rax = 0;
+        return;
+    }
+
+    if (flags & constants::HEAP_ZERO_MEMORY) != 0 && (new_size as usize) > old_size {
+        emu.maps.memset(new_addr + old_size as u64, 0, (new_size as usize) - old_size);
+    }
+
+    emu.maps.dealloc(old_ptr);
+    emu.regs_mut().rax = new_addr;
 }
 
 fn RtlGetProcessHeaps(emu: &mut emu::Emu) {

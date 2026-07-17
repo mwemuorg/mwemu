@@ -9,6 +9,8 @@ mod misc;
 mod string;
 mod sync;
 
+pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
+
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);

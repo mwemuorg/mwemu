@@ -26,6 +26,10 @@ pub use heap_destroy::*;
 mod heap_free;
 pub use heap_free::*;
 
+#[path = "../heap_re_alloc.rs"]
+mod heap_re_alloc;
+pub use heap_re_alloc::*;
+
 #[path = "../heap_set_information.rs"]
 mod heap_set_information;
 pub use heap_set_information::*;

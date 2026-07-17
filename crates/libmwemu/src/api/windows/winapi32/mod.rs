@@ -7,7 +7,7 @@ mod kernelbase;
 mod libgcc;
 mod mscoree;
 mod msvcrt;
-mod ntdll;
+pub mod ntdll;
 mod ntoskrnl;
 mod oleaut32;
 mod shell32;

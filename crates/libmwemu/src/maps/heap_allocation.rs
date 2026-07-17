@@ -271,9 +271,34 @@ impl O1Heap {
         self.hashes.get(&offset).cloned()
     }
 
+    /// Return whether an address falls inside the arena and corresponds to an
+    /// active allocated fragment. Returns false for addresses below the arena
+    /// base, unmapped pointers, free fragments, or stale hash entries.
     pub fn check_fragment_exists(&self, addr: u64) -> bool {
+        if addr < self.base {
+            return false;
+        }
         let offset = (addr - self.base) as u32;
-        self.hashes.get(&offset).is_some()
+        match self.hashes.get(&offset) {
+            Some(frag) => frag.borrow().used,
+            None => false,
+        }
+    }
+
+    /// Return the active allocated fragment size in bytes for the given
+    /// address, or `None` if the address is below the arena base, not tracked,
+    /// or already freed. The returned size is the rounded fragment size, which
+    /// is the maximum valid copy range for the allocation.
+    pub fn allocation_size(&self, addr: u64) -> Option<usize> {
+        if addr < self.base {
+            return None;
+        }
+        let offset = (addr - self.base) as u32;
+        let frag = self.hashes.get(&offset)?;
+        if !frag.borrow().used {
+            return None;
+        }
+        Some(frag.borrow().size as usize)
     }
 
     pub fn free(&mut self, address: u64) {
@@ -295,18 +320,9 @@ impl O1Heap {
             return; // Invalid fragment
         }
 
-        // Update the diagnostics. It must be done before merging because it
-        // invalidates the fragment size information.
+        // Update the diagnostics before merging because the merge invalidates
+        // the fragment size information. Underflow indicates heap corruption.
         if self.diagnostics.allocated < frag_size as usize {
-            // Heap corruption
-            return;
-        }
-        self.diagnostics.allocated -= frag_size as usize;
-
-        // Update the diagnostics. It must be done before merging because it
-        // invalidates the fragment size information.
-        if self.diagnostics.allocated < frag_size as usize {
-            // Heap corruption
             return;
         }
         self.diagnostics.allocated -= frag_size as usize;
