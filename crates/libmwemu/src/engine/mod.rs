@@ -712,6 +712,7 @@ pub fn emulate_instruction(
         Mnemonic::Les => instructions::les::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Mov => instructions::mov::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Movnti => instructions::movnti::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Movntps => instructions::movntps::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Xor => instructions::xor::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Add => instructions::add::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Adc => instructions::adc::execute(emu, ins, instruction_sz, rep_step),

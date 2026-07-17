@@ -215,3 +215,54 @@ fn movhpd_movlpd_store() {
         "movlpd store should write the low qword"
     );
 }
+
+/// `movntps [rax], xmm0` stores the FULL 128-bit XMM value to the aligned
+/// memory destination in little-endian byte order. Non-temporal hint is a
+/// no-op here; the architectural store must write all 16 bytes.
+///
+/// Note: real hardware raises #GP on a misaligned destination, but the
+/// emulator has no GP-exception path; this regression only covers the
+/// aligned case explicitly.
+#[test]
+fn movntps_store_128_bits() {
+    // mov rax, 0x800000
+    // mov rbx, 0xAAAAAAAAAAAAAAAA ; low qword source
+    // mov [rax+0x10], rbx
+    // mov rbx, 0xBBBBBBBBBBBBBBBB ; high qword source
+    // mov [rax+0x18], rbx
+    // movups xmm0, [rax+0x10]     ; xmm0 = BBBB.. : AAAA..
+    // movntps [rax], xmm0         ; store full 128 bits LE to [rax]
+    // hlt
+    let code = [
+        0x48, 0xc7, 0xc0, 0x00, 0x00, 0x80, 0x00, // mov rax, 0x800000
+        0x48, 0xbb, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, // mov rbx, 0xAAAA...
+        0x48, 0x89, 0x58, 0x10, // mov [rax+0x10], rbx
+        0x48, 0xbb, 0xbb, 0xbb, 0xbb, 0xbb, 0xbb, 0xbb, 0xbb, 0xbb, // mov rbx, 0xBBBB...
+        0x48, 0x89, 0x58, 0x18, // mov [rax+0x18], rbx
+        0x0f, 0x10, 0x40, 0x10, // movups xmm0, [rax+0x10]
+        0x0f, 0x2b, 0x00, // movntps [rax], xmm0
+        0xf4, // hlt
+    ];
+    let emu = run_code(&code);
+
+    // Source XMM0 must be preserved: MOVNTPS has no register output.
+    let xmm0 = emu.regs().get_xmm_by_name("xmm0");
+    assert_eq!(
+        xmm0, 0xBBBBBBBBBBBBBBBB_AAAAAAAAAAAAAAAAu128,
+        "movntps must leave the source XMM register unchanged (got {:032x})",
+        xmm0
+    );
+
+    // Low 8 bytes of the destination must equal the XMM low qword.
+    assert_eq!(
+        emu.maps.read_qword(SCRATCH).unwrap(),
+        0xAAAAAAAAAAAAAAAA,
+        "movntps low qword should be the XMM low qword (LE store)"
+    );
+    // High 8 bytes of the destination must equal the XMM high qword.
+    assert_eq!(
+        emu.maps.read_qword(SCRATCH + 8).unwrap(),
+        0xBBBBBBBBBBBBBBBB,
+        "movntps high qword should be the XMM high qword (LE store)"
+    );
+}

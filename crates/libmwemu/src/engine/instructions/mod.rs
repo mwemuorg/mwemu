@@ -261,6 +261,7 @@ pub mod movlps;
 pub mod movmskpd;
 pub mod movmskps;
 pub mod movnti;
+pub mod movntps;
 pub mod movq;
 pub mod movsb;
 pub mod movsd;
