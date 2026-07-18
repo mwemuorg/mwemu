@@ -92,11 +92,8 @@ fn test_heap_realloc_small_to_small_32() {
     helpers::setup();
     let mut emu = emu32();
 
-    let p1 = helpers::call_winapi32(
-        &mut emu,
-        winapi32::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x100],
-    ) as u64;
+    let p1 =
+        helpers::call_winapi32(&mut emu, winapi32::kernel32::HeapAlloc, &[0x1234, 0, 0x100]) as u64;
     assert!(p1 != 0);
     emu.maps.write_dword(p1, 0xdeadbeef);
 
@@ -114,11 +111,8 @@ fn test_heap_realloc_small_to_large_32() {
     helpers::setup();
     let mut emu = emu32();
 
-    let p1 = helpers::call_winapi32(
-        &mut emu,
-        winapi32::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x100],
-    ) as u64;
+    let p1 =
+        helpers::call_winapi32(&mut emu, winapi32::kernel32::HeapAlloc, &[0x1234, 0, 0x100]) as u64;
     assert!(p1 != 0);
     emu.maps.write_dword(p1, 0x11223344);
 
@@ -159,11 +153,8 @@ fn test_heap_realloc_zero_memory_32() {
     helpers::setup();
     let mut emu = emu32();
 
-    let p1 = helpers::call_winapi32(
-        &mut emu,
-        winapi32::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x100],
-    ) as u64;
+    let p1 =
+        helpers::call_winapi32(&mut emu, winapi32::kernel32::HeapAlloc, &[0x1234, 0, 0x100]) as u64;
     assert!(p1 != 0);
     for i in 0..0x100 {
         emu.maps.write_byte(p1 + i, 0xab);
@@ -219,11 +210,8 @@ fn test_heap_realloc_in_place_grow_fails_32() {
     helpers::setup();
     let mut emu = emu32();
 
-    let p1 = helpers::call_winapi32(
-        &mut emu,
-        winapi32::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x100],
-    ) as u64;
+    let p1 =
+        helpers::call_winapi32(&mut emu, winapi32::kernel32::HeapAlloc, &[0x1234, 0, 0x100]) as u64;
     assert!(p1 != 0);
 
     let ret = helpers::call_winapi32(

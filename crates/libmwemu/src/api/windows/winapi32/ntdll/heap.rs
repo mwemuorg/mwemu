@@ -190,7 +190,11 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     }
 
     if (flags & constants::HEAP_ZERO_MEMORY) != 0 && (new_size as usize) > old_size {
-        emu.maps.memset(new_addr + old_size as u64, 0, (new_size as usize) - old_size);
+        emu.maps.memset(
+            new_addr + old_size as u64,
+            0,
+            (new_size as usize) - old_size,
+        );
     }
 
     emu.maps.dealloc(old_ptr);

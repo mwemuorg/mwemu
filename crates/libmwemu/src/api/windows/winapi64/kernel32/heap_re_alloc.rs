@@ -96,7 +96,10 @@ fn realloc(emu: &mut emu::Emu, old_mem: u64, new_size_raw: u64, flags: u64) -> O
 fn classify_old(emu: &emu::Emu, old_mem: u64) -> OldKind {
     if let Some(heap) = emu.heap_management.as_ref() {
         if let Some(sz) = heap.allocation_size(old_mem) {
-            return OldKind::Arena { addr: old_mem, size: sz };
+            return OldKind::Arena {
+                addr: old_mem,
+                size: sz,
+            };
         }
     }
 
