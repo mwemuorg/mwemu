@@ -25,7 +25,7 @@ default-members = [
 [workspace.package]
 edition = "2024"
 rust-version = "1.85"
-license = "GPL-3.0-only"
+license = "Apache-2.0"
 repository = "https://github.com/mwemuorg/mwemu"
 description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
 

@@ -4,7 +4,7 @@
 [![libmwemu crates.io](https://img.shields.io/crates/v/libmwemu.svg)](https://crates.io/crates/libmwemu)
 [![Docs.rs](https://docs.rs/libmwemu/badge.svg)](https://docs.rs/libmwemu)
 [![PyPI](https://img.shields.io/pypi/v/pymwemu.svg)](https://pypi.org/project/pymwemu/)
-[![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](./LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
 [![MSRV](https://img.shields.io/badge/rustc-1.85+-orange.svg)](https://blog.rust-lang.org/)
 
 ## Official documentation
