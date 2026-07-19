@@ -51,9 +51,7 @@ fn resolve_name_via_registry_or_scanner(
 ) -> (u64, String, String) {
     // 1) Honor the supplied HMODULE through the registry.
     if let Some(module) = emu.export_indexes.get_by_base(hndl) {
-        let addr = emu
-            .export_indexes
-            .resolve_name_by_base(hndl, name);
+        let addr = emu.export_indexes.resolve_name_by_base(hndl, name);
         if addr != 0 {
             // Recover the display name (preserved case) for the log.
             let display = module_display_name_for(module, name).unwrap_or_else(|| name.to_string());
@@ -79,9 +77,7 @@ fn resolve_ordinal_via_registry_or_scanner(
     _func_ptr: u64,
 ) -> (u64, String, String) {
     if let Some(module) = emu.export_indexes.get_by_base(hndl) {
-        let addr = emu
-            .export_indexes
-            .resolve_ordinal_by_base(hndl, ordinal);
+        let addr = emu.export_indexes.resolve_ordinal_by_base(hndl, ordinal);
         let display = module_display_name_for_ordinal(module, ordinal)
             .unwrap_or_else(|| format!("#{}", ordinal));
         if addr != 0 {

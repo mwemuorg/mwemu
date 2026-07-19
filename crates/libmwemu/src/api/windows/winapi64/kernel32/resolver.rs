@@ -19,12 +19,7 @@ pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
         }
         log::trace!("---- exports of {} ----", index.module_name);
         for named in index_module_named_list(index) {
-            log::trace!(
-                "0x{:x} {}!{}",
-                named.1,
-                index.module_name,
-                named.0
-            );
+            log::trace!("0x{:x} {}!{}", named.1, index.module_name, named.0);
         }
     }
 }

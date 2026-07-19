@@ -2,11 +2,11 @@
 // registry. These exercise the public `ExportIndexRegistry` API the same way
 // `Emu::load_pe32` / `load_pe64` / `dynamic_unlink_module` use it.
 
-use rs_header::pe::export_index::{build_export_index, ExportIndexData};
+use rs_header::pe::export_index::{ExportIndexData, build_export_index};
 use rs_header::pe::shared::ImageSectionHeader;
 
 use crate::api::windows::export_index::{
-    ExportIndexRegistry, IndexedExport, ModuleExportIndex, MAX_FORWARDER_DEPTH,
+    ExportIndexRegistry, IndexedExport, MAX_FORWARDER_DEPTH, ModuleExportIndex,
 };
 
 fn section(va: u32, raw_ptr: u32, raw_size: u32) -> ImageSectionHeader {
@@ -101,7 +101,15 @@ fn build_export_table(
     (raw, sections, export_va, 0x200)
 }
 
-fn parse_and_register(reg: &mut ExportIndexRegistry, module: &str, base: u64, raw: &[u8], sections: &[ImageSectionHeader], va: u32, size: u32) {
+fn parse_and_register(
+    reg: &mut ExportIndexRegistry,
+    module: &str,
+    base: u64,
+    raw: &[u8],
+    sections: &[ImageSectionHeader],
+    va: u32,
+    size: u32,
+) {
     let parsed = build_export_index(raw, sections, va, size).expect("parse");
     let normalized = crate::api::windows::export_index::normalize_module_name(module);
     let index = ModuleExportIndex::from_parsed(module.to_string(), normalized, base, &parsed);
@@ -149,8 +157,24 @@ fn forwarder_chain_resolves_through_registered_target() {
     k32_raw[fwd_off..fwd_off + s.len()].copy_from_slice(s);
 
     let mut reg = ExportIndexRegistry::new();
-    parse_and_register(&mut reg, "kernel32.dll", 0x10000, &k32_raw, &k32_sections, k32_va, k32_size);
-    parse_and_register(&mut reg, "kernelbase.dll", 0x50000, &kernelbase_raw, &sections, 0x1040, 0x200);
+    parse_and_register(
+        &mut reg,
+        "kernel32.dll",
+        0x10000,
+        &k32_raw,
+        &k32_sections,
+        k32_va,
+        k32_size,
+    );
+    parse_and_register(
+        &mut reg,
+        "kernelbase.dll",
+        0x50000,
+        &kernelbase_raw,
+        &sections,
+        0x1040,
+        0x200,
+    );
 
     assert_eq!(reg.resolve_name_in_module("kernel32", "Direct"), 0x11500);
     // ViaFwd -> kernelbase.HeapAlloc -> 0x50000 + 0x1500 = 0x51500.
@@ -196,11 +220,7 @@ fn forwarder_chain_depth_limit_returns_zero() {
 
 #[test]
 fn replacement_removes_old_base_but_preserves_order() {
-    let (raw, sections, va, size) = build_export_table(
-        1,
-        &[(0x1500, false)],
-        &[("Fn", 0)],
-    );
+    let (raw, sections, va, size) = build_export_table(1, &[(0x1500, false)], &[("Fn", 0)]);
     let mut reg = ExportIndexRegistry::new();
     parse_and_register(&mut reg, "alpha.dll", 0x1000, &raw, &sections, va, size);
     parse_and_register(&mut reg, "beta.dll", 0x2000, &raw, &sections, va, size);
@@ -208,7 +228,10 @@ fn replacement_removes_old_base_but_preserves_order() {
 
     assert!(reg.get_by_base(0x1000).is_none());
     assert!(reg.get_by_base(0x3000).is_some());
-    let names: Vec<_> = reg.iter_ordered().map(|m| m.normalized_name.clone()).collect();
+    let names: Vec<_> = reg
+        .iter_ordered()
+        .map(|m| m.normalized_name.clone())
+        .collect();
     assert_eq!(names, vec!["alpha", "beta"]);
     // After rebasing alpha, the lookup returns the new base 0x3000.
     assert_eq!(reg.resolve_name_in_module("alpha", "Fn"), 0x3000 + 0x1500);
@@ -216,11 +239,7 @@ fn replacement_removes_old_base_but_preserves_order() {
 
 #[test]
 fn removal_drops_module_from_all_indices() {
-    let (raw, sections, va, size) = build_export_table(
-        1,
-        &[(0x1500, false)],
-        &[("Fn", 0)],
-    );
+    let (raw, sections, va, size) = build_export_table(1, &[(0x1500, false)], &[("Fn", 0)]);
     let mut reg = ExportIndexRegistry::new();
     parse_and_register(&mut reg, "alpha.dll", 0x1000, &raw, &sections, va, size);
     parse_and_register(&mut reg, "beta.dll", 0x2000, &raw, &sections, va, size);
@@ -234,11 +253,7 @@ fn removal_drops_module_from_all_indices() {
 
 #[test]
 fn unknown_name_returns_zero_and_does_not_scan() {
-    let (raw, sections, va, size) = build_export_table(
-        1,
-        &[(0x1500, false)],
-        &[("Fn", 0)],
-    );
+    let (raw, sections, va, size) = build_export_table(1, &[(0x1500, false)], &[("Fn", 0)]);
     let mut reg = ExportIndexRegistry::new();
     parse_and_register(&mut reg, "alpha.dll", 0x1000, &raw, &sections, va, size);
     assert_eq!(reg.resolve_name_in_module("alpha", "Missing"), 0);
@@ -274,7 +289,9 @@ fn indexed_export_helpers_classify_direct_vs_forwarder() {
     assert!(direct.is_direct());
     assert_eq!(direct.direct_address(), Some(0x42));
 
-    let fwd = IndexedExport::Forwarder { value: "x.y".to_string() };
+    let fwd = IndexedExport::Forwarder {
+        value: "x.y".to_string(),
+    };
     assert!(!fwd.is_direct());
     assert_eq!(fwd.direct_address(), None);
 }

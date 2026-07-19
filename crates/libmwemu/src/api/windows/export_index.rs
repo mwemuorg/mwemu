@@ -94,12 +94,17 @@ impl ModuleExportIndex {
         // Build by_name first; later direct entries may override earlier ones
         // (alias to the same function-table slot), matching how Windows treats
         // duplicate names.
-        for NamedExport { name, ordinal_index } in &parsed.named_exports {
+        for NamedExport {
+            name,
+            ordinal_index,
+        } in &parsed.named_exports
+        {
             let lc = name.to_ascii_lowercase();
             by_name.insert(lc, *ordinal_index);
         }
 
-        let mut by_ordinal: Vec<Option<IndexedExport>> = Vec::with_capacity(parsed.ordinal_targets.len());
+        let mut by_ordinal: Vec<Option<IndexedExport>> =
+            Vec::with_capacity(parsed.ordinal_targets.len());
         for slot in &parsed.ordinal_targets {
             let resolved = match slot {
                 None => None,
@@ -117,7 +122,11 @@ impl ModuleExportIndex {
         // Build the direct-address reverse map. Use the *original-case* export
         // name; for aliases pointing at the same slot we keep the first one
         // seen (matching PEB-export reverse-lookup behavior in Windows).
-        for NamedExport { name, ordinal_index } in &parsed.named_exports {
+        for NamedExport {
+            name,
+            ordinal_index,
+        } in &parsed.named_exports
+        {
             if let Some(Some(IndexedExport::Direct { address })) =
                 by_ordinal.get(*ordinal_index as usize)
             {
@@ -129,7 +138,11 @@ impl ModuleExportIndex {
         // lookup and `search_api_name`. Keyed by ordinal index so rebase can
         // rebuild `by_address` after the base moves.
         let mut display_names: Vec<(u32, String)> = Vec::new();
-        for NamedExport { name, ordinal_index } in &parsed.named_exports {
+        for NamedExport {
+            name,
+            ordinal_index,
+        } in &parsed.named_exports
+        {
             display_names.push((*ordinal_index, name.clone()));
         }
 
@@ -160,7 +173,9 @@ impl ModuleExportIndex {
             }
         }
         for (ord_idx, name) in &self.display_names {
-            if let Some(Some(IndexedExport::Direct { address })) = self.by_ordinal.get(*ord_idx as usize) {
+            if let Some(Some(IndexedExport::Direct { address })) =
+                self.by_ordinal.get(*ord_idx as usize)
+            {
                 self.by_address
                     .entry(*address)
                     .or_insert_with(|| name.clone());
@@ -172,11 +187,9 @@ impl ModuleExportIndex {
     /// Resolve an export by lowercased name. Returns the resolved target
     /// (direct or forwarder) without following forwarders.
     pub fn resolve_name(&self, name_lc: &str) -> Option<&IndexedExport> {
-        self.by_name.get(name_lc).and_then(|idx| {
-            self.by_ordinal
-                .get(*idx as usize)
-                .and_then(|s| s.as_ref())
-        })
+        self.by_name
+            .get(name_lc)
+            .and_then(|idx| self.by_ordinal.get(*idx as usize).and_then(|s| s.as_ref()))
     }
 
     /// Resolve an export by ordinal (the export ordinal as exported by
@@ -186,9 +199,7 @@ impl ModuleExportIndex {
             return None;
         }
         let idx = ordinal - self.export_base;
-        self.by_ordinal
-            .get(idx as usize)
-            .and_then(|s| s.as_ref())
+        self.by_ordinal.get(idx as usize).and_then(|s| s.as_ref())
     }
 
     /// Reverse-lookup: given an address, return the export name (if this
@@ -289,9 +300,7 @@ impl ExportIndexRegistry {
     /// Iterate registered modules in registration order. Used by global
     /// scans that must remain deterministic.
     pub fn iter_ordered(&self) -> impl Iterator<Item = &ModuleExportIndex> {
-        self.order
-            .iter()
-            .filter_map(|n| self.by_name.get(n))
+        self.order.iter().filter_map(|n| self.by_name.get(n))
     }
 
     /// Number of registered modules.
@@ -324,7 +333,12 @@ impl ExportIndexRegistry {
     pub fn resolve_name_in_module(&self, module: &str, name: &str) -> u64 {
         let normalized = normalize_module_name(module);
         let name_lc = normalize_export_name(name);
-        self.resolve_name_in_module_inner(&normalized, &name_lc, &mut Vec::new(), MAX_FORWARDER_DEPTH)
+        self.resolve_name_in_module_inner(
+            &normalized,
+            &name_lc,
+            &mut Vec::new(),
+            MAX_FORWARDER_DEPTH,
+        )
     }
 
     fn resolve_name_in_module_inner(
@@ -389,12 +403,9 @@ impl ExportIndexRegistry {
         };
         match module.resolve_ordinal(ordinal) {
             Some(IndexedExport::Direct { address }) => *address,
-            Some(IndexedExport::Forwarder { value }) => parse_forwarder_and_resolve(
-                self,
-                value,
-                &mut Vec::new(),
-                MAX_FORWARDER_DEPTH,
-            ),
+            Some(IndexedExport::Forwarder { value }) => {
+                parse_forwarder_and_resolve(self, value, &mut Vec::new(), MAX_FORWARDER_DEPTH)
+            }
             None => 0,
         }
     }
@@ -411,12 +422,9 @@ impl ExportIndexRegistry {
         };
         match target {
             IndexedExport::Direct { address } => *address,
-            IndexedExport::Forwarder { value } => parse_forwarder_and_resolve(
-                self,
-                value,
-                &mut Vec::new(),
-                MAX_FORWARDER_DEPTH,
-            ),
+            IndexedExport::Forwarder { value } => {
+                parse_forwarder_and_resolve(self, value, &mut Vec::new(), MAX_FORWARDER_DEPTH)
+            }
         }
     }
 }
@@ -463,7 +471,12 @@ fn parse_forwarder_and_resolve(
         return 0;
     }
 
-    registry.resolve_name_in_module_inner(&normalized_dll, &sym_part.to_ascii_lowercase(), visited, depth)
+    registry.resolve_name_in_module_inner(
+        &normalized_dll,
+        &sym_part.to_ascii_lowercase(),
+        visited,
+        depth,
+    )
 }
 
 /// Normalize a module name into a registry key:
@@ -605,7 +618,10 @@ mod tests {
         assert!(reg.get_by_base(0x10000).is_none());
         assert_eq!(reg.len(), 1);
         // Order: only ntdll remains.
-        let names: Vec<&str> = reg.iter_ordered().map(|m| m.normalized_name.as_str()).collect();
+        let names: Vec<&str> = reg
+            .iter_ordered()
+            .map(|m| m.normalized_name.as_str())
+            .collect();
         assert_eq!(names, vec!["ntdll"]);
     }
 
@@ -683,14 +699,20 @@ mod tests {
         reg.register(make_index(0x10000, "kernel32.dll"));
         reg.register(make_index(0x20000, "ntdll.dll"));
         reg.register(make_index(0x30000, "kernel32.dll")); // replace
-        let names: Vec<&str> = reg.iter_ordered().map(|m| m.normalized_name.as_str()).collect();
+        let names: Vec<&str> = reg
+            .iter_ordered()
+            .map(|m| m.normalized_name.as_str())
+            .collect();
         assert_eq!(names, vec!["kernel32", "ntdll"]);
     }
 
     #[test]
     fn module_name_normalization_handles_paths_and_case() {
         assert_eq!(normalize_module_name("KERNEL32.DLL"), "kernel32");
-        assert_eq!(normalize_module_name("C:\\Windows\\kernel32.dll"), "kernel32");
+        assert_eq!(
+            normalize_module_name("C:\\Windows\\kernel32.dll"),
+            "kernel32"
+        );
         assert_eq!(normalize_module_name("/usr/lib/kernel32.dll"), "kernel32");
         assert_eq!(normalize_module_name("kernel32"), "kernel32");
         assert_eq!(normalize_module_name("  kernelbase.DLL  "), "kernelbase");
@@ -700,10 +722,16 @@ mod tests {
     fn parsed_rebase_updates_addresses() {
         let mut idx = make_index(0x10000, "kernel32.dll");
         // base 0x10000 + RVA 0x1500 = 0x11500
-        assert_eq!(idx.resolve_name("a").unwrap().direct_address(), Some(0x11500));
+        assert_eq!(
+            idx.resolve_name("a").unwrap().direct_address(),
+            Some(0x11500)
+        );
         idx.rebase(0x40000);
         // base 0x40000 + RVA 0x1500 = 0x41500
-        assert_eq!(idx.resolve_name("a").unwrap().direct_address(), Some(0x41500));
+        assert_eq!(
+            idx.resolve_name("a").unwrap().direct_address(),
+            Some(0x41500)
+        );
         assert_eq!(idx.base, 0x40000);
         // Reverse map rebuilt with the same display name.
         assert_eq!(idx.resolve_address(0x41500), Some("A"));

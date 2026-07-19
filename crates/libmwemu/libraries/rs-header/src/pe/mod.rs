@@ -1,8 +1,8 @@
 //! Generic PE32/PE64 parser and loader extracted from mwemu.
 //! See design/PE_EXTRACTION.md for the architecture.
 
-mod loader;
 pub mod export_index;
+mod loader;
 pub mod pe32;
 pub mod pe64;
 pub mod readers;

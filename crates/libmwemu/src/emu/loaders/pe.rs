@@ -2,7 +2,7 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::windows::constants;
 use crate::windows::peb::{peb32, peb64};
-use rs_header::pe::export_index::{build_export_index, ExportIndexData};
+use rs_header::pe::export_index::{ExportIndexData, build_export_index};
 use rs_header::pe::pe32::PE32;
 use rs_header::pe::pe64::PE64;
 

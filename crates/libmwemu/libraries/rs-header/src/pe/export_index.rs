@@ -12,7 +12,7 @@
 //! - PE32 callers must narrow the resolved address back to `u32` after
 //!   validation; the parser itself does not enforce a guest pointer width.
 
-use crate::pe::readers::{read_c_string, read_u32_le, read_u16_le};
+use crate::pe::readers::{read_c_string, read_u16_le, read_u32_le};
 use crate::pe::shared::ImageSectionHeader;
 
 /// Maximum number of function-table entries we will accept from a hostile /
@@ -120,8 +120,7 @@ pub fn build_export_index(
         Some(o) => o,
         None => return None,
     };
-    let func_table_end = func_table_off
-        .checked_add((nof as usize).checked_mul(4)?)?;
+    let func_table_end = func_table_off.checked_add((nof as usize).checked_mul(4)?)?;
     if address_of_functions == 0 || func_table_end > raw.len() {
         return None;
     }

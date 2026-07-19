@@ -20,8 +20,8 @@ use crate::{
 use crate::{winapi::winapi32, winapi::winapi64, windows::kuser_shared, windows::structures};
 use rs_header::pe::pe64;
 
-use crate::emu::object_handle::HandleManagement;
 use crate::api::windows::export_index::ExportIndexRegistry;
+use crate::emu::object_handle::HandleManagement;
 use crate::maps::heap_allocation::O1Heap;
 use fast_log::appender::{Command, FastLogRecord, RecordFormat};
 

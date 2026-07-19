@@ -56,10 +56,9 @@ fn resolve_name_via_registry_or_scanner(
         return (0, module.module_name.clone(), name.to_string());
     }
 
-    let addr =
-        crate::api::windows::winapi32::kernel32::resolver::resolve_api_name_in_module(
-            emu, "", name,
-        );
+    let addr = crate::api::windows::winapi32::kernel32::resolver::resolve_api_name_in_module(
+        emu, "", name,
+    );
     (addr, String::new(), name.to_string())
 }
 

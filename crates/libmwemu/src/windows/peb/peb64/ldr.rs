@@ -298,7 +298,10 @@ pub fn dynamic_unlink_module(libname: &str, emu: &mut emu::Emu) {
             // (e.g. real PE mapped under a slightly different basename), so
             // still attempt to drop it but don't fail.
             if !emu.export_indexes.remove(libname) {
-                log::trace!("peb64::dynamic_unlink_module: no registry entry for {}", libname);
+                log::trace!(
+                    "peb64::dynamic_unlink_module: no registry entry for {}",
+                    libname
+                );
             }
             return;
         }
@@ -315,7 +318,10 @@ pub fn dynamic_unlink_module(libname: &str, emu: &mut emu::Emu) {
     // Drop the export-name registry entry for the unlinked module so future
     // lookups don't return addresses from a removed image.
     if !emu.export_indexes.remove(libname) {
-        log::trace!("peb64::dynamic_unlink_module: no registry entry for {}", libname);
+        log::trace!(
+            "peb64::dynamic_unlink_module: no registry entry for {}",
+            libname
+        );
     }
 
     show_linked_modules(emu);
