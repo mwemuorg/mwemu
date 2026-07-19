@@ -111,7 +111,9 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     let old_base = old_mem.get_base();
     let old_size = old_mem.size();
     let old_name = old_mem.get_name().to_string();
-    if old_base != old_ptr || (!old_name.starts_with(VALLOC_PREFIX) && !old_name.starts_with("alloc_")) {
+    if old_base != old_ptr
+        || (!old_name.starts_with(VALLOC_PREFIX) && !old_name.starts_with("alloc_"))
+    {
         emu.regs_mut().rax = 0;
         return;
     }
@@ -150,7 +152,11 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     }
 
     if (flags & constants::HEAP_ZERO_MEMORY) != 0 && (new_size as usize) > old_size {
-        emu.maps.memset(new_addr + old_size as u64, 0, (new_size as usize) - old_size);
+        emu.maps.memset(
+            new_addr + old_size as u64,
+            0,
+            (new_size as usize) - old_size,
+        );
     }
 
     emu.maps.dealloc(old_ptr);
