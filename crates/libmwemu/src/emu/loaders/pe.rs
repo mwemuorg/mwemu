@@ -2,8 +2,13 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::windows::constants;
 use crate::windows::peb::{peb32, peb64};
+use rs_header::pe::export_index::{build_export_index, ExportIndexData};
 use rs_header::pe::pe32::PE32;
 use rs_header::pe::pe64::PE64;
+
+/// Index of the export data directory in `data_directory[]`. Mirrors
+/// `IMAGE_DIRECTORY_ENTRY_EXPORT` from `rs-header::pe::shared` (always 0).
+const DATA_DIR_EXPORT: usize = 0;
 
 macro_rules! align_up {
     ($size:expr, $align:expr) => {{
@@ -23,6 +28,37 @@ impl Emu {
             log::error!("cannot read PE file {}: {}", filename, e);
             Vec::new()
         })
+    }
+
+    /// Build and register a `ModuleExportIndex` from a parsed PE's raw bytes,
+    /// section table, and optional-header data directories.
+    ///
+    /// Safe to call on malformed / absent export directories — the parser
+    /// returns `None` and we leave the registry unchanged for that module.
+    fn register_export_index_from_raw(
+        &mut self,
+        module_name: &str,
+        base: u64,
+        raw: &[u8],
+        sections: &[rs_header::pe::shared::ImageSectionHeader],
+        export_va: u32,
+        export_size: u32,
+    ) {
+        let Some(parsed): Option<ExportIndexData> =
+            build_export_index(raw, sections, export_va, export_size)
+        else {
+            return;
+        };
+        if parsed.is_empty() {
+            return;
+        }
+        let index = crate::api::windows::export_index::ModuleExportIndex::from_parsed(
+            module_name.to_string(),
+            crate::api::windows::export_index::normalize_module_name(module_name),
+            base,
+            &parsed,
+        );
+        self.export_indexes.register(index);
     }
 
     /// Prefer PE `ImageBase` when it is in canonical user space and does not overlap existing maps;
@@ -218,6 +254,32 @@ impl Emu {
         // 4b. Base relocs on the mapped image before IAT binding.
         pe32.apply_relocations(&raw, self, base);
 
+        // 4b'. Register the export-name index before IAT binding so that any
+        // `GetProcAddress`-style lookup triggered by the binding itself can
+        // resolve through host-side maps instead of rescanning the export
+        // directory.
+        {
+            let dd = &pe32.opt.data_directory;
+            let export_va = if dd.len() > DATA_DIR_EXPORT {
+                dd[DATA_DIR_EXPORT].virtual_address
+            } else {
+                0
+            };
+            let export_size = if dd.len() > DATA_DIR_EXPORT {
+                dd[DATA_DIR_EXPORT].size
+            } else {
+                0
+            };
+            self.register_export_index_from_raw(
+                &filename2,
+                base as u64,
+                &raw,
+                &pe32.sect_hdr,
+                export_va,
+                export_size,
+            );
+        }
+
         // 4c. pe binding — sections (incl. the IAT) are mapped now.
         if (set_entry || self.cfg.emulate_winapi) && (!is_maps || self.cfg.emulate_winapi) {
             pe32.iat_binding(&raw, self, base);
@@ -331,6 +393,31 @@ impl Emu {
         }
 
         pe64.apply_relocations(&raw, self, base);
+
+        // Register the export-name index for this mapped DLL. The normal 64-bit
+        // init path binds IATs in a later loop using temporary `Lib` values,
+        // so the registry must already contain every mapped DLL at that point.
+        {
+            let dd = &pe64.opt.data_directory;
+            let export_va = if dd.len() > DATA_DIR_EXPORT {
+                dd[DATA_DIR_EXPORT].virtual_address
+            } else {
+                0
+            };
+            let export_size = if dd.len() > DATA_DIR_EXPORT {
+                dd[DATA_DIR_EXPORT].size
+            } else {
+                0
+            };
+            self.register_export_index_from_raw(
+                &map_name,
+                base,
+                &raw,
+                &pe64.sect_hdr,
+                export_va,
+                export_size,
+            );
+        }
 
         (base, pe64, raw)
     }
@@ -509,6 +596,31 @@ impl Emu {
 
         // 4b. Base relocs on the mapped image (all load paths, including DLL without emulate_winapi).
         pe64.apply_relocations(&raw, self, base);
+
+        // 4b'. Register the export-name index before any IAT binding can
+        // resolve an export from this image. Recursively-loaded DLLs and the
+        // main image both pass through this point.
+        {
+            let dd = &pe64.opt.data_directory;
+            let export_va = if dd.len() > DATA_DIR_EXPORT {
+                dd[DATA_DIR_EXPORT].virtual_address
+            } else {
+                0
+            };
+            let export_size = if dd.len() > DATA_DIR_EXPORT {
+                dd[DATA_DIR_EXPORT].size
+            } else {
+                0
+            };
+            self.register_export_index_from_raw(
+                &filename2,
+                base,
+                &raw,
+                &pe64.sect_hdr,
+                export_va,
+                export_size,
+            );
+        }
 
         // Decide whether to eagerly bind this image's IAT.
         let bind_iat = if self.cfg.emulate_winapi {

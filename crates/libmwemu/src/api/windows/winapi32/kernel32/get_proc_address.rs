@@ -1,5 +1,9 @@
 use crate::emu;
-use crate::windows::peb::peb32;
+
+/// Per Windows convention, when `lpProcName` has the high bit set, the
+/// caller is passing an ordinal export, not a name pointer. The ordinal
+/// value itself is the low word.
+const ORDINAL_MASK: u64 = 0xFFFF_0000;
 
 pub fn GetProcAddress(emu: &mut emu::Emu) {
     let hndl = emu
@@ -10,48 +14,96 @@ pub fn GetProcAddress(emu: &mut emu::Emu) {
         .maps
         .read_dword(emu.regs().get_esp() + 4)
         .expect("kernel32!GetProcAddress cannot read the func name") as u64;
-    let func = emu.maps.read_string(func_ptr).to_lowercase();
-
-    //log::trace!("looking for '{}'", func);
 
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    //peb32::show_linked_modules(emu);
+    let is_ordinal = (func_ptr & ORDINAL_MASK) != 0;
 
-    let mut flink = peb32::Flink::new(emu);
-    flink.load(emu);
-    let first_flink = flink.get_ptr();
+    let (resolved, display_module, display_name) = if is_ordinal {
+        let ordinal = (func_ptr & 0xFFFF) as u32;
+        resolve_ordinal_via_registry_or_scanner(emu, hndl, ordinal)
+    } else {
+        let func = emu.maps.read_string(func_ptr).to_lowercase();
+        resolve_name_via_registry_or_scanner(emu, hndl, &func)
+    };
 
-    loop {
-        if flink.export_table_rva > 0 {
-            for i in 0..flink.num_of_funcs {
-                if flink.pe_hdr == 0 {
-                    continue;
-                }
-                let ordinal = flink.get_function_ordinal(emu, i);
+    emu.regs_mut().rax = resolved;
+    if resolved != 0 {
+        log_red!(
+            emu,
+            "kernel32!GetProcAddress  `{}!{}` =0x{:x}",
+            display_module,
+            display_name,
+            emu.regs().get_eax() as u32
+        );
+    } else {
+        log::warn!("kernel32!GetProcAddress error searching 0x{:x}", func_ptr);
+    }
+}
 
-                //log::trace!("func name {}!{}", flink.mod_name, ordinal.func_name);
+fn resolve_name_via_registry_or_scanner(
+    emu: &mut emu::Emu,
+    hndl: u64,
+    name: &str,
+) -> (u64, String, String) {
+    if let Some(module) = emu.export_indexes.get_by_base(hndl) {
+        let addr = emu.export_indexes.resolve_name_by_base(hndl, name);
+        if addr != 0 {
+            let display = module_display_name_for(module, name).unwrap_or_else(|| name.to_string());
+            return (addr, module.module_name.clone(), display);
+        }
+        return (0, module.module_name.clone(), name.to_string());
+    }
 
-                if ordinal.func_name.to_lowercase() == func {
-                    emu.regs_mut().rax = ordinal.func_va;
-                    log_red!(
-                        emu,
-                        "kernel32!GetProcAddress  `{}!{}` =0x{:x}",
-                        flink.mod_name,
-                        ordinal.func_name,
-                        emu.regs().get_eax() as u32
-                    );
-                    return;
-                }
+    let addr =
+        crate::api::windows::winapi32::kernel32::resolver::resolve_api_name_in_module(
+            emu, "", name,
+        );
+    (addr, String::new(), name.to_string())
+}
+
+fn resolve_ordinal_via_registry_or_scanner(
+    emu: &mut emu::Emu,
+    hndl: u64,
+    ordinal: u32,
+) -> (u64, String, String) {
+    if let Some(module) = emu.export_indexes.get_by_base(hndl) {
+        let addr = emu.export_indexes.resolve_ordinal_by_base(hndl, ordinal);
+        let display = module_display_name_for_ordinal(module, ordinal)
+            .unwrap_or_else(|| format!("#{}", ordinal));
+        if addr != 0 {
+            return (addr, module.module_name.clone(), display);
+        }
+        return (0, module.module_name.clone(), display);
+    }
+    (0, String::new(), format!("#{}", ordinal))
+}
+
+fn module_display_name_for(
+    module: &crate::api::windows::export_index::ModuleExportIndex,
+    name_lc: &str,
+) -> Option<String> {
+    let lc = name_lc.to_ascii_lowercase();
+    if let Some(ord_idx) = module.by_name.get(&lc) {
+        for (name, idx) in module.display_names_for_iter() {
+            if idx == *ord_idx {
+                return Some(name);
             }
         }
+    }
+    None
+}
 
-        flink.next(emu);
-        if flink.get_ptr() == first_flink {
-            break;
+fn module_display_name_for_ordinal(
+    module: &crate::api::windows::export_index::ModuleExportIndex,
+    ordinal: u32,
+) -> Option<String> {
+    let idx = ordinal.checked_sub(module.export_base)?;
+    for (name, ord_idx) in module.display_names_for_iter() {
+        if ord_idx == idx {
+            return Some(name);
         }
     }
-    emu.regs_mut().rax = 0;
-    log::warn!("kernel32!GetProcAddress error searching {}", func);
+    None
 }

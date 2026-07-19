@@ -397,10 +397,20 @@ pub fn dynamic_unlink_module(libname: &str, emu: &mut emu::Emu) {
 
     let mut flink = Flink::new(emu);
     flink.load(emu);
-    while flink.mod_name != libname {
+    let first = flink.get_ptr();
+    loop {
+        if flink.mod_name == libname {
+            break;
+        }
         log::trace!("{}", flink.mod_name);
         prev_flink = flink.get_ptr();
         flink.next(emu);
+        if flink.get_ptr() == first {
+            if !emu.export_indexes.remove(libname) {
+                log::trace!("peb32::dynamic_unlink_module: no registry entry for {}", libname);
+            }
+            return;
+        }
     }
 
     flink.next(emu);
@@ -414,6 +424,12 @@ pub fn dynamic_unlink_module(libname: &str, emu: &mut emu::Emu) {
     // next blink
     log::trace!("next_flink: 0x{:x}", next_flink);
     emu.maps.write_dword(next_flink + 4, prev_flink as u32);
+
+    // Drop the export-name registry entry for the unlinked module so future
+    // lookups don't return addresses from a removed image.
+    if !emu.export_indexes.remove(libname) {
+        log::trace!("peb32::dynamic_unlink_module: no registry entry for {}", libname);
+    }
 
     show_linked_modules(emu);
 }

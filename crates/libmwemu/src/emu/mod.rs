@@ -27,6 +27,8 @@ use crate::{
 use rs_header::elf::{elf32::Elf32, elf64::Elf64};
 use rs_header::pe::{pe32::PE32, pe64::PE64};
 
+use crate::api::windows::export_index::ExportIndexRegistry;
+
 /// Architecture-specific instruction decoding and disassembly state.
 /// Discriminated by target architecture so each variant carries only
 /// the decode state relevant to its ISA.
@@ -175,6 +177,11 @@ pub struct Emu {
     pub console_handles: HashSet<u64>, // handles backed by the console device (\Device\ConDrv\... and relative opens like \Reference / \Connect / \Input / \Output under a ConDrv root); used to recognise relative console opens and to answer NtDeviceIoControlFile on them
     pub api_resolve_cache: HashMap<String, u64>, // memoizes resolve_api_name_in_module: "module_lc\x01name" -> resolved VA. The resolver does an O(exports) string-read+lowercase scan per call; the loader resolves the same apiset imports ~100x (the kernelbase dance), so this dominated CPU without the cache. Only successful (non-zero) resolutions are cached.
     pub api_addr_name_cache: HashMap<u64, String>, // memoizes resolve_api_addr_to_name: VA -> export name. Same O(exports) scan; cached because module addresses are stable for a run.
+    /// Persistent, host-side export-name index per mapped PE module. Built
+    /// once at mapping/relocation time and used as the fast path for
+    /// named/ordinal/address lookups. The PEB/export scanner remains as a
+    /// compatibility fallback for unregistered or malformed modules.
+    pub export_indexes: ExportIndexRegistry,
     pub symbolic_link_targets: HashMap<u64, String>, // NtOpenSymbolicLinkObject handle → resolved link target (e.g. "\KnownDlls\KnownDllPath" → "C:\\Windows\\System32"); read back by NtQuerySymbolicLinkObject so ntdll's LdrInit can resolve the KnownDlls search path
     pub ssdt_pad_stack: Vec<u64>, // expected return addresses for PE→DLL CALLs that received an extra 0x20 of shadow-space padding (--ssdt only); a matching RET to PE pops and unpads
 }

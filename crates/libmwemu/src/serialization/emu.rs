@@ -422,6 +422,7 @@ impl From<SerializableEmu> for Emu {
             console_handles: HashSet::new(),
             api_resolve_cache: HashMap::new(),
             api_addr_name_cache: HashMap::new(),
+            export_indexes: Default::default(),
             symbolic_link_targets: HashMap::new(),
             ssdt_pad_stack: Vec::new(),
         };

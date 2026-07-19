@@ -21,6 +21,7 @@ use crate::{winapi::winapi32, winapi::winapi64, windows::kuser_shared, windows::
 use rs_header::pe::pe64;
 
 use crate::emu::object_handle::HandleManagement;
+use crate::api::windows::export_index::ExportIndexRegistry;
 use crate::maps::heap_allocation::O1Heap;
 use fast_log::appender::{Command, FastLogRecord, RecordFormat};
 
@@ -156,6 +157,7 @@ impl Emu {
             console_handles: HashSet::new(),
             api_resolve_cache: HashMap::new(),
             api_addr_name_cache: HashMap::new(),
+            export_indexes: ExportIndexRegistry::new(),
             symbolic_link_targets: HashMap::new(),
             ssdt_pad_stack: Vec::new(),
         }
