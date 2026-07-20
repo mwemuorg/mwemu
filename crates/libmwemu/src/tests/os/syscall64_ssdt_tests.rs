@@ -180,3 +180,393 @@ fn nt_open_and_terminate_process_behavior() {
     assert_eq!(emu.regs().rax, STATUS_SUCCESS);
     assert_eq!(emu.is_running.load(Ordering::Relaxed), 0);
 }
+
+// ---------------------------------------------------------------------------
+// NtQuerySystemInformation
+// ---------------------------------------------------------------------------
+
+/// Map an I/O buffer and set the standard x64 NtQuerySystemInformation
+/// register layout: RCX=class, RDX=buffer, R8=length, R9=return-length ptr.
+fn setup_qsi(emu: &mut emu::Emu, class: u64, buf: u64, len: u32, ret_len: u64) {
+    emu.maps
+        .create_map("qsi_io", buf & !0xFFF, 0x4000, Permission::READ_WRITE)
+        .expect("create qsi io map");
+    emu.regs_mut().rax = WIN64_NTQUERYSYSTEMINFORMATION;
+    emu.regs_mut().rcx = class;
+    emu.regs_mut().rdx = buf;
+    emu.regs_mut().r8 = len as u64;
+    emu.regs_mut().r9 = ret_len;
+}
+
+#[test]
+fn qsi_null_buffer_nonzero_length_returns_invalid_parameter() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    emu.regs_mut().rax = WIN64_NTQUERYSYSTEMINFORMATION;
+    emu.regs_mut().rcx = 0x03; // SystemTimeOfDayInformation
+    emu.regs_mut().rdx = 0;
+    emu.regs_mut().r8 = 0x30;
+    emu.regs_mut().r9 = 0;
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INVALID_PARAMETER);
+}
+
+#[test]
+fn qsi_unmapped_buffer_returns_access_violation() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    emu.regs_mut().rax = WIN64_NTQUERYSYSTEMINFORMATION;
+    emu.regs_mut().rcx = 0x03; // SystemTimeOfDayInformation
+    emu.regs_mut().rdx = 0x800000; // unmapped
+    emu.regs_mut().r8 = 0x30;
+    emu.regs_mut().r9 = 0x101100;
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_ACCESS_VIOLATION);
+}
+
+#[test]
+fn qsi_unknown_class_returns_invalid_info_class() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0xFFF, 0x800100, 0x40, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INVALID_INFO_CLASS);
+}
+
+#[test]
+fn qsi_timeofday_short_buffer_reports_required_length() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x03, 0x800100, 0x10, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INFO_LENGTH_MISMATCH);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x30);
+}
+
+#[test]
+fn qsi_timeofday_writes_correct_size_and_timezone_id() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x03, 0x800100, 0x30, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x30);
+    assert_eq!(emu.maps.read_qword(0x800108).unwrap_or(0), 1);
+    assert_eq!(emu.maps.read_dword(0x800118).unwrap_or(0), 0x2);
+}
+
+#[test]
+fn qsi_processor_information_reports_amd64() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x01, 0x800100, 0x18, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x18);
+    // ProcessorArchitecture = 0x0009 (PROCESSOR_ARCHITECTURE_AMD64)
+    assert_eq!(emu.maps.read_word(0x800100).unwrap_or(0), 0x0009);
+    // MaximumProcessors = 1 at +6
+    assert_eq!(emu.maps.read_word(0x800106).unwrap_or(0), 1);
+}
+
+#[test]
+fn qsi_device_information_writes_number_of_disks() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x07, 0x800100, 0x18, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x18);
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(0), 1);
+}
+
+#[test]
+fn qsi_exception_information_short_buffer() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x21, 0x800100, 0x04, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INFO_LENGTH_MISMATCH);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x10);
+}
+
+#[test]
+fn qsi_file_cache_information_zeroes_buffer() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x15, 0x800100, 0x40, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x40);
+    // First 4 bytes should be zeroed.
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(0xDEAD), 0);
+}
+
+#[test]
+fn qsi_memory_list_information_writes_full_size() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x50, 0x800100, 0xB0, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0xB0);
+}
+
+#[test]
+fn qsi_recommended_shared_data_alignment_returns_64() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x3A, 0x800100, 0x04, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x04);
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(0), 64);
+}
+
+#[test]
+fn qsi_error_port_timeouts_short_buffer() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x73, 0x800100, 0x04, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INFO_LENGTH_MISMATCH);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x08);
+}
+
+#[test]
+fn qsi_code_integrity_information_reports_enabled() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x67, 0x800100, 0x08, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x08);
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(0), 0x08);
+    assert_eq!(emu.maps.read_dword(0x800104).unwrap_or(0), 0x1);
+}
+
+#[test]
+fn qsi_code_integrity_policy_information_succeeds_with_zero_fill() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0xC0, 0x800100, 0x20, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x20);
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(0xDEAD), 0);
+}
+
+#[test]
+fn qsi_extended_handles_now_class_0x40_succeeds() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x40, 0x800100, 0x10, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x10);
+}
+
+#[test]
+fn qsi_class_0x37_now_returns_not_supported() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x37, 0x800100, 0x100, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_NOT_SUPPORTED);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(1), 0);
+}
+
+#[test]
+fn qsi_class_0xc5_hypervisor_returns_not_supported() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0xC5, 0x800100, 0x04, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_NOT_SUPPORTED);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(1), 0);
+}
+
+#[test]
+fn qsi_supported_processor_architectures_class_0xb4_not_supported() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0xB4, 0x800100, 0x04, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_NOT_SUPPORTED);
+}
+
+#[test]
+fn qsi_module_information_short_buffer_reports_required_length() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x0B, 0x800100, 0x80, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INFO_LENGTH_MISMATCH);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x130);
+}
+
+#[test]
+fn qsi_module_information_writes_ntoskrnl_payload() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x0B, 0x800100, 0x130, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x130);
+    // NumberOfModules = 1 at +0x00.
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(0), 1);
+    // MappedBase at +0x10 (NumberOfModules is at +0x00, 4 pad at +0x04, module starts at +0x08).
+    assert_eq!(
+        emu.maps.read_qword(0x800110).unwrap_or(0),
+        0xFFFF_F800_0000_0000
+    );
+    // ImageBase at +0x18.
+    assert_eq!(
+        emu.maps.read_qword(0x800118).unwrap_or(0),
+        0xFFFF_F800_0000_0000
+    );
+    // ImageSize at +0x20.
+    assert_eq!(emu.maps.read_dword(0x800120).unwrap_or(0), 0x00A0_0000);
+    // LoadCount at +0x2C.
+    assert_eq!(emu.maps.read_word(0x80012C).unwrap_or(0), 1);
+    // OffsetToFileName at +0x2E.
+    let name_off = emu.maps.read_word(0x80012E).unwrap_or(0);
+    assert!(name_off > 0);
+    // FullPathName at +0x30 contains the NUL-terminated ASCII path; read
+    // 13 bytes including the trailing NUL to validate the basename.
+    let path_bytes = emu.maps.read_bytes(0x800130 + u64::from(name_off), 13);
+    assert_eq!(path_bytes, b"ntoskrnl.exe\0");
+}
+
+#[test]
+fn qsi_module_information_ex_short_buffer_reports_required_length() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x4D, 0x800100, 0x100, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INFO_LENGTH_MISMATCH);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x148);
+}
+
+#[test]
+fn qsi_module_information_ex_writes_full_payload() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x4D, 0x800100, 0x148, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x148);
+    // NextOffset at +0x00 is zero (terminator).
+    assert_eq!(emu.maps.read_word(0x800100).unwrap_or(0xFFFF), 0);
+    // ImageBase (BaseInfo.ImageBase at +0x10+0x08) = +0x18.
+    assert_eq!(
+        emu.maps.read_qword(0x800118).unwrap_or(0),
+        0xFFFF_F800_0000_0000
+    );
+    // DefaultBase at +0x140.
+    assert_eq!(
+        emu.maps.read_qword(0x800240).unwrap_or(0),
+        0xFFFF_F800_0000_0000
+    );
+}
+
+#[test]
+fn qsi_processor_performance_information_writes_tick() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    emu.pos = 12345;
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x08, 0x800100, 0x30, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x30);
+    // IdleTime == emu.pos at +0x00.
+    assert_eq!(emu.maps.read_qword(0x800100).unwrap_or(0), 12345);
+    // KernelTime == emu.pos at +0x08.
+    assert_eq!(emu.maps.read_qword(0x800108).unwrap_or(0), 12345);
+    // UserTime at +0x10 stays zero.
+    assert_eq!(emu.maps.read_qword(0x800110).unwrap_or(1), 0);
+}
+
+#[test]
+fn qsi_process_information_short_buffer_reports_required_length() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x05, 0x800100, 0x80, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INFO_LENGTH_MISMATCH);
+    // Default thread (1 entry): 0x100 + 0x50 * 1 = 0x150.
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x150);
+}
+
+#[test]
+fn qsi_process_information_writes_one_thread_by_default() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x05, 0x800100, 0x150, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), 0x150);
+    // NextEntryOffset at +0x00 is zero (terminator).
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(0xFF), 0);
+    // NumberOfThreads at +0x04 == 1.
+    assert_eq!(emu.maps.read_dword(0x800104).unwrap_or(0), 1);
+    // UniqueProcessId at +0x050 == 1.
+    assert_eq!(emu.maps.read_qword(0x800150).unwrap_or(0), 1);
+    // Thread at +0x100: ClientId.UniqueProcess at +0x100 + 0x28 == 0x228.
+    assert_eq!(emu.maps.read_qword(0x800228).unwrap_or(0), 1);
+    // ClientId.UniqueThread at +0x100 + 0x30 == 0x230 == emu.threads[0].id (0x1000).
+    assert_eq!(emu.maps.read_qword(0x800230).unwrap_or(0), 0x1000);
+    // ThreadState at +0x100 + 0x44 == 0x244 == Running (2).
+    assert_eq!(emu.maps.read_dword(0x800244).unwrap_or(0), 2);
+}
+
+#[test]
+fn qsi_process_information_enumerates_live_threads() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    // Append three more threads with distinct scheduler states.
+    let mut suspended = crate::threading::context::ThreadContext::new(0x1001, emu.cfg.arch);
+    suspended.suspended = true;
+    emu.threads.push(suspended);
+    let mut blocked = crate::threading::context::ThreadContext::new(0x1002, emu.cfg.arch);
+    blocked.blocked_on_cs = Some(0xDEAD_BEEF);
+    emu.threads.push(blocked);
+    let mut sleeping = crate::threading::context::ThreadContext::new(0x1003, emu.cfg.arch);
+    sleeping.wake_tick = emu.tick + 10;
+    emu.threads.push(sleeping);
+
+    let thread_count = emu.threads.len() as u32;
+    let total = 0x100 + thread_count * 0x50;
+    let ret_len = 0x101100;
+    setup_qsi(&mut emu, 0x05, 0x800100, total, ret_len);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_dword(ret_len).unwrap_or(0), total);
+    assert_eq!(emu.maps.read_dword(0x800104).unwrap_or(0), thread_count);
+
+    let t1 = 0x800100 + 0x100 + 0x50; // first appended thread
+    let t2 = t1 + 0x50;
+    let t3 = t2 + 0x50;
+    // Suspended -> ThreadState=Waiting (5), WaitReason=Suspended (5).
+    assert_eq!(emu.maps.read_dword(t1 + 0x44).unwrap_or(0), 5);
+    assert_eq!(emu.maps.read_dword(t1 + 0x48).unwrap_or(0), 5);
+    // Blocked on cs -> ThreadState=Waiting (5), WaitReason=WrExecutive (7).
+    assert_eq!(emu.maps.read_dword(t2 + 0x44).unwrap_or(0), 5);
+    assert_eq!(emu.maps.read_dword(t2 + 0x48).unwrap_or(0), 7);
+    // Sleeping -> ThreadState=Waiting (5), WaitReason=DelayExecution (4).
+    assert_eq!(emu.maps.read_dword(t3 + 0x44).unwrap_or(0), 5);
+    assert_eq!(emu.maps.read_dword(t3 + 0x48).unwrap_or(0), 4);
+}
