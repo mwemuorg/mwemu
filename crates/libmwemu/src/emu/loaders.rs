@@ -36,6 +36,40 @@ impl Emu {
             || Macho64::is_macho64_x64(filename)
     }
 
+    /// Detect the PE COFF `Machine` field of an input file without initializing
+    /// the emulator or touching any maps. Returns:
+    /// * `Some(IMAGE_FILE_MACHINE_I386)`  for PE32 (x86)
+    /// * `Some(IMAGE_FILE_MACHINE_AMD64)` for PE32+ (x86_64)
+    /// * `Some(IMAGE_FILE_MACHINE_ARM64)` for PE32+ (ARM64)
+    /// * `None` for ELF, Mach-O, shellcode, malformed, or unreadable inputs.
+    ///
+    /// This is the CLI's pre-load check: it lets us reject `-6` (x86_64) combined
+    /// with a PE32 (x86) input *before* any `--winver`/symbol-server download,
+    /// while leaving shellcode, ELF, and Mach-O on their existing paths. The
+    /// detector is `rs_header::pe::pe_machine_type`, the same one `load_code`
+    /// uses for its dispatch, so this never disagrees with the loader.
+    pub fn detect_pe_arch(filename: &str) -> Option<u16> {
+        let raw = std::fs::read(filename).unwrap_or_default();
+        pe_machine_type(&raw)
+    }
+
+    /// Pure decision helper for the CLI: does the requested architecture
+    /// conflict with the input file's PE architecture? Returns the user-facing
+    /// error message when so, `None` when the combination is fine or the input
+    /// is not a PE (shellcode, ELF, Mach-O, garbage all fall through — the
+    /// CLI's later handlers deal with those).
+    ///
+    /// Kept as a free-standing pure function (no `self`, no maps, no I/O beyond
+    /// a single `std::fs::read`) so it can be unit-tested without bringing up
+    /// `load_code` or the Windows simulator.
+    pub fn pe32_x64_mismatch_error(filename: &str, x64_requested: bool) -> Option<&'static str> {
+        if x64_requested && Self::detect_pe_arch(filename) == Some(IMAGE_FILE_MACHINE_I386) {
+            Some("input binary is PE32/x86, but -6 requests x86_64 emulation")
+        } else {
+            None
+        }
+    }
+
     /// Load a sample. It can be PE32, PE64, ELF32, ELF64 or shellcode.
     /// If its a shellcode cannot be known if is for windows or linux, it triggers also init() to
     /// setup windows simulator.

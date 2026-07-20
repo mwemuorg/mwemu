@@ -124,7 +124,7 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("dump", "d", "dump", "load from dump.", "FILE"))
         .arg(clap_arg!("verbose", "v", "verbose", "-v syscalls+api calls, -vv assembly, -vvv reps; default shows only syscalls", multiple: true))
         .arg(clap_arg!("verbose_at", "V", "verbose_at", "enable assembly display from position N (-V N) or between positions (-V N-M)", "RANGE"))
-        .arg(clap_arg!("64bits", "6", "64bits", "enable 64bits architecture emulation"))
+        .arg(clap_arg!("64bits", "6", "64bits", "enable 64bits architecture emulation (rejected for PE32/x86 inputs)"))
         .arg(clap_arg!("aarch64", "", "aarch64", "enable AArch64/ARM64 architecture emulation"))
         .arg(clap_arg!("trace_memory", "m", "trace_memory", "trace all the memory accesses read and write."))
         .arg(clap_arg!("flags", "", "flags", "trace the flags hex value in every instruction."))
@@ -244,6 +244,19 @@ fn main() -> process::ExitCode {
         .expect("the filename is mandatory, try -f <FILENAME> or --help.")
         .to_string();
     emu.cfg.filename = filename.clone();
+
+    // Reject the explicit `-6` + PE32 mismatch before we do anything expensive:
+    // no `--winver`/`--iso`/`--maps` provisioning, no logger setup, no LdrInit.
+    // The PE COFF `Machine` field is authoritative — the loader uses the same
+    // detector, so this never disagrees with `load_code` for a recognized PE.
+    // Shellcode/ELF/Mach-O/garbage fall through and are handled by `load_code`
+    // as usual.
+    if let Some(msg) =
+        libmwemu::emu::Emu::pe32_x64_mismatch_error(&filename, matches.is_present("64bits"))
+    {
+        eprintln!("[mwemu] error: {}", msg);
+        return process::ExitCode::from(1u8);
+    }
 
     // verbose
     emu.cfg.verbose = matches.occurrences_of("verbose") as u32;

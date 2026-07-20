@@ -18,7 +18,9 @@
 
 - toggle 64bits 
     No flags        By default will use x86 32bits emulation.
-    -6              Will use 64bits emulation.
+    -6              Will use 64bits emulation. Will be rejected with
+                    a clear error if the input file is a PE32/x86 binary;
+                    omit -6 for PE32 inputs.
 
 - spawn console
     -c [number]     Spawn the console after emulating n instructions.
