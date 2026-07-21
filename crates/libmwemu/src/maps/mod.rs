@@ -573,6 +573,53 @@ impl Maps {
         addr > 0 && self.get_mem_by_addr(addr).is_some()
     }
 
+    /// Validate that every byte in `[addr, addr + len)` is mapped **and**
+    /// writable. Returns `true` when the range is safe to write to.
+    ///
+    /// Semantics:
+    /// - `len == 0` is always valid (no dereference).
+    /// - `addr == 0` with `len > 0` is rejected (null pointer).
+    /// - `addr + len` is checked for `u64` overflow.
+    /// - A range that crosses between adjacent maps is accepted only if every
+    ///   covered map permits writes; holes between maps are rejected.
+    ///
+    /// This is the focused replacement for the `is_mapped(start) &&
+    /// is_mapped(start + len - 1)` pattern, which can accept a range that
+    /// straddles an unmapped hole or a read-only region.
+    pub fn validate_write_range(&self, addr: u64, len: u64) -> bool {
+        if len == 0 {
+            return true;
+        }
+        if addr == 0 {
+            return false;
+        }
+        let end = match addr.checked_add(len) {
+            Some(e) => e,
+            None => return false,
+        };
+
+        let mut cursor = addr;
+        while cursor < end {
+            // Find the first map whose base is <= cursor.
+            let Some((&map_base, &key)) = self.maps.range(..=cursor).next_back() else {
+                return false;
+            };
+            let Some(map) = self.mem_slab.get(key) else {
+                return false;
+            };
+            if !map.permission().can_write() {
+                return false;
+            }
+            let map_end = map.get_bottom();
+            if cursor < map_base || cursor >= map_end {
+                return false;
+            }
+            // Advance to the smaller of the map end and the requested end.
+            cursor = if map_end <= end { map_end } else { end };
+        }
+        true
+    }
+
     #[inline(always)]
     pub fn show_addr_names(&self, addr: u64) {
         self.get_mem_by_addr(addr).map(|mem| mem.get_name());
