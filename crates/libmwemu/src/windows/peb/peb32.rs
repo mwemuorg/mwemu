@@ -88,14 +88,19 @@ pub fn init_peb(emu: &mut emu::Emu) {
 
     let teb_addr = emu
         .maps
-        .lib32_alloc(TEB::size() as u64)
+        .lib32_alloc(TEB::map_size() as u64)
         .expect("cannot alloc the TEB32");
-    let teb_map = emu
-        .maps
-        .create_map("teb", teb_addr, TEB::size() as u64, Permission::READ_WRITE)
+    emu.maps
+        .create_map(
+            "teb",
+            teb_addr,
+            TEB::map_size() as u64,
+            Permission::READ_WRITE,
+        )
         .expect("cannot create teb map");
+    emu.maps.memset(teb_addr, 0, TEB::map_size());
     let teb = TEB::new(peb_addr as u32);
-    teb.save(teb_map);
+    teb.save(emu.maps.get_mem_mut("teb"));
 }
 
 pub fn update_peb_image_base(emu: &mut emu::Emu, base: u32) {

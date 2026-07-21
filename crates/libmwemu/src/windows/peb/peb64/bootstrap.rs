@@ -350,19 +350,19 @@ pub fn init_peb(emu: &mut emu::Emu) {
 
     let teb_addr = emu
         .maps
-        .lib64_alloc(TEB64::size() as u64)
+        .lib64_alloc(TEB64::map_size() as u64)
         .expect("cannot alloc the TEB64");
-    let teb_map = emu
-        .maps
+    emu.maps
         .create_map(
             "teb",
             teb_addr,
-            TEB64::size() as u64,
+            TEB64::map_size() as u64,
             Permission::READ_WRITE,
         )
         .expect("cannot create teb map");
+    emu.maps.memset(teb_addr, 0, TEB64::map_size());
     let teb = TEB64::new(peb_addr);
-    teb.save(teb_map);
+    teb.save(emu.maps.get_mem_mut("teb"));
 
     ensure_teb_activation_context_stack(emu);
     ensure_peb_system_dependent_07(emu);
@@ -444,17 +444,17 @@ pub fn init_peb_teb_empty(emu: &mut emu::Emu) {
 
     let teb_addr = emu
         .maps
-        .lib64_alloc(TEB64::size() as u64)
+        .lib64_alloc(TEB64::map_size() as u64)
         .expect("cannot alloc the TEB64");
-    let _teb_map = emu
-        .maps
+    emu.maps
         .create_map(
             "teb",
             teb_addr,
-            TEB64::size() as u64,
+            TEB64::map_size() as u64,
             Permission::READ_WRITE,
         )
         .expect("cannot create teb map");
+    emu.maps.memset(teb_addr, 0, TEB64::map_size());
     let teb = TEB64::new(peb_addr);
     teb.save(emu.maps.get_mem_mut("teb"));
 
