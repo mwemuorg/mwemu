@@ -210,6 +210,30 @@ impl Emu {
                 self.run(Some(base as u64));
             }*/
 
+            // start loading dll
+            // For a DLL's entry point, the OS calls DllMain with stdcall:
+            //   BOOL __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved);
+            // which on x86 means the stack must contain a return address followed
+            // by the three arguments. We push the arguments in *reverse* order
+            // (caller-convention right-to-left) so the callee sees them at the
+            // expected offsets after it pops the return address with ret 12.
+            match self.pe32 {
+                Some(ref pe32) => {
+                    if pe32.is_dll() {
+                        log::trace!("emulating DllMain x86 base=0x{:x}", base);
+                        self.stack_push32(0); // lpvReserved
+                        self.stack_push32(1); // fdwReason = DLL_PROCESS_ATTACH
+                        self.stack_push32(base); // hinstDLL
+                        // fake return address so the entry's `ret` doesn't crash
+                        // before DllMain executes its prolog (base is mapped RW).
+                        self.stack_push32(base);
+                    }
+                }
+                _ => {
+                    log::error!("No Pe32 found inside self");
+                }
+            }
+
             self.regs_mut().rip = ep;
 
         // PE64 ARM64

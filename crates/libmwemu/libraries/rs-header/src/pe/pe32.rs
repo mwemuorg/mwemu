@@ -24,4 +24,4 @@ pub use super::shared::{
     ImageResourceDirectoryEntry, ImageSectionHeader, ImportAddressTable, ImportLookupTable,
     SECTION_HEADER_SZ, Section, TagImportDirectory,
 };
-pub use types::{DelayLoadIAT, ImageOptionalHeader, PE32, TlsDirectory32};
+pub use types::{DelayLoadIAT, IMAGE_FILE_DLL, ImageOptionalHeader, PE32, TlsDirectory32};

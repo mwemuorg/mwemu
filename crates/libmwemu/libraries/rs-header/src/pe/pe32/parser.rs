@@ -2,7 +2,8 @@ use super::{
     DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
     IMAGE_DIRECTORY_ENTRY_IAT, IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS,
     ImageDosHeader, ImageExportDirectory, ImageFileHeader, ImageImportDescriptor, ImageNtHeaders,
-    ImageOptionalHeader, ImageSectionHeader, PE32, SECTION_HEADER_SZ, TlsDirectory32,
+    ImageOptionalHeader, ImageSectionHeader, IMAGE_FILE_DLL, PE32, SECTION_HEADER_SZ,
+    TlsDirectory32,
 };
 use crate::pe::readers::{
     read_c_string, read_c_string_with_max, read_u32_le as read_u32_le_shared,
@@ -130,6 +131,11 @@ impl PE32 {
     /// The PE headers slice (caller-owned bytes).
     pub fn headers<'a>(&self, raw: &'a [u8]) -> &'a [u8] {
         &raw[0..self.opt.size_of_headers as usize]
+    }
+
+    /// True if the COFF `Characteristics` field has the IMAGE_FILE_DLL bit set.
+    pub fn is_dll(&self) -> bool {
+        self.fh.characteristics & IMAGE_FILE_DLL != 0
     }
 
     pub fn vaddr_to_off(sections: &Vec<ImageSectionHeader>, vaddr: u32) -> u32 {

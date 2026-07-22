@@ -7,6 +7,11 @@ use super::{
     ImageFileHeader, ImageImportDescriptor, ImageNtHeaders, ImageSectionHeader,
 };
 
+/// Mirrors the PE COFF `Characteristics` bit indicating a DLL image. Same
+/// value (`0x2000`) as `pe64::IMAGE_FILE_DLL`; duplicated here so PE32 doesn't
+/// need to reach into the PE64 module.
+pub const IMAGE_FILE_DLL: u16 = 0x2000;
+
 macro_rules! read_u8 {
     ($raw:expr, $off:expr) => {
         read_u8_shared(($raw).as_ref(), $off)
