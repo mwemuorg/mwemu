@@ -730,6 +730,7 @@ impl Emu {
         // tests that needed the process CWD to point at the repo root.)
 
         peb32::init_peb(self);
+        kuser_shared::init_kuser_shared_data(self);
         winapi32::kernel32::load_library(self, "ntdll.dll");
         let ntdll_base = self.maps.get_mem("ntdll.pe").get_base();
         peb32::update_peb_image_base(self, ntdll_base as u32);
