@@ -1,8 +1,8 @@
 use super::{
     DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
     IMAGE_DIRECTORY_ENTRY_IAT, IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS,
-    ImageDosHeader, ImageExportDirectory, ImageFileHeader, ImageImportDescriptor, ImageNtHeaders,
-    ImageOptionalHeader, ImageSectionHeader, IMAGE_FILE_DLL, PE32, SECTION_HEADER_SZ,
+    IMAGE_FILE_DLL, ImageDosHeader, ImageExportDirectory, ImageFileHeader, ImageImportDescriptor,
+    ImageNtHeaders, ImageOptionalHeader, ImageSectionHeader, PE32, SECTION_HEADER_SZ,
     TlsDirectory32,
 };
 use crate::pe::readers::{
