@@ -1,9 +1,11 @@
-.PHONY: all tests clippy clippy-release smoke maps sloppy samples
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples
 
-# Build natively for the host — no cross-compile. The emulator is pure Rust and
-# host-arch agnostic (it emulates x86/x64/arm64 in software), so a Mac builds for
-# the Mac, Linux for Linux and Windows for Windows.
-CARGO_TARGET :=
+# Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
+# CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
+CARGO_TARGET ?=
+
+# Keep this list aligned with the workspace default-members and hosted CI.
+CI_PACKAGES := --package mwemu --package libmwemu --package rs-header --package cmwemu
 
 # Test samples + Windows DLLs live at the repo root (test/ and maps/), the single
 # canonical location shared by the CLI and the tests (tests/helpers.rs resolves
@@ -12,28 +14,28 @@ CARGO_TARGET :=
 TEST_DIR := test
 
 all:
-	cargo build --release $(CARGO_TARGET)
+	cargo build --locked --release $(CARGO_TARGET)
 
-# Full local run: fetch the sample bundle, then run EVERYTHING (loader/shellcode
-# tests emulate real binaries from $(TEST_DIR)/).
+# Full local run: fetch the sample bundle, then run the default CI packages.
 tests: samples
-	cargo build $(CARGO_TARGET)
-	cargo test --verbose $(CARGO_TARGET)
+	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
+	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
 
 # CI run: no bundle, no network. Binary-dependent tests skip themselves via the
 # `sample!` macro when their sample isn't present, so CI runs the self-contained
 # suite green. (The committed maps support files — banzai.csv, loader.exe — are
 # enough for the tests that only need a maps folder.)
 test-ci:
-	cargo build $(CARGO_TARGET)
-	cargo test --verbose $(CARGO_TARGET)
+	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
+	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
 
-# Lint. `clippy-release` is what CI runs; mirrors the libmwemu setup.
+# Lint the same packages and targets as hosted CI. Existing warnings are reported
+# but are not denied until the current warning backlog is addressed separately.
 clippy:
-	cargo clippy --workspace
+	cargo clippy --locked $(CI_PACKAGES) --all-targets $(CARGO_TARGET)
 
 clippy-release:
-	cargo clippy --release --lib --bins $(CARGO_TARGET)
+	cargo clippy --locked --release $(CI_PACKAGES) --all-targets $(CARGO_TARGET)
 
 # Sample PE bundle (msgbox, enigma, ...), fetched once from the mwemu release
 # assets. Everything that needs a sample depends on this, so a fresh checkout

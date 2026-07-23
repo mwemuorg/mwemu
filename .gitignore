@@ -1,4 +1,6 @@
 /target/
+# Workspace members use the root Cargo.lock as the single source of truth.
+/crates/**/Cargo.lock
 .gitconfig
 # memory maps: ship only mwemu's own support files (banzai.csv, loader.exe,
 # m*.bin, the *_stub.c sources and the small libc/libSystem stubs). The

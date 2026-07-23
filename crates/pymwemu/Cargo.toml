@@ -2,6 +2,7 @@
 name = "pymwemu"
 version = "0.11.6"
 edition = "2024"
+rust-version.workspace = true
 description = "Python bindings for libmwemu: an x86 32/64bits and system internals emulator for securely emulating malware."
 homepage = "http://mwemu.github.io/#pymwemu"
 repository = "https://github.com/mwemuorg/pymwemu"

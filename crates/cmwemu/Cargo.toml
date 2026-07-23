@@ -4,7 +4,7 @@ version = "0.25.2"
 edition = "2024"
 authors = ["sha0coder"]
 license = "Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.88"
 description = "C ABI bindings for libmwemu (x86/x64/arm64 emulator)."
 repository = "https://github.com/mwemuorg/cmwemu"
 

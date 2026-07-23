@@ -5,9 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,13 +18,15 @@ env:
 jobs:
   fmt:
     name: Format
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.88.0
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.88.0
           components: rustfmt
 
       - name: Check formatting
@@ -29,51 +34,91 @@ jobs:
 
   clippy:
     name: Clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     needs: fmt
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.88.0
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: 1.88.0
           components: clippy
+          targets: x86_64-unknown-linux-gnu
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust cache
+        id: rust-cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          shared-key: ubuntu-latest-default
-          cache-on-failure: true
+          shared-key: clippy-linux-x86_64-unknown-linux-gnu
+          add-rust-environment-hash-key: true
+          cache-on-failure: false
+          cache-workspace-crates: false
+
+      - name: Report Rust cache status
+        run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
       - name: Run Clippy
-        run: cargo clippy --lib --bins
+        run: >-
+          cargo clippy --locked
+          --package mwemu
+          --package libmwemu
+          --package rs-header
+          --package cmwemu
+          --all-targets
+          --target x86_64-unknown-linux-gnu
 
   test:
-    name: Test (${{ matrix.os }})
+    name: Test (${{ matrix.target }})
     needs: fmt
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            cache-key: ubuntu-latest-default
-          - os: windows-latest
-            cache-key: windows-latest-default
-          - os: macos-latest
-            cache-key: macos-latest-default
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            cache-key: test-linux-x86_64-unknown-linux-gnu
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            cache-key: test-windows-x86_64-pc-windows-msvc
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            cache-key: test-macos-x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust 1.88.0
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: 1.88.0
+          targets: ${{ matrix.target }}
 
       - name: Install nextest
-        uses: taiki-e/install-action@nextest
+        uses: taiki-e/install-action@a6b2e2dcd845ddd7f509ce4f3ed3d922b80cc5d9 # v2.84.0
+        with:
+          tool: nextest
+          fallback: none
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust cache
+        id: rust-cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           shared-key: ${{ matrix.cache-key }}
-          cache-on-failure: true
+          add-rust-environment-hash-key: true
+          cache-on-failure: false
+          cache-workspace-crates: false
+
+      - name: Report Rust cache status
+        run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
       - name: Test
-        run: cargo nextest run
+        run: >-
+          cargo nextest run --locked
+          --package mwemu
+          --package libmwemu
+          --package rs-header
+          --package cmwemu
+          --target ${{ matrix.target }}

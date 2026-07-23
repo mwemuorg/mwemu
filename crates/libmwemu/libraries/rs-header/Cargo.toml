@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["sha0coder"]
 license = "Apache-2.0"
-rust-version = "1.85"
+rust-version = "1.88"
 description = "Generic executable-header parsers and loaders (PE32/PE64 and ELF32/ELF64): headers, sections/segments, imports, relocations, resources. Loaders are generic over a backend trait, so any project can map and bind a binary into its own memory without pulling in an emulator."
 repository = "https://github.com/mwemuorg/rs-header"
 
