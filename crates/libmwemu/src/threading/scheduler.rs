@@ -173,26 +173,20 @@ impl ThreadScheduler {
     }
 
     /// Execute a single instruction for a specific thread.
-    /// Uses the arch-dispatched decode_and_execute() and advance_pc() on Emu.
+    /// Uses the arch-dispatched `decode_and_execute()` and `advance_pc()` on Emu.
+    /// The pre- and post-instruction hooks are delivered by the
+    /// `decode_and_execute_*` path itself, so this function does not fire the
+    /// post-hook again.
     pub fn execute_thread_instruction(emu: &mut Emu, thread_id: usize) -> bool {
         // Switch to target thread if needed
         if emu.current_thread_id != thread_id && !Self::switch_to_thread(emu, thread_id) {
             return false;
         }
 
-        let pc = emu.pc();
-
-        // Decode and execute
+        // Decode and execute (delivers pre- and post-hooks exactly once).
         let (sz, result_ok) = emu.decode_and_execute();
         if sz == 0 {
             return false;
-        }
-
-        // Post instruction hook (fires for both arches via DecodedInstruction)
-        if let Some(mut hook_fn) = emu.hooks.hook_on_post_instruction.take() {
-            let decoded = emu.last_decoded.unwrap();
-            hook_fn(emu, pc, &decoded, sz, result_ok);
-            emu.hooks.hook_on_post_instruction = Some(hook_fn);
         }
 
         // Advance instruction pointer
