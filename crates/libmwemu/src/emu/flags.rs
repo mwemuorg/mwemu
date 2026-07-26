@@ -1,22 +1,32 @@
-use crate::{
-    eflags::Eflags, emu::Emu, flags::Flags, threading::context::ArchThreadState,
-};
+use crate::{eflags::Eflags, emu::Emu, flags::Flags, threading::context::ArchThreadState};
 
 impl Emu {
     pub fn pre_op_flags(&self) -> &Flags {
-        &self.threads[self.current_thread_id].arch.x86_trace_ref().pre_flags
+        &self.threads[self.current_thread_id]
+            .arch
+            .x86_trace_ref()
+            .pre_flags
     }
 
     pub fn pre_op_flags_mut(&mut self) -> &mut Flags {
-        &mut self.threads[self.current_thread_id].arch.x86_trace_mut().pre_flags
+        &mut self.threads[self.current_thread_id]
+            .arch
+            .x86_trace_mut()
+            .pre_flags
     }
 
     pub fn post_op_flags(&self) -> &Flags {
-        &self.threads[self.current_thread_id].arch.x86_trace_ref().post_flags
+        &self.threads[self.current_thread_id]
+            .arch
+            .x86_trace_ref()
+            .post_flags
     }
 
     pub fn post_op_flags_mut(&mut self) -> &mut Flags {
-        &mut self.threads[self.current_thread_id].arch.x86_trace_mut().post_flags
+        &mut self.threads[self.current_thread_id]
+            .arch
+            .x86_trace_mut()
+            .post_flags
     }
 
     pub fn eflags(&self) -> &Eflags {
@@ -34,11 +44,17 @@ impl Emu {
     }
 
     pub fn set_pre_op_flags(&mut self, new_flags: Flags) {
-        self.threads[self.current_thread_id].arch.x86_trace_mut().pre_flags = new_flags;
+        self.threads[self.current_thread_id]
+            .arch
+            .x86_trace_mut()
+            .pre_flags = new_flags;
     }
 
     pub fn set_post_op_flags(&mut self, new_flags: Flags) {
-        self.threads[self.current_thread_id].arch.x86_trace_mut().post_flags = new_flags;
+        self.threads[self.current_thread_id]
+            .arch
+            .x86_trace_mut()
+            .post_flags = new_flags;
     }
 
     #[inline(always)]
@@ -47,7 +63,6 @@ impl Emu {
         flags.materialize_lazy();
         flags
     }
-
 
     #[inline(always)]
     pub fn flags(&mut self) -> &Flags {

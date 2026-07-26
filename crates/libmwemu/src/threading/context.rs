@@ -73,7 +73,6 @@ pub enum ArchThreadState {
     },
 }
 
-
 impl ArchThreadState {
     /// Return a mutable reference to the lazily-allocated x86 trace
     /// snapshot. Always `Some` at runtime; panics on aarch64.

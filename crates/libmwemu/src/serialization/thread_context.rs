@@ -7,7 +7,7 @@ use crate::regs_aarch64::RegsAarch64;
 use crate::regs64::Regs64;
 use crate::serialization::fpu::SerializableFPU;
 use crate::threading::context::{
-    ArchThreadState, AArch64TraceSnapshot, ThreadContext, X86TraceSnapshot,
+    AArch64TraceSnapshot, ArchThreadState, ThreadContext, X86TraceSnapshot,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -103,7 +103,10 @@ impl From<&ThreadContext> for SerializableThreadContext {
                     },
                 }
             }
-            ArchThreadState::AArch64 { regs, aarch64_trace } => {
+            ArchThreadState::AArch64 {
+                regs,
+                aarch64_trace,
+            } => {
                 let owned = aarch64_trace
                     .clone()
                     .unwrap_or_else(|| Box::new(AArch64TraceSnapshot::new()));

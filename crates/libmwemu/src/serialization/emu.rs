@@ -29,9 +29,9 @@ use crate::utils::colors::Colors;
 use crate::windows::structures::MemoryOperation;
 
 use crate::arch::Arch;
+use crate::emu::InstructionState;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::object_handle::HandleManagement;
-use crate::emu::InstructionState;
 #[derive(Serialize, Deserialize)]
 pub enum SerializableInstructionState {
     X86 {
@@ -168,9 +168,9 @@ impl<'a> From<&'a Emu> for SerializableEmu {
                 call_stack,
                 x86_trace,
             } => {
-                let owned = x86_trace
-                    .clone()
-                    .unwrap_or_else(|| Box::new(crate::threading::context::X86TraceSnapshot::new()));
+                let owned = x86_trace.clone().unwrap_or_else(|| {
+                    Box::new(crate::threading::context::X86TraceSnapshot::new())
+                });
                 let snapshot = owned.as_ref();
                 SerializableCurrentThreadState::X86 {
                     regs: *regs,
@@ -192,10 +192,13 @@ impl<'a> From<&'a Emu> for SerializableEmu {
                     call_stack: call_stack.clone(),
                 }
             }
-            ArchThreadState::AArch64 { regs, aarch64_trace } => {
-                let owned = aarch64_trace
-                    .clone()
-                    .unwrap_or_else(|| Box::new(crate::threading::context::AArch64TraceSnapshot::new()));
+            ArchThreadState::AArch64 {
+                regs,
+                aarch64_trace,
+            } => {
+                let owned = aarch64_trace.clone().unwrap_or_else(|| {
+                    Box::new(crate::threading::context::AArch64TraceSnapshot::new())
+                });
                 let snapshot = owned.as_ref();
                 SerializableCurrentThreadState::AArch64 {
                     regs: *regs,

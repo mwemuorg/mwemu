@@ -1,5 +1,5 @@
-use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::{Decoder, DecoderOptions, Instruction};
 // about 10 mb should be on l3 cache
 // 8192 cache lines,
@@ -225,11 +225,7 @@ impl InstructionCache<DecodedInstruction> {
             }
         }
         let inserted = self.lookup_entry(rip_addr, 0);
-        debug_assert!(
-            inserted,
-            "x86 cache insertion failed at 0x{:x}",
-            rip_addr
-        );
+        debug_assert!(inserted, "x86 cache insertion failed at 0x{:x}", rip_addr);
     }
 
     /// Decode a basic block of aarch64 instructions from the given byte
@@ -283,7 +279,11 @@ impl InstructionCache<DecodedInstruction> {
             }
         }
         let inserted = self.lookup_entry(pc_addr, 0);
-        debug_assert!(inserted, "aarch64 cache insertion failed at 0x{:x}", pc_addr);
+        debug_assert!(
+            inserted,
+            "aarch64 cache insertion failed at 0x{:x}",
+            pc_addr
+        );
     }
 
     /// Copy the next cached x86 instruction into caller-owned storage.
@@ -310,10 +310,7 @@ impl InstructionCache<DecodedInstruction> {
     /// the hot AArch64 execution loop, which owns a reusable
     /// `yaxpeax_arm::armv8::a64::Instruction` local.
     #[inline(always)]
-    pub fn decode_out_aarch64_into(
-        &mut self,
-        out: &mut yaxpeax_arm::armv8::a64::Instruction,
-    ) {
+    pub fn decode_out_aarch64_into(&mut self, out: &mut yaxpeax_arm::armv8::a64::Instruction) {
         let index = self.current_instruction_slot + self.current_decode_idx;
         match self.instructions[index] {
             DecodedInstruction::AArch64(ins) => *out = ins,

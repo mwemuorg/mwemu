@@ -108,20 +108,15 @@ impl Emu {
             crate::threading::context::ArchThreadState::X86 { .. } => {}
             _ => unreachable!("x86 trace snapshot requested on aarch64 thread"),
         }
-        self.threads[self.current_thread_id]
-            .arch
-            .x86_trace_ref()
+        self.threads[self.current_thread_id].arch.x86_trace_ref()
     }
-
 
     fn trace_mut_x86(&mut self) -> &mut crate::threading::context::X86TraceSnapshot {
         match &mut self.threads[self.current_thread_id].arch {
             crate::threading::context::ArchThreadState::X86 { .. } => {}
             _ => unreachable!("x86 trace snapshot requested on aarch64 thread"),
         }
-        self.threads[self.current_thread_id]
-            .arch
-            .x86_trace_mut()
+        self.threads[self.current_thread_id].arch.x86_trace_mut()
     }
 
     #[inline(always)]
