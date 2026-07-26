@@ -11,7 +11,7 @@ use crate::serialization;
 use crate::syscall::windows::syscall64::memory as win_syscall64_memory;
 use crate::windows::constants;
 
-use super::{ArchState, Emu};
+use super::Emu;
 
 impl Emu {
     /// Emulate a single step from the current point (single-threaded implementation).
@@ -77,18 +77,15 @@ impl Emu {
             decoder = Decoder::with_ip(32, &block, self.regs().get_eip(), DecoderOptions::NONE);
         }
 
-        // get first instruction from iterator
         let ins = decoder.decode();
         let sz = ins.len();
         let addr = ins.ip();
-        let position = decoder.position();
 
         // clear
         self.memory_operations.clear();
 
         // format
         self.set_x86_instruction(Some(ins));
-        self.set_x86_decoder_position(position);
 
         let decoded = if self.needs_decoded_instruction_for_observers() {
             self.last_decoded_x86(addr, ins)
@@ -215,14 +212,8 @@ impl Emu {
 
                     // Decode next instruction from cache
                     if self.rep.is_none() {
-                        match &mut self.arch_state {
-                            ArchState::X86 {
-                                instruction_cache, ..
-                            } => {
-                                instruction_cache.decode_out(&mut x86_ins);
-                            }
-                            _ => unreachable!(),
-                        }
+                        self.x86_instruction_cache()
+                            .decode_out_x86_into(&mut x86_ins);
                         sz = x86_ins.len();
                         addr = x86_ins.ip();
 
@@ -234,19 +225,6 @@ impl Emu {
                             return Ok(self.pc());
                         }
                     }
-                    self.set_x86_instruction(Some(x86_ins));
-                    match &self.arch_state {
-                        ArchState::X86 {
-                            instruction_cache, ..
-                        } => {
-                            self.set_x86_decoder_position(
-                                instruction_cache.current_instruction_slot,
-                            );
-                        }
-                        _ => unreachable!(),
-                    }
-
-                    // Skip clearing the decoded slot when no observer needs it;
                     // saves two unconditional `Option` writes per instruction on
                     // the hot path. `clear_last_decoded_instruction_if_present`
                     // preserves the no-observer invariant that the final slot is

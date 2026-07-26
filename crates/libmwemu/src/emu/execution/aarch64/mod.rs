@@ -16,7 +16,7 @@ mod single_threaded;
 use crate::err::MwemuError;
 // Re-export the ISA-neutral types that the inner aarch64 modules use through
 // `use super::{ArchState, Emu};`. Both come from `crate::emu`.
-pub(crate) use crate::emu::{ArchState, Emu};
+pub(crate) use crate::emu::Emu;
 // Re-export the ISA guard so the inner aarch64 files can call it via
 // `assert_aarch64_arch(self, ...)` (the guard is a free function in the
 // parent module, not an associated method).

@@ -6,7 +6,7 @@ use crate::engine;
 use crate::err::MwemuError;
 use crate::windows::constants;
 
-use super::{ArchState, assert_x86_arch};
+use super::assert_x86_arch;
 
 /// x86-family cache fill. Performs the cache hit/miss check, reads a block
 /// of code from the maps, and inserts the decoded instructions into the
@@ -20,13 +20,7 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
 ) -> Result<(), MwemuError> {
     assert_x86_arch(emu, "ensure_instruction_cache_populated_x86");
 
-    let cache_hit = match &mut emu.arch_state {
-        ArchState::X86 {
-            instruction_cache, ..
-        } => instruction_cache.lookup_entry(pc, 0),
-        ArchState::AArch64 { .. } => unreachable!(),
-    };
-
+    let cache_hit = emu.x86_instruction_cache().lookup_entry(pc, 0);
     if cache_hit {
         return Ok(());
     }
@@ -50,17 +44,11 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
     }
     block.clone_from_slice(block_slice);
 
-    match &mut emu.arch_state {
-        ArchState::X86 {
-            instruction_cache, ..
-        } => {
-            let mut decoder = Decoder::with_ip(arch_bits, block, pc, DecoderOptions::NONE);
-            emu.rep = None;
-            let addition = block.len().min(16);
-            instruction_cache.insert_from_decoder(&mut decoder, addition, pc);
-        }
-        ArchState::AArch64 { .. } => unreachable!(),
-    }
+    let mut decoder = Decoder::with_ip(arch_bits, block, pc, DecoderOptions::NONE);
+    emu.rep = None;
+    let addition = block.len().min(16);
+    emu.x86_instruction_cache()
+        .insert_x86_from_decoder(&mut decoder, addition, pc);
 
     Ok(())
 }
@@ -92,10 +80,8 @@ pub(crate) fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
 
     let ins = decoder.decode();
     let sz = ins.len();
-    let position = decoder.position();
 
     emu.set_x86_instruction(Some(ins));
-    emu.set_x86_decoder_position(position);
     let decoded = emu.last_decoded_x86(pc, ins);
 
     // Pre-instruction hook

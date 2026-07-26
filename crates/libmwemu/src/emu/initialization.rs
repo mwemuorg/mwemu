@@ -6,11 +6,9 @@ use std::time::Instant;
 
 use atty::Stream;
 use csv::ReaderBuilder;
-use iced_x86::{Formatter as _, IntelFormatter};
 use std::collections::BTreeSet;
 
-use crate::emu::disassemble::InstructionCache;
-use crate::emu::{ArchState, Emu};
+use crate::emu::{Emu, InstructionState};
 use crate::maps::mem64::Permission;
 use crate::windows::peb::{peb32, peb64};
 use crate::{
@@ -61,28 +59,12 @@ pub struct Lib {
 
 impl Emu {
     pub fn new(arch: crate::arch::Arch) -> Emu {
-        let arch_state = if arch.is_aarch64() {
-            ArchState::AArch64 {
-                instruction: None,
-                instruction_cache: InstructionCache::new(),
-            }
-        } else {
-            let mut formatter = IntelFormatter::new();
-            formatter.options_mut().set_digit_separator("");
-            formatter.options_mut().set_first_operand_char_index(6);
-            ArchState::X86 {
-                instruction: None,
-                formatter,
-                instruction_cache: InstructionCache::new(),
-                decoder_position: 0,
-            }
-        };
-
+        let instruction_state = InstructionState::default();
         let mut cfg = Config::new();
         cfg.arch = arch;
 
         Emu {
-            arch_state,
+            instruction_state,
             maps: {
                 let mut maps = Maps::default();
                 maps.is_64bits = arch.is_64bits();
@@ -355,12 +337,7 @@ impl Emu {
         // Ensure arch_state and thread context match the target architecture before
         // touching any registers, since regs_mut()/regs_aarch64_mut() panic on mismatch.
         if self.cfg.is_aarch64() {
-            if matches!(self.arch_state, super::ArchState::X86 { .. }) {
-                self.arch_state = super::ArchState::AArch64 {
-                    instruction: None,
-                    instruction_cache: crate::emu::disassemble::InstructionCache::new(),
-                };
-            }
+            self.instruction_state = InstructionState::default();
             if matches!(
                 self.threads[self.current_thread_id].arch,
                 crate::threading::context::ArchThreadState::X86 { .. }
@@ -464,14 +441,10 @@ impl Emu {
                 crate::threading::context::ThreadContext::new(id, self.cfg.arch);
         }
 
-        // Ensure arch_state matches the target architecture
-        if self.cfg.arch.is_aarch64() && matches!(self.arch_state, super::ArchState::X86 { .. }) {
-            self.arch_state = super::ArchState::AArch64 {
-                instruction: None,
-                instruction_cache: crate::emu::disassemble::InstructionCache::new(),
-            };
-        }
-
+        // Refresh `instruction_state` so the cached cache stays in sync with `cfg.arch`.
+        // The thread context rebuild above already handles the typed payload; we
+        // just need to reset the decode cache slot.
+        self.instruction_state = InstructionState::default();
         if self.cfg.arch.is_aarch64() {
             self.init_stack_aarch64();
         } else if self.cfg.is_x64() {
@@ -498,20 +471,14 @@ impl Emu {
         self.init_stack_aarch64();
     }
 
-    /// Switch `Emu::arch_state` to the AArch64 variant if it isn't already.
-    /// Required when a binary's loader bumps `cfg.arch` to AArch64 at load
-    /// time (e.g. Mach-O / ELF auto-detection from a CLI run that defaulted
-    /// to x86): without this the run loop sees `cfg.arch.is_aarch64() ==
-    /// true` but `arch_state == ArchState::X86 {..}` and panics with
-    /// `unreachable!()` on its first decode iteration.
+    /// Reset `Emu::instruction_state` to a fresh AArch64-decoding cache.
+    /// Used when loaders bump `cfg.arch` to AArch64 at load time (Mach-O /
+    /// ELF auto-detection from an x86 CLI default); without this the run
+    /// loop would reuse an x86-formatted state for an AArch64 binary.
     pub fn ensure_arch_state_aarch64(&mut self) {
-        if matches!(self.arch_state, crate::emu::ArchState::AArch64 { .. }) {
-            return;
+        if self.cfg.arch.is_aarch64() {
+            self.instruction_state = InstructionState::default();
         }
-        self.arch_state = crate::emu::ArchState::AArch64 {
-            instruction: None,
-            instruction_cache: crate::emu::disassemble::InstructionCache::new(),
-        };
     }
 
     /// Write the Linux initial stack layout that _start expects.
@@ -618,18 +585,7 @@ impl Emu {
                 crate::threading::context::ThreadContext::new(id, self.cfg.arch);
         }
 
-        if matches!(self.arch_state, super::ArchState::AArch64 { .. }) {
-            let mut formatter = IntelFormatter::new();
-            formatter.options_mut().set_digit_separator("");
-            formatter.options_mut().set_first_operand_char_index(6);
-            self.arch_state = super::ArchState::X86 {
-                instruction: None,
-                formatter,
-                instruction_cache: InstructionCache::new(),
-                decoder_position: 0,
-            };
-        }
-
+        self.instruction_state = InstructionState::default();
         self.flags_mut().clear();
         self.flags_mut().f_if = true;
         self.init_stack64();

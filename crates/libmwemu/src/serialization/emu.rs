@@ -23,16 +23,15 @@ use crate::serialization::maps::SerializableMaps;
 use crate::serialization::pe32::SerializablePE32;
 use crate::serialization::pe64::SerializablePE64;
 use crate::serialization::thread_context::SerializableThreadContext;
+use crate::threading::context::ArchThreadState;
 use crate::threading::global_locks::GlobalLocks;
 use crate::utils::colors::Colors;
 use crate::windows::structures::MemoryOperation;
 
 use crate::arch::Arch;
-use crate::emu::ArchState;
-use crate::emu::disassemble::InstructionCache;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::object_handle::HandleManagement;
-use crate::threading::context::ArchThreadState;
-
+use crate::emu::InstructionState;
 #[derive(Serialize, Deserialize)]
 pub enum SerializableInstructionState {
     X86 {
@@ -145,26 +144,17 @@ pub struct SerializableEmu {
 
 impl<'a> From<&'a Emu> for SerializableEmu {
     fn from(emu: &'a Emu) -> Self {
-        let instruction_state = match &emu.arch_state {
-            ArchState::X86 {
-                instruction,
-                decoder_position,
-                ..
-            } => SerializableInstructionState::X86 {
-                instruction: *instruction,
-                decoder_position: *decoder_position,
+        let instruction_state = match &emu.instruction_state.instruction {
+            Some(DecodedInstruction::X86(ins)) => SerializableInstructionState::X86 {
+                instruction: Some(*ins),
+                decoder_position: 0,
             },
-            ArchState::AArch64 { .. } => SerializableInstructionState::AArch64,
+            _ => SerializableInstructionState::AArch64,
         };
-
         let current_thread = match &emu.current_thread().arch {
             ArchThreadState::X86 {
                 regs,
-                pre_op_regs,
-                post_op_regs,
                 flags,
-                pre_op_flags,
-                post_op_flags,
                 eflags,
                 fpu,
                 seh,
@@ -176,34 +166,43 @@ impl<'a> From<&'a Emu> for SerializableEmu {
                 fls,
                 fs,
                 call_stack,
-            } => SerializableCurrentThreadState::X86 {
-                regs: *regs,
-                pre_op_regs: *pre_op_regs,
-                post_op_regs: *post_op_regs,
-                flags: *flags,
-                pre_op_flags: *pre_op_flags,
-                post_op_flags: *post_op_flags,
-                eflags: eflags.clone(),
-                fpu: fpu.clone().into(),
-                seh: *seh,
-                veh: *veh,
-                uef: *uef,
-                eh_ctx: *eh_ctx,
-                tls32: tls32.clone(),
-                tls64: tls64.clone(),
-                fls: fls.clone(),
-                fs: fs.clone(),
-                call_stack: call_stack.clone(),
-            },
-            ArchThreadState::AArch64 {
-                regs,
-                pre_op_regs,
-                post_op_regs,
-            } => SerializableCurrentThreadState::AArch64 {
-                regs: *regs,
-                pre_op_regs: *pre_op_regs,
-                post_op_regs: *post_op_regs,
-            },
+                x86_trace,
+            } => {
+                let owned = x86_trace
+                    .clone()
+                    .unwrap_or_else(|| Box::new(crate::threading::context::X86TraceSnapshot::new()));
+                let snapshot = owned.as_ref();
+                SerializableCurrentThreadState::X86 {
+                    regs: *regs,
+                    pre_op_regs: snapshot.pre_regs,
+                    post_op_regs: snapshot.post_regs,
+                    flags: *flags,
+                    pre_op_flags: snapshot.pre_flags,
+                    post_op_flags: snapshot.post_flags,
+                    eflags: eflags.clone(),
+                    fpu: fpu.clone().into(),
+                    seh: *seh,
+                    veh: *veh,
+                    uef: *uef,
+                    eh_ctx: *eh_ctx,
+                    tls32: tls32.clone(),
+                    tls64: tls64.clone(),
+                    fls: fls.clone(),
+                    fs: fs.clone(),
+                    call_stack: call_stack.clone(),
+                }
+            }
+            ArchThreadState::AArch64 { regs, aarch64_trace } => {
+                let owned = aarch64_trace
+                    .clone()
+                    .unwrap_or_else(|| Box::new(crate::threading::context::AArch64TraceSnapshot::new()));
+                let snapshot = owned.as_ref();
+                SerializableCurrentThreadState::AArch64 {
+                    regs: *regs,
+                    pre_op_regs: snapshot.pre_regs,
+                    post_op_regs: snapshot.post_regs,
+                }
+            }
         };
 
         SerializableEmu {
@@ -272,6 +271,7 @@ impl From<SerializableEmu> for Emu {
     fn from(serialized: SerializableEmu) -> Self {
         let SerializableEmu {
             cfg,
+
             colors,
             filename,
             maps,
@@ -320,19 +320,11 @@ impl From<SerializableEmu> for Emu {
         };
 
         let arch_state = match instruction_state {
-            SerializableInstructionState::X86 {
-                instruction,
-                decoder_position,
-            } => ArchState::X86 {
-                instruction,
-                formatter: Default::default(),
-                instruction_cache: InstructionCache::new(),
-                decoder_position,
+            SerializableInstructionState::X86 { instruction, .. } => InstructionState {
+                instruction: instruction.map(DecodedInstruction::X86),
+                ..InstructionState::default()
             },
-            SerializableInstructionState::AArch64 => ArchState::AArch64 {
-                instruction: None,
-                instruction_cache: InstructionCache::new(),
-            },
+            SerializableInstructionState::AArch64 => InstructionState::default(),
         };
 
         // rs-header's PE is borrow-based; keep the raw bytes alongside the
@@ -352,7 +344,7 @@ impl From<SerializableEmu> for Emu {
             heap_management: None,
             memory_operations,
             // Instruction decoding (formatter, cache recreated)
-            arch_state,
+            instruction_state: arch_state,
             last_decoded: None,
             last_decoded_addr: 0,
             last_instruction_size,
@@ -447,88 +439,90 @@ impl From<SerializableEmu> for Emu {
                     fls,
                     fs,
                     call_stack,
-                } => match &mut thread.arch {
-                    ArchThreadState::X86 {
-                        regs: thread_regs,
-                        pre_op_regs: thread_pre_op_regs,
-                        post_op_regs: thread_post_op_regs,
-                        flags: thread_flags,
-                        pre_op_flags: thread_pre_op_flags,
-                        post_op_flags: thread_post_op_flags,
-                        eflags: thread_eflags,
-                        fpu: thread_fpu,
-                        seh: thread_seh,
-                        veh: thread_veh,
-                        uef: thread_uef,
-                        eh_ctx: thread_eh_ctx,
-                        tls32: thread_tls32,
-                        tls64: thread_tls64,
-                        fls: thread_fls,
-                        fs: thread_fs,
-                        call_stack: thread_call_stack,
-                    } => {
-                        *thread_regs = regs;
-                        *thread_pre_op_regs = pre_op_regs;
-                        *thread_post_op_regs = post_op_regs;
-                        *thread_flags = flags;
-                        *thread_pre_op_flags = pre_op_flags;
-                        *thread_post_op_flags = post_op_flags;
-                        *thread_eflags = eflags;
-                        *thread_fpu = fpu.into();
-                        *thread_seh = seh;
-                        *thread_veh = veh;
-                        *thread_uef = uef;
-                        *thread_eh_ctx = eh_ctx;
-                        *thread_tls32 = tls32;
-                        *thread_tls64 = tls64;
-                        *thread_fls = fls;
-                        *thread_fs = fs;
-                        *thread_call_stack = call_stack;
+                } => {
+                    let snapshot = Box::new(crate::threading::context::X86TraceSnapshot {
+                        pre_regs: pre_op_regs,
+                        post_regs: post_op_regs,
+                        pre_flags: pre_op_flags,
+                        post_flags: post_op_flags,
+                    });
+                    match &mut thread.arch {
+                        ArchThreadState::X86 {
+                            regs: thread_regs,
+                            flags: thread_flags,
+                            eflags: thread_eflags,
+                            fpu: thread_fpu,
+                            seh: thread_seh,
+                            veh: thread_veh,
+                            uef: thread_uef,
+                            eh_ctx: thread_eh_ctx,
+                            tls32: thread_tls32,
+                            tls64: thread_tls64,
+                            fls: thread_fls,
+                            fs: thread_fs,
+                            call_stack: thread_call_stack,
+                            x86_trace,
+                        } => {
+                            *thread_regs = regs;
+                            *thread_flags = flags;
+                            *thread_eflags = eflags;
+                            *thread_fpu = fpu.into();
+                            *thread_seh = seh;
+                            *thread_veh = veh;
+                            *thread_uef = uef;
+                            *thread_eh_ctx = eh_ctx;
+                            *thread_tls32 = tls32;
+                            *thread_tls64 = tls64;
+                            *thread_fls = fls;
+                            *thread_fs = fs;
+                            *thread_call_stack = call_stack;
+                            *x86_trace = Some(snapshot);
+                        }
+                        ArchThreadState::AArch64 { .. } => {
+                            thread.arch = ArchThreadState::X86 {
+                                regs,
+                                flags,
+                                eflags,
+                                fpu: fpu.into(),
+                                seh,
+                                veh,
+                                uef,
+                                eh_ctx,
+                                tls32,
+                                tls64,
+                                fls,
+                                fs,
+                                call_stack,
+                                x86_trace: Some(snapshot),
+                            };
+                        }
                     }
-                    ArchThreadState::AArch64 { .. } => {
-                        thread.arch = ArchThreadState::X86 {
-                            regs,
-                            pre_op_regs,
-                            post_op_regs,
-                            flags,
-                            pre_op_flags,
-                            post_op_flags,
-                            eflags,
-                            fpu: fpu.into(),
-                            seh,
-                            veh,
-                            uef,
-                            eh_ctx,
-                            tls32,
-                            tls64,
-                            fls,
-                            fs,
-                            call_stack,
-                        };
-                    }
-                },
+                }
                 SerializableCurrentThreadState::AArch64 {
                     regs,
                     pre_op_regs,
                     post_op_regs,
-                } => match &mut thread.arch {
-                    ArchThreadState::AArch64 {
-                        regs: thread_regs,
-                        pre_op_regs: thread_pre_op_regs,
-                        post_op_regs: thread_post_op_regs,
-                    } => {
-                        *thread_regs = regs;
-                        *thread_pre_op_regs = pre_op_regs;
-                        *thread_post_op_regs = post_op_regs;
+                } => {
+                    let snapshot = Box::new(crate::threading::context::AArch64TraceSnapshot {
+                        pre_regs: pre_op_regs,
+                        post_regs: post_op_regs,
+                    });
+                    match &mut thread.arch {
+                        ArchThreadState::AArch64 {
+                            regs: thread_regs,
+                            aarch64_trace,
+                        } => {
+                            *thread_regs = regs;
+                            *aarch64_trace = Some(snapshot);
+                        }
+                        ArchThreadState::X86 { .. } => {
+                            thread.arch = ArchThreadState::AArch64 {
+                                regs,
+                                aarch64_trace: Some(snapshot),
+                            };
+                        }
                     }
-                    ArchThreadState::X86 { .. } => {
-                        thread.arch = ArchThreadState::AArch64 {
-                            regs,
-                            pre_op_regs,
-                            post_op_regs,
-                        };
-                    }
-                },
+                }
             }
         }
 

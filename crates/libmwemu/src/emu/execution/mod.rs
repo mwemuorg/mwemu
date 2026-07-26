@@ -57,7 +57,7 @@ mod x86;
 // Re-export the ISA-neutral types that the ISA submodules use through
 // `use super::{ArchState, Emu};`. Keeping the re-exports here means the
 // submodules don't need a sibling crate path or an `extern crate` shortcut.
-pub(crate) use crate::emu::{ArchState, Emu};
+pub(crate) use crate::emu::Emu;
 
 impl Emu {
     #[inline]
@@ -303,14 +303,7 @@ impl Emu {
     /// Reset the instruction cache for the currently-configured architecture.
     /// Used by the ISA-specific `run_*` entry points.
     pub(crate) fn reset_active_instruction_cache(&mut self) {
-        match &mut self.arch_state {
-            ArchState::X86 {
-                instruction_cache, ..
-            } => *instruction_cache = InstructionCache::new(),
-            ArchState::AArch64 {
-                instruction_cache, ..
-            } => *instruction_cache = InstructionCache::new(),
-        }
+        self.instruction_state.instruction_cache = InstructionCache::default();
     }
 
     /// Shared PEB setup that runs before dispatching to the cached loop, for
@@ -383,13 +376,6 @@ impl Emu {
     /// still emit another instruction from its decoded block. Used by both
     /// ISA-specific single-thread loops.
     pub(crate) fn instruction_cache_can_decode(&self) -> bool {
-        match &self.arch_state {
-            ArchState::X86 {
-                instruction_cache, ..
-            } => instruction_cache.can_decode(),
-            ArchState::AArch64 {
-                instruction_cache, ..
-            } => instruction_cache.can_decode(),
-        }
+        self.instruction_state.instruction_cache.can_decode()
     }
 }

@@ -6,7 +6,9 @@ use crate::flags::Flags;
 use crate::regs_aarch64::RegsAarch64;
 use crate::regs64::Regs64;
 use crate::serialization::fpu::SerializableFPU;
-use crate::threading::context::{ArchThreadState, ThreadContext};
+use crate::threading::context::{
+    ArchThreadState, AArch64TraceSnapshot, ThreadContext, X86TraceSnapshot,
+};
 
 #[derive(Serialize, Deserialize)]
 pub enum SerializableThreadArch {
@@ -51,11 +53,7 @@ impl From<&ThreadContext> for SerializableThreadContext {
         match &thread.arch {
             ArchThreadState::X86 {
                 regs,
-                pre_op_regs,
-                post_op_regs,
                 flags,
-                pre_op_flags,
-                post_op_flags,
                 eflags,
                 fpu,
                 seh,
@@ -67,48 +65,62 @@ impl From<&ThreadContext> for SerializableThreadContext {
                 fls,
                 fs,
                 call_stack,
-            } => SerializableThreadContext {
-                id: thread.id,
-                suspended: thread.suspended,
-                wake_tick: thread.wake_tick,
-                blocked_on_cs: thread.blocked_on_cs,
-                handle: thread.handle,
-                arch: SerializableThreadArch::X86 {
-                    regs: *regs,
-                    pre_op_regs: *pre_op_regs,
-                    post_op_regs: *post_op_regs,
-                    flags: *flags,
-                    pre_op_flags: *pre_op_flags,
-                    post_op_flags: *post_op_flags,
-                    eflags: eflags.clone(),
-                    fpu: fpu.clone().into(),
-                    seh: *seh,
-                    veh: *veh,
-                    uef: *uef,
-                    eh_ctx: *eh_ctx,
-                    tls32: tls32.clone(),
-                    tls64: tls64.clone(),
-                    fls: fls.clone(),
-                    fs: fs.clone(),
-                    call_stack: call_stack.clone(),
-                },
-            },
-            ArchThreadState::AArch64 {
-                regs,
-                pre_op_regs,
-                post_op_regs,
-            } => SerializableThreadContext {
-                id: thread.id,
-                suspended: thread.suspended,
-                wake_tick: thread.wake_tick,
-                blocked_on_cs: thread.blocked_on_cs,
-                handle: thread.handle,
-                arch: SerializableThreadArch::AArch64 {
-                    regs: *regs,
-                    pre_op_regs: *pre_op_regs,
-                    post_op_regs: *post_op_regs,
-                },
-            },
+                x86_trace,
+            } => {
+                // Materialize lazily — `Option::get_or_insert_with` on a
+                // `&Option` is not available, so temporarily swap in a
+                // default. The cost is one allocation when (and only when)
+                // the snapshot is serialized without ever having been
+                // captured.
+                let owned = x86_trace
+                    .clone()
+                    .unwrap_or_else(|| Box::new(X86TraceSnapshot::new()));
+                let snapshot: &X86TraceSnapshot = owned.as_ref();
+                SerializableThreadContext {
+                    id: thread.id,
+                    suspended: thread.suspended,
+                    wake_tick: thread.wake_tick,
+                    blocked_on_cs: thread.blocked_on_cs,
+                    handle: thread.handle,
+                    arch: SerializableThreadArch::X86 {
+                        regs: *regs,
+                        pre_op_regs: snapshot.pre_regs,
+                        post_op_regs: snapshot.post_regs,
+                        flags: *flags,
+                        pre_op_flags: snapshot.pre_flags,
+                        post_op_flags: snapshot.post_flags,
+                        eflags: eflags.clone(),
+                        fpu: fpu.clone().into(),
+                        seh: *seh,
+                        veh: *veh,
+                        uef: *uef,
+                        eh_ctx: *eh_ctx,
+                        tls32: tls32.clone(),
+                        tls64: tls64.clone(),
+                        fls: fls.clone(),
+                        fs: fs.clone(),
+                        call_stack: call_stack.clone(),
+                    },
+                }
+            }
+            ArchThreadState::AArch64 { regs, aarch64_trace } => {
+                let owned = aarch64_trace
+                    .clone()
+                    .unwrap_or_else(|| Box::new(AArch64TraceSnapshot::new()));
+                let snapshot: &AArch64TraceSnapshot = owned.as_ref();
+                SerializableThreadContext {
+                    id: thread.id,
+                    suspended: thread.suspended,
+                    wake_tick: thread.wake_tick,
+                    blocked_on_cs: thread.blocked_on_cs,
+                    handle: thread.handle,
+                    arch: SerializableThreadArch::AArch64 {
+                        regs: *regs,
+                        pre_op_regs: snapshot.pre_regs,
+                        post_op_regs: snapshot.post_regs,
+                    },
+                }
+            }
         }
     }
 }
@@ -142,11 +154,7 @@ impl From<SerializableThreadContext> for ThreadContext {
                     call_stack,
                 } => ArchThreadState::X86 {
                     regs,
-                    pre_op_regs,
-                    post_op_regs,
                     flags,
-                    pre_op_flags,
-                    post_op_flags,
                     eflags,
                     fpu: fpu.into(),
                     seh,
@@ -158,6 +166,12 @@ impl From<SerializableThreadContext> for ThreadContext {
                     fls,
                     fs,
                     call_stack,
+                    x86_trace: Some(Box::new(X86TraceSnapshot {
+                        pre_regs: pre_op_regs,
+                        post_regs: post_op_regs,
+                        pre_flags: pre_op_flags,
+                        post_flags: post_op_flags,
+                    })),
                 },
                 SerializableThreadArch::AArch64 {
                     regs,
@@ -165,8 +179,10 @@ impl From<SerializableThreadContext> for ThreadContext {
                     post_op_regs,
                 } => ArchThreadState::AArch64 {
                     regs,
-                    pre_op_regs,
-                    post_op_regs,
+                    aarch64_trace: Some(Box::new(AArch64TraceSnapshot {
+                        pre_regs: pre_op_regs,
+                        post_regs: post_op_regs,
+                    })),
                 },
             },
         }

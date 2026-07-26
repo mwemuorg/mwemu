@@ -1,6 +1,6 @@
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::Emu;
 use iced_x86::{Decoder, DecoderOptions, Instruction};
-
 // about 10 mb should be on l3 cache
 // 8192 cache lines,
 // 64 instructions for each one,
@@ -126,9 +126,24 @@ impl<T: Copy + Default> InstructionCache<T> {
         self.next_instruction_slot = 0;
     }
 
-    pub fn decode_out(&mut self, instruction: &mut T) {
-        *instruction = self.instructions[self.current_instruction_slot + self.current_decode_idx];
+    /// Copy the next cached instruction into caller-owned storage.
+    ///
+    /// Hot-loop callers should use this plus the ISA-specific
+    /// `decode_out_x86_into` / `decode_out_aarch64_into` to avoid
+    /// touching the `DecodedInstruction` envelope.
+    #[inline(always)]
+    pub fn decode_out_into(&mut self, out: &mut T) {
+        *out = self.instructions[self.current_instruction_slot + self.current_decode_idx];
         self.current_decode_idx += 1;
+    }
+
+    /// Generic return-by-value decode. Kept for non-hot callers;
+    /// the typed-*_into helpers are preferred on the execution hot path.
+    #[inline(always)]
+    pub fn decode_out(&mut self) -> T {
+        let mut value = T::default();
+        self.decode_out_into(&mut value);
+        value
     }
 
     pub fn can_decode(&self) -> bool {
@@ -160,29 +175,31 @@ impl<T: Copy + Default> InstructionCache<T> {
     }
 }
 
-// --- x86-specific insert methods ---
+// --- x86 and aarch64-specific insert methods on the unified cache ---
 
-impl InstructionCache<iced_x86::Instruction> {
-    pub fn insert_from_decoder(&mut self, decoder: &mut Decoder, addition: usize, rip_addr: u64) {
+impl InstructionCache<DecodedInstruction> {
+    /// Decode a basic block from an iced-x86 decoder and insert each
+    /// instruction as `DecodedInstruction::X86(_)`.
+    pub fn insert_x86_from_decoder(
+        &mut self,
+        decoder: &mut Decoder<'_>,
+        addition: usize,
+        rip_addr: u64,
+    ) {
         let lpf = crate::maps::tlb::LPF_OF(rip_addr);
         let idx = self.get_index_of(lpf, 0);
-
-        // copy the instruction to the slot
-        // now the case when instruction slot is full, instead of complex algorithm
-        // we just fudge everything and rebuild from scratch can be a better way
-        // but I think this is simple and good enough
         let slot = self.next_instruction_slot;
-
         let mut count: usize = 0;
         let max_position = decoder.max_position();
         if max_position + self.next_instruction_slot > INSTRUCTION_ARRAY_SIZE {
             self.flush_cache();
         }
-
-        // we just need to decode until the  call or jump instruction but not the entire one
         while decoder.can_decode() && decoder.position() + addition <= max_position {
-            decoder.decode_out(&mut self.instructions[slot + count]);
-            let temp = self.instructions[slot + count];
+            let mut native = Instruction::default();
+            decoder.decode_out(&mut native);
+            let ins = DecodedInstruction::X86(native);
+            self.instructions[slot + count] = ins;
+            let temp = native;
             if temp.is_jmp_short_or_near()
                 || temp.is_jmp_near_indirect()
                 || temp.is_jmp_far()
@@ -199,8 +216,6 @@ impl InstructionCache<iced_x86::Instruction> {
             count += 1;
         }
         self.next_instruction_slot += count;
-
-        // insert to the cache
         for i in 0..MAX_CACHE_PER_LINE {
             if self.cache_entries[idx + i].lpf == INVALID_LPF_ADDR {
                 self.cache_entries[idx + i].instruction_key = slot;
@@ -209,86 +224,39 @@ impl InstructionCache<iced_x86::Instruction> {
                 break;
             }
         }
-
-        // `lookup_entry` is not just a check: it primes the decode cursor
-        // (`current_instruction_slot` / `current_decode_idx` / `current_decode_len`)
-        // for the entry just inserted, so the caller decodes the fresh block.
-        // It MUST run in every build — keep the call outside the assert, which
-        // is stripped in release.
         let inserted = self.lookup_entry(rip_addr, 0);
         debug_assert!(
             inserted,
-            "Cache Insertion FAILED: There is support to be entry after insertion using insert_from_decoder"
+            "x86 cache insertion failed at 0x{:x}",
+            rip_addr
         );
     }
 
-    pub fn insert_instruction(&mut self, addr: u64, instrs: Vec<iced_x86::Instruction>) {
-        let lpf = crate::maps::tlb::LPF_OF(addr);
-        let idx = self.get_index_of(lpf, 0);
-
-        // copy the instruction to the slot
-        // now the case when instruction slot is full, instead of complex algorithm
-        // we just fudge everything and rebuild from scratch can be a better way
-        // but I think this is simple and good enough
-        let slot = self.next_instruction_slot;
-        self.next_instruction_slot += instrs.len();
-        if self.next_instruction_slot >= INSTRUCTION_ARRAY_SIZE {
-            self.flush_cache();
-        }
-
-        for i in 0..instrs.len() {
-            self.instructions[slot + i] = instrs[i];
-        }
-
-        // insert to the cache
-        for i in 0..MAX_CACHE_PER_LINE {
-            if self.cache_entries[idx + i].lpf == INVALID_LPF_ADDR {
-                self.cache_entries[idx + i].instruction_key = slot;
-                self.cache_entries[idx + i].lpf = addr;
-                self.cache_entries[idx + i].instruction_len = instrs.len();
-                break;
-            }
-        }
-    }
-}
-
-// --- aarch64-specific insert methods ---
-
-impl InstructionCache<yaxpeax_arm::armv8::a64::Instruction> {
-    /// Decode a basic block of aarch64 instructions starting at `pc_addr`
-    /// from the given byte slice and insert them into the cache.
-    ///
-    /// Decodes until a branch/call/return or end of block, mirroring the
-    /// x86 `insert_from_decoder` strategy of caching one basic block.
-    pub fn insert_from_block(&mut self, block: &[u8], pc_addr: u64) {
+    /// Decode a basic block of aarch64 instructions from the given byte
+    /// slice and insert them as `DecodedInstruction::AArch64(_)`.
+    pub fn insert_aarch64_from_block(&mut self, block: &[u8], pc_addr: u64) {
         let lpf = crate::maps::tlb::LPF_OF(pc_addr);
         let idx = self.get_index_of(lpf, 0);
-
         let slot = self.next_instruction_slot;
         let mut count: usize = 0;
         let decoder = yaxpeax_arm::armv8::a64::InstDecoder::default();
         let mut offset: usize = 0;
-
         while offset + 4 <= block.len() {
             if slot + count >= INSTRUCTION_ARRAY_SIZE {
                 self.flush_cache();
-                return; // caller will re-try and get a cache miss → re-insert
+                return;
             }
-
             let chunk = &block[offset..offset + 4];
             let mut reader = yaxpeax_arch::U8Reader::new(chunk);
-            let ins = match yaxpeax_arch::Decoder::decode(&decoder, &mut reader) {
+            let native = match yaxpeax_arch::Decoder::decode(&decoder, &mut reader) {
                 Ok(ins) => ins,
                 Err(_) => break,
             };
-
-            self.instructions[slot + count] = ins;
+            self.instructions[slot + count] = DecodedInstruction::AArch64(native);
             count += 1;
             offset += 4;
-
-            // Stop at branches/calls/returns (end of basic block)
             use yaxpeax_arm::armv8::a64::Opcode;
-            match ins.opcode {
+            match native.opcode {
                 Opcode::RET
                 | Opcode::B
                 | Opcode::BR
@@ -302,13 +270,10 @@ impl InstructionCache<yaxpeax_arm::armv8::a64::Instruction> {
                 _ => {}
             }
         }
-
         if count == 0 {
             return;
         }
-
         self.next_instruction_slot += count;
-
         for i in 0..MAX_CACHE_PER_LINE {
             if self.cache_entries[idx + i].lpf == INVALID_LPF_ADDR {
                 self.cache_entries[idx + i].instruction_key = slot;
@@ -317,14 +282,48 @@ impl InstructionCache<yaxpeax_arm::armv8::a64::Instruction> {
                 break;
             }
         }
-
-        // `lookup_entry` primes the decode cursor for the entry just inserted;
-        // it must run in every build, not only when the assert is compiled in.
         let inserted = self.lookup_entry(pc_addr, 0);
-        debug_assert!(inserted, "aarch64 cache insertion failed");
+        debug_assert!(inserted, "aarch64 cache insertion failed at 0x{:x}", pc_addr);
+    }
+
+    /// Copy the next cached x86 instruction into caller-owned storage.
+    ///
+    /// The cache slot must hold a `DecodedInstruction::X86`. Used by the hot
+    /// x86 execution loop, which owns a reusable `iced_x86::Instruction`
+    /// local. Avoids the intermediate `DecodedInstruction` value the
+    /// generic `decode_out` returns.
+    #[inline(always)]
+    pub fn decode_out_x86_into(&mut self, out: &mut iced_x86::Instruction) {
+        let index = self.current_instruction_slot + self.current_decode_idx;
+        match self.instructions[index] {
+            DecodedInstruction::X86(ins) => *out = ins,
+            DecodedInstruction::AArch64(_) => {
+                unreachable!("x86 cache slot contains an AArch64 instruction")
+            }
+        }
+        self.current_decode_idx += 1;
+    }
+
+    /// Copy the next cached AArch64 instruction into caller-owned storage.
+    ///
+    /// The cache slot must hold a `DecodedInstruction::AArch64`. Used by
+    /// the hot AArch64 execution loop, which owns a reusable
+    /// `yaxpeax_arm::armv8::a64::Instruction` local.
+    #[inline(always)]
+    pub fn decode_out_aarch64_into(
+        &mut self,
+        out: &mut yaxpeax_arm::armv8::a64::Instruction,
+    ) {
+        let index = self.current_instruction_slot + self.current_decode_idx;
+        match self.instructions[index] {
+            DecodedInstruction::AArch64(ins) => *out = ins,
+            DecodedInstruction::X86(_) => {
+                unreachable!("AArch64 cache slot contains an x86 instruction")
+            }
+        }
+        self.current_decode_idx += 1;
     }
 }
-
 impl Emu {
     /// Disassemble instructions at the given address.
     /// Works for both x86 and aarch64.

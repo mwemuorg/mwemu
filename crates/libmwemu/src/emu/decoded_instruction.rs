@@ -16,6 +16,17 @@ pub enum DecodedInstruction {
     AArch64(yaxpeax_arm::armv8::a64::Instruction),
 }
 
+impl Default for DecodedInstruction {
+    /// Returns a fully zeroed x86 instruction. This is used only as a
+    /// placeholder to fill the pre-allocated `InstructionCache` slot and is
+    /// never emulated. AArch64 paths always overwrite the slot before
+    /// execution; the variant choice exists only to satisfy the cache's
+    /// `Default` bound.
+    fn default() -> Self {
+        DecodedInstruction::X86(iced_x86::Instruction::default())
+    }
+}
+
 impl DecodedInstruction {
     /// Address of the instruction (IP / PC).
     ///

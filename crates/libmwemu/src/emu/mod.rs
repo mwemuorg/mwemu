@@ -6,6 +6,8 @@ use std::{
     time::Instant,
 };
 
+use iced_x86::Formatter as _;
+
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::object_handle::HandleManagement;
@@ -29,20 +31,34 @@ use rs_header::pe::{pe32::PE32, pe64::PE64};
 
 use crate::api::windows::export_index::ExportIndexRegistry;
 
-/// Architecture-specific instruction decoding and disassembly state.
-/// Discriminated by target architecture so each variant carries only
-/// the decode state relevant to its ISA.
-pub enum ArchState {
-    X86 {
-        instruction: Option<iced_x86::Instruction>,
-        formatter: iced_x86::IntelFormatter,
-        instruction_cache: InstructionCache<iced_x86::Instruction>,
-        decoder_position: usize,
-    },
-    AArch64 {
-        instruction: Option<yaxpeax_arm::armv8::a64::Instruction>,
-        instruction_cache: InstructionCache<yaxpeax_arm::armv8::a64::Instruction>,
-    },
+/// Architecture-neutral instruction decoding state for the active ISA.
+/// The cache is `InstructionCache<DecodedInstruction>` because exactly one
+/// target architecture is active per `Emu`. Insertion helpers
+/// (`insert_x86_from_decoder` / `insert_aarch64_from_block`) wrap each
+/// decoded value into the right `DecodedInstruction` variant.
+pub struct InstructionState {
+    /// Cached decoded instruction from the most recent decode step. Held as
+    /// `Option<DecodedInstruction>` so the slot can also be cleared via
+    /// `set_*_instruction(None)`.
+    pub instruction: Option<DecodedInstruction>,
+    /// x86 disassembly formatter. Used only by the x86 cached loop and
+    /// `format_instruction`. AArch64 paths never read this field.
+    pub formatter: iced_x86::IntelFormatter,
+    /// Active instruction decode cache (single, ISA-specific at runtime).
+    pub instruction_cache: InstructionCache<DecodedInstruction>,
+}
+
+impl Default for InstructionState {
+    fn default() -> Self {
+        let mut formatter = iced_x86::IntelFormatter::new();
+        formatter.options_mut().set_digit_separator("");
+        formatter.options_mut().set_first_operand_char_index(6);
+        Self {
+            instruction: None,
+            formatter,
+            instruction_cache: InstructionCache::new(),
+        }
+    }
 }
 
 mod banzai;
@@ -90,8 +106,7 @@ pub struct Emu {
     pub heap_management: Option<Box<O1Heap>>, // O(1) heap allocator for managed allocations
     pub memory_operations: Vec<MemoryOperation>, // per-step memory read/write log for tracing
 
-    // --- Instruction decoding & disassembly ---
-    pub arch_state: ArchState, // architecture-specific decode/cache/formatter state
+    pub instruction_state: InstructionState, // active ISA-specific decode/cache/formatter state
     pub last_decoded: Option<DecodedInstruction>, // last decoded instruction when observers need
     // arch-neutral state; may be None on pure
     // execution fast paths.
@@ -186,126 +201,98 @@ pub struct Emu {
     pub ssdt_pad_stack: Vec<u64>, // expected return addresses for PE→DLL CALLs that received an extra 0x20 of shadow-space padding (--ssdt only); a matching RET to PE pops and unpads
 }
 
-// --- ArchState accessors ---
+// --- InstructionState accessors ---
 impl Emu {
     /// Get the current x86 instruction (panics on aarch64).
     #[inline]
     pub fn x86_instruction(&self) -> Option<iced_x86::Instruction> {
-        match &self.arch_state {
-            ArchState::X86 { instruction, .. } => *instruction,
-            ArchState::AArch64 { .. } => unreachable!("x86_instruction called on aarch64 emu"),
+        match &self.instruction_state.instruction {
+            Some(DecodedInstruction::X86(ins)) => Some(*ins),
+            Some(DecodedInstruction::AArch64(_)) => {
+                unreachable!("x86_instruction called on aarch64 emu")
+            }
+            None => None,
         }
     }
 
     /// Set the current x86 instruction.
     #[inline]
     pub fn set_x86_instruction(&mut self, ins: Option<iced_x86::Instruction>) {
-        match &mut self.arch_state {
-            ArchState::X86 { instruction, .. } => *instruction = ins,
-            ArchState::AArch64 { .. } => unreachable!("set_x86_instruction called on aarch64 emu"),
+        self.instruction_state.instruction = ins.map(DecodedInstruction::X86);
+    }
+
+    /// Get the current aarch64 instruction (panics on x86).
+    #[inline]
+    pub fn aarch64_instruction(&self) -> Option<yaxpeax_arm::armv8::a64::Instruction> {
+        match &self.instruction_state.instruction {
+            Some(DecodedInstruction::AArch64(ins)) => Some(*ins),
+            Some(DecodedInstruction::X86(_)) => {
+                unreachable!("aarch64_instruction called on x86 emu")
+            }
+            None => None,
         }
+    }
+
+    /// Set the current aarch64 instruction.
+    #[inline]
+    pub fn set_aarch64_instruction(&mut self, ins: Option<yaxpeax_arm::armv8::a64::Instruction>) {
+        self.instruction_state.instruction = ins.map(DecodedInstruction::AArch64);
     }
 
     /// Get the x86 formatter (panics on aarch64).
     #[inline]
     pub fn x86_formatter(&mut self) -> &mut iced_x86::IntelFormatter {
-        match &mut self.arch_state {
-            ArchState::X86 { formatter, .. } => formatter,
-            ArchState::AArch64 { .. } => unreachable!("x86_formatter called on aarch64 emu"),
-        }
+        self.assert_x86_inline("x86_formatter");
+        &mut self.instruction_state.formatter
+    }
+
+    /// Get the active instruction cache (architecture-neutral).
+    #[inline]
+    pub fn instruction_cache(&mut self) -> &mut InstructionCache<DecodedInstruction> {
+        &mut self.instruction_state.instruction_cache
+    }
+
+    /// Get the active instruction cache immutably (architecture-neutral).
+    #[inline]
+    pub fn instruction_cache_ref(&self) -> &InstructionCache<DecodedInstruction> {
+        &self.instruction_state.instruction_cache
     }
 
     /// Get the x86 instruction cache (panics on aarch64).
     #[inline]
-    pub fn x86_instruction_cache(&mut self) -> &mut InstructionCache<iced_x86::Instruction> {
-        match &mut self.arch_state {
-            ArchState::X86 {
-                instruction_cache, ..
-            } => instruction_cache,
-            ArchState::AArch64 { .. } => {
-                unreachable!("x86_instruction_cache called on aarch64 emu")
-            }
-        }
+    pub fn x86_instruction_cache(&mut self) -> &mut InstructionCache<DecodedInstruction> {
+        self.assert_x86_inline("x86_instruction_cache");
+        &mut self.instruction_state.instruction_cache
     }
 
     /// Get the x86 instruction cache immutably.
     #[inline]
-    pub fn x86_instruction_cache_ref(&self) -> &InstructionCache<iced_x86::Instruction> {
-        match &self.arch_state {
-            ArchState::X86 {
-                instruction_cache, ..
-            } => instruction_cache,
-            ArchState::AArch64 { .. } => {
-                unreachable!("x86_instruction_cache_ref called on aarch64 emu")
-            }
-        }
+    pub fn x86_instruction_cache_ref(&self) -> &InstructionCache<DecodedInstruction> {
+        self.assert_x86_inline("x86_instruction_cache_ref");
+        &self.instruction_state.instruction_cache
     }
 
     /// Get the aarch64 instruction cache (panics on x86).
     #[inline]
-    pub fn aarch64_instruction_cache(
-        &mut self,
-    ) -> &mut InstructionCache<yaxpeax_arm::armv8::a64::Instruction> {
-        match &mut self.arch_state {
-            ArchState::AArch64 {
-                instruction_cache, ..
-            } => instruction_cache,
-            ArchState::X86 { .. } => unreachable!("aarch64_instruction_cache called on x86 emu"),
-        }
+    pub fn aarch64_instruction_cache(&mut self) -> &mut InstructionCache<DecodedInstruction> {
+        self.assert_aarch64_inline("aarch64_instruction_cache");
+        &mut self.instruction_state.instruction_cache
     }
 
     /// Get the aarch64 instruction cache immutably.
     #[inline]
-    pub fn aarch64_instruction_cache_ref(
-        &self,
-    ) -> &InstructionCache<yaxpeax_arm::armv8::a64::Instruction> {
-        match &self.arch_state {
-            ArchState::AArch64 {
-                instruction_cache, ..
-            } => instruction_cache,
-            ArchState::X86 { .. } => {
-                unreachable!("aarch64_instruction_cache_ref called on x86 emu")
-            }
-        }
-    }
-
-    /// Get the x86 decoder position (panics on aarch64).
-    #[inline]
-    pub fn x86_decoder_position(&self) -> usize {
-        match &self.arch_state {
-            ArchState::X86 {
-                decoder_position, ..
-            } => *decoder_position,
-            ArchState::AArch64 { .. } => unreachable!("x86_decoder_position called on aarch64 emu"),
-        }
-    }
-
-    /// Set the x86 decoder position.
-    #[inline]
-    pub fn set_x86_decoder_position(&mut self, pos: usize) {
-        match &mut self.arch_state {
-            ArchState::X86 {
-                decoder_position, ..
-            } => *decoder_position = pos,
-            ArchState::AArch64 { .. } => {
-                unreachable!("set_x86_decoder_position called on aarch64 emu")
-            }
-        }
+    pub fn aarch64_instruction_cache_ref(&self) -> &InstructionCache<DecodedInstruction> {
+        self.assert_aarch64_inline("aarch64_instruction_cache_ref");
+        &self.instruction_state.instruction_cache
     }
 
     /// Format an x86 instruction to a string using the Intel formatter.
     #[inline]
     pub fn x86_format_instruction(&mut self, ins: &iced_x86::Instruction) -> String {
+        self.assert_x86_inline("x86_format_instruction");
         let mut output = String::new();
-        match &mut self.arch_state {
-            ArchState::X86 { formatter, .. } => {
-                use iced_x86::Formatter as _;
-                formatter.format(ins, &mut output);
-            }
-            ArchState::AArch64 { .. } => {
-                unreachable!("x86_format_instruction called on aarch64 emu")
-            }
-        }
+        use iced_x86::Formatter as _;
+        self.instruction_state.formatter.format(ins, &mut output);
         output
     }
 
@@ -317,6 +304,26 @@ impl Emu {
         match ins {
             DecodedInstruction::X86(x86_ins) => self.x86_format_instruction(x86_ins),
             DecodedInstruction::AArch64(aarch64_ins) => format!("{}", aarch64_ins),
+        }
+    }
+
+    #[inline(always)]
+    fn assert_x86_inline(&self, method: &'static str) {
+        if !self.cfg.arch.is_x86() {
+            panic!(
+                "{} called on non-x86 emulator (arch={:?})",
+                method, self.cfg.arch
+            );
+        }
+    }
+
+    #[inline(always)]
+    fn assert_aarch64_inline(&self, method: &'static str) {
+        if !self.cfg.arch.is_aarch64() {
+            panic!(
+                "{} called on non-AArch64 emulator (arch={:?})",
+                method, self.cfg.arch
+            );
         }
     }
 }

@@ -4,8 +4,6 @@ use crate::engine;
 use crate::err::MwemuError;
 use crate::windows::constants;
 
-use super::super::ArchState;
-
 /// AArch64 cache fill. Performs the cache hit/miss check, reads a block
 /// of code from the maps, and inserts the fixed-width decoded instructions
 /// into the AArch64 instruction cache. Panics if the configured
@@ -17,13 +15,7 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
 ) -> Result<(), MwemuError> {
     super::super::assert_aarch64_arch(emu, "ensure_instruction_cache_populated_aarch64");
 
-    let cache_hit = match &mut emu.arch_state {
-        ArchState::AArch64 {
-            instruction_cache, ..
-        } => instruction_cache.lookup_entry(pc, 0),
-        ArchState::X86 { .. } => unreachable!(),
-    };
-
+    let cache_hit = emu.aarch64_instruction_cache().lookup_entry(pc, 0);
     if cache_hit {
         return Ok(());
     }
@@ -47,14 +39,8 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
     }
     block.clone_from_slice(block_slice);
 
-    match &mut emu.arch_state {
-        ArchState::AArch64 {
-            instruction_cache, ..
-        } => {
-            instruction_cache.insert_from_block(block, pc);
-        }
-        ArchState::X86 { .. } => unreachable!(),
-    }
+    emu.aarch64_instruction_cache()
+        .insert_aarch64_from_block(block, pc);
 
     Ok(())
 }

@@ -9,7 +9,7 @@ use crate::err::MwemuError;
 use crate::serialization;
 use crate::windows::constants;
 
-use super::{ArchState, Emu, assert_aarch64_arch};
+use super::{Emu, assert_aarch64_arch};
 
 impl Emu {
     /// AArch64 cached single-thread run loop. Owns AArch64-only behavior:
@@ -92,17 +92,8 @@ impl Emu {
 
                     // Decode next instruction from cache
                     if self.rep.is_none() {
-                        match &mut self.arch_state {
-                            ArchState::AArch64 {
-                                instruction_cache,
-                                instruction,
-                                ..
-                            } => {
-                                instruction_cache.decode_out(&mut aarch64_ins);
-                                *instruction = Some(aarch64_ins);
-                            }
-                            _ => unreachable!(),
-                        }
+                        self.aarch64_instruction_cache()
+                            .decode_out_aarch64_into(&mut aarch64_ins);
                         sz = 4;
                         addr = pc + aarch64_decode_offset;
                         aarch64_decode_offset += 4;
@@ -115,9 +106,6 @@ impl Emu {
                             return Ok(self.pc());
                         }
                     }
-
-                    // Skip clearing the decoded slot when no observer needs it;
-                    // saves two unconditional `Option` writes per instruction on
                     // the hot path.
                     if self.last_decoded.is_some() {
                         self.clear_last_decoded_instruction();
