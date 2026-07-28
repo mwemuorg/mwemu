@@ -620,7 +620,6 @@ pub fn test_decode_and_execute_aarch64_advances_pc_and_records_size() {
 }
 
 #[test]
-#[test]
 pub fn test_generic_dispatch_matches_typed_x86_path() {
     helpers::setup();
 

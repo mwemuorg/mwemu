@@ -175,6 +175,32 @@ pub fn call_winapi64(emu: &mut Emu, func: fn(&mut Emu), args: &[u64]) -> u64 {
     emu.regs().rax
 }
 
+/// Register a synthetic module in the emulator's export-index registry:
+/// `fake.dll` at `base`, export ordinal base 5, with a single function at
+/// `base + 0x1500` named `CreateFileA` (ordinal 5). Lets `GetProcAddress`
+/// tests run without real system DLLs.
+pub fn register_fake_export_module(emu: &mut Emu, base: u64) {
+    use crate::api::windows::export_index::{ModuleExportIndex, normalize_module_name};
+    use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
+
+    let parsed = ExportIndexData {
+        export_base: 5,
+        number_of_functions: 1,
+        ordinal_targets: vec![Some(ExportTarget::Direct { rva: 0x1500 })],
+        named_exports: vec![NamedExport {
+            name: "CreateFileA".to_string(),
+            ordinal_index: 0,
+        }],
+    };
+    let index = ModuleExportIndex::from_parsed(
+        "fake.dll".to_string(),
+        normalize_module_name("fake.dll"),
+        base,
+        &parsed,
+    );
+    emu.export_indexes.register(index);
+}
+
 /// Invoke a 32-bit WinAPI hook honoring the `stdcall` convention as the engine
 /// presents it: the return address has already been popped, so arguments sit at
 /// `[esp+0]`, `[esp+4]`, ... (the hook pops them itself). Arguments are pushed

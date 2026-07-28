@@ -277,3 +277,36 @@ fn test_ntdll_rtl_realloc_32() {
     );
     assert_eq!(ret, 0);
 }
+
+// Regression: the export-index refactor inverted the IS_INTRESOURCE test, so
+// every name pointer (>= 0x10000) was classified as an ordinal and by-name
+// GetProcAddress always returned NULL. lpProcName is an ordinal only when its
+// high word is zero.
+#[test]
+fn test_get_proc_address_by_name_and_ordinal_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x30000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    ) as u64;
+    assert_eq!(by_name, base + 0x1500, "by-name lookup returned NULL");
+
+    // export_base is 5, so ordinal 5 maps to function-table slot 0.
+    let by_ordinal = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, 5],
+    ) as u64;
+    assert_eq!(by_ordinal, base + 0x1500, "by-ordinal lookup returned NULL");
+}

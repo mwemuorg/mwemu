@@ -1,10 +1,5 @@
 use crate::emu;
 
-/// Per Windows convention, when `lpProcName` has the high bit set, the
-/// caller is passing an ordinal export, not a name pointer. The ordinal
-/// value itself is the low word.
-const ORDINAL_MASK: u64 = 0xFFFF_0000;
-
 pub fn GetProcAddress(emu: &mut emu::Emu) {
     let hndl = emu
         .maps
@@ -18,7 +13,9 @@ pub fn GetProcAddress(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    let is_ordinal = (func_ptr & ORDINAL_MASK) != 0;
+    // IS_INTRESOURCE: `lpProcName` is an ordinal when its high word is zero
+    // (value below 0x10000); otherwise it is a name pointer.
+    let is_ordinal = (func_ptr >> 16) == 0;
 
     let (resolved, display_module, display_name) = if is_ordinal {
         let ordinal = (func_ptr & 0xFFFF) as u32;

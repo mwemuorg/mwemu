@@ -374,3 +374,33 @@ fn test_ntdll_rtl_realloc_64() {
     );
     assert_eq!(ret, 0);
 }
+
+// Regression: the 64-bit ordinal mask (0xFFFF_0000_0000_0000) was never set by
+// real arguments, so the ordinal path was unreachable and ordinal calls did
+// read_string(ordinal) -> NULL. lpProcName is an ordinal only when its high
+// word is zero.
+#[test]
+fn test_get_proc_address_by_name_and_ordinal_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let base = 0x7ff0_0010_0000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x300000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[base, name_ptr],
+    );
+    assert_eq!(by_name, base + 0x1500, "by-name lookup returned NULL");
+
+    // export_base is 5, so ordinal 5 maps to function-table slot 0.
+    let by_ordinal =
+        helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcAddress, &[base, 5]);
+    assert_eq!(by_ordinal, base + 0x1500, "by-ordinal lookup returned NULL");
+}
