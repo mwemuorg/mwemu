@@ -261,14 +261,12 @@ impl Emu {
     /// Get the x86 instruction cache (panics on aarch64).
     #[inline]
     pub fn x86_instruction_cache(&mut self) -> &mut InstructionCache<DecodedInstruction> {
-        self.assert_x86_inline("x86_instruction_cache");
         &mut self.instruction_state.instruction_cache
     }
 
     /// Get the x86 instruction cache immutably.
     #[inline]
     pub fn x86_instruction_cache_ref(&self) -> &InstructionCache<DecodedInstruction> {
-        self.assert_x86_inline("x86_instruction_cache_ref");
         &self.instruction_state.instruction_cache
     }
 

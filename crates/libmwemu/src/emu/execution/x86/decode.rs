@@ -18,8 +18,6 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
     block: &mut Vec<u8>,
     arch_bits: u32,
 ) -> Result<(), MwemuError> {
-    assert_x86_arch(emu, "ensure_instruction_cache_populated_x86");
-
     let cache_hit = emu.x86_instruction_cache().lookup_entry(pc, 0);
     if cache_hit {
         return Ok(());

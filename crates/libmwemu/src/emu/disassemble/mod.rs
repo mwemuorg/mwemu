@@ -298,7 +298,7 @@ impl InstructionCache<DecodedInstruction> {
         match self.instructions[index] {
             DecodedInstruction::X86(ins) => *out = ins,
             DecodedInstruction::AArch64(_) => {
-                unreachable!("x86 cache slot contains an AArch64 instruction")
+                unsafe { std::hint::unreachable_unchecked() } // the code will never hit aarch64 consider it is called from InstructionCache x86
             }
         }
         self.current_decode_idx += 1;
@@ -315,7 +315,7 @@ impl InstructionCache<DecodedInstruction> {
         match self.instructions[index] {
             DecodedInstruction::AArch64(ins) => *out = ins,
             DecodedInstruction::X86(_) => {
-                unreachable!("AArch64 cache slot contains an x86 instruction")
+                unsafe { std::hint::unreachable_unchecked() } // the code will never hit aarch64 consider it is called from InstructionCache x86
             }
         }
         self.current_decode_idx += 1;

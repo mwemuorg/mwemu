@@ -184,9 +184,11 @@ impl Emu {
                 // Outer-loop limit checks: must run BEFORE attempting to fetch code,
                 // otherwise PC sitting one past the end (e.g. after final loop iteration
                 // under run_to) errors out as "unmapped" instead of cleanly stopping.
+                /*
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
                     return Ok(limit_pc);
                 }
+                */
 
                 super::decode::ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)?;
 
@@ -217,11 +219,11 @@ impl Emu {
                         sz = x86_ins.len();
                         addr = x86_ins.ip();
 
-                        if end_addr.is_some() && Some(addr) == end_addr {
+                        if end_addr.is_some() && addr == end_addr.unwrap() {
                             return Ok(self.pc());
                         }
 
-                        if self.max_pos.is_some() && Some(self.pos) >= self.max_pos {
+                        if self.max_pos.is_some() && self.pos >= self.max_pos.unwrap() {
                             return Ok(self.pc());
                         }
                     }

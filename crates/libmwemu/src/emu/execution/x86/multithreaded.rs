@@ -37,11 +37,11 @@ impl Emu {
                     Console::spawn_console(self);
                     return Err(MwemuError::new("cannot read program counter"));
                 }
-
+                /*
                 if let Some(pc) = self.reached_outer_run_limit(rip, end_addr) {
                     return Ok(pc);
                 }
-
+                */
                 let next_pos = self.pos.saturating_add(1);
 
                 if (self.exp != u64::MAX && self.exp == next_pos)
