@@ -175,12 +175,29 @@ pub fn call_winapi64(emu: &mut Emu, func: fn(&mut Emu), args: &[u64]) -> u64 {
     emu.regs().rax
 }
 
+/// Register a module in the export-index registry from a synthetic parsed
+/// export directory, exactly as `Emu::load_pe32`/`load_pe64` do after parsing
+/// a real PE. Lets `GetProcAddress`/resolver tests run without system DLLs.
+pub fn register_export_module(
+    emu: &mut Emu,
+    module: &str,
+    base: u64,
+    parsed: &rs_header::pe::export_index::ExportIndexData,
+) {
+    use crate::api::windows::export_index::{ModuleExportIndex, normalize_module_name};
+    let index = ModuleExportIndex::from_parsed(
+        module.to_string(),
+        normalize_module_name(module),
+        base,
+        parsed,
+    );
+    emu.export_indexes.register(index);
+}
+
 /// Register a synthetic module in the emulator's export-index registry:
 /// `fake.dll` at `base`, export ordinal base 5, with a single function at
-/// `base + 0x1500` named `CreateFileA` (ordinal 5). Lets `GetProcAddress`
-/// tests run without real system DLLs.
+/// `base + 0x1500` named `CreateFileA` (ordinal 5).
 pub fn register_fake_export_module(emu: &mut Emu, base: u64) {
-    use crate::api::windows::export_index::{ModuleExportIndex, normalize_module_name};
     use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
     let parsed = ExportIndexData {
@@ -192,13 +209,7 @@ pub fn register_fake_export_module(emu: &mut Emu, base: u64) {
             ordinal_index: 0,
         }],
     };
-    let index = ModuleExportIndex::from_parsed(
-        "fake.dll".to_string(),
-        normalize_module_name("fake.dll"),
-        base,
-        &parsed,
-    );
-    emu.export_indexes.register(index);
+    register_export_module(emu, "fake.dll", base, &parsed);
 }
 
 /// Invoke a 32-bit WinAPI hook honoring the `stdcall` convention as the engine

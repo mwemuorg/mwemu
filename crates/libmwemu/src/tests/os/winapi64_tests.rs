@@ -404,3 +404,103 @@ fn test_get_proc_address_by_name_and_ordinal_64() {
         helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcAddress, &[base, 5]);
     assert_eq!(by_ordinal, base + 0x1500, "by-ordinal lookup returned NULL");
 }
+
+// The exact IS_INTRESOURCE boundary on 64 bits: 0xFFFF is the highest
+// possible ordinal, 0x10000 the lowest possible name pointer.
+#[test]
+fn test_get_proc_address_intresource_boundary_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let base = 0x7ff0_0010_0000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x10000u64;
+    emu.maps
+        .create_map("gpa_boundary", name_ptr, 0x1000, Permission::READ_WRITE)
+        .expect("cannot map 0x10000");
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[base, name_ptr],
+    );
+    assert_eq!(
+        by_name,
+        base + 0x1500,
+        "0x10000 must be treated as a name pointer"
+    );
+
+    let by_ordinal = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[base, 0xFFFF],
+    );
+    assert_eq!(by_ordinal, 0, "unknown ordinal must resolve to NULL");
+}
+
+// GetProcAddress must chase export forwarders (`OTHER.Symbol`) through the
+// registry, both by name and by ordinal.
+#[test]
+fn test_get_proc_address_forwarder_64() {
+    use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
+
+    helpers::setup();
+    let mut emu = emu64();
+
+    let fake_base = 0x7ff0_0010_0000u64;
+    let backing_base = 0x7ff0_0200_0000u64;
+
+    // fake.dll exports "ViaFwd" (ordinal 1) forwarding to backing.TargetFn.
+    let fake = ExportIndexData {
+        export_base: 1,
+        number_of_functions: 1,
+        ordinal_targets: vec![Some(ExportTarget::Forwarder {
+            value: "backing.TargetFn".to_string(),
+        })],
+        named_exports: vec![NamedExport {
+            name: "ViaFwd".to_string(),
+            ordinal_index: 0,
+        }],
+    };
+    // backing.dll exports "TargetFn" at backing_base + 0x2000.
+    let backing = ExportIndexData {
+        export_base: 1,
+        number_of_functions: 1,
+        ordinal_targets: vec![Some(ExportTarget::Direct { rva: 0x2000 })],
+        named_exports: vec![NamedExport {
+            name: "TargetFn".to_string(),
+            ordinal_index: 0,
+        }],
+    };
+    helpers::register_export_module(&mut emu, "fake.dll", fake_base, &fake);
+    helpers::register_export_module(&mut emu, "backing.dll", backing_base, &backing);
+
+    let name_ptr = 0x300000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "ViaFwd");
+
+    let by_name = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[fake_base, name_ptr],
+    );
+    assert_eq!(
+        by_name,
+        backing_base + 0x2000,
+        "forwarder by name must resolve into backing.dll"
+    );
+
+    let by_ordinal = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[fake_base, 1],
+    );
+    assert_eq!(
+        by_ordinal,
+        backing_base + 0x2000,
+        "forwarder by ordinal must resolve into backing.dll"
+    );
+}
