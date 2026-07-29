@@ -277,3 +277,124 @@ fn test_ntdll_rtl_realloc_32() {
     );
     assert_eq!(ret, 0);
 }
+
+// Regression: the export-index refactor inverted the IS_INTRESOURCE test, so
+// every name pointer (>= 0x10000) was classified as an ordinal and by-name
+// GetProcAddress always returned NULL. lpProcName is an ordinal only when its
+// high word is zero.
+#[test]
+fn test_get_proc_address_by_name_and_ordinal_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x30000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    ) as u64;
+    assert_eq!(by_name, base + 0x1500, "by-name lookup returned NULL");
+
+    // export_base is 5, so ordinal 5 maps to function-table slot 0.
+    let by_ordinal = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, 5],
+    ) as u64;
+    assert_eq!(by_ordinal, base + 0x1500, "by-ordinal lookup returned NULL");
+}
+
+// The exact IS_INTRESOURCE boundary: 0xFFFF is the highest possible ordinal,
+// 0x10000 is the lowest possible name pointer. With the inverted predicate,
+// 0x10000 was masked to ordinal 0 and returned NULL.
+#[test]
+fn test_get_proc_address_intresource_boundary_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    // A name string mapped exactly at 0x10000 must go through the name path.
+    let name_ptr = 0x10000u64;
+    emu.maps
+        .create_map("gpa_boundary", name_ptr, 0x1000, Permission::READ_WRITE)
+        .expect("cannot map 0x10000");
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    ) as u64;
+    assert_eq!(
+        by_name,
+        base + 0x1500,
+        "0x10000 must be treated as a name pointer"
+    );
+
+    // 0xFFFF is an ordinal (unknown here) — must return 0, and must never be
+    // dereferenced as a string pointer (0xFFFF is unmapped).
+    let by_ordinal = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, 0xFFFF],
+    );
+    assert_eq!(by_ordinal, 0, "unknown ordinal must resolve to NULL");
+}
+
+// The export-index registry lookup is case-insensitive, matching the
+// pre-index PEB-scanner behavior the emulator has always had.
+#[test]
+fn test_get_proc_address_case_insensitive_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x30000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "CREATEfileA");
+
+    let addr = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    ) as u64;
+    assert_eq!(addr, base + 0x1500, "lookup must be case-insensitive");
+}
+
+// A registered handle whose module does not export the requested name must
+// return NULL honoring the handle, not silently fall back to a global search.
+#[test]
+fn test_get_proc_address_missing_export_honors_handle_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x30000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "NotExported");
+
+    let addr = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    );
+    assert_eq!(
+        addr, 0,
+        "missing export must return NULL for a known handle"
+    );
+}
