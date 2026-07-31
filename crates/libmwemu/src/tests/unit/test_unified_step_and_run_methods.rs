@@ -374,10 +374,11 @@ pub fn test_step_aarch64_advances_pc() {
 pub fn test_run_aarch64_executes_until_end_addr() {
     helpers::setup();
 
-    let code: [u8; 12] = [
+    let code: [u8; 16] = [
         0x20, 0x00, 0x80, 0xd2, // mov x0, #1
         0x21, 0x00, 0x80, 0xd2, // mov x1, #1
         0x02, 0x00, 0x01, 0x8b, // add x2, x0, x1
+        0xd5, 0x03, 0x20, 0x1f, // nop
     ];
 
     let mut emu = emu_aarch64();
@@ -689,10 +690,11 @@ pub fn test_generic_dispatch_matches_typed_aarch64_path() {
     helpers::setup();
 
     // mov x0, #1; mov x1, #2; add x2, x0, x1
-    let code: [u8; 12] = [
+    let code: [u8; 16] = [
         0x20, 0x00, 0x80, 0xD2, // mov x0, #1
         0x41, 0x00, 0x80, 0xD2, // mov x1, #2
         0x02, 0x00, 0x01, 0x8B, // add x2, x0, x1
+        0xd5, 0x03, 0x20, 0x1f, // nop
     ];
 
     let mut typed_emu = emu_aarch64();

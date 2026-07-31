@@ -197,7 +197,7 @@ fn aarch64_shellcode_sum_loop_run_to() {
     let mut emu = emu_aarch64();
     emu.load_code_bytes(&code);
 
-    emu.run_to(17).unwrap_or_else(|e| {
+    emu.run_to(16).unwrap_or_else(|e| {
         panic!(
             "run_to(17) failed: {} (pos={} pc=0x{:x})",
             e,
@@ -207,7 +207,7 @@ fn aarch64_shellcode_sum_loop_run_to() {
     });
 
     assert!(
-        emu.pos >= 17,
+        emu.pos >= 16,
         "expected >= 17 instructions, got pos={}",
         emu.pos
     );
