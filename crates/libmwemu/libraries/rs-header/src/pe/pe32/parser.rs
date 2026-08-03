@@ -59,6 +59,7 @@ impl PE32 {
                     if delay_load.handle == 0 || delay_load.name_ptr == 0 {
                         break;
                     }
+                    let off = PE32::vaddr_to_off(&sect, delay_load.name_ptr) as usize;
                     delay_load.name = read_c_string(raw, off);
                     delay_load_dir.push(delay_load);
                     delay_load_off += DelayLoadDirectory::size();

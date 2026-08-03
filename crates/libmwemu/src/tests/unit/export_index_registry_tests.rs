@@ -317,3 +317,137 @@ fn empty_parsed_index_does_not_register() {
     // The registry has no entries yet.
     assert_eq!(reg.len(), 0);
 }
+
+#[test]
+fn pe_loader_ordinal_resolution_uses_module_registry() {
+    // Confirm the live Emu:PeLoader bridge goes through the
+    // module-scoped export registry rather than the unrelated global name
+    // resolver. The synthetic fake.dll helper is shared with the
+    // GetProcAddress tests; its single export sits at `base + 0x1500` with
+    // ordinal 5.
+    crate::tests::helpers::setup();
+    let mut emu = crate::emu64();
+    let base = 0x1_0000_0000u64;
+    crate::tests::helpers::register_fake_export_module(&mut emu, base);
+
+    // Resolved: ordinal 5 lives at `base + 0x1500`.
+    let resolved = <crate::emu::Emu as rs_header::pe::PeLoader>::resolve_api_ordinal_in_module(
+        &mut emu, "fake.dll", 5,
+    );
+    assert_eq!(resolved, base + 0x1500, "module ordinal did not resolve");
+
+    // Unknown ordinal returns 0 (not a panic, not a global fallback).
+    assert_eq!(
+        <crate::emu::Emu as rs_header::pe::PeLoader>::resolve_api_ordinal_in_module(
+            &mut emu, "fake.dll", 6,
+        ),
+        0
+    );
+
+    // Unknown module returns 0.
+    assert_eq!(
+        <crate::emu::Emu as rs_header::pe::PeLoader>::resolve_api_ordinal_in_module(
+            &mut emu, "missing.dll", 5,
+        ),
+        0
+    );
+}
+
+#[test]
+fn resolve_ordinal_in_module_uses_export_base_and_normalizes_name() {
+    // build_export_table(base, funcs, names) wires `base` as the export
+    // ordinal base. Direct function-table entries map export ordinals
+    // `base..base+nof-1` to function-table indices 0..n.
+    let (raw, sections, va, size) = build_export_table(
+        5,
+        &[(0x1500, false), (0x1500, false)],
+        &[("Fn0", 0), ("Fn1", 1)],
+    );
+    let mut reg = ExportIndexRegistry::new();
+    parse_and_register(&mut reg, "mod.dll", 0x10000, &raw, &sections, va, size);
+
+    // base=5, ordinals 5..6 -> function-table indices 0..1, both direct 0x1500.
+    assert_eq!(reg.resolve_ordinal_in_module("mod", 5), 0x11500);
+    assert_eq!(reg.resolve_ordinal_in_module("mod", 6), 0x11500);
+
+    // Below-base ordinals are not exported -> 0.
+    assert_eq!(reg.resolve_ordinal_in_module("mod", 4), 0);
+
+    // Out-of-range ordinals (>= base + nof) are not exported -> 0.
+    assert_eq!(reg.resolve_ordinal_in_module("mod", 7), 0);
+
+    // Module name normalization accepts path + case + missing .dll.
+    assert_eq!(
+        reg.resolve_ordinal_in_module("C:\\Windows\\MOD.DLL", 5),
+        0x11500
+    );
+}
+
+#[test]
+fn resolve_ordinal_in_module_ordinal_forwarder_chases_target() {
+    // Source: "fake.dll" base 0x10000, export base 1, function 0 forwards
+    // to "backing.#5" (ordinal 5). Backing: export base 5 with one direct
+    // function at RVA 0x1500 -> function-table index 0, ordinal 5.
+    let (fake_raw, fake_sections, fake_va, fake_size) = build_export_table(
+        1,
+        &[(0x1140, true)],
+        &[("Via", 0)],
+    );
+    let mut fake_raw = fake_raw;
+    let s = b"backing.#5\0";
+    fake_raw[0x140..0x140 + s.len()].copy_from_slice(s);
+
+    let (backing_raw, backing_sections, backing_va, backing_size) = build_export_table(
+        5,
+        &[(0x1500, false)],
+        &[("Direct", 0)],
+    );
+
+    let mut reg = ExportIndexRegistry::new();
+    parse_and_register(
+        &mut reg,
+        "fake.dll",
+        0x10000,
+        &fake_raw,
+        &fake_sections,
+        fake_va,
+        fake_size,
+    );
+    parse_and_register(
+        &mut reg,
+        "backing.dll",
+        0x20000,
+        &backing_raw,
+        &backing_sections,
+        backing_va,
+        backing_size,
+    );
+
+    // Ordinal 1 in fake -> forwarder backing.#5 -> backing base+0x1500.
+    assert_eq!(reg.resolve_ordinal_in_module("fake", 1), 0x20000 + 0x1500);
+}
+
+#[test]
+fn resolve_ordinal_in_module_does_not_scan_other_modules() {
+    // Two modules, one with the requested ordinal and one without. The
+    // resolver must NOT fall through to the other module — ordinals are
+    // module-scoped.
+    let (raw, sections, va, size) = build_export_table(
+        1,
+        &[(0x1500, false)],
+        &[("Fn", 0)],
+    );
+    let mut reg = ExportIndexRegistry::new();
+    parse_and_register(&mut reg, "present.dll", 0x1000, &raw, &sections, va, size);
+    parse_and_register(&mut reg, "absent.dll", 0x2000, &raw, &sections, va, size);
+
+    // Requested module owns the ordinal -> resolves to its base.
+    assert_eq!(reg.resolve_ordinal_in_module("present", 1), 0x1000 + 0x1500);
+
+    // The other module does not own ordinal 5, so even though "absent" is
+    // registered, ordinal 5 there is below base and returns 0.
+    assert_eq!(reg.resolve_ordinal_in_module("absent", 5), 0);
+
+    // Unknown module returns 0 even if the ordinal exists elsewhere.
+    assert_eq!(reg.resolve_ordinal_in_module("missing", 1), 0);
+}

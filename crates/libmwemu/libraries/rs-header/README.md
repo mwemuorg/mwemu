@@ -90,6 +90,11 @@ impl PeLoader for Mem {
     fn resolve_api_name_in_module(&mut self, _m: &str, name: &str) -> u64 {
         self.resolve_api_name(name)
     }
+    fn resolve_api_ordinal_in_module(&mut self, _m: &str, _ordinal: u16) -> u64 {
+        // The README example uses name-only resolution; ordinals stay at 0
+        // (the binder treats that as "leave the slot untouched").
+        0
+    }
     fn search_api_name(&mut self, name: &str) -> (u64, String, String) {
         (self.resolve_api_name(name), "module.dll".into(), name.into())
     }

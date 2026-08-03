@@ -53,8 +53,8 @@ jobs:
         with:
           shared-key: clippy-linux-x86_64-unknown-linux-gnu
           add-rust-environment-hash-key: true
-          cache-on-failure: false
-          cache-workspace-crates: false
+          cache-on-failure: true
+          cache-workspace-crates: true
 
       - name: Report Rust cache status
         run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"

@@ -37,6 +37,13 @@ pub trait PeLoader {
     /// Resolve an exported function by name within a specific module.
     fn resolve_api_name_in_module(&mut self, module: &str, name: &str) -> u64;
 
+    /// Resolve an exported function by ordinal within a specific module.
+    /// PE import-by-ordinal encodes the ordinal in the low 16 bits of the
+    /// IMAGE_THUNK_DATA slot, so this is the only ordinal type the loader
+    /// ever asks about. Returns the final absolute address, or 0 when the
+    /// module/ordinal cannot be resolved.
+    fn resolve_api_ordinal_in_module(&mut self, module: &str, ordinal: u16) -> u64;
+
     /// Best-effort search for a function by name; returns `(addr, dll, name)`.
     fn search_api_name(&mut self, name: &str) -> (u64, String, String);
 }

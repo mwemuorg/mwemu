@@ -60,6 +60,16 @@ impl PeLoader for Emu {
         }
     }
 
+    fn resolve_api_ordinal_in_module(&mut self, module: &str, ordinal: u16) -> u64 {
+        // Module-scoped ordinal resolution goes through the export registry
+        // that `Emu::load_pe64` / `load_pe32` populate for every mapped
+        // image. The result is rebased to the guest address; zero is the
+        // signal that the ordinal was not exported (or the module is
+        // missing), which the binder treats as "leave the slot untouched".
+        self.export_indexes
+            .resolve_ordinal_in_module(module, ordinal as u32)
+    }
+
     fn search_api_name(&mut self, name: &str) -> (u64, String, String) {
         if self.cfg.is_x64() {
             winapi64::kernel32::search_api_name(self, name)

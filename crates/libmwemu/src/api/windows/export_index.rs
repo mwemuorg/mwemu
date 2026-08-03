@@ -394,7 +394,6 @@ impl ExportIndexRegistry {
         }
         0
     }
-
     /// Resolve an ordinal export using the supplied module base as a
     /// module handle. Used by `GetProcAddress`.
     pub fn resolve_ordinal_by_base(&self, base: u64, ordinal: u32) -> u64 {
@@ -402,6 +401,25 @@ impl ExportIndexRegistry {
             return 0;
         };
         match module.resolve_ordinal(ordinal) {
+            Some(IndexedExport::Direct { address }) => *address,
+            Some(IndexedExport::Forwarder { value }) => {
+                parse_forwarder_and_resolve(self, value, &mut Vec::new(), MAX_FORWARDER_DEPTH)
+            }
+            None => 0,
+        }
+    }
+
+    /// Resolve an ordinal export by module name (import-time use, e.g. PE64
+    /// import binding). Module name is normalized before lookup; unknown
+    /// modules, below-base ordinals, missing slots, and unresolvable
+    /// forwarders all return 0. Ordinals are module-scoped on purpose:
+    /// a global ordinal search would be semantically wrong.
+    pub fn resolve_ordinal_in_module(&self, module: &str, ordinal: u32) -> u64 {
+        let key = normalize_module_name(module);
+        let Some(index) = self.by_name.get(&key) else {
+            return 0;
+        };
+        match index.resolve_ordinal(ordinal) {
             Some(IndexedExport::Direct { address }) => *address,
             Some(IndexedExport::Forwarder { value }) => {
                 parse_forwarder_and_resolve(self, value, &mut Vec::new(), MAX_FORWARDER_DEPTH)
@@ -428,7 +446,6 @@ impl ExportIndexRegistry {
         }
     }
 }
-
 /// Parse a forwarder string of the form `dll.symbol` or `dll.#N` and
 /// resolve through the registry. Returns 0 if the target module is not
 /// registered or the chain depth limit is reached.
