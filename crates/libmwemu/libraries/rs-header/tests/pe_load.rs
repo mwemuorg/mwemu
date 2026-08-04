@@ -270,9 +270,7 @@ const THUNK9_FOR_TEST: u64 = 0x8000_0000_0000_0009;
 /// real enough to parse via `PE64::parse`, but the .idata section bytes are
 /// entirely the test's 8-byte thunk tables. `original_first_thunk_rva` controls
 /// the split-table walker; setting it to 0 forces the alternative walker.
-fn build_synthetic_pe64_with_ordinal_iat(
-    original_first_thunk_rva: u32,
-) -> (PE64, Vec<u8>, u32) {
+fn build_synthetic_pe64_with_ordinal_iat(original_first_thunk_rva: u32) -> (PE64, Vec<u8>, u32) {
     // Layout constants. The import directory entry's RVA must point at the
     // raw offset of the ImageImportDescriptor. We place that descriptor at
     // the start of the .idata section so the parser sees it.
@@ -340,12 +338,9 @@ fn build_synthetic_pe64_with_ordinal_iat(
     let dd_off = opt_off + 112;
     let import_dir_off = dd_off + 1 * 8;
     // Image import descriptor sits at the very start of .idata.
-    raw[import_dir_off..import_dir_off + 4]
-        .copy_from_slice(&IDATA_RVA.to_le_bytes());
-    raw[import_dir_off + 4..import_dir_off + 8]
-        .copy_from_slice(&0x28u32.to_le_bytes()); // size: one descriptor + terminator
-    raw[opt_off + 108..opt_off + 112]
-        .copy_from_slice(&NUMBER_OF_RVA_AND_SIZES.to_le_bytes());
+    raw[import_dir_off..import_dir_off + 4].copy_from_slice(&IDATA_RVA.to_le_bytes());
+    raw[import_dir_off + 4..import_dir_off + 8].copy_from_slice(&0x28u32.to_le_bytes()); // size: one descriptor + terminator
+    raw[opt_off + 108..opt_off + 112].copy_from_slice(&NUMBER_OF_RVA_AND_SIZES.to_le_bytes());
 
     // Section header (40 bytes) at opt_off + SIZE_OF_OPTIONAL_HEADER.
     let sect_off = opt_off + SIZE_OF_OPTIONAL_HEADER as usize;
@@ -387,19 +382,13 @@ fn build_synthetic_pe64_with_ordinal_iat(
     // slot, so we keep the same bytes in FT. When OFT != 0 we must populate
     // the OFT table separately so the lookup and destination differ.
     let iat_off = idata_base + (FIRST_THUNK_RVA - IDATA_RVA) as usize;
-    for (i, val) in [THUNK7, THUNK9, THUNK11, THUNK_TERM]
-        .iter()
-        .enumerate()
-    {
+    for (i, val) in [THUNK7, THUNK9, THUNK11, THUNK_TERM].iter().enumerate() {
         let off = iat_off + i * 8;
         raw[off..off + 8].copy_from_slice(&val.to_le_bytes());
     }
     if original_first_thunk_rva != 0 {
         let oft_off = idata_base + (original_first_thunk_rva - IDATA_RVA) as usize;
-        for (i, val) in [THUNK7, THUNK9, THUNK11, THUNK_TERM]
-            .iter()
-            .enumerate()
-        {
+        for (i, val) in [THUNK7, THUNK9, THUNK11, THUNK_TERM].iter().enumerate() {
             let off = oft_off + i * 8;
             raw[off..off + 8].copy_from_slice(&val.to_le_bytes());
         }
@@ -451,15 +440,14 @@ fn pe64_iat_binding_ordinals_without_original_first_thunk() {
     pe.iat_binding(&raw, &mut mock, base);
 
     let slot7 = read_qword_le(&mock, base + first_thunk as u64);
-    let slot9 = read_qword_le_or(
-        &mock,
-        base + first_thunk as u64 + 8,
-        THUNK9_FOR_TEST,
-    );
+    let slot9 = read_qword_le_or(&mock, base + first_thunk as u64 + 8, THUNK9_FOR_TEST);
     let slot11 = read_qword_le(&mock, base + first_thunk as u64 + 16);
     let slot_term = read_qword_le_or(&mock, base + first_thunk as u64 + 24, 0);
     assert_eq!(slot7, 0x8000_7000, "ordinal 7 not patched");
-    assert_eq!(slot9, THUNK9_FOR_TEST, "unresolved ordinal 9 must not be patched");
+    assert_eq!(
+        slot9, THUNK9_FOR_TEST,
+        "unresolved ordinal 9 must not be patched"
+    );
     assert_eq!(slot11, 0x8000_B000, "ordinal 11 not patched");
     assert_eq!(slot_term, 0, "zero terminator should not be patched");
     // The binder must write exactly the two resolved IAT slots and nothing
@@ -475,7 +463,10 @@ fn pe64_iat_binding_ordinals_without_original_first_thunk() {
     assert_eq!(mock.ordinal_calls.len(), 3);
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 7)));
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 9)));
-    assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 11)));
+    assert!(
+        mock.ordinal_calls
+            .contains(&("ordinal.dll".to_string(), 11))
+    );
 
     // iat_names: resolved entries keyed on resolved VA, unresolved on the
     // encoded thunk.
@@ -531,7 +522,10 @@ fn pe64_iat_binding_ordinals_with_original_first_thunk() {
     assert_eq!(mock.ordinal_calls.len(), 3);
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 7)));
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 9)));
-    assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 11)));
+    assert!(
+        mock.ordinal_calls
+            .contains(&("ordinal.dll".to_string(), 11))
+    );
 
     // The split-table walker must patch exactly the two resolved IAT slots
     // and leave the unresolved slot and the OFT table alone.
@@ -540,7 +534,10 @@ fn pe64_iat_binding_ordinals_with_original_first_thunk() {
     expected_writes.sort();
     let mut actual_writes = mock.writes.clone();
     actual_writes.sort();
-    assert_eq!(actual_writes, expected_writes, "unexpected writes in split table");
+    assert_eq!(
+        actual_writes, expected_writes,
+        "unexpected writes in split table"
+    );
     assert_eq!(
         pe.iat_names.get(&0x8000_7000).map(|s| s.as_str()),
         Some("ordinal.dll!#7")
@@ -566,8 +563,14 @@ fn pe64_iat_binding_ordinals_with_original_first_thunk() {
     let oft_off = idata_base + (oft_rva - 0x1000) as usize;
     let stored_iat7 = u64::from_le_bytes(raw[iat_off..iat_off + 8].try_into().unwrap());
     let stored_oft9 = u64::from_le_bytes(raw[oft_off + 8..oft_off + 16].try_into().unwrap());
-    assert_eq!(stored_iat7, THUNK7_FOR_TEST, "raw IAT was mutated by binding");
-    assert_eq!(stored_oft9, THUNK9_FOR_TEST, "raw OFT was mutated by binding");
+    assert_eq!(
+        stored_iat7, THUNK7_FOR_TEST,
+        "raw IAT was mutated by binding"
+    );
+    assert_eq!(
+        stored_oft9, THUNK9_FOR_TEST,
+        "raw OFT was mutated by binding"
+    );
 }
 
 /// PE32 IMAGE_THUNK_DATA32 high-bit discriminator.
@@ -662,13 +665,19 @@ fn build_synthetic_pe32_with_ordinal_iat(original_first_thunk_rva: u32) -> (PE32
 
     // IAT (and OFT) thunk tables: resolved 7, unresolved 9, resolved 11, terminator 0.
     let iat_off = idata_base + (FIRST_THUNK_RVA - IDATA_RVA) as usize;
-    for (i, val) in [THUNK7_PE32, THUNK9_PE32, THUNK11_PE32, 0u32].iter().enumerate() {
+    for (i, val) in [THUNK7_PE32, THUNK9_PE32, THUNK11_PE32, 0u32]
+        .iter()
+        .enumerate()
+    {
         let off = iat_off + i * 4;
         raw[off..off + 4].copy_from_slice(&val.to_le_bytes());
     }
     if original_first_thunk_rva != 0 {
         let oft_off = idata_base + (original_first_thunk_rva - IDATA_RVA) as usize;
-        for (i, val) in [THUNK7_PE32, THUNK9_PE32, THUNK11_PE32, 0u32].iter().enumerate() {
+        for (i, val) in [THUNK7_PE32, THUNK9_PE32, THUNK11_PE32, 0u32]
+            .iter()
+            .enumerate()
+        {
             let off = oft_off + i * 4;
             raw[off..off + 4].copy_from_slice(&val.to_le_bytes());
         }
@@ -697,15 +706,14 @@ fn pe32_iat_binding_ordinals_without_original_first_thunk() {
 
     // Resolved slots patched; unresolved slot left alone; terminator untouched.
     let slot7 = read_dword_le_or(&mock, base as u64 + first_thunk as u64, 0);
-    let slot9 = read_dword_le_or(
-        &mock,
-        base as u64 + first_thunk as u64 + 4,
-        THUNK9_PE32,
-    );
+    let slot9 = read_dword_le_or(&mock, base as u64 + first_thunk as u64 + 4, THUNK9_PE32);
     let slot11 = read_dword_le_or(&mock, base as u64 + first_thunk as u64 + 8, 0);
     let slot_term = read_dword_le_or(&mock, base as u64 + first_thunk as u64 + 12, 0);
     assert_eq!(slot7, 0x8000_7000, "ordinal 7 not patched");
-    assert_eq!(slot9, THUNK9_PE32, "unresolved ordinal 9 must not be patched");
+    assert_eq!(
+        slot9, THUNK9_PE32,
+        "unresolved ordinal 9 must not be patched"
+    );
     assert_eq!(slot11, 0x8000_B000, "ordinal 11 not patched");
     assert_eq!(slot_term, 0, "zero terminator should not be patched");
 
@@ -716,13 +724,19 @@ fn pe32_iat_binding_ordinals_without_original_first_thunk() {
     expected_writes.sort();
     let mut actual_writes = mock.writes.clone();
     actual_writes.sort();
-    assert_eq!(actual_writes, expected_writes, "unexpected writes in PE32 IAT");
+    assert_eq!(
+        actual_writes, expected_writes,
+        "unexpected writes in PE32 IAT"
+    );
 
     // Three ordinal lookups in module-scoped form.
     assert_eq!(mock.ordinal_calls.len(), 3);
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 7)));
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 9)));
-    assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 11)));
+    assert!(
+        mock.ordinal_calls
+            .contains(&("ordinal.dll".to_string(), 11))
+    );
 
     // iat_names entries.
     assert_eq!(
@@ -773,11 +787,7 @@ fn pe32_iat_binding_ordinals_with_original_first_thunk() {
     assert_eq!(slot11, 0x8000_B000, "ordinal 11 not patched in split table");
 
     // Unresolved slot left alone.
-    let slot9 = read_dword_le_or(
-        &mock,
-        base as u64 + first_thunk as u64 + 4,
-        THUNK9_PE32,
-    );
+    let slot9 = read_dword_le_or(&mock, base as u64 + first_thunk as u64 + 4, THUNK9_PE32);
     assert_eq!(
         slot9, THUNK9_PE32,
         "unresolved ordinal 9 must not be patched"
@@ -933,20 +943,26 @@ fn build_synthetic_pe32_with_delay_ordinal_iat() -> (PE32, Vec<u8>, u32) {
     raw[dld_off + 28..dld_off + 32].copy_from_slice(&0u32.to_le_bytes()); // tstamp
 
     // DLL name string.
-    let dll_name_off = idata_base + (DELAY_DLL_NAME_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
+    let dll_name_off =
+        idata_base + (DELAY_DLL_NAME_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
     let dll_name = b"ordinal.dll\0";
     raw[dll_name_off..dll_name_off + dll_name.len()].copy_from_slice(dll_name);
 
     // Name-table thunks (input).
-    let name_off = idata_base + (DELAY_NAME_TABLE_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
-    for (i, val) in [THUNK7_PE32, THUNK9_PE32, THUNK11_PE32, 0u32].iter().enumerate() {
+    let name_off =
+        idata_base + (DELAY_NAME_TABLE_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
+    for (i, val) in [THUNK7_PE32, THUNK9_PE32, THUNK11_PE32, 0u32]
+        .iter()
+        .enumerate()
+    {
         let off = name_off + i * 4;
         raw[off..off + 4].copy_from_slice(&val.to_le_bytes());
     }
 
     // Delay-IAT slots (output). Filled with sentinel zeros so a successful
     // patch is detectable.
-    let iat_off = idata_base + (DELAY_ADDRESS_TABLE_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
+    let iat_off =
+        idata_base + (DELAY_ADDRESS_TABLE_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
     for i in 0..4 {
         raw[iat_off + i * 4..iat_off + i * 4 + 4].copy_from_slice(&0xDEAD_BEEFu32.to_le_bytes());
     }
@@ -984,9 +1000,15 @@ fn pe32_delay_load_binding_uses_address_table_for_unbound_descriptor() {
     let slot11 = read_dword_le_or(&mock, iat_base + 8, 0xDEAD_BEEF);
     let slot_term = read_dword_le_or(&mock, iat_base + 12, 0xDEAD_BEEF);
     assert_eq!(slot7, 0x9000_7000, "delay ordinal 7 not patched");
-    assert_eq!(slot9, 0xDEAD_BEEF, "unresolved delay ordinal 9 must not be patched");
+    assert_eq!(
+        slot9, 0xDEAD_BEEF,
+        "unresolved delay ordinal 9 must not be patched"
+    );
     assert_eq!(slot11, 0x9000_B000, "delay ordinal 11 not patched");
-    assert_eq!(slot_term, 0xDEAD_BEEF, "delay terminator must not be patched");
+    assert_eq!(
+        slot_term, 0xDEAD_BEEF,
+        "delay terminator must not be patched"
+    );
 
     // Exactly two writes: the resolved delay-IAT slots. The name table is
     // read-only input and must not be written.
@@ -999,7 +1021,10 @@ fn pe32_delay_load_binding_uses_address_table_for_unbound_descriptor() {
     assert_eq!(mock.ordinal_calls.len(), 3);
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 7)));
     assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 9)));
-    assert!(mock.ordinal_calls.contains(&("ordinal.dll".to_string(), 11)));
+    assert!(
+        mock.ordinal_calls
+            .contains(&("ordinal.dll".to_string(), 11))
+    );
 
     // iat_names entries for resolved and unresolved ordinals.
     assert_eq!(
@@ -1017,7 +1042,8 @@ fn pe32_delay_load_binding_uses_address_table_for_unbound_descriptor() {
 
     // Name-table raw bytes are unchanged.
     let idata_base = SECTION_RAW_PTR_PE32_DELAY as usize;
-    let name_off = idata_base + (DELAY_NAME_TABLE_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
+    let name_off =
+        idata_base + (DELAY_NAME_TABLE_RVA - SECTION_VIRTUAL_ADDRESS_PE32_DELAY) as usize;
     let stored7 = u32::from_le_bytes(raw[name_off..name_off + 4].try_into().unwrap());
     assert_eq!(
         stored7, THUNK7_PE32,

@@ -347,7 +347,9 @@ fn pe_loader_ordinal_resolution_uses_module_registry() {
     // Unknown module returns 0.
     assert_eq!(
         <crate::emu::Emu as rs_header::pe::PeLoader>::resolve_api_ordinal_in_module(
-            &mut emu, "missing.dll", 5,
+            &mut emu,
+            "missing.dll",
+            5,
         ),
         0
     );
@@ -388,20 +390,14 @@ fn resolve_ordinal_in_module_ordinal_forwarder_chases_target() {
     // Source: "fake.dll" base 0x10000, export base 1, function 0 forwards
     // to "backing.#5" (ordinal 5). Backing: export base 5 with one direct
     // function at RVA 0x1500 -> function-table index 0, ordinal 5.
-    let (fake_raw, fake_sections, fake_va, fake_size) = build_export_table(
-        1,
-        &[(0x1140, true)],
-        &[("Via", 0)],
-    );
+    let (fake_raw, fake_sections, fake_va, fake_size) =
+        build_export_table(1, &[(0x1140, true)], &[("Via", 0)]);
     let mut fake_raw = fake_raw;
     let s = b"backing.#5\0";
     fake_raw[0x140..0x140 + s.len()].copy_from_slice(s);
 
-    let (backing_raw, backing_sections, backing_va, backing_size) = build_export_table(
-        5,
-        &[(0x1500, false)],
-        &[("Direct", 0)],
-    );
+    let (backing_raw, backing_sections, backing_va, backing_size) =
+        build_export_table(5, &[(0x1500, false)], &[("Direct", 0)]);
 
     let mut reg = ExportIndexRegistry::new();
     parse_and_register(
@@ -432,11 +428,7 @@ fn resolve_ordinal_in_module_does_not_scan_other_modules() {
     // Two modules, one with the requested ordinal and one without. The
     // resolver must NOT fall through to the other module — ordinals are
     // module-scoped.
-    let (raw, sections, va, size) = build_export_table(
-        1,
-        &[(0x1500, false)],
-        &[("Fn", 0)],
-    );
+    let (raw, sections, va, size) = build_export_table(1, &[(0x1500, false)], &[("Fn", 0)]);
     let mut reg = ExportIndexRegistry::new();
     parse_and_register(&mut reg, "present.dll", 0x1000, &raw, &sections, va, size);
     parse_and_register(&mut reg, "absent.dll", 0x2000, &raw, &sections, va, size);

@@ -152,7 +152,10 @@ impl PE32 {
             // via the backing DLLs (api-ms-win-* -> kernelbase.dll etc.), so
             // a missing stub file is not a reason to skip the descriptor.
             if loader.load_library(&iim_name) == 0 && !is_api_set_contract(&iim_name) {
-                log::debug!("cannot import library `{}` (IAT binding skips it)", iim_name);
+                log::debug!(
+                    "cannot import library `{}` (IAT binding skips it)",
+                    iim_name
+                );
                 continue;
             }
 
