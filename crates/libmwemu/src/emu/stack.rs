@@ -1,6 +1,54 @@
 use crate::{emu::Emu, windows::structures::MemoryOperation};
 
 impl Emu {
+    pub fn stack_push16(&mut self, value: u16) -> bool {
+        let sp = self.sp();
+
+        if self.cfg.stack_trace {
+            log::trace!("--- stack push16  ---");
+            self.maps.dump_qwords(sp, 5);
+        }
+
+        if self.cfg.trace_mem {
+            let pc = self.pc();
+            let name = self.maps.get_addr_name(sp).unwrap_or("not mapped");
+            let memory_operation = MemoryOperation {
+                pos: self.pos,
+                rip: pc,
+                op: "write".to_string(),
+                bits: 64,
+                address: sp - 8,
+                old_value: self.maps.read_qword(sp).unwrap_or(0),
+                new_value: value as u64,
+                name: name.to_string(),
+            };
+            self.memory_operations.push(memory_operation);
+            log::trace!(
+                "\tmem_trace: pos = {} rip = {:x} op = write bits = {} address = 0x{:x} value = 0x{:x} name = '{}'",
+                self.pos,
+                pc,
+                64,
+                sp,
+                value,
+                name
+            );
+        }
+
+        let new_sp = sp - 2;
+        self.set_sp(new_sp);
+
+        if self.maps.write_word(new_sp, value) {
+            return true;
+        }
+        // Auto-grow the stack on a fresh push that lands in a yet-uncommitted
+        // page (Windows would have hit a PAGE_GUARD fault and committed it).
+        if self.try_grow_stack(new_sp) && self.maps.write_word(new_sp, value) {
+            return true;
+        }
+        log::trace!("/!\\ pushing in non mapped mem 0x{:x}", new_sp);
+        false
+    }
+
     /// Push a dword to the stack and dec the esp
     /// This will return false if stack pointer is pointing to non allocated place.
     pub fn stack_push32(&mut self, value: u32) -> bool {
@@ -126,6 +174,71 @@ impl Emu {
         }
         log::trace!("/!\\ pushing in non mapped mem 0x{:x}", new_sp);
         false
+    }
+
+    pub fn stack_pop16(&mut self, pop_instruction: bool) -> Option<u16> {
+        let sp = self.sp();
+
+        if self.cfg.stack_trace {
+            log::trace!("--- stack pop64 ---");
+            self.maps.dump_qwords(sp, 5);
+        }
+
+        let value = match self.maps.read_word(sp) {
+            Some(v) => v,
+            None => {
+                log::trace!("stack pointer points to non mapped mem");
+                return None;
+            }
+        };
+
+        if self.cfg.trace_mem {
+            let pc = self.pc();
+            let name = self.maps.get_addr_name(sp).unwrap_or("not mapped");
+            let read_operation = MemoryOperation {
+                pos: self.pos,
+                rip: pc,
+                op: "read".to_string(),
+                bits: 64,
+                address: sp,
+                old_value: 0,
+                new_value: value as u64,
+                name: name.to_string(),
+            };
+            self.memory_operations.push(read_operation);
+            log::trace!(
+                "\tmem_trace: pos = {} rip = {:x} op = read bits = {} address = 0x{:x} value = 0x{:x} name = '{}'",
+                self.pos,
+                pc,
+                64,
+                sp,
+                value,
+                name
+            );
+
+            let write_operation = MemoryOperation {
+                pos: self.pos,
+                rip: pc,
+                op: "write".to_string(),
+                bits: 64,
+                address: sp,
+                old_value: self.maps.read_qword(sp).unwrap_or(0),
+                new_value: value as u64,
+                name: "register".to_string(),
+            };
+            self.memory_operations.push(write_operation);
+            log::trace!(
+                "\tmem_trace: pos = {} rip = {:x} op = write bits = {} address = 0x{:x} value = 0x{:x} name = 'register'",
+                self.pos,
+                pc,
+                64,
+                sp,
+                value
+            );
+        }
+
+        self.set_sp(sp + 2);
+        Some(value)
     }
 
     /// Pop a dword from stack and return it, None if esp points to unmapped zone.

@@ -1,18 +1,23 @@
 use crate::color;
 use crate::emu::Emu;
-use iced_x86::Instruction;
+use iced_x86::{Instruction, OpKind};
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    let value: u64 = if emu.cfg.is_x64() {
-        match emu.stack_pop64(true) {
-            Some(v) => v,
-            None => return false,
+    let op_size = match ins.op_kind(0) {
+        OpKind::Register => ins.op_register(0).size(),
+        OpKind::Memory => ins.memory_size().size(),
+        // this is the case of immediate value then it is depend on the stack addr size which is the execution architecture
+        _ => if emu.cfg.is_x64() {
+            8
+        } else {
+            4
         }
-    } else {
-        match emu.stack_pop32(true) {
-            Some(v) => v as u64,
-            None => return false,
-        }
+    };
+
+    let value = match op_size {
+        8 => emu.stack_pop64(true).unwrap(),
+        4 => emu.stack_pop32(true).unwrap() as u64,
+        _ =>  emu.stack_pop16(true).unwrap() as u64, // the last one have to be 16 bit because there are only 64, 32 and 16 for pop instruction
     };
 
     emu.show_instruction_pushpop(
