@@ -28,6 +28,36 @@ pub(crate) fn unlikely(b: bool) -> bool {
     }
 }
 
+// This array is for the get_operand_size in order to make it query faster
+//TODO: OpKind::Immediate8to64 could be 8
+pub const OP_KIND_BIT_WIDTH: [u8; 25] = [
+    255, // 0  Register
+    16,  // 1  NearBranch16
+    32,  // 2  NearBranch32
+    64,  // 3  NearBranch64
+    16,  // 4  FarBranch16
+    32,  // 5  FarBranch32
+    8,   // 6  Immediate8
+    8,   // 7  Immediate8_2nd
+    16,  // 8  Immediate16
+    32,  // 9  Immediate32
+    64,  // 10 Immediate64
+    16,  // 11 Immediate8to16
+    32,  // 12 Immediate8to32
+    64,  // 13 Immediate8to64
+    64,  // 14 Immediate32to64
+    16,  // 15 MemorySegSI
+    32,  // 16 MemorySegESI
+    64,  // 17 MemorySegRSI
+    16,  // 18 MemorySegDI
+    32,  // 19 MemorySegEDI
+    64,  // 20 MemorySegRDI
+    16,  // 21 MemoryESDI
+    32,  // 22 MemoryESEDI
+    64,  // 23 MemoryESRDI
+    255, // 24 Memory
+];
+
 pub fn disable_color() {
     COLOR_ENABLED.store(false, Ordering::Relaxed);
 }

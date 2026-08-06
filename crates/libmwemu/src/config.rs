@@ -186,14 +186,17 @@ impl Config {
         }
     }
 
+    #[inline(always)]
     pub fn is_x64(&self) -> bool {
         self.arch.is_x64()
     }
 
+    #[inline(always)]
     pub fn is_aarch64(&self) -> bool {
         self.arch.is_aarch64()
     }
 
+    #[inline(always)]
     pub fn is_x86(&self) -> bool {
         self.arch.is_x86()
     }

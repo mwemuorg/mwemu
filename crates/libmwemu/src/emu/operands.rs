@@ -1,6 +1,7 @@
-use iced_x86::{Instruction, MemorySize, OpKind, Register};
+use iced_x86::{Instruction, OpKind, Register};
 
 use crate::maps::mem64::Permission;
+use crate::utils::helpers::{OP_KIND_BIT_WIDTH, unlikely};
 use crate::{
     console::Console,
     emu::Emu,
@@ -17,8 +18,14 @@ impl Emu {
             OpKind::NearBranch64 | OpKind::NearBranch32 | OpKind::NearBranch16 => {
                 Some(ins.near_branch_target())
             }
-            OpKind::FarBranch16 => Some(ins.far_branch16() as u64),
-            OpKind::FarBranch32 => Some(ins.far_branch32() as u64),
+            OpKind::FarBranch16 => {
+                std::hint::cold_path();
+                Some(ins.far_branch16() as u64)
+            }
+            OpKind::FarBranch32 => {
+                std::hint::cold_path();
+                Some(ins.far_branch32() as u64)
+            }
             _ => self.get_operand_value(ins, 0, true),
         }
     }
@@ -46,11 +53,11 @@ impl Emu {
                        mem_seg, mem_base, mem_index, do_derref);
         }*/
 
-        let mem_displace = if self.cfg.is_x64() {
-            ins.memory_displacement64()
-        } else {
-            ins.memory_displacement32() as i32 as u64 // we need this for signed extension from 32bit to 64bi
-        };
+        let mem_displace = std::hint::select_unpredictable(
+            self.cfg.is_x64(),
+            ins.memory_displacement64(),
+            ins.memory_displacement32() as i32 as u64,
+        );
 
         /*if self.cfg.verbose >= 3 {
             log::debug!("  mem_displace=0x{:x} (is_64bits={})", mem_displace, self.cfg.is_x64());
@@ -85,33 +92,17 @@ impl Emu {
             result
         };
 
-        let displace_result = if !self.cfg.is_x64() {
-            let masked = displace & 0xffffffff;
-            /*if self.cfg.verbose >= 3 {
-                log::debug!("  32-bit mode: displace_result=0x{:x} (masked from 0x{:x})", masked, displace);
-            }*/
-            masked
-        } else {
-            /*if self.cfg.verbose >= 3 {
-                log::debug!("  64-bit mode: displace_result=0x{:x}", displace);
-            }*/
-            displace
-        };
+        let displace_result =
+            std::hint::select_unpredictable(!self.cfg.is_x64(), displace & 0xffffffff, displace);
 
         // do this for cmov optimization
-        let mem_addr = if mem_base == Register::RIP {
-            /*if self.cfg.verbose >= 3 {
-                log::debug!("  RIP-relative: mem_addr=temp_displace=0x{:x}", temp_displace);
-            }*/
-            temp_displace
-        } else {
-            /*if self.cfg.verbose >= 3 {
-                log::debug!("  mem_addr=displace_result=0x{:x}", displace_result);
-            }*/
-            displace_result
-        };
+        let mem_addr = std::hint::select_unpredictable(
+            mem_base == Register::RIP,
+            temp_displace,
+            displace_result,
+        );
 
-        if fs {
+        if unlikely(fs) {
             if self.os.is_linux() {
                 // Real TLS: once ld.so/libc install a thread pointer via
                 // arch_prctl(ARCH_SET_FS), `fs:[disp]` addresses real memory at
@@ -221,7 +212,7 @@ impl Emu {
             return Some(value1);
         }
 
-        if gs {
+        if unlikely(gs) {
             let value1: u64 = match mem_addr {
                 0x0 => {
                     // NtTib.ExceptionList — NULL in normal user threads (`cmp` / probes often use gs:[0]).
@@ -335,9 +326,8 @@ impl Emu {
             return Some(value1);
         }
 
-        let value: u64;
         if derref {
-            let sz = self.get_operand_sz(ins, noperand);
+            let sz = (ins.memory_size().size() * 8) as u32;
             /*if self.cfg.verbose >= 3 {
                 log::debug!("  Dereferencing: mem_addr=0x{:x}, size={} bits", mem_addr, sz);
             }*/
@@ -348,60 +338,62 @@ impl Emu {
                 self.hooks.hook_on_memory_read = Some(hook_fn);
             }
 
-            value = match sz {
-                64 => match self.maps.read_qword(mem_addr) {
-                    Some(v) => v,
-                    None => {
-                        if self.try_grow_stack(mem_addr) {
-                            self.maps.read_qword(mem_addr).unwrap_or(0)
-                        } else {
-                            log::trace!("/!\\ error dereferencing qword on 0x{:x}", mem_addr);
-                            self.exception(ExceptionType::QWordDereferencing);
-                            return None;
-                        }
+            let value = match sz {
+                64 => self.maps.read_qword(mem_addr).or_else(|| {
+                    std::hint::cold_path();
+                    if self.try_grow_stack(mem_addr) {
+                        Some(self.maps.read_qword(mem_addr).unwrap_or(0))
+                    } else {
+                        log::trace!("/!\\ error dereferencing qword on 0x{:x}", mem_addr);
+                        self.exception(ExceptionType::QWordDereferencing);
+                        return None;
                     }
-                },
+                }),
 
-                32 => match self.maps.read_dword(mem_addr) {
-                    Some(v) => v.into(),
-                    None => {
+                32 => self
+                    .maps
+                    .read_dword(mem_addr)
+                    .and_then(|v| Some(v as u64))
+                    .or_else(|| {
+                        std::hint::cold_path();
                         if self.try_grow_stack(mem_addr) {
-                            self.maps.read_dword(mem_addr).unwrap_or(0) as u64
+                            Some(self.maps.read_dword(mem_addr).unwrap_or(0) as u64)
                         } else {
                             log::trace!("/!\\ error dereferencing dword on 0x{:x}", mem_addr);
                             self.exception(ExceptionType::DWordDereferencing);
                             return None;
                         }
-                    }
-                },
+                    }),
 
-                16 => match self.maps.read_word(mem_addr) {
-                    Some(v) => v.into(),
-                    None => {
+                16 => self
+                    .maps
+                    .read_word(mem_addr)
+                    .and_then(|v| Some(v as u64))
+                    .or_else(|| {
+                        std::hint::cold_path();
                         if self.try_grow_stack(mem_addr) {
-                            self.maps.read_word(mem_addr).unwrap_or(0) as u64
+                            Some(self.maps.read_word(mem_addr).unwrap_or(0) as u64)
                         } else {
                             log::trace!("/!\\ error dereferencing word on 0x{:x}", mem_addr);
                             self.exception(ExceptionType::WordDereferencing);
                             return None;
                         }
-                    }
-                },
+                    }),
 
-                8 => match self.maps.read_byte(mem_addr) {
-                    Some(v) => v.into(),
-                    None => {
+                _ => self
+                    .maps
+                    .read_byte(mem_addr)
+                    .and_then(|v| Some(v as u64))
+                    .or_else(|| {
+                        std::hint::cold_path();
                         if self.try_grow_stack(mem_addr) {
-                            self.maps.read_byte(mem_addr).unwrap_or(0) as u64
+                            Some(self.maps.read_byte(mem_addr).unwrap_or(0) as u64)
                         } else {
                             log::trace!("/!\\ error dereferencing byte on 0x{:x}", mem_addr);
                             self.exception(ExceptionType::ByteDereferencing);
-                            return None;
+                            None
                         }
-                    }
-                },
-
-                _ => unimplemented!("weird size"),
+                    }),
             };
 
             if self.cfg.trace_mem {
@@ -413,7 +405,7 @@ impl Emu {
                     bits: sz,
                     address: mem_addr,
                     old_value: 0, // not needed for read?
-                    new_value: value,
+                    new_value: value.unwrap(),
                     name: name.to_string(),
                 };
                 self.memory_operations.push(memory_operation);
@@ -423,12 +415,12 @@ impl Emu {
                     self.regs().rip,
                     sz,
                     mem_addr,
-                    value,
+                    value.unwrap(),
                     name
                 );
             }
 
-            if self.bp.is_bp_mem_read(mem_addr) {
+            if unlikely(self.bp.is_bp_mem_read(mem_addr)) {
                 log::trace!("Memory breakpoint on read 0x{:x}", mem_addr);
                 if self.running_script {
                     self.force_break = true;
@@ -436,16 +428,14 @@ impl Emu {
                     Console::spawn_console(self);
                 }
             }
+
+            value
         } else {
             /*if self.cfg.verbose >= 3 {
                 log::debug!("  Not dereferencing, returning mem_addr=0x{:x}", mem_addr);
             }*/
-            value = mem_addr;
+            Some(mem_addr)
         }
-        /*if self.cfg.verbose >= 3 {
-            log::debug!("  Final return value: 0x{:x}", value);
-        }*/
-        Some(value)
     }
 
     /// Decode a selected operand and return its value (inmediate, register or memory)
@@ -457,59 +447,75 @@ impl Emu {
         noperand: u32,
         do_derref: bool,
     ) -> Option<u64> {
-        assert!(ins.op_count() > noperand);
+        debug_assert!(ins.op_count() > noperand);
 
-        let value: u64 = match ins.op_kind(noperand) {
-            OpKind::Immediate64 => ins.immediate64(),
-            OpKind::Immediate8 => ins.immediate8() as u64,
-            OpKind::Immediate16 => ins.immediate16() as u64,
-            OpKind::Immediate32 => ins.immediate32() as u64,
-            OpKind::Immediate8to64 => ins.immediate8to64() as u64,
-            OpKind::Immediate32to64 => ins.immediate32to64() as u64,
-            OpKind::Immediate8to32 => ins.immediate8to32() as u32 as u64,
-            OpKind::Immediate8to16 => ins.immediate8to16() as u16 as u64,
-            OpKind::Register => self.regs().get_reg(ins.op_register(noperand)),
-            OpKind::Memory => match self.handle_memory_get_operand(ins, noperand, do_derref) {
-                Some(v) => v,
-                None => {
+        let op_kind = ins.op_kind(noperand);
+        let value = if op_kind == OpKind::Register {
+            Some(self.regs().get_reg(ins.op_register(noperand)))
+        } else if op_kind == OpKind::Memory {
+            self.handle_memory_get_operand(ins, noperand, do_derref)
+                .or_else(|| {
                     log::trace!(
                         "get_operand_value: unmapped memory access in {:?} op {}",
                         ins.mnemonic(),
                         noperand
                     );
-                    return None;
+                    None
+                })
+        } else {
+            match ins.op_kind(noperand) {
+                OpKind::Immediate64 => Some(ins.immediate64()),
+                OpKind::Immediate8 | OpKind::Immediate8_2nd => Some(ins.immediate8() as u64),
+                OpKind::Immediate16 => Some(ins.immediate16() as u64),
+                OpKind::Immediate32 => Some(ins.immediate32() as u64),
+                OpKind::Immediate8to64 => {
+                    std::hint::cold_path();
+                    Some(ins.immediate8to64() as u64)
                 }
-            },
-            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
+                OpKind::Immediate32to64 => {
+                    std::hint::cold_path();
+                    Some(ins.immediate32to64() as u64)
+                }
+                OpKind::Immediate8to32 => {
+                    std::hint::cold_path();
+                    Some(ins.immediate8to32() as u32 as u64)
+                }
+                OpKind::Immediate8to16 => {
+                    std::hint::cold_path();
+                    Some(ins.immediate8to16() as u16 as u64)
+                }
+                _ => {
+                    std::hint::cold_path();
+                    unreachable!("Error something is wrong")
+                }
+            }
         };
-        Some(value)
+        value
     }
 
     /// Set a value to an operand, normally noperand=0
     /// If it's a register modify the register, it can be memory also.
     pub fn set_operand_value(&mut self, ins: &Instruction, noperand: u32, value: u64) -> bool {
-        assert!(ins.op_count() > noperand);
+        debug_assert!(ins.op_count() > noperand);
 
         match ins.op_kind(noperand) {
             OpKind::Register => {
-                if self.regs().is_fpu(ins.op_register(noperand)) {
+                if unlikely(self.regs().is_fpu(ins.op_register(noperand))) {
                     self.fpu_mut()
                         .set_streg(ins.op_register(noperand), value as f64);
                 } else {
                     self.regs_mut().set_reg(ins.op_register(noperand), value);
                 }
             }
-
-            OpKind::Memory => {
+            // because you can't set immediate, only check for two condition
+            _ => {
                 let mem_base = ins.memory_base();
                 let mem_index = ins.memory_index();
-                let mem_displace = if self.cfg.is_x64() {
-                    ins.memory_displacement64()
-                } else {
-                    ins.memory_displacement32() as i32 as u64 // we need this for signed extension from 32bit to 64bi
-                };
-
-                let mem_seg = ins.memory_segment();
+                let mem_displace = std::hint::select_unpredictable(
+                    self.cfg.is_x64(),
+                    ins.memory_displacement64(),
+                    ins.memory_displacement32().cast_signed() as u64,
+                );
 
                 /*if self.cfg.verbose >= 3 {
                     log::debug!("set_operand_value Memory: mem_seg={:?}, mem_base={:?}, mem_index={:?}",
@@ -531,8 +537,8 @@ impl Emu {
                     result
                 };
 
-                let gs_sz = self.get_operand_sz(ins, noperand);
-                if mem_seg == Register::GS && self.cfg.is_x64() && !self.os.is_linux() {
+                let mem_seg = ins.memory_segment();
+                if unlikely(mem_seg == Register::GS && self.cfg.is_x64() && !self.os.is_linux()) {
                     // x64 Windows: GS is based at TEB.  Forward writes to teb_base + offset
                     // so that real ntdll code can update TEB fields without writing to address 0.
                     let teb_base = self.maps.get_mem("teb").get_base();
@@ -545,7 +551,7 @@ impl Emu {
                             temp_displace
                         );
                     }
-                    match gs_sz {
+                    match (ins.memory_size().size() * 8) as u32 {
                         8 => {
                             let _ = self.maps.write_byte(teb_addr, value as u8);
                         }
@@ -564,8 +570,7 @@ impl Emu {
                     }
                     return true;
                 }
-
-                if mem_seg == Register::FS || mem_base == Register::GS {
+                if unlikely(mem_seg == Register::FS || mem_base == Register::GS) {
                     if self.os.is_linux() {
                         // Real TLS active: write through to memory at fs_base+offset.
                         // The offset must include any base register (e.g.
@@ -616,17 +621,7 @@ impl Emu {
 
                     return true;
                 }
-                /* I don't think we can ever set fs and gs memory location and we have the faster method from above instead of calling virtual_address and switch statement
-                let mem_addr = ins
-                    .virtual_address(noperand, 0, |reg, idx, _sz| {
-                        Some(self.regs().get_reg(reg))
-                    })
-                    .unwrap();
 
-                if mem_addr != addr {
-                    unreachable!("something wrong");
-                }
-                */
                 // case when address is relative to rip then just return temp_displace
                 let displace = if mem_base == Register::None {
                     /*if self.cfg.verbose >= 3 {
@@ -642,34 +637,20 @@ impl Emu {
                     result
                 };
 
-                let displace_result = if !self.cfg.is_x64() {
-                    let masked = displace & 0xffffffff;
-                    /*if self.cfg.verbose >= 3 {
-                        log::debug!("  32-bit mode: displace_result=0x{:x} (masked from 0x{:x})", masked, displace);
-                    }*/
-                    masked
-                } else {
-                    /*if self.cfg.verbose >= 3 {
-                        log::debug!("  64-bit mode: displace_result=0x{:x}", displace);
-                    }*/
-                    displace
-                };
+                let displace_result = std::hint::select_unpredictable(
+                    !self.cfg.is_x64(),
+                    displace & 0xffffffff,
+                    displace,
+                );
 
                 // do this for cmov optimization
-                let mem_addr = if mem_base == Register::RIP {
-                    /*if self.cfg.verbose >= 3 {
-                        log::debug!("  RIP-relative: mem_addr=temp_displace=0x{:x}", temp_displace);
-                    }*/
-                    temp_displace
-                } else {
-                    /*if self.cfg.verbose >= 3 {
-                        log::debug!("  Final mem_addr for write=0x{:x}", displace_result);
-                    }*/
-                    displace_result
-                };
+                let mem_addr = std::hint::select_unpredictable(
+                    mem_base == Register::RIP,
+                    temp_displace,
+                    displace_result,
+                );
 
-                let sz = self.get_operand_sz(ins, noperand);
-
+                let sz = (ins.memory_size().size() * 8) as u32;
                 let value2 = if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
                     let rip = self.regs().rip;
                     let result = hook_fn(self, rip, mem_addr, sz, value as u128) as u64;
@@ -679,30 +660,18 @@ impl Emu {
                     value
                 };
 
-                let old_value = if self.cfg.trace_mem {
-                    match sz {
-                        64 => self.maps.read_qword(mem_addr).unwrap_or(0),
-                        32 => self.maps.read_dword(mem_addr).unwrap_or(0) as u64,
-                        16 => self.maps.read_word(mem_addr).unwrap_or(0) as u64,
-                        8 => self.maps.read_byte(mem_addr).unwrap_or(0) as u64,
-                        _ => unreachable!("weird size: {}", sz),
-                    }
-                } else {
-                    0
-                };
-
                 // now we flush the cacheline if it is written to executable memory and the cacheline exist
-                let should_flush = self
+                let is_flush = self
                     .maps
                     .get_mem_by_addr(mem_addr)
                     .is_some_and(|mem1| mem1.can_execute());
-                if should_flush {
+                if unlikely(is_flush) {
                     let idx = self.x86_instruction_cache_ref().get_index_of(mem_addr, 0);
                     self.x86_instruction_cache().flush_cache_line(idx);
                 }
                 match sz {
                     64 => {
-                        if !self.maps.write_qword(mem_addr, value2) {
+                        if unlikely(!self.maps.write_qword(mem_addr, value2)) {
                             if self.try_grow_stack(mem_addr)
                                 && self.maps.write_qword(mem_addr, value2)
                             {
@@ -733,7 +702,7 @@ impl Emu {
                         }
                     }
                     32 => {
-                        if !self.maps.write_dword(mem_addr, to32!(value2)) {
+                        if unlikely(!self.maps.write_dword(mem_addr, to32!(value2))) {
                             if self.try_grow_stack(mem_addr)
                                 && self.maps.write_dword(mem_addr, to32!(value2))
                             {
@@ -764,7 +733,7 @@ impl Emu {
                         }
                     }
                     16 => {
-                        if !self.maps.write_word(mem_addr, value2 as u16) {
+                        if unlikely(!self.maps.write_word(mem_addr, value2 as u16)) {
                             if self.try_grow_stack(mem_addr)
                                 && self.maps.write_word(mem_addr, value2 as u16)
                             {
@@ -794,8 +763,9 @@ impl Emu {
                             }
                         }
                     }
-                    8 => {
-                        if !self.maps.write_byte(mem_addr, value2 as u8) {
+                    // the last one have to be 8
+                    _ => {
+                        if unlikely(!self.maps.write_byte(mem_addr, value2 as u8)) {
                             if self.try_grow_stack(mem_addr)
                                 && self.maps.write_byte(mem_addr, value2 as u8)
                             {
@@ -841,11 +811,17 @@ impl Emu {
                             }
                         }
                     }
-                    _ => unimplemented!("weird size"),
                 }
 
                 if self.cfg.trace_mem {
                     let name = self.maps.get_addr_name(mem_addr).unwrap_or("not mapped");
+                    let old_value = match sz {
+                        64 => self.maps.read_qword(mem_addr).unwrap_or(0),
+                        32 => self.maps.read_dword(mem_addr).unwrap_or(0) as u64,
+                        16 => self.maps.read_word(mem_addr).unwrap_or(0) as u64,
+                        8 => self.maps.read_byte(mem_addr).unwrap_or(0) as u64,
+                        _ => unreachable!("weird size: {}", sz),
+                    };
                     let memory_operation = MemoryOperation {
                         pos: self.pos,
                         rip: self.regs().rip,
@@ -881,7 +857,7 @@ impl Emu {
                     self.force_break = true;
                 }*/
 
-                if self.bp.is_bp_mem_write_addr(mem_addr) {
+                if unlikely(self.bp.is_bp_mem_write_addr(mem_addr)) {
                     log::trace!("Memory breakpoint on write 0x{:x}", mem_addr);
                     if self.running_script {
                         self.force_break = true;
@@ -890,8 +866,6 @@ impl Emu {
                     }
                 }
             }
-
-            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
         };
         true
     }
@@ -903,7 +877,7 @@ impl Emu {
         noperand: u32,
         do_derref: bool,
     ) -> Option<u128> {
-        assert!(ins.op_count() > noperand);
+        debug_assert!(ins.op_count() > noperand);
 
         let value: u128 = match ins.op_kind(noperand) {
             OpKind::Register => self.regs().get_xmm_reg(ins.op_register(noperand)),
@@ -962,7 +936,8 @@ impl Emu {
             OpKind::Register => self
                 .regs_mut()
                 .set_xmm_reg(ins.op_register(noperand), value),
-            OpKind::Memory => {
+            // because you can't set immediate, only check for two condition
+            _ => {
                 let mem_addr = match ins
                     .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs().get_reg(reg)))
                 {
@@ -987,7 +962,6 @@ impl Emu {
                     self.maps.write_byte(mem_addr + i as u64, *b);
                 }
             }
-            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
         };
     }
 
@@ -997,11 +971,9 @@ impl Emu {
         noperand: u32,
         do_derref: bool,
     ) -> Option<regs64::U256> {
-        assert!(ins.op_count() > noperand);
+        debug_assert!(ins.op_count() > noperand);
 
         let value: regs64::U256 = match ins.op_kind(noperand) {
-            OpKind::Register => self.regs().get_ymm_reg(ins.op_register(noperand)),
-
             OpKind::Immediate64 => regs64::U256::from(ins.immediate64()),
             OpKind::Immediate8 => regs64::U256::from(ins.immediate8() as u64),
             OpKind::Immediate16 => regs64::U256::from(ins.immediate16() as u64),
@@ -1010,8 +982,9 @@ impl Emu {
             OpKind::Immediate32to64 => regs64::U256::from(ins.immediate32to64() as u64),
             OpKind::Immediate8to32 => regs64::U256::from(ins.immediate8to32() as u32 as u64),
             OpKind::Immediate8to16 => regs64::U256::from(ins.immediate8to16() as u16 as u64),
-
-            OpKind::Memory => {
+            OpKind::Register => self.regs().get_ymm_reg(ins.op_register(noperand)),
+            // the last one have to be memory
+            _ => {
                 let mem_addr = match ins
                     .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs().get_reg(reg)))
                 {
@@ -1037,7 +1010,6 @@ impl Emu {
                     regs64::U256::from(mem_addr)
                 }
             }
-            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
         };
         Some(value)
     }
@@ -1055,7 +1027,8 @@ impl Emu {
             OpKind::Register => self
                 .regs_mut()
                 .set_ymm_reg(ins.op_register(noperand), value),
-            OpKind::Memory => {
+            // because you can't set immediate, only check for two condition
+            _ => {
                 let mem_addr = match ins
                     .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs().get_reg(reg)))
                 {
@@ -1082,74 +1055,16 @@ impl Emu {
                 value.to_little_endian(&mut bytes);
                 self.maps.write_bytes(mem_addr, &bytes);
             }
-            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
         };
     }
 
     /// Fetch the size in amount of bits of a specific operand (reg/mem/imm), if it's a memory operation it
     /// depend on the dword ptr, qword ptr etc.
     pub fn get_operand_sz(&self, ins: &Instruction, noperand: u32) -> u32 {
-        let reg: Register = ins.op_register(noperand);
-        if reg.is_xmm() {
-            return 128;
-        }
-        if reg.is_ymm() {
-            return 256;
-        }
-
         match ins.op_kind(noperand) {
-            //TODO: OpKind::Immediate8to64 could be 8
-            OpKind::NearBranch64
-            | OpKind::Immediate64
-            | OpKind::Immediate32to64
-            | OpKind::Immediate8to64
-            | OpKind::MemoryESRDI
-            | OpKind::MemorySegRSI => 64,
-            OpKind::NearBranch32
-            | OpKind::Immediate32
-            | OpKind::Immediate8to32
-            | OpKind::FarBranch32
-            | OpKind::MemoryESEDI
-            | OpKind::MemorySegESI => 32,
-            OpKind::NearBranch16
-            | OpKind::FarBranch16
-            | OpKind::Immediate16
-            | OpKind::Immediate8to16 => 16,
-            OpKind::Immediate8 => 8,
             OpKind::Register => self.regs().get_size(ins.op_register(noperand)),
-
-            OpKind::Memory => match ins.memory_size() {
-                MemorySize::Float16
-                | MemorySize::UInt16
-                | MemorySize::Int16
-                | MemorySize::WordOffset
-                | MemorySize::Packed128_UInt16
-                | MemorySize::Bound16_WordWord => 16,
-                MemorySize::Float32
-                | MemorySize::FpuEnv28
-                | MemorySize::UInt32
-                | MemorySize::Int32
-                | MemorySize::DwordOffset
-                | MemorySize::Packed128_UInt32
-                | MemorySize::Bound32_DwordDword
-                | MemorySize::Packed64_Float32
-                | MemorySize::Packed256_UInt32
-                | MemorySize::Packed128_Float32
-                | MemorySize::Packed256_Float32
-                | MemorySize::SegPtr32 => 32,
-                MemorySize::Float64
-                | MemorySize::UInt64
-                | MemorySize::Int64
-                | MemorySize::QwordOffset
-                | MemorySize::Packed128_UInt64
-                | MemorySize::Packed256_UInt64
-                | MemorySize::Packed128_Float64
-                | MemorySize::Packed256_Float64 => 64,
-                MemorySize::UInt8 | MemorySize::Int8 => 8,
-                MemorySize::Packed256_UInt128 => 128,
-                _ => unimplemented!("memory size {:?}", ins.memory_size()),
-            },
-            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
+            OpKind::Memory => (ins.memory_size().size() * 8) as u32,
+            _ => OP_KIND_BIT_WIDTH[ins.op_kind(noperand) as usize] as u32,
         }
     }
 }
