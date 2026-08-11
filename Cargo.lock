@@ -1706,7 +1706,7 @@ dependencies = [
 
 [[package]]
 name = "pymwemu"
-version = "0.11.6"
+version = "0.11.7"
 dependencies = [
  "env_logger",
  "libmwemu",
