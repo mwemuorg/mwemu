@@ -1,6 +1,6 @@
 [package]
 name = "libmwemu"
-version = "0.25.3"
+version = "0.25.4"
 edition = "2024"
 authors = ["sha0coder"]
 license = "Apache-2.0"
