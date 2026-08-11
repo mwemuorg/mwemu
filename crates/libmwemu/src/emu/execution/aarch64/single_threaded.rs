@@ -64,6 +64,7 @@ impl Emu {
                 // otherwise PC sitting one past the end (e.g. after final loop iteration
                 // under run_to) errors out as "unmapped" instead of cleanly stopping.
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
+                    std::hint::cold_path();
                     return Ok(limit_pc);
                 }
 
