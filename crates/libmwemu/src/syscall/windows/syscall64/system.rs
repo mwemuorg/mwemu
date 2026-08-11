@@ -74,6 +74,11 @@ const SYSTEM_THREAD_INFO_SIZE: u32 = 0x50;
 const SYSTEM_CODE_INTEGRITY_INFO_SIZE: u32 = 0x08;
 const SYSTEM_KERNEL_DEBUGGER_INFO_SIZE: u32 = 0x02;
 const SYSTEM_KERNEL_DEBUGGER_INFO_EX_SIZE: u32 = 0x03;
+/// `SYSTEM_NUMA_INFORMATION`: HighestNodeNumber (4) + Reserved (4) + the
+/// 64-entry group-affinity/available-memory union (64 * 16).
+const SYSTEM_NUMA_INFORMATION_SIZE: u32 = 0x408;
+/// `SYSTEM_HYPERVISOR_SHARED_PAGE_INFORMATION`: a single pointer-sized field.
+const SYSTEM_HYPERVISOR_SHARED_PAGE_INFO_SIZE: u32 = 0x08;
 const SYSTEM_EXTENDED_HANDLE_HEADER_SIZE: u32 = 0x10;
 const SYSTEM_MEMORY_LIST_INFO_SIZE: u32 = 0xB0;
 const SYSTEM_ERROR_PORT_TIMEOUTS_SIZE: u32 = 0x08;
@@ -814,6 +819,29 @@ pub fn nt_query_system_information(emu: &mut Emu) {
             emu.regs_mut().rax = STATUS_SUCCESS;
         }
 
+        // `LdrInitializeThunk` probes these two during process init and treats a
+        // failure status as fatal (it raises STATUS_APP_INIT_FAILURE and calls
+        // NtTerminateProcess). Real Windows answers both with STATUS_SUCCESS, so
+        // model them as a zero-filled buffer: NUMA reports a single node
+        // (HighestNodeNumber == 0) and the hypervisor shared page reports none.
+        SYSTEM_NUMA_PROCESSOR_MAP | SYSTEM_HYPERVISOR_SHARED_PAGE_INFORMATION => {
+            let required = if class == SYSTEM_NUMA_PROCESSOR_MAP {
+                SYSTEM_NUMA_INFORMATION_SIZE
+            } else {
+                SYSTEM_HYPERVISOR_SHARED_PAGE_INFO_SIZE
+            };
+            if !validate_modeled_output_buffer(emu, info, len, ret_len_ptr, required) {
+                return;
+            }
+            if !bulk_write_zero(emu, info, required)
+                || !write_return_length(emu, ret_len_ptr, required)
+            {
+                emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+                return;
+            }
+            emu.regs_mut().rax = STATUS_SUCCESS;
+        }
+
         SYSTEM_FULL_MEMORY_INFORMATION
         | SYSTEM_SUMMARY_MEMORY_INFORMATION
         | SYSTEM_MEMORY_USAGE_INFORMATION
@@ -821,11 +849,9 @@ pub fn nt_query_system_information(emu: &mut Emu) {
         | SYSTEM_CURRENT_TIME_ZONE_INFORMATION
         | SYSTEM_DYNAMIC_TIME_ZONE_INFORMATION
         | SYSTEM_RANGE_START_INFORMATION
-        | SYSTEM_NUMA_PROCESSOR_MAP
         | SYSTEM_NUMA_AVAILABLE_MEMORY
         | SYSTEM_LOGICAL_PROCESSOR_INFORMATION
         | SYSTEM_BOOT_ENVIRONMENT_INFORMATION
-        | SYSTEM_HYPERVISOR_SHARED_PAGE_INFORMATION
         | SYSTEM_FLUSH_INFORMATION
         | SYSTEM_SUPPORTED_PROCESSOR_ARCHITECTURES
         | SYSTEM_SUPPORTED_PROCESSOR_ARCHITECTURES2 => {

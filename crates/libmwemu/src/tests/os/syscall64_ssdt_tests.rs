@@ -904,13 +904,40 @@ fn qsi_class_0xc0_flush_information_returns_not_supported() {
 }
 
 #[test]
-fn qsi_class_0xc5_hypervisor_shared_page_returns_not_supported() {
+fn qsi_class_0xc5_hypervisor_shared_page_rejects_short_buffer() {
     helpers::setup();
     let mut emu = setup_emu64_syscall();
+    // 4 bytes is short of the pointer-sized payload.
     setup_qsi(&mut emu, 0xC5, 0x800100, 0x04, 0x101100);
     syscall64::gateway(&mut emu);
-    assert_eq!(emu.regs().rax, STATUS_NOT_SUPPORTED);
-    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(1), 0);
+    assert_eq!(emu.regs().rax, STATUS_INFO_LENGTH_MISMATCH);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x08);
+}
+
+/// `LdrInitializeThunk` probes this during init and treats any failure status as
+/// fatal, so it must succeed rather than report STATUS_NOT_SUPPORTED.
+#[test]
+fn qsi_class_0xc5_hypervisor_shared_page_succeeds() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0xC5, 0x800100, 0x08, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert_eq!(emu.maps.read_qword(0x800100).unwrap_or(1), 0);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x08);
+}
+
+/// Same fatal-on-failure path as 0xC5: NUMA reports a single node.
+#[test]
+fn qsi_class_0x37_numa_processor_map_succeeds() {
+    helpers::setup();
+    let mut emu = setup_emu64_syscall();
+    setup_qsi(&mut emu, 0x37, 0x800100, 0x408, 0x101100);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    // HighestNodeNumber == 0 -> one NUMA node.
+    assert_eq!(emu.maps.read_dword(0x800100).unwrap_or(1), 0);
+    assert_eq!(emu.maps.read_dword(0x101100).unwrap_or(0), 0x408);
 }
 
 #[test]
