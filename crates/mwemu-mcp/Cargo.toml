@@ -16,7 +16,7 @@ name = "mwemu-mcp"
 path = "src/main.rs"
 
 [dependencies]
-libmwemu = { path = "../libmwemu" }
+libmwemu = { path = "../libmwemu", version = "0.25.4" }
 serde_json = "1.0"
 log = "0.4.22"
 env_logger = "0.11.8"

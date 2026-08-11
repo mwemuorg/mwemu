@@ -13,7 +13,7 @@ name = "cmwemu"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-libmwemu = { path = "../libmwemu" }
+libmwemu = { path = "../libmwemu", version = "0.25.4" }
 
 [build-dependencies]
 cbindgen = "0.29"
