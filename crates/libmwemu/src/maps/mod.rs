@@ -25,7 +25,7 @@ pub struct Maps {
     // adding slab so that it is easier to manage memory, now every other place contain the
     // key to the memory slab
     pub mem_slab: Slab<Mem64>,
-    pub maps: BTreeMap<u64, usize>,
+    pub maps: BTreeMap<u64, usize>, // the Btree consist of memory base as key and the value is the key to the mem_slab
     pub name_map: AHashMap<String, usize>,
     pub is_64bits: bool,
     tlb: RefCell<TLB>,
@@ -179,7 +179,7 @@ impl Maps {
         let banzai = self.banzai;
         match self.get_mem_by_addr(addr) {
             Some(mem) if mem.inside(end_addr) && mem.can_read() => {
-                crate::maps::scalar::read_le(mem.read_bytes(addr, T::SIZE))
+                scalar::read_le(mem.read_bytes(addr, T::SIZE))
             }
             None if banzai => {
                 log::warn!(
@@ -717,16 +717,15 @@ impl Maps {
     }
 
     pub fn map_lib(&mut self, name: &str, sz: u64, permission: Permission) -> u64 {
-        let addr = self.alloc(sz).expect("emu.maps.map(sz) cannot allocate");
-        if self.is_64bits {
-            let addr = self
+        let addr = if self.is_64bits {
+            self
                 .lib64_alloc(sz)
-                .expect("emu.maps.map_lib(sz) cannot allocate");
+                .expect("emu.maps.map_lib(sz) cannot allocate")
         } else {
-            let addr = self
+            self
                 .lib32_alloc(sz)
-                .expect("emu.maps.map_lib(sz) cannot allocate");
-        }
+                .expect("emu.maps.map_lib(sz) cannot allocate")
+        };
         self.create_map(name, addr, sz, permission)
             .expect("emu.maps.map_lib(sz) cannot create map");
         addr
@@ -762,7 +761,7 @@ impl Maps {
          */
 
         let mut prev: u64 = self.align_up(bottom, Self::DEFAULT_ALIGNMENT);
-        let debug = false;
+        let bottom_aligned = prev;
 
         if sz > self.max_alloc_size {
             sz = self.max_alloc_size;
@@ -771,50 +770,16 @@ impl Maps {
         // Round up size to alignment
         sz = self.align_up(sz, Self::DEFAULT_ALIGNMENT);
 
-        if debug {
-            log::trace!("allocating {} bytes from 0x{:x} to 0x{:x}", sz, bottom, top);
-        }
-
-        // Here we assume that we go from the bottom to the most
-        for mem_key in self.maps.values() {
-            let mem = self.mem_slab.get(*mem_key).unwrap();
-            let base = mem.get_base();
-
-            if lib && base < bottom {
-                if debug {
-                    log::trace!("skipping: 0x{:x}", base);
-                }
-                continue;
-            }
-
-            if debug {
-                log::trace!("base: 0x{:x} prev: 0x{:x} sz: 0x{:x}", base, prev, sz);
-            }
-            if prev > base {
-                // we shouldn't care about this we just skip this memory region
-                continue;
-                // aborted:("alloc error prev:0x{:x} > base:0x{:x}", prev, base);
-            }
-            if debug {
-                log::trace!("space: 0x{:x}", base - prev);
-            }
-            if (base - prev) > sz {
-                if debug {
-                    log::trace!("space found: 0x{:x}", prev);
-                }
+        // Here we assume that we go from the bottom of the memory to the top of the memory
+        for (&mem_key, _) in self.maps.range(bottom_aligned..top) {
+            if mem_key.checked_sub(prev).is_some_and(|result| result > sz) {
                 return Some(prev);
             }
 
-            prev = self.align_up(mem.get_bottom(), Self::DEFAULT_ALIGNMENT);
+            prev = mem_key;
         }
 
-        if top < prev {
-            prev = self.align_up(top, Self::DEFAULT_ALIGNMENT);
-        }
         if top - prev > sz {
-            if debug {
-                log::trace!("space found: 0x{:x} sz:{}", prev, sz);
-            }
             return Some(prev);
         }
 
@@ -822,10 +787,12 @@ impl Maps {
         None
     }
 
+    #[inline(always)]
     fn align_up(&self, addr: u64, align: u64) -> u64 {
         (addr + (align - 1)) & !(align - 1)
     }
 
+    #[inline(always)]
     fn align_down(&self, addr: u64, align: u64) -> u64 {
         addr & !(align - 1)
     }

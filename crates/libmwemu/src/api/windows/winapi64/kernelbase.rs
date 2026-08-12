@@ -391,14 +391,12 @@ fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
 }
 
 fn LocalAlloc(emu: &mut emu::Emu) {
+    // LocalAlloc(uFlags, uBytes) is equivalent to HeapAlloc(GetProcessHeap(), uFlags, uBytes)
+    // rcx = uFlags, rdx = uBytes -> rcx = 0 (global heap), rdx = uFlags, r8 = uBytes
     let flags = emu.regs().rcx;
     let size = emu.regs().rdx;
-
-    let addr = emu.maps.alloc(size).unwrap_or_default();
-
-    log_red!(emu, "kernelbase!LocalAlloc {} =0x{:x}", size, addr);
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = addr;
+    emu.regs_mut().rcx = 0;
+    emu.regs_mut().rdx = flags;
+    emu.regs_mut().r8 = size;
+    winapi64::kernel32::HeapAlloc(emu);
 }

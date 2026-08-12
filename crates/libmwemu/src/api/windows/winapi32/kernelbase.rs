@@ -157,20 +157,8 @@ fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
 }
 
 fn LocalAlloc(emu: &mut emu::Emu) {
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().rsp)
-        .expect("kernelbase!LocalAlloc error reading param");
-    let size = emu
-        .maps
-        .read_dword(emu.regs().rsp + 4)
-        .expect("kernelbase!LocalAlloc error reading param") as u64;
-
-    let addr = emu.maps.alloc(size).unwrap_or_default();
-
-    log_red!(emu, "kernelbase!LocalAlloc {} =0x{:x}", size, addr);
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = addr;
+    // LocalAlloc(uFlags, uBytes) is equivalent to HeapAlloc(GetProcessHeap(), uFlags, uBytes)
+    // push a dummy handle for the global heap
+    emu.stack_push32(0x0);
+    kernel32::HeapAlloc(emu);
 }

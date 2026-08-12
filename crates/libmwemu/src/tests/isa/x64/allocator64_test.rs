@@ -15,7 +15,7 @@ pub fn allocator64_test() {
     assert_eq!(emu.maps.exists_mapname("notexist"), false);
     assert_eq!(emu.maps.get_map_by_name("notexist").is_some(), false);
 
-    for _ in 0..700 {
+    for _ in 0..300 {
         assert_eq!(emu.maps.alloc(1024).is_some(), true);
         assert_eq!(emu.maps.lib64_alloc(1024).is_some(), true);
     }

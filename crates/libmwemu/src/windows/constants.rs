@@ -22,13 +22,12 @@ pub const CFG_DEFAULT_BASE: u64 = 0x3c0000;
 pub const BLOCK_LEN: usize = 0x300;
 pub const ALLOC32_MIN: u64 = 0x6000000;
 pub const ALLOC32_MAX: u64 = 0x6FFFFFFF;
-pub const LIBS32_MIN: u64 = 0x70000000;
-pub const LIBS32_MAX: u64 = 0x7FFFFFFF;
-
-pub const ALLOC64_MIN: u64 = 0x7fe000000000;
-pub const ALLOC64_MAX: u64 = 0x7fefffffffff;
-pub const LIBS64_MIN: u64 = 0x7FF000000000;
-pub const LIBS64_MAX: u64 = 0x7FFFFFFFFFFF;
+pub const LIBS32_MIN: u64 = 0x70_000_000;
+pub const LIBS32_MAX: u64 = 0x7F_FFF_FFF;
+pub const ALLOC64_MIN: u64 = 0x77C0_000;
+pub const ALLOC64_MAX: u64 = 0x7fe_fff_fff_fff;
+pub const LIBS64_MIN: u64 = 0x7FF_000_000_000;
+pub const LIBS64_MAX: u64 = 0x7FF_FFF_FFF_FFF;
 
 // macOS dylib address range (reuses same range — never coexists with Windows libs)
 pub const DYLIBS_MACOS_MIN: u64 = 0x7FF000000000;
