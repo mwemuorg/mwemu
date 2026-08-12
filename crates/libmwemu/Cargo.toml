@@ -64,3 +64,23 @@ hex = "0.4.3"
 default = []
 log_mem_read = []
 log_mem_write = []
+# Gates the examples/ programs. Off by default so a plain `cargo build` or
+# `cargo test` doesn't pay for compiling them; turn it on to run them:
+#   cargo run -p libmwemu --features examples --example 01_shellcode
+examples = []
+
+[[example]]
+name = "01_shellcode"
+required-features = ["examples"]
+
+[[example]]
+name = "02_memory"
+required-features = ["examples"]
+
+[[example]]
+name = "03_hooks"
+required-features = ["examples"]
+
+[[example]]
+name = "04_load_binary"
+required-features = ["examples"]
