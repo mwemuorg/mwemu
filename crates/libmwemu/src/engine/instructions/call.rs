@@ -3,16 +3,13 @@ use crate::emu::Emu;
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::{LIBS64_MAX, LIBS64_MIN};
 use iced_x86::Instruction;
+use crate::utils::helpers::unlikely;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(
         color!("Yellow"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-
-    if ins.op_count() != 1 {
-        unimplemented!("weird variant of call");
-    }
 
     let addr = match emu.get_jump_value(ins, 0) {
         Some(a) => a,
@@ -69,7 +66,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             && rip < LIBS64_MIN
             && (LIBS64_MIN..=LIBS64_MAX).contains(&addr)
             && emu.maps.is_mapped(addr);
-        if pad_call {
+        if unlikely(pad_call) {
             emu.regs_mut().rsp = emu.regs().rsp.wrapping_sub(0x20);
             let expected_ra = rip + instruction_sz as u64;
             emu.ssdt_pad_stack.push(expected_ra);

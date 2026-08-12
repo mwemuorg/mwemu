@@ -2,6 +2,7 @@ use crate::{
     console::Console, emu::Emu, exception::types::ExceptionType, winapi::winapi32,
     winapi::winapi64, windows::constants,
 };
+use crate::utils::helpers::unlikely;
 
 impl Emu {
     fn resolve_unix_x64_symbol(&self, addr: u64) -> String {
@@ -63,7 +64,7 @@ impl Emu {
     pub fn set_rip(&mut self, addr: u64, is_branch: bool) -> bool {
         self.force_reload = true;
 
-        if addr == constants::RETURN_THREAD as u64 {
+        if unlikely(addr == constants::RETURN_THREAD as u64) {
             log::trace!("/!\\ Thread returned, continuing the main thread");
             self.regs_mut().rip = self.main_thread_cont;
             Console::spawn_console(self);
@@ -72,7 +73,7 @@ impl Emu {
         }
 
         let name = match self.maps.get_addr_name(addr) {
-            Some(n) => n, //DON"T EVER MODIFY THIS AND ADD to_string IT MAKE THE COMPILER SO SO MUCH SLOWER
+            Some(n) => n, //DON'T EVER MODIFY THIS AND ADD to_string IT MAKE THE COMPILER SO SO MUCH SLOWER
             None => {
                 if self.os.is_linux() {
                     return false;
@@ -122,12 +123,13 @@ impl Emu {
             if self.cfg.verbose > 1 {
                 let rip = self.regs().rip;
                 let prev = self.maps.get_addr_name(rip).unwrap_or("??");
-                if prev != name {
+                if unlikely(prev != name) {
                     log::trace!("{}:0x{:x} map change  {} -> {}", self.pos, rip, prev, name);
                 }
             }
 
             self.regs_mut().rip = addr;
+            true
         } else if self.os.is_linux() && self.cfg.linux_real_libc {
             // Real-libc mode: execute the actual mapped libc/ld machine code.
             // Only `__libc_start_main` is still bootstrapped in Rust so we can
@@ -145,11 +147,12 @@ impl Emu {
                 }
             }
             self.regs_mut().rip = addr;
-            return true;
+            true
         } else if self.os.is_linux() || self.os.is_macos() {
             let section_name = name.to_string();
-            return self.intercept_unix_x64_api_call(addr, &section_name);
+            self.intercept_unix_x64_api_call(addr, &section_name)
         } else {
+            std::hint::cold_path();
             if self.cfg.verbose >= 2 && !self.cfg.emulate_winapi {
                 log::trace!("/!\\ changing RIP to {} ", name);
             }
@@ -160,7 +163,7 @@ impl Emu {
             // No Rust winapi stubs are used here — the whole point of SSDT is
             // to emulate the real DLLs and only implement the kernel syscall
             // surface.
-            if self.cfg.emulate_winapi {
+            if unlikely(self.cfg.emulate_winapi) {
                 let api_name = winapi64::kernel32::guess_api_name(self, addr);
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
@@ -187,7 +190,7 @@ impl Emu {
                     true
                 };
 
-            if handle_winapi {
+            if unlikely(handle_winapi) {
                 let name = self
                     .maps
                     .get_addr_name(addr)
@@ -195,9 +198,8 @@ impl Emu {
                 winapi64::gateway(addr, name.to_string().as_str(), self);
             }
             self.force_break = true;
+            true
         }
-
-        true
     }
 
     /// Redirect execution flow for AArch64 branches.

@@ -3,17 +3,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static COLOR_ENABLED: AtomicBool = AtomicBool::new(true);
 
-// TODO: remove the code when 'likely' and 'unlikely' are stable
-#[inline(always)]
-#[cold]
-fn cold_path() {}
-
 #[inline(always)]
 pub(crate) fn likely(b: bool) -> bool {
     if b {
         true
     } else {
-        cold_path();
+        std::hint::cold_path();
         false
     }
 }
@@ -21,7 +16,7 @@ pub(crate) fn likely(b: bool) -> bool {
 #[inline(always)]
 pub(crate) fn unlikely(b: bool) -> bool {
     if b {
-        cold_path();
+        std::hint::cold_path();
         true
     } else {
         false

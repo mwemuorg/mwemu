@@ -865,35 +865,50 @@ impl Maps {
     }
 
     pub fn mem_test(&self) -> bool {
-        for (_, mem1) in self.mem_slab.iter() {
-            let name1 = mem1.get_name();
+        // Collect (name, base, bottom) once; the slab is a Slab<Mem> and iterating
+        // it twice is safe while we hold no mutable borrow here.
+        let regions: Vec<(u64, u64, String)> = self
+            .mem_slab
+            .iter()
+            .map(|(_, m)| (m.get_base(), m.get_bottom(), m.get_name().to_string()))
+            .collect();
 
-            for (_, mem2) in self.mem_slab.iter() {
-                let name2 = mem2.get_name();
+        for i in 0..regions.len() {
+            let (b1, t1, ref n1) = regions[i];
 
-                if name1 != name2 {
-                    for addr1 in mem1.get_base()..mem1.get_bottom() {
-                        if mem2.inside(addr1) {
-                            log::trace!("/!\\ {} overlaps with {}", name1, name2);
-                            log::trace!(
-                                "/!\\ 0x{:x}-0x{:x} vs 0x{:x}-0x{:x}",
-                                mem1.get_base(),
-                                mem1.get_bottom(),
-                                mem2.get_base(),
-                                mem2.get_bottom()
-                            );
-                            return false;
-                        }
-                    }
+            for j in 0..regions.len() {
+                if i == j {
+                    continue;
+                }
+                let (b2, t2, ref n2) = regions[j];
+
+                // Pairwise overlap test: two half-open ranges [b1, t1), [b2, t2)
+                // overlap iff b1 < t2 && b2 < t1. Equivalent to the original
+                // per-byte scan in O(1) instead of O(region size).
+                if b1 < t2 && b2 < t1 {
+                    log::trace!("/!\\ {} overlaps with {}", n1, n2);
+                    log::trace!(
+                        "/!\\ 0x{:x}-0x{:x} vs 0x{:x}-0x{:x}",
+                        b1,
+                        t1,
+                        b2,
+                        t2
+                    );
+                    return false;
                 }
             }
 
-            if (mem1.get_base() + (mem1.size() as u64)) != mem1.get_bottom() {
-                log::trace!("/!\\ memory bottom dont match, mem: {}", name1);
+        }
+
+        // Bottom must equal base + size.
+        for (_, mem) in self.mem_slab.iter() {
+            if mem.get_base() + (mem.size() as u64) != mem.get_bottom() {
+                log::trace!("/!\\ memory bottom dont match, mem: {}", mem.get_name());
                 return false;
             }
         }
 
         true
     }
+
 }
