@@ -1176,7 +1176,7 @@ checksum = "6a82ae493e598baaea5209805c49bbf2ea7de956d50d7da0da1164f9c6d28543"
 
 [[package]]
 name = "libmwemu"
-version = "0.25.3"
+version = "0.25.4"
 dependencies = [
  "ahash",
  "atty",
@@ -1706,7 +1706,7 @@ dependencies = [
 
 [[package]]
 name = "pymwemu"
-version = "0.11.6"
+version = "0.11.7"
 dependencies = [
  "env_logger",
  "libmwemu",
@@ -2012,7 +2012,7 @@ dependencies = [
 
 [[package]]
 name = "rs-header"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "log",
 ]
