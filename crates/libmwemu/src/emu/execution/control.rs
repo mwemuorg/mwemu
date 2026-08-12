@@ -39,7 +39,11 @@ impl Emu {
 
     #[inline(always)]
     pub(crate) fn reached_outer_run_limit(&self, pc: u64, end_addr: Option<u64>) -> Option<u64> {
-        std::hint::select_unpredictable(end_addr.is_some_and(|end_addr| {pc == end_addr}), end_addr, None)
+        std::hint::select_unpredictable(
+            end_addr.is_some_and(|end_addr| pc == end_addr),
+            end_addr,
+            None,
+        )
     }
 
     pub(crate) fn observe_loop_progress(

@@ -9,6 +9,7 @@ mod utilities;
 use crate::maps::mem64::Permission;
 use crate::maps::scalar::{LittleEndianScalar, ScalarKind};
 use crate::maps::tlb::LPF_OF;
+use crate::utils::helpers::{likely, unlikely};
 use crate::windows::constants;
 use ahash::AHashMap;
 use mem64::Mem64;
@@ -151,7 +152,7 @@ impl Maps {
         //}
 
         if self.get_mem_by_addr_mut(base).is_some() {
-            return Err(format!("this map address 0x{:x} already exists!", base));
+            return Err(format!("The map address 0x{:x} already exists!", base));
         }
 
         if self.exists_mapname(name) {
@@ -643,13 +644,12 @@ impl Maps {
         sz
     }
 
+    #[inline]
     pub fn overlaps(&self, addr: u64, sz: u64) -> bool {
-        for a in addr..addr + sz {
-            if self.is_mapped(a) {
-                return true;
-            }
-        }
-        false
+        self.maps
+            .range(addr..addr + sz)
+            .find(|(_, _)| true)
+            .is_some()
     }
 
     pub fn show_allocs(&self) {
@@ -718,12 +718,10 @@ impl Maps {
 
     pub fn map_lib(&mut self, name: &str, sz: u64, permission: Permission) -> u64 {
         let addr = if self.is_64bits {
-            self
-                .lib64_alloc(sz)
+            self.lib64_alloc(sz)
                 .expect("emu.maps.map_lib(sz) cannot allocate")
         } else {
-            self
-                .lib32_alloc(sz)
+            self.lib32_alloc(sz)
                 .expect("emu.maps.map_lib(sz) cannot allocate")
         };
         self.create_map(name, addr, sz, permission)
@@ -748,8 +746,11 @@ impl Maps {
         }
     }
 
-    fn _alloc(&self, mut sz: u64, bottom: u64, top: u64, lib: bool) -> Option<u64> {
+    fn _alloc(&self, size: u64, bottom: u64, top: u64, lib: bool) -> Option<u64> {
         /*
+         * The idea behind this is that we just get the last entry in the range from bottom to top and
+         * add the size to that address and check if it out of the top range, if it is false then we found the
+         * place to allocate to.
          *  params:
          *    sz: size to allocate, this number will be aligned.
          *    bottom: minimum address to allocate
@@ -760,27 +761,50 @@ impl Maps {
          *    base: base address of specific map.
          */
 
-        let mut prev: u64 = self.align_up(bottom, Self::DEFAULT_ALIGNMENT);
-        let bottom_aligned = prev;
+        let bottom_aligned = self.align_up(bottom, Self::DEFAULT_ALIGNMENT);
 
-        if sz > self.max_alloc_size {
-            sz = self.max_alloc_size;
-        }
+        let size_max = if unlikely(size > self.max_alloc_size) {
+            self.max_alloc_size
+        } else {
+            size
+        };
 
         // Round up size to alignment
-        sz = self.align_up(sz, Self::DEFAULT_ALIGNMENT);
+        let aligned_size = self.align_up(size_max, Self::DEFAULT_ALIGNMENT);
+        let last_entry_end = self
+            .maps
+            .range(..top)
+            .next_back()
+            .map(|(addr, mem)| {
+                let mem = self.mem_slab.get(*mem).unwrap();
+                let sz = mem.size() as u64;
+                let base = addr.clone();
+                self.align_up(base + sz, Self::DEFAULT_ALIGNMENT)
+            })
+            .unwrap_or(bottom_aligned)
+            .max(bottom_aligned);
 
-        // Here we assume that we go from the bottom of the memory to the top of the memory
-        for (&mem_key, _) in self.maps.range(bottom_aligned..top) {
-            if mem_key.checked_sub(prev).is_some_and(|result| result > sz) {
-                return Some(prev);
-            }
-
-            prev = mem_key;
+        if likely(
+            top.checked_sub(last_entry_end)
+                .is_some_and(|result| result > aligned_size),
+        ) {
+            return Some(last_entry_end);
         }
 
-        if top - prev > sz {
-            return Some(prev);
+        let mut prev: u64 = bottom_aligned;
+        let mut sz: u64 = 0x0;
+        // Here we assume that we go from the bottom of the memory to the top of the memory
+        for (&mem_base, mem_key) in self.maps.range(bottom_aligned + 1..top) {
+            if mem_base
+                .checked_sub(prev + sz)
+                .is_some_and(|result| result > aligned_size)
+            {
+                return Some(prev + sz);
+            }
+
+            let mem = self.mem_slab.get(*mem_key).unwrap();
+            sz = mem.size() as u64;
+            prev = mem_base;
         }
 
         log::trace!("no space found");
@@ -854,17 +878,10 @@ impl Maps {
                 // per-byte scan in O(1) instead of O(region size).
                 if b1 < t2 && b2 < t1 {
                     log::trace!("/!\\ {} overlaps with {}", n1, n2);
-                    log::trace!(
-                        "/!\\ 0x{:x}-0x{:x} vs 0x{:x}-0x{:x}",
-                        b1,
-                        t1,
-                        b2,
-                        t2
-                    );
+                    log::trace!("/!\\ 0x{:x}-0x{:x} vs 0x{:x}-0x{:x}", b1, t1, b2, t2);
                     return false;
                 }
             }
-
         }
 
         // Bottom must equal base + size.
@@ -877,5 +894,4 @@ impl Maps {
 
         true
     }
-
 }

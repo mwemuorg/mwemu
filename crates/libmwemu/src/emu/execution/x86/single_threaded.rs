@@ -222,9 +222,11 @@ impl Emu {
                         sz = x86_ins.len();
                         addr = x86_ins.ip();
 
-                        if unlikely(end_addr.is_some_and(|end_addr| end_addr == addr)) || unlikely(self.max_pos.is_some_and(|max_pos| self.pos >= max_pos)) {
+                        if unlikely(end_addr.is_some_and(|end_addr| end_addr == addr))
+                            || unlikely(self.max_pos.is_some_and(|max_pos| self.pos >= max_pos))
+                        {
                             std::hint::cold_path();
-                            return Ok(self.pc())
+                            return Ok(self.pc());
                         }
                     }
                     // saves two unconditional `Option` writes per instruction on

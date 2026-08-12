@@ -1,9 +1,9 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::utils::helpers::unlikely;
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::{LIBS64_MAX, LIBS64_MIN};
 use iced_x86::Instruction;
-use crate::utils::helpers::unlikely;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(

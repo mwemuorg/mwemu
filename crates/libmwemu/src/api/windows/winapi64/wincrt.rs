@@ -531,7 +531,8 @@ pub fn realloc(emu: &mut emu::Emu) {
 
     let new_addr = allocate_memory(emu, size).expect("msvcrt!realloc out of memory");
 
-    emu.maps.memcpy(new_addr, addr, std::cmp::min(prev_size, size as usize));
+    emu.maps
+        .memcpy(new_addr, addr, std::cmp::min(prev_size, size as usize));
     release(emu, addr);
 
     log_red!(

@@ -1,8 +1,8 @@
+use crate::utils::helpers::unlikely;
 use crate::{
     console::Console, emu::Emu, exception::types::ExceptionType, winapi::winapi32,
     winapi::winapi64, windows::constants,
 };
-use crate::utils::helpers::unlikely;
 
 impl Emu {
     fn resolve_unix_x64_symbol(&self, addr: u64) -> String {
