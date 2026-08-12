@@ -3,7 +3,7 @@ use crate::maps::mem64::Permission;
 use crate::winapi::helper;
 use crate::windows::constants;
 
-const VALLOC_PREFIX: &str = "valloc_";
+const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -20,6 +20,72 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     true
 }
 
+/// Allocates from the O1Heap arena for small sizes, maps a dedicated
+/// region otherwise (same threshold as kernel32!HeapAlloc).
+fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
+    if size < LARGE_ALLOC_THRESHOLD {
+        let heap_manage = emu.heap_mut();
+        return heap_manage.allocate(size as usize);
+    }
+
+    let allocation = emu.maps.alloc(size)?;
+    emu.maps
+        .create_map(
+            format!("alloc_{:x}", allocation).as_str(),
+            allocation,
+            size,
+            Permission::READ_WRITE,
+        )
+        .ok()?;
+    Some(allocation)
+}
+
+/// Classification of a pointer allocated by `allocate_memory`.
+enum AllocKind {
+    Arena { size: usize },
+    Map { base: u64, size: usize },
+    Invalid,
+}
+
+fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
+    if let Some(heap) = emu.heap_management.as_ref() {
+        if let Some(size) = heap.allocation_size(addr) {
+            return AllocKind::Arena { size };
+        }
+    }
+
+    match emu.maps.get_mem_by_addr(addr) {
+        Some(mem) if mem.get_base() == addr => {
+            let name = mem.get_name();
+            if name.starts_with("alloc_") || name.starts_with("valloc_") {
+                return AllocKind::Map {
+                    base: addr,
+                    size: mem.size(),
+                };
+            }
+            AllocKind::Invalid
+        }
+        _ => AllocKind::Invalid,
+    }
+}
+
+/// Releases a pointer allocated by `allocate_memory` (or any alloc_/valloc_ map).
+/// Honors cfg.heap_free_soft.
+fn release(emu: &mut emu::Emu, addr: u64) {
+    if emu.cfg.heap_free_soft {
+        return;
+    }
+    match classify(emu, addr) {
+        AllocKind::Arena { .. } => {
+            if let Some(heap) = emu.heap_management.as_mut() {
+                heap.free(addr);
+            }
+        }
+        AllocKind::Map { base, .. } => emu.maps.dealloc(base),
+        AllocKind::Invalid => {}
+    }
+}
+
 pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
     let handle = emu.regs().rcx;
     let flags = emu.regs().rdx;
@@ -28,18 +94,13 @@ pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
     if size < 1024 {
         size = 1024
     }
-    let alloc_addr = match emu.maps.alloc(size) {
+    let alloc_addr = match allocate_memory(emu, size) {
         Some(a) => a,
         None => {
             log::warn!("/!\\ out of memory cannot allocate ntdll!RtlAllocateHeap");
             return;
         }
     };
-
-    let map_name = format!("{}{:x}", VALLOC_PREFIX, alloc_addr);
-    emu.maps
-        .create_map(&map_name, alloc_addr, size, Permission::READ_WRITE)
-        .expect("ntdll!RtlAllocateHeap cannot create map");
 
     log_red!(
         emu,
@@ -54,28 +115,22 @@ pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
 
 fn RtlFreeHeap(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
-    let flags = emu.regs().rdx;
     let base_addr = emu.regs().r8;
 
     log_red!(emu, "ntdll!RtlFreeHeap 0x{}", base_addr);
 
     helper::handler_close(hndl);
-    let name = emu.maps.get_addr_name(base_addr).unwrap_or("").to_string();
-    if name.is_empty() {
-        if emu.cfg.verbose >= 1 {
-            log::trace!("map not allocated, so cannot free it.");
-        }
-        emu.regs_mut().rax = 0;
-        return;
-    }
 
-    if name.starts_with(VALLOC_PREFIX) || name.starts_with("alloc_") {
-        emu.maps.dealloc(base_addr);
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-        if emu.cfg.verbose >= 1 {
-            log::trace!("trying to free a systems map {}", name);
+    match classify(emu, base_addr) {
+        AllocKind::Arena { .. } | AllocKind::Map { .. } => {
+            release(emu, base_addr);
+            emu.regs_mut().rax = 1;
+        }
+        AllocKind::Invalid => {
+            emu.regs_mut().rax = 0;
+            if emu.cfg.verbose >= 1 {
+                log::trace!("trying to free a systems map {}", base_addr);
+            }
         }
     }
 }
@@ -95,28 +150,18 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
         new_size
     );
 
-    // Validate the old pointer: must be the exact base of an ntdll-owned map.
     if old_ptr == 0 || new_size == 0 {
         emu.regs_mut().rax = 0;
         return;
     }
 
-    let old_mem = match emu.maps.get_mem_by_addr(old_ptr) {
-        Some(m) => m,
-        None => {
+    let old_size = match classify(emu, old_ptr) {
+        AllocKind::Arena { size } | AllocKind::Map { size, .. } => size,
+        AllocKind::Invalid => {
             emu.regs_mut().rax = 0;
             return;
         }
     };
-    let old_base = old_mem.get_base();
-    let old_size = old_mem.size();
-    let old_name = old_mem.get_name().to_string();
-    if old_base != old_ptr
-        || (!old_name.starts_with(VALLOC_PREFIX) && !old_name.starts_with("alloc_"))
-    {
-        emu.regs_mut().rax = 0;
-        return;
-    }
 
     if (flags & constants::HEAP_REALLOC_IN_PLACE_ONLY) != 0 {
         if new_size <= old_size as u64 {
@@ -127,26 +172,17 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
         return;
     }
 
-    let new_addr = match emu.maps.alloc(new_size) {
+    let new_addr = match allocate_memory(emu, new_size) {
         Some(a) => a,
         None => {
             emu.regs_mut().rax = 0;
             return;
         }
     };
-    let new_name = format!("{}{:x}", VALLOC_PREFIX, new_addr);
-    if emu
-        .maps
-        .create_map(&new_name, new_addr, new_size, Permission::READ_WRITE)
-        .is_err()
-    {
-        emu.regs_mut().rax = 0;
-        return;
-    }
 
     let copy_size = std::cmp::min(old_size, new_size as usize);
     if !emu.maps.memcpy(new_addr, old_ptr, copy_size) {
-        emu.maps.dealloc(new_addr);
+        release(emu, new_addr);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -159,7 +195,7 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
         );
     }
 
-    emu.maps.dealloc(old_ptr);
+    release(emu, old_ptr);
     emu.regs_mut().rax = new_addr;
 }
 

@@ -5,6 +5,70 @@ use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
 //use crate::endpoint;
 
+const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
+
+/// Allocates from the O1Heap arena for small sizes, maps a dedicated
+/// region otherwise (same threshold as kernel32!HeapAlloc).
+fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
+    if size < LARGE_ALLOC_THRESHOLD {
+        let heap_manage = emu.heap_mut();
+        return heap_manage.allocate(size as usize);
+    }
+
+    let allocation = emu.maps.alloc(size)?;
+    emu.maps
+        .create_map(
+            &format!("alloc_{:x}", allocation),
+            allocation,
+            size,
+            Permission::READ_WRITE,
+        )
+        .ok()?;
+    Some(allocation)
+}
+
+/// Classification of a pointer allocated by `allocate_memory`.
+enum AllocKind {
+    Arena { size: usize },
+    Map { base: u64, size: usize },
+    Invalid,
+}
+
+fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
+    if let Some(heap) = emu.heap_management.as_ref() {
+        if let Some(size) = heap.allocation_size(addr) {
+            return AllocKind::Arena { size };
+        }
+    }
+
+    match emu.maps.get_mem_by_addr(addr) {
+        Some(mem) if mem.get_base() == addr && mem.get_name().starts_with("alloc_") => {
+            AllocKind::Map {
+                base: addr,
+                size: mem.size(),
+            }
+        }
+        _ => AllocKind::Invalid,
+    }
+}
+
+/// Releases a pointer allocated by `allocate_memory` (or any alloc_ map).
+/// Honors cfg.heap_free_soft.
+fn release(emu: &mut emu::Emu, addr: u64) {
+    if emu.cfg.heap_free_soft {
+        return;
+    }
+    match classify(emu, addr) {
+        AllocKind::Arena { .. } => {
+            if let Some(heap) = emu.heap_management.as_mut() {
+                heap.free(addr);
+            }
+        }
+        AllocKind::Map { base, .. } => emu.maps.dealloc(base),
+        AllocKind::Invalid => {}
+    }
+}
+
 // msvcrt is an exception and these functions dont have to compensate the stack.
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
@@ -229,16 +293,7 @@ fn malloc(emu: &mut emu::Emu) {
         .expect("msvcrt!malloc error reading size") as u64;
 
     if size > 0 {
-        let base = emu.maps.alloc(size).expect("msvcrt!malloc out of memory");
-
-        emu.maps
-            .create_map(
-                &format!("alloc_{:x}", base),
-                base,
-                size,
-                Permission::READ_WRITE,
-            )
-            .expect("msvcrt!malloc cannot create map");
+        let base = allocate_memory(emu, size).expect("msvcrt!malloc out of memory");
 
         log_red!(emu, "msvcrt!malloc sz: {} addr: 0x{:x}", size, base);
 
@@ -282,6 +337,8 @@ fn free(emu: &mut emu::Emu) {
         .expect("msvcrt!free error reading addr");
 
     log_red!(emu, "msvcrt!free 0x{:x}", addr);
+
+    release(emu, addr as u64);
 }
 
 fn realloc(emu: &mut emu::Emu) {
@@ -296,20 +353,10 @@ fn realloc(emu: &mut emu::Emu) {
 
     if addr == 0 {
         if size == 0 {
-            emu.maps.dealloc(addr);
             emu.regs_mut().rax = 0;
             return;
         } else {
-            let base = emu.maps.alloc(size).expect("msvcrt!malloc out of memory");
-
-            emu.maps
-                .create_map(
-                    &format!("alloc_{:x}", base),
-                    base,
-                    size,
-                    Permission::READ_WRITE,
-                )
-                .expect("msvcrt!malloc cannot create map");
+            let base = allocate_memory(emu, size).expect("msvcrt!malloc out of memory");
 
             log_red!(emu, "msvcrt!realloc 0x{:x} {} =0x{:x}", addr, size, base);
 
@@ -325,25 +372,18 @@ fn realloc(emu: &mut emu::Emu) {
         return;
     }
 
-    let mem = emu
-        .maps
-        .get_mem_by_addr_mut(addr)
-        .expect("msvcrt!realloc error getting mem");
-    let prev_size = mem.size();
+    let prev_size = match classify(emu, addr) {
+        AllocKind::Arena { size } | AllocKind::Map { size, .. } => size,
+        AllocKind::Invalid => {
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
-    let new_addr = emu.maps.alloc(size).expect("msvcrt!realloc out of memory");
+    let new_addr = allocate_memory(emu, size).expect("msvcrt!realloc out of memory");
 
-    emu.maps
-        .create_map(
-            &format!("alloc_{:x}", new_addr),
-            new_addr,
-            size,
-            Permission::READ_WRITE,
-        )
-        .expect("msvcrt!realloc cannot create map");
-
-    emu.maps.memcpy(new_addr, addr, prev_size);
-    emu.maps.dealloc(addr);
+    emu.maps.memcpy(new_addr, addr, std::cmp::min(prev_size, size as usize));
+    release(emu, addr);
 
     log_red!(
         emu,

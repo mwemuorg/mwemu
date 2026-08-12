@@ -29,6 +29,70 @@ fn set_ret(emu: &mut Emu, val: u64) {
     }
 }
 
+const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
+
+/// Allocates from the O1Heap arena for small sizes, maps a dedicated
+/// region otherwise (same threshold as kernel32!HeapAlloc).
+fn allocate_memory(emu: &mut Emu, size: u64) -> Option<u64> {
+    if size < LARGE_ALLOC_THRESHOLD {
+        let heap_manage = emu.heap_mut();
+        return heap_manage.allocate(size as usize);
+    }
+
+    let allocation = emu.maps.alloc(size)?;
+    emu.maps
+        .create_map(
+            &format!("alloc_{:x}", allocation),
+            allocation,
+            size,
+            Permission::READ_WRITE,
+        )
+        .ok()?;
+    Some(allocation)
+}
+
+/// Classification of a pointer allocated by `allocate_memory`.
+enum AllocKind {
+    Arena { size: usize },
+    Map { base: u64, size: usize },
+    Invalid,
+}
+
+fn classify(emu: &Emu, addr: u64) -> AllocKind {
+    if let Some(heap) = emu.heap_management.as_ref() {
+        if let Some(size) = heap.allocation_size(addr) {
+            return AllocKind::Arena { size };
+        }
+    }
+
+    match emu.maps.get_mem_by_addr(addr) {
+        Some(mem) if mem.get_base() == addr && mem.get_name().starts_with("alloc_") => {
+            AllocKind::Map {
+                base: addr,
+                size: mem.size(),
+            }
+        }
+        _ => AllocKind::Invalid,
+    }
+}
+
+/// Releases a pointer allocated by `allocate_memory` (or any alloc_ map).
+/// Honors cfg.heap_free_soft.
+fn release(emu: &mut Emu, addr: u64) {
+    if emu.cfg.heap_free_soft {
+        return;
+    }
+    match classify(emu, addr) {
+        AllocKind::Arena { .. } => {
+            if let Some(heap) = emu.heap_management.as_mut() {
+                heap.free(addr);
+            }
+        }
+        AllocKind::Map { base, .. } => emu.maps.dealloc(base),
+        AllocKind::Invalid => {}
+    }
+}
+
 pub fn gateway(symbol: &str, emu: &mut Emu) {
     match symbol {
         "_printf" | "printf" => api_printf(emu),
@@ -205,15 +269,7 @@ fn api_malloc(emu: &mut Emu) {
         emu.colors.nc
     );
     if size > 0 {
-        let base = emu.maps.alloc(size).expect("macOS malloc: out of memory");
-        emu.maps
-            .create_map(
-                &format!("alloc_{:x}", base),
-                base,
-                size,
-                Permission::READ_WRITE,
-            )
-            .expect("macOS malloc: cannot create map");
+        let base = allocate_memory(emu, size).expect("macOS malloc: out of memory");
         log::info!("  -> 0x{:x}", base);
         set_ret(emu, base);
     } else {
@@ -234,15 +290,7 @@ fn api_calloc(emu: &mut Emu) {
         emu.colors.nc
     );
     if total > 0 {
-        let base = emu.maps.alloc(total).expect("macOS calloc: out of memory");
-        emu.maps
-            .create_map(
-                &format!("alloc_{:x}", base),
-                base,
-                total,
-                Permission::READ_WRITE,
-            )
-            .expect("macOS calloc: cannot create map");
+        let base = allocate_memory(emu, total).expect("macOS calloc: out of memory");
         // zero-fill (calloc contract)
         for i in 0..total {
             emu.maps.write_byte(base + i, 0);
@@ -271,15 +319,7 @@ fn api_realloc(emu: &mut Emu) {
         return;
     }
     // Allocate new block
-    let base = emu.maps.alloc(size).expect("macOS realloc: out of memory");
-    emu.maps
-        .create_map(
-            &format!("alloc_{:x}", base),
-            base,
-            size,
-            Permission::READ_WRITE,
-        )
-        .expect("macOS realloc: cannot create map");
+    let base = allocate_memory(emu, size).expect("macOS realloc: out of memory");
     // Copy old data if ptr != NULL
     if ptr != 0 {
         // Copy min(old_size, new_size) bytes; we don't track old size precisely,
@@ -290,6 +330,7 @@ fn api_realloc(emu: &mut Emu) {
                 None => break,
             };
         }
+        release(emu, ptr);
     }
     log::info!("  -> 0x{:x}", base);
     set_ret(emu, base);
@@ -304,7 +345,8 @@ fn api_free(emu: &mut Emu) {
         ptr,
         emu.colors.nc
     );
-    // no-op: we don't reclaim memory in the emulator
+    // Reclaim the memory so the arena can be reused.
+    release(emu, ptr);
 }
 
 fn api_atexit(emu: &mut Emu) {
@@ -774,15 +816,7 @@ fn api_strdup(emu: &mut Emu) {
         emu.colors.nc
     );
     let len = s.len() as u64 + 1; // include NUL
-    let base = emu.maps.alloc(len).expect("macOS strdup: out of memory");
-    emu.maps
-        .create_map(
-            &format!("alloc_{:x}", base),
-            base,
-            len,
-            Permission::READ_WRITE,
-        )
-        .expect("macOS strdup: cannot create map");
+    let base = allocate_memory(emu, len).expect("macOS strdup: out of memory");
     let bytes = s.as_bytes();
     emu.maps.write_bytes(base, bytes);
     emu.maps.write_byte(base + bytes.len() as u64, 0);

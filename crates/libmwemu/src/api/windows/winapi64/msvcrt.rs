@@ -4,6 +4,8 @@ use crate::serialization;
 use crate::winapi::winapi64::kernel32;
 use crate::winapi::winapi64::wincrt;
 
+const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
+
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
@@ -59,16 +61,24 @@ fn malloc(emu: &mut emu::Emu) {
     let size = emu.regs().rcx;
 
     if size > 0 {
-        let base = emu.maps.alloc(size).expect("msvcrt!malloc out of memory");
+        let base = if size < LARGE_ALLOC_THRESHOLD {
+            let heap_manage = emu.heap_mut();
+            heap_manage
+                .allocate(size as usize)
+                .expect("msvcrt!malloc out of memory")
+        } else {
+            let base = emu.maps.alloc(size).expect("msvcrt!malloc out of memory");
 
-        emu.maps
-            .create_map(
-                &format!("alloc_{:x}", base),
-                base,
-                size,
-                Permission::READ_WRITE,
-            )
-            .expect("msvcrt!malloc cannot create map");
+            emu.maps
+                .create_map(
+                    &format!("alloc_{:x}", base),
+                    base,
+                    size,
+                    Permission::READ_WRITE,
+                )
+                .expect("msvcrt!malloc cannot create map");
+            base
+        };
 
         log_red!(emu, "msvcrt!malloc sz: {} addr: 0x{:x}", size, base);
 
