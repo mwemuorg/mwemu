@@ -296,14 +296,20 @@ fn _initterm(emu: &mut emu::Emu) {
     emu.regs_mut().rax = 0;
 }
 
+// Setting `process_terminated` alone does not end the current run: the loop
+// runs on `is_running`, and `process_terminated` is only read once, before it
+// starts. Returning from here would resume at the caller and re-run main.
+// `stop()` sets both, which is what kernel32!ExitProcess and msvcrt!exit do.
 fn exit(emu: &mut emu::Emu) {
-    log_red!(emu, "kernelbase!exit");
-    emu.process_terminated = true;
+    let status = emu.regs().rcx;
+    log_red!(emu, "kernelbase!exit {}", status);
+    emu.stop();
 }
 
 fn _exit(emu: &mut emu::Emu) {
-    log_red!(emu, "kernelbase!_exit");
-    emu.process_terminated = true;
+    let status = emu.regs().rcx;
+    log_red!(emu, "kernelbase!_exit {}", status);
+    emu.stop();
 }
 
 fn atexit(emu: &mut emu::Emu) {
