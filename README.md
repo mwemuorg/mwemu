@@ -434,7 +434,7 @@ And here we have the error routine 0x4f96f4 and the filter 0x51068c
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/chart?repos=mwemuorg/mwemu&type=date&legend=top-left)](https://www.star-history.com/?repos=mwemuorg%2Fmwemu&type=date&legend=top-left)
+[![Star History Chart](https://star-history.dera.page/svg?repos=mwemuorg/mwemu&type=date&legend=top-left)](https://star-history.dera.page/#mwemuorg/mwemu&type=date&legend=top-left)
 
 
 
