@@ -188,7 +188,7 @@ impl Emu {
                 // kishou_yusa: removed because there exists a check further ahead
                 /*
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     return Ok(limit_pc);
                 }
                 */
@@ -225,7 +225,7 @@ impl Emu {
                         if unlikely(end_addr.is_some_and(|end_addr| end_addr == addr))
                             || unlikely(self.max_pos.is_some_and(|max_pos| self.pos >= max_pos))
                         {
-                            std::hint::cold_path();
+                            crate::utils::helpers::cold_path();
                             return Ok(self.pc());
                         }
                     }

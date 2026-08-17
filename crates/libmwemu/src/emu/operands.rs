@@ -19,11 +19,11 @@ impl Emu {
                 Some(ins.near_branch_target())
             }
             OpKind::FarBranch16 => {
-                std::hint::cold_path();
+                crate::utils::helpers::cold_path();
                 Some(ins.far_branch16() as u64)
             }
             OpKind::FarBranch32 => {
-                std::hint::cold_path();
+                crate::utils::helpers::cold_path();
                 Some(ins.far_branch32() as u64)
             }
             _ => self.get_operand_value(ins, 0, true),
@@ -340,7 +340,7 @@ impl Emu {
 
             let value = match sz {
                 64 => self.maps.read_qword(mem_addr).or_else(|| {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     if self.try_grow_stack(mem_addr) {
                         Some(self.maps.read_qword(mem_addr).unwrap_or(0))
                     } else {
@@ -355,7 +355,7 @@ impl Emu {
                     .read_dword(mem_addr)
                     .and_then(|v| Some(v as u64))
                     .or_else(|| {
-                        std::hint::cold_path();
+                        crate::utils::helpers::cold_path();
                         if self.try_grow_stack(mem_addr) {
                             Some(self.maps.read_dword(mem_addr).unwrap_or(0) as u64)
                         } else {
@@ -370,7 +370,7 @@ impl Emu {
                     .read_word(mem_addr)
                     .and_then(|v| Some(v as u64))
                     .or_else(|| {
-                        std::hint::cold_path();
+                        crate::utils::helpers::cold_path();
                         if self.try_grow_stack(mem_addr) {
                             Some(self.maps.read_word(mem_addr).unwrap_or(0) as u64)
                         } else {
@@ -385,7 +385,7 @@ impl Emu {
                     .read_byte(mem_addr)
                     .and_then(|v| Some(v as u64))
                     .or_else(|| {
-                        std::hint::cold_path();
+                        crate::utils::helpers::cold_path();
                         if self.try_grow_stack(mem_addr) {
                             Some(self.maps.read_byte(mem_addr).unwrap_or(0) as u64)
                         } else {
@@ -469,23 +469,23 @@ impl Emu {
                 OpKind::Immediate16 => Some(ins.immediate16() as u64),
                 OpKind::Immediate32 => Some(ins.immediate32() as u64),
                 OpKind::Immediate8to64 => {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     Some(ins.immediate8to64() as u64)
                 }
                 OpKind::Immediate32to64 => {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     Some(ins.immediate32to64() as u64)
                 }
                 OpKind::Immediate8to32 => {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     Some(ins.immediate8to32() as u32 as u64)
                 }
                 OpKind::Immediate8to16 => {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     Some(ins.immediate8to16() as u16 as u64)
                 }
                 _ => {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     unreachable!("Error something is wrong")
                 }
             }

@@ -152,7 +152,7 @@ impl Emu {
             let section_name = name.to_string();
             self.intercept_unix_x64_api_call(addr, &section_name)
         } else {
-            std::hint::cold_path();
+            crate::utils::helpers::cold_path();
             if self.cfg.verbose >= 2 && !self.cfg.emulate_winapi {
                 log::trace!("/!\\ changing RIP to {} ", name);
             }

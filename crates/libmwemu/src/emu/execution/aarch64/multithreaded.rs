@@ -39,7 +39,7 @@ impl Emu {
                 }
 
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
-                    std::hint::cold_path();
+                    crate::utils::helpers::cold_path();
                     return Ok(limit_pc);
                 }
 

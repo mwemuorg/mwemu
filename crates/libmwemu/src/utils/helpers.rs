@@ -3,12 +3,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static COLOR_ENABLED: AtomicBool = AtomicBool::new(true);
 
+// Stable stand-in for the unstable std::hint::cold_path (rust-lang/rust#136873):
+// a call to an empty #[cold] function gives the optimizer the same branch hint.
+#[cold]
+#[inline(never)]
+pub(crate) fn cold_path() {}
+
 #[inline(always)]
 pub(crate) fn likely(b: bool) -> bool {
     if b {
         true
     } else {
-        std::hint::cold_path();
+        cold_path();
         false
     }
 }
@@ -16,7 +22,7 @@ pub(crate) fn likely(b: bool) -> bool {
 #[inline(always)]
 pub(crate) fn unlikely(b: bool) -> bool {
     if b {
-        std::hint::cold_path();
+        cold_path();
         true
     } else {
         false
