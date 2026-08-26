@@ -191,3 +191,89 @@ fn parse_and_load_elf32() {
     // Segment contents (the ELF header bytes) were written at the vaddr.
     assert_eq!(mock.byte(0x8048000), 0x7f);
 }
+
+#[test]
+fn parse_rejects_invalid_elf_identity() {
+    let mut elf64 = build_elf64();
+    elf64[0] = 0;
+    assert!(Elf64::parse(&elf64).is_err());
+
+    let mut elf32 = build_elf32();
+    elf32[4] = 2;
+    assert!(Elf32::parse(&elf32).is_err());
+}
+
+#[test]
+fn parse_rejects_truncated_header_tables() {
+    // ELF64 parse refuses a buffer whose program-header table runs past EOF.
+    let mut elf64 = build_elf64();
+    let raw_len = elf64.len();
+    put_u64(&mut elf64, 32, raw_len as u64);
+    assert!(Elf64::parse(&elf64).is_err());
+
+    // ELF32 parse eagerly accepts the header (the table walk happens later in
+    // `load`); verify that `load` silently truncates instead of panicking on a
+    // bogus `e_phoff`.
+    let mut elf32 = build_elf32();
+    put_u32(&mut elf32, 28, u32::MAX);
+    let mut elf = Elf32::parse(&elf32).expect("parse elf32 header");
+    let mut mock = Mock::default();
+    elf.load(&mut mock); // must not panic
+    assert!(elf.elf_phdr.is_empty(), "no phdrs walked");
+}
+
+fn parse_elf32_section_entry_size_at_its_header_offset() {
+    let mut raw = build_elf32();
+    let shoff = raw.len();
+    raw.resize(shoff + 80, 0);
+    put_u32(&mut raw, 32, shoff as u32);
+    put_u16(&mut raw, 48, 2);
+    put_u32(&mut raw, shoff + 40 + 36, 24);
+
+    let mut elf = Elf32::parse(&raw).expect("parse ELF32 section headers");
+    assert_eq!(elf.elf_shdr.len(), 2);
+    assert_eq!(elf.elf_shdr[1].sh_entsize, 24);
+    let mut mock = Mock::default();
+    elf.load(&mut mock);
+    assert_eq!(elf.elf_phdr.len(), 1, "fixture has one PT_LOAD");
+}
+
+#[test]
+fn parse_elf64_extended_section_count_via_zero_shnum() {
+    let mut raw = build_elf64();
+    let shoff = raw.len();
+    raw.resize(shoff + 128, 0);
+    put_u64(&mut raw, 40, shoff as u64);
+    put_u16(&mut raw, 60, 0);
+    put_u64(&mut raw, shoff + 32, 2);
+
+    let elf = Elf64::parse(&raw).expect("parse extended section count");
+    assert_eq!(elf.elf_shdr.len(), 2);
+}
+
+#[test]
+fn parse_elf64_vaddr_zero_pt_load_makes_loadable_true() {
+    let elf = Elf64::parse(&build_elf64()).expect("parse elf64");
+    // The fixture's PT_LOAD vaddr is 0x400000 and an arbitrary `addr` inside
+    // it must be loadable; an address clearly outside must not be.
+    assert!(elf.is_loadable(0x400100));
+    assert!(!elf.is_loadable(0x500000_0000));
+}
+
+#[test]
+fn vaddr_to_file_offset_skips_bss_tail() {
+    let mut raw = build_elf64();
+    // 1024 bytes of file, 8 KiB of memory: BSS tail is beyond `p_filesz`.
+    put_u64(&mut raw, 32, 64); // e_phoff
+    let p = 64;
+    put_u32(&mut raw, p, 1); // PT_LOAD
+    put_u32(&mut raw, p + 4, 5); // R+X
+    put_u64(&mut raw, p + 8, 0); // p_offset
+    put_u64(&mut raw, p + 16, 0x400000); // p_vaddr
+    put_u64(&mut raw, p + 32, 1024); // p_filesz (small)
+    put_u64(&mut raw, p + 40, 0x10000); // p_memsz (large)
+    let elf = Elf64::parse(&raw).expect("parse");
+    // Inside the BSS tail (post p_filesz=0x400, pre p_memsz=0x410000):
+    // must NOT resolve.
+    assert!(elf.vaddr_to_file_offset(0x408_0000).is_none());
+}

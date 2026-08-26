@@ -43,20 +43,6 @@ macro_rules! read_u64_le {
     };
 }
 
-/*
-macro_rules! write_u64_le {
-    ($raw:expr, $off:expr, $val:expr) => {
-        $raw[$off] = $val as u8;
-        $raw[$off + 1] = ($val >> 8) as u8;
-        $raw[$off + 2] = ($val >> 16) as u8;
-        $raw[$off + 3] = ($val >> 24) as u8;
-        $raw[$off + 4] = ($val >> 32) as u8;
-        $raw[$off + 5] = ($val >> 40) as u8;
-        $raw[$off + 6] = ($val >> 48) as u8;
-        $raw[$off + 7] = ($val >> 56) as u8;
-    };
-}*/
-
 pub const EI_NIDENT: usize = 16;
 pub const ELFCLASS64: u8 = 0x02;
 // `e_machine` (architecture) values, mirroring PE's IMAGE_FILE_MACHINE_*.
@@ -84,6 +70,123 @@ pub const R_X86_64_IRELATIVE: u32 = 37;
 pub const STT_GNU_IFUNC: u8 = 10;
 pub const R_AARCH64_GLOB_DAT: u32 = 1025;
 pub const R_AARCH64_JUMP_SLOT: u32 = 1026;
+pub const R_AARCH64_RELATIVE: u32 = 0x403;
+pub const R_AARCH64_IRELATIVE: u32 = 0x408;
+// ELF identification byte values per ELF ABI gabi4+ ch4.eheader.
+const ELFMAG0: u8 = 0x7f;
+const ELFMAG1: u8 = b'E';
+const ELFMAG2: u8 = b'L';
+const ELFMAG3: u8 = b'F';
+const EV_CURRENT: u8 = 1;
+const ELFDATA2LSB: u8 = 1;
+// Extended-numbering sentinels: when `e_shnum`/`e_phnum`/`e_shstrndx`
+// reach `SHN_LORESERVE` (0xff00) the actual value lives in the matching
+// field of the section header at index 0.
+const SHN_LORESERVE: u16 = 0xff00;
+const SHN_UNDEF: u16 = 0;
+const SHN_XINDEX: u16 = 0xffff;
+const PN_XNUM: u16 = 0xffff;
+// Upper bounds mirror LIEF `Parser::NB_MAX_*` to keep accidental huge
+// allocations and OOM-path slices bounded.
+const MAX_PHDR_ENTRIES: usize = 0x10_000;
+const MAX_SHDR_ENTRIES: usize = 0x10_000;
+const STR_TAB_LIMIT: usize = 0x400_000;
+
+fn check_elf64_ident(bin: &[u8]) -> Result<(), ElfError> {
+    if bin.len() < 64 {
+        return Err(ElfError::new(
+            "elf64 image too small for its header (need 64 bytes)",
+        ));
+    }
+    if bin[0] != ELFMAG0 || bin[1] != ELFMAG1 || bin[2] != ELFMAG2 || bin[3] != ELFMAG3 {
+        return Err(ElfError::new("e_ident magic mismatch"));
+    }
+    if bin[4] != ELFCLASS64 {
+        return Err(ElfError::new("e_ident EI_CLASS is not ELFCLASS64"));
+    }
+    if bin[5] != ELFDATA2LSB {
+        return Err(ElfError::new(
+            "rs-header only parses ELFDATA2LSB images (e_ident EI_DATA != 1)",
+        ));
+    }
+    if bin[6] != EV_CURRENT {
+        return Err(ElfError::new("e_ident EI_VERSION is not EV_CURRENT"));
+    }
+    Ok(())
+}
+
+/// Resolve the ELF64 extended-header counts. The ABI places the actual
+/// program/section counts and the section-name-table index in section
+/// header 0 when any of `e_phnum`/`e_shnum`/`e_shstrndx` reach the
+/// reserved sentinel range. When the section-header table is itself
+/// absent (`e_shoff == 0`), the non-extended values are used directly.
+fn resolve_extended_counts_64(
+    bin: &[u8],
+    ehdr: &Elf64Ehdr,
+) -> Result<(usize, usize, usize), ElfError> {
+    let shoff = ehdr.e_shoff as usize;
+    let shent = ehdr.e_shentsize as usize;
+
+    let table_present = shoff != 0
+        && shent >= core::mem::size_of::<Elf64Shdr>()
+        && shoff
+            .checked_add(shent)
+            .map_or(false, |end| end <= bin.len());
+    let s0: Option<Elf64Shdr> = if table_present {
+        Some(Elf64Shdr::parse(bin, shoff))
+    } else {
+        None
+    };
+
+    // `e_phnum == PN_XNUM` => real program-header count is `sh_info` of
+    // section header 0.
+    let phnum_raw = ehdr.e_phnum as usize;
+    let phnum = if phnum_raw == PN_XNUM as usize {
+        match &s0 {
+            Some(h) => h.sh_info as usize,
+            None => return Err(ElfError::new("PN_XNUM but no section header 0")),
+        }
+    } else {
+        phnum_raw
+    };
+
+    // `e_shnum == 0` is the extended-numbering sentinel only when a
+    // section-header table exists; otherwise it just means "no sections".
+    let shnum_raw = ehdr.e_shnum as usize;
+    let shnum = if shnum_raw == 0 {
+        match &s0 {
+            Some(h) => h.sh_size as usize,
+            None => 0,
+        }
+    } else if shnum_raw >= SHN_LORESERVE as usize {
+        match &s0 {
+            Some(h) => h.sh_size as usize,
+            None => {
+                return Err(ElfError::new(
+                    "e_shnum in SHN_LORESERVE range but no section header 0",
+                ));
+            }
+        }
+    } else {
+        shnum_raw
+    };
+
+    let shstrndx_raw = ehdr.e_shstrndx as usize;
+    let shstrndx = if shstrndx_raw == SHN_XINDEX as usize {
+        match &s0 {
+            Some(h) => h.sh_link as usize,
+            None => return Err(ElfError::new("SHN_XINDEX but no section header 0")),
+        }
+    } else if shstrndx_raw >= SHN_LORESERVE as usize {
+        return Err(ElfError::new(
+            "e_shstrndx in SHN_LORESERVE range without SHN_XINDEX",
+        ));
+    } else {
+        shstrndx_raw
+    };
+
+    Ok((phnum, shnum, shstrndx))
+}
 
 #[derive(Debug)]
 pub struct Elf64 {
@@ -110,43 +213,100 @@ impl Elf64 {
     /// Parse an ELF64 image from its raw bytes. The struct keeps an owned copy
     /// of the bytes (relocations and symbol resolution read them at load time).
     pub fn parse(raw: &[u8]) -> Result<Elf64, ElfError> {
-        if raw.len() < 64 {
-            return Err(ElfError::new("elf64 image too small for its header"));
-        }
+        check_elf64_ident(raw)?;
         let bin = raw.to_vec();
 
         let ehdr: Elf64Ehdr = Elf64Ehdr::parse(&bin);
+
         let mut ephdr: Vec<Elf64Phdr> = Vec::new();
         let mut eshdr: Vec<Elf64Shdr> = Vec::new();
-        let mut off = ehdr.e_phoff as usize;
-        let dynsym: Vec<Elf64Sym> = Vec::new();
 
-        // loading programs
-        for _ in 0..ehdr.e_phnum {
-            let phdr: Elf64Phdr = Elf64Phdr::parse(&bin, off);
-            ephdr.push(phdr);
-            off += ehdr.e_phentsize as usize;
+        // Resolve extended counts first.
+        let (phnum, shnum, shstrndx) = resolve_extended_counts_64(&bin, &ehdr)?;
+
+        // Program headers: bounded, fallible walk.
+        let phent_sz = ehdr.e_phentsize as usize;
+        if phent_sz < core::mem::size_of::<Elf64Phdr>() {
+            return Err(ElfError::new("e_phentsize smaller than sizeof(Elf64_Phdr)"));
+        }
+        if phnum > MAX_PHDR_ENTRIES {
+            return Err(ElfError::new("e_phnum exceeds MAX_PHDR_ENTRIES"));
+        }
+        let ph_table_bytes = phnum
+            .checked_mul(phent_sz)
+            .ok_or_else(|| ElfError::new("e_phnum * e_phentsize overflows usize"))?;
+        let phoff = ehdr.e_phoff as usize;
+        if phnum > 0
+            && phoff
+                .checked_add(ph_table_bytes)
+                .map_or(true, |end| end > bin.len())
+        {
+            return Err(ElfError::new(
+                "program-header table extends past end of image",
+            ));
+        }
+        ephdr
+            .try_reserve_exact(phnum)
+            .map_err(|_| ElfError::new("allocating program-header vector"))?;
+        let mut off = phoff;
+        for _ in 0..phnum {
+            ephdr.push(Elf64Phdr::parse(&bin, off));
+            off += phent_sz;
         }
 
-        off = ehdr.e_shoff as usize;
-
-        // loading sections
-        for _ in 0..ehdr.e_shnum {
-            let shdr: Elf64Shdr = Elf64Shdr::parse(&bin, off);
-            eshdr.push(shdr);
-            off += ehdr.e_shentsize as usize;
+        // Section headers: bounded, fallible walk.
+        let shent_sz = ehdr.e_shentsize as usize;
+        if shent_sz < core::mem::size_of::<Elf64Shdr>() {
+            return Err(ElfError::new("e_shentsize smaller than sizeof(Elf64_Shdr)"));
+        }
+        if shnum > MAX_SHDR_ENTRIES {
+            return Err(ElfError::new("e_shnum exceeds MAX_SHDR_ENTRIES"));
+        }
+        let sh_table_bytes = shnum
+            .checked_mul(shent_sz)
+            .ok_or_else(|| ElfError::new("e_shnum * e_shentsize overflows usize"))?;
+        let shoff = ehdr.e_shoff as usize;
+        if shoff == 0 && shnum > 0 {
+            return Err(ElfError::new(
+                "section-header table offset is zero yet e_shnum > 0",
+            ));
+        }
+        if shnum > 0
+            && shoff
+                .checked_add(sh_table_bytes)
+                .map_or(true, |end| end > bin.len())
+        {
+            return Err(ElfError::new(
+                "section-header table extends past end of image",
+            ));
+        }
+        eshdr
+            .try_reserve_exact(shnum)
+            .map_err(|_| ElfError::new("allocating section-header vector"))?;
+        let mut off = shoff;
+        for _ in 0..shnum {
+            eshdr.push(Elf64Shdr::parse(&bin, off));
+            off += shent_sz;
         }
 
-        let mut off_strtab: usize = 0;
-        let mut sz_strtab: usize = 0;
-        if (ehdr.e_shstrndx as usize) < eshdr.len() {
-            off_strtab = eshdr[ehdr.e_shstrndx as usize].sh_offset as usize;
-            sz_strtab = eshdr[ehdr.e_shstrndx as usize].sh_size as usize;
+        // Section-name table: clamp to EOF; SHN_UNDEF / out-of-bounds leaves
+        // `blob_strtab` empty.
+        let mut blob_strtab: Vec<u8> = Vec::new();
+        if shstrndx != SHN_UNDEF as usize && shstrndx < eshdr.len() {
+            let sh = &eshdr[shstrndx];
+            let off = sh.sh_offset as usize;
+            let sz = sh.sh_size as usize;
+            if off < bin.len() {
+                let end = off.saturating_add(sz).min(bin.len());
+                if end > off {
+                    let cap = end - off;
+                    if cap <= STR_TAB_LIMIT {
+                        blob_strtab = bin[off..end].to_vec();
+                    }
+                }
+            }
         }
-        let mut blob_strtab: Vec<u8> = vec![];
-        if off_strtab > 0 {
-            blob_strtab = bin[off_strtab..(off_strtab + sz_strtab)].to_vec();
-        }
+
         Ok(Elf64 {
             base: 0,
             bin,
@@ -155,7 +315,7 @@ impl Elf64 {
             elf_shdr: eshdr,
             elf_strtab: blob_strtab,
             init: None,
-            elf_dynsym: dynsym,
+            elf_dynsym: Vec::new(),
             elf_dynstr_off: 0,
             elf_got_off: 0,
             needed_libs: Vec::new(),
@@ -172,11 +332,14 @@ impl Elf64 {
 
     pub fn is_loadable(&self, addr: u64) -> bool {
         for phdr in &self.elf_phdr {
-            if phdr.p_type == PT_LOAD
-                && phdr.p_vaddr > 0
-                && (phdr.p_vaddr <= addr || addr <= (phdr.p_vaddr + phdr.p_memsz))
-            {
-                //log::trace!("vaddr 0x{:x}", phdr.p_vaddr);
+            if phdr.p_type != PT_LOAD {
+                continue;
+            }
+            // Half-open `[p_vaddr, p_vaddr + p_memsz)` mirrors the kernel
+            // segment-style mapping. Saturating math avoids wrap on crafted
+            // inputs; vaddr-zero segments are now correctly eligible.
+            let end = phdr.p_vaddr.saturating_add(phdr.p_memsz);
+            if phdr.p_vaddr <= addr && addr < end {
                 return true;
             }
         }
@@ -184,13 +347,18 @@ impl Elf64 {
     }
 
     pub fn get_section_name(&self, offset: usize) -> String {
+        // strtab may be empty (no shstrtab, or truncated). Out-of-range
+        // offsets must not panic.
+        if offset >= self.elf_strtab.len() {
+            return String::new();
+        }
         let end = self.elf_strtab[offset..]
             .iter()
             .position(|&c| c == 0)
             .unwrap_or(self.elf_strtab.len() - offset);
-        let s = std::str::from_utf8(&self.elf_strtab[offset..offset + end])
-            .expect("error reading elf64 shstrtab");
-        s.to_string()
+        std::str::from_utf8(&self.elf_strtab[offset..offset + end])
+            .map(|s| s.to_string())
+            .unwrap_or_default()
     }
 
     pub fn sym_get_addr_from_name(&self, name: &str) -> Option<u64> {
@@ -294,14 +462,17 @@ impl Elf64 {
         None
     }
 
-    fn vaddr_to_file_offset(&self, vaddr: u64) -> Option<usize> {
+    pub fn vaddr_to_file_offset(&self, vaddr: u64) -> Option<usize> {
         for phdr in &self.elf_phdr {
             if phdr.p_type != PT_LOAD {
                 continue;
             }
-
-            let end = phdr.p_vaddr.saturating_add(phdr.p_filesz.max(phdr.p_memsz));
-            if vaddr >= phdr.p_vaddr && vaddr < end {
+            // File-backed region is `[p_vaddr, p_vaddr + p_filesz)`. Anything
+            // past `p_filesz` is the BSS tail (zero-filled `p_memsz -
+            // p_filesz`) per ELF ABI gabi4+ ch5.pheader and has no file
+            // contents.
+            let filesz_end = phdr.p_vaddr.saturating_add(phdr.p_filesz);
+            if vaddr >= phdr.p_vaddr && vaddr < filesz_end {
                 return Some((phdr.p_offset + (vaddr - phdr.p_vaddr)) as usize);
             }
         }
@@ -533,7 +704,9 @@ impl Elf64 {
     }
 
     /// Apply AArch64 relocations (.rela.dyn and .rela.plt) using section headers.
-    /// Handles R_AARCH64_GLOB_DAT and R_AARCH64_JUMP_SLOT.
+    /// Handles `R_AARCH64_GLOB_DAT`, `R_AARCH64_JUMP_SLOT`, the
+    /// base-relative `R_AARCH64_RELATIVE`, and the ifunc resolver
+    /// deferral path for `R_AARCH64_IRELATIVE`.
     pub fn apply_rela_aarch64<L: ElfLoader>(
         &mut self,
         loader: &mut L,
@@ -553,14 +726,33 @@ impl Elf64 {
 
         for (sh_offset, sh_size) in rela_sections {
             let mut off = sh_offset as usize;
-            let end = off + sh_size as usize;
+            let end = (off + sh_size as usize).min(self.bin.len());
 
-            while off + entsize <= end && off + entsize <= self.bin.len() {
+            while off + entsize <= end {
                 let r_offset = read_u64_le!(self.bin, off);
                 let r_info = read_u64_le!(self.bin, off + 8);
 
                 let r_type = (r_info & 0xFFFFFFFF) as u32;
                 let r_sym = (r_info >> 32) as u32;
+
+                if r_type == R_AARCH64_RELATIVE {
+                    let value = self.base.wrapping_add(r_offset);
+                    loader.write_qword(self.rebase_vaddr(r_offset), value);
+                    off += entsize;
+                    continue;
+                }
+                if r_type == R_AARCH64_IRELATIVE {
+                    let resolver = self.base.wrapping_add(r_offset);
+                    let patch = self.rebase_vaddr(r_offset);
+                    let _ = loader.write_qword(patch, patch);
+                    log::debug!(
+                        "elf64: AArch64 IRELATIVE at 0x{:x} resolver=0x{:x}; emulator will run it",
+                        patch,
+                        resolver
+                    );
+                    off += entsize;
+                    continue;
+                }
 
                 if r_type != R_AARCH64_GLOB_DAT && r_type != R_AARCH64_JUMP_SLOT {
                     off += entsize;
@@ -574,12 +766,7 @@ impl Elf64 {
                 }
 
                 if let Some(&target_addr) = export_map.get(&sym_name) {
-                    let got_addr = if r_offset < self.base {
-                        r_offset + self.base
-                    } else {
-                        r_offset
-                    };
-
+                    let got_addr = self.rebase_vaddr(r_offset);
                     loader.write_qword(got_addr, target_addr);
                     self.sym_to_addr.insert(sym_name.clone(), target_addr);
                     self.addr_to_symbol.insert(target_addr, sym_name);
@@ -629,25 +816,6 @@ impl Elf64 {
             .unwrap_or("")
             .to_string()
     }
-
-    /*
-    pub fn dynsym_offset_to_addr(&self, off: usize) -> u64 {
-        for sym in self.elf_dynsym.iter() {
-            if sym.st_name as usize == off {
-                return
-            }
-        }
-        return 0;
-    }
-
-    pub fn dynstr_name_to_offset(&self, name: &str) -> Option<usize> {
-        for i in 0..self.elf_dynstr.len() {
-            if name == self.elf_dynstr[i] {
-                return Some(i);
-            }
-        }
-        None
-    }*/
 
     pub fn load<L: ElfLoader>(
         &mut self,
@@ -934,8 +1102,13 @@ impl Elf64 {
             cur += 8;
             if entry & 1 == 0 {
                 // Address entry: relocate one slot, set the running pointer.
+                // `entry == 0` is reserved as a padding marker; skip relocation
+                // for it but still advance the pointer so subsequent bitmap
+                // entries run against the correct base.
                 where_addr = base.wrapping_add(entry);
-                reloc(loader, where_addr, base);
+                if entry != 0 {
+                    reloc(loader, where_addr, base);
+                }
                 where_addr = where_addr.wrapping_add(8);
             } else {
                 // Bitmap entry: bits 1..63 relocate consecutive slots.
@@ -967,7 +1140,7 @@ impl Elf64 {
             if phdr.p_type == PT_INTERP {
                 let start = phdr.p_offset as usize;
                 let end = (phdr.p_offset + phdr.p_filesz) as usize;
-                if end <= self.bin.len() {
+                if start < self.bin.len() && end <= self.bin.len() && end > start {
                     let bytes = &self.bin[start..end];
                     let s: Vec<u8> = bytes.iter().take_while(|&&c| c != 0).copied().collect();
                     return String::from_utf8(s).ok();

@@ -5,6 +5,19 @@ use crate::elf::loader::{ElfLoader, Perm};
 // `libmwemu::windows::constants`. Kept here so the parser is self-contained.
 const PT_LOAD: u32 = 1;
 const ELF32_DYN_BASE: u64 = 0x56555000;
+// ELF identification byte values per ELF ABI gabi4+ ch4.eheader.
+const ELFMAG0: u8 = 0x7f;
+const ELFMAG1: u8 = b'E';
+const ELFMAG2: u8 = b'L';
+const ELFMAG3: u8 = b'F';
+const EV_CURRENT: u8 = 1;
+const ELFDATA2LSB: u8 = 1;
+// ELF32 extended numbering (e_shnum==0 / PN_XNUM / SHN_XINDEX) is uncommonly
+// encountered and intentionally left as future work; the bounded walks here
+// already protect against the giant sentinel values.
+// Upper bounds mirror LIEF `Parser::NB_MAX_*`.
+const MAX_PHDR_ENTRIES: usize = 0x10_000;
+const MAX_SHDR_ENTRIES: usize = 0x10_000;
 
 macro_rules! read_u8 {
     ($raw:expr, $off:expr) => {
@@ -27,6 +40,29 @@ macro_rules! read_u32_le {
     };
 }
 
+fn check_elf32_ident(bin: &[u8]) -> Result<(), ElfError> {
+    if bin.len() < 52 {
+        return Err(ElfError::new(
+            "elf32 image too small for its header (need 52 bytes)",
+        ));
+    }
+    if bin[0] != ELFMAG0 || bin[1] != ELFMAG1 || bin[2] != ELFMAG2 || bin[3] != ELFMAG3 {
+        return Err(ElfError::new("e_ident magic mismatch"));
+    }
+    if bin[4] != ELFCLASS32 {
+        return Err(ElfError::new("e_ident EI_CLASS is not ELFCLASS32"));
+    }
+    if bin[5] != ELFDATA2LSB {
+        return Err(ElfError::new(
+            "rs-header only parses ELFDATA2LSB images (e_ident EI_DATA != 1)",
+        ));
+    }
+    if bin[6] != EV_CURRENT {
+        return Err(ElfError::new("e_ident EI_VERSION is not EV_CURRENT"));
+    }
+    Ok(())
+}
+
 pub const EI_NIDENT: usize = 16;
 pub const ELFCLASS32: u8 = 0x01;
 
@@ -43,13 +79,9 @@ impl Elf32 {
     /// Parse an ELF32 image from its raw bytes. Program/section headers are
     /// walked later, in [`Elf32::load`].
     pub fn parse(raw: &[u8]) -> Result<Elf32, ElfError> {
-        if raw.len() < 52 {
-            return Err(ElfError::new("elf32 image too small for its header"));
-        }
+        check_elf32_ident(raw)?;
         let bin = raw.to_vec();
-
         let ehdr: Elf32Ehdr = Elf32Ehdr::parse(&bin);
-
         Ok(Elf32 {
             bin,
             elf_hdr: ehdr,
@@ -71,20 +103,53 @@ impl Elf32 {
     }
 
     pub fn load<L: ElfLoader>(&mut self, loader: &mut L) {
-        let mut off = self.elf_hdr.e_phoff as usize;
-
-        for _ in 0..self.elf_hdr.e_phnum {
-            let phdr: Elf32Phdr = Elf32Phdr::parse(&self.bin, off);
-            self.elf_phdr.push(phdr);
-            off += self.elf_hdr.e_phentsize as usize;
+        // Program headers — bounded walk to avoid slice OOB panic on crafted
+        // header values. The synthetic limits here mirror the ELF64 path.
+        let phent_sz = self.elf_hdr.e_phentsize as usize;
+        if phent_sz >= core::mem::size_of::<Elf32Phdr>() {
+            let phoff = self.elf_hdr.e_phoff as usize;
+            let phnum = self.elf_hdr.e_phnum as usize;
+            if phnum > MAX_PHDR_ENTRIES {
+                log::warn!("elf32: e_phnum {} exceeds MAX_PHDR_ENTRIES", phnum);
+            } else if phoff != 0
+                && phnum
+                    .checked_mul(phent_sz)
+                    .and_then(|b| phoff.checked_add(b))
+                    .map_or(true, |end| end > self.bin.len())
+            {
+                log::warn!("elf32: program-header table extends past end of image");
+            } else {
+                self.elf_phdr.reserve_exact(phnum);
+                let mut off = phoff;
+                for _ in 0..phnum {
+                    self.elf_phdr.push(Elf32Phdr::parse(&self.bin, off));
+                    off += phent_sz;
+                }
+            }
         }
 
-        off = self.elf_hdr.e_shoff as usize;
-
-        for _ in 0..self.elf_hdr.e_shnum {
-            let shdr: Elf32Shdr = Elf32Shdr::parse(&self.bin, off);
-            self.elf_shdr.push(shdr);
-            off += self.elf_hdr.e_shentsize as usize;
+        // Section headers — bounded walk.
+        let shent_sz = self.elf_hdr.e_shentsize as usize;
+        if shent_sz >= core::mem::size_of::<Elf32Shdr>() {
+            let shoff = self.elf_hdr.e_shoff as usize;
+            let shnum = self.elf_hdr.e_shnum as usize;
+            if shnum > MAX_SHDR_ENTRIES {
+                log::warn!("elf32: e_shnum {} exceeds MAX_SHDR_ENTRIES", shnum);
+            } else if shoff != 0
+                && shnum
+                    .checked_mul(shent_sz)
+                    .and_then(|b| shoff.checked_add(b))
+                    .map_or(true, |end| end > self.bin.len())
+            {
+                log::warn!("elf32: section-header table extends past end of image");
+            } else {
+                self.elf_shdr.reserve_exact(shnum);
+                let mut off = shoff;
+                for _ in 0..shnum {
+                    self.elf_shdr.push(Elf32Shdr::parse(&self.bin, off));
+                    off += shent_sz;
+                }
+            }
         }
 
         // Dynamic/PIE ELF32 binaries have segments starting at vaddr 0;
@@ -98,7 +163,7 @@ impl Elf32 {
                 let vaddr = (phdr.p_vaddr as u64) + base;
 
                 // Convert ELF p_flags (PF_X=1, PF_W=2, PF_R=4) to Permission
-                // (READ=1, WRITE=2, EXECUTE=4). R and X bits are swapped.
+                // (READ=1, WRITE=2, EXECUTE=4).
                 let elf_r = phdr.p_flags & 4 != 0;
                 let elf_w = phdr.p_flags & 2 != 0;
                 let elf_x = phdr.p_flags & 1 != 0;
@@ -121,17 +186,16 @@ impl Elf32 {
                 };
                 seg_idx += 1;
 
-                if phdr.p_filesz > phdr.p_memsz {
-                    log::trace!("p_filesz > p_memsz bigger in file than in memory.");
+                // `p_filesz <= p_memsz` per ELF ABI; in malformed inputs the
+                // extra BSS bytes are already zero-filled by the loader map.
+                // Clamp the file slice to `bin.len()` to avoid slice panics
+                // on truncated/malicious inputs.
+                let off = phdr.p_offset as usize;
+                let filesz = phdr.p_filesz as usize;
+                let end = off.saturating_add(filesz).min(self.bin.len());
+                if off < self.bin.len() && end > off {
+                    loader.write_bytes(seg_addr, &self.bin[off..end]);
                 }
-                log::trace!(
-                    "segment {} - {}",
-                    phdr.p_offset,
-                    (phdr.p_offset + phdr.p_filesz)
-                );
-                let segment =
-                    &self.bin[phdr.p_offset as usize..(phdr.p_offset + phdr.p_filesz) as usize];
-                loader.write_bytes(seg_addr, segment);
             }
         }
     }
@@ -222,6 +286,11 @@ impl Elf32Ehdr {
     }
 }
 
+// Sentinel markers above intentionally shadow SHN_XINDEX/PN_XNUM/SHN_LORESERVE
+// — they are not yet consumed by the ELF32 walker. Future extended-numbering
+// support (section-zero `sh_size` / `sh_link` resolution) is part of the
+// larger dynamic-linking work and is out of scope here.
+
 #[derive(Debug)]
 pub struct Elf32Phdr {
     pub p_type: u32,
@@ -275,7 +344,7 @@ impl Elf32Shdr {
             sh_link: read_u32_le!(bin, shoff + 24),
             sh_info: read_u32_le!(bin, shoff + 28),
             sh_addralign: read_u32_le!(bin, shoff + 32),
-            sh_entsize: read_u32_le!(bin, 36),
+            sh_entsize: read_u32_le!(bin, shoff + 36),
         }
     }
 }

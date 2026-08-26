@@ -103,9 +103,16 @@ impl Emu {
             self.cfg.arch = Arch::X86;
 
             log::trace!("elf32 detected.");
-            let mut elf32 = Elf32::parse(&raw).unwrap();
+            let mut elf32 = match Elf32::parse(&raw) {
+                Ok(e) => e,
+                Err(err) => {
+                    log::error!("elf32 parse failed: {err}");
+                    self.os = crate::arch::OperatingSystem::Linux;
+                    self.cfg.arch = Arch::X86;
+                    return;
+                }
+            };
             elf32.load(&mut self.maps);
-            self.regs_mut().rip = (elf32.elf_hdr.e_entry as u64) + elf32.base();
             let stack_sz = 0x30000;
             let stack = self.alloc("stack", stack_sz, Permission::READ_WRITE);
             self.regs_mut().rsp = stack + (stack_sz / 2);

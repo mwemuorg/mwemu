@@ -18,7 +18,13 @@ impl Emu {
     /// Loads an ELF64 parsing sections etc, powered by elf64.rs
     /// This is called from load_code() if the sample is ELF64
     pub fn load_elf64(&mut self, filename: &str) {
-        let mut elf64 = parse_elf64_file(filename).unwrap();
+        let mut elf64 = match parse_elf64_file(filename) {
+            Ok(e) => e,
+            Err(err) => {
+                log::error!("elf64 parse failed for {filename}: {err}");
+                return;
+            }
+        };
         let dyn_link = !elf64.get_dynamic().is_empty();
 
         if dyn_link {
@@ -71,7 +77,6 @@ impl Emu {
             self.load_elf64_dynamic_libs(&mut elf64);
         }
 
-        // Get .text addr and size
         let mut text_addr: u64 = 0;
         let mut text_sz = 0;
         for i in 0..elf64.elf_shdr.len() {
