@@ -1055,7 +1055,11 @@ impl Elf64 {
             // absolute vaddrs (p_vaddr >= base -> use as-is); ET_DYN/PIE and low-linked
             // images carry offsets (p_vaddr < base -> base + p_vaddr). For the dynamic
             // paths (p_vaddr << base) this is byte-for-byte the old `base + p_vaddr`.
-            let seg_vaddr = if phdr.p_vaddr < base { base + phdr.p_vaddr } else { phdr.p_vaddr };
+            let seg_vaddr = if phdr.p_vaddr < base {
+                base + phdr.p_vaddr
+            } else {
+                phdr.p_vaddr
+            };
             let map_start = seg_vaddr & !(PAGE - 1);
             let map_end = (seg_vaddr + phdr.p_memsz + PAGE - 1) & !(PAGE - 1);
             let map_size = (map_end - map_start).max(PAGE);
