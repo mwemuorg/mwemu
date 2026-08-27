@@ -826,6 +826,11 @@ impl Elf64 {
         force_base: u64,
     ) {
         let elf64_base: u64;
+        // Static ELFs map kernel-style by PT_LOAD segments whenever any PT_LOAD
+        // exists (or the caller already chose segment mode for ld-bootstrap).
+        // Hoisted to function scope so the section walk below can also consume it;
+        // `dynamic_linking` stays on the section-walk path, so default is false.
+        let mut map_by_segments = self.segment_mode;
 
         if dynamic_linking {
             elf64_base = if is_lib {
@@ -842,14 +847,23 @@ impl Elf64 {
                 elf64_base = force_base;
             }
 
-            // elf executable need to map the header.
-            // Tiny ELFs (hand-crafted) may be smaller than 512 bytes; clamp the
-            // copy length to the actual binary size to avoid a slice OOB panic.
-            let hdr_copy_len = self.bin.len().min(512);
-            loader
-                .map("elf64.hdr", elf64_base, 512, Perm::READ_WRITE)
-                .expect("cannot create elf64.hdr map");
-            loader.write_bytes(elf64_base, &self.bin[..hdr_copy_len]);
+            // Map the image by PT_LOAD segments (kernel-style) whenever segments
+            // exist, or when the caller already chose segment mode (real-ld.so
+            // bootstrap). Static executables take this path too: sections carry
+            // absolute vaddrs and must not be re-mapped per-section over the
+            // segments.
+            map_by_segments = self.segment_mode
+                || (!dynamic_linking && self.elf_phdr.iter().any(|ph| ph.p_type == PT_LOAD));
+
+            if !map_by_segments {
+                // Tiny ELFs (hand-crafted) may be smaller than 512 bytes; clamp the
+                // copy length to the actual binary size to avoid a slice OOB panic.
+                let hdr_copy_len = self.bin.len().min(512);
+                loader
+                    .map("elf64.hdr", elf64_base, 512, Perm::READ_WRITE)
+                    .expect("cannot create elf64.hdr map");
+                loader.write_bytes(elf64_base, &self.bin[..hdr_copy_len]);
+            }
         }
 
         self.base = elf64_base;
@@ -858,7 +872,7 @@ impl Elf64 {
         self.needed_libs = self.get_dynamic();
 
         // Segment (PT_LOAD) mapping for running the real ld.so / libc code.
-        if self.segment_mode {
+        if map_by_segments {
             self.map_segments(loader, name, elf64_base);
         }
 
@@ -941,7 +955,7 @@ impl Elf64 {
             // Segment mode already mapped the whole image by PT_LOAD; here we
             // only need the section walk for symbol/.dynamic parsing, so skip
             // the per-section map creation entirely.
-            if self.segment_mode {
+            if map_by_segments {
                 self.elf_shdr[i].sh_addr = self.rebase_vaddr(sh_addr);
                 continue;
             }
@@ -1037,7 +1051,11 @@ impl Elf64 {
                 continue;
             }
 
-            let seg_vaddr = base + phdr.p_vaddr;
+            // Kernel-style rebase, identical to `rebase_vaddr`: ET_EXEC segments carry
+            // absolute vaddrs (p_vaddr >= base -> use as-is); ET_DYN/PIE and low-linked
+            // images carry offsets (p_vaddr < base -> base + p_vaddr). For the dynamic
+            // paths (p_vaddr << base) this is byte-for-byte the old `base + p_vaddr`.
+            let seg_vaddr = if phdr.p_vaddr < base { base + phdr.p_vaddr } else { phdr.p_vaddr };
             let map_start = seg_vaddr & !(PAGE - 1);
             let map_end = (seg_vaddr + phdr.p_memsz + PAGE - 1) & !(PAGE - 1);
             let map_size = (map_end - map_start).max(PAGE);
@@ -1055,9 +1073,12 @@ impl Elf64 {
             let file_end = (phdr.p_offset + phdr.p_filesz).min(self.bin.len() as u64) as usize;
 
             match loader.map(&map_name, map_start, map_size, perm) {
-                Some(_) => {
+                Some(actual) => {
                     if file_end > file_start {
-                        loader.write_bytes(seg_vaddr, &self.bin[file_start..file_end]);
+                        loader.write_bytes(
+                            actual + (seg_vaddr - map_start),
+                            &self.bin[file_start..file_end],
+                        );
                     }
                 }
                 None => {

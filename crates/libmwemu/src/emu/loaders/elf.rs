@@ -78,12 +78,10 @@ impl Emu {
         }
 
         let mut text_addr: u64 = 0;
-        let mut text_sz = 0;
         for i in 0..elf64.elf_shdr.len() {
             let sname = elf64.get_section_name(elf64.elf_shdr[i].sh_name as usize);
             if sname == ".text" {
                 text_addr = elf64.elf_shdr[i].sh_addr;
-                text_sz = elf64.elf_shdr[i].sh_size;
                 break;
             }
         }
@@ -93,8 +91,7 @@ impl Emu {
         if text_addr == 0 {
             for phdr in &elf64.elf_phdr {
                 if phdr.p_type == constants::PT_LOAD && (phdr.p_flags & 1) != 0 {
-                    text_addr = phdr.p_vaddr;
-                    text_sz = phdr.p_memsz;
+                    text_addr = elf64.rebase_vaddr(phdr.p_vaddr);
                     break;
                 }
             }
@@ -108,38 +105,20 @@ impl Emu {
         }
 
         // entry point logic:
-
-        // 1. Configured entry point
         if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
             log::trace!("forcing entry point to 0x{:x}", self.cfg.entry_point);
             self.set_pc(self.cfg.entry_point);
-
-        // 2. Entry point pointing inside .text
-        } else if elf64.elf_hdr.e_entry >= text_addr && elf64.elf_hdr.e_entry < text_addr + text_sz
-        {
-            log::trace!(
-                "Entry point pointing to .text 0x{:x}",
-                elf64.elf_hdr.e_entry
-            );
-            self.set_pc(elf64.elf_hdr.e_entry);
-
-        // 3. Entry point points above .text, relative entry point
-        } else if elf64.elf_hdr.e_entry < text_addr {
-            self.set_pc(elf64.elf_hdr.e_entry + elf64.base);
-            log::trace!(
-                "relative entry point: 0x{:x}  fixed: 0x{:x}",
-                elf64.elf_hdr.e_entry,
-                self.pc()
-            );
-
-        // 4. Entry point points below .text, weird case.
         } else {
-            log::warn!(
-                "Entry points is pointing below .text 0x{:x}",
-                elf64.elf_hdr.e_entry
-            );
+            // e_entry is a link-time vaddr; rebase it with the same rule the loader
+            // applied to sections/segments (vaddr < base -> vaddr + base), so RIP
+            // lands inside the mapped image for absolute (ET_EXEC) and relative
+            // (ET_DYN PIE / low-linked) ELFs alike. This replaces the old four-branch
+            // heuristic that left RIP at 0 (its branch 4) or added the base wrongly
+            // when e_entry did not sit inside the section literally named ".text".
+            let entry = elf64.rebase_vaddr(elf64.elf_hdr.e_entry);
+            log::trace!("elf entry point at 0x{:x}", entry);
+            self.set_pc(entry);
         }
-
         // Write the Linux initial stack layout (argc, argv, envp, auxv)
         // so _start can read argc/argv and __libc_start_main gets proper args.
         let phdr_addr = elf64.base + elf64.elf_hdr.e_phoff;

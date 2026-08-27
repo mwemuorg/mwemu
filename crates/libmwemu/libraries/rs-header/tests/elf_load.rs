@@ -158,19 +158,38 @@ fn detect_elf64_machine() {
 }
 
 #[test]
-fn load_elf64_static_maps_header() {
+fn load_elf64_static_maps_segments() {
     let raw = build_elf64();
     let mut elf = Elf64::parse(&raw).expect("parse");
     let mut mock = Mock::default();
 
-    // force_base != CFG_DEFAULT_BASE => the loader maps at exactly force_base.
+    elf.load(&mut mock, "test", false, false, 0x400000);
+
+    assert_eq!(elf.base, 0x400000);
+    // Static ELFs with PT_LOAD segments map kernel-style: the page-aligned first
+    // segment supplies the ELF header, so no legacy 512-byte "elf64.hdr" map.
+    assert!(mock.mapped("elf64.hdr").is_none());
+    let (addr, size) = mock.mapped("test.seg0").expect("segment map created");
+    assert_eq!(addr, 0x400000);
+    assert_eq!(size, 0x1000);
+    // ELF magic landed in guest memory at the segment base.
+    assert_eq!(mock.byte(0x400000), 0x7f);
+    assert_eq!(mock.byte(0x400003), b'F');
+}
+
+#[test]
+fn load_elf64_static_no_segments_maps_header() {
+    let mut raw = build_elf64();
+    put_u16(&mut raw, 56, 0); // e_phnum = 0: no PT_LOAD -> legacy header + section path
+    let mut elf = Elf64::parse(&raw).expect("parse");
+    let mut mock = Mock::default();
+
     elf.load(&mut mock, "test", false, false, 0x400000);
 
     assert_eq!(elf.base, 0x400000);
     let (addr, size) = mock.mapped("elf64.hdr").expect("header map created");
     assert_eq!(addr, 0x400000);
     assert_eq!(size, 512);
-    // ELF magic landed in guest memory at the base.
     assert_eq!(mock.byte(0x400000), 0x7f);
     assert_eq!(mock.byte(0x400003), b'F');
 }
