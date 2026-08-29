@@ -12,6 +12,67 @@ pub fn setup() {
     });
 }
 
+/// Errors raised when a test body exceeds its wall-clock budget.
+#[derive(Debug)]
+pub struct TimeoutError {
+    pub elapsed: std::time::Duration,
+    pub budget: std::time::Duration,
+}
+
+impl std::fmt::Display for TimeoutError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "test exceeded wall-clock budget: {:?} >= {:?}",
+            self.elapsed, self.budget
+        )
+    }
+}
+
+impl std::error::Error for TimeoutError {}
+
+/// Run `body` on a worker thread, returning `Err(TimeoutError)` if it does not
+/// finish within `budget`. Cooperative only — the body is responsible for
+/// reporting its own progress if it would otherwise lock up. The point is to
+/// give cargo's 60-s per-test default an out: a runaway `step()`/`run()` loop
+/// is killed at the budget boundary instead of stalling the whole suite.
+///
+/// On budget exhaustion the worker thread is detached (the `JoinHandle` is
+/// dropped). That is acceptable for a test that has hit its budget — the
+/// process exits shortly after cargo reports the test result. Panics inside
+/// `body` propagate normally so test failures still surface as cargo's
+/// `FAILED` output.
+pub fn run_with_timeout<F>(
+    budget: std::time::Duration,
+    body: F,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    F: FnOnce() + Send + 'static,
+{
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    let _handle = std::thread::Builder::new()
+        .name("test-body".into())
+        .spawn(move || {
+            body();
+            let _ = tx.send(());
+        })?;
+    let started = std::time::Instant::now();
+    match rx.recv_timeout(budget) {
+        Ok(()) => Ok(()),
+        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(Box::new(TimeoutError {
+            elapsed: started.elapsed(),
+            budget,
+        })),
+        Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => Err(Box::new(TimeoutError {
+            elapsed: started.elapsed(),
+            budget,
+        })),
+    }
+}
+
+pub const TEST_BUDGET: std::time::Duration = std::time::Duration::from_secs(8);
+
+
 /// Workspace root. `CARGO_MANIFEST_DIR` is `.../crates/libmwemu`, so go up two
 /// levels: the canonical `test/` and `maps/` data live at the repo root (shared
 /// with the CLI), not duplicated per crate.

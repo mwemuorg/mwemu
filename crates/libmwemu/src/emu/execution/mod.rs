@@ -359,6 +359,21 @@ impl Emu {
             }
             return false;
         }
+        // Honor the engine's per-run runtime limits (max_instructions /
+        // timeout_secs / max_faults). `run()` already gates on this via
+        // `check_runtime_limits`; `step()` previously did not, so a caller
+        // looping `while emu.step() {}` could blow past any configured
+        // budget. Reusing the same helper keeps the contract identical.
+        //
+        // The cached single-thread loops also increment `instruction_count`
+        // themselves — we count here too so `step()`-only callers (tests,
+        // hooks) actually trip `max_instructions` without going through
+        // the cached path.
+        self.instruction_count += 1;
+        if let Some(limit_pc) = self.check_runtime_limits(self.pc()) {
+            log::info!("runtime limit hit at pc=0x{limit_pc:x} via step()");
+            return false;
+        }
 
         // Decode and execute (arch-dispatched)
         let (sz, result_ok) = self.decode_and_execute();

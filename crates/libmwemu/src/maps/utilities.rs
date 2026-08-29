@@ -1,4 +1,30 @@
 use super::Maps;
+use std::sync::LazyLock;
+
+// Shared zero buffer for failed reads in [`Maps::read_bytes`]. The previous
+// implementation `Box::leak`-ed a fresh allocation on every failure, which
+// turned a noisy AArch64 PLT walk (decode fails against unmapped stubs in a
+// loop) into unbounded allocator pressure and stalled the suite for 60s+.
+// One file-static `Vec` sliced down with `&buf[..sz]` is enough: the largest
+// known call site requests `BLOCK_LEN` bytes (see
+// `windows/constants.rs::BLOCK_LEN`); coupling `maps/` to `windows/` for the
+// symbolic constant is undesirable, so the literal is duplicated here. If a
+// caller ever requests more than `MAX_READ_BYTES` zero bytes, that is a bug
+// and we panic — it must not leak or silently truncate.
+const MAX_READ_BYTES: usize = 0x300; // matches constants::BLOCK_LEN
+static ZERO_BUF: LazyLock<Vec<u8>> = LazyLock::new(|| vec![0u8; MAX_READ_BYTES]);
+
+fn zero_slice(sz: usize) -> &'static [u8] {
+    if sz == 0 {
+        return &[];
+    }
+    assert!(
+        sz <= MAX_READ_BYTES,
+        "read_bytes failure path: requested {sz} > MAX_READ_BYTES ({MAX_READ_BYTES}); \
+         oversized failed reads must be added to the shared buffer, not leaked"
+    );
+    &ZERO_BUF[..sz]
+}
 
 impl Maps {
     #[inline(always)]
@@ -119,17 +145,16 @@ impl Maps {
     /// Borrows `sz` bytes from mapped readable memory. Length is always `sz` (for `sz > 0`), so
     /// callers can use `.try_into()` into fixed arrays like before.
     ///
-    /// If the range is not readable, logs a warning and returns `sz` zeroed bytes via a small
-    /// [`Box::leak`] (avoids panicking; rare bad reads may accumulate leaked memory).
+    /// If the range is not readable, logs a warning and returns `sz` zeroed bytes from a
+    /// shared static buffer (`ZERO_BUF`). The buffer is sized to
+    /// `constants::BLOCK_LEN`, which is the largest known call site; requests larger than
+    /// that panic rather than leak. This used to `Box::leak` a fresh allocation on every
+    /// failed read, which turned unmapped-but-targeted AArch64 PLT walks into an
+    /// unbounded allocator pressure that stalled the test suite for 60s+.
     pub fn read_bytes(&self, addr: u64, sz: usize) -> &[u8] {
         match self.try_read_bytes(addr, sz) {
             Some(s) => s,
-            None => {
-                if sz == 0 {
-                    return &[];
-                }
-                Box::leak(vec![0u8; sz].into_boxed_slice())
-            }
+            None => zero_slice(sz),
         }
     }
 

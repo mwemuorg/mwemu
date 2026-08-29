@@ -116,7 +116,31 @@ impl Emu {
             let stack_sz = 0x30000;
             let stack = self.alloc("stack", stack_sz, Permission::READ_WRITE);
             self.regs_mut().rsp = stack + (stack_sz / 2);
+
+            // Set RIP from the ELF32 entry point. Mirrors the ELF64 path in
+            // `load_elf64` (which uses `rebase_vaddr(e_entry)` then `set_pc`).
+            // Without this branch `load_code` returns with `rip == 0` and
+            // downstream tests like `hello_linux_x86` fail at
+            // `assert!(entry != 0, …)`. `Elf32::load` already rebased each
+            // `PT_LOAD` segment with the same `base` (ELF32_DYN_BASE for
+            // dynamic/PIE binaries, 0 for ET_EXEC), so apply that base to
+            // `e_entry` here for parity. The `cfg.entry_point` override
+            // branch matches the convention used everywhere else.
+            let entry_raw = elf32.elf_hdr.e_entry as u64;
+            let base = elf32.base();
+            let resolved_entry = if entry_raw != 0 && entry_raw < base {
+                entry_raw + base
+            } else {
+                entry_raw
+            };
+            if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+                self.regs_mut().rip = self.cfg.entry_point;
+            } else {
+                self.regs_mut().rip = resolved_entry;
+            }
+
             self.elf32 = Some(elf32);
+
 
         // ELF64 AArch64
         } else if Elf64::is_elf64_aarch64(&raw) && !self.cfg.shellcode {

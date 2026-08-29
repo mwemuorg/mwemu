@@ -61,24 +61,30 @@ impl Emu {
                 let pc = self.pc();
 
                 // Outer-loop limit checks: must run BEFORE attempting to fetch code,
-                // otherwise PC sitting one past the end (e.g. after final loop iteration
-                // under run_to) errors out as "unmapped" instead of cleanly stopping.
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
                     std::hint::cold_path();
                     return Ok(limit_pc);
                 }
-
                 super::decode::ensure_instruction_cache_populated_aarch64(self, pc, &mut block)?;
-
+                if !self.instruction_cache_can_decode() {
+                    // Nothing decodable at this PC (e.g. unmapped page, garbage
+                    // bytes that fail yaxpeax). Spinning `ensure_*` again would
+                    // loop forever — surface the dead PC and let the caller
+                    // (typically a `step()` user or `aarch64_call64`) decide.
+                    log::trace!(
+                        "aarch64 cached loop: no decodable instructions at pc=0x{pc:x}; bailing out"
+                    );
+                    return Ok(pc);
+                }
                 // Inner decode loop
                 let mut sz: usize = 0;
                 let mut addr: u64 = 0;
 
-                let mut inner_running = self.instruction_cache_can_decode();
+                let mut inner_running = true;
                 let mut aarch64_decode_offset: u64 = 0;
 
                 while inner_running {
-                    // Ctrl-C (--handle): drop into the console at a clean
+
                     // instruction boundary (not mid-REP), then re-fetch. Gated on
                     // the plain `enabled_ctrlc` bool so normal runs never touch
                     // the atomic on the per-instruction hot path.

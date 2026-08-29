@@ -1,0 +1,15 @@
+# Intel/AMD Linux
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "target-cpu=native"]
+
+# Intel/AMD Windows
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-cpu=native"]
+
+# Intel Macs
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "target-cpu=native"]
+
+# Apple Silicon Macs (Activates NEON vector optimizations)
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "target-cpu=native"]
