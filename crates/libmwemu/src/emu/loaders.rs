@@ -141,7 +141,6 @@ impl Emu {
 
             self.elf32 = Some(elf32);
 
-
         // ELF64 AArch64
         } else if Elf64::is_elf64_aarch64(&raw) && !self.cfg.shellcode {
             self.os = crate::arch::OperatingSystem::Linux;

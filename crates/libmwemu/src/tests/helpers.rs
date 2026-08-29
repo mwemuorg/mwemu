@@ -72,7 +72,6 @@ where
 
 pub const TEST_BUDGET: std::time::Duration = std::time::Duration::from_secs(8);
 
-
 /// Workspace root. `CARGO_MANIFEST_DIR` is `.../crates/libmwemu`, so go up two
 /// levels: the canonical `test/` and `maps/` data live at the repo root (shared
 /// with the CLI), not duplicated per crate.

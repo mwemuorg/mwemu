@@ -84,7 +84,6 @@ impl Emu {
                 let mut aarch64_decode_offset: u64 = 0;
 
                 while inner_running {
-
                     // instruction boundary (not mid-REP), then re-fetch. Gated on
                     // the plain `enabled_ctrlc` bool so normal runs never touch
                     // the atomic on the per-instruction hot path.
