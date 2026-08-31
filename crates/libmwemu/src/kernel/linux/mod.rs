@@ -11,8 +11,10 @@
 //! through its own logic. An unimplemented symbol that is actually called is
 //! recorded in `KernelEnv::unimplemented` rather than aborting the run.
 
+pub mod io;
 pub mod misc;
 pub mod mm;
+pub mod net;
 pub mod module;
 pub mod printk;
 pub mod string;
@@ -27,6 +29,8 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         || sync::dispatch(symbol, emu)
         || printk::dispatch(symbol, emu)
         || module::dispatch(symbol, emu)
+        || net::dispatch(symbol, emu)
+        || io::dispatch(symbol, emu)
         || misc::dispatch(symbol, emu)
 }
 

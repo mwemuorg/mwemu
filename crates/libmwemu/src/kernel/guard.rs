@@ -229,6 +229,39 @@ impl Emu {
         self.kernel_report(kind, rip, addr, bytes, origin);
     }
 
+    /// Range-aware guard for bulk copies (memcpy/copy_from_user/…). Unlike
+    /// [`Self::kernel_guard_access`], which probes single addresses, this flags
+    /// a copy whose *length* runs past the destination chunk's requested size —
+    /// even when the tail shoots clean past the mapped bucket (where an
+    /// address-only probe finds no chunk and misses the overflow entirely).
+    pub fn kernel_guard_range(&mut self, rip: u64, addr: u64, len: u64, is_write: bool) {
+        if len == 0 {
+            return;
+        }
+        let Some(kernel) = self.kernel.as_ref() else {
+            return;
+        };
+        let Some(idx) = kernel.heap.index_of(addr) else {
+            return;
+        };
+        let chunk = kernel.heap.get(idx);
+        let off = chunk.offset_of(addr);
+        if chunk.is_freed() {
+            let kind = if is_write {
+                FindingKind::WriteAfterFree
+            } else {
+                FindingKind::UseAfterFree
+            };
+            let origin = ChunkOrigin::from(chunk);
+            self.kernel_report(kind, rip, addr, len as u32, origin);
+        } else if off + len > chunk.req_size {
+            // Report at the first byte past the requested size.
+            let oob_at = chunk.addr + chunk.req_size;
+            let origin = ChunkOrigin::from(chunk);
+            self.kernel_report(FindingKind::HeapOverflow, rip, oob_at, len as u32, origin);
+        }
+    }
+
     /// Record a finding, collapsing repeats of the same (kind, rip, object).
     pub fn kernel_report(
         &mut self,

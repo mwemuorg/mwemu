@@ -613,6 +613,91 @@ impl Emu {
         }
     }
 
+    // ---- kernel-mode: Linux drivers (.ko) --------------------------------
+
+    /// Load and link a kernel module (.ko, ET_REL) against the emulated
+    /// kernel. Returns the module base address. PC is left at init_module.
+    fn load_kernel_module(&mut self, path: &str) -> PyResult<u64> {
+        match self.emu.load_kernel_module(path) {
+            Ok(base) => Ok(base),
+            Err(e) => Err(PyValueError::new_err(e.message)),
+        }
+    }
+
+    /// Run the module init (insmod). Returns its result (0 = success).
+    fn run_module_init(&mut self) -> PyResult<u64> {
+        match self.emu.run_module_init() {
+            Ok(ret) => Ok(ret),
+            Err(e) => Err(PyValueError::new_err(e.message)),
+        }
+    }
+
+    /// Run the module exit (rmmod).
+    fn run_module_exit(&mut self) -> PyResult<u64> {
+        match self.emu.run_module_exit() {
+            Ok(ret) => Ok(ret),
+            Err(e) => Err(PyValueError::new_err(e.message)),
+        }
+    }
+
+    /// Address of a symbol the loaded module defines (an ioctl/file op/etc).
+    fn module_symbol(&self, name: &str) -> Option<u64> {
+        self.emu.module_symbol(name)
+    }
+
+    /// Call one of the module's own functions by symbol name, with the
+    /// kernel calling convention. Returns rax.
+    fn call_module_symbol(&mut self, name: &str, args: Vec<u64>) -> PyResult<u64> {
+        match self.emu.call_module_symbol(name, &args) {
+            Ok(ret) => Ok(ret),
+            Err(e) => Err(PyValueError::new_err(e.message)),
+        }
+    }
+
+    /// Call an arbitrary address with the kernel calling convention and a
+    /// clean stop at the retpad. Handy for driving a captured callback.
+    fn kernel_call(&mut self, addr: u64, args: Vec<u64>) -> PyResult<u64> {
+        match self.emu.kernel_call(addr, &args) {
+            Ok(ret) => Ok(ret),
+            Err(e) => Err(PyValueError::new_err(e.message)),
+        }
+    }
+
+    /// Memory-safety findings the slab ledger recorded, each pre-formatted
+    /// like the KMWEMU BUG reports (kind, object, cache, alloc/free sites).
+    fn kernel_findings(&self) -> Vec<String> {
+        self.emu.kernel_findings().iter().map(|f| f.report()).collect()
+    }
+
+    /// True if any finding is a use-after-free.
+    fn kernel_found_uaf(&self) -> bool {
+        self.emu.kernel_found_uaf()
+    }
+
+    /// Drain queued deferred work (call_rcu / workqueues / timers). Returns
+    /// how many callbacks ran. "Unregister now, free later" bugs surface here.
+    fn kernel_run_deferred(&mut self) -> usize {
+        self.emu.kernel_run_deferred()
+    }
+
+    /// Free a chunk behind the driver's back (models an external free path);
+    /// the ledger reports a double-free if it was already quarantined.
+    fn kernel_free(&mut self, ptr: u64, api: &str) -> bool {
+        self.emu.kernel_free(ptr, api)
+    }
+
+    /// Arm allocation-failure injection: the allocation at this 0-based index
+    /// returns NULL (kmalloc failure), forcing the driver's error/cleanup
+    /// path — where most driver double-frees / UAFs live. None disables it.
+    fn kernel_set_fail_alloc(&mut self, idx: Option<u64>) {
+        self.emu.kernel_set_fail_alloc(idx);
+    }
+
+    /// How many allocations the driver has attempted so far.
+    fn kernel_alloc_count(&self) -> u64 {
+        self.emu.kernel_alloc_count()
+    }
+
     // registers
 
     /// read register value ie get_reg('rax') or get_reg('x0')

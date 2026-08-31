@@ -128,6 +128,11 @@ pub struct KernelEnv {
     pub unimplemented: Vec<String>,
     /// Callbacks queued by the driver and not run yet.
     pub deferred: Vec<DeferredCall>,
+    /// Allocations attempted so far (fault-injection counter).
+    pub alloc_count: u64,
+    /// If set, the allocation whose 0-based index equals this returns NULL,
+    /// modelling a kmalloc failure so a driver's error/cleanup path runs.
+    pub fail_alloc_index: Option<u64>,
     next_stub: u64,
     next_data: u64,
 }
@@ -153,6 +158,8 @@ impl KernelEnv {
             caches: HashMap::new(),
             unimplemented: Vec::new(),
             deferred: Vec::new(),
+            alloc_count: 0,
+            fail_alloc_index: None,
             next_stub: layout.stub_base,
             next_data: layout.data_base,
         }
@@ -319,6 +326,20 @@ impl Emu {
     ///
     /// Callbacks may queue more work, so the queue is drained rather than
     /// iterated; the bound stops a driver that re-arms a timer forever.
+    /// Arm allocation-failure injection: the allocation at this 0-based index
+    /// returns NULL, forcing the driver down its error/cleanup path. None
+    /// disables injection.
+    pub fn kernel_set_fail_alloc(&mut self, idx: Option<u64>) {
+        if let Some(k) = self.kernel.as_mut() {
+            k.fail_alloc_index = idx;
+        }
+    }
+
+    /// How many allocations the driver has attempted (for picking a fail index).
+    pub fn kernel_alloc_count(&self) -> u64 {
+        self.kernel.as_ref().map(|k| k.alloc_count).unwrap_or(0)
+    }
+
     pub fn kernel_run_deferred(&mut self) -> usize {
         const MAX_ROUNDS: usize = 64;
         let mut ran = 0;
@@ -361,6 +382,15 @@ impl Emu {
         let Some(kernel) = self.kernel.as_mut() else {
             return 0;
         };
+        // Fault injection: model a kmalloc that returns NULL, so the driver's
+        // error-handling / cleanup path runs — that is where most driver
+        // double-frees and use-after-frees live.
+        let this_idx = kernel.alloc_count;
+        kernel.alloc_count += 1;
+        if kernel.fail_alloc_index == Some(this_idx) {
+            log::info!("{}: injected allocation failure at index {}", api, this_idx);
+            return 0;
+        }
         let Some(chunk) = kernel
             .heap
             .record_alloc(region, req_size, cache, api, pos, rip)

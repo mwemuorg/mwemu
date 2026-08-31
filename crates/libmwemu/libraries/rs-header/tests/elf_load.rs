@@ -241,6 +241,7 @@ fn parse_rejects_truncated_header_tables() {
     assert!(elf.elf_phdr.is_empty(), "no phdrs walked");
 }
 
+#[test]
 fn parse_elf32_section_entry_size_at_its_header_offset() {
     let mut raw = build_elf32();
     let shoff = raw.len();
@@ -250,10 +251,12 @@ fn parse_elf32_section_entry_size_at_its_header_offset() {
     put_u32(&mut raw, shoff + 40 + 36, 24);
 
     let mut elf = Elf32::parse(&raw).expect("parse ELF32 section headers");
-    assert_eq!(elf.elf_shdr.len(), 2);
-    assert_eq!(elf.elf_shdr[1].sh_entsize, 24);
+    // ELF32 walks the section (and program) header tables in `load()`, not in
+    // `parse()`, so inspect them only after loading.
     let mut mock = Mock::default();
     elf.load(&mut mock);
+    assert_eq!(elf.elf_shdr.len(), 2);
+    assert_eq!(elf.elf_shdr[1].sh_entsize, 24);
     assert_eq!(elf.elf_phdr.len(), 1, "fixture has one PT_LOAD");
 }
 

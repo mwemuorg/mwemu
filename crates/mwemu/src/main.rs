@@ -734,6 +734,31 @@ fn main() -> process::ExitCode {
         libmwemu::emu_context::clear_current_emu();
         log::logger().flush();
     } else {
+        // Kernel module (.ko): its "entry" is init_module, and load_code left PC
+        // there with the return address pointing at the kernel retpad. The
+        // generic run loop would execute the retpad's HLT and report a spurious
+        // "emulation error"; run_module_init drives it through kernel_call, which
+        // stops cleanly when init returns to the pad. Then print whatever the
+        // slab ledger caught — this is the point of loading a driver at all.
+        if emu.kernel.as_ref().and_then(|k| k.module.init).is_some() {
+            match emu.run_module_init() {
+                Ok(ret) => log::info!("module init returned {} (0 = success)", ret as i64),
+                Err(e) => log::error!("module init error: {}", e),
+            }
+            let findings = emu.kernel_findings();
+            if findings.is_empty() {
+                log::info!("no kernel memory-safety findings after init");
+            } else {
+                log::warn!("{} kernel memory-safety finding(s):", findings.len());
+                for f in findings {
+                    println!("{}", f.report());
+                }
+            }
+            libmwemu::emu_context::clear_current_emu();
+            log::logger().flush();
+            return process::ExitCode::SUCCESS;
+        }
+
         // `--handle` was already applied before load_code (Ctrl-C → console must
         // cover the SSDT LdrInitializeThunk init that runs during load).
         let result = emu.run(None);

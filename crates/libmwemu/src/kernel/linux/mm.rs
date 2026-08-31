@@ -41,12 +41,11 @@ fn large_alloc(emu: &mut Emu, size: u64, zeroed: bool, api: &str, region: Region
 /// reporting any access that lands in a freed or out-of-bounds chunk.
 fn guarded_copy(emu: &mut Emu, dst: u64, src: u64, len: u64) -> bool {
     let rip = emu.pc();
+    // Range-aware: catches an overflow whose tail shoots past the bucket.
+    emu.kernel_guard_range(rip, src, len, false);
+    emu.kernel_guard_range(rip, dst, len, true);
     emu.kernel_guard_access(rip, src, len as u32, false);
     emu.kernel_guard_access(rip, dst, len as u32, true);
-    if len > 0 {
-        emu.kernel_guard_access(rip, src + len - 1, 1, false);
-        emu.kernel_guard_access(rip, dst + len - 1, 1, true);
-    }
 
     let mut buf = vec![0u8; len as usize];
     for (i, b) in buf.iter_mut().enumerate() {

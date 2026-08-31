@@ -17,10 +17,12 @@ fn checked_copy(emu: &mut Emu, dst: u64, src: u64, len: u64) {
         return;
     }
     let rip = emu.pc();
+    // Range-aware: flags a copy whose length overruns the destination chunk's
+    // requested size even when the tail lands past the mapped bucket.
+    emu.kernel_guard_range(rip, src, len, false);
+    emu.kernel_guard_range(rip, dst, len, true);
     emu.kernel_guard_access(rip, src, len as u32, false);
-    emu.kernel_guard_access(rip, src + len - 1, 1, false);
     emu.kernel_guard_access(rip, dst, len as u32, true);
-    emu.kernel_guard_access(rip, dst + len - 1, 1, true);
 
     let mut buf = vec![0u8; len as usize];
     for (i, b) in buf.iter_mut().enumerate() {

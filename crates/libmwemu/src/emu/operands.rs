@@ -366,9 +366,18 @@ impl Emu {
                     if self.try_grow_stack(mem_addr) {
                         Some(self.maps.read_qword(mem_addr).unwrap_or(0))
                     } else {
-                        log::trace!("/!\\ error dereferencing qword on 0x{:x}", mem_addr);
-                        self.exception(ExceptionType::QWordDereferencing);
-                        return None;
+                        if self.kernel.is_some() {
+                            // Lenient kernel MMU: unmodeled kernel/device memory
+                            // reads as zero so a driver can keep running instead
+                            // of faulting on the first hardware/struct field we
+                            // don't model. Quarantined (freed) chunks stay mapped,
+                            // so this never hides a use-after-free.
+                            Some(0)
+                        } else {
+                            log::trace!("/!\\ error dereferencing qword on 0x{:x}", mem_addr);
+                            self.exception(ExceptionType::QWordDereferencing);
+                            return None;
+                        }
                     }
                 }),
 
@@ -381,9 +390,13 @@ impl Emu {
                         if self.try_grow_stack(mem_addr) {
                             Some(self.maps.read_dword(mem_addr).unwrap_or(0) as u64)
                         } else {
-                            log::trace!("/!\\ error dereferencing dword on 0x{:x}", mem_addr);
-                            self.exception(ExceptionType::DWordDereferencing);
-                            return None;
+                            if self.kernel.is_some() {
+                                Some(0)
+                            } else {
+                                log::trace!("/!\\ error dereferencing dword on 0x{:x}", mem_addr);
+                                self.exception(ExceptionType::DWordDereferencing);
+                                return None;
+                            }
                         }
                     }),
 
@@ -396,9 +409,13 @@ impl Emu {
                         if self.try_grow_stack(mem_addr) {
                             Some(self.maps.read_word(mem_addr).unwrap_or(0) as u64)
                         } else {
-                            log::trace!("/!\\ error dereferencing word on 0x{:x}", mem_addr);
-                            self.exception(ExceptionType::WordDereferencing);
-                            return None;
+                            if self.kernel.is_some() {
+                                Some(0)
+                            } else {
+                                log::trace!("/!\\ error dereferencing word on 0x{:x}", mem_addr);
+                                self.exception(ExceptionType::WordDereferencing);
+                                return None;
+                            }
                         }
                     }),
 
@@ -411,9 +428,13 @@ impl Emu {
                         if self.try_grow_stack(mem_addr) {
                             Some(self.maps.read_byte(mem_addr).unwrap_or(0) as u64)
                         } else {
-                            log::trace!("/!\\ error dereferencing byte on 0x{:x}", mem_addr);
-                            self.exception(ExceptionType::ByteDereferencing);
-                            None
+                            if self.kernel.is_some() {
+                                Some(0)
+                            } else {
+                                log::trace!("/!\\ error dereferencing byte on 0x{:x}", mem_addr);
+                                self.exception(ExceptionType::ByteDereferencing);
+                                None
+                            }
                         }
                     }),
             };
