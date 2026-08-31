@@ -14,6 +14,7 @@ use rs_header::pe::{
 };
 
 mod elf;
+mod ko;
 mod macho;
 mod pe;
 
@@ -96,6 +97,28 @@ impl Emu {
                 return;
             }
         };
+
+        // Kernel module (ET_REL). Checked before every other ELF branch: a
+        // relocatable object has no program headers and no entry point, so the
+        // executable loaders below cannot make sense of it. Loading links the
+        // module against the emulated kernel and leaves PC at its init
+        // function, so a plain `mwemu -f driver.ko` runs what insmod would.
+        if Elf64::is_elf64_relocatable(&raw) && !self.cfg.shellcode {
+            log::trace!("elf64 relocatable (kernel module) detected.");
+            match self.load_kernel_module(filename) {
+                Ok(_) => {
+                    let retpad = self.kernel.as_ref().map(|k| k.layout.retpad()).unwrap_or(0);
+                    if let Some(init) = self.kernel.as_ref().and_then(|k| k.module.init) {
+                        // Return address for init: the halt pad, so a plain
+                        // `mwemu -f driver.ko` stops when insmod would return.
+                        self.stack_push64(retpad);
+                        self.set_pc(init);
+                    }
+                }
+                Err(err) => log::error!("cannot load kernel module: {err}"),
+            }
+            return;
+        }
 
         // ELF32
         if Elf32::is_elf32(&raw) && !self.cfg.shellcode {

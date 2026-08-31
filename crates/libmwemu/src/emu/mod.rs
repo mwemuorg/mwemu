@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     fs::File,
     sync::{Arc, atomic::AtomicU32},
     time::Instant,
@@ -30,6 +30,23 @@ use rs_header::elf::{elf32::Elf32, elf64::Elf64};
 use rs_header::pe::{pe32::PE32, pe64::PE64};
 
 use crate::api::windows::export_index::ExportIndexRegistry;
+
+/// One resolved call recorded while `cfg.trace_calls` is on (see
+/// `engine/instructions/call.rs`). Only calls whose target resolves to a
+/// name (a hooked winapi stub, or an export inside a real DLL loaded via
+/// `--winver`/`--iso`/`--maps`) are kept — anonymous calls into the
+/// binary's own code are skipped to keep the log small and useful.
+#[derive(Debug, Clone)]
+pub struct ApiCallLogEntry {
+    pub pos: u64,  // instruction position counter at the CALL (Emu::pos)
+    pub from: u64, // address of the CALL instruction
+    pub to: u64,   // resolved call target
+    pub name: String,
+}
+
+/// Cap on `Emu::api_call_log`: oldest entries are dropped once this is
+/// reached, so a long-running trace can't grow the log unboundedly.
+pub const API_CALL_LOG_CAP: usize = 20_000;
 
 /// Architecture-neutral instruction decoding state for the active ISA.
 /// The cache is `InstructionCache<DecodedInstruction>` because exactly one
@@ -145,8 +162,15 @@ pub struct Emu {
     pub elf64: Option<Elf64>,     // parsed ELF64 (Linux x86_64 / AArch64)
     pub elf32: Option<Elf32>,     // parsed ELF32 (Linux x86)
     pub macho64: Option<Macho64>, // parsed Mach-O 64 (macOS AArch64), includes addr_to_symbol
-    pub tls_callbacks: Vec<u64>,  // PE TLS callback addresses
-    pub library_loaded: bool,     // flag for GDB to detect library load events
+    // --- Kernel-mode (driver) emulation ---
+    /// Present once a driver is loaded: the emulated kernel's address-space
+    /// plan, API stubs, allocator ledger and memory-safety findings.
+    pub kernel: Option<Box<crate::kernel::KernelEnv>>,
+    /// Fast gate for the per-access lifetime checks. Only true while a driver
+    /// is loaded, so the ordinary user-mode paths pay one predictable branch.
+    pub kernel_guard: bool,
+    pub tls_callbacks: Vec<u64>, // PE TLS callback addresses
+    pub library_loaded: bool,    // flag for GDB to detect library load events
 
     // --- Thread management ---
     pub threads: Vec<ThreadContext>,
@@ -177,10 +201,11 @@ pub struct Emu {
 
     // --- Tracing & statistics ---
     pub trace_file: Option<File>, // optional file handle for instruction trace output
-    pub instruction_count: u64,   // total instructions executed
-    pub fault_count: u32,         // page faults / exceptions encountered
-    pub entropy: f64,             // entropy measurement for polymorphic code detection
-    pub last_error: u32,          // Win32 GetLastError value
+    pub api_call_log: VecDeque<ApiCallLogEntry>, // resolved calls seen while cfg.trace_calls is on (bounded, see API_CALL_LOG_CAP)
+    pub instruction_count: u64,                  // total instructions executed
+    pub fault_count: u32,                        // page faults / exceptions encountered
+    pub entropy: f64,    // entropy measurement for polymorphic code detection
+    pub last_error: u32, // Win32 GetLastError value
 
     // --- Win32 resource management ---
     pub handle_management: HandleManagement, // file and object handle table

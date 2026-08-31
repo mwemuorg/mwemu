@@ -212,6 +212,23 @@ impl Emu {
             return Some(value1);
         }
 
+        // Kernel code reaches its per-CPU variables through GS, and there is no
+        // TEB to redirect to: `gs:[x]` is an ordinary load from `gs_base + x`.
+        // A module's per-CPU symbols (the stack-protector guard, `current_task`)
+        // resolve to absolute addresses in the emulated kernel data area, so the
+        // default `gs_base` of zero makes them land exactly there.
+        if unlikely(gs && self.kernel.is_some()) {
+            let addr = self.regs().gs.wrapping_add(mem_addr);
+            let sz = (ins.memory_size().size() * 8) as u32;
+            let value = match sz {
+                8 => self.maps.read_byte(addr).map(|v| v as u64),
+                16 => self.maps.read_word(addr).map(|v| v as u64),
+                32 => self.maps.read_dword(addr).map(|v| v as u64),
+                _ => self.maps.read_qword(addr),
+            };
+            return Some(value.unwrap_or(0));
+        }
+
         if unlikely(gs) {
             let value1: u64 = match mem_addr {
                 0x0 => {
@@ -331,6 +348,11 @@ impl Emu {
             /*if self.cfg.verbose >= 3 {
                 log::debug!("  Dereferencing: mem_addr=0x{:x}, size={} bits", mem_addr, sz);
             }*/
+
+            if unlikely(self.kernel_guard) {
+                let rip = self.pc();
+                self.kernel_guard_access(rip, mem_addr, sz / 8, false);
+            }
 
             if let Some(mut hook_fn) = self.hooks.hook_on_memory_read.take() {
                 let rip = self.regs().rip;
@@ -538,6 +560,17 @@ impl Emu {
                 };
 
                 let mem_seg = ins.memory_segment();
+                if unlikely(mem_seg == Register::GS && self.kernel.is_some()) {
+                    // Per-CPU store; see the matching read path above.
+                    let addr = self.regs().gs.wrapping_add(temp_displace);
+                    match (ins.memory_size().size() * 8) as u32 {
+                        8 => self.maps.write_byte(addr, value as u8),
+                        16 => self.maps.write_word(addr, value as u16),
+                        32 => self.maps.write_dword(addr, value as u32),
+                        _ => self.maps.write_qword(addr, value),
+                    };
+                    return true;
+                }
                 if unlikely(mem_seg == Register::GS && self.cfg.is_x64() && !self.os.is_linux()) {
                     // x64 Windows: GS is based at TEB.  Forward writes to teb_base + offset
                     // so that real ntdll code can update TEB fields without writing to address 0.
@@ -651,6 +684,11 @@ impl Emu {
                 );
 
                 let sz = (ins.memory_size().size() * 8) as u32;
+                if unlikely(self.kernel_guard) {
+                    let rip = self.pc();
+                    self.kernel_guard_access(rip, mem_addr, sz / 8, true);
+                }
+
                 let value2 = if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
                     let rip = self.regs().rip;
                     let result = hook_fn(self, rip, mem_addr, sz, value as u128) as u64;
@@ -904,6 +942,11 @@ impl Emu {
                 };
 
                 if do_derref {
+                    if unlikely(self.kernel_guard) {
+                        let rip = self.pc();
+                        self.kernel_guard_access(rip, mem_addr, 16, false);
+                    }
+
                     if let Some(mut hook_fn) = self.hooks.hook_on_memory_read.take() {
                         let rip = self.regs().rip;
                         hook_fn(self, rip, mem_addr, 128);
@@ -948,6 +991,11 @@ impl Emu {
                         return;
                     }
                 };
+
+                if unlikely(self.kernel_guard) {
+                    let rip = self.pc();
+                    self.kernel_guard_access(rip, mem_addr, 16, true);
+                }
 
                 let value2 = if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
                     let rip = self.regs().rip;
@@ -997,6 +1045,11 @@ impl Emu {
                 };
 
                 if do_derref {
+                    if unlikely(self.kernel_guard) {
+                        let rip = self.pc();
+                        self.kernel_guard_access(rip, mem_addr, 32, false);
+                    }
+
                     if let Some(mut hook_fn) = self.hooks.hook_on_memory_read.take() {
                         let rip = self.regs().rip;
                         hook_fn(self, rip, mem_addr, 256);
@@ -1042,6 +1095,11 @@ impl Emu {
 
                 // ymm dont support value modification from hook, for now
                 let value_u128: u128 = ((value.0[1] as u128) << 64) | value.0[0] as u128;
+                if unlikely(self.kernel_guard) {
+                    let rip = self.pc();
+                    self.kernel_guard_access(rip, mem_addr, 32, true);
+                }
+
                 let value2 = if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
                     let rip = self.regs().rip;
                     let result = hook_fn(self, rip, mem_addr, 256, value_u128);

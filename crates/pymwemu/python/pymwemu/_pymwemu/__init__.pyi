@@ -708,6 +708,18 @@ class Emu:
     def dump(self, filename: builtins.str) -> None: ...
     def open_trace_file(self) -> None: ...
     def get_call_stack(self) -> builtins.list[tuple[builtins.int, builtins.int]]: ...
+    def get_api_call_log(self) -> builtins.list[tuple[builtins.int, builtins.int, builtins.int, builtins.str]]:
+        r"""
+        Resolved calls seen while `trace_calls` is on (see `set_trace_calls`):
+        only calls whose target resolves to a name (winapi stub, or an export
+        inside a real DLL loaded via `load_maps_from_winver`/an iso/maps
+        folder) are kept. Each entry is `(pos, from, to, name)`. Bounded to the
+        most recent 20000 entries.
+        """
+    def clear_api_call_log(self) -> None:
+        r"""
+        Clear the accumulated API call log.
+        """
     def enable_threading(self, enable: builtins.bool) -> None: ...
 
 @typing.final

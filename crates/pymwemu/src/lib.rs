@@ -1311,6 +1311,24 @@ impl Emu {
         self.emu.call_stack().clone()
     }
 
+    /// Resolved calls seen while `trace_calls` is on (see `set_trace_calls`):
+    /// only calls whose target resolves to a name (winapi stub, or an export
+    /// inside a real DLL loaded via `load_maps_from_winver`/an iso/maps
+    /// folder) are kept. Each entry is `(pos, from, to, name)`. Bounded to the
+    /// most recent 20000 entries.
+    pub fn get_api_call_log(&self) -> Vec<(u64, u64, u64, String)> {
+        self.emu
+            .api_call_log
+            .iter()
+            .map(|c| (c.pos, c.from, c.to, c.name.clone()))
+            .collect()
+    }
+
+    /// Clear the accumulated API call log.
+    pub fn clear_api_call_log(&mut self) {
+        self.emu.api_call_log.clear();
+    }
+
     // enable-threading
     pub fn enable_threading(&mut self, enable: bool) {
         self.emu.enable_threading(enable);

@@ -4,6 +4,11 @@ A multi-platform x86/x64/AArch64 binary emulator written in Rust. Supports PE, E
 
 Also implement some Windows system simulation, EPB+TEB+LDR, --syscall-mode, and also winapi implementations.
 
+Kernel-mode too: `.ko` drivers are linked against an emulated kernel (stubs for
+every import, a modelled slab allocator) so lifetime bugs — use-after-free,
+double free, slab overflow, leaks — are reported instead of silently working.
+See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
+
 ## Golden Rules
 
 1. MWEMU should be able to emulate the maximum number of instructions possible.
@@ -24,6 +29,16 @@ Also implement some Windows system simulation, EPB+TEB+LDR, --syscall-mode, and 
 ## Testing
 
 `cargo test` (if there is no test folder `make tests` will download it)
+
+The kernel-mode tests need the driver artefact, which is built from source
+against the running kernel's headers:
+
+```bash
+make driver                                    # -> test/linux_uaf_driver.ko
+cargo test -p libmwemu tests::kernel -- --nocapture
+```
+
+They skip themselves when it is absent, so CI stays green without kernel headers.
 
 Testing in release mode could mask errors.
 

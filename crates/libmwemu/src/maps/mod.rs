@@ -793,8 +793,12 @@ impl Maps {
 
         let mut prev: u64 = bottom_aligned;
         let mut sz: u64 = 0x0;
-        // Here we assume that we go from the bottom of the memory to the top of the memory
-        for (&mem_base, mem_key) in self.maps.range(bottom_aligned + 1..top) {
+        // Here we assume that we go from the bottom of the memory to the top of the memory.
+        // The range starts *at* bottom_aligned, not past it: a map based exactly
+        // there must still be seen, otherwise `prev + sz` stays at bottom_aligned
+        // and the first gap is measured as if that map weren't present, handing
+        // back an address inside it.
+        for (&mem_base, mem_key) in self.maps.range(bottom_aligned..top) {
             if mem_base
                 .checked_sub(prev + sz)
                 .is_some_and(|result| result > aligned_size)

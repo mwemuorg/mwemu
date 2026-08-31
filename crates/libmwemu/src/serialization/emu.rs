@@ -375,6 +375,8 @@ impl From<SerializableEmu> for Emu {
             elf64: None,   // TODO: not yet serialized
             elf32: None,   // TODO: not yet serialized
             macho64: None, // TODO: not yet serialized
+            kernel: None,  // driver state is rebuilt by load_kernel_module, not dumped
+            kernel_guard: false,
             tls_callbacks,
             library_loaded: false,
             // Thread management
@@ -403,6 +405,7 @@ impl From<SerializableEmu> for Emu {
             stored_contexts: HashMap::new(),
             // Tracing & statistics
             trace_file,
+            api_call_log: std::collections::VecDeque::new(),
             instruction_count: 0,
             fault_count: 0,
             entropy,

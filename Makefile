@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples driver
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -36,6 +36,13 @@ clippy:
 
 clippy-release:
 	cargo clippy --locked --release $(CI_PACKAGES) --all-targets $(CARGO_TARGET)
+
+# Kernel-mode test target: builds drivers/linux/tlm into test/linux_uaf_driver.ko,
+# the deliberately vulnerable .ko the kernel emulation tests load. Needs the
+# running kernel's headers (/lib/modules/$(uname -r)/build); the tests skip
+# themselves when the artefact is absent, so this is optional.
+driver:
+	$(MAKE) -C drivers/linux/tlm install TESTDIR=$(abspath $(TEST_DIR))
 
 # Sample PE bundle (msgbox, enigma, ...), fetched once from the mwemu release
 # assets. Everything that needs a sample depends on this, so a fresh checkout
