@@ -14,8 +14,8 @@
 pub mod io;
 pub mod misc;
 pub mod mm;
-pub mod net;
 pub mod module;
+pub mod net;
 pub mod printk;
 pub mod string;
 pub mod sync;

@@ -666,7 +666,11 @@ impl Emu {
     /// Memory-safety findings the slab ledger recorded, each pre-formatted
     /// like the KMWEMU BUG reports (kind, object, cache, alloc/free sites).
     fn kernel_findings(&self) -> Vec<String> {
-        self.emu.kernel_findings().iter().map(|f| f.report()).collect()
+        self.emu
+            .kernel_findings()
+            .iter()
+            .map(|f| f.report())
+            .collect()
     }
 
     /// True if any finding is a use-after-free.

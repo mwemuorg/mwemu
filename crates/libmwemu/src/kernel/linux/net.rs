@@ -46,27 +46,38 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             let dev = emu.kernel_arg(0);
             free(emu, dev, symbol);
         }
-        "register_netdev" | "register_netdevice" | "cfg80211_register_netdevice"
-        | "unregister_netdev" | "unregister_netdevice" | "unregister_netdevice_queue"
-        | "dev_addr_mod" | "eth_validate_addr" | "eth_mac_addr" | "eth_type_trans"
-        | "ether_setup" | "eth_hw_addr_random" | "eth_commit_mac_addr_change" => {
-            emu.set_kernel_ret(0)
-        }
+        "register_netdev"
+        | "register_netdevice"
+        | "cfg80211_register_netdevice"
+        | "unregister_netdev"
+        | "unregister_netdevice"
+        | "unregister_netdevice_queue"
+        | "dev_addr_mod"
+        | "eth_validate_addr"
+        | "eth_mac_addr"
+        | "eth_type_trans"
+        | "ether_setup"
+        | "eth_hw_addr_random"
+        | "eth_commit_mac_addr_change" => emu.set_kernel_ret(0),
         // netif_* carrier / queue / rx — no scheduler here.
         s if s.starts_with("netif_") || s.starts_with("__netif_") => emu.set_kernel_ret(0),
         // ethtool helpers, netdev logging.
         s if s.starts_with("ethtool_") => emu.set_kernel_ret(0),
-        "netdev_notice" | "netdev_info" | "netdev_warn" | "netdev_err" | "netdev_dbg"
-        | "__dynamic_netdev_dbg" | "__dynamic_dev_dbg" | "netdev_rx_csum_fault" => {
-            emu.set_kernel_ret(0)
-        }
+        "netdev_notice"
+        | "netdev_info"
+        | "netdev_warn"
+        | "netdev_err"
+        | "netdev_dbg"
+        | "__dynamic_netdev_dbg"
+        | "__dynamic_dev_dbg"
+        | "netdev_rx_csum_fault" => emu.set_kernel_ret(0),
 
         // --- sk_buff ----------------------------------------------------------
         // __netdev_alloc_skb(dev, len, gfp) / napi_alloc_skb / __alloc_skb.
         // One chunk stands in for the sk_buff plus its linear data area; the
         // driver's skb_put/skb_pull walk pointers we return, not real state.
-        "__netdev_alloc_skb" | "netdev_alloc_skb" | "napi_alloc_skb"
-        | "__napi_alloc_skb" | "dev_alloc_skb" => {
+        "__netdev_alloc_skb" | "netdev_alloc_skb" | "napi_alloc_skb" | "__napi_alloc_skb"
+        | "dev_alloc_skb" => {
             let len = emu.kernel_arg(1).min(0x10000);
             alloc(emu, 0x100 + len + 0x100, "skbuff_head_cache", symbol, true);
         }
@@ -74,16 +85,21 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             let len = emu.kernel_arg(0).min(0x10000);
             alloc(emu, 0x100 + len + 0x100, "skbuff_head_cache", symbol, true);
         }
-        "consume_skb" | "kfree_skb" | "kfree_skb_reason" | "dev_kfree_skb"
-        | "dev_kfree_skb_any_reason" | "dev_kfree_skb_irq_reason"
-        | "napi_consume_skb" | "__kfree_skb" => {
+        "consume_skb"
+        | "kfree_skb"
+        | "kfree_skb_reason"
+        | "dev_kfree_skb"
+        | "dev_kfree_skb_any_reason"
+        | "dev_kfree_skb_irq_reason"
+        | "napi_consume_skb"
+        | "__kfree_skb" => {
             let skb = emu.kernel_arg(0);
             free(emu, skb, symbol);
         }
         // skb data-pointer accessors: hand back the caller's skb pointer so the
         // driver has a non-NULL, in-bounds pointer to work with.
-        "skb_put" | "skb_push" | "skb_pull" | "__skb_pull" | "skb_trim"
-        | "__skb_put" | "skb_reserve" | "__skb_pad" | "skb_copy_bits" => {
+        "skb_put" | "skb_push" | "skb_pull" | "__skb_pull" | "skb_trim" | "__skb_put"
+        | "skb_reserve" | "__skb_pad" | "skb_copy_bits" => {
             let skb = emu.kernel_arg(0);
             emu.set_kernel_ret(skb);
         }
@@ -106,21 +122,38 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             let addr = emu.kernel_arg(2);
             free(emu, addr, symbol);
         }
-        "usb_register_driver" | "usb_deregister" | "usb_submit_urb" | "usb_kill_urb"
-        | "usb_unlink_urb" | "usb_control_msg" | "usb_control_msg_send"
-        | "usb_control_msg_recv" | "usb_bulk_msg" | "usb_check_bulk_endpoints"
-        | "usb_check_int_endpoints" | "usb_get_dev" | "usb_put_dev"
-        | "usb_set_intfdata" | "usb_get_intfdata" | "usb_reset_device" => {
-            emu.set_kernel_ret(0)
-        }
+        "usb_register_driver"
+        | "usb_deregister"
+        | "usb_submit_urb"
+        | "usb_kill_urb"
+        | "usb_unlink_urb"
+        | "usb_control_msg"
+        | "usb_control_msg_send"
+        | "usb_control_msg_recv"
+        | "usb_bulk_msg"
+        | "usb_check_bulk_endpoints"
+        | "usb_check_int_endpoints"
+        | "usb_get_dev"
+        | "usb_put_dev"
+        | "usb_set_intfdata"
+        | "usb_get_intfdata"
+        | "usb_reset_device" => emu.set_kernel_ret(0),
 
         // --- tasklets / NAPI scheduling --------------------------------------
-        "tasklet_setup" | "tasklet_init" | "tasklet_kill" | "__tasklet_schedule"
-        | "__tasklet_hi_schedule" | "netif_napi_add" | "netif_napi_add_weight"
-        | "__netif_napi_del" | "netif_napi_del" | "napi_enable" | "napi_disable"
-        | "napi_complete_done" | "napi_schedule" | "__napi_schedule" => {
-            emu.set_kernel_ret(0)
-        }
+        "tasklet_setup"
+        | "tasklet_init"
+        | "tasklet_kill"
+        | "__tasklet_schedule"
+        | "__tasklet_hi_schedule"
+        | "netif_napi_add"
+        | "netif_napi_add_weight"
+        | "__netif_napi_del"
+        | "netif_napi_del"
+        | "napi_enable"
+        | "napi_disable"
+        | "napi_complete_done"
+        | "napi_schedule"
+        | "__napi_schedule" => emu.set_kernel_ret(0),
 
         _ => return false,
     }
