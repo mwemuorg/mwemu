@@ -229,3 +229,44 @@ fn double_free_is_reported() {
             .collect::<Vec<_>>()
     );
 }
+
+/// A freshly loaded `.ko` must be a self-consistent image: every placed section
+/// and relocated symbol has to land inside the module's own address range. A
+/// mis-placed section or an unapplied relocation would push a symbol (or the
+/// init/exit entry) outside `[base, base + size)`, which is exactly the class of
+/// loader bug that silently breaks driver emulation.
+#[test]
+fn kernel_module_layout_and_symbols_are_consistent() {
+    let Some(emu) = boot_driver() else { return };
+    let m = &emu.kernel.as_ref().expect("kernel env").module;
+
+    assert!(m.size > 0, "module image has zero size");
+    let range = m.base..(m.base + m.size);
+
+    let init = m.init.expect("init_module resolved");
+    let exit = m.exit.expect("cleanup_module resolved");
+    assert!(range.contains(&init), "init 0x{:x} outside image {:x?}", init, range);
+    assert!(range.contains(&exit), "exit 0x{:x} outside image {:x?}", exit, range);
+
+    // Every defined function symbol must resolve inside the placed image.
+    for s in m.symbols.iter().filter(|s| s.is_func && s.addr != 0) {
+        assert!(
+            range.contains(&s.addr),
+            "symbol {} at 0x{:x} lies outside the module image {:x?}",
+            s.name,
+            s.addr,
+            range
+        );
+    }
+
+    // A named lookup round-trips to an address the module actually covers.
+    let ioctl = emu
+        .module_symbol("tlm_ioctl")
+        .expect("the ioctl handler resolves by name");
+    assert!(
+        range.contains(&ioctl),
+        "tlm_ioctl 0x{:x} outside the module image {:x?}",
+        ioctl,
+        range
+    );
+}

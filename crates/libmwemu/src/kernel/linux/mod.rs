@@ -88,6 +88,7 @@ pub const SURFACE: &[(&str, &[&str])] = &[
             "kfree_sensitive",
             "krealloc",
             "krealloc_noprof",
+            "krealloc_node_align_noprof",
             "kmemdup",
             "kstrdup",
             "kstrndup",
