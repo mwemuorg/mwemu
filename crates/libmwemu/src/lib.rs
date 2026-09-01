@@ -12,6 +12,7 @@ pub mod api;
 pub mod arch;
 pub mod debug;
 pub mod exception;
+pub mod kernel;
 pub mod loaders;
 pub mod threading;
 pub mod windows;

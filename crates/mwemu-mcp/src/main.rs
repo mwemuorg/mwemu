@@ -16,6 +16,7 @@
 //! `--network none`, read-only rootfs, non-root); see the README.
 
 mod jsonrpc;
+mod kernel_tools;
 mod server;
 mod tools;
 mod transport;

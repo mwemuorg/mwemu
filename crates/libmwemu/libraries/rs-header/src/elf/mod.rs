@@ -8,9 +8,11 @@
 pub mod elf32;
 pub mod elf64;
 pub mod loader;
+pub mod relocatable;
 
 pub use elf64::{EM_386, EM_AARCH64, EM_X86_64};
 pub use loader::{ElfLoader, Perm};
+pub use relocatable::{ET_REL, RelObject, RelSection, RelSymbol};
 
 /// Error returned when an ELF image is too small or malformed to parse.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,11 +1,26 @@
 use crate::{
-    emu::Emu,
+    emu::{API_CALL_LOG_CAP, ApiCallLogEntry, Emu},
     exception::types::ExceptionType,
     winapi::{winapi32, winapi64},
     windows::peb::{peb32, peb64},
 };
 
 impl Emu {
+    /// Record a resolved call into `api_call_log` (see `engine/instructions/call.rs`,
+    /// gated by `cfg.trace_calls`). Drops the oldest entry once `API_CALL_LOG_CAP`
+    /// is reached, so a long trace stays bounded.
+    pub fn log_api_call(&mut self, pos: u64, from: u64, to: u64, name: String) {
+        if self.api_call_log.len() >= API_CALL_LOG_CAP {
+            self.api_call_log.pop_front();
+        }
+        self.api_call_log.push_back(ApiCallLogEntry {
+            pos,
+            from,
+            to,
+            name,
+        });
+    }
+
     //TODO: check this, this is used only on pymwemu
     /// Call a winapi by addess.
     pub fn handle_winapi(&mut self, addr: u64) {

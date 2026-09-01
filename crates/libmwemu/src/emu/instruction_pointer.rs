@@ -64,6 +64,13 @@ impl Emu {
     pub fn set_rip(&mut self, addr: u64, is_branch: bool) -> bool {
         self.force_reload = true;
 
+        // A driver lives entirely above the user-mode library range, so the
+        // usual `addr < LIBS64_MIN` fast path cannot tell its own code from a
+        // call into the kernel. Kernel mode answers that question first.
+        if unlikely(self.kernel.is_some()) {
+            return self.kernel_set_pc(addr);
+        }
+
         if unlikely(addr == constants::RETURN_THREAD as u64) {
             log::trace!("/!\\ Thread returned, continuing the main thread");
             self.regs_mut().rip = self.main_thread_cont;
@@ -206,6 +213,10 @@ impl Emu {
     /// If the target address is in a loaded library (dylib/so), intercept and
     /// dispatch to the appropriate API handler. Mirrors set_rip() for Windows.
     pub fn set_pc_aarch64(&mut self, addr: u64) -> bool {
+        if unlikely(self.kernel.is_some()) {
+            return self.kernel_set_pc(addr);
+        }
+
         // If in user code range, just set PC
         if addr < constants::LIBS64_MIN {
             self.regs_aarch64_mut().pc = addr;

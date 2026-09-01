@@ -226,7 +226,10 @@ impl Elf64 {
 
         // Program headers: bounded, fallible walk.
         let phent_sz = ehdr.e_phentsize as usize;
-        if phent_sz < core::mem::size_of::<Elf64Phdr>() {
+        // A relocatable object (ET_REL, e.g. a kernel module) has no program
+        // headers at all, and records that as `e_phnum = e_phentsize = 0`.
+        // Only a table that actually has entries needs a valid entry size.
+        if phnum > 0 && phent_sz < core::mem::size_of::<Elf64Phdr>() {
             return Err(ElfError::new("e_phentsize smaller than sizeof(Elf64_Phdr)"));
         }
         if phnum > MAX_PHDR_ENTRIES {
@@ -256,7 +259,7 @@ impl Elf64 {
 
         // Section headers: bounded, fallible walk.
         let shent_sz = ehdr.e_shentsize as usize;
-        if shent_sz < core::mem::size_of::<Elf64Shdr>() {
+        if shnum > 0 && shent_sz < core::mem::size_of::<Elf64Shdr>() {
             return Err(ElfError::new("e_shentsize smaller than sizeof(Elf64_Shdr)"));
         }
         if shnum > MAX_SHDR_ENTRIES {

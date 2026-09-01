@@ -37,6 +37,14 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs().rdx,
             emu.regs().r8
         );
+        // Keep a queryable log of named calls alongside the log::trace! line
+        // above, so a caller that isn't reading the trace log (e.g. mwemu-mcp)
+        // can still see which functions got called by name.
+        if !callee_sym.is_empty() {
+            let pos = emu.pos;
+            let from = emu.regs().rip;
+            emu.log_api_call(pos, from, addr, callee_sym);
+        }
     }
 
     /*

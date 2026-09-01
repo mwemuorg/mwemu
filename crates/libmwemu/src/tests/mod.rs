@@ -21,6 +21,7 @@ macro_rules! sample {
 }
 
 mod isa;
+mod kernel;
 mod loaders;
 mod os;
 mod robustness;

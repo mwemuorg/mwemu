@@ -241,6 +241,21 @@ fn t_load_maps(s: &mut Server, a: &Value) -> Result<Value, String> {
     Ok(json!({ "ok": true, "maps_folder": folder }))
 }
 
+fn t_set_winver(s: &mut Server, a: &Value) -> Result<Value, String> {
+    // Writes a local DLL cache and fetches over the network from Microsoft's
+    // symbol server; gate it like the other maps_folder-touching tools.
+    s.require_disk()?;
+    let winver = req_str(a, "winver")?.to_string();
+    let e = s.emu_mut()?;
+    e.set_maps_from_winver(&winver)
+        .map_err(|err| format!("--winver {winver}: {err}"))?;
+    Ok(json!({
+        "ok": true,
+        "winver": winver,
+        "maps_folder": e.cfg.maps_folder,
+    }))
+}
+
 fn t_init_win32(s: &mut Server, _a: &Value) -> Result<Value, String> {
     let e = s.emu_mut()?;
     e.init_win32(false, false);
@@ -727,6 +742,38 @@ fn t_api_name_to_addr(s: &mut Server, a: &Value) -> Result<Value, String> {
     Ok(json!({ "name": name, "address": hx(addr) }))
 }
 
+fn t_api_call_trace(s: &mut Server, a: &Value) -> Result<Value, String> {
+    let action = opt_str(a, "action").unwrap_or("get");
+    let e = s.emu_mut()?;
+    match action {
+        "get" => {
+            let calls: Vec<Value> = e
+                .api_call_log
+                .iter()
+                .map(|c| {
+                    json!({
+                        "pos": c.pos,
+                        "from": hx(c.from),
+                        "to": hx(c.to),
+                        "name": c.name,
+                    })
+                })
+                .collect();
+            Ok(json!({
+                "count": calls.len(),
+                "trace_calls_enabled": e.cfg.trace_calls,
+                "calls": calls,
+            }))
+        }
+        "clear" => {
+            let cleared = e.api_call_log.len();
+            e.api_call_log.clear();
+            Ok(json!({ "ok": true, "cleared": cleared }))
+        }
+        other => Err(format!("unknown action '{other}', use get | clear")),
+    }
+}
+
 fn t_bp(s: &mut Server, a: &Value) -> Result<Value, String> {
     let action = req_str(a, "action")?;
     let e = s.emu_mut()?;
@@ -813,6 +860,14 @@ fn sc_load_binary() -> Value {
 }
 fn sc_load_maps() -> Value {
     obj(json!({ "folder": { "type": "string" } }), &["folder"])
+}
+fn sc_set_winver() -> Value {
+    obj(
+        json!({
+            "winver": { "type": "string", "description": "friendly name (win11, win11@22h2, win11@21h2, win10, win10@22h2, win2019) or exact build like '26100.7920'" }
+        }),
+        &["winver"],
+    )
 }
 fn sc_init_linux64() -> Value {
     obj(json!({ "dynamic": { "type": "boolean" } }), &[])
@@ -984,6 +1039,12 @@ fn sc_api_addr() -> Value {
 fn sc_api_name() -> Value {
     obj(json!({ "name": { "type": "string" } }), &["name"])
 }
+fn sc_api_call_trace() -> Value {
+    obj(
+        json!({ "action": { "type": "string", "enum": ["get", "clear"], "description": "default 'get'" } }),
+        &[],
+    )
+}
 fn sc_bp() -> Value {
     obj(
         json!({
@@ -1039,6 +1100,12 @@ pub const TOOLS: &[ToolDef] = &[
         description: "Set the 32/64-bit maps folder for a realistic memory layout (disk-gated).",
         schema: sc_load_maps,
         handler: t_load_maps,
+    },
+    ToolDef {
+        name: "mwemu_set_winver",
+        description: "Fetch genuine Windows system DLLs (ntdll, kernelbase, kernel32, ...) for a build from Microsoft's public symbol server and point the session's maps folder at them, so mwemu_init_win32 and API-name resolution (mwemu_api_addr_to_name, mwemu_api_call_trace) see real PE export names instead of synthetic stubs. Call after mwemu_open (needs the arch) and before mwemu_init_win32. Disk-gated: writes a local DLL cache under maps/winver/.",
+        schema: sc_set_winver,
+        handler: t_set_winver,
     },
     ToolDef {
         name: "mwemu_init_win32",
@@ -1225,6 +1292,79 @@ pub const TOOLS: &[ToolDef] = &[
         description: "Resolve an API name to its address.",
         schema: sc_api_name,
         handler: t_api_name_to_addr,
+    },
+    ToolDef {
+        name: "mwemu_api_call_trace",
+        description: "Get or clear the log of named calls (address + resolved name) seen while the session ran, e.g. Windows API calls resolved via the winapi stub table or via real DLL exports loaded with mwemu_set_winver. Requires trace_calls: true (mwemu_config) to record; grows during mwemu_step/mwemu_run/mwemu_call and is capped at 20000 entries (oldest dropped first). action: get (default) or clear.",
+        schema: sc_api_call_trace,
+        handler: t_api_call_trace,
+    },
+    // --- kernel-mode (driver) emulation --------------------------------------
+    ToolDef {
+        name: "mwemu_kernel_load_module",
+        description: "Load a Linux kernel module (.ko) and link it against mwemu's emulated kernel: place its sections, apply its relocations, and resolve every imported kernel symbol to an interceptable stub. Returns the module name, base, sections, symbol count and any imports with no implementation. Open an x64 session first; nothing executes until mwemu_kernel_init. Disk-gated.",
+        schema: crate::kernel_tools::sc_load_module,
+        handler: crate::kernel_tools::t_load_module,
+    },
+    ToolDef {
+        name: "mwemu_kernel_init",
+        description: "Run the loaded module's init function, as insmod would. Returns its result (0 = success) plus any memory-safety findings it produced.",
+        schema: crate::kernel_tools::sc_empty,
+        handler: crate::kernel_tools::t_init,
+    },
+    ToolDef {
+        name: "mwemu_kernel_exit",
+        description: "Run the loaded module's cleanup function, as rmmod would. Returns any memory-safety findings it produced.",
+        schema: crate::kernel_tools::sc_empty,
+        handler: crate::kernel_tools::t_exit,
+    },
+    ToolDef {
+        name: "mwemu_kernel_call",
+        description: "Call one of the module's own functions by symbol name (or address) with the kernel calling convention — the way to drive an ioctl, a file operation or a work callback. Build argument structs with mwemu_alloc + mwemu_write_int first. Returns the value, and the findings this specific call caused. A driver that faults is reported, not raised.",
+        schema: crate::kernel_tools::sc_call,
+        handler: crate::kernel_tools::t_call,
+    },
+    ToolDef {
+        name: "mwemu_kernel_symbols",
+        description: "List the symbols the loaded module defines (functions and objects, including static ones), optionally filtered by substring. Use it to find the handlers worth driving.",
+        schema: crate::kernel_tools::sc_symbols,
+        handler: crate::kernel_tools::t_symbols,
+    },
+    ToolDef {
+        name: "mwemu_kernel_findings",
+        description: "All memory-safety findings so far: use-after-free (read, write, indirect call, poisoned-pointer dereference), double free, invalid free, slab out-of-bounds and leaks. Each finding carries the faulting instruction plus the object's allocation and free sites.",
+        schema: crate::kernel_tools::sc_empty,
+        handler: crate::kernel_tools::t_findings,
+    },
+    ToolDef {
+        name: "mwemu_kernel_heap",
+        description: "Dump the emulated slab/vmalloc ledger: every chunk with its size, cache, state (live or quarantined) and the call sites that allocated and freed it. Filter with state=live|freed.",
+        schema: crate::kernel_tools::sc_heap,
+        handler: crate::kernel_tools::t_heap,
+    },
+    ToolDef {
+        name: "mwemu_kernel_log",
+        description: "The emulated dmesg: lines the driver emitted through printk/dev_*, plus any kernel API it called that mwemu does not implement.",
+        schema: crate::kernel_tools::sc_empty,
+        handler: crate::kernel_tools::t_log,
+    },
+    ToolDef {
+        name: "mwemu_kernel_run_deferred",
+        description: "Run the callbacks the driver queued (work items, timers, RCU callbacks) instead of leaving them pending. Deferred frees are where many driver use-after-free bugs live, so draining is often what makes one fire.",
+        schema: crate::kernel_tools::sc_empty,
+        handler: crate::kernel_tools::t_run_deferred,
+    },
+    ToolDef {
+        name: "mwemu_kernel_leak_check",
+        description: "Report every allocation still live as a leak. Call after mwemu_kernel_exit, when the module should have released everything.",
+        schema: crate::kernel_tools::sc_empty,
+        handler: crate::kernel_tools::t_leak_check,
+    },
+    ToolDef {
+        name: "mwemu_kernel_surface",
+        description: "List the kernel API mwemu implements for drivers, grouped by subsystem (alloc, usercopy, string, lifetime, locking, deferred, logging, registration, time). os = linux (default), windows or macos.",
+        schema: crate::kernel_tools::sc_surface,
+        handler: crate::kernel_tools::t_surface,
     },
     ToolDef {
         name: "mwemu_bp",
