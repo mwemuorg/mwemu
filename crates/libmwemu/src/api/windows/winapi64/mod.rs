@@ -21,7 +21,7 @@ mod ws2_32;
 
 use crate::emu;
 
-pub fn gateway_by_import(import_dll: &str, api: &str, emu: &mut emu::Emu) {
+pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: u64) {
     let dll = import_dll.trim().to_lowercase();
     let api = api.trim();
 
@@ -31,7 +31,7 @@ pub fn gateway_by_import(import_dll: &str, api: &str, emu: &mut emu::Emu) {
         return;
     }
     if dll == "msvcrt.dll" {
-        let _ = msvcrt::gateway_by_name(api, emu);
+        let _ = msvcrt::gateway_by_name(emu, api, addr);
         emu.call_stack_mut().pop();
         return;
     }

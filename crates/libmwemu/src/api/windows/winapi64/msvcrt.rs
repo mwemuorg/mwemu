@@ -10,15 +10,19 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
 
-    gateway_by_name(api, emu)
+    gateway_by_name(emu, api, addr)
 }
 
-pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
+pub fn gateway_by_name(emu: &mut emu::Emu, api: &str, addr: u64) -> String {
     match api {
         "__set_app_type" => __set_app_type(emu),
         "malloc" => malloc(emu),
         "realloc" => wincrt::realloc(emu),
         "_errno" => _errno(emu),
+        "_initterm" => {
+            emu.cfg.emulate_winapi_once = true;
+            emu.set_rip(addr, false);
+        },
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {

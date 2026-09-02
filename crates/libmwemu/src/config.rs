@@ -105,6 +105,7 @@ pub struct Config {
 
     // --- Testing ---
     pub test_mode: bool,
+    pub emulate_winapi_once: bool
 }
 
 impl Default for Config {
@@ -161,6 +162,7 @@ impl Config {
             entropy: false,
             shellcode: false,
             emulate_winapi: false,
+            emulate_winapi_once: false,
             // On Linux, emulate the real libc/ld.so by default (executing the
             // genuine interpreter + libc, intercepting only at `syscall`).
             // Falls back to the in-Rust libc hooks when the host interpreter

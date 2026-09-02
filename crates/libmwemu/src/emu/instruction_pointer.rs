@@ -103,7 +103,7 @@ impl Emu {
                     // of being merely named. Applies in both normal and SSDT modes.
                     self.gateway_return = self.stack_pop64(false).unwrap_or(0);
                     self.regs_mut().rip = self.gateway_return;
-                    winapi64::gateway_by_import(dll, api, self);
+                    winapi64::gateway_by_import(self, dll, api, addr);
                     self.force_break = true;
                     self.is_api_run = true;
                     return true;
@@ -176,6 +176,16 @@ impl Emu {
                     log_red!(self, "emulating {}", api_name);
                 }
                 self.regs_mut().rip = addr;
+                return true;
+            }
+
+            if unlikely(self.cfg.emulate_winapi_once) {
+                let api_name = winapi64::kernel32::guess_api_name(self, addr);
+                if !api_name.is_empty() && self.cfg.verbose >= 1 {
+                    log_red!(self, "emulating {}", api_name);
+                }
+                self.regs_mut().rip = addr;
+                self.cfg.emulate_winapi_once = false;
                 return true;
             }
 
