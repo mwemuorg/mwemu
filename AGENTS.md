@@ -25,6 +25,8 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 7. don't break any test, unless the test is bad implemented.
 
+8. Pls use that format: cargo fmt --all -- --check
+
 
 ## Testing
 

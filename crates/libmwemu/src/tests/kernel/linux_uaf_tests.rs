@@ -245,8 +245,18 @@ fn kernel_module_layout_and_symbols_are_consistent() {
 
     let init = m.init.expect("init_module resolved");
     let exit = m.exit.expect("cleanup_module resolved");
-    assert!(range.contains(&init), "init 0x{:x} outside image {:x?}", init, range);
-    assert!(range.contains(&exit), "exit 0x{:x} outside image {:x?}", exit, range);
+    assert!(
+        range.contains(&init),
+        "init 0x{:x} outside image {:x?}",
+        init,
+        range
+    );
+    assert!(
+        range.contains(&exit),
+        "exit 0x{:x} outside image {:x?}",
+        exit,
+        range
+    );
 
     // Every defined function symbol must resolve inside the placed image.
     for s in m.symbols.iter().filter(|s| s.is_func && s.addr != 0) {

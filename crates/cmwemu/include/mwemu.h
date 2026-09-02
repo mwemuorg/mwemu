@@ -620,6 +620,54 @@ char *mwemu_get_module_name(struct MwemuEmu *emu);
 // Set the module name.
 void mwemu_set_module_name(struct MwemuEmu *emu, const char *value);
 
+// Load a Linux kernel module (`.ko`, an ET_REL object): link it, place its
+// sections and apply relocations against the synthetic kernel. Writes the
+// module base to `out_base`. Returns 1 on success, 0 on error (mwemu_last_error).
+int32_t mwemu_load_kernel_module(struct MwemuEmu *emu, const char *path, uint64_t *out_base);
+
+// Run the module init (what `insmod` does). Writes its result (0 = success) to
+// `out_ret`. Returns 1 on success, 0 on error.
+int32_t mwemu_run_module_init(struct MwemuEmu *emu, uint64_t *out_ret);
+
+// Run the module exit (`rmmod`). Writes its result to `out_ret`. 1/0.
+int32_t mwemu_run_module_exit(struct MwemuEmu *emu, uint64_t *out_ret);
+
+// Address of a symbol the loaded module defines (an ioctl / file op / callback),
+// or 0 if the module has no such symbol.
+uint64_t mwemu_module_symbol(struct MwemuEmu *emu, const char *name);
+
+// Call one of the module's own functions by symbol name, using the kernel
+// calling convention and a clean stop at the retpad. Writes the return (rax)
+// to `out_ret`. Returns 1 on success, 0 on error.
+int32_t mwemu_call_module_symbol(struct MwemuEmu *emu,
+                                 const char *name,
+                                 const uint64_t *params,
+                                 uintptr_t nparams,
+                                 uint64_t *out_ret);
+
+// Call an arbitrary address with the kernel calling convention and a clean
+// retpad stop (handy for a captured callback). Writes rax to `out_ret`. 1/0.
+int32_t mwemu_kernel_call(struct MwemuEmu *emu,
+                          uint64_t address,
+                          const uint64_t *params,
+                          uintptr_t nparams,
+                          uint64_t *out_ret);
+
+// Number of memory-safety findings the slab ledger has recorded so far.
+uintptr_t mwemu_kernel_findings_count(struct MwemuEmu *emu);
+
+// The `idx`-th finding, pre-formatted like the `KMWEMU BUG` reports (kind,
+// object, cache, alloc/free sites). Returns NULL if `idx` is out of range.
+// Free with `mwemu_free_string`.
+char *mwemu_kernel_finding(struct MwemuEmu *emu, uintptr_t idx);
+
+// Returns 1 if any recorded finding is a use-after-free, 0 otherwise.
+int32_t mwemu_kernel_found_uaf(struct MwemuEmu *emu);
+
+// Drain queued deferred work (call_rcu / workqueues / timers). Returns how
+// many callbacks ran. "Unregister now, free later" UAFs surface here.
+uintptr_t mwemu_kernel_run_deferred(struct MwemuEmu *emu);
+
 // Get the exe name. Free with `mwemu_free_string`.
 char *mwemu_get_exe_name(struct MwemuEmu *emu);
 

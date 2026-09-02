@@ -99,8 +99,11 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             let ptr = emu.kernel_arg(0);
             emu.kernel_free(ptr, symbol);
         }
-        "krealloc" | "krealloc_noprof" | "__krealloc_noprof"
-        | "krealloc_node_align_noprof" | "__krealloc_node_align_noprof" => {
+        "krealloc"
+        | "krealloc_noprof"
+        | "__krealloc_noprof"
+        | "krealloc_node_align_noprof"
+        | "__krealloc_node_align_noprof" => {
             let old = emu.kernel_arg(0);
             let new_size = emu.kernel_arg(1);
             // krealloc(objp, size, flags) puts flags at arg2, but the newer
