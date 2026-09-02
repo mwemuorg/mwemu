@@ -2008,6 +2008,176 @@ pub extern "C" fn mwemu_set_module_name(emu: *mut MwemuEmu, value: *const c_char
     let e = emu!(emu, ());
     e.cfg.module_name = cstr!(value, ()).to_string();
 }
+
+// ---------------------------------------------------------------------------
+// Kernel-mode (Linux driver) emulation — parity with pymwemu.
+// Load a `.ko`, drive a handler with crafted args and read the slab ledger's
+// memory-safety findings (use-after-free / double-free / slab-out-of-bounds).
+// ---------------------------------------------------------------------------
+
+/// Load a Linux kernel module (`.ko`, an ET_REL object): link it, place its
+/// sections and apply relocations against the synthetic kernel. Writes the
+/// module base to `out_base`. Returns 1 on success, 0 on error (mwemu_last_error).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_load_kernel_module(
+    emu: *mut MwemuEmu,
+    path: *const c_char,
+    out_base: *mut u64,
+) -> i32 {
+    let e = emu!(emu, 0);
+    let path = cstr!(path, 0);
+    match e.load_kernel_module(path) {
+        Ok(base) => {
+            if !out_base.is_null() {
+                unsafe { *out_base = base };
+            }
+            1
+        }
+        Err(err) => {
+            set_error(err.message);
+            0
+        }
+    }
+}
+
+/// Run the module init (what `insmod` does). Writes its result (0 = success) to
+/// `out_ret`. Returns 1 on success, 0 on error.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_run_module_init(emu: *mut MwemuEmu, out_ret: *mut u64) -> i32 {
+    let e = emu!(emu, 0);
+    match e.run_module_init() {
+        Ok(v) => {
+            if !out_ret.is_null() {
+                unsafe { *out_ret = v };
+            }
+            1
+        }
+        Err(err) => {
+            set_error(err.message);
+            0
+        }
+    }
+}
+
+/// Run the module exit (`rmmod`). Writes its result to `out_ret`. 1/0.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_run_module_exit(emu: *mut MwemuEmu, out_ret: *mut u64) -> i32 {
+    let e = emu!(emu, 0);
+    match e.run_module_exit() {
+        Ok(v) => {
+            if !out_ret.is_null() {
+                unsafe { *out_ret = v };
+            }
+            1
+        }
+        Err(err) => {
+            set_error(err.message);
+            0
+        }
+    }
+}
+
+/// Address of a symbol the loaded module defines (an ioctl / file op / callback),
+/// or 0 if the module has no such symbol.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_module_symbol(emu: *mut MwemuEmu, name: *const c_char) -> u64 {
+    let e = emu!(emu, 0);
+    let name = cstr!(name, 0);
+    e.module_symbol(name).unwrap_or(0)
+}
+
+/// Call one of the module's own functions by symbol name, using the kernel
+/// calling convention and a clean stop at the retpad. Writes the return (rax)
+/// to `out_ret`. Returns 1 on success, 0 on error.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_call_module_symbol(
+    emu: *mut MwemuEmu,
+    name: *const c_char,
+    params: *const u64,
+    nparams: usize,
+    out_ret: *mut u64,
+) -> i32 {
+    let e = emu!(emu, 0);
+    let name = cstr!(name, 0);
+    let args: Vec<u64> = if params.is_null() || nparams == 0 {
+        Vec::new()
+    } else {
+        unsafe { std::slice::from_raw_parts(params, nparams) }.to_vec()
+    };
+    match e.call_module_symbol(name, &args) {
+        Ok(v) => {
+            if !out_ret.is_null() {
+                unsafe { *out_ret = v };
+            }
+            1
+        }
+        Err(err) => {
+            set_error(err.message);
+            0
+        }
+    }
+}
+
+/// Call an arbitrary address with the kernel calling convention and a clean
+/// retpad stop (handy for a captured callback). Writes rax to `out_ret`. 1/0.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_call(
+    emu: *mut MwemuEmu,
+    address: u64,
+    params: *const u64,
+    nparams: usize,
+    out_ret: *mut u64,
+) -> i32 {
+    let e = emu!(emu, 0);
+    let args: Vec<u64> = if params.is_null() || nparams == 0 {
+        Vec::new()
+    } else {
+        unsafe { std::slice::from_raw_parts(params, nparams) }.to_vec()
+    };
+    match e.kernel_call(address, &args) {
+        Ok(v) => {
+            if !out_ret.is_null() {
+                unsafe { *out_ret = v };
+            }
+            1
+        }
+        Err(err) => {
+            set_error(err.message);
+            0
+        }
+    }
+}
+
+/// Number of memory-safety findings the slab ledger has recorded so far.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_findings_count(emu: *mut MwemuEmu) -> usize {
+    emu!(emu, 0).kernel_findings().len()
+}
+
+/// The `idx`-th finding, pre-formatted like the `KMWEMU BUG` reports (kind,
+/// object, cache, alloc/free sites). Returns NULL if `idx` is out of range.
+/// Free with `mwemu_free_string`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_finding(emu: *mut MwemuEmu, idx: usize) -> *mut c_char {
+    let e = emu!(emu, std::ptr::null_mut());
+    match e.kernel_findings().get(idx) {
+        Some(f) => ret_string(f.report()),
+        None => std::ptr::null_mut(),
+    }
+}
+
+/// Returns 1 if any recorded finding is a use-after-free, 0 otherwise.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_found_uaf(emu: *mut MwemuEmu) -> i32 {
+    i32::from(emu!(emu, 0).kernel_found_uaf())
+}
+
+/// Drain queued deferred work (call_rcu / workqueues / timers). Returns how
+/// many callbacks ran. "Unregister now, free later" UAFs surface here.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_run_deferred(emu: *mut MwemuEmu) -> usize {
+    emu!(emu, 0).kernel_run_deferred()
+}
 /// Get the exe name. Free with `mwemu_free_string`.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_get_exe_name(emu: *mut MwemuEmu) -> *mut c_char {

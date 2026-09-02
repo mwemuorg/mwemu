@@ -170,10 +170,17 @@ impl PE32 {
     pub fn get_section_ptr<'a>(&self, raw: &'a [u8], id: usize) -> &'a [u8] {
         let off = self.sect_hdr[id].pointer_to_raw_data as usize;
         let mut sz = self.sect_hdr[id].size_of_raw_data as usize;
-        if off + sz >= raw.len() {
+        // A section whose raw-data pointer sits at or past the end of the file
+        // has no backing bytes. Guard this before the subtraction below, which
+        // otherwise underflows (panics in debug) for off >= raw.len().
+        if off >= raw.len() {
+            return &[];
+        }
+        // `raw.len() - off` is now >= 1, so neither this nor `off + sz` overflow.
+        if sz >= raw.len() - off {
             sz = raw.len() - off - 1;
         }
-        if sz == 0 || off > raw.len() || off + sz > raw.len() {
+        if sz == 0 {
             return &[];
         }
         &raw[off..off + sz]
