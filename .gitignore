@@ -60,5 +60,6 @@ node_modules/
 CACHEDIR.TARGET
 .package-cache
 .cargo/registry
-
+GOALS.md
+DRIVER-HUNT.md
 .kilo/
