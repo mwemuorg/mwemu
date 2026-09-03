@@ -1,14 +1,6 @@
-use crate::maps::mem64::Permission;
-use crate::{emu, windows::constants};
-
-const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
-const ALLOC_MAP_PREFIX: &str = "alloc_";
-
-enum OldKind {
-    Arena { addr: u64, size: usize },
-    Map { base: u64, size: usize },
-    Invalid,
-}
+use crate::api::windows::common::heap as heap_engine;
+use crate::emu;
+use crate::windows::constants;
 
 pub fn HeapReAlloc(emu: &mut emu::Emu) {
     let heap_handle = emu
@@ -34,41 +26,10 @@ pub fn HeapReAlloc(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    log_red!(
-        emu,
-        "kernel32!HeapReAlloc heap: 0x{:x} flags: 0x{:x} old_mem: 0x{:x} new_size: {}",
-        heap_handle,
-        flags,
-        old_mem,
-        new_size_raw
-    );
-
-    match realloc(emu, old_mem, new_size_raw, flags) {
-        Some(new_addr) => {
-            log_red!(
-                emu,
-                "kernel32!HeapReAlloc old: 0x{:x} new: 0x{:x} =0x{:x}",
-                old_mem,
-                new_addr,
-                new_addr
-            );
-            emu.regs_mut().rax = new_addr;
-        }
-        None => {
-            log_red!(
-                emu,
-                "kernel32!HeapReAlloc old: 0x{:x} new_size: {} =NULL",
-                old_mem,
-                new_size_raw
-            );
-            emu.regs_mut().rax = 0;
-        }
-    }
-}
-
-fn realloc(emu: &mut emu::Emu, old_mem: u64, new_size_raw: u64, flags: u64) -> Option<u64> {
     if old_mem == 0 || new_size_raw == 0 {
-        return None;
+        heap_engine::fail_allocation(emu, flags);
+        emu.regs_mut().rax = 0;
+        return;
     }
 
     let mut effective_size = new_size_raw;
@@ -76,26 +37,39 @@ fn realloc(emu: &mut emu::Emu, old_mem: u64, new_size_raw: u64, flags: u64) -> O
         effective_size = emu.cfg.heap_alloc_min_size;
     }
 
-    let kind = classify_old(emu, old_mem);
-    let old_size = match &kind {
-        OldKind::Arena { size, .. } => *size,
-        OldKind::Map { size, .. } => *size,
-        OldKind::Invalid => return None,
+    let old_size = match heap_engine::heap_allocation_size(emu, old_mem) {
+        Some(s) => s,
+        None => {
+            emu.regs_mut().rax = 0;
+            return;
+        }
     };
 
     if (flags & constants::HEAP_REALLOC_IN_PLACE_ONLY) != 0 {
         if effective_size <= old_size as u64 {
-            return Some(old_mem);
+            emu.regs_mut().rax = old_mem;
+            return;
         }
-        return None;
+        heap_engine::fail_allocation(emu, flags);
+        emu.regs_mut().rax = 0;
+        return;
     }
 
-    let new_addr = allocate_destination(emu, effective_size)?;
+    let new_addr = match heap_engine::heap_allocate(emu, heap_handle, effective_size) {
+        Some(a) => a,
+        None => {
+            heap_engine::fail_allocation(emu, flags);
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
     let copy_size = std::cmp::min(old_size, effective_size as usize);
     if !emu.maps.memcpy(new_addr, old_mem, copy_size) {
-        free_destination(emu, new_addr, effective_size);
-        return None;
+        heap_engine::heap_free(emu, heap_handle, new_addr);
+        heap_engine::fail_allocation(emu, flags);
+        emu.regs_mut().rax = 0;
+        return;
     }
 
     if (flags & constants::HEAP_ZERO_MEMORY) != 0 && (effective_size as usize) > old_size {
@@ -105,77 +79,20 @@ fn realloc(emu: &mut emu::Emu, old_mem: u64, new_size_raw: u64, flags: u64) -> O
     }
 
     if !emu.cfg.heap_free_soft {
-        release_old(emu, &kind);
-    }
-
-    Some(new_addr)
-}
-
-fn classify_old(emu: &emu::Emu, old_mem: u64) -> OldKind {
-    if let Some(heap) = emu.heap_management.as_ref() {
-        if let Some(sz) = heap.allocation_size(old_mem) {
-            return OldKind::Arena {
-                addr: old_mem,
-                size: sz,
-            };
-        }
-    }
-
-    match emu.maps.get_mem_by_addr(old_mem) {
-        Some(mem) => {
-            let base = mem.get_base();
-            if base != old_mem {
-                return OldKind::Invalid;
-            }
-            let name = mem.get_name();
-            if !name.starts_with(ALLOC_MAP_PREFIX) {
-                return OldKind::Invalid;
-            }
-            OldKind::Map {
-                base,
-                size: mem.size(),
-            }
-        }
-        None => OldKind::Invalid,
-    }
-}
-
-fn allocate_destination(emu: &mut emu::Emu, size: u64) -> Option<u64> {
-    if size < LARGE_ALLOC_THRESHOLD {
-        let heap = emu.heap_mut();
-        heap.allocate(size as usize)
+        heap_engine::heap_free(emu, heap_handle, old_mem);
     } else {
-        let addr = emu.maps.alloc(size)?;
-        let name = format!("{}{:x}", ALLOC_MAP_PREFIX, addr);
-        if emu
-            .maps
-            .create_map(&name, addr, size, Permission::READ_WRITE)
-            .is_err()
-        {
-            return None;
-        }
-        Some(addr)
+        emu.handle_management
+            .forget_heap_allocation(heap_handle, old_mem);
     }
-}
 
-fn free_destination(emu: &mut emu::Emu, addr: u64, size: u64) {
-    if size >= LARGE_ALLOC_THRESHOLD {
-        emu.maps.dealloc(addr);
-    }
-}
-
-fn release_old(emu: &mut emu::Emu, kind: &OldKind) {
-    match kind {
-        OldKind::Arena { addr, .. } => {
-            if let Some(heap) = emu.heap_management.as_mut() {
-                heap.free(*addr);
-            }
-        }
-        OldKind::Map { base, size } => {
-            if (*size as u64) >= LARGE_ALLOC_THRESHOLD {
-                emu.maps.dealloc(*base);
-            }
-        }
-        OldKind::Invalid => {}
-    }
+    log_red!(
+        emu,
+        "kernel32!HeapReAlloc heap: 0x{:x} flags: 0x{:x} old: 0x{:x} new: 0x{:x} sz: {}",
+        heap_handle,
+        flags,
+        old_mem,
+        new_addr,
+        effective_size
+    );
+    emu.regs_mut().rax = new_addr;
 }

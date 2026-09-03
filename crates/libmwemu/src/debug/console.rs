@@ -812,7 +812,7 @@ impl Console {
                             continue;
                         }
                     };
-                    emu.set_rip(addr, false);
+                    emu.set_rip_with_check(addr, false);
                     emu.force_break = true;
                     break;
                     //emu.regs_mut().rip = addr;

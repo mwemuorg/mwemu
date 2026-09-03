@@ -82,7 +82,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         if !emu.stack_push64(emu.regs().rip + instruction_sz as u64) {
             return false;
         }
-        emu.set_rip(addr, false)
+        emu.set_rip_with_check(addr, false)
     } else {
         if !emu.stack_push32(emu.regs().get_eip() as u32 + instruction_sz as u32) {
             return false;

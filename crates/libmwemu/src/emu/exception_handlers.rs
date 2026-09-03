@@ -131,7 +131,7 @@ impl Emu {
             handlers::enter_for_handler(self, ex_type, HandlerKind::Veh);
 
             if self.cfg.is_x64() {
-                self.set_rip(addr, false);
+                self.set_rip_with_check(addr, false);
             } else {
                 self.set_eip(addr, false);
             }
@@ -195,7 +195,7 @@ impl Emu {
                 self.set_seh(next);
                 handlers::enter_for_handler(self, ex_type, HandlerKind::Seh);
                 if self.cfg.is_x64() {
-                    self.set_rip(addr, false);
+                    self.set_rip_with_check(addr, false);
                 } else {
                     self.set_eip(addr, false);
                 }
@@ -208,7 +208,7 @@ impl Emu {
                 self.set_seh(next);
                 handlers::enter_for_handler(self, ex_type, HandlerKind::Seh);
                 if self.cfg.is_x64() {
-                    self.set_rip(addr, false);
+                    self.set_rip_with_check(addr, false);
                 } else {
                     self.set_eip(addr, false);
                 }
@@ -220,7 +220,7 @@ impl Emu {
 
             handlers::enter_for_handler(self, ex_type, HandlerKind::Uef);
             if self.cfg.is_x64() {
-                self.set_rip(addr, false);
+                self.set_rip_with_check(addr, false);
             } else {
                 self.set_eip(addr, false);
             }

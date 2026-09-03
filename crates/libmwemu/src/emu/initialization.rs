@@ -125,7 +125,7 @@ impl Emu {
             definitions: HashMap::new(),
             stored_contexts: HashMap::new(),
             entropy: 0.0,
-            heap_management: None,
+            heap_arenas: Vec::new(),
             last_error: 0,
             is_api_run: false,
             ld_bootstrap: false,
@@ -403,15 +403,15 @@ impl Emu {
 
     /// Return a mutable reference to the managed heap, creating it on demand.
     ///
-    /// `heap_management` is only set up eagerly by the 64-bit Windows and Linux
+    /// `heap_arenas` is only set up eagerly by the 64-bit Windows and Linux
     /// init paths. The 32-bit Windows path (`init_win32_mem32`), the SSDT/syscall
     /// mode (which returns early before the heap block), and a freshly
-    /// deserialized emulator all leave it `None`. Without this, the first
+    /// deserialized emulator all leave it empty. Without this, the first
     /// `HeapAlloc`/`LocalAlloc` of a small block panicked on `unwrap()`.
     /// Lazily reserve a 4 MiB arena the first time it's needed so every path
-    /// has a working heap.
+    /// has a working heap. Entry 0 of `heap_arenas` is always the process heap.
     pub fn heap_mut(&mut self) -> &mut O1Heap {
-        if self.heap_management.is_none() {
+        if self.heap_arenas.is_empty() {
             let heap_sz: u64 = 4 * 1024 * 1024; // 4 MiB
             let base = self.maps.alloc(heap_sz).expect("cannot reserve heap arena");
             self.maps
@@ -420,11 +420,37 @@ impl Emu {
             if self.heap_addr == 0 {
                 self.heap_addr = base;
             }
-            self.heap_management = Some(Box::new(
+            self.heap_arenas.push(Box::new(
                 O1Heap::new(base, heap_sz as u32).expect("cannot init heap management"),
             ));
         }
-        self.heap_management.as_mut().unwrap()
+        self.heap_arenas.first_mut().unwrap()
+    }
+
+    /// Create a fresh private O1Heap arena for `HeapCreate`. Ensures entry 0
+    /// (the process heap) exists first so the new arena always lives at
+    /// index >= 1.
+    pub fn create_heap_arena(&mut self) -> usize {
+        // Ensure process heap exists at index 0.
+        let _ = self.heap_mut();
+        let heap_sz: u64 = 4 * 1024 * 1024;
+        let name = format!(".heap_{}", self.heap_arenas.len());
+        let base = self.maps.alloc(heap_sz).expect("cannot reserve heap arena");
+        self.maps
+            .create_map(name.as_str(), base, heap_sz, Permission::READ_WRITE)
+            .expect("cannot create heap map");
+        self.heap_arenas.push(Box::new(
+            O1Heap::new(base, heap_sz as u32).expect("cannot init heap arena"),
+        ));
+        self.heap_arenas.len() - 1
+    }
+
+    pub fn heap_arena_mut(&mut self, idx: usize) -> Option<&mut O1Heap> {
+        if idx == 0 {
+            Some(self.heap_mut())
+        } else {
+            self.heap_arenas.get_mut(idx).map(|b| b.as_mut())
+        }
     }
 
     /// The minimum initializations necessary to emualte asm with no OS simulation.
@@ -662,10 +688,12 @@ impl Emu {
                 .expect("cannot create heap map");
             heap.load("heap.bin");
 
-            self.heap_management = Some(Box::new(
-                O1Heap::new(self.heap_addr, heap_sz as u32)
-                    .expect("Expect new heap_management but failed"),
-            ));
+            if self.heap_arenas.is_empty() {
+                self.heap_arenas.push(Box::new(
+                    O1Heap::new(self.heap_addr, heap_sz as u32)
+                        .expect("Expect new heap_management but failed"),
+                ));
+            }
         }
 
         self.regs_mut().rbp = 0;
@@ -1262,9 +1290,11 @@ impl Emu {
         self.maps
             .write_qword(self.heap_addr + 0x418, self.heap_addr + 0x418);
 
-        self.heap_management = Some(Box::new(
-            O1Heap::new(self.heap_addr, heap_sz as u32)
-                .expect("Expect new heap_management but failed"),
-        ));
+        if self.heap_arenas.is_empty() {
+            self.heap_arenas.push(Box::new(
+                O1Heap::new(self.heap_addr, heap_sz as u32)
+                    .expect("Expect new heap_management but failed"),
+            ));
+        }
     }
 }

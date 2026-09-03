@@ -8,6 +8,13 @@ const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
+    if api.is_empty() {
+        // here we assume that it jump in the middle of instruction
+        // if then we just emulate the whole instruction instead of actually
+        // emulate the api
+        emu.set_rip_without_check(addr);
+        return String::new();
+    }
     let api = api.split("!").last().unwrap_or(&api);
 
     gateway_by_name(emu, api, addr)
@@ -19,10 +26,37 @@ pub fn gateway_by_name(emu: &mut emu::Emu, api: &str, addr: u64) -> String {
         "malloc" => malloc(emu),
         "realloc" => wincrt::realloc(emu),
         "_errno" => _errno(emu),
+        "_lock" => {} // Here the lock suppose to acquire lock for multi-threading but we don't do multi-thread now so we don't need to care
+        // TODO: if we ever gonna implementing multi-thread then this _lock function need to be update
+        "__dllonexit" => {
+            let func = emu.regs().rcx;
+            let pbegin = emu.regs().rdx;
+            let pend = emu.regs().r8;
+            log_red!(
+                emu,
+                "msvcrt!__dllonexit func: 0x{:x} pbegin: 0x{:x} pend: 0x{:x}",
+                func,
+                pbegin,
+                pend
+            );
+            emu.set_rip_without_check(addr);
+        }
+        "_msize" => {
+            let size = emu.regs().rcx;
+            log_red!(emu, "msvcrt!_msize func: {}", size);
+            emu.set_rip_without_check(addr);
+        }
         "_initterm" => {
-            emu.cfg.emulate_winapi_once = true;
-            emu.set_rip(addr, false);
-        },
+            let first = emu.regs().rcx;
+            let end = emu.regs().rdx;
+            log_red!(
+                emu,
+                "msvcrt!_initterm first: 0x{:x} end: 0x{:x}",
+                first,
+                end
+            );
+            emu.set_rip_without_check(addr);
+        }
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {

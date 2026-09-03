@@ -58,10 +58,19 @@ impl Emu {
         true
     }
 
+    #[inline]
+    pub fn set_rip_without_check(&mut self, addr: u64) {
+        /*
+        This function is make so that the rip is forcing to set instead of going through a long range of checking
+        This is to make the switching rip faster and also forcing the rip without
+         */
+        self.regs_mut().rip = addr;
+    }
+
     ///TODO: reimplement set_eip and set_rip
     /// Redirect execution flow on 64bits.
     /// If the target address is a winapi, triggers it's implementation.
-    pub fn set_rip(&mut self, addr: u64, is_branch: bool) -> bool {
+    pub fn set_rip_with_check(&mut self, addr: u64, is_branch: bool) -> bool {
         self.force_reload = true;
 
         // A driver lives entirely above the user-mode library range, so the
@@ -90,7 +99,7 @@ impl Emu {
                     .as_ref()
                     .unwrap()
                     .import_addr_to_dll_and_name(addr);
-                if !import.is_empty() {
+                return if !import.is_empty() {
                     let (dll, api) = import.split_once('!').unwrap_or(("", ""));
 
                     // The target is an unresolved import: its IAT slot still holds
@@ -106,7 +115,7 @@ impl Emu {
                     winapi64::gateway_by_import(self, dll, api, addr);
                     self.force_break = true;
                     self.is_api_run = true;
-                    return true;
+                    true
                 } else {
                     log::error!(
                         "/!\\ set_rip setting rip to non mapped addr 0x{:x} {}",
@@ -114,8 +123,8 @@ impl Emu {
                         self.filename
                     );
                     self.exception(ExceptionType::SettingRipToNonMappedAddr);
-                    return false;
-                }
+                    false
+                };
             }
         };
 
@@ -127,6 +136,7 @@ impl Emu {
             || (!map_name.is_empty() && name.starts_with(&map_name))
             || name == "loader.text"*/
         if addr < constants::LIBS64_MIN {
+            // This is the normal case, no linux syscall or winapi to handle
             if self.cfg.verbose > 1 {
                 let rip = self.regs().rip;
                 let prev = self.maps.get_addr_name(rip).unwrap_or("??");
@@ -159,6 +169,8 @@ impl Emu {
             let section_name = name.to_string();
             self.intercept_unix_x64_api_call(addr, &section_name)
         } else {
+            // Here we hit the winapi case
+
             std::hint::cold_path();
             if self.cfg.verbose >= 2 && !self.cfg.emulate_winapi {
                 log::trace!("/!\\ changing RIP to {} ", name);
@@ -176,16 +188,6 @@ impl Emu {
                     log_red!(self, "emulating {}", api_name);
                 }
                 self.regs_mut().rip = addr;
-                return true;
-            }
-
-            if unlikely(self.cfg.emulate_winapi_once) {
-                let api_name = winapi64::kernel32::guess_api_name(self, addr);
-                if !api_name.is_empty() && self.cfg.verbose >= 1 {
-                    log_red!(self, "emulating {}", api_name);
-                }
-                self.regs_mut().rip = addr;
-                self.cfg.emulate_winapi_once = false;
                 return true;
             }
 
@@ -212,7 +214,11 @@ impl Emu {
                     .maps
                     .get_addr_name(addr)
                     .expect("/!\\ changing RIP to non mapped addr 0x");
-                winapi64::gateway(addr, name.to_string().as_str(), self);
+                if name == "msvcrtfothk" {
+                    emu.set_rip_without_check(addr);
+                } else {
+                    winapi64::gateway(addr, name.to_string().as_str(), self);
+                }
             }
             self.force_break = true;
             true
@@ -333,7 +339,7 @@ impl Emu {
                     return false;
                 }
                 let api_name = self.pe32.as_ref().unwrap().import_addr_to_name(addr as u32);
-                if !api_name.is_empty() {
+                return if !api_name.is_empty() {
                     // winapi emulation case
                     if self.cfg.emulate_winapi {
                         let api_name = winapi32::kernel32::guess_api_name(self, addr as u32);
@@ -349,12 +355,12 @@ impl Emu {
                     winapi32::gateway(addr as u32, "not_loaded", self);
                     self.force_break = true;
                     self.is_api_run = true;
-                    return true;
+                    true
                 } else {
                     log::error!("/!\\ setting eip to non mapped addr 0x{:x}", addr);
                     self.exception(ExceptionType::SettingRipToNonMappedAddr);
-                    return false;
-                }
+                    false
+                };
             }
         };
 

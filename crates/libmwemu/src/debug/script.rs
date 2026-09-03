@@ -707,7 +707,7 @@ impl Script {
 
                     let addr = self.resolve(args[1], i, emu);
 
-                    emu.set_rip(addr, false);
+                    emu.set_rip_with_check(addr, false);
                 }
                 "push" => {
                     // push <hexvalue>

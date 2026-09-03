@@ -531,7 +531,7 @@ impl Emu {
 
     /// set rip register, if rip point to an api will be emulated.
     fn set_rip(&mut self, addr: u64) -> PyResult<bool> {
-        Ok(self.emu.set_rip(addr, false))
+        Ok(self.emu.set_rip_with_check(addr, false))
     }
 
     /// set eip register, if eip point to an api will be emulated.

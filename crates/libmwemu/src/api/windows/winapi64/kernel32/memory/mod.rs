@@ -18,6 +18,10 @@ pub use heap_alloc::*;
 mod heap_create;
 pub use heap_create::*;
 
+#[path = "../heap_destroy.rs"]
+mod heap_destroy;
+pub use heap_destroy::*;
+
 #[path = "../heap_free.rs"]
 mod heap_free;
 pub use heap_free::*;
@@ -25,6 +29,10 @@ pub use heap_free::*;
 #[path = "../heap_re_alloc.rs"]
 mod heap_re_alloc;
 pub use heap_re_alloc::*;
+
+#[path = "../heap_set_information.rs"]
+mod heap_set_information;
+pub use heap_set_information::*;
 
 #[path = "../local_alloc.rs"]
 mod local_alloc;

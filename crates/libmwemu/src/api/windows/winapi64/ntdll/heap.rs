@@ -1,9 +1,6 @@
+use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
-use crate::maps::mem64::Permission;
-use crate::winapi::helper;
 use crate::windows::constants;
-
-const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -20,144 +17,82 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     true
 }
 
-/// Allocates from the O1Heap arena for small sizes, maps a dedicated
-/// region otherwise (same threshold as kernel32!HeapAlloc).
-fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
-    if size < LARGE_ALLOC_THRESHOLD {
-        let heap_manage = emu.heap_mut();
-        return heap_manage.allocate(size as usize);
-    }
-
-    let allocation = emu.maps.alloc(size)?;
-    emu.maps
-        .create_map(
-            format!("alloc_{:x}", allocation).as_str(),
-            allocation,
-            size,
-            Permission::READ_WRITE,
-        )
-        .ok()?;
-    Some(allocation)
-}
-
-/// Classification of a pointer allocated by `allocate_memory`.
-enum AllocKind {
-    Arena { size: usize },
-    Map { base: u64, size: usize },
-    Invalid,
-}
-
-fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
-    if let Some(heap) = emu.heap_management.as_ref() {
-        if let Some(size) = heap.allocation_size(addr) {
-            return AllocKind::Arena { size };
-        }
-    }
-
-    match emu.maps.get_mem_by_addr(addr) {
-        Some(mem) if mem.get_base() == addr => {
-            let name = mem.get_name();
-            if name.starts_with("alloc_") || name.starts_with("valloc_") {
-                return AllocKind::Map {
-                    base: addr,
-                    size: mem.size(),
-                };
-            }
-            AllocKind::Invalid
-        }
-        _ => AllocKind::Invalid,
-    }
-}
-
-/// Releases a pointer allocated by `allocate_memory` (or any alloc_/valloc_ map).
-/// Honors cfg.heap_free_soft.
-fn release(emu: &mut emu::Emu, addr: u64) {
-    if emu.cfg.heap_free_soft {
-        return;
-    }
-    match classify(emu, addr) {
-        AllocKind::Arena { .. } => {
-            if let Some(heap) = emu.heap_management.as_mut() {
-                heap.free(addr);
-            }
-        }
-        AllocKind::Map { base, .. } => emu.maps.dealloc(base),
-        AllocKind::Invalid => {}
-    }
-}
-
 pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
     let handle = emu.regs().rcx;
     let flags = emu.regs().rdx;
     let mut size = emu.regs().r8;
 
+    // ntdll!RtlAllocateHeap bumps tiny requests up to 1024 bytes (kernel32!HeapAlloc
+    // pads to cfg.heap_alloc_min_size instead).
     if size < 1024 {
-        size = 1024
+        size = 1024;
     }
-    let alloc_addr = match allocate_memory(emu, size) {
-        Some(a) => a,
-        None => {
-            log::warn!("/!\\ out of memory cannot allocate ntdll!RtlAllocateHeap");
-            return;
+
+    match heap_engine::heap_allocate(emu, handle, size) {
+        Some(addr) => {
+            log_red!(
+                emu,
+                "ntdll!RtlAllocateHeap hndl: 0x{:x} sz: {} addr: 0x{:x}",
+                handle,
+                size,
+                addr
+            );
+            emu.regs_mut().rax = addr;
         }
-    };
-
-    log_red!(
-        emu,
-        "ntdll!RtlAllocateHeap  hndl: {:x} sz: {}   =addr: 0x{:x}",
-        handle,
-        size,
-        alloc_addr
-    );
-
-    emu.regs_mut().rax = alloc_addr;
+        None => {
+            log_red!(
+                emu,
+                "ntdll!RtlAllocateHeap FAILED hndl: 0x{:x} sz: {}",
+                handle,
+                size
+            );
+            heap_engine::fail_allocation(emu, flags);
+            emu.regs_mut().rax = 0;
+        }
+    }
 }
 
 fn RtlFreeHeap(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
     let base_addr = emu.regs().r8;
 
-    log_red!(emu, "ntdll!RtlFreeHeap 0x{}", base_addr);
+    log_red!(
+        emu,
+        "ntdll!RtlFreeHeap hndl=0x{:x} base=0x{:x}",
+        hndl,
+        base_addr
+    );
 
-    helper::handler_close(hndl);
-
-    match classify(emu, base_addr) {
-        AllocKind::Arena { .. } | AllocKind::Map { .. } => {
-            release(emu, base_addr);
-            emu.regs_mut().rax = 1;
+    if base_addr != 0 && heap_engine::heap_allocation_size(emu, base_addr).is_some() {
+        heap_engine::heap_free(emu, hndl, base_addr);
+        emu.regs_mut().rax = 1;
+    } else {
+        if base_addr != 0 {
+            emu.handle_management
+                .forget_heap_allocation(hndl, base_addr);
         }
-        AllocKind::Invalid => {
-            emu.regs_mut().rax = 0;
-            if emu.cfg.verbose >= 1 {
-                log::trace!("trying to free a systems map {}", base_addr);
-            }
+        if emu.cfg.verbose >= 1 {
+            log::trace!("trying to free a systems map {}", base_addr);
         }
+        emu.regs_mut().rax = 0;
     }
 }
 
 pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
+    let handle = emu.regs().rcx;
     let flags = emu.regs().rdx;
     let old_ptr = emu.regs().r8;
     let new_size = emu.regs().r9;
 
-    log_red!(
-        emu,
-        "ntdll!RtlReAllocateHeap hndl: {:x} flags: 0x{:x} old: 0x{:x} sz: {}",
-        hndl,
-        flags,
-        old_ptr,
-        new_size
-    );
-
     if old_ptr == 0 || new_size == 0 {
+        heap_engine::fail_allocation(emu, flags);
         emu.regs_mut().rax = 0;
         return;
     }
 
-    let old_size = match classify(emu, old_ptr) {
-        AllocKind::Arena { size } | AllocKind::Map { size, .. } => size,
-        AllocKind::Invalid => {
+    let old_size = match heap_engine::heap_allocation_size(emu, old_ptr) {
+        Some(s) => s,
+        None => {
             emu.regs_mut().rax = 0;
             return;
         }
@@ -168,13 +103,15 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
             emu.regs_mut().rax = old_ptr;
             return;
         }
+        heap_engine::fail_allocation(emu, flags);
         emu.regs_mut().rax = 0;
         return;
     }
 
-    let new_addr = match allocate_memory(emu, new_size) {
+    let new_addr = match heap_engine::heap_allocate(emu, handle, new_size) {
         Some(a) => a,
         None => {
+            heap_engine::fail_allocation(emu, flags);
             emu.regs_mut().rax = 0;
             return;
         }
@@ -182,7 +119,8 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
 
     let copy_size = std::cmp::min(old_size, new_size as usize);
     if !emu.maps.memcpy(new_addr, old_ptr, copy_size) {
-        release(emu, new_addr);
+        heap_engine::heap_free(emu, handle, new_addr);
+        heap_engine::fail_allocation(emu, flags);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -195,22 +133,45 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
         );
     }
 
-    release(emu, old_ptr);
+    if !emu.cfg.heap_free_soft {
+        heap_engine::heap_free(emu, handle, old_ptr);
+    } else {
+        emu.handle_management
+            .forget_heap_allocation(handle, old_ptr);
+    }
+
     emu.regs_mut().rax = new_addr;
 }
 
-fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
-    let num_of_heaps = emu.regs().rcx;
-    let out_process_heaps = emu.regs().rcx;
+pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
+    let count = emu.regs().rcx;
+    let buffer = emu.regs().rdx;
 
+    let keys = emu.handle_management.heap_handle_keys();
+    let total = keys.len() as u64;
     log_red!(
         emu,
-        "ntdll!RtlGetProcessHeaps num: {} out: 0x{:x}",
-        num_of_heaps,
-        out_process_heaps
+        "ntdll!RtlGetProcessHeaps count={} buffer=0x{:x} total={}",
+        count,
+        buffer,
+        total
     );
 
-    emu.regs_mut().rax = 1;
+    if buffer == 0 {
+        emu.regs_mut().rax = total;
+        return;
+    }
+
+    let to_write = std::cmp::min(count, total);
+    for (i, key) in keys.iter().take(to_write as usize).enumerate() {
+        let _ = emu.maps.write_qword(buffer + (i as u64) * 8, *key as u64);
+    }
+
+    if to_write < count {
+        emu.regs_mut().rax = 0;
+    } else {
+        emu.regs_mut().rax = to_write;
+    }
 }
 
 fn RtlFreeAnsiString(emu: &mut emu::Emu) {

@@ -35,7 +35,7 @@ enum AllocKind {
 }
 
 fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
-    if let Some(heap) = emu.heap_management.as_ref() {
+    if let Some(heap) = emu.heap_arenas.first() {
         if let Some(size) = heap.allocation_size(addr) {
             return AllocKind::Arena { size };
         }
@@ -60,7 +60,7 @@ fn release(emu: &mut emu::Emu, addr: u64) {
     }
     match classify(emu, addr) {
         AllocKind::Arena { .. } => {
-            if let Some(heap) = emu.heap_management.as_mut() {
+            if let Some(heap) = emu.heap_arenas.first_mut() {
                 heap.free(addr);
             }
         }

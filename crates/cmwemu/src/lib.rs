@@ -875,7 +875,7 @@ pub extern "C" fn mwemu_set_sp(emu: *mut MwemuEmu, addr: u64) {
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_set_rip(emu: *mut MwemuEmu, addr: u64) -> i32 {
     let e = emu!(emu, 0);
-    e.set_rip(addr, false) as i32
+    e.set_rip_with_check(addr, false) as i32
 }
 
 /// Set EIP; if it points to an API it will be emulated. Returns 1/0.

@@ -1,16 +1,11 @@
 use crate::emu;
 
 pub fn HeapDestroy(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!HeapDestroy cannot read handle") as u64;
+    let hndl = emu.regs().rcx;
 
     log_red!(emu, "kernel32!HeapDestroy hndl: 0x{:x}", hndl);
 
-    emu.stack_pop32(false);
-
-    if hndl == 0 {
+    if hndl == 0 || hndl > u32::MAX as u64 {
         emu.regs_mut().rax = 0;
         return;
     }

@@ -1,5 +1,5 @@
+use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
-use crate::maps::mem64::Permission;
 
 pub fn HeapAlloc(emu: &mut emu::Emu) {
     let hndl = emu
@@ -20,34 +20,30 @@ pub fn HeapAlloc(emu: &mut emu::Emu) {
         size = emu.cfg.heap_alloc_min_size;
     }
 
-    let heap_addr: u64 = if size < 0x8000 {
-        let heap_manage = emu.heap_mut();
-        heap_manage
-            .allocate(size as usize)
-            .expect("failed to allocate heap")
-    } else {
-        let allocation = emu.maps.alloc(size).unwrap_or_default();
-        emu.maps
-            .create_map(
-                format!("alloc_{:x}", allocation).as_str(),
-                allocation,
+    match heap_engine::heap_allocate(emu, hndl as u64, size) {
+        Some(heap_addr) => {
+            emu.regs_mut().rax = heap_addr;
+            log_red!(
+                emu,
+                "kernel32!HeapAlloc eip: 0x{:x} flags: 0x{:x} size: {} =0x{:x}",
+                emu.regs().get_eip(),
+                flags,
                 size,
-                Permission::READ_WRITE,
-            )
-            .expect("kernel32!HeapAlloc out of memory");
-        allocation
-    };
-
-    emu.regs_mut().rax = heap_addr;
-
-    log_red!(
-        emu,
-        "kernel32!HeapAlloc eip: 0x{:x} flags: 0x{:x} size: {} =0x{:x}",
-        emu.regs().get_eip(),
-        flags,
-        size,
-        emu.regs().get_eax() as u32
-    );
+                emu.regs().rax as u32
+            );
+        }
+        None => {
+            log_red!(
+                emu,
+                "kernel32!HeapAlloc failed (hndl=0x{:x} flags=0x{:x} size={})",
+                hndl,
+                flags,
+                size
+            );
+            heap_engine::fail_allocation(emu, flags as u64);
+            emu.regs_mut().rax = 0;
+        }
+    }
 
     for _ in 0..3 {
         emu.stack_pop32(false);

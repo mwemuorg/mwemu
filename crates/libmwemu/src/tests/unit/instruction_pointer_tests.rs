@@ -8,7 +8,7 @@ fn test_set_rip_nonmapped_linux() {
     emu.os = crate::arch::OperatingSystem::Linux;
 
     // In Linux mode, unmapped addresses return false
-    let result = emu.set_rip(0xdeadbeef, false);
+    let result = emu.set_rip_with_check(0xdeadbeef, false);
     assert!(!result);
 }
 

@@ -120,12 +120,11 @@ pub struct Emu {
     pub maps: Maps, // virtual memory map (all allocations, stack, heap, code regions)
     pub base: u64,  // base address for code loading
     pub heap_addr: u64, // current heap base address
-    pub heap_management: Option<Box<O1Heap>>, // O(1) heap allocator for managed allocations
+    pub heap_arenas: Vec<Box<O1Heap>>, // index 0 = process heap; O(1) allocator per heap
     pub memory_operations: Vec<MemoryOperation>, // per-step memory read/write log for tracing
 
     pub instruction_state: InstructionState, // active ISA-specific decode/cache/formatter state
     pub last_decoded: Option<DecodedInstruction>, // last decoded instruction when observers need
-    // arch-neutral state; may be None on pure
     // execution fast paths.
     pub last_decoded_addr: u64, // address where `last_decoded` lived; needed
     // for state dumps because `pc()` already

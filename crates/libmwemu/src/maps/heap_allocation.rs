@@ -82,6 +82,10 @@ impl O1Heap {
         let floor = self.log2_floor(x - 1);
         floor + 1
     }
+    /// Return the absolute base address of this heap arena.
+    pub fn base(&self) -> u64 {
+        self.base
+    }
 
     pub const MIN_ARENA_SIZE: usize = {
         let instance_size = std::mem::size_of::<O1Heap>();

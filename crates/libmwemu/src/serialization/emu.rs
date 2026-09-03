@@ -80,7 +80,7 @@ pub struct SerializableEmu {
     pub maps: SerializableMaps,
     pub base: u64,
     pub heap_addr: u64,
-    // NOTE: heap_management is not serialized (runtime only)
+    // NOTE: heap_arenas is not serialized (runtime only)
     pub memory_operations: Vec<MemoryOperation>,
 
     // --- Instruction decoding & disassembly ---
@@ -344,7 +344,7 @@ impl From<SerializableEmu> for Emu {
             maps: maps.into(),
             base,
             heap_addr,
-            heap_management: None,
+            heap_arenas: Vec::new(),
             memory_operations,
             // Instruction decoding (formatter, cache recreated)
             instruction_state: arch_state,

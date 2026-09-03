@@ -144,6 +144,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GlobalAddAtomA" => GlobalAddAtomA(emu),
         "HeapAlloc" => HeapAlloc(emu),
         "HeapCreate" => HeapCreate(emu),
+        "HeapDestroy" => HeapDestroy(emu),
+        "HeapSetInformation" => HeapSetInformation(emu),
         "HeapFree" => HeapFree(emu),
         "HeapReAlloc" => HeapReAlloc(emu),
         "InitializeCriticalSection" => InitializeCriticalSection(emu),

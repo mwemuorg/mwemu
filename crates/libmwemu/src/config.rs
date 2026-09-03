@@ -105,7 +105,7 @@ pub struct Config {
 
     // --- Testing ---
     pub test_mode: bool,
-    pub emulate_winapi_once: bool
+    pub emulate_winapi_once: bool,
 }
 
 impl Default for Config {

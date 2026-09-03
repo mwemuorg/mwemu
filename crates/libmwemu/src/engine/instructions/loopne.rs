@@ -23,7 +23,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
 
         if emu.regs().rcx > 0 && !emu.flag_zf() {
-            return emu.set_rip(addr, false);
+            return emu.set_rip_with_check(addr, false);
         }
     } else if addr > 0xffff {
         if emu.regs_mut().get_ecx() == 0 {
@@ -35,7 +35,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
         if emu.regs().get_ecx() > 0 && !emu.flag_zf() {
             if emu.cfg.is_x64() {
-                return emu.set_rip(addr, false);
+                return emu.set_rip_with_check(addr, false);
             } else {
                 return emu.set_eip(addr, false);
             }
@@ -50,7 +50,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
         if emu.regs().get_cx() > 0 && !emu.flag_zf() {
             if emu.cfg.is_x64() {
-                return emu.set_rip(addr, false);
+                return emu.set_rip_with_check(addr, false);
             } else {
                 return emu.set_eip(addr, false);
             }
