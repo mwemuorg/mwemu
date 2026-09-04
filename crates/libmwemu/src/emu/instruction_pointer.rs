@@ -105,11 +105,46 @@ impl Emu {
                     // The target is an unresolved import: its IAT slot still holds
                     // the on-disk thunk (an `.idata` RVA), which is not executable.
                     // This happens most often with api-set CRT imports (their stub
-                    // DLLs are virtual name-forwarders we don't map). Dispatch it
-                    // virtually by name — `gateway_by_import` routes api-ms-win-crt
-                    // to wincrt, msvcrt to msvcrt, and everything else to the
-                    // resolver — so the API actually *runs* (sets rax, etc.) instead
-                    // of being merely named. Applies in both normal and SSDT modes.
+                    // DLLs are virtual name-forwarders we don't map).
+                    //
+                    // Legacy `msvcrt.dll` imports are special-cased before the
+                    // gateway dispatcher: when the resolved target lands in the
+                    // mapped `msvcrt.text`/`msvcrtfothk` section, execute the real
+                    // bytes natively instead of running the now-removed stub.
+                    // Other imports still flow through `gateway_by_import`, which
+                    // sets `rax` for emulated APIs (api-ms-win-crt → wincrt, etc.).
+                    if dll.trim().eq_ignore_ascii_case("msvcrt.dll") {
+                        let resolved =
+                            winapi64::kernel32::resolve_api_name_in_module(self, dll, api);
+                        let native_target = if resolved != 0 {
+                            self.maps
+                                .get_addr_name(resolved)
+                                .map(|s| winapi64::msvcrt::is_native_section(s))
+                                .unwrap_or(false)
+                        } else {
+                            false
+                        };
+                        if native_target {
+                            // this `set_rip_with_check`; leave the stack intact and let
+                            // the msvcrt gadget `ret` itself. ret.rs will pop the matching
+                            // call-stack frame.
+                            winapi64::msvcrt::log_native_call(self, resolved);
+                            self.set_rip_without_check(resolved);
+                            self.force_break = true;
+                            return true;
+                        }
+                        // Either the import did not resolve to a mapped msvcrt
+                        // section, or it did not resolve at all. Warn and resume at
+                        // the caller as if the call had been skipped: same shape as
+                        // any other unrecognized import.
+                        log::warn!("unhandled import {}!{}", dll, api);
+                        self.gateway_return = self.stack_pop64(false).unwrap_or(0);
+                        self.regs_mut().rip = self.gateway_return;
+                        self.call_stack_mut().pop();
+                        self.force_break = true;
+                        self.is_api_run = true;
+                        return true;
+                    }
                     self.gateway_return = self.stack_pop64(false).unwrap_or(0);
                     self.regs_mut().rip = self.gateway_return;
                     winapi64::gateway_by_import(self, dll, api, addr);
@@ -210,14 +245,21 @@ impl Emu {
                 };
 
             if unlikely(handle_winapi) {
-                let name = self
+                let section_name = self
                     .maps
                     .get_addr_name(addr)
                     .expect("/!\\ changing RIP to non mapped addr 0x");
-                if name == "msvcrtfothk" {
-                    emu.set_rip_without_check(addr);
+                if winapi64::msvcrt::is_native_section(section_name) {
+                    // Native execution: the legacy msvcrt gadget owns its own
+                    // `ret`. The gateway model above popped the caller's
+                    // architectural return address; restore it so native `ret`
+                    // consumes the right value. The matching native `ret`
+                    // (ret.rs) will pop the call-stack frame we leave here.
+                    let _ = self.stack_push64(self.gateway_return);
+                    winapi64::msvcrt::log_native_call(self, addr);
+                    self.set_rip_without_check(addr);
                 } else {
-                    winapi64::gateway(addr, name.to_string().as_str(), self);
+                    winapi64::gateway(addr, section_name.to_string().as_str(), self);
                 }
             }
             self.force_break = true;

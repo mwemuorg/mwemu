@@ -96,6 +96,11 @@ pub fn resolve_api_addr_to_name(emu: &mut emu::Emu, addr: u64) -> String {
             return name.to_string();
         }
     }
+    // Same guard: a miss against a populated index is authoritative; skip the
+    // O(total exports) PEB walk when the registry is non-empty.
+    if !emu.export_indexes.is_empty() {
+        return String::new();
+    }
 
     let mut flink = peb32::Flink::new(emu);
     flink.load(emu);
@@ -170,6 +175,11 @@ pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) 
             }
         }
     }
+    // Same guard as `guess_api_name`: a miss against a populated index is
+    // authoritative; never pay the PEB walk when the registry is non-empty.
+    if !emu.export_indexes.is_empty() {
+        return (0, String::new(), String::new());
+    }
 
     let mut flink = peb32::Flink::new(emu);
     flink.load(emu);
@@ -213,6 +223,12 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u32) -> String {
                 .unwrap_or(&module.module_name);
             return format!("{}!{}", lib, name);
         }
+    }
+    // Same guard as the winapi64 sibling: a miss against a populated index is
+    // authoritative; skip the O(total exports) PEB walk when any module is
+    // registered (loaders register every mapped module).
+    if !emu.export_indexes.is_empty() {
+        return String::new();
     }
 
     let mut flink = peb32::Flink::new(emu);

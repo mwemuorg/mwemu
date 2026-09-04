@@ -1,3 +1,4 @@
+use crate::utils::helpers::unlikely;
 use crate::{
     emu::{API_CALL_LOG_CAP, ApiCallLogEntry, Emu},
     exception::types::ExceptionType,
@@ -25,8 +26,6 @@ impl Emu {
     /// Call a winapi by addess.
     pub fn handle_winapi(&mut self, addr: u64) {
         if self.cfg.arch.is_64bits() {
-            self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-            self.set_pc(self.gateway_return);
             let name = match self.maps.get_addr_name(addr) {
                 Some(n) => n,
                 None => {
@@ -35,7 +34,18 @@ impl Emu {
                     return;
                 }
             };
-            winapi64::gateway(addr, name.to_string().as_str(), self);
+            if unlikely(winapi64::msvcrt::is_native_section(name)) {
+                // Match the engine-side path: native msvcrt bytes own their
+                // own `ret`. The caller has already pushed the return address;
+                // do not consume it here.
+                winapi64::msvcrt::log_native_call(self, addr);
+                self.set_pc(addr);
+                return;
+            }
+            let temp_name = name.to_string();
+            self.gateway_return = self.stack_pop64(false).unwrap_or(0);
+            self.set_pc(self.gateway_return);
+            winapi64::gateway(addr, temp_name.as_str(), self);
         } else {
             self.gateway_return = self.stack_pop32(false).unwrap_or(0) as u64;
             self.set_pc(self.gateway_return);

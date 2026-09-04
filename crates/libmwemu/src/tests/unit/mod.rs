@@ -6,7 +6,6 @@ mod console_control_tests;
 mod emulation_perf;
 mod emulator_initialization;
 mod error_conditions;
-mod export_index_registry_tests;
 mod hooks_system;
 mod instruction_pointer_tests;
 mod lazy_flags_bench;

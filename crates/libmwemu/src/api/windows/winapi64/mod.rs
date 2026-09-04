@@ -5,7 +5,7 @@ mod dnsapi;
 mod gdi32;
 pub mod kernel32;
 mod kernelbase;
-mod msvcrt;
+pub(crate) mod msvcrt;
 pub mod ntdll;
 mod ole32;
 mod oleaut32;
@@ -31,9 +31,12 @@ pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: 
         return;
     }
     if dll == "msvcrt.dll" {
-        let _ = msvcrt::gateway_by_name(emu, api, addr);
-        emu.call_stack_mut().pop();
-        return;
+        // Legacy `msvcrt.dll` imports are routed natively by
+        // `Emu::set_rip_with_check` (see the unmapped-import branch): the
+        // gateway dispatcher would have been unreachable here, and
+        // `msvcrt::gateway_by_name` is gone. Fall through to the generic
+        // resolver below so a malformed/unloaded msvcrt.dll still surfaces as
+        // an `unhandled import` warning instead of silent corruption.
     }
 
     // Fallback: if it isn't a CRT api-set, try to resolve it against loaded modules and
@@ -76,7 +79,11 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "uxtheme.text" => uxtheme::gateway(addr, emu),
         "gdi32.text" => gdi32::gateway(addr, emu),
         "ole32.text" => ole32::gateway(addr, emu),
-        "msvcrt.text" => msvcrt::gateway(addr, emu),
+        // `msvcrt.text` is intentionally absent: legacy-CRT calls land on the
+        // special-case branch in `Emu::set_rip_with_check`, which executes
+        // the real mapped bytes. A future AArch64 msvcrt PE that hits this
+        // table will `unreachable!` like any other unknown section, matching
+        // the established pattern for non-x64 sections not in this match.
         "api-ms-win-crt-runtime-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-stdio-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-heap-l1-1-0.rdata" => wincrt::gateway(addr, emu),

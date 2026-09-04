@@ -69,6 +69,14 @@ fn resolve_api_addr_to_name_uncached(emu: &mut emu::Emu, addr: u64) -> String {
             return name.to_string();
         }
     }
+    // The index covers every module the loaders map, so a miss against a
+    // populated registry is authoritative: skip the O(total exports) PEB walk
+    // below, which stalls the emulator ~1s per lookup on real maps. The walk
+    // stays only for legacy/deserialized emulators with an empty registry.
+    if !emu.export_indexes.is_empty() {
+        return String::new();
+    }
+
     // Fallback: walk the PEB LDR list.
     let mut flink = peb64::Flink::new(emu);
     flink.load(emu);
@@ -274,6 +282,12 @@ pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
     if addr != 0 {
         return addr;
     }
+    // Same guard as the addr-to-name resolver: a miss against a populated
+    // global index is authoritative; skip the O(total exports) PEB walk.
+    if !emu.export_indexes.is_empty() {
+        return 0;
+    }
+
     let mut flink = peb64::Flink::new(emu);
     flink.load(emu);
     let first_ptr = flink.get_ptr();
@@ -313,6 +327,11 @@ pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) 
                 }
             }
         }
+    }
+    // Same guard: a miss against a populated index is authoritative; never pay
+    // the PEB walk when the registry is non-empty.
+    if !emu.export_indexes.is_empty() {
+        return (0, String::new(), String::new());
     }
 
     let mut flink = peb64::Flink::new(emu);
@@ -354,6 +373,11 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
                 .unwrap_or(&module.module_name);
             return format!("{}!{}", lib, name);
         }
+    }
+    // Same guard: a miss against a populated index is authoritative; never pay
+    // the O(total exports) PEB walk when the registry is non-empty.
+    if !emu.export_indexes.is_empty() {
+        return String::new();
     }
 
     let mut flink = peb64::Flink::new(emu);

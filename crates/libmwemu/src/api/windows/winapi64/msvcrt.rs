@@ -1,132 +1,88 @@
+//! Legacy `msvcrt.dll` native-execution helpers.
+//!
+//! The x64 `msvcrt.text` and `msvcrtfothk` sections produced by the PE loader
+//! carry the actual CRT machine code. After this change, calls into either of
+//! those mapped sections leave RIP at the target and execute the real bytes
+//! directly — no Rust-side emulation remains. Two helpers stay here so the
+//! instruction-pointer dispatcher can route native calls and emit the
+//! verbose-gated named execution log that downstream tooling and mwemu-mcp
+//! consume:
+//!
+//! * [`is_native_section`] classifies the loader-produced map name.
+//! * [`log_native_call`] resolves the exact export via the existing export
+//!   index and emits a red `log_red!` line for every name on the current list.
+//!
+//! Adding a new function name to the log list is a single-line change in
+//! [`log_native_call`]; no dispatcher arm or stub emulation is required.
+//! Functions not on the list still execute natively — the list governs logging
+//! only.
+//!
+//! Scope is x64 only; x86 `winapi32::msvcrt` and AArch64 `set_pc_aarch64`
+//! remain unchanged. AArch64 PEs that happen to land in a map named
+//! `msvcrt.text` would hit `winapi64::gateway`'s `unreachable!` like any other
+//! unknown section, consistent with the rest of the dispatcher.
+
 use crate::emu;
-use crate::maps::mem64::Permission;
-use crate::serialization;
-use crate::winapi::winapi64::kernel32;
-use crate::winapi::winapi64::wincrt;
 
-const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
+/// Section names produced by the PE loader that carry x64 `msvcrt.dll`
+/// executable code and therefore must be executed natively rather than
+/// emulated.
+const NATIVE_SECTIONS: [&str; 2] = ["msvcrt.text", "msvcrtfothk"];
 
-pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
-    let api = kernel32::guess_api_name(emu, addr);
-    if api.is_empty() {
-        // here we assume that it jump in the middle of instruction
-        // if then we just emulate the whole instruction instead of actually
-        // emulate the api
-        emu.set_rip_without_check(addr);
-        return String::new();
+/// Exported function names that currently receive a verbose-gated execution
+/// log on native entry. Extend by appending the name; no other change is
+/// required.
+const LOGGED_FUNCTIONS: [&str; 8] = [
+    "__set_app_type",
+    "malloc",
+    "realloc",
+    "_errno",
+    "_lock",
+    "__dllonexit",
+    "_msize",
+    "_initterm",
+];
+
+/// Returns `true` iff `section_name` carries the loader-mapped x64
+/// `msvcrt.dll` executable bytes. The comparison is exact on purpose:
+/// `msvcrt.rdata`/`msvcrt.data` are data and must not be executed.
+pub(crate) fn is_native_section(section_name: &str) -> bool {
+    NATIVE_SECTIONS.contains(&section_name)
+}
+
+/// Emit a red `log_red!` line for the native call at `addr` when the resolver
+/// recognises the name as one of the current logged functions. Native code
+/// owns behavior; this helper preserves only named execution observability.
+pub(crate) fn log_native_call(emu: &mut emu::Emu, addr: u64) {
+    // Resolve against the registered export index only. Native msvcrt
+    // execution routes *every* internal CRT call through here (see
+    // `set_rip_with_check`), and internal (non-exported) functions are not in
+    // the index. Falling back to the PEB export-table walk would scan every
+    // exported function of every loaded DLL per call — a multi-second stall
+    // before a single instruction is emulated. Index misses simply have no
+    // log name and are skipped.
+    let Some(fn_name) = emu.export_indexes.resolve_address_module("msvcrt", addr) else {
+        return;
+    };
+    if !LOGGED_FUNCTIONS.contains(&fn_name) {
+        return;
     }
-    let api = api.split("!").last().unwrap_or(&api);
-
-    gateway_by_name(emu, api, addr)
+    log_red!(emu, "executing msvcrt!{}", fn_name);
 }
 
-pub fn gateway_by_name(emu: &mut emu::Emu, api: &str, addr: u64) -> String {
-    match api {
-        "__set_app_type" => __set_app_type(emu),
-        "malloc" => malloc(emu),
-        "realloc" => wincrt::realloc(emu),
-        "_errno" => _errno(emu),
-        "_lock" => {} // Here the lock suppose to acquire lock for multi-threading but we don't do multi-thread now so we don't need to care
-        // TODO: if we ever gonna implementing multi-thread then this _lock function need to be update
-        "__dllonexit" => {
-            let func = emu.regs().rcx;
-            let pbegin = emu.regs().rdx;
-            let pend = emu.regs().r8;
-            log_red!(
-                emu,
-                "msvcrt!__dllonexit func: 0x{:x} pbegin: 0x{:x} pend: 0x{:x}",
-                func,
-                pbegin,
-                pend
-            );
-            emu.set_rip_without_check(addr);
-        }
-        "_msize" => {
-            let size = emu.regs().rcx;
-            log_red!(emu, "msvcrt!_msize func: {}", size);
-            emu.set_rip_without_check(addr);
-        }
-        "_initterm" => {
-            let first = emu.regs().rcx;
-            let end = emu.regs().rdx;
-            log_red!(
-                emu,
-                "msvcrt!_initterm first: 0x{:x} end: 0x{:x}",
-                first,
-                end
-            );
-            emu.set_rip_without_check(addr);
-        }
-        _ => {
-            if !emu.cfg.skip_unimplemented {
-                if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                    serialization::Serialization::dump(
-                        emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
-                    );
-                }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-                unimplemented!("atemmpt to call unimplemented msvcrt API {}", api);
-            }
-            log::warn!(
-                "calling unimplemented msvcrt API {} at 0x{:x}",
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
-        }
+    #[test]
+    fn native_sections_match_exact_loader_names() {
+        assert!(is_native_section("msvcrt.text"));
+        assert!(is_native_section("msvcrtfothk"));
+        assert!(!is_native_section("msvcrt.rdata"));
+        assert!(!is_native_section("msvcrt.data"));
+        assert!(!is_native_section(""));
+        assert!(!is_native_section("MSVCRT.TEXT"));
+        assert!(!is_native_section("msvcrt.text "));
+        assert!(!is_native_section("kernel32.text"));
     }
-
-    String::new()
-}
-
-/*
-void __set_app_type (
-   int at
-)
-*/
-fn __set_app_type(emu: &mut emu::Emu) {
-    let app_type = emu.regs().rcx;
-    log_red!(
-        emu,
-        "** {} msvcrt!__set_app_type  app_type: 0x{:x}",
-        emu.pos,
-        app_type
-    );
-}
-
-fn malloc(emu: &mut emu::Emu) {
-    let size = emu.regs().rcx;
-
-    if size > 0 {
-        let base = if size < LARGE_ALLOC_THRESHOLD {
-            let heap_manage = emu.heap_mut();
-            heap_manage
-                .allocate(size as usize)
-                .expect("msvcrt!malloc out of memory")
-        } else {
-            let base = emu.maps.alloc(size).expect("msvcrt!malloc out of memory");
-
-            emu.maps
-                .create_map(
-                    &format!("alloc_{:x}", base),
-                    base,
-                    size,
-                    Permission::READ_WRITE,
-                )
-                .expect("msvcrt!malloc cannot create map");
-            base
-        };
-
-        log_red!(emu, "msvcrt!malloc sz: {} addr: 0x{:x}", size, base);
-
-        emu.regs_mut().rax = base;
-    } else {
-        emu.regs_mut().rax = 0x1337; // weird msvcrt has to return a random unallocated pointer, and the program has to do free() on it
-    }
-}
-
-fn _errno(emu: &mut emu::Emu) {
-    log_red!(emu, "msvcrt!_errno =0");
-    emu.regs_mut().rax = 0;
 }
