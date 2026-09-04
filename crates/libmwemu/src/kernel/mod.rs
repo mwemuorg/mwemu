@@ -81,6 +81,64 @@ impl ModuleImage {
             .max_by_key(|s| s.is_global)
             .map(|s| s.addr)
     }
+
+    /// Is `addr` inside the placed module image at all?
+    pub fn contains(&self, addr: u64) -> bool {
+        self.size != 0 && addr >= self.base && addr < self.base + self.size
+    }
+
+    /// Permission of the section `addr` falls in, if any. Section-based rather
+    /// than symbol-based so it works on a stripped module with no local symbols.
+    fn section_perm_at(&self, addr: u64) -> Option<rs_header::elf::Perm> {
+        self.sections
+            .iter()
+            .find(|s| s.size != 0 && addr >= s.addr && addr < s.addr + s.size)
+            .map(|s| s.perm)
+    }
+
+    /// `addr` points into the module's executable text — i.e. it is a plausible
+    /// callback (a `.probe`, `.remove`, `.ioctl` function pointer).
+    pub fn is_module_text(&self, addr: u64) -> bool {
+        self.section_perm_at(addr).map(|p| p.execute).unwrap_or(false)
+    }
+
+    /// `addr` points into the module's non-executable data — i.e. a plausible
+    /// table pointer (an `id_table`, an ops struct, a string).
+    pub fn is_module_data(&self, addr: u64) -> bool {
+        self.section_perm_at(addr)
+            .map(|p| p.read && !p.execute)
+            .unwrap_or(false)
+    }
+
+    /// Name of the function symbol that starts exactly at `addr`, if any.
+    pub fn func_name_at(&self, addr: u64) -> Option<&str> {
+        self.symbols
+            .iter()
+            .find(|s| s.is_func && s.addr == addr && !s.name.is_empty())
+            .map(|s| s.name.as_str())
+    }
+}
+
+/// A driver ops struct captured at `*_register_driver` time.
+///
+/// Registering a driver is the moment the module hands the kernel its entry
+/// points — `.probe`, its `id_table`, its teardown. `init` almost never does
+/// anything else interesting, so capturing the struct here is what makes the
+/// *real* `probe` reachable afterwards instead of a name-guessed one.
+#[derive(Debug, Clone)]
+pub struct RegisteredDriver {
+    /// Bus the driver registered on: `usb`, `pci`, `platform`, `i2c`, ...
+    pub bus: String,
+    /// Driver name, if one could be read from the struct.
+    pub name: String,
+    /// Pointer to the ops struct the module passed (`struct usb_driver *`, ...).
+    pub struct_ptr: u64,
+    /// Resolved `.probe` entry point inside the module, or 0 if none was found.
+    pub probe: u64,
+    /// Symbol name of `probe`, when the module keeps one.
+    pub probe_name: String,
+    /// Resolved `id_table` pointer inside the module, or 0 if none was found.
+    pub id_table: u64,
 }
 
 /// A `kmem_cache` created by the driver.
@@ -128,6 +186,16 @@ pub struct KernelEnv {
     pub unimplemented: Vec<String>,
     /// Callbacks queued by the driver and not run yet.
     pub deferred: Vec<DeferredCall>,
+    /// Driver ops structs captured at `*_register_driver` time.
+    pub registered_drivers: Vec<RegisteredDriver>,
+    /// Device register file: address -> value. Backs vendor register I/O that
+    /// does not go through a mapped MMIO window — chiefly USB control transfers,
+    /// where a driver's `read32(addr)` / `write32(addr, val)` are control
+    /// messages, not memory accesses. Writes store here and reads return the
+    /// stored value (default 0), so a driver's write-then-read-back init
+    /// sequences stay coherent; a harness preloads chip-ID / version registers
+    /// so device-detection passes.
+    pub registers: HashMap<u64, u64>,
     /// Allocations attempted so far (fault-injection counter).
     pub alloc_count: u64,
     /// If set, the allocation whose 0-based index equals this returns NULL,
@@ -158,6 +226,8 @@ impl KernelEnv {
             caches: HashMap::new(),
             unimplemented: Vec::new(),
             deferred: Vec::new(),
+            registered_drivers: Vec::new(),
+            registers: HashMap::new(),
             alloc_count: 0,
             fail_alloc_index: None,
             next_stub: layout.stub_base,
@@ -652,6 +722,137 @@ impl Emu {
     /// Read argument `idx` of a kernel API call (SysV / AAPCS64 order).
     pub fn kernel_arg(&self, idx: usize) -> u64 {
         crate::api::abi::ApiAbi::from_emu(self).arg(self, idx)
+    }
+
+    /// Capture a driver ops struct handed to a `*_register_driver` call.
+    ///
+    /// `struct_ptr` is the first argument to (almost) every bus registration
+    /// helper: `usb_register_driver(struct usb_driver *)`,
+    /// `__pci_register_driver(struct pci_driver *, ...)`,
+    /// `platform_driver_register(struct platform_driver *)`, and so on. The
+    /// field layout differs per bus and per kernel build, so instead of baking
+    /// in offsets we walk the struct and classify each qword by where it
+    /// points: the first that lands in the module's *text* is the `.probe`
+    /// callback, and the first that lands in the module's *data* is the
+    /// `id_table`. That is layout-agnostic and survives a stripped module.
+    ///
+    /// Returns the resolved probe address (0 if none was found) and records the
+    /// capture in [`KernelEnv::registered_drivers`].
+    pub fn kernel_register_driver(&mut self, bus: &str, struct_ptr: u64) -> u64 {
+        // Widest sane driver struct (struct pci_driver is ~0xd0) plus slack.
+        const SCAN_BYTES: u64 = 0x120;
+
+        let mut probe = 0u64;
+        let mut probe_name = String::new();
+        let mut id_table = 0u64;
+        let mut name = String::new();
+
+        if struct_ptr != 0 {
+            let mut off = 0u64;
+            while off < SCAN_BYTES {
+                let Some(q) = self.maps.read_qword(struct_ptr + off) else {
+                    break;
+                };
+                if q != 0 {
+                    if let Some(kernel) = self.kernel.as_ref() {
+                        let m = &kernel.module;
+                        if probe == 0 && m.is_module_text(q) {
+                            probe = q;
+                            probe_name = m.func_name_at(q).unwrap_or("").to_string();
+                        } else if id_table == 0 && m.is_module_data(q) {
+                            // A data pointer into the module: candidate id_table.
+                            // Skip if it is the driver's own name string (best
+                            // effort — the name reads as printable ASCII).
+                            let s = self.maps.read_string(q);
+                            let looks_stringy = !s.is_empty()
+                                && s.len() <= 40
+                                && s.chars().all(|c| c.is_ascii_graphic() || c == ' ');
+                            if looks_stringy && name.is_empty() {
+                                name = s;
+                            } else {
+                                id_table = q;
+                            }
+                        }
+                    }
+                }
+                off += 8;
+            }
+        }
+
+        if let Some(kernel) = self.kernel.as_mut() {
+            kernel.registered_drivers.push(RegisteredDriver {
+                bus: bus.to_string(),
+                name,
+                struct_ptr,
+                probe,
+                probe_name,
+                id_table,
+            });
+        }
+        probe
+    }
+
+    /// Preload a device register (address -> value) before driving a probe.
+    ///
+    /// The generic reachability escape hatch: chip-ID / version registers a
+    /// driver reads during device detection can be set here so detection passes,
+    /// instead of teaching the harness a driver's internals. Config, not code.
+    pub fn kernel_set_register(&mut self, addr: u64, value: u64) {
+        if let Some(kernel) = self.kernel.as_mut() {
+            kernel.registers.insert(addr, value);
+        }
+    }
+
+    /// Current value of a device register (0 if never written or preset).
+    pub fn kernel_get_register(&self, addr: u64) -> u64 {
+        self.kernel
+            .as_ref()
+            .and_then(|k| k.registers.get(&addr).copied())
+            .unwrap_or(0)
+    }
+
+    /// Model a vendor register transfer over a USB control message.
+    ///
+    /// `addr` is the vendor register address (the control message's `value`
+    /// field for Realtek-style drivers). An IN transfer fills `buf` with the
+    /// stored register (default 0); an OUT transfer stores `buf` back, keeping
+    /// write-then-read-back coherent. `size` is clamped to 8 bytes (a register
+    /// is 1/2/4/8 wide). Returns the byte count so the caller can pass it as the
+    /// success return of `usb_control_msg`.
+    pub fn kernel_usb_register_xfer(&mut self, addr: u64, buf: u64, size: u64, dir_in: bool) -> u64 {
+        let n = size.min(8);
+        if buf == 0 || n == 0 {
+            return n;
+        }
+        if dir_in {
+            let val = self.kernel_get_register(addr);
+            let bytes = val.to_le_bytes();
+            self.maps.write_bytes(buf, &bytes[..n as usize]);
+            log::debug!("usb reg read  [{:#06x}] -> {:#x} ({} B)", addr, val, n);
+        } else {
+            let mut bytes = [0u8; 8];
+            for (i, b) in bytes.iter_mut().enumerate().take(n as usize) {
+                *b = self.maps.read_byte(buf + i as u64).unwrap_or(0);
+            }
+            let val = u64::from_le_bytes(bytes);
+            self.kernel_set_register(addr, val);
+            log::debug!("usb reg write [{:#06x}] <- {:#x} ({} B)", addr, val, n);
+        }
+        n
+    }
+
+    /// Driver ops structs captured during `init` (see [`kernel_register_driver`]).
+    ///
+    /// This is the reachability bridge: after `run_module_init`, a harness reads
+    /// the real `.probe` and `id_table` from here and drives probe with a device
+    /// whose id the driver will accept, instead of guessing an entry point.
+    ///
+    /// [`kernel_register_driver`]: Self::kernel_register_driver
+    pub fn kernel_registered_drivers(&self) -> Vec<RegisteredDriver> {
+        self.kernel
+            .as_ref()
+            .map(|k| k.registered_drivers.clone())
+            .unwrap_or_default()
     }
 
     /// Append a line to the emulated kernel log (`dmesg`).

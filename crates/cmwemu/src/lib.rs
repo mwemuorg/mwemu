@@ -2178,6 +2178,71 @@ pub extern "C" fn mwemu_kernel_found_uaf(emu: *mut MwemuEmu) -> i32 {
 pub extern "C" fn mwemu_kernel_run_deferred(emu: *mut MwemuEmu) -> usize {
     emu!(emu, 0).kernel_run_deferred()
 }
+
+/// Preload a device register (address -> value) before driving a probe, so a
+/// driver's chip-ID / version reads return this value instead of 0. The
+/// config-by-param escape hatch for steering device-detection per target.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_set_register(emu: *mut MwemuEmu, addr: u64, value: u64) {
+    emu!(emu, ()).kernel_set_register(addr, value);
+}
+
+/// Current value of a device register (0 if never written or preset).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_get_register(emu: *mut MwemuEmu, addr: u64) -> u64 {
+    emu!(emu, 0).kernel_get_register(addr)
+}
+
+/// Number of driver ops structs captured at `*_register_driver` time during
+/// init. The reachability bridge: use these to drive the real `probe` (with
+/// `mwemu_kernel_call(probe, {dev, id_table})`) instead of guessing an entry.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_registered_drivers_count(emu: *mut MwemuEmu) -> usize {
+    emu!(emu, 0).kernel_registered_drivers().len()
+}
+
+/// Resolved `.probe` entry point of captured driver `idx`, or 0 if out of range
+/// or none was found.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_driver_probe(emu: *mut MwemuEmu, idx: usize) -> u64 {
+    emu!(emu, 0)
+        .kernel_registered_drivers()
+        .get(idx)
+        .map(|d| d.probe)
+        .unwrap_or(0)
+}
+
+/// Resolved `id_table` pointer of captured driver `idx`, or 0.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_driver_id_table(emu: *mut MwemuEmu, idx: usize) -> u64 {
+    emu!(emu, 0)
+        .kernel_registered_drivers()
+        .get(idx)
+        .map(|d| d.id_table)
+        .unwrap_or(0)
+}
+
+/// Bus name of captured driver `idx` (`usb`, `pci`, ...). NULL if out of range.
+/// Free with `mwemu_free_string`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_driver_bus(emu: *mut MwemuEmu, idx: usize) -> *mut c_char {
+    let e = emu!(emu, std::ptr::null_mut());
+    match e.kernel_registered_drivers().get(idx) {
+        Some(d) => ret_string(d.bus.clone()),
+        None => std::ptr::null_mut(),
+    }
+}
+
+/// Symbol name of captured driver `idx`'s probe (empty when the module keeps no
+/// symbol). NULL if `idx` is out of range. Free with `mwemu_free_string`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_driver_probe_name(emu: *mut MwemuEmu, idx: usize) -> *mut c_char {
+    let e = emu!(emu, std::ptr::null_mut());
+    match e.kernel_registered_drivers().get(idx) {
+        Some(d) => ret_string(d.probe_name.clone()),
+        None => std::ptr::null_mut(),
+    }
+}
 /// Get the exe name. Free with `mwemu_free_string`.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_get_exe_name(emu: *mut MwemuEmu) -> *mut c_char {

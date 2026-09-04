@@ -702,6 +702,42 @@ impl Emu {
         self.emu.kernel_alloc_count()
     }
 
+    /// Driver ops structs captured at `*_register_driver` time during init.
+    ///
+    /// Each entry is a tuple `(bus, name, struct_ptr, probe, probe_name,
+    /// id_table)`. This is the reachability bridge: after `run_module_init`,
+    /// drive the real `probe` with `kernel_call(probe, [dev, id_table])` and a
+    /// synthetic device, instead of guessing an entry point by name.
+    /// Preload a device register (address -> value) before driving a probe, so
+    /// a driver's chip-ID / version reads return the value the harness supplies
+    /// instead of 0. This is the config-by-param escape hatch: steer
+    /// device-detection per target without any per-driver emulator code.
+    fn kernel_set_register(&mut self, addr: u64, value: u64) {
+        self.emu.kernel_set_register(addr, value);
+    }
+
+    /// Current value of a device register (0 if never written or preset).
+    fn kernel_get_register(&self, addr: u64) -> u64 {
+        self.emu.kernel_get_register(addr)
+    }
+
+    fn kernel_registered_drivers(&self) -> Vec<(String, String, u64, u64, String, u64)> {
+        self.emu
+            .kernel_registered_drivers()
+            .into_iter()
+            .map(|d| {
+                (
+                    d.bus,
+                    d.name,
+                    d.struct_ptr,
+                    d.probe,
+                    d.probe_name,
+                    d.id_table,
+                )
+            })
+            .collect()
+    }
+
     // registers
 
     /// read register value ie get_reg('rax') or get_reg('x0')

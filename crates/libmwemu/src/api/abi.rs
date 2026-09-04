@@ -50,7 +50,16 @@ impl ApiAbi {
                     let regs = emu.regs();
                     regs.r9
                 }
-                _ => unreachable!("x86_64 API arg{} is out of range", idx),
+                // SysV AMD64 passes args 0-5 in registers and the rest on the
+                // stack. The kernel gateway has already popped the return
+                // address, so rsp points at the first stack argument (arg6);
+                // arg N is at [rsp + (N-6)*8]. Needed by wide kernel APIs such
+                // as usb_control_msg (data=arg6, size=arg7).
+                n => {
+                    let rsp = emu.regs().rsp;
+                    let off = (n as u64 - 6) * 8;
+                    emu.maps.read_qword(rsp + off).unwrap_or(0)
+                }
             },
         }
     }

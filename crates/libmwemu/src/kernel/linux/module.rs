@@ -18,6 +18,25 @@ fn handle(emu: &mut Emu, what: &str, api: &str) -> u64 {
     ptr
 }
 
+/// Capture a driver ops struct passed to a bus `*_register_driver` and log the
+/// resolved probe. The struct is the first argument of every such helper.
+fn capture(emu: &mut Emu, bus: &str, api: &str) {
+    let drv = emu.kernel_arg(0);
+    let probe = emu.kernel_register_driver(bus, drv);
+    let drivers = emu.kernel_registered_drivers();
+    let last = drivers.last();
+    emu.kernel_log_line(format!(
+        "{} {}: struct {:#x} probe {:#x} ({}) id_table {:#x}",
+        api,
+        bus,
+        drv,
+        probe,
+        last.map(|r| r.probe_name.as_str()).unwrap_or(""),
+        last.map(|r| r.id_table).unwrap_or(0),
+    ));
+    emu.set_kernel_ret(0);
+}
+
 pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
     match symbol {
         // --- character devices -------------------------------------------------
@@ -88,6 +107,46 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         "debugfs_remove" | "debugfs_remove_recursive" => emu.set_kernel_ret(0),
         "sysfs_create_file" | "sysfs_create_group" | "device_create_file" => emu.set_kernel_ret(0),
         "sysfs_remove_file" | "sysfs_remove_group" | "device_remove_file" => emu.set_kernel_ret(0),
+
+        // --- bus driver registration --------------------------------------------
+        // Every one of these takes a pointer to a per-bus driver ops struct as
+        // its first argument, and that struct holds the driver's real `.probe`
+        // and `id_table`. Capturing it here is what makes probe reachable after
+        // init (see Emu::kernel_register_driver). Registration succeeds (0).
+        "__pci_register_driver" | "pci_register_driver" => {
+            capture(emu, "pci", symbol);
+        }
+        "__sdio_register_driver" | "sdio_register_driver" => {
+            capture(emu, "sdio", symbol);
+        }
+        "platform_driver_register"
+        | "__platform_driver_register"
+        | "platform_driver_probe" => {
+            capture(emu, "platform", symbol);
+        }
+        "spi_register_driver" | "__spi_register_driver" => {
+            capture(emu, "spi", symbol);
+        }
+        "i2c_add_driver" | "i2c_register_driver" | "__i2c_add_driver" => {
+            capture(emu, "i2c", symbol);
+        }
+        "__usb_serial_register_drivers" | "usb_serial_register_drivers" => {
+            capture(emu, "usb_serial", symbol);
+        }
+        "mmc_register_driver" | "__mmc_register_driver" => {
+            capture(emu, "mmc", symbol);
+        }
+        "register_virtio_driver" | "__register_virtio_driver" => {
+            capture(emu, "virtio", symbol);
+        }
+        "pci_unregister_driver"
+        | "sdio_unregister_driver"
+        | "platform_driver_unregister"
+        | "spi_unregister_driver"
+        | "i2c_del_driver"
+        | "usb_serial_deregister_drivers"
+        | "mmc_unregister_driver"
+        | "unregister_virtio_driver" => emu.set_kernel_ret(0),
 
         // --- module refcounting --------------------------------------------------
         "try_module_get" => emu.set_kernel_ret(1),

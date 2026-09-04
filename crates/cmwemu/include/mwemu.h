@@ -668,6 +668,34 @@ int32_t mwemu_kernel_found_uaf(struct MwemuEmu *emu);
 // many callbacks ran. "Unregister now, free later" UAFs surface here.
 uintptr_t mwemu_kernel_run_deferred(struct MwemuEmu *emu);
 
+// Preload a device register (address -> value) before driving a probe, so a
+// driver's chip-ID / version reads return this value instead of 0. The
+// config-by-param escape hatch for steering device-detection per target.
+void mwemu_kernel_set_register(struct MwemuEmu *emu, uint64_t addr, uint64_t value);
+
+// Current value of a device register (0 if never written or preset).
+uint64_t mwemu_kernel_get_register(struct MwemuEmu *emu, uint64_t addr);
+
+// Number of driver ops structs captured at `*_register_driver` time during
+// init. The reachability bridge: use these to drive the real `probe` (with
+// `mwemu_kernel_call(probe, {dev, id_table})`) instead of guessing an entry.
+uintptr_t mwemu_kernel_registered_drivers_count(struct MwemuEmu *emu);
+
+// Resolved `.probe` entry point of captured driver `idx`, or 0 if out of range
+// or none was found.
+uint64_t mwemu_kernel_driver_probe(struct MwemuEmu *emu, uintptr_t idx);
+
+// Resolved `id_table` pointer of captured driver `idx`, or 0.
+uint64_t mwemu_kernel_driver_id_table(struct MwemuEmu *emu, uintptr_t idx);
+
+// Bus name of captured driver `idx` (`usb`, `pci`, ...). NULL if out of range.
+// Free with `mwemu_free_string`.
+char *mwemu_kernel_driver_bus(struct MwemuEmu *emu, uintptr_t idx);
+
+// Symbol name of captured driver `idx`'s probe (empty when the module keeps no
+// symbol). NULL if `idx` is out of range. Free with `mwemu_free_string`.
+char *mwemu_kernel_driver_probe_name(struct MwemuEmu *emu, uintptr_t idx);
+
 // Get the exe name. Free with `mwemu_free_string`.
 char *mwemu_get_exe_name(struct MwemuEmu *emu);
 
