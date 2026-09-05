@@ -99,7 +99,9 @@ impl ModuleImage {
     /// `addr` points into the module's executable text — i.e. it is a plausible
     /// callback (a `.probe`, `.remove`, `.ioctl` function pointer).
     pub fn is_module_text(&self, addr: u64) -> bool {
-        self.section_perm_at(addr).map(|p| p.execute).unwrap_or(false)
+        self.section_perm_at(addr)
+            .map(|p| p.execute)
+            .unwrap_or(false)
     }
 
     /// `addr` points into the module's non-executable data — i.e. a plausible
@@ -819,7 +821,13 @@ impl Emu {
     /// write-then-read-back coherent. `size` is clamped to 8 bytes (a register
     /// is 1/2/4/8 wide). Returns the byte count so the caller can pass it as the
     /// success return of `usb_control_msg`.
-    pub fn kernel_usb_register_xfer(&mut self, addr: u64, buf: u64, size: u64, dir_in: bool) -> u64 {
+    pub fn kernel_usb_register_xfer(
+        &mut self,
+        addr: u64,
+        buf: u64,
+        size: u64,
+        dir_in: bool,
+    ) -> u64 {
         let n = size.min(8);
         if buf == 0 || n == 0 {
             return n;

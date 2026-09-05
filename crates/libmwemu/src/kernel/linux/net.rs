@@ -80,7 +80,8 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             if hw != 0 {
                 // `void *priv` sits at this offset in struct ieee80211_hw on
                 // current x86-64 kernels (after struct ieee80211_conf).
-                emu.maps.write_qword(hw + IEEE80211_PRIV_OFF, hw + IEEE80211_HW_RESERVE);
+                emu.maps
+                    .write_qword(hw + IEEE80211_PRIV_OFF, hw + IEEE80211_HW_RESERVE);
             }
             emu.set_kernel_ret(hw);
         }

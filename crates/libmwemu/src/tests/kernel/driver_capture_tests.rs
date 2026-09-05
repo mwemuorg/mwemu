@@ -10,8 +10,8 @@
 use crate::emu64;
 use crate::kernel::KernelOs;
 use crate::maps::mem64::Permission;
-use rs_header::elf::relocatable::{RelSection, RelSymbol};
 use rs_header::elf::Perm;
+use rs_header::elf::relocatable::{RelSection, RelSymbol};
 
 const MODULE_BASE: u64 = 0xffffffffc0000000; // Linux layout module_base.
 const TEXT: u64 = MODULE_BASE; //            [BASE .. BASE+0x1000)  r-x
@@ -59,18 +59,13 @@ fn plant_driver(emu: &mut crate::emu::Emu, at: u64) -> (u64, u64, u64) {
     let name = DATA + 0x40;
     let id_table = DATA + 0x400;
 
-    emu.kernel
-        .as_mut()
-        .unwrap()
-        .module
-        .symbols
-        .push(RelSymbol {
-            name: "tdrv_probe".to_string(),
-            addr: probe,
-            size: 0x80,
-            is_func: true,
-            is_global: false,
-        });
+    emu.kernel.as_mut().unwrap().module.symbols.push(RelSymbol {
+        name: "tdrv_probe".to_string(),
+        addr: probe,
+        size: 0x80,
+        is_func: true,
+        is_global: false,
+    });
 
     emu.maps.write_string(name, "tdrv");
     // A non-stringy id_table head so it is not mistaken for the name.
@@ -142,7 +137,8 @@ fn no_module_pointers_yields_no_probe() {
     let struct_ptr = DATA + 0x800;
     for i in 0..8u64 {
         // Kernel data-region pointers, outside the module image.
-        emu.maps.write_qword(struct_ptr + i * 8, 0xffffffff82000000 + i * 8);
+        emu.maps
+            .write_qword(struct_ptr + i * 8, 0xffffffff82000000 + i * 8);
     }
     let resolved = emu.kernel_register_driver("platform", struct_ptr);
     assert_eq!(resolved, 0);

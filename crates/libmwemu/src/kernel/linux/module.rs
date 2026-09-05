@@ -119,9 +119,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         "__sdio_register_driver" | "sdio_register_driver" => {
             capture(emu, "sdio", symbol);
         }
-        "platform_driver_register"
-        | "__platform_driver_register"
-        | "platform_driver_probe" => {
+        "platform_driver_register" | "__platform_driver_register" | "platform_driver_probe" => {
             capture(emu, "platform", symbol);
         }
         "spi_register_driver" | "__spi_register_driver" => {
