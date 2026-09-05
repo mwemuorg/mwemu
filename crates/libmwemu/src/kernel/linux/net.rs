@@ -16,6 +16,14 @@ use crate::kernel::heap::Region;
 /// keeps that inlined access inside the chunk we hand back.
 const NETDEV_RESERVE: u64 = 0x2000;
 
+/// Bytes reserved for the `struct ieee80211_hw` header before the driver's
+/// private area, and the offset of its `priv` pointer field. The header size is
+/// comfortably larger than any real `ieee80211_hw` so the driver's field
+/// accesses stay inside the chunk; the priv offset tracks current x86-64
+/// mac80211 (`priv` follows the embedded `struct ieee80211_conf`).
+const IEEE80211_HW_RESERVE: u64 = 0x800;
+const IEEE80211_PRIV_OFF: u64 = 0x58;
+
 fn alloc(emu: &mut Emu, size: u64, cache: &str, api: &str, zeroed: bool) -> u64 {
     let ptr = emu.kernel_alloc(Region::Slab, size, cache, api, zeroed);
     emu.set_kernel_ret(ptr);
@@ -42,9 +50,43 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             let priv_sz = emu.kernel_arg(0).min(0x10000);
             alloc(emu, NETDEV_RESERVE + priv_sz, "net_device", symbol, true);
         }
+        // devm_ variants take the device as arg0, so sizeof_priv is arg1. The
+        // returned net_device is managed, but the driver reads netdev_priv() the
+        // same way, so the reserve-then-priv layout is identical.
+        "devm_alloc_etherdev_mqs" | "devm_alloc_etherdev" => {
+            let priv_sz = emu.kernel_arg(1).min(0x10000);
+            alloc(emu, NETDEV_RESERVE + priv_sz, "net_device", symbol, true);
+        }
         "free_netdev" | "free_candev" => {
             let dev = emu.kernel_arg(0);
             free(emu, dev, symbol);
+        }
+        // mac80211: ieee80211_alloc_hw[_nm](priv_data_len, ops[, name]).
+        // Returns a struct ieee80211_hw* whose `priv` field points at a
+        // priv_data_len scratch area. A wifi driver's very first probe step is
+        // `hw = ieee80211_alloc_hw(sizeof(priv), ...); priv = hw->priv;`, so
+        // returning NULL (the old default) bailed every mac80211 probe at
+        // -ENOMEM before any driver code ran. One chunk holds the hw header and
+        // the priv area; `hw->priv` is wired to the priv area.
+        "ieee80211_alloc_hw" | "ieee80211_alloc_hw_nm" => {
+            let priv_sz = emu.kernel_arg(0).min(0x10000);
+            let hw = emu.kernel_alloc(
+                Region::Slab,
+                IEEE80211_HW_RESERVE + priv_sz,
+                "ieee80211_hw",
+                symbol,
+                true,
+            );
+            if hw != 0 {
+                // `void *priv` sits at this offset in struct ieee80211_hw on
+                // current x86-64 kernels (after struct ieee80211_conf).
+                emu.maps.write_qword(hw + IEEE80211_PRIV_OFF, hw + IEEE80211_HW_RESERVE);
+            }
+            emu.set_kernel_ret(hw);
+        }
+        "ieee80211_free_hw" => {
+            let hw = emu.kernel_arg(0);
+            free(emu, hw, symbol);
         }
         "register_netdev"
         | "register_netdevice"
@@ -122,14 +164,57 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             let addr = emu.kernel_arg(2);
             free(emu, addr, symbol);
         }
-        "usb_register_driver"
-        | "usb_deregister"
+        // Capture the struct usb_driver so its real .probe / id_table are
+        // reachable after init. usb_register_driver(drv, owner, mod_name).
+        "usb_register_driver" => {
+            let drv = emu.kernel_arg(0);
+            let probe = emu.kernel_register_driver("usb", drv);
+            let d = emu.kernel_registered_drivers();
+            let last = d.last();
+            emu.kernel_log_line(format!(
+                "usb_register_driver: struct {:#x} probe {:#x} ({}) id_table {:#x}",
+                drv,
+                probe,
+                last.map(|r| r.probe_name.as_str()).unwrap_or(""),
+                last.map(|r| r.id_table).unwrap_or(0),
+            ));
+            emu.set_kernel_ret(0);
+        }
+        // Vendor register access over a control transfer. For USB drivers the
+        // chip's registers ARE these messages (not a mapped MMIO window), so a
+        // read must return coherent data or device-detection reads 0 and bails.
+        // usb_control_msg(dev, pipe, request, requesttype, value, index, data,
+        //                 size, timeout): register addr = value (arg4).
+        "usb_control_msg" => {
+            let requesttype = emu.kernel_arg(3);
+            let addr = emu.kernel_arg(4);
+            let data = emu.kernel_arg(6);
+            let size = emu.kernel_arg(7);
+            let dir_in = requesttype & 0x80 != 0; // USB_DIR_IN
+            let n = emu.kernel_usb_register_xfer(addr, data, size, dir_in);
+            emu.set_kernel_ret(n); // bytes transferred (>= 0 = success)
+        }
+        // usb_control_msg_recv/_send(dev, ep, request, requesttype, value,
+        //   index, buf, len, timeout, memflags): recv = read, send = write.
+        // Return 0 on success (their convention), not the byte count.
+        "usb_control_msg_recv" => {
+            let addr = emu.kernel_arg(4);
+            let buf = emu.kernel_arg(6);
+            let len = emu.kernel_arg(7);
+            emu.kernel_usb_register_xfer(addr, buf, len, true);
+            emu.set_kernel_ret(0);
+        }
+        "usb_control_msg_send" => {
+            let addr = emu.kernel_arg(4);
+            let buf = emu.kernel_arg(6);
+            let len = emu.kernel_arg(7);
+            emu.kernel_usb_register_xfer(addr, buf, len, false);
+            emu.set_kernel_ret(0);
+        }
+        "usb_deregister"
         | "usb_submit_urb"
         | "usb_kill_urb"
         | "usb_unlink_urb"
-        | "usb_control_msg"
-        | "usb_control_msg_send"
-        | "usb_control_msg_recv"
         | "usb_bulk_msg"
         | "usb_check_bulk_endpoints"
         | "usb_check_int_endpoints"
