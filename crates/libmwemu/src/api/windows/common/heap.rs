@@ -5,13 +5,46 @@
 
 use crate::emu;
 use crate::exception::types::ExceptionType;
+use crate::maps::mem64::Permission;
 use crate::windows::constants;
+
+/// Ensure the guest-visible heap handle for slab key `key` is a real, mapped
+/// address rather than an opaque small integer, and return it.
+///
+/// Real Windows heap handles ARE the heap's base address. Guests that only
+/// ever pass the handle back into HeapAlloc/HeapFree never notice the
+/// difference, but some (packers/protectors especially) validate a handle
+/// by reading bytes near it as an anti-tamper/anti-emulation check -- that
+/// faults against a bare `1` or `3`. Idempotent: the map is created once per
+/// key and its address cached on the `HeapHandle` itself.
+pub(crate) fn heap_handle_address(emu: &mut emu::Emu, key: u32) -> u64 {
+    if let Some(addr) = emu.handle_management.heap_handle_addr(key) {
+        return addr;
+    }
+    const SLOT_SIZE: u64 = 0x1000;
+    let addr = emu.maps.alloc(SLOT_SIZE).unwrap_or(0);
+    if addr != 0 {
+        let name = format!("heap_handle_{key:x}");
+        let _ = emu
+            .maps
+            .create_map(&name, addr, SLOT_SIZE, Permission::READ_WRITE);
+    }
+    emu.handle_management.set_heap_handle_addr(key, addr);
+    addr
+}
 
 /// Lenient allocation context for a guest heap handle. Unknown/zero handles
 /// (e.g. `0x1234` from existing tests) fall back to the process arena (index 0)
-/// with `maximum_size == 0` (growable).
+/// with `maximum_size == 0` (growable). A `handle` that is a real address
+/// handed out by `heap_handle_address` is translated back to its internal
+/// slab key first.
 pub(crate) fn alloc_context(emu: &emu::Emu, handle: u64) -> (usize, u64) {
-    if let Some((arena, max)) = emu.handle_management.heap_alloc_context(handle) {
+    let resolved = emu
+        .handle_management
+        .key_for_heap_addr(handle)
+        .map(|k| k as u64)
+        .unwrap_or(handle);
+    if let Some((arena, max)) = emu.handle_management.heap_alloc_context(resolved) {
         (arena, max)
     } else {
         (0, 0)

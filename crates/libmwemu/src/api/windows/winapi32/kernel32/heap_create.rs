@@ -1,3 +1,4 @@
+use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
 use crate::emu::object_handle::HeapHandle;
 
@@ -34,6 +35,7 @@ pub fn HeapCreate(emu: &mut emu::Emu) {
         max_sz as usize,
         arena,
     ));
-    log_red!(emu, "kernel32!HeapCreate handle=0x{:x}", key as u64);
-    emu.regs_mut().rax = key as u64;
+    let addr = heap_engine::heap_handle_address(emu, key);
+    log_red!(emu, "kernel32!HeapCreate handle=0x{:x}", addr);
+    emu.regs_mut().rax = addr;
 }

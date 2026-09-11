@@ -6,6 +6,11 @@ pub struct HeapHandle {
     pub initSZ: usize,
     pub maxSZ: usize,
     pub arena: usize,
+    /// Real, mapped address handed to the guest for this handle (0 = not
+    /// exposed yet). Real Windows heap handles ARE the heap's base address;
+    /// guest code (packers especially) sometimes validates a handle by
+    /// reading bytes near it, which faults against a bare small integer.
+    pub addr: u64,
 }
 
 impl HeapHandle {
@@ -14,6 +19,7 @@ impl HeapHandle {
             initSZ,
             maxSZ,
             arena,
+            addr: 0,
         }
     }
 }

@@ -190,6 +190,38 @@ impl HandleManagement {
         self.process_heap_key == Some(key)
     }
 
+    /// Real address the guest was handed for heap slab-key `key`, if any
+    /// (0/absent means it hasn't been exposed to the guest yet).
+    pub fn heap_handle_addr(&self, key: u32) -> Option<u64> {
+        match self.handle_types.get(key as usize) {
+            Some(HandleType::HeapHandle(hh)) if hh.addr != 0 => Some(hh.addr),
+            _ => None,
+        }
+    }
+
+    /// Record the real address the guest was handed for heap slab-key `key`.
+    pub fn set_heap_handle_addr(&mut self, key: u32, addr: u64) {
+        if let Some(HandleType::HeapHandle(hh)) = self.handle_types.get_mut(key as usize) {
+            hh.addr = addr;
+        }
+    }
+
+    /// Resolve a guest-visible heap handle *address* back to its slab key.
+    /// Linear scan; a process realistically has a handful of live heaps.
+    pub fn key_for_heap_addr(&self, addr: u64) -> Option<u32> {
+        if addr == 0 {
+            return None;
+        }
+        for (k, entry) in self.handle_types.iter() {
+            if let HandleType::HeapHandle(hh) = entry {
+                if hh.addr == addr {
+                    return Some(k as u32);
+                }
+            }
+        }
+        None
+    }
+
     /// Resolve a guest-supplied heap handle (truncated to u32) to its owning
     /// `HeapHandle` allocation context: `(arena_idx, maximum_size)`.
     /// Returns None when the handle is not a live `HeapHandle`.
