@@ -32,6 +32,8 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
         Opcode::LSRV => instructions::shift::execute(emu, ins, helpers::ShiftOp::Lsr),
         Opcode::ASRV => instructions::shift::execute(emu, ins, helpers::ShiftOp::Asr),
         Opcode::RORV => instructions::shift::execute(emu, ins, helpers::ShiftOp::Ror),
+        Opcode::SBFM => instructions::sbfm::execute(emu, ins),
+        Opcode::UBFM => instructions::ubfm::execute(emu, ins),
         Opcode::EXTR => instructions::extr::execute(emu, ins),
         Opcode::RBIT => instructions::rbit::execute(emu, ins),
         Opcode::REV => instructions::rev::execute(emu, ins),
@@ -97,7 +99,7 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
         Opcode::MRS => instructions::mrs::execute(emu, ins),
         Opcode::MSR => instructions::msr::execute(emu, ins),
         // --- SIMD/NEON ---
-        Opcode::MOVI | Opcode::FMOV => instructions::simd::execute(emu, ins),
+        Opcode::MOVI | Opcode::FMOV | Opcode::DUP => instructions::simd::execute(emu, ins),
 
         Opcode::HINT => true, // NOP is encoded as HINT
         Opcode::DMB(_) | Opcode::DSB(_) | Opcode::ISB => true, // barriers are no-ops in emulation

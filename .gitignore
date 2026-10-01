@@ -32,6 +32,7 @@ shellcodes64/
 scripts/extract_dyld_cache
 .DS_Store
 prompt.md
+resume
 private/
 trace_LdrInitializeThunk.txt
 .offcode.ctx

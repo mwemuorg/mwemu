@@ -157,7 +157,13 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("test_mode", "t", "test", "test mode"))
         .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
-        .arg(clap_arg!("args", "A", "args", "provide arguments to the EXE like: --args '\"aa\" \"bb\"'", "ARGS"))
+        .arg(Arg::with_name("args")
+            .short("A")
+            .long("args")
+            .help("provide arguments to the EXE like: --args '-l' or --args 'aa bb'")
+            .takes_value(true)
+            .value_name("ARGS")
+            .allow_hyphen_values(true))
         .arg(clap_arg!("trace_filename", "T", "trace_filename", "output trace to specified file", "TRACE_FILENAME"))
         .arg(clap_arg!("trace_start", "S", "trace_start", "start trace at specified position", "TRACE_START"))
         .arg(clap_arg!("log","L", "log", "log output to file", "LOG_FILENAME")) 
@@ -627,7 +633,7 @@ fn main() -> process::ExitCode {
         emu.cfg.arguments = matches
             .value_of("args")
             .expect("specify the argument string")
-            .to_string();
+            .replace('"', "");
     }
 
     // log to file

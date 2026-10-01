@@ -415,6 +415,7 @@ impl From<SerializableEmu> for Emu {
             section_handles: HashMap::new(),
             file_handles: HashMap::new(),
             fts_handles: HashMap::new(),
+            getopt_char_index: 0,
             emulated_stdout: Vec::new(),
             syscall_number_map: HashMap::new(),
             syscall_name_by_real: HashMap::new(),

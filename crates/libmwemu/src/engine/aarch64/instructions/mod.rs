@@ -17,9 +17,11 @@ pub mod rbit;
 pub mod rev;
 pub mod rev16;
 pub mod rev32;
+pub mod sbfm;
 pub mod sdiv;
 pub mod shift;
 pub mod sub;
+pub mod ubfm;
 pub mod udiv;
 
 pub mod ldp;

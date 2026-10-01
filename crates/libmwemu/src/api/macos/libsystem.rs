@@ -244,45 +244,51 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
 fn api_printf(emu: &mut Emu) {
     let fmt_addr = arg(emu, 0);
     let fmt = emu.maps.read_string(fmt_addr);
+    let result = format_printf(emu, &fmt, 1);
     log::info!(
-        "{}** {} macOS API printf(\"{}\") {}",
+        "{}** {} macOS API printf(\"{}\") -> \"{}\" {}",
         emu.colors.light_red,
         emu.pos,
         fmt,
+        result,
         emu.colors.nc
     );
-    emu.emulated_stdout.extend_from_slice(fmt.as_bytes());
-    set_ret(emu, fmt.len() as u64);
+    emu.emulated_stdout.extend_from_slice(result.as_bytes());
+    set_ret(emu, result.len() as u64);
 }
 
 fn api_fprintf(emu: &mut Emu) {
     let _stream = arg(emu, 0);
     let fmt_addr = arg(emu, 1);
     let fmt = emu.maps.read_string(fmt_addr);
+    let result = format_printf(emu, &fmt, 2);
     log::info!(
-        "{}** {} macOS API fprintf(\"{}\") {}",
+        "{}** {} macOS API fprintf(\"{}\") -> \"{}\" {}",
         emu.colors.light_red,
         emu.pos,
         fmt,
+        result,
         emu.colors.nc
     );
-    set_ret(emu, fmt.len() as u64);
+    emu.emulated_stdout.extend_from_slice(result.as_bytes());
+    set_ret(emu, result.len() as u64);
 }
 
 fn api_sprintf(emu: &mut Emu) {
     let dst_addr = arg(emu, 0);
     let fmt_addr = arg(emu, 1);
     let fmt = emu.maps.read_string(fmt_addr);
+    let result = format_printf(emu, &fmt, 2);
     log::info!(
-        "{}** {} macOS API sprintf(0x{:x}, \"{}\") {}",
+        "{}** {} macOS API sprintf(0x{:x}, \"{}\") -> \"{}\" {}",
         emu.colors.light_red,
         emu.pos,
         dst_addr,
         fmt,
+        result,
         emu.colors.nc
     );
-    // Write the format string as-is (no vararg substitution)
-    let bytes = fmt.as_bytes();
+    let bytes = result.as_bytes();
     emu.maps.write_bytes(dst_addr, bytes);
     emu.maps.write_byte(dst_addr + bytes.len() as u64, 0);
     set_ret(emu, bytes.len() as u64);
@@ -293,23 +299,220 @@ fn api_snprintf(emu: &mut Emu) {
     let size = arg(emu, 1);
     let fmt_addr = arg(emu, 2);
     let fmt = emu.maps.read_string(fmt_addr);
+    let result = format_printf(emu, &fmt, 3);
     log::info!(
-        "{}** {} macOS API snprintf(0x{:x}, {}, \"{}\") {}",
+        "{}** {} macOS API snprintf(0x{:x}, {}, \"{}\") -> \"{}\" {}",
         emu.colors.light_red,
         emu.pos,
         dst_addr,
         size,
         fmt,
+        result,
         emu.colors.nc
     );
-    // Write the format string truncated to size-1 (no vararg substitution)
-    let bytes = fmt.as_bytes();
+    let bytes = result.as_bytes();
     if size > 0 {
         let write_len = std::cmp::min(bytes.len(), (size - 1) as usize);
         emu.maps.write_bytes(dst_addr, &bytes[..write_len]);
         emu.maps.write_byte(dst_addr + write_len as u64, 0);
     }
     set_ret(emu, bytes.len() as u64);
+}
+
+fn format_printf(emu: &Emu, fmt: &str, first_vararg: usize) -> String {
+    let mut out = String::new();
+    let mut vararg_num: usize = 0;
+    let chars: Vec<char> = fmt.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] != '%' {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        i += 1;
+        if i >= chars.len() {
+            break;
+        }
+        if chars[i] == '%' {
+            out.push('%');
+            i += 1;
+            continue;
+        }
+
+        // Parse flags
+        let mut left_align = false;
+        let mut zero_pad = false;
+        let mut plus_sign = false;
+        let mut space_sign = false;
+        loop {
+            if i >= chars.len() {
+                break;
+            }
+            match chars[i] {
+                '-' => left_align = true,
+                '0' => zero_pad = true,
+                '+' => plus_sign = true,
+                ' ' => space_sign = true,
+                '#' => {}
+                _ => break,
+            }
+            i += 1;
+        }
+
+        // Parse width
+        let mut width: Option<usize> = None;
+        if i < chars.len() && chars[i] == '*' {
+            width = Some(get_printf_arg(emu, vararg_num, first_vararg) as usize);
+            vararg_num += 1;
+            i += 1;
+        } else {
+            let start = i;
+            while i < chars.len() && chars[i].is_ascii_digit() {
+                i += 1;
+            }
+            if i > start {
+                width = chars[start..i]
+                    .iter()
+                    .collect::<String>()
+                    .parse::<usize>()
+                    .ok();
+            }
+        }
+
+        // Parse precision
+        let mut _precision: Option<usize> = None;
+        if i < chars.len() && chars[i] == '.' {
+            i += 1;
+            if i < chars.len() && chars[i] == '*' {
+                _precision = Some(get_printf_arg(emu, vararg_num, first_vararg) as usize);
+                vararg_num += 1;
+                i += 1;
+            } else {
+                let start = i;
+                while i < chars.len() && chars[i].is_ascii_digit() {
+                    i += 1;
+                }
+                if i > start {
+                    _precision = chars[start..i]
+                        .iter()
+                        .collect::<String>()
+                        .parse::<usize>()
+                        .ok();
+                }
+            }
+        }
+
+        // Parse length modifier
+        let mut _long_count = 0;
+        while i < chars.len() {
+            match chars[i] {
+                'l' => {
+                    _long_count += 1;
+                    i += 1;
+                }
+                'h' | 'j' | 'z' | 't' | 'q' => {
+                    i += 1;
+                }
+                _ => break,
+            }
+        }
+
+        if i >= chars.len() {
+            break;
+        }
+
+        // Conversion
+        let w = width.unwrap_or(0);
+        let val = get_printf_arg(emu, vararg_num, first_vararg);
+        vararg_num += 1;
+        let formatted = match chars[i] {
+            'd' | 'i' => {
+                let v = val as i64;
+                let s = if plus_sign && v >= 0 {
+                    format!("+{}", v)
+                } else if space_sign && v >= 0 {
+                    format!(" {}", v)
+                } else {
+                    format!("{}", v)
+                };
+                pad_string(&s, w, left_align, zero_pad)
+            }
+            'u' => pad_string(&format!("{}", val), w, left_align, false),
+            'x' => pad_string(&format!("{:x}", val), w, left_align, zero_pad),
+            'X' => pad_string(&format!("{:X}", val), w, left_align, zero_pad),
+            'o' => pad_string(&format!("{:o}", val), w, left_align, zero_pad),
+            's' => {
+                let s = if val != 0 {
+                    emu.maps.read_string(val)
+                } else {
+                    "(null)".to_string()
+                };
+                pad_string(&s, w, left_align, false)
+            }
+            'c' => {
+                let ch = if val > 0 && val < 128 {
+                    (val as u8) as char
+                } else {
+                    '?'
+                };
+                pad_string(&ch.to_string(), w, left_align, false)
+            }
+            'p' => pad_string(&format!("0x{:x}", val), w, left_align, false),
+            _ => {
+                format!("%{}", chars[i])
+            }
+        };
+        out.push_str(&formatted);
+        i += 1;
+    }
+    out
+}
+
+fn get_printf_arg(emu: &Emu, vararg_num: usize, first_vararg: usize) -> u64 {
+    if emu.cfg.arch.is_aarch64() {
+        // AArch64 Apple ABI: variadic args are always on the stack.
+        let sp = emu.regs_aarch64().sp;
+        emu.maps
+            .read_qword(sp + (vararg_num as u64) * 8)
+            .unwrap_or(0)
+    } else {
+        let idx = first_vararg + vararg_num;
+        if idx < 6 {
+            match idx {
+                0 => emu.regs().rdi,
+                1 => emu.regs().rsi,
+                2 => emu.regs().rdx,
+                3 => emu.regs().rcx,
+                4 => emu.regs().r8,
+                5 => emu.regs().r9,
+                _ => unreachable!(),
+            }
+        } else {
+            let sp = emu.regs().rsp;
+            emu.maps
+                .read_qword(sp + ((idx - 6) as u64) * 8)
+                .unwrap_or(0)
+        }
+    }
+}
+
+fn pad_string(s: &str, width: usize, left_align: bool, zero_pad: bool) -> String {
+    if width == 0 || s.len() >= width {
+        return s.to_string();
+    }
+    let pad_char = if zero_pad && !left_align { '0' } else { ' ' };
+    let padding = width - s.len();
+    if left_align {
+        format!("{}{}", s, " ".repeat(padding))
+    } else {
+        format!(
+            "{}{}",
+            std::iter::repeat_n(pad_char, padding).collect::<String>(),
+            s
+        )
+    }
 }
 
 fn api_puts(emu: &mut Emu) {
@@ -1120,14 +1323,149 @@ fn api_ioctl(emu: &mut Emu) {
     set_ret(emu, -1i64 as u64);
 }
 
+fn find_global_addr(emu: &Emu, name: &str) -> Option<u64> {
+    emu.macho64.as_ref().and_then(|m| {
+        m.addr_to_symbol
+            .iter()
+            .find(|(_, n)| n.as_str() == name)
+            .map(|(&a, _)| a)
+    })
+}
+
 fn api_getopt_long(emu: &mut Emu) {
-    log::info!(
-        "{}** {} macOS API getopt_long() -> -1 (no options) {}",
-        emu.colors.light_red,
-        emu.pos,
-        emu.colors.nc
-    );
-    set_ret(emu, -1i64 as u64);
+    let argc = arg(emu, 0) as i32;
+    let argv_ptr = arg(emu, 1);
+    let optstring_ptr = arg(emu, 2);
+
+    let optstring = emu.maps.read_string(optstring_ptr);
+
+    let optind_addr = find_global_addr(emu, "_optind").unwrap_or(0);
+    let optarg_addr = find_global_addr(emu, "_optarg").unwrap_or(0);
+
+    let optind = if optind_addr != 0 {
+        emu.maps.read_dword(optind_addr).unwrap_or(1) as i32
+    } else {
+        1
+    };
+
+    // If we're mid-way through a grouped flag string (e.g. "-la"),
+    // continue from where we left off.
+    let char_idx = emu.getopt_char_index;
+
+    if optind >= argc {
+        emu.getopt_char_index = 0;
+        log::info!(
+            "{}** {} macOS API getopt_long() -> -1 (done) {}",
+            emu.colors.light_red,
+            emu.pos,
+            emu.colors.nc
+        );
+        set_ret(emu, -1i64 as u64);
+        return;
+    }
+
+    let arg_addr = emu
+        .maps
+        .read_qword(argv_ptr + (optind as u64) * 8)
+        .unwrap_or(0);
+    let arg_str = emu.maps.read_string(arg_addr);
+
+    if !arg_str.starts_with('-') || arg_str == "-" {
+        emu.getopt_char_index = 0;
+        log::info!(
+            "{}** {} macOS API getopt_long() -> -1 (non-option: {}) {}",
+            emu.colors.light_red,
+            emu.pos,
+            arg_str,
+            emu.colors.nc
+        );
+        set_ret(emu, -1i64 as u64);
+        return;
+    }
+
+    if arg_str == "--" {
+        emu.getopt_char_index = 0;
+        if optind_addr != 0 {
+            emu.maps.write_dword(optind_addr, (optind + 1) as u32);
+        }
+        set_ret(emu, -1i64 as u64);
+        return;
+    }
+
+    let flags = &arg_str[1..];
+    let flags_chars: Vec<char> = flags.chars().collect();
+    let pos = if char_idx > 0 && char_idx < flags_chars.len() {
+        char_idx
+    } else {
+        0
+    };
+    let ch = flags_chars[pos];
+    let is_last = pos + 1 >= flags_chars.len();
+
+    let ch_pos = optstring.find(ch);
+    match ch_pos {
+        Some(opos) => {
+            let needs_arg = optstring.as_bytes().get(opos + 1) == Some(&b':');
+            if needs_arg || is_last {
+                // Advance optind: done with this argv element
+                let new_optind = optind + 1;
+                if optind_addr != 0 {
+                    emu.maps.write_dword(optind_addr, new_optind as u32);
+                }
+                emu.getopt_char_index = 0;
+
+                if needs_arg {
+                    if new_optind < argc {
+                        let next_arg_addr = emu
+                            .maps
+                            .read_qword(argv_ptr + (new_optind as u64) * 8)
+                            .unwrap_or(0);
+                        if optarg_addr != 0 {
+                            emu.maps.write_qword(optarg_addr, next_arg_addr);
+                        }
+                        if optind_addr != 0 {
+                            emu.maps.write_dword(optind_addr, (new_optind + 1) as u32);
+                        }
+                    }
+                } else if optarg_addr != 0 {
+                    emu.maps.write_qword(optarg_addr, 0);
+                }
+            } else {
+                // More flags remain in this argv element
+                emu.getopt_char_index = pos + 1;
+                if optarg_addr != 0 {
+                    emu.maps.write_qword(optarg_addr, 0);
+                }
+            }
+            log::info!(
+                "{}** {} macOS API getopt_long() -> '{}' {}",
+                emu.colors.light_red,
+                emu.pos,
+                ch,
+                emu.colors.nc
+            );
+            set_ret(emu, ch as u64);
+        }
+        None => {
+            if is_last {
+                let new_optind = optind + 1;
+                if optind_addr != 0 {
+                    emu.maps.write_dword(optind_addr, new_optind as u32);
+                }
+                emu.getopt_char_index = 0;
+            } else {
+                emu.getopt_char_index = pos + 1;
+            }
+            log::info!(
+                "{}** {} macOS API getopt_long() -> '?' (unknown '{}') {}",
+                emu.colors.light_red,
+                emu.pos,
+                ch,
+                emu.colors.nc
+            );
+            set_ret(emu, b'?' as u64);
+        }
+    }
 }
 
 fn api_signal(emu: &mut Emu) {
@@ -1787,12 +2125,21 @@ fn api_fts_open(emu: &mut Emu) {
     // Allocate a fake FTS handle (just a small block to serve as an opaque pointer)
     let handle = allocate_memory(emu, 64).expect("fts_open: alloc");
 
+    // Create the root FTSENT upfront so children can reference it as fts_parent
+    let root_entry = entries.iter().find(|e| e.is_root).cloned();
+    let root_ftsent = match root_entry {
+        Some(ref e) => write_ftsent(emu, e),
+        None => 0,
+    };
+
     // Store state in the emulator's auxiliary map
     let state = FtsState {
         entries,
         index: 0,
         last_ftsent: 0,
-        children_returned: false,
+        root_ftsent,
+        children_head: 0,
+        root_returned: false,
         options,
     };
     emu.fts_handles.insert(handle, state);
@@ -1813,10 +2160,7 @@ fn api_fts_read(emu: &mut Emu) {
         }
     };
 
-    // If fts_children was already called (prescan), the root directory was
-    // already consumed.  Skip it so the binary's FTS_D handler doesn't
-    // re-display the same entries.
-    if state.children_returned {
+    if state.root_returned {
         log::info!(
             "{}** {} macOS API fts_read(0x{:x}) -> NULL (end) {}",
             emu.colors.light_red,
@@ -1828,14 +2172,13 @@ fn api_fts_read(emu: &mut Emu) {
         return;
     }
 
-    // Find the next root entry (skip children — those are returned by fts_children)
-    while state.index < state.entries.len() && !state.entries[state.index].is_root {
-        state.index += 1;
-    }
+    state.root_returned = true;
 
-    if state.index >= state.entries.len() {
+    // If children were already returned via fts_children, skip fts_read
+    // to avoid ls displaying the same entries twice.
+    if state.children_head != 0 {
         log::info!(
-            "{}** {} macOS API fts_read(0x{:x}) -> NULL (end) {}",
+            "{}** {} macOS API fts_read(0x{:x}) -> NULL (children already displayed) {}",
             emu.colors.light_red,
             emu.pos,
             handle,
@@ -1845,8 +2188,14 @@ fn api_fts_read(emu: &mut Emu) {
         return;
     }
 
-    let entry = state.entries[state.index].clone();
-    state.index += 1;
+    // Find the root entry
+    let entry = match state.entries.iter().find(|e| e.is_root) {
+        Some(e) => e.clone(),
+        None => {
+            set_ret(emu, 0);
+            return;
+        }
+    };
 
     log::info!(
         "{}** {} macOS API fts_read(0x{:x}) -> \"{}\" {}",
@@ -1857,7 +2206,12 @@ fn api_fts_read(emu: &mut Emu) {
         emu.colors.nc
     );
 
-    let ftsent_addr = write_ftsent(emu, &entry);
+    let root_addr = emu.fts_handles.get(&handle).unwrap().root_ftsent;
+    let ftsent_addr = if root_addr != 0 {
+        root_addr
+    } else {
+        write_ftsent(emu, &entry)
+    };
     emu.fts_handles.get_mut(&handle).unwrap().last_ftsent = ftsent_addr;
     set_ret(emu, ftsent_addr);
 }
@@ -1881,6 +2235,8 @@ fn api_fts_set(emu: &mut Emu) {
 
 fn api_fts_children(emu: &mut Emu) {
     let handle = arg(emu, 0);
+    let instr = arg(emu, 1);
+
     let state = match emu.fts_handles.get_mut(&handle) {
         Some(s) => s,
         None => {
@@ -1889,19 +2245,20 @@ fn api_fts_children(emu: &mut Emu) {
         }
     };
 
-    if state.children_returned {
+    // Already returned children once; subsequent calls return NULL
+    if state.children_head != 0 {
         log::info!(
-            "{}** {} macOS API fts_children(0x{:x}) -> NULL (already returned) {}",
+            "{}** {} macOS API fts_children(0x{:x}, instr=0x{:x}) -> NULL (already returned) {}",
             emu.colors.light_red,
             emu.pos,
             handle,
+            instr,
             emu.colors.nc
         );
         set_ret(emu, 0);
         return;
     }
 
-    let nostat = state.options & FTS_NOSTAT != 0;
     let mut children: Vec<FtsEntry> = state
         .entries
         .iter()
@@ -1909,38 +2266,49 @@ fn api_fts_children(emu: &mut Emu) {
         .cloned()
         .collect();
 
-    if nostat {
-        for child in &mut children {
-            child.fts_info = FTS_NSOK;
-        }
+    // Mark all children as FTS_F so ls displays them all inline.
+    // The stat struct (fts_statp) carries the real mode, so strmode()
+    // will still show drwxr-xr-x for directories.
+    for child in &mut children {
+        child.fts_info = FTS_F;
     }
-
-    state.children_returned = true;
 
     if children.is_empty() {
         set_ret(emu, 0);
         return;
     }
 
+    let root_ftsent = state.root_ftsent;
+
     // Build linked list of FTSENT structs via fts_link field
     let mut addrs: Vec<u64> = Vec::with_capacity(children.len());
     for child in &children {
         addrs.push(write_ftsent(emu, child));
     }
-    for i in 0..addrs.len() - 1 {
-        emu.maps
-            .write_qword(addrs[i] + FTSENT_FTS_LINK, addrs[i + 1]);
+    for i in 0..addrs.len() {
+        if root_ftsent != 0 {
+            emu.maps
+                .write_qword(addrs[i] + FTSENT_FTS_PARENT, root_ftsent);
+        }
+        if i + 1 < addrs.len() {
+            emu.maps
+                .write_qword(addrs[i] + FTSENT_FTS_LINK, addrs[i + 1]);
+        }
     }
 
+    let head = addrs[0];
+    emu.fts_handles.get_mut(&handle).unwrap().children_head = head;
+
     log::info!(
-        "{}** {} macOS API fts_children(0x{:x}) -> {} entries {}",
+        "{}** {} macOS API fts_children(0x{:x}, instr=0x{:x}) -> {} entries {}",
         emu.colors.light_red,
         emu.pos,
         handle,
+        instr,
         children.len(),
         emu.colors.nc
     );
-    set_ret(emu, addrs[0]);
+    set_ret(emu, head);
 }
 
 // macOS FTSENT offsets (arm64, from <fts.h>):
@@ -1970,6 +2338,7 @@ const FTS_SL: u16 = 12; // symbolic link
 const FTS_DP: u16 = 6; // directory (post-order) — we skip these
 const FTS_NSOK: u16 = 11; // no stat requested (FTS_NOSTAT)
 const FTS_NOSTAT: u64 = 0x08; // fts_open option: don't stat entries
+const FTS_NAMEONLY: u64 = 0x100; // fts_children option: names only
 
 fn write_ftsent(emu: &mut Emu, entry: &FtsEntry) -> u64 {
     let name_bytes = entry.name.as_bytes();
@@ -2141,7 +2510,9 @@ pub struct FtsState {
     entries: Vec<FtsEntry>,
     index: usize,
     last_ftsent: u64,
-    children_returned: bool,
+    root_ftsent: u64,
+    children_head: u64,
+    root_returned: bool,
     options: u64,
 }
 

@@ -211,6 +211,7 @@ pub struct Emu {
     pub section_handles: HashMap<u64, String>, // KnownDll section handle → DLL filename (e.g., "kernel32.dll")
     pub file_handles: HashMap<u64, String>, // NtOpenFile handle → resolved basename (e.g., "kernelbase.dll"); used by NtCreateSection to inherit the dll name
     pub fts_handles: HashMap<u64, crate::api::macos::libsystem::FtsState>, // macOS FTS traversal state
+    pub getopt_char_index: usize, // position within current argv element for grouped flags (-la)
     pub emulated_stdout: Vec<u8>, // buffered stdout output from emulated program
     pub syscall_number_map: HashMap<u64, u64>, // real_nr (from loaded ntdll) → canonical_nr (the value our gateway dispatcher matches on). Built at init by scanning ntdll exports; empty means no translation.
     pub syscall_name_by_real: HashMap<u64, String>, // real_nr → "Nt<Name>" as exported by the loaded ntdll. Used in diagnostics so unimplemented-syscall logs name the right function (the static `what_syscall()` table is tied to a single Windows build and would otherwise mislabel cross-build syscalls).

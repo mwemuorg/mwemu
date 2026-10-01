@@ -68,6 +68,9 @@ pub fn read_operand_value(emu: &Emu, op: &Operand) -> u64 {
             let val = emu.regs_aarch64().get_x(*reg as usize);
             apply_shift(val, *style, *amt as u32)
         }
+        Operand::SIMDRegister(_, reg) | Operand::SIMDRegisterElements(_, reg, _) => {
+            emu.regs_aarch64().v[*reg as usize] as u64
+        }
         _ => unreachable!("unsupported operand for read_operand_value: {:?}", op),
     }
 }
