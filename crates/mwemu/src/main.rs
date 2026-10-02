@@ -220,6 +220,7 @@ fn main() -> process::ExitCode {
                 )
                 .takes_value(false),
         )
+        .arg(clap_arg!("memory_guard", "", "memory-guard", "enable heap memory-safety analysis: detects use-after-free, double-free, heap overflow and leaks"))
         .arg(clap_arg!("gdb", "g", "gdb", "enable GDB remote debugging server"))
         .arg(clap_arg!("gdb_port", "P", "gdb-port", "set GDB server port (default: 9001)", "PORT"))
         .arg(clap_arg!("gdb_wait", "W", "gdb-wait", "wait for GDB connection before starting"))
@@ -539,6 +540,10 @@ fn main() -> process::ExitCode {
         emu.cfg.enable_threading = true;
     }
 
+    if matches.is_present("memory_guard") {
+        emu.cfg.memory_guard = true;
+    }
+
     // endpoint
     if matches.is_present("endpoint") {
         //TODO: emu::endpoint::warning();
@@ -692,6 +697,11 @@ fn main() -> process::ExitCode {
     // load code
     emu.load_code(&filename);
 
+    // memory guard: init heap ledger after loading so the binary is already mapped
+    if emu.cfg.memory_guard && emu.kernel.is_none() {
+        emu.memory_guard_init();
+    }
+
     // Initialize file system in order to call the create file stuff
     let result_ok = init_file_system(None as Option<PathBuf>);
     if result_ok.is_err() {
@@ -781,6 +791,23 @@ fn main() -> process::ExitCode {
             && e.message != "empty code block"
         {
             libmwemu::emu_context::log_emu_state(&emu);
+        }
+
+        // --memory-guard: check leaks and report all findings
+        if emu.cfg.memory_guard {
+            emu.kernel_check_leaks();
+            let findings = emu.kernel_findings();
+            if findings.is_empty() {
+                log::info!("memory-guard: no heap memory-safety findings");
+            } else {
+                log::warn!(
+                    "memory-guard: {} heap memory-safety finding(s):",
+                    findings.len()
+                );
+                for f in findings {
+                    println!("{}", f.report());
+                }
+            }
         }
 
         // Clear the current emu

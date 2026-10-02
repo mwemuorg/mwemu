@@ -60,10 +60,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 }
             };
 
-            let mut bytes1: Vec<u8> = vec![0; 32];
-            source1.to_little_endian(&mut bytes1);
-            let mut bytes2: Vec<u8> = vec![0; 32];
-            source2.to_little_endian(&mut bytes2);
+            let bytes1 = source1.to_little_endian();
+            let bytes2 = source2.to_little_endian();
 
             let mut result = [0u8; 32];
 

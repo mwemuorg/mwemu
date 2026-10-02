@@ -1245,6 +1245,32 @@ impl Emu {
         self.emu.cfg.exit_position
     }
 
+    /// Enable/disable heap memory-safety analysis (UAF, double-free, overflow, leaks).
+    /// Call after load() and before run().
+    #[setter]
+    pub fn set_memory_guard(&mut self, enabled: bool) {
+        self.emu.set_memory_guard(enabled);
+    }
+
+    #[getter]
+    pub fn get_memory_guard(&self) -> bool {
+        self.emu.cfg.memory_guard
+    }
+
+    /// Check for memory leaks (call after run completes).
+    pub fn memory_guard_check_leaks(&mut self) {
+        self.emu.kernel_check_leaks();
+    }
+
+    /// Memory-safety findings from --memory-guard analysis.
+    pub fn memory_guard_findings(&self) -> Vec<String> {
+        self.emu
+            .kernel_findings()
+            .iter()
+            .map(|f| f.report())
+            .collect()
+    }
+
     #[setter]
     pub fn set_dump_on_exit(&mut self, dump: bool) {
         self.emu.cfg.dump_on_exit = dump;

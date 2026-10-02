@@ -94,11 +94,11 @@ impl Emu {
                 if self.os.is_linux() {
                     return false;
                 }
-                let import = self
-                    .pe64
-                    .as_ref()
-                    .unwrap()
-                    .import_addr_to_dll_and_name(addr);
+                // No PE64 (e.g. a Mach-O guest): there is no IAT to resolve against.
+                let Some(pe64) = self.pe64.as_ref() else {
+                    return false;
+                };
+                let import = pe64.import_addr_to_dll_and_name(addr);
                 return if !import.is_empty() {
                     let (dll, api) = import.split_once('!').unwrap_or(("", ""));
 
@@ -392,7 +392,11 @@ impl Emu {
                 if self.os.is_linux() {
                     return false;
                 }
-                let api_name = self.pe32.as_ref().unwrap().import_addr_to_name(addr as u32);
+                // No PE32 (e.g. a Mach-O guest): there is no IAT to resolve against.
+                let Some(pe32) = self.pe32.as_ref() else {
+                    return false;
+                };
+                let api_name = pe32.import_addr_to_name(addr as u32);
                 return if !api_name.is_empty() {
                     // winapi emulation case
                     if self.cfg.emulate_winapi {

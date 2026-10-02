@@ -1124,8 +1124,7 @@ impl Emu {
                     value_u128
                 };
 
-                let mut bytes: Vec<u8> = vec![0; 32];
-                value.to_little_endian(&mut bytes);
+                let bytes = value.to_little_endian();
                 self.maps.write_bytes(mem_addr, &bytes);
             }
         };

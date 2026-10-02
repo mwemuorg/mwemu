@@ -21,6 +21,10 @@ pub fn HeapFree(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    heap_engine::heap_free(emu, heap as u64, mem as u64);
+    if emu.cfg.memory_guard {
+        emu.kernel_free(mem as u64, "HeapFree");
+    } else {
+        heap_engine::heap_free(emu, heap as u64, mem as u64);
+    }
     emu.regs_mut().rax = 1;
 }

@@ -37,4 +37,15 @@ impl Emu {
         }
         self.cfg.verbose = n;
     }
+
+    /// Enable heap memory-safety analysis (UAF, double-free, overflow, leaks).
+    ///
+    /// Call before `run()` and after `load_code()`. Works on any target:
+    /// Linux ELF, macOS Mach-O, Windows PE, or shellcode.
+    pub fn set_memory_guard(&mut self, enabled: bool) {
+        self.cfg.memory_guard = enabled;
+        if enabled {
+            self.memory_guard_init();
+        }
+    }
 }

@@ -1,4 +1,5 @@
 use crate::emu::Emu;
+use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
 
 /// Read argument register by index (0-7), arch-agnostic.
@@ -586,7 +587,11 @@ fn api_malloc(emu: &mut Emu) {
         emu.colors.nc
     );
     if size > 0 {
-        let base = allocate_memory(emu, size).expect("macOS malloc: out of memory");
+        let base = if emu.cfg.memory_guard {
+            emu.kernel_alloc(Region::Slab, size, "malloc", "malloc", false)
+        } else {
+            allocate_memory(emu, size).expect("macOS malloc: out of memory")
+        };
         log::info!("  -> 0x{:x}", base);
         set_ret(emu, base);
     } else {
@@ -607,11 +612,15 @@ fn api_calloc(emu: &mut Emu) {
         emu.colors.nc
     );
     if total > 0 {
-        let base = allocate_memory(emu, total).expect("macOS calloc: out of memory");
-        // zero-fill (calloc contract)
-        for i in 0..total {
-            emu.maps.write_byte(base + i, 0);
-        }
+        let base = if emu.cfg.memory_guard {
+            emu.kernel_alloc(Region::Slab, total, "malloc", "calloc", true)
+        } else {
+            let b = allocate_memory(emu, total).expect("macOS calloc: out of memory");
+            for i in 0..total {
+                emu.maps.write_byte(b + i, 0);
+            }
+            b
+        };
         log::info!("  -> 0x{:x}", base);
         set_ret(emu, base);
     } else {
@@ -631,23 +640,29 @@ fn api_realloc(emu: &mut Emu) {
         emu.colors.nc
     );
     if size == 0 {
-        // realloc(ptr, 0) acts like free
+        if ptr != 0 && emu.cfg.memory_guard {
+            emu.kernel_free(ptr, "realloc");
+        }
         set_ret(emu, 0);
         return;
     }
-    // Allocate new block
-    let base = allocate_memory(emu, size).expect("macOS realloc: out of memory");
-    // Copy old data if ptr != NULL
+    let base = if emu.cfg.memory_guard {
+        emu.kernel_alloc(Region::Slab, size, "malloc", "realloc", false)
+    } else {
+        allocate_memory(emu, size).expect("macOS realloc: out of memory")
+    };
     if ptr != 0 {
-        // Copy min(old_size, new_size) bytes; we don't track old size precisely,
-        // so copy up to new size, byte by byte, stopping if read fails.
         for i in 0..size {
             match emu.maps.read_byte(ptr + i) {
                 Some(b) => emu.maps.write_byte(base + i, b),
                 None => break,
             };
         }
-        release(emu, ptr);
+        if emu.cfg.memory_guard {
+            emu.kernel_free(ptr, "realloc");
+        } else {
+            release(emu, ptr);
+        }
     }
     log::info!("  -> 0x{:x}", base);
     set_ret(emu, base);
@@ -662,8 +677,11 @@ fn api_free(emu: &mut Emu) {
         ptr,
         emu.colors.nc
     );
-    // Reclaim the memory so the arena can be reused.
-    release(emu, ptr);
+    if emu.cfg.memory_guard {
+        emu.kernel_free(ptr, "free");
+    } else {
+        release(emu, ptr);
+    }
 }
 
 fn api_atexit(emu: &mut Emu) {
@@ -1133,7 +1151,11 @@ fn api_strdup(emu: &mut Emu) {
         emu.colors.nc
     );
     let len = s.len() as u64 + 1; // include NUL
-    let base = allocate_memory(emu, len).expect("macOS strdup: out of memory");
+    let base = if emu.cfg.memory_guard {
+        emu.kernel_alloc(Region::Slab, len, "malloc", "strdup", false)
+    } else {
+        allocate_memory(emu, len).expect("macOS strdup: out of memory")
+    };
     let bytes = s.as_bytes();
     emu.maps.write_bytes(base, bytes);
     emu.maps.write_byte(base + bytes.len() as u64, 0);

@@ -25,7 +25,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         emu.fpu_mut().set_status_c1(false);
         emu.fpu_mut().set_status_c2(true);
         emu.fpu_mut().set_status_c0(st0.is_sign_negative());
-    } else if st0.abs() < std::f64::MIN_POSITIVE {
+    } else if st0.abs() < f64::MIN_POSITIVE {
         // Denormal
         emu.fpu_mut().set_status_c0(true);
         emu.fpu_mut().set_status_c1(true);

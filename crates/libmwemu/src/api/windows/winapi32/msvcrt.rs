@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
 use crate::serialization;
 use crate::winapi::helper;
@@ -289,13 +290,17 @@ fn malloc(emu: &mut emu::Emu) {
         .expect("msvcrt!malloc error reading size") as u64;
 
     if size > 0 {
-        let base = allocate_memory(emu, size).expect("msvcrt!malloc out of memory");
+        let base = if emu.cfg.memory_guard {
+            emu.kernel_alloc(Region::Slab, size, "malloc", "malloc", false)
+        } else {
+            allocate_memory(emu, size).expect("msvcrt!malloc out of memory")
+        };
 
         log_red!(emu, "msvcrt!malloc sz: {} addr: 0x{:x}", size, base);
 
         emu.regs_mut().rax = base;
     } else {
-        emu.regs_mut().rax = 0x1337; // weird msvcrt has to return a random unallocated pointer, and the program has to do free() on it
+        emu.regs_mut().rax = 0x1337;
     }
 }
 
@@ -334,7 +339,11 @@ fn free(emu: &mut emu::Emu) {
 
     log_red!(emu, "msvcrt!free 0x{:x}", addr);
 
-    release(emu, addr as u64);
+    if emu.cfg.memory_guard {
+        emu.kernel_free(addr as u64, "free");
+    } else {
+        release(emu, addr as u64);
+    }
 }
 
 fn realloc(emu: &mut emu::Emu) {
@@ -376,11 +385,19 @@ fn realloc(emu: &mut emu::Emu) {
         }
     };
 
-    let new_addr = allocate_memory(emu, size).expect("msvcrt!realloc out of memory");
+    let new_addr = if emu.cfg.memory_guard {
+        emu.kernel_alloc(Region::Slab, size, "malloc", "realloc", false)
+    } else {
+        allocate_memory(emu, size).expect("msvcrt!realloc out of memory")
+    };
 
     emu.maps
         .memcpy(new_addr, addr, std::cmp::min(prev_size, size as usize));
-    release(emu, addr);
+    if emu.cfg.memory_guard {
+        emu.kernel_free(addr, "realloc");
+    } else {
+        release(emu, addr);
+    }
 
     log_red!(
         emu,

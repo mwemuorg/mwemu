@@ -325,6 +325,25 @@ impl Emu {
         };
     }
 
+    /// Bring up just the heap ledger for userspace memory-safety analysis.
+    ///
+    /// Unlike `kernel_init` this does not create a stub area, kernel stack or
+    /// module image — those belong to driver emulation. It only creates the
+    /// `KernelEnv` with its heap so that `kernel_alloc`/`kernel_free` and the
+    /// per-access guard in `operands.rs` work for intercepted `malloc`/`free`.
+    pub fn memory_guard_init(&mut self) {
+        if self.kernel.is_some() {
+            return;
+        }
+        let os = match self.os {
+            crate::arch::OperatingSystem::Linux => KernelOs::Linux,
+            crate::arch::OperatingSystem::MacOS => KernelOs::MacOS,
+            _ => KernelOs::Windows,
+        };
+        self.kernel = Some(Box::new(KernelEnv::new(os)));
+        self.kernel_guard = true;
+    }
+
     /// Address standing for an imported kernel *function*, allocating a stub
     /// slot the first time the symbol is seen.
     pub fn kernel_stub_for(&mut self, name: &str) -> Option<u64> {

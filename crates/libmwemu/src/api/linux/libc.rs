@@ -2,6 +2,7 @@
 mod abi;
 
 use crate::emu::Emu;
+use crate::kernel::heap::Region;
 use abi::ApiAbi;
 
 pub fn gateway(symbol: &str, emu: &mut Emu) {
@@ -201,6 +202,32 @@ fn api_gmon_start(emu: &mut Emu) {
     abi.set_ret(emu, 0);
 }
 
+fn linux_allocate(emu: &mut Emu, size: u64) -> u64 {
+    let alloc = emu.maps.alloc(size).expect("Linux malloc: out of memory");
+    emu.maps
+        .create_map(
+            &format!("alloc_{:x}", alloc),
+            alloc,
+            size,
+            crate::maps::mem64::Permission::READ_WRITE,
+        )
+        .expect("Linux malloc: cannot create map");
+    alloc
+}
+
+fn linux_release(emu: &mut Emu, addr: u64) {
+    if addr == 0 {
+        return;
+    }
+    if let Some(mem) = emu.maps.get_mem_by_addr(addr)
+        && mem.get_base() == addr
+        && mem.get_name().starts_with("alloc_")
+    {
+        let name = mem.get_name().to_string();
+        emu.maps.free(&name);
+    }
+}
+
 fn api_malloc(emu: &mut Emu) {
     let abi = ApiAbi::from_emu(emu);
     let size = abi.arg(emu, 0);
@@ -211,14 +238,88 @@ fn api_malloc(emu: &mut Emu) {
         size,
         emu.colors.nc
     );
-    todo!("malloc({})", size);
+    if size > 0 {
+        let base = if emu.cfg.memory_guard {
+            emu.kernel_alloc(Region::Slab, size, "malloc", "malloc", false)
+        } else {
+            linux_allocate(emu, size)
+        };
+        log::info!("  -> 0x{:x}", base);
+        abi.set_ret(emu, base);
+    } else {
+        abi.set_ret(emu, 0);
+    }
 }
 
 fn api_calloc(emu: &mut Emu) {
-    todo!("calloc");
+    let abi = ApiAbi::from_emu(emu);
+    let count = abi.arg(emu, 0);
+    let size = abi.arg(emu, 1);
+    let total = count.saturating_mul(size);
+    log::info!(
+        "{}** {} Linux API calloc({}, {}) {}",
+        emu.colors.light_red,
+        emu.pos,
+        count,
+        size,
+        emu.colors.nc
+    );
+    if total > 0 {
+        let base = if emu.cfg.memory_guard {
+            emu.kernel_alloc(Region::Slab, total, "malloc", "calloc", true)
+        } else {
+            let b = linux_allocate(emu, total);
+            for i in 0..total {
+                emu.maps.write_byte(b + i, 0);
+            }
+            b
+        };
+        log::info!("  -> 0x{:x}", base);
+        abi.set_ret(emu, base);
+    } else {
+        abi.set_ret(emu, 0);
+    }
 }
+
 fn api_realloc(emu: &mut Emu) {
-    todo!("realloc");
+    let abi = ApiAbi::from_emu(emu);
+    let ptr = abi.arg(emu, 0);
+    let size = abi.arg(emu, 1);
+    log::info!(
+        "{}** {} Linux API realloc(0x{:x}, {}) {}",
+        emu.colors.light_red,
+        emu.pos,
+        ptr,
+        size,
+        emu.colors.nc
+    );
+    if size == 0 {
+        if ptr != 0 && emu.cfg.memory_guard {
+            emu.kernel_free(ptr, "realloc");
+        }
+        abi.set_ret(emu, 0);
+        return;
+    }
+    let base = if emu.cfg.memory_guard {
+        emu.kernel_alloc(Region::Slab, size, "malloc", "realloc", false)
+    } else {
+        linux_allocate(emu, size)
+    };
+    if ptr != 0 {
+        for i in 0..size {
+            match emu.maps.read_byte(ptr + i) {
+                Some(b) => emu.maps.write_byte(base + i, b),
+                None => break,
+            };
+        }
+        if emu.cfg.memory_guard {
+            emu.kernel_free(ptr, "realloc");
+        } else {
+            linux_release(emu, ptr);
+        }
+    }
+    log::info!("  -> 0x{:x}", base);
+    abi.set_ret(emu, base);
 }
 
 fn api_free(emu: &mut Emu) {
@@ -231,7 +332,11 @@ fn api_free(emu: &mut Emu) {
         ptr,
         emu.colors.nc
     );
-    // no-op for now
+    if emu.cfg.memory_guard {
+        emu.kernel_free(ptr, "free");
+    } else {
+        linux_release(emu, ptr);
+    }
 }
 
 fn api_write(emu: &mut Emu) {

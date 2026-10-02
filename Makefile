@@ -112,7 +112,7 @@ dyld: $(DYLD_EXTRACTOR)
 test_syscall: samples
 	cargo run --release -- -f $(TEST_DIR)/exe64win_msgbox.bin -6 --syscall-mode --winver win11
 test_linux:
-	cargo run --release -- -f /bin/ls -A '"-l"' -6
+	cargo run --release -- -f /bin/ls -A '-l' -6
 test_windows: samples
 	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11  -v
 test_macos:
