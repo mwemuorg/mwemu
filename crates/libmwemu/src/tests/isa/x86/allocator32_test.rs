@@ -13,8 +13,9 @@ pub fn allocator32_test() {
     emu.maps.clear();
     emu.init_win32(false, false);
 
-    assert!(emu.maps.exists_mapname("shell32.rsrc"));
-    assert!(emu.maps.get_map_by_name("shell32.rsrc").is_some());
+    // "peb" is always created by init_peb — no DLL download needed.
+    assert!(emu.maps.exists_mapname("peb"));
+    assert!(emu.maps.get_map_by_name("peb").is_some());
     assert!(!emu.maps.exists_mapname("notexist"));
     assert!(emu.maps.get_map_by_name("notexist").is_none());
 
