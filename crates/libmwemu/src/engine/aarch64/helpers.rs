@@ -8,6 +8,17 @@ pub enum ShiftOp {
     Ror,
 }
 
+/// Strip ARMv8.3 Pointer Authentication Code bits from an address.
+/// Userspace macOS uses 47-bit virtual addresses; bits [62:47] carry
+/// the PAC signature and bit 63 selects kernel/user space.
+pub fn pac_strip(addr: u64) -> u64 {
+    if addr & (1 << 55) != 0 {
+        addr | 0xFFFF_0000_0000_0000
+    } else {
+        addr & 0x0000_FFFF_FFFF_FFFF
+    }
+}
+
 pub fn is_64(sz: &SizeCode) -> bool {
     matches!(sz, SizeCode::X)
 }

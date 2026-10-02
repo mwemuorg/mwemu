@@ -104,11 +104,9 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
         Opcode::HINT => true, // NOP is encoded as HINT
         Opcode::DMB(_) | Opcode::DSB(_) | Opcode::ISB => true, // barriers are no-ops in emulation
         Opcode::CLREX => true,
-        // ARMv8.3 Pointer Authentication: signs / authenticates a pointer in
-        // place against a CPU key. We don't model the keys, so treat them as
-        // no-ops — common in macOS arm64 prologues (`pacibsp`) and epilogues
-        // (`autibsp`, `retab`). Without this we'd bail out at the first
-        // instruction of /bin/ls.
+        // ARMv8.3 Pointer Authentication — signing (PAC*): inserts a
+        // signature into the high bits.  We don't model keys, so these are
+        // no-ops.
         Opcode::PACIA
         | Opcode::PACIB
         | Opcode::PACDA
@@ -130,16 +128,17 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
         | Opcode::PACIB171615
         | Opcode::PACIBSPPC
         | Opcode::PACNBIBSPPC
-        | Opcode::PACM
-        | Opcode::AUTIA
-        | Opcode::AUTIB
-        | Opcode::AUTDA
-        | Opcode::AUTDB
-        | Opcode::AUTIZA
-        | Opcode::AUTIZB
-        | Opcode::AUTDZA
-        | Opcode::AUTDZB
-        | Opcode::AUTIASP
+        | Opcode::PACM => true,
+
+        // ARMv8.3 Pointer Authentication — authentication (AUT*) and
+        // strip (XPAC*): remove the PAC signature bits from a register.
+        Opcode::AUTIA | Opcode::AUTIB | Opcode::AUTDA | Opcode::AUTDB => {
+            instructions::pac::execute_aut_reg(emu, ins)
+        }
+        Opcode::AUTIZA | Opcode::AUTIZB | Opcode::AUTDZA | Opcode::AUTDZB => {
+            instructions::pac::execute_aut_reg(emu, ins)
+        }
+        Opcode::AUTIASP
         | Opcode::AUTIAZ
         | Opcode::AUTIA1716
         | Opcode::AUTIA171615
@@ -150,10 +149,13 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
         | Opcode::AUTIB1716
         | Opcode::AUTIB171615
         | Opcode::AUTIBSPPC
-        | Opcode::AUTIBSPPCR
-        | Opcode::XPACI
-        | Opcode::XPACD
-        | Opcode::XPACLRI => true,
+        | Opcode::AUTIBSPPCR => instructions::pac::execute_aut_implicit(emu, ins),
+        Opcode::XPACI | Opcode::XPACD => instructions::pac::execute_aut_reg(emu, ins),
+        Opcode::XPACLRI => {
+            let lr = emu.regs_aarch64().x[30];
+            emu.regs_aarch64_mut().x[30] = helpers::pac_strip(lr);
+            true
+        }
 
         _ => {
             log::warn!(

@@ -117,9 +117,35 @@ impl Emu {
 
         // Stage 3: Parse chained fixups and resolve GOT entries
         let (imports, binds) = macho.parse_chained_fixups();
+        log::trace!(
+            "macho64: chained fixups: {} imports, {} binds",
+            imports.len(),
+            binds.len()
+        );
+        for (i, imp) in imports.iter().enumerate() {
+            log::trace!(
+                "  import[{}]: {} (lib_ordinal={})",
+                i,
+                imp.name,
+                imp.lib_ordinal
+            );
+        }
+        for b in &binds {
+            log::trace!(
+                "  bind: GOT 0x{:x} -> import[{}]",
+                b.got_vmaddr,
+                b.import_ordinal
+            );
+        }
         for bind in &binds {
             if let Some(imp) = imports.get(bind.import_ordinal as usize) {
                 if let Some(&resolved_addr) = export_map.get(&imp.name) {
+                    log::trace!(
+                        "macho64: resolved {} -> 0x{:x} (GOT 0x{:x})",
+                        imp.name,
+                        resolved_addr,
+                        bind.got_vmaddr
+                    );
                     self.maps.write_qword(bind.got_vmaddr, resolved_addr);
                 } else {
                     log::warn!(

@@ -134,6 +134,8 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("verbose_at", "V", "verbose_at", "enable assembly display from position N (-V N) or between positions (-V N-M)", "RANGE"))
         .arg(clap_arg!("64bits", "6", "64bits", "enable 64bits architecture emulation (rejected for PE32/x86 inputs)"))
         .arg(clap_arg!("aarch64", "", "aarch64", "enable AArch64/ARM64 architecture emulation"))
+        .arg(clap_arg!("arch", "", "arch", "target architecture: x86, x86_64 (or x64/amd64), aarch64 (or arm64)", "ARCH"))
+        .arg(clap_arg!("sys", "", "sys", "target OS override: windows (or win), linux, macos (or osx/darwin). Autodetected from binary format if omitted", "OS"))
         .arg(clap_arg!("trace_memory", "m", "trace_memory", "trace all the memory accesses read and write."))
         .arg(clap_arg!("flags", "", "flags", "trace the flags hex value in every instruction."))
         .arg(clap_arg!("maps", "M", "maps", "select the memory maps folder", "PATH"))
@@ -233,8 +235,18 @@ fn main() -> process::ExitCode {
 
     let mut emu: libmwemu::emu::Emu;
 
-    // Architecture selection
-    if matches.is_present("aarch64") {
+    // Architecture selection: --arch takes precedence, then legacy -6/--aarch64
+    if let Some(arch_str) = matches.value_of("arch") {
+        let arch: libmwemu::arch::Arch = match arch_str.parse() {
+            Ok(a) => a,
+            Err(e) => {
+                eprintln!("[mwemu] error: {}", e);
+                return process::ExitCode::from(1u8);
+            }
+        };
+        emu = libmwemu::emu::Emu::new(arch);
+        emu.disable_ctrlc();
+    } else if matches.is_present("aarch64") {
         emu = emu_aarch64();
     } else if matches.is_present("64bits") {
         emu = emu64();
@@ -266,9 +278,12 @@ fn main() -> process::ExitCode {
     // detector, so this never disagrees with `load_code` for a recognized PE.
     // Shellcode/ELF/Mach-O/garbage fall through and are handled by `load_code`
     // as usual.
-    if let Some(msg) =
-        libmwemu::emu::Emu::pe32_x64_mismatch_error(&filename, matches.is_present("64bits"))
-    {
+    let wants_64 = matches.is_present("64bits")
+        || matches
+            .value_of("arch")
+            .map(|a| matches!(a, "x86_64" | "x64" | "amd64"))
+            .unwrap_or(false);
+    if let Some(msg) = libmwemu::emu::Emu::pe32_x64_mismatch_error(&filename, wants_64) {
         eprintln!("[mwemu] error: {}", msg);
         return process::ExitCode::from(1u8);
     }
@@ -405,8 +420,11 @@ fn main() -> process::ExitCode {
     // libmwemu to classify with the very same detectors `load_code` uses, so a
     // shellcode whose first bytes happen to look like an ELF isn't misjudged, and
     // --is_shellcode still forces the Windows shellcode path.
-    let is_non_windows_target =
-        libmwemu::emu::Emu::is_non_windows_file(&filename, matches.is_present("is_shellcode"));
+    let is_non_windows_target = if let Some(sys_str) = matches.value_of("sys") {
+        !matches!(sys_str, "windows" | "win")
+    } else {
+        libmwemu::emu::Emu::is_non_windows_file(&filename, matches.is_present("is_shellcode"))
+    };
 
     // maps
     if matches.is_present("iso") {
@@ -696,6 +714,18 @@ fn main() -> process::ExitCode {
 
     // load code
     emu.load_code(&filename);
+
+    // --sys: override OS after load_code autodetection
+    if let Some(sys_str) = matches.value_of("sys") {
+        let os: libmwemu::arch::OperatingSystem = match sys_str.parse() {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("[mwemu] error: {}", e);
+                return process::ExitCode::from(1u8);
+            }
+        };
+        emu.set_os(os);
+    }
 
     // memory guard: init heap ledger after loading so the binary is already mapped
     if emu.cfg.memory_guard && emu.kernel.is_none() {

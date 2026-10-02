@@ -499,11 +499,9 @@ impl Macho64 {
             // and stride to chain forward; rebase targets are baked into the
             // raw bytes already and don't need rewriting for our purposes.
             let (bind, next, ordinal, stride) = match pointer_format {
-                // DYLD_CHAINED_PTR_ARM64E (format 1) — used by macOS arm64e
-                // userland binaries like /bin/ls. 8-byte stride, layout:
-                //   bind:1 (bit 62), auth:1 (bit 63), next:11 (bits 51..61).
-                //   bind variant: ordinal:16 in bits 0..15 (auth uses same 16
-                //   bits for ordinal).
+                // DYLD_CHAINED_PTR_ARM64E (format 1) — used by macOS arm64e.
+                // All four sub-formats share the same top-3 bits:
+                //   auth:1@63, bind:1@62, next:11@51..61, ordinal:16@0..15
                 1 => {
                     let bind = (raw >> 62) & 1;
                     let next = ((raw >> 51) & 0x7FF) as usize;
@@ -520,10 +518,11 @@ impl Macho64 {
                     (bind, next, ordinal, 4usize)
                 }
                 // DYLD_CHAINED_PTR_ARM64E_USERLAND24 (12) — 8-byte stride,
-                // 24-bit ordinal in the bind variant.
+                // 24-bit ordinal. Same auth/bind/next layout as format 1:
+                //   auth:1@63, bind:1@62, next:11@51..61
                 12 => {
                     let bind = (raw >> 62) & 1;
-                    let next = ((raw >> 52) & 0x7FF) as usize;
+                    let next = ((raw >> 51) & 0x7FF) as usize;
                     let ordinal = (raw & 0xFFFFFF) as u32;
                     (bind, next, ordinal, 8usize)
                 }

@@ -63,5 +63,6 @@ pub mod csneg;
 
 pub mod mrs;
 pub mod msr;
+pub mod pac;
 pub mod simd;
 pub mod svc;

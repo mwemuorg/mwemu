@@ -1,4 +1,4 @@
-use crate::{config::Config, emu::Emu};
+use crate::{arch::OperatingSystem, config::Config, emu::Emu};
 
 impl Emu {
     /// Set a custom config, normally used only from commandline tool main.rs
@@ -47,5 +47,19 @@ impl Emu {
         if enabled {
             self.memory_guard_init();
         }
+    }
+
+    /// Override the target operating system.
+    ///
+    /// Normally autodetected from the binary format (PE→Windows,
+    /// ELF→Linux, Mach-O→macOS). Use this to force a specific OS
+    /// for shellcode or raw dumps that lack a header.
+    pub fn set_os(&mut self, os: OperatingSystem) {
+        self.os = os;
+    }
+
+    /// Get the current target operating system.
+    pub fn get_os(&self) -> OperatingSystem {
+        self.os
     }
 }

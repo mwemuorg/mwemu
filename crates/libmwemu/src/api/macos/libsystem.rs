@@ -104,7 +104,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_putchar" | "putchar" => api_putchar(emu),
         "_exit" | "exit" | "__exit" => api_exit(emu),
         "_abort" | "abort" => api_abort(emu),
-        "_malloc" | "malloc" => api_malloc(emu),
+        "_malloc" | "malloc" | "_malloc_type_malloc" | "malloc_type_malloc" => api_malloc(emu),
         "_calloc" | "calloc" => api_calloc(emu),
         "_realloc" | "realloc" => api_realloc(emu),
         "_free" | "free" => api_free(emu),
@@ -143,11 +143,22 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_setenv" | "setenv" => api_setenv(emu),
         "_isatty" | "isatty" => api_isatty(emu),
         "_ioctl" | "ioctl" => api_ioctl(emu),
-        "_getopt_long" | "getopt_long" => api_getopt_long(emu),
+        "_getopt" | "getopt" | "_getopt_long" | "getopt_long" => api_getopt_long(emu),
         "_signal" | "signal" => api_signal(emu),
         "_kill" | "kill" => api_kill(emu),
         "_getuid" | "getuid" => api_getuid(emu),
+        "_geteuid" | "geteuid" => api_getuid(emu),
+        "_getgid" | "getgid" => api_getgid(emu),
+        "_getegid" | "getegid" => api_getgid(emu),
         "_getpid" | "getpid" => api_getpid(emu),
+        "_getpwuid" | "getpwuid" => api_getpwuid(emu),
+        "_getpwnam" | "getpwnam" => api_getpwnam(emu),
+        "_getgrgid" | "getgrgid" => api_getgrgid(emu),
+        "_getgroups" | "getgroups" => api_getgroups(emu),
+        "_getgrouplist_2" | "getgrouplist_2" => api_getgrouplist_2(emu),
+        "_getlogin" | "getlogin" => api_getlogin(emu),
+        "_getaudit_addr" | "getaudit_addr" => api_getaudit_addr(emu),
+        "_sysconf" | "sysconf" => api_sysconf(emu),
         "___error" | "__error" => api___error(emu),
         "___stack_chk_fail" | "__stack_chk_fail" => api___stack_chk_fail(emu),
         "___maskrune" | "__maskrune" => api___maskrune(emu),
@@ -1534,6 +1545,200 @@ fn api_getpid(emu: &mut Emu) {
         emu.colors.nc
     );
     set_ret(emu, 1234);
+}
+
+fn api_getgid(emu: &mut Emu) {
+    log::info!(
+        "{}** {} macOS API getgid() -> 20 {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    set_ret(emu, 20);
+}
+
+fn api_getpwuid(emu: &mut Emu) {
+    let uid = arg(emu, 0) as u32;
+
+    // struct passwd layout (macOS):
+    //   0x00: pw_name   (char *)
+    //   0x08: pw_passwd (char *)
+    //   0x10: pw_uid    (uid_t, 4 bytes + 4 padding)
+    //   0x18: pw_gid    (gid_t, 4 bytes + 4 padding)
+    //   0x20: pw_change (time_t, 8 bytes)
+    //   0x28: pw_class  (char *)
+    //   0x30: pw_gecos  (char *)
+    //   0x38: pw_dir    (char *)
+    //   0x40: pw_shell  (char *)
+    //   0x48: pw_expire (time_t, 8 bytes)
+    let pw_struct = allocate_memory(emu, 0x50).expect("getpwuid: out of memory");
+    let pw_name = alloc_string(emu, "user");
+    let pw_passwd = alloc_string(emu, "*");
+    let pw_class = alloc_string(emu, "");
+    let pw_gecos = alloc_string(emu, "Emulated User");
+    let pw_dir = alloc_string(emu, "/Users/user");
+    let pw_shell = alloc_string(emu, "/bin/zsh");
+
+    emu.maps.write_qword(pw_struct, pw_name);
+    emu.maps.write_qword(pw_struct + 0x08, pw_passwd);
+    emu.maps.write_dword(pw_struct + 0x10, uid);
+    emu.maps.write_dword(pw_struct + 0x14, 20); // gid = staff
+    emu.maps.write_qword(pw_struct + 0x20, 0);
+    emu.maps.write_qword(pw_struct + 0x28, pw_class);
+    emu.maps.write_qword(pw_struct + 0x30, pw_gecos);
+    emu.maps.write_qword(pw_struct + 0x38, pw_dir);
+    emu.maps.write_qword(pw_struct + 0x40, pw_shell);
+    emu.maps.write_qword(pw_struct + 0x48, 0);
+
+    log::info!(
+        "{}** {} macOS API getpwuid({}) -> 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        uid,
+        pw_struct,
+        emu.colors.nc
+    );
+    set_ret(emu, pw_struct);
+}
+
+fn api_getpwnam(emu: &mut Emu) {
+    let name_ptr = arg(emu, 0);
+    let name = emu.maps.read_string(name_ptr);
+
+    let pw_struct = allocate_memory(emu, 0x50).expect("getpwnam: out of memory");
+    let pw_name = alloc_string(emu, &name);
+    let pw_passwd = alloc_string(emu, "*");
+    let pw_class = alloc_string(emu, "");
+    let pw_gecos = alloc_string(emu, "Emulated User");
+    let pw_dir = alloc_string(emu, "/Users/user");
+    let pw_shell = alloc_string(emu, "/bin/zsh");
+
+    emu.maps.write_qword(pw_struct, pw_name);
+    emu.maps.write_qword(pw_struct + 0x08, pw_passwd);
+    emu.maps.write_dword(pw_struct + 0x10, 501);
+    emu.maps.write_dword(pw_struct + 0x14, 20);
+    emu.maps.write_qword(pw_struct + 0x20, 0);
+    emu.maps.write_qword(pw_struct + 0x28, pw_class);
+    emu.maps.write_qword(pw_struct + 0x30, pw_gecos);
+    emu.maps.write_qword(pw_struct + 0x38, pw_dir);
+    emu.maps.write_qword(pw_struct + 0x40, pw_shell);
+    emu.maps.write_qword(pw_struct + 0x48, 0);
+
+    log::info!(
+        "{}** {} macOS API getpwnam(\"{}\") -> 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        pw_struct,
+        emu.colors.nc
+    );
+    set_ret(emu, pw_struct);
+}
+
+fn api_getgrgid(emu: &mut Emu) {
+    let gid = arg(emu, 0) as u32;
+
+    // struct group: gr_name, gr_passwd, gr_gid, gr_mem
+    let gr_struct = allocate_memory(emu, 0x20).expect("getgrgid: out of memory");
+    let gr_name = alloc_string(emu, "staff");
+    let gr_passwd = alloc_string(emu, "*");
+    let gr_mem = allocate_memory(emu, 8).expect("getgrgid: out of memory");
+    emu.maps.write_qword(gr_mem, 0); // NULL-terminated member list
+
+    emu.maps.write_qword(gr_struct, gr_name);
+    emu.maps.write_qword(gr_struct + 0x08, gr_passwd);
+    emu.maps.write_dword(gr_struct + 0x10, gid);
+    emu.maps.write_qword(gr_struct + 0x18, gr_mem);
+
+    log::info!(
+        "{}** {} macOS API getgrgid({}) -> 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        gid,
+        gr_struct,
+        emu.colors.nc
+    );
+    set_ret(emu, gr_struct);
+}
+
+fn api_getgroups(emu: &mut Emu) {
+    let gidsetsize = arg(emu, 0) as i32;
+    let grouplist_ptr = arg(emu, 1);
+
+    if gidsetsize > 0 && grouplist_ptr != 0 {
+        emu.maps.write_dword(grouplist_ptr, 20); // staff
+    }
+
+    log::info!(
+        "{}** {} macOS API getgroups({}, 0x{:x}) -> 1 {}",
+        emu.colors.light_red,
+        emu.pos,
+        gidsetsize,
+        grouplist_ptr,
+        emu.colors.nc
+    );
+    set_ret(emu, 1);
+}
+
+fn api_getgrouplist_2(emu: &mut Emu) {
+    let _name_ptr = arg(emu, 0);
+    let _basegid = arg(emu, 1) as u32;
+    let groups_ptr_ptr = arg(emu, 2);
+
+    // Allocate a gid_t array with 1 group (staff=20)
+    let groups = allocate_memory(emu, 8).expect("getgrouplist_2: out of memory");
+    emu.maps.write_dword(groups, 20);
+
+    if groups_ptr_ptr != 0 {
+        emu.maps.write_qword(groups_ptr_ptr, groups);
+    }
+
+    log::info!(
+        "{}** {} macOS API getgrouplist_2() -> 1 {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    set_ret(emu, 1);
+}
+
+fn api_getlogin(emu: &mut Emu) {
+    let s = alloc_string(emu, "user");
+    log::info!(
+        "{}** {} macOS API getlogin() -> \"user\" {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    set_ret(emu, s);
+}
+
+fn api_getaudit_addr(emu: &mut Emu) {
+    log::info!(
+        "{}** {} macOS API getaudit_addr() -> -1 {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    set_ret(emu, -1i64 as u64);
+}
+
+fn api_sysconf(emu: &mut Emu) {
+    let name = arg(emu, 0) as i32;
+    // _SC_NGROUPS_MAX = 4 on macOS, typical value = 16
+    let val: u64 = match name {
+        4 => 16, // _SC_NGROUPS_MAX
+        _ => 4096,
+    };
+    log::info!(
+        "{}** {} macOS API sysconf({}) -> {} {}",
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        val,
+        emu.colors.nc
+    );
+    set_ret(emu, val);
 }
 
 fn api___error(emu: &mut Emu) {

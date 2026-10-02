@@ -1245,6 +1245,33 @@ impl Emu {
         self.emu.cfg.exit_position
     }
 
+    /// Set the target architecture: "x86", "x86_64" (or "x64"/"amd64"), "aarch64" (or "arm64").
+    pub fn set_arch(&mut self, arch: &str) -> PyResult<()> {
+        let a: libmwemu::arch::Arch = arch.parse().map_err(|e: String| PyValueError::new_err(e))?;
+        self.emu.cfg.arch = a;
+        self.emu.maps.is_64bits = a.is_64bits();
+        Ok(())
+    }
+
+    /// Get the current architecture as a string.
+    pub fn get_arch(&self) -> String {
+        self.emu.cfg.arch.to_string()
+    }
+
+    /// Set the target OS: "windows" (or "win"), "linux", "macos" (or "osx"/"darwin").
+    /// Overrides the OS autodetected from the binary format.
+    pub fn set_os(&mut self, os: &str) -> PyResult<()> {
+        let o: libmwemu::arch::OperatingSystem =
+            os.parse().map_err(|e: String| PyValueError::new_err(e))?;
+        self.emu.set_os(o);
+        Ok(())
+    }
+
+    /// Get the current target OS as a string.
+    pub fn get_os(&self) -> String {
+        self.emu.get_os().to_string()
+    }
+
     /// Enable/disable heap memory-safety analysis (UAF, double-free, overflow, leaks).
     /// Call after load() and before run().
     #[setter]
