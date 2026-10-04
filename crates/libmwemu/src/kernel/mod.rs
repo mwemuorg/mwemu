@@ -184,6 +184,9 @@ pub struct KernelEnv {
     pub log: Vec<String>,
     /// Caches created through `kmem_cache_create`, keyed by handle.
     pub caches: HashMap<u64, KmemCache>,
+    /// Set by `--memory-guard` on a user-mode binary: the env only carries
+    /// the allocation ledger and must not take over control flow.
+    pub ledger_only: bool,
     /// Imported symbols that were called but have no implementation.
     pub unimplemented: Vec<String>,
     /// Callbacks queued by the driver and not run yet.
@@ -226,6 +229,7 @@ impl KernelEnv {
             data_by_name: HashMap::new(),
             log: Vec::new(),
             caches: HashMap::new(),
+            ledger_only: false,
             unimplemented: Vec::new(),
             deferred: Vec::new(),
             registered_drivers: Vec::new(),
@@ -340,7 +344,9 @@ impl Emu {
             crate::arch::OperatingSystem::MacOS => KernelOs::MacOS,
             _ => KernelOs::Windows,
         };
-        self.kernel = Some(Box::new(KernelEnv::new(os)));
+        let mut env = KernelEnv::new(os);
+        env.ledger_only = true;
+        self.kernel = Some(Box::new(env));
         self.kernel_guard = true;
     }
 
