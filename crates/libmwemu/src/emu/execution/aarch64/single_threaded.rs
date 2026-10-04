@@ -59,8 +59,16 @@ impl Emu {
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
                 // pthread_create() turned threading on: hand over to the scheduler.
-                if self.cfg.enable_threading && self.threads.len() > 1 {
+                if self.scheduler_active() {
                     return self.run_multi_threaded_aarch64(end_addr);
+                }
+                // No other thread can run here (a forked child, or a host-driven
+                // callback), so a thread parked on a lock or join is deadlocked.
+                if self.threads[self.current_thread_id].is_waiting_on_sync() {
+                    return Err(MwemuError::new(&format!(
+                        "deadlock: thread 0x{:x} is waiting with no other thread able to run",
+                        self.threads[self.current_thread_id].id
+                    )));
                 }
                 let pc = self.pc();
 

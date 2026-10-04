@@ -193,8 +193,8 @@ fn ldxp_stxp_round_trip() {
 
 #[test]
 fn byte_acquire_release_only_touch_one_byte() {
-    // ldarb w0,[x1] ; stlrb w0,[x1] ; stlxrb w2,w0,[x1]
-    let mut emu = emu_with(&[0x08dffc20, 0x089ffc20, 0x0802fc20]);
+    // ldarb w0,[x1] ; stlrb w0,[x1] ; ldaxrb w3,[x1] ; stlxrb w2,w0,[x1]
+    let mut emu = emu_with(&[0x08dffc20, 0x089ffc20, 0x085ffc23, 0x0802fc20]);
     let base = data_map(&mut emu);
     emu.maps.write_word(base, 0x55AB);
     emu.regs_aarch64_mut().x[0] = 0xDEAD_BEEF;
@@ -205,6 +205,9 @@ fn byte_acquire_release_only_touch_one_byte() {
     emu.regs_aarch64_mut().x[0] = 0x1FF;
     step_ok(&mut emu);
     assert_eq!(emu.maps.read_word(base), Some(0x55FF));
+
+    step_ok(&mut emu); // ldaxrb takes the reservation
+    assert_eq!(emu.regs_aarch64().x[3], 0xFF);
 
     emu.regs_aarch64_mut().x[0] = 0x12;
     emu.regs_aarch64_mut().x[2] = 1;
@@ -383,4 +386,62 @@ fn stadd_discards_old_value() {
     emu.regs_aarch64_mut().x[2] = base;
     step_ok(&mut emu);
     assert_eq!(emu.maps.read_qword(base), Some(42));
+}
+
+#[test]
+fn stxr_without_exclusive_load_fails() {
+    let mut emu = emu_with(&[0xc8027c23]); // stxr w2, x3, [x1]
+    let base = data_map(&mut emu);
+    emu.regs_aarch64_mut().x[1] = base;
+    emu.regs_aarch64_mut().x[3] = 0x99;
+    step_ok(&mut emu);
+    assert_eq!(emu.regs_aarch64().x[2], 1, "no reservation: must fail");
+    assert_eq!(emu.maps.read_qword(base), Some(0));
+}
+
+#[test]
+fn stxr_fails_when_memory_changed_since_ldxr() {
+    // ldxr x0,[x1] ; stxr w2,x3,[x1]; another thread's write in between
+    let mut emu = emu_with(&[0xc85f7c20, 0xc8027c23]);
+    let base = data_map(&mut emu);
+    emu.maps.write_qword(base, 5);
+    emu.regs_aarch64_mut().x[1] = base;
+    emu.regs_aarch64_mut().x[3] = 6;
+    step_ok(&mut emu);
+    emu.maps.write_qword(base, 7);
+    step_ok(&mut emu);
+    assert_eq!(emu.regs_aarch64().x[2], 1);
+    assert_eq!(emu.maps.read_qword(base), Some(7));
+}
+
+#[test]
+fn clrex_drops_the_reservation() {
+    // ldxr x0,[x1] ; clrex ; stxr w2,x3,[x1]
+    let mut emu = emu_with(&[0xc85f7c20, 0xd5033f5f, 0xc8027c23]);
+    let base = data_map(&mut emu);
+    emu.regs_aarch64_mut().x[1] = base;
+    step_ok(&mut emu);
+    step_ok(&mut emu);
+    step_ok(&mut emu);
+    assert_eq!(emu.regs_aarch64().x[2], 1);
+}
+
+#[test]
+fn register_offset_sxtw_scales_the_index() {
+    let mut emu = emu_with(&[0xb82ad928]); // str w8, [x9, w10, sxtw #2]
+    let base = data_map(&mut emu);
+    emu.regs_aarch64_mut().x[8] = 0xAABB_CCDD;
+    emu.regs_aarch64_mut().x[9] = base + 0x100;
+    emu.regs_aarch64_mut().x[10] = 0xFFFF_FFFE; // -2 as w10
+    step_ok(&mut emu);
+    assert_eq!(emu.maps.read_dword(base + 0x100 - 8), Some(0xAABB_CCDD));
+}
+
+#[test]
+fn add_extended_register_shifts_after_extending() {
+    let mut emu = emu_with(&[0x8b22c820]); // add x0, x1, w2, sxtw #2
+    emu.regs_aarch64_mut().x[1] = 100;
+    emu.regs_aarch64_mut().x[2] = 0xFFFF_FFFF; // -1 as w2
+    step_ok(&mut emu);
+    assert_eq!(emu.regs_aarch64().x[0], 96);
 }

@@ -234,7 +234,11 @@ pub fn emulate_instruction(emu: &mut Emu, ins: &Instruction) -> bool {
         Opcode::PRFM | Opcode::PRFUM => true, // prefetch hints have no architectural effect
         Opcode::HINT => true,                 // NOP is encoded as HINT
         Opcode::DMB(_) | Opcode::DSB(_) | Opcode::ISB => true, // barriers are no-ops in emulation
-        Opcode::CLREX => true,
+        Opcode::CLREX => {
+            let cur = emu.current_thread_id;
+            emu.threads[cur].exclusive = None;
+            true
+        }
         // ARMv8.3 Pointer Authentication — signing (PAC*): inserts a
         // signature into the high bits.  We don't model keys, so these are
         // no-ops.

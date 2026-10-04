@@ -138,6 +138,9 @@ impl From<SerializableThreadContext> for ThreadContext {
             handle: serialized.handle,
             exit_value: None,
             joining: None,
+            blocked_on_lock: None,
+            cond_wait: None,
+            exclusive: None,
             arch: match serialized.arch {
                 SerializableThreadArch::X86 {
                     regs,

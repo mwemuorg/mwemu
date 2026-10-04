@@ -258,6 +258,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
 
         _ if super::process::gateway(symbol, emu) => {}
         _ if super::pthread::gateway(symbol, emu) => {}
+        _ if super::sync::gateway(symbol, emu) => {}
         _ if super::libc_extra::gateway(symbol, emu) => {}
         _ => {
             log::warn!("libsystem: unimplemented API {} -- returning 0", symbol);
@@ -505,6 +506,7 @@ fn api_exit(emu: &mut Emu) {
 /// fork() returning the child's pid.
 fn end_process(emu: &mut Emu, wait_status: u64) {
     if let Some(child) = emu.process_exit(wait_status) {
+        super::process::run_atfork(emu, super::process::AtForkPhase::Parent);
         log::info!(
             "{}** {} macOS child pid {} ended, parent pid {} resumes {}",
             emu.colors.light_red,

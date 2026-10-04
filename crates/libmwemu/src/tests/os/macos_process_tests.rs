@@ -94,3 +94,93 @@ fn pthread_self_is_main_thread_id() {
     gateway("_pthread_self", &mut emu);
     assert_eq!(ret(&emu), emu.threads[0].id);
 }
+
+// --- thread synchronisation ------------------------------------------------
+
+use crate::threading::context::ThreadContext;
+
+/// Add a second thread and return its index.
+fn second_thread(emu: &mut crate::emu::Emu) -> usize {
+    let t = ThreadContext::new(0x1001, emu.cfg.arch);
+    emu.threads.push(t);
+    emu.threads.len() - 1
+}
+
+#[test]
+fn mutex_lock_blocks_then_unlock_hands_over_ownership() {
+    let (mut emu, m) = aarch64_env();
+    let other = second_thread(&mut emu);
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_lock", &mut emu); // main owns it
+
+    emu.current_thread_id = other;
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_lock", &mut emu);
+    assert_eq!(emu.threads[other].blocked_on_lock, Some(m));
+
+    emu.current_thread_id = 0;
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_unlock", &mut emu);
+    assert_eq!(emu.threads[other].blocked_on_lock, None);
+    assert_eq!(emu.threads[other].regs_aarch64().x[0], 0);
+    assert_eq!(
+        emu.maps.read_qword(m + 8),
+        Some(0x1001),
+        "owner handed over"
+    );
+}
+
+#[test]
+fn mutex_trylock_is_ebusy_when_held_by_another_thread() {
+    let (mut emu, m) = aarch64_env();
+    let other = second_thread(&mut emu);
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_lock", &mut emu);
+    emu.current_thread_id = other;
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_trylock", &mut emu);
+    assert_eq!(ret(&emu), 16);
+}
+
+#[test]
+fn cond_signal_moves_waiter_to_the_mutex() {
+    let (mut emu, d) = aarch64_env();
+    let (c, m) = (d, d + 0x100);
+    let other = second_thread(&mut emu);
+
+    emu.current_thread_id = other;
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_lock", &mut emu);
+    set_args(&mut emu, &[c, m]);
+    gateway("_pthread_cond_wait", &mut emu);
+    assert_eq!(emu.threads[other].cond_wait, Some((c, m)));
+    assert_eq!(
+        emu.maps.read_qword(m + 8),
+        Some(0),
+        "wait released the mutex"
+    );
+
+    emu.current_thread_id = 0;
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_lock", &mut emu);
+    set_args(&mut emu, &[c]);
+    gateway("_pthread_cond_signal", &mut emu);
+    assert_eq!(emu.threads[other].cond_wait, None);
+    assert_eq!(
+        emu.threads[other].blocked_on_lock,
+        Some(m),
+        "waits for the mutex"
+    );
+    set_args(&mut emu, &[m]);
+    gateway("_pthread_mutex_unlock", &mut emu);
+    assert!(emu.threads[other].is_runnable(emu.tick));
+}
+
+#[test]
+fn atfork_child_handler_list_survives_fork() {
+    let (mut emu, _) = aarch64_env();
+    set_args(&mut emu, &[0, 0, 0]);
+    gateway("_pthread_atfork", &mut emu);
+    gateway("_fork", &mut emu);
+    assert_eq!(emu.processes.atfork.len(), 1);
+}
