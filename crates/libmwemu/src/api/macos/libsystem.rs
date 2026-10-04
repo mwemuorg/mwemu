@@ -38,7 +38,7 @@ const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 
 /// Allocates from the O1Heap arena for small sizes, maps a dedicated
 /// region otherwise (same threshold as kernel32!HeapAlloc).
-fn allocate_memory(emu: &mut Emu, size: u64) -> Option<u64> {
+pub(super) fn allocate_memory(emu: &mut Emu, size: u64) -> Option<u64> {
     if size < LARGE_ALLOC_THRESHOLD {
         let heap_manage = emu.heap_mut();
         return heap_manage.allocate(size as usize);
@@ -100,6 +100,11 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_fprintf" | "fprintf" => api_fprintf(emu),
         "_sprintf" | "sprintf" => api_sprintf(emu),
         "_snprintf" | "snprintf" => api_snprintf(emu),
+        "_asprintf" | "asprintf" => api_asprintf(emu),
+        "_devname" | "devname" => api_devname(emu),
+        "_fmtcheck" | "fmtcheck" => api_fmtcheck(emu),
+        "_strvis" | "strvis" => api_strvis(emu),
+        "_ttyname" | "ttyname" => api_ttyname(emu),
         "_puts" | "puts" => api_puts(emu),
         "_putchar" | "putchar" => api_putchar(emu),
         "_exit" | "exit" | "__exit" => api_exit(emu),
@@ -127,12 +132,15 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_strrchr" | "strrchr" => api_strrchr(emu),
         "_strstr" | "strstr" => api_strstr(emu),
         "_strdup" | "strdup" => api_strdup(emu),
+        "_strsep" | "strsep" => api_strsep(emu),
         "_mmap" | "mmap" => api_mmap(emu),
         "_munmap" | "munmap" => api_munmap(emu),
         "_mprotect" | "mprotect" => api_mprotect(emu),
         "_madvise" | "madvise" => api_madvise(emu),
         "_strncat" | "strncat" => api_strncat(emu),
         "_strlcpy" | "strlcpy" => api_strlcpy(emu),
+        "_bsearch" | "bsearch" => api_bsearch(emu),
+        "_qsort" | "qsort" => api_qsort(emu),
         "_strlcat" | "strlcat" => api_strlcat(emu),
         "_bzero" | "bzero" => api_bzero(emu),
         "_memchr" | "memchr" => api_memchr(emu),
@@ -176,7 +184,6 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_fwrite" | "fwrite" => api_fwrite(emu),
         "_ferror" | "ferror" => api_ferror(emu),
         "_strcoll" | "strcoll" => api_strcoll(emu),
-        "_strtoul" | "strtoul" => api_strtoul(emu),
         "_time" | "time" => api_time(emu),
         "_localtime" | "localtime" => api_localtime(emu),
         "_strftime" | "strftime" => api_strftime(emu),
@@ -191,6 +198,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_getbsize" | "getbsize" => api_getbsize(emu),
         "_fflagstostr" | "fflagstostr" => api_fflagstostr(emu),
         "_compat_mode" | "compat_mode" => api_compat_mode(emu),
+        "_sysctl" | "sysctl" => api_sysctl(emu),
         "_sysctlbyname" | "sysctlbyname" => api_sysctlbyname(emu),
         "_getxattr" | "getxattr" => api_getxattr(emu),
         "_listxattr" | "listxattr" => api_listxattr(emu),
@@ -246,6 +254,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
             api_fstat(emu)
         }
 
+        _ if super::libc_extra::gateway(symbol, emu) => {}
         _ => {
             log::warn!("libsystem: unimplemented API {} -- returning 0", symbol);
             set_ret(emu, 0);
@@ -331,155 +340,91 @@ fn api_snprintf(emu: &mut Emu) {
     set_ret(emu, bytes.len() as u64);
 }
 
-fn format_printf(emu: &Emu, fmt: &str, first_vararg: usize) -> String {
-    let mut out = String::new();
-    let mut vararg_num: usize = 0;
-    let chars: Vec<char> = fmt.chars().collect();
-    let mut i = 0;
+fn api_asprintf(emu: &mut Emu) {
+    let ret_ptr = arg(emu, 0);
+    let fmt_addr = arg(emu, 1);
+    let fmt = emu.maps.read_string(fmt_addr);
+    let result = format_printf(emu, &fmt, 2);
+    let s = alloc_string(emu, &result);
+    emu.maps.write_qword(ret_ptr, s);
+    log::info!(
+        "{}** {} macOS API asprintf(\"{}\") -> \"{}\" {}",
+        emu.colors.light_red,
+        emu.pos,
+        fmt,
+        result,
+        emu.colors.nc
+    );
+    set_ret(emu, result.len() as u64);
+}
 
-    while i < chars.len() {
-        if chars[i] != '%' {
-            out.push(chars[i]);
-            i += 1;
-            continue;
-        }
-        i += 1;
-        if i >= chars.len() {
-            break;
-        }
-        if chars[i] == '%' {
-            out.push('%');
-            i += 1;
-            continue;
-        }
+fn api_fmtcheck(emu: &mut Emu) {
+    let fmt_suspect = arg(emu, 0);
+    let _fmt_default = arg(emu, 1);
+    log::info!(
+        "{}** {} macOS API fmtcheck() -> fmt_suspect {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    set_ret(emu, fmt_suspect);
+}
 
-        // Parse flags
-        let mut left_align = false;
-        let mut zero_pad = false;
-        let mut plus_sign = false;
-        let mut space_sign = false;
-        loop {
-            if i >= chars.len() {
-                break;
-            }
-            match chars[i] {
-                '-' => left_align = true,
-                '0' => zero_pad = true,
-                '+' => plus_sign = true,
-                ' ' => space_sign = true,
-                '#' => {}
-                _ => break,
-            }
-            i += 1;
-        }
+fn api_devname(emu: &mut Emu) {
+    let dev = arg(emu, 0) as u32;
+    let _mode = arg(emu, 1);
+    let name = if dev == 0xFFFFFFFF { "??" } else { "ttys000" };
+    let s = alloc_string(emu, name);
+    log::info!(
+        "{}** {} macOS API devname(0x{:x}) -> \"{}\" {}",
+        emu.colors.light_red,
+        emu.pos,
+        dev,
+        name,
+        emu.colors.nc
+    );
+    set_ret(emu, s);
+}
 
-        // Parse width
-        let mut width: Option<usize> = None;
-        if i < chars.len() && chars[i] == '*' {
-            width = Some(get_printf_arg(emu, vararg_num, first_vararg) as usize);
-            vararg_num += 1;
-            i += 1;
-        } else {
-            let start = i;
-            while i < chars.len() && chars[i].is_ascii_digit() {
-                i += 1;
-            }
-            if i > start {
-                width = chars[start..i]
-                    .iter()
-                    .collect::<String>()
-                    .parse::<usize>()
-                    .ok();
-            }
-        }
-
-        // Parse precision
-        let mut _precision: Option<usize> = None;
-        if i < chars.len() && chars[i] == '.' {
-            i += 1;
-            if i < chars.len() && chars[i] == '*' {
-                _precision = Some(get_printf_arg(emu, vararg_num, first_vararg) as usize);
-                vararg_num += 1;
-                i += 1;
-            } else {
-                let start = i;
-                while i < chars.len() && chars[i].is_ascii_digit() {
-                    i += 1;
-                }
-                if i > start {
-                    _precision = chars[start..i]
-                        .iter()
-                        .collect::<String>()
-                        .parse::<usize>()
-                        .ok();
-                }
-            }
-        }
-
-        // Parse length modifier
-        let mut _long_count = 0;
-        while i < chars.len() {
-            match chars[i] {
-                'l' => {
-                    _long_count += 1;
-                    i += 1;
-                }
-                'h' | 'j' | 'z' | 't' | 'q' => {
-                    i += 1;
-                }
-                _ => break,
-            }
-        }
-
-        if i >= chars.len() {
-            break;
-        }
-
-        // Conversion
-        let w = width.unwrap_or(0);
-        let val = get_printf_arg(emu, vararg_num, first_vararg);
-        vararg_num += 1;
-        let formatted = match chars[i] {
-            'd' | 'i' => {
-                let v = val as i64;
-                let s = if plus_sign && v >= 0 {
-                    format!("+{}", v)
-                } else if space_sign && v >= 0 {
-                    format!(" {}", v)
-                } else {
-                    format!("{}", v)
-                };
-                pad_string(&s, w, left_align, zero_pad)
-            }
-            'u' => pad_string(&format!("{}", val), w, left_align, false),
-            'x' => pad_string(&format!("{:x}", val), w, left_align, zero_pad),
-            'X' => pad_string(&format!("{:X}", val), w, left_align, zero_pad),
-            'o' => pad_string(&format!("{:o}", val), w, left_align, zero_pad),
-            's' => {
-                let s = if val != 0 {
-                    emu.maps.read_string(val)
-                } else {
-                    "(null)".to_string()
-                };
-                pad_string(&s, w, left_align, false)
-            }
-            'c' => {
-                let ch = if val > 0 && val < 128 {
-                    (val as u8) as char
-                } else {
-                    '?'
-                };
-                pad_string(&ch.to_string(), w, left_align, false)
-            }
-            'p' => pad_string(&format!("0x{:x}", val), w, left_align, false),
-            _ => {
-                format!("%{}", chars[i])
-            }
-        };
-        out.push_str(&formatted);
-        i += 1;
+fn api_strvis(emu: &mut Emu) {
+    let dst = arg(emu, 0);
+    let src = arg(emu, 1);
+    let _flag = arg(emu, 2);
+    let s = emu.maps.read_string(src);
+    let len = s.len();
+    for (i, b) in s.bytes().enumerate() {
+        emu.maps.write_byte(dst + i as u64, b);
     }
-    out
+    emu.maps.write_byte(dst + len as u64, 0);
+    set_ret(emu, len as u64);
+}
+
+fn api_ttyname(emu: &mut Emu) {
+    let fd = arg(emu, 0);
+    if fd == 0 {
+        let s = alloc_string(emu, "/dev/ttys000");
+        log::info!(
+            "{}** {} macOS API ttyname({}) -> \"/dev/ttys000\" {}",
+            emu.colors.light_red,
+            emu.pos,
+            fd,
+            emu.colors.nc
+        );
+        set_ret(emu, s);
+    } else {
+        log::info!(
+            "{}** {} macOS API ttyname({}) -> NULL {}",
+            emu.colors.light_red,
+            emu.pos,
+            fd,
+            emu.colors.nc
+        );
+        set_ret(emu, 0);
+    }
+}
+
+fn format_printf(emu: &Emu, fmt: &str, first_vararg: usize) -> String {
+    crate::api::printf::format(emu, fmt, &|e, n| get_printf_arg(e, n, first_vararg))
 }
 
 fn get_printf_arg(emu: &Emu, vararg_num: usize, first_vararg: usize) -> u64 {
@@ -507,23 +452,6 @@ fn get_printf_arg(emu: &Emu, vararg_num: usize, first_vararg: usize) -> u64 {
                 .read_qword(sp + ((idx - 6) as u64) * 8)
                 .unwrap_or(0)
         }
-    }
-}
-
-fn pad_string(s: &str, width: usize, left_align: bool, zero_pad: bool) -> String {
-    if width == 0 || s.len() >= width {
-        return s.to_string();
-    }
-    let pad_char = if zero_pad && !left_align { '0' } else { ' ' };
-    let padding = width - s.len();
-    if left_align {
-        format!("{}{}", s, " ".repeat(padding))
-    } else {
-        format!(
-            "{}{}",
-            std::iter::repeat_n(pad_char, padding).collect::<String>(),
-            s
-        )
     }
 }
 
@@ -1050,6 +978,65 @@ fn api_strlcpy(emu: &mut Emu) {
     set_ret(emu, bytes.len() as u64);
 }
 
+fn api_bsearch(emu: &mut Emu) {
+    let key_ptr = arg(emu, 0);
+    let base_ptr = arg(emu, 1);
+    let nel = arg(emu, 2) as usize;
+    let width = arg(emu, 3) as usize;
+    let _compar = arg(emu, 4);
+
+    // The key is typically a pointer to a string (e.g. keyword lookup in ps).
+    // Read the key string via dereferencing the key pointer.
+    let key_str_ptr = emu.maps.read_qword(key_ptr).unwrap_or(0);
+    let key_str = if key_str_ptr != 0 {
+        emu.maps.read_string(key_str_ptr)
+    } else {
+        emu.maps.read_string(key_ptr)
+    };
+
+    // Linear scan: each element's first 8 bytes are a pointer to its name string.
+    let mut found: u64 = 0;
+    for i in 0..nel {
+        let elem_addr = base_ptr + (i * width) as u64;
+        let name_ptr = emu.maps.read_qword(elem_addr).unwrap_or(0);
+        if name_ptr == 0 {
+            continue;
+        }
+        let name = emu.maps.read_string(name_ptr);
+        if name == key_str {
+            found = elem_addr;
+            break;
+        }
+    }
+
+    log::info!(
+        "{}** {} macOS API bsearch(\"{}\", 0x{:x}, {}, {}) -> 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        key_str,
+        base_ptr,
+        nel,
+        width,
+        found,
+        emu.colors.nc
+    );
+    set_ret(emu, found);
+}
+
+fn api_qsort(emu: &mut Emu) {
+    let _base = arg(emu, 0);
+    let nel = arg(emu, 1);
+    let _width = arg(emu, 2);
+    let _compar = arg(emu, 3);
+    log::info!(
+        "{}** {} macOS API qsort({} elements) -> no-op {}",
+        emu.colors.light_red,
+        emu.pos,
+        nel,
+        emu.colors.nc
+    );
+}
+
 fn api_strlcat(emu: &mut Emu) {
     let dst_addr = arg(emu, 0);
     let src_addr = arg(emu, 1);
@@ -1171,6 +1158,55 @@ fn api_strdup(emu: &mut Emu) {
     emu.maps.write_bytes(base, bytes);
     emu.maps.write_byte(base + bytes.len() as u64, 0);
     set_ret(emu, base);
+}
+
+fn api_strsep(emu: &mut Emu) {
+    let stringp_ptr = arg(emu, 0); // char **stringp
+    let delim_ptr = arg(emu, 1);
+
+    let sp = match emu.maps.read_qword(stringp_ptr) {
+        Some(v) => v,
+        None => {
+            set_ret(emu, 0);
+            return;
+        }
+    };
+
+    if sp == 0 {
+        log::info!(
+            "{}** {} macOS API strsep(NULL) -> NULL {}",
+            emu.colors.light_red,
+            emu.pos,
+            emu.colors.nc
+        );
+        set_ret(emu, 0);
+        return;
+    }
+
+    let s = emu.maps.read_string(sp);
+    let delim = emu.maps.read_string(delim_ptr);
+
+    let token_end = s.find(|c: char| delim.contains(c));
+    match token_end {
+        Some(pos) => {
+            emu.maps.write_byte(sp + pos as u64, 0);
+            emu.maps.write_qword(stringp_ptr, sp + pos as u64 + 1);
+        }
+        None => {
+            emu.maps.write_qword(stringp_ptr, 0);
+        }
+    }
+
+    log::info!(
+        "{}** {} macOS API strsep(\"{}\", \"{}\") -> 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        s,
+        delim,
+        sp,
+        emu.colors.nc
+    );
+    set_ret(emu, sp);
 }
 
 fn api_bzero(emu: &mut Emu) {
@@ -1332,19 +1368,60 @@ fn api_setenv(emu: &mut Emu) {
 
 fn api_isatty(emu: &mut Emu) {
     let fd = arg(emu, 0);
+    // stdin (0) is a tty; stdout/stderr are not (for ls-style output)
+    let ret = if fd == 0 { 1u64 } else { 0u64 };
     log::info!(
-        "{}** {} macOS API isatty({}) -> 0 {}",
+        "{}** {} macOS API isatty({}) -> {} {}",
         emu.colors.light_red,
         emu.pos,
         fd,
+        ret,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    set_ret(emu, ret);
 }
 
 fn api_ioctl(emu: &mut Emu) {
     let fd = arg(emu, 0);
     let request = arg(emu, 1);
+
+    // TIOCGWINSZ = 0x40087468
+    if request == 0x40087468 {
+        let buf = arg(emu, 2);
+        if buf != 0 {
+            emu.maps.write_word(buf, 24); // ws_row
+            emu.maps.write_word(buf + 2, 80); // ws_col
+            emu.maps.write_word(buf + 4, 0); // ws_xpixel
+            emu.maps.write_word(buf + 6, 0); // ws_ypixel
+        }
+        log::info!(
+            "{}** {} macOS API ioctl({}, TIOCGWINSZ) -> 0 (24x80) {}",
+            emu.colors.light_red,
+            emu.pos,
+            fd,
+            emu.colors.nc
+        );
+        set_ret(emu, 0);
+        return;
+    }
+
+    // TIOCGPGRP = 0x40047477
+    if request == 0x40047477 {
+        let buf = arg(emu, 2);
+        if buf != 0 {
+            emu.maps.write_dword(buf, 1234);
+        }
+        log::info!(
+            "{}** {} macOS API ioctl({}, TIOCGPGRP) -> 0 {}",
+            emu.colors.light_red,
+            emu.pos,
+            fd,
+            emu.colors.nc
+        );
+        set_ret(emu, 0);
+        return;
+    }
+
     log::info!(
         "{}** {} macOS API ioctl({}, 0x{:x}) -> -1 {}",
         emu.colors.light_red,
@@ -2003,23 +2080,6 @@ fn api_strcoll(emu: &mut Emu) {
     set_ret(emu, result);
 }
 
-fn api_strtoul(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
-    let _endptr = arg(emu, 1);
-    let base = arg(emu, 2) as u32;
-    let s = emu.maps.read_string(s_addr);
-    log::info!(
-        "{}** {} macOS API strtoul(\"{}\", _, {}) {}",
-        emu.colors.light_red,
-        emu.pos,
-        s,
-        base,
-        emu.colors.nc
-    );
-    let val = u64::from_str_radix(s.trim(), if base == 0 { 10 } else { base });
-    set_ret(emu, val.unwrap_or(0));
-}
-
 fn api_time(emu: &mut Emu) {
     let tloc = arg(emu, 0);
     let now = std::time::SystemTime::now()
@@ -2252,6 +2312,107 @@ fn api_compat_mode(emu: &mut Emu) {
         emu.colors.nc
     );
     set_ret(emu, 0);
+}
+
+fn api_sysctl(emu: &mut Emu) {
+    let name_ptr = arg(emu, 0);
+    let namelen = arg(emu, 1) as usize;
+    let oldp = arg(emu, 2);
+    let oldlenp = arg(emu, 3);
+
+    let mut mib = Vec::new();
+    for i in 0..namelen.min(6) {
+        mib.push(emu.maps.read_dword(name_ptr + i as u64 * 4).unwrap_or(0) as i32);
+    }
+
+    // CTL_KERN=1, KERN_PROC=14
+    if mib.len() >= 2 && mib[0] == 1 && mib[1] == 14 {
+        // kinfo_proc size on macOS arm64 = 648 bytes
+        const KINFO_SIZE: u64 = 648;
+        let num_procs: u64 = 3;
+        let total_size = KINFO_SIZE * num_procs;
+
+        if oldp == 0 {
+            // Size query: return required buffer size
+            if oldlenp != 0 {
+                emu.maps.write_qword(oldlenp, total_size);
+            }
+            log::info!(
+                "{}** {} macOS API sysctl(KERN_PROC) size query -> {} {}",
+                emu.colors.light_red,
+                emu.pos,
+                total_size,
+                emu.colors.nc
+            );
+            set_ret(emu, 0);
+            return;
+        }
+
+        // Data query: fill with fake processes
+        let buf = allocate_memory(emu, total_size).expect("sysctl: out of memory");
+
+        // Zero-fill
+        for i in 0..total_size {
+            emu.maps.write_byte(buf + i, 0);
+        }
+
+        let procs: &[(i32, i32, &str)] = &[(1, 0, "launchd"), (1234, 1, "zsh"), (5678, 1234, "ps")];
+
+        for (idx, &(pid, ppid, comm)) in procs.iter().enumerate() {
+            let base = buf + idx as u64 * KINFO_SIZE;
+            // kp_proc.p_flag (offset 32): P_CONTROLT=0x2 (has controlling tty)
+            emu.maps.write_dword(base + 32, 0x2);
+            // kp_proc.p_stat (offset 36): SRUN=2
+            emu.maps.write_byte(base + 36, 2);
+            // kp_proc.p_pid (offset 40)
+            emu.maps.write_dword(base + 40, pid as u32);
+            // kp_proc.p_comm (offset 243), 17 bytes max
+            let comm_off = base + 243;
+            let bytes = comm.as_bytes();
+            for (i, &b) in bytes.iter().enumerate() {
+                emu.maps.write_byte(comm_off + i as u64, b);
+            }
+            // kp_eproc.e_pcred.p_ruid (offset 392)
+            emu.maps.write_dword(base + 392, 501);
+            // kp_eproc.e_ucred.cr_uid (offset 420)
+            emu.maps.write_dword(base + 420, 501);
+            // kp_eproc.e_ppid (offset 560)
+            emu.maps.write_dword(base + 560, ppid as u32);
+            // kp_eproc.e_tdev (offset 572): /dev/ttys000 = 0x10000000
+            emu.maps.write_dword(base + 572, 0x10000000);
+        }
+
+        // Copy to caller's buffer
+        let avail = emu.maps.read_qword(oldlenp).unwrap_or(total_size);
+        let copy_size = total_size.min(avail);
+        for i in 0..copy_size {
+            let b = emu.maps.read_byte(buf + i).unwrap_or(0);
+            emu.maps.write_byte(oldp + i, b);
+        }
+        if oldlenp != 0 {
+            emu.maps.write_qword(oldlenp, copy_size);
+        }
+
+        log::info!(
+            "{}** {} macOS API sysctl(KERN_PROC) -> {} procs ({} bytes) {}",
+            emu.colors.light_red,
+            emu.pos,
+            num_procs,
+            copy_size,
+            emu.colors.nc
+        );
+        set_ret(emu, 0);
+        return;
+    }
+
+    log::info!(
+        "{}** {} macOS API sysctl({:?}) -> -1 {}",
+        emu.colors.light_red,
+        emu.pos,
+        mib,
+        emu.colors.nc
+    );
+    set_ret(emu, -1i64 as u64);
 }
 
 fn api_sysctlbyname(emu: &mut Emu) {

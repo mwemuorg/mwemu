@@ -115,28 +115,14 @@ impl Emu {
             self.inject_macos_globals(&mut export_map, &mut macho.addr_to_symbol);
         }
 
-        // Stage 3: Parse chained fixups and resolve GOT entries
-        let (imports, binds) = macho.parse_chained_fixups();
+        // Stage 3: Parse chained fixups and resolve GOT entries + rebases
+        let (imports, binds, rebases) = macho.parse_chained_fixups();
         log::trace!(
-            "macho64: chained fixups: {} imports, {} binds",
+            "macho64: chained fixups: {} imports, {} binds, {} rebases",
             imports.len(),
-            binds.len()
+            binds.len(),
+            rebases.len()
         );
-        for (i, imp) in imports.iter().enumerate() {
-            log::trace!(
-                "  import[{}]: {} (lib_ordinal={})",
-                i,
-                imp.name,
-                imp.lib_ordinal
-            );
-        }
-        for b in &binds {
-            log::trace!(
-                "  bind: GOT 0x{:x} -> import[{}]",
-                b.got_vmaddr,
-                b.import_ordinal
-            );
-        }
         for bind in &binds {
             if let Some(imp) = imports.get(bind.import_ordinal as usize) {
                 if let Some(&resolved_addr) = export_map.get(&imp.name) {
@@ -155,6 +141,22 @@ impl Emu {
                     );
                 }
             }
+        }
+        let preferred_base = macho
+            .segments
+            .iter()
+            .filter(|s| s.vmsize > 0)
+            .map(|s| s.vmaddr)
+            .min()
+            .unwrap_or(0);
+        for rebase in &rebases {
+            let target = if rebase.relative {
+                preferred_base + rebase.target
+            } else {
+                rebase.target
+            };
+            self.maps
+                .write_qword(rebase.vmaddr, target | (rebase.high8 << 56));
         }
 
         self.macho64 = Some(macho);

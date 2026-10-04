@@ -1,3 +1,4 @@
+pub mod libc_extra;
 pub mod libsystem;
 
 /// Main gateway — dispatches macOS API calls by dylib section name and symbol.
