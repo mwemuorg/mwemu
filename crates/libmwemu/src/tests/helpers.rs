@@ -130,6 +130,74 @@ pub fn set_winver_maps(emu: &mut crate::emu::Emu, version: &str) -> bool {
     true
 }
 
+/// Core DLLs the Windows loader maps for every test process.
+const WIN_CORE_DLLS: &[&str] = &["ntdll.dll", "kernel32.dll", "kernelbase.dll"];
+
+/// DLLs the 64-bit Windows tests load, fetched by `make symbols`.
+const WIN64_TEST_DLLS: &[&str] = &[
+    "ntdll.dll",
+    "kernel32.dll",
+    "kernelbase.dll",
+    "advapi32.dll",
+    "combase.dll",
+    "gdi32.dll",
+    "msvcp_win.dll",
+    "msvcrt.dll",
+    "ole32.dll",
+    "oleaut32.dll",
+    "rpcrt4.dll",
+    "sechost.dll",
+    "shell32.dll",
+    "user32.dll",
+    "version.dll",
+    "win32u.dll",
+    "ws2_32.dll",
+];
+
+/// DLLs the 32-bit Windows tests load, fetched by `make symbols`.
+const WIN32_TEST_DLLS: &[&str] = &[
+    "ntdll.dll",
+    "kernel32.dll",
+    "kernelbase.dll",
+    "advapi32.dll",
+    "iphlpapi.dll",
+    "netapi32.dll",
+    "oleaut32.dll",
+    "shell32.dll",
+    "user32.dll",
+    "version.dll",
+    "winhttp.dll",
+    "wininet.dll",
+    "ws2_32.dll",
+];
+
+/// True when `folder` holds the core DLLs a Windows test needs.
+pub fn win_maps_ready(folder: &str) -> bool {
+    WIN_CORE_DLLS
+        .iter()
+        .all(|dll| std::path::Path::new(folder).join(dll).is_file())
+}
+
+/// Provision the Windows test DLLs from Microsoft's symbol server. Not a real
+/// test: `make symbols` runs it once so the suite itself stays offline.
+#[test]
+#[ignore = "network: provisions Windows DLLs, run via `make symbols`"]
+fn fetch_windows_test_dlls() {
+    use crate::emu::winver::{MACHINE_AMD64, MACHINE_I386, ensure_dll, resolve_build};
+    let build = resolve_build("win11");
+    let sets = [
+        (win64_maps_folder(), WIN64_TEST_DLLS, MACHINE_AMD64),
+        (win32_maps_folder(), WIN32_TEST_DLLS, MACHINE_I386),
+    ];
+    for (folder, dlls, machine) in sets {
+        for dll in dlls {
+            if let Err(e) = ensure_dll(std::path::Path::new(&folder), &build, dll, machine) {
+                panic!("cannot fetch {} into {}: {}", dll, folder, e);
+            }
+        }
+    }
+}
+
 /// Maps folder for 64-bit Windows samples (`maps/windows/x86_64/`).
 pub fn win64_maps_folder() -> String {
     let mut s = repo_root()

@@ -124,6 +124,13 @@ jobs:
       - name: Report Rust cache status
         run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
+      # Provision the Windows DLLs once, before the tests run in parallel
+      # processes (the suite itself never downloads; see `make symbols`).
+      - name: Fetch Windows test DLLs
+        run: >-
+          cargo test --locked --package libmwemu --target ${{ matrix.target }}
+          -- --ignored --exact tests::helpers::fetch_windows_test_dlls
+
       - name: Test
         run: >-
           cargo nextest run --locked

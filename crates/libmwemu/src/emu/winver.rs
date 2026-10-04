@@ -239,6 +239,12 @@ impl crate::emu::Emu {
         if std::path::Path::new(&filepath).exists() {
             return;
         }
+        // Unit tests never hit the network: `make symbols` provisions the maps
+        // once, and tests skip when they are absent (parallel test processes
+        // fetching into the same folder made CI flaky).
+        if cfg!(test) {
+            return;
+        }
         // Use the configured build if the consumer picked one (--winver / API),
         // else default to win11.
         let build = self

@@ -12,7 +12,7 @@ pub fn peb_teb_ldr_structures_test() {
     assert_eq!(structures::TEB64::map_size(), 0x2000);
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.load_code(&sample!("exe32win_minecraft.bin"));
 
     let peb = emu.maps.get_mem("peb");
@@ -217,7 +217,7 @@ pub fn peb_teb_ldr_structures_test() {
     // 64BITS //
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     emu.load_code(&sample!("exe64win_msgbox.bin"));
 
     let ntdll_addr = emu.maps.get_mem("ntdll.pe").get_base();

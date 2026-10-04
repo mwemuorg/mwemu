@@ -350,7 +350,7 @@ pub fn test_winapi_hook() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);

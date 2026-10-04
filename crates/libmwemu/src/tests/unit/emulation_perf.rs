@@ -151,7 +151,7 @@ fn benchmark64with_enigma() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     emu.cfg.console = false;
     emu.cfg.console_enabled = false;

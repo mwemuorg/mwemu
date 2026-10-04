@@ -12,7 +12,7 @@ pub fn should_serialize() {
             let mut emu = emu64();
 
             // load maps
-            emu.cfg.maps_folder = helpers::win64_maps_folder();
+            emu.cfg.maps_folder = win_maps!(64);
 
             // load binary
             emu.load_code(&sample!("exe64win_msgbox.bin"));

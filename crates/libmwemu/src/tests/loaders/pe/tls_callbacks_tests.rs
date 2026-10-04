@@ -22,7 +22,7 @@ fn mingw64_executes_tls_callbacks() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("exe64win_mingw.bin");
     emu.load_code(&sample);
@@ -56,7 +56,7 @@ fn mingw64_implicit_tls_is_initialized() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("exe64win_mingw.bin");
     emu.load_code(&sample);
@@ -86,7 +86,7 @@ fn mingw32_implicit_tls_is_initialized() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
 
     let sample = sample!("exe32win_mingw.bin");
     emu.load_code(&sample);
@@ -119,7 +119,7 @@ fn msgbox_has_no_tls_callbacks() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);

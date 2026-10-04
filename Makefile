@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples driver test_macos
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver test_macos
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -16,8 +16,9 @@ TEST_DIR := test
 all:
 	cargo build --locked --release $(CARGO_TARGET)
 
-# Full local run: fetch the sample bundle, then run the default CI packages.
-tests: samples
+# Full local run: fetch the sample bundle and the Windows DLLs, then run the
+# default CI packages.
+tests: samples symbols
 	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
 	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
 
@@ -60,6 +61,12 @@ $(TEST_DIR)/exe64win_msgbox.bin:
 	@unzip -o -P mwemuTestSystem test.zip; rm -f test.zip
 
 samples: $(TEST_DIR)/exe64win_msgbox.bin
+
+# Fetch the Windows DLLs the tests load (maps/windows/{x86,x86_64}/) from
+# Microsoft's symbol server, once and sequentially. The test suite itself never
+# downloads: tests that need these DLLs skip via `win_maps!` when absent.
+symbols:
+	cargo test --locked --package libmwemu $(CARGO_TARGET) -- --ignored --exact tests::helpers::fetch_windows_test_dlls
 
 # Optional end-to-end smoke test: emulate a sample PE (needs network for the
 # winver DLL fetch).

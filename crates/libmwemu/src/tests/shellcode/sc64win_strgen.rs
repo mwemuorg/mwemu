@@ -8,7 +8,7 @@ pub fn sc64win_strgen() {
 
     let mut emu = emu64();
     emu.set_verbose(3);
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     emu.load_code(&sample!("sc64win_strgen.bin"));
     emu.run_to(231);
     let s = emu.maps.read_string(0x329ec8);

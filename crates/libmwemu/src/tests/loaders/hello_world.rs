@@ -154,6 +154,7 @@ fn hello_mac_x64() {
 #[test]
 fn hello_win_x86() {
     helpers::setup();
+    win_maps!(32);
     let path = write_tmp("mwemu_hello_win_x86.exe", HELLO_WIN_X86);
 
     helpers::run_with_timeout(helpers::TEST_BUDGET, move || {
@@ -181,6 +182,7 @@ fn hello_win_x86() {
 #[test]
 fn hello_win_x64() {
     helpers::setup();
+    win_maps!(64);
     let path = write_tmp("mwemu_hello_win_x64.exe", HELLO_WIN_X64);
 
     helpers::run_with_timeout(helpers::TEST_BUDGET, move || {
@@ -213,6 +215,7 @@ fn hello_win_x64() {
 #[test]
 fn hello_win_x64_runs_tls_callbacks() {
     helpers::setup();
+    win_maps!(64);
     let path = write_tmp("mwemu_hello_win_x64_tls.exe", HELLO_WIN_X64);
 
     helpers::run_with_timeout(helpers::TEST_BUDGET, move || {

@@ -15,6 +15,12 @@ Fetch the test sample bundle (needed for steps 4, 5, 6):
 make samples
 ```
 
+Fetch the Windows DLLs the tests load (tests never download them; `make tests` runs this too):
+
+```bash
+make symbols
+```
+
 ## Apple Silicon note
 
 On Apple Silicon hosts, every cargo command must include `--target x86_64-apple-darwin`.

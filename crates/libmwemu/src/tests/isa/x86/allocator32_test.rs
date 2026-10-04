@@ -9,7 +9,7 @@ pub fn allocator32_test() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
     emu.init_win32(false, false);
 
@@ -60,7 +60,7 @@ pub fn allocator32_test() {
 fn virtual_alloc_zero_size_32() {
     helpers::setup();
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
     emu.init_win32(false, false);
 
@@ -102,7 +102,7 @@ fn virtual_alloc_zero_size_32() {
 fn virtual_alloc_commit_unmapped_32() {
     helpers::setup();
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
     emu.init_win32(false, false);
 
