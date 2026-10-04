@@ -58,6 +58,10 @@ impl Emu {
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
+                // pthread_create() turned threading on: hand over to the scheduler.
+                if self.cfg.enable_threading && self.threads.len() > 1 {
+                    return self.run_multi_threaded_aarch64(end_addr);
+                }
                 let pc = self.pc();
 
                 // Outer-loop limit checks: must run BEFORE attempting to fetch code,

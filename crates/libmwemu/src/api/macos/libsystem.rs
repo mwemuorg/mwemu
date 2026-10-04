@@ -1,6 +1,9 @@
 use crate::emu::Emu;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
+use crate::threading::process::{exit_status, signal_status};
+
+const SIGABRT: u64 = 6;
 
 /// Read argument register by index (0-7), arch-agnostic.
 /// AArch64: x0-x7, x86_64: rdi, rsi, rdx, rcx, r8, r9 (SysV ABI)
@@ -158,7 +161,6 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_geteuid" | "geteuid" => api_getuid(emu),
         "_getgid" | "getgid" => api_getgid(emu),
         "_getegid" | "getegid" => api_getgid(emu),
-        "_getpid" | "getpid" => api_getpid(emu),
         "_getpwuid" | "getpwuid" => api_getpwuid(emu),
         "_getpwnam" | "getpwnam" => api_getpwnam(emu),
         "_getgrgid" | "getgrgid" => api_getgrgid(emu),
@@ -254,6 +256,8 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
             api_fstat(emu)
         }
 
+        _ if super::process::gateway(symbol, emu) => {}
+        _ if super::pthread::gateway(symbol, emu) => {}
         _ if super::libc_extra::gateway(symbol, emu) => {}
         _ => {
             log::warn!("libsystem: unimplemented API {} -- returning 0", symbol);
@@ -494,7 +498,23 @@ fn api_exit(emu: &mut Emu) {
         status,
         emu.colors.nc
     );
-    emu.stop();
+    end_process(emu, exit_status(status));
+}
+
+/// End the process; if it was a forked child, its parent resumes with
+/// fork() returning the child's pid.
+fn end_process(emu: &mut Emu, wait_status: u64) {
+    if let Some(child) = emu.process_exit(wait_status) {
+        log::info!(
+            "{}** {} macOS child pid {} ended, parent pid {} resumes {}",
+            emu.colors.light_red,
+            emu.pos,
+            child,
+            emu.processes.pid,
+            emu.colors.nc
+        );
+        set_ret(emu, child);
+    }
 }
 
 fn flush_stdio_on_exit(emu: &mut Emu) {
@@ -513,7 +533,7 @@ fn api_abort(emu: &mut Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.stop();
+    end_process(emu, signal_status(SIGABRT));
 }
 
 fn api_malloc(emu: &mut Emu) {
@@ -1612,16 +1632,6 @@ fn api_getuid(emu: &mut Emu) {
         emu.colors.nc
     );
     set_ret(emu, 501);
-}
-
-fn api_getpid(emu: &mut Emu) {
-    log::info!(
-        "{}** {} macOS API getpid() -> 1234 {}",
-        emu.colors.light_red,
-        emu.pos,
-        emu.colors.nc
-    );
-    set_ret(emu, 1234);
 }
 
 fn api_getgid(emu: &mut Emu) {

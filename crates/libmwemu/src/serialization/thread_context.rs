@@ -136,6 +136,8 @@ impl From<SerializableThreadContext> for ThreadContext {
             wake_tick: serialized.wake_tick,
             blocked_on_cs: serialized.blocked_on_cs,
             handle: serialized.handle,
+            exit_value: None,
+            joining: None,
             arch: match serialized.arch {
                 SerializableThreadArch::X86 {
                     regs,

@@ -177,6 +177,7 @@ pub struct Emu {
     pub main_thread_cont: u64,     // main thread continuation/return address
     pub gateway_return: u64,       // return address from API gateway trampoline
     pub global_locks: GlobalLocks, // critical section/mutex tracking
+    pub processes: crate::threading::process::ProcessTable, // Unix pid identity, fork() frames and unreaped children
 
     // --- API call interception ---
     pub hooks: Hooks,             // registered pre/post-instruction callback hooks

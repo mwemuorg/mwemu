@@ -385,6 +385,7 @@ impl From<SerializableEmu> for Emu {
             main_thread_cont,
             gateway_return,
             global_locks: GlobalLocks::new(),
+            processes: crate::threading::process::ProcessTable::new(),
             // API call interception (hooks cannot be serialized)
             hooks: Hooks::default(),
             skip_apicall,

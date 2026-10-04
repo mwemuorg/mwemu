@@ -212,19 +212,12 @@ impl Emu {
         let num_threads = self.threads.len();
         let current_tick = self.tick;
 
-        let current_can_run = !self.threads[self.current_thread_id].suspended
-            && self.threads[self.current_thread_id].wake_tick <= current_tick
-            && self.threads[self.current_thread_id].blocked_on_cs.is_none();
+        let current_can_run = self.threads[self.current_thread_id].is_runnable(current_tick);
 
         if num_threads > 1 {
             for i in 0..num_threads {
                 let thread_idx = (self.current_thread_id + i + 1) % num_threads;
-                let thread = &self.threads[thread_idx];
-
-                if !thread.suspended
-                    && thread.wake_tick <= current_tick
-                    && thread.blocked_on_cs.is_none()
-                {
+                if self.threads[thread_idx].is_runnable(current_tick) {
                     return crate::threading::scheduler::ThreadScheduler::execute_thread_instruction(
                         self, thread_idx,
                     );
