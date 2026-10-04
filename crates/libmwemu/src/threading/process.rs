@@ -10,6 +10,7 @@
 //! the parent writes after `fork()` returns) cannot make progress.
 
 use crate::emu::Emu;
+use crate::kernel::heap::KernelHeap;
 use crate::maps::Maps;
 use crate::maps::heap_allocation::O1Heap;
 use crate::threading::context::ThreadContext;
@@ -24,8 +25,9 @@ struct ForkFrame {
     maps: Maps,
     threads: Vec<ThreadContext>,
     current_thread_id: usize,
-    #[allow(clippy::vec_box)] // same type as Emu::heap_arenas, moved in and out
+    #[allow(clippy::vec_box)] // same type as Emu::heap_arenas
     heap_arenas: Vec<Box<O1Heap>>,
+    guard_heap: Option<KernelHeap>, // --memory-guard allocation ledger
     emulated_stdout: Vec<u8>,
     getopt_char_index: usize,
 }
@@ -97,9 +99,10 @@ impl Emu {
             maps: self.maps.clone(),
             threads: self.threads.clone(),
             current_thread_id: self.current_thread_id,
-            // O1Heap bookkeeping is not clonable; the child gets a fresh arena
-            // on its first allocation and the parent's is put back on exit.
-            heap_arenas: std::mem::take(&mut self.heap_arenas),
+            // Allocator bookkeeping lives outside guest memory, so it is
+            // copied alongside the maps: the child inherits the parent heap.
+            heap_arenas: self.heap_arenas.clone(),
+            guard_heap: self.kernel.as_ref().map(|k| k.heap.clone()),
             emulated_stdout: self.emulated_stdout.clone(),
             getopt_char_index: self.getopt_char_index,
         };
@@ -138,6 +141,10 @@ impl Emu {
         self.threads = frame.threads;
         self.current_thread_id = frame.current_thread_id;
         self.heap_arenas = frame.heap_arenas;
+        // Only the ledger rolls back; findings raised in the child are kept.
+        if let (Some(kernel), Some(heap)) = (self.kernel.as_mut(), frame.guard_heap) {
+            kernel.heap = heap;
+        }
         self.emulated_stdout = frame.emulated_stdout;
         self.getopt_char_index = frame.getopt_char_index;
         self.reset_active_instruction_cache();
