@@ -130,11 +130,8 @@ pub fn set_winver_maps(emu: &mut crate::emu::Emu, version: &str) -> bool {
     true
 }
 
-/// Core DLLs the Windows loader maps for every test process.
-const WIN_CORE_DLLS: &[&str] = &["ntdll.dll", "kernel32.dll", "kernelbase.dll"];
-
 /// DLLs the 64-bit Windows tests load, fetched by `make symbols`.
-const WIN64_TEST_DLLS: &[&str] = &[
+pub const WIN64_TEST_DLLS: &[&str] = &[
     "ntdll.dll",
     "kernel32.dll",
     "kernelbase.dll",
@@ -155,7 +152,7 @@ const WIN64_TEST_DLLS: &[&str] = &[
 ];
 
 /// DLLs the 32-bit Windows tests load, fetched by `make symbols`.
-const WIN32_TEST_DLLS: &[&str] = &[
+pub const WIN32_TEST_DLLS: &[&str] = &[
     "ntdll.dll",
     "kernel32.dll",
     "kernelbase.dll",
@@ -171,10 +168,10 @@ const WIN32_TEST_DLLS: &[&str] = &[
     "ws2_32.dll",
 ];
 
-/// True when `folder` holds the core DLLs a Windows test needs.
-pub fn win_maps_ready(folder: &str) -> bool {
-    WIN_CORE_DLLS
-        .iter()
+/// True when `folder` holds every DLL in `dlls`. A partial `make symbols`
+/// (e.g. the symbol server throttled us midway) counts as not ready.
+pub fn win_maps_ready(folder: &str, dlls: &[&str]) -> bool {
+    dlls.iter()
         .all(|dll| std::path::Path::new(folder).join(dll).is_file())
 }
 

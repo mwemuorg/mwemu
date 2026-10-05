@@ -124,33 +124,9 @@ jobs:
       - name: Report Rust cache status
         run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
-      # Provision the Windows DLLs once, before the tests run in parallel
-      # processes (the suite itself never downloads; see `make symbols`). They
-      # are cached so later runs don't depend on Microsoft's symbol server.
-      - name: Restore Windows test DLLs
-        id: windows-dlls
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: |
-            maps/windows/x86_64/*.dll
-            maps/windows/x86/*.dll
-          key: windows-test-dlls-win11-${{ hashFiles('crates/libmwemu/src/tests/helpers.rs') }}
-          restore-keys: windows-test-dlls-win11-
-
-      - name: Fetch Windows test DLLs
-        run: >-
-          cargo test --locked --package libmwemu --target ${{ matrix.target }}
-          -- --ignored --exact tests::helpers::fetch_windows_test_dlls
-
-      - name: Save Windows test DLLs
-        if: steps.windows-dlls.outputs.cache-hit != 'true'
-        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: |
-            maps/windows/x86_64/*.dll
-            maps/windows/x86/*.dll
-          key: windows-test-dlls-win11-${{ hashFiles('crates/libmwemu/src/tests/helpers.rs') }}
-
+      # No Windows DLL download here: Microsoft's symbol server throttles CI
+      # runners. Tests needing the DLLs skip via `win_maps!`; run them locally
+      # with `make tests` (which runs `make symbols` first).
       - name: Test
         run: >-
           cargo nextest run --locked

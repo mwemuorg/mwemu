@@ -23,8 +23,8 @@ tests: samples symbols
 	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
 
 # CI run: no bundle, no network. Binary-dependent tests skip themselves via the
-# `sample!` macro when their sample isn't present, so CI runs the self-contained
-# suite green. (The committed maps support files — banzai.csv, loader.exe — are
+# `sample!` macro when their sample isn't present, and Windows-DLL tests via
+# `win_maps!` (no `make symbols` in CI), so CI runs the self-contained suite. (The committed maps support files — banzai.csv, loader.exe — are
 # enough for the tests that only need a maps folder.)
 test-ci:
 	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)

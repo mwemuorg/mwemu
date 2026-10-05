@@ -25,14 +25,16 @@ macro_rules! sample {
 /// DLLs once beforehand. Usage: `emu.cfg.maps_folder = win_maps!(64);`
 macro_rules! win_maps {
     (32) => {
-        win_maps!(@folder crate::tests::helpers::win32_maps_folder())
+        win_maps!(@folder crate::tests::helpers::win32_maps_folder(),
+            crate::tests::helpers::WIN32_TEST_DLLS)
     };
     (64) => {
-        win_maps!(@folder crate::tests::helpers::win64_maps_folder())
+        win_maps!(@folder crate::tests::helpers::win64_maps_folder(),
+            crate::tests::helpers::WIN64_TEST_DLLS)
     };
-    (@folder $folder:expr) => {{
+    (@folder $folder:expr, $dlls:expr) => {{
         let f = $folder;
-        if !crate::tests::helpers::win_maps_ready(&f) {
+        if !crate::tests::helpers::win_maps_ready(&f, $dlls) {
             eprintln!(
                 "[skip] {}: Windows DLLs missing in {} (run `make symbols`)",
                 module_path!(),
