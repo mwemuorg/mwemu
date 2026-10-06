@@ -1,3 +1,4 @@
+mod linux_go_runtime_syscalls;
 mod linux_libc_tests;
 mod macos_libsystem_tests;
 mod ssdt_win64_tests;
