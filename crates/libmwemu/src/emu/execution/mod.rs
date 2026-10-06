@@ -5,6 +5,7 @@ use iced_x86::Instruction;
 
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
+use crate::emu::emu_context;
 use crate::err::MwemuError;
 use crate::serialization;
 use crate::windows::peb::peb64;
@@ -133,6 +134,7 @@ impl Emu {
     /// Works for both x86 and aarch64. Handles hooks, threading, exit_position.
     #[inline]
     pub fn step(&mut self) -> bool {
+        emu_context::set_mem_trace(self.cfg.trace_mem);
         if self.cfg.arch.is_aarch64() {
             self.step_aarch64()
         } else {
@@ -293,6 +295,7 @@ impl Emu {
     /// Automatically dispatches to single or multi-threaded execution based on cfg.enable_threading.
     #[inline]
     pub fn run(&mut self, end_addr: Option<u64>) -> Result<u64, MwemuError> {
+        emu_context::set_mem_trace(self.cfg.trace_mem);
         if self.cfg.arch.is_aarch64() {
             self.run_aarch64(end_addr)
         } else {

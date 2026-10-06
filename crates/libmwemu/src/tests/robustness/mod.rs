@@ -9,6 +9,7 @@ mod instructions;
 mod loader;
 mod memory;
 mod misc_diff;
+mod oracle;
 mod pe_parse;
 mod rotates_diff;
 mod shifts_diff;

@@ -310,16 +310,9 @@ impl Mem64 {
     #[inline(always)]
     pub fn read_from(&self, addr: u64) -> &[u8] {
         if !self.can_read() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: read_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: read w/o permission at 0x{:x}", addr);
                 return &[];
@@ -334,18 +327,12 @@ impl Mem64 {
             sz = max_sz;
         }*/
         let r = self.mem.get(idx..max_sz).unwrap();
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: read_from: 0x{:x?} = {:x?}",
-                        self.build_addresses(addr, max_sz),
-                        r
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: read_from: 0x{:x?} = {:x?}",
+                self.build_addresses(addr, max_sz),
+                r
+            );
         }
         r
     }
@@ -375,18 +362,12 @@ impl Mem64 {
             return addr;
         }
         let r = self.mem.get(idx..sz2).unwrap();
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: read_bytes: 0x{:x?} = {:x?}",
-                        self.build_addresses(addr, sz),
-                        r
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: read_bytes: 0x{:x?} = {:x?}",
+                self.build_addresses(addr, sz),
+                r
+            );
         }
         r
     }
@@ -401,18 +382,12 @@ impl Mem64 {
             return bytes;
         }
         let r = self.mem.get(idx..sz2).unwrap();
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: read_bytes: 0x{:x?} = {:x?}",
-                        self.build_addresses(self.get_base(), self.size()),
-                        r
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: read_bytes: 0x{:x?} = {:x?}",
+                self.build_addresses(self.get_base(), self.size()),
+                r
+            );
         }
         r
     }
@@ -420,16 +395,9 @@ impl Mem64 {
     #[inline(always)]
     pub fn read_byte(&self, addr: u64) -> u8 {
         if !self.can_read() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: read_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: read w/o permission at 0x{:x}", addr);
                 return 0;
@@ -438,18 +406,12 @@ impl Mem64 {
 
         let idx = (addr - self.base_addr) as usize;
         let r = self.mem[idx];
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: read_byte: 0x{:x?} = 0x{:x}",
-                        self.build_addresses(addr, 1),
-                        r
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: read_byte: 0x{:x?} = 0x{:x}",
+                self.build_addresses(addr, 1),
+                r
+            );
         }
         r
     }
@@ -477,18 +439,12 @@ impl Mem64 {
     pub fn force_write_byte(&mut self, addr: u64, value: u8) {
         let idx = (addr - self.base_addr) as usize;
         self.mem[idx] = value;
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem: force_write_byte: 0x{:x?} = 0x{:x}",
-                        self.build_addresses(addr, 1),
-                        value
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem: force_write_byte: 0x{:x?} = 0x{:x}",
+                self.build_addresses(addr, 1),
+                value
+            );
         }
     }
 
@@ -496,18 +452,12 @@ impl Mem64 {
     pub fn force_write_bytes(&mut self, addr: u64, bs: &[u8]) {
         let idx = (addr - self.base_addr) as usize;
         self.mem[idx..(bs.len() + idx)].copy_from_slice(bs.as_ref());
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem: force_write_bytes: 0x{:x?} = {:?}",
-                        self.build_addresses(addr, bs.len()),
-                        bs
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem: force_write_bytes: 0x{:x?} = {:?}",
+                self.build_addresses(addr, bs.len()),
+                bs
+            );
         }
     }
 
@@ -537,18 +487,12 @@ impl Mem64 {
         v.push(0);
         self.force_write_bytes(addr, &v);
 
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem: force_write_string: 0x{:x?} = {:?}",
-                        self.build_addresses(addr, s.len() + 1),
-                        s
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem: force_write_string: 0x{:x?} = {:?}",
+                self.build_addresses(addr, s.len() + 1),
+                s
+            );
         }
     }
 
@@ -563,18 +507,12 @@ impl Mem64 {
 
         let idx = (addr - self.base_addr) as usize;
         self.mem[idx] = value;
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: write_byte: 0x{:x?} = 0x{:x}",
-                        self.build_addresses(addr, 1),
-                        value
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: write_byte: 0x{:x?} = 0x{:x}",
+                self.build_addresses(addr, 1),
+                value
+            );
         }
     }
 
@@ -589,18 +527,12 @@ impl Mem64 {
 
         let idx = (addr - self.base_addr) as usize;
         self.mem[idx..(bs.len() + idx)].copy_from_slice(bs.as_ref());
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: write_bytes: 0x{:x?} = {:x?}",
-                        self.build_addresses(addr, bs.len()),
-                        bs
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: write_bytes: 0x{:x?} = {:x?}",
+                self.build_addresses(addr, bs.len()),
+                bs
+            );
         }
     }
 
@@ -627,16 +559,9 @@ impl Mem64 {
     #[inline(always)]
     pub fn write_string(&mut self, addr: u64, s: &str) {
         if !self.can_write() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: write_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: write_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: write w/o permission at 0x{:x}", addr);
                 return;
@@ -649,35 +574,22 @@ impl Mem64 {
         }
         self.write_bytes(addr, &v);
 
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: write_string: 0x{:x?} = {} ({:x?})",
-                        self.build_addresses(addr, v.len()),
-                        s,
-                        v
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: write_string: 0x{:x?} = {} ({:x?})",
+                self.build_addresses(addr, v.len()),
+                s,
+                v
+            );
         }
     }
 
     #[inline(always)]
     pub fn read_string(&self, addr: u64) -> String {
         if !self.can_read() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: read_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: read w/o permission at 0x{:x}", addr);
                 return String::new();
@@ -694,18 +606,12 @@ impl Mem64 {
         let region = &self.mem[start..start + avail];
         let end = region.iter().position(|&b| b == 0).unwrap_or(avail);
         let s = &region[..end];
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: read_string: 0x{:x?} = {:x?}",
-                        self.build_addresses(addr, s.len() + 1),
-                        s
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: read_string: 0x{:x?} = {:x?}",
+                self.build_addresses(addr, s.len() + 1),
+                s
+            );
         }
         String::from_utf8_lossy(s).into_owned()
     }
@@ -713,16 +619,9 @@ impl Mem64 {
     #[inline(always)]
     pub fn write_wide_string(&mut self, addr: u64, s: &str) {
         if !self.can_write() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: write_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: write_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: write w/o permission at 0x{:x}", addr);
                 return;
@@ -736,34 +635,21 @@ impl Mem64 {
         let wide_string_byte_slice: &[u8] = cast_slice(&wide_string);
         self.write_bytes(addr, wide_string_byte_slice);
 
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: write_wide_string: 0x{:x?} = {} ({:x?})",
-                        self.build_addresses(addr, wide_string_byte_slice.len()),
-                        s,
-                        wide_string_byte_slice
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: write_wide_string: 0x{:x?} = {} ({:x?})",
+                self.build_addresses(addr, wide_string_byte_slice.len()),
+                s,
+                wide_string_byte_slice
+            );
         }
     }
 
     fn read_scalar<T: LittleEndianScalar + Into<u128>>(&self, addr: u64, trace: ScalarTrace) -> T {
         if !self.can_read() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: read_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
+            }
             log::warn!("mem: read w/o permission at 0x{:x}, returning 0", addr);
             let zeros = vec![0u8; T::SIZE];
             return crate::maps::scalar::read_le(&zeros).expect("incorrect length");
@@ -789,19 +675,13 @@ impl Mem64 {
         }
         let r: T =
             crate::maps::scalar::read_le(&self.mem[idx..idx + T::SIZE]).expect("incorrect length");
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: {}: 0x{:x?} = 0x{:x}",
-                        trace.label(),
-                        self.build_addresses(addr, T::SIZE),
-                        r.into()
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: {}: 0x{:x?} = 0x{:x}",
+                trace.label(),
+                self.build_addresses(addr, T::SIZE),
+                r.into()
+            );
         }
         r
     }
@@ -813,16 +693,9 @@ impl Mem64 {
         trace: ScalarTrace,
     ) {
         if !self.can_write() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: write_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: write_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: write w/o permission at 0x{:x}", addr);
                 return;
@@ -833,19 +706,13 @@ impl Mem64 {
         value.write_le(&mut buf);
         self.mem[idx..idx + T::SIZE].copy_from_slice(&buf[..T::SIZE]);
 
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: {}: 0x{:x?} = 0x{:x}",
-                        trace.label(),
-                        self.build_addresses(addr, T::SIZE),
-                        value.into()
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: {}: 0x{:x?} = 0x{:x}",
+                trace.label(),
+                self.build_addresses(addr, T::SIZE),
+                value.into()
+            );
         }
     }
 
@@ -860,35 +727,22 @@ impl Mem64 {
         value.write_le(&mut buf);
         self.mem[idx..idx + T::SIZE].copy_from_slice(&buf[..T::SIZE]);
 
-        if cfg!(feature = "log_mem_write") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem: {}: 0x{:x?} = 0x{:x}",
-                        trace.label(),
-                        self.build_addresses(addr, T::SIZE),
-                        value.into()
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem: {}: 0x{:x?} = 0x{:x}",
+                trace.label(),
+                self.build_addresses(addr, T::SIZE),
+                value.into()
+            );
         }
     }
 
     #[inline]
     pub fn read_wide_string(&self, addr: u64) -> String {
         if !self.can_read() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: read_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: read w/o permission at 0x{:x}", addr);
                 return String::new();
@@ -906,18 +760,12 @@ impl Mem64 {
             s.push(b);
             idx += 2;
         }
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: read_wide_string: 0x{:x?} = {:x?}",
-                        self.build_addresses(addr, s.len() + 1),
-                        s
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: read_wide_string: 0x{:x?} = {:x?}",
+                self.build_addresses(addr, s.len() + 1),
+                s
+            );
         }
 
         match String::from_utf16(&s) {
@@ -928,16 +776,9 @@ impl Mem64 {
 
     pub fn read_wide_string_n(&self, addr: u64, max_chars: usize) -> String {
         if !self.can_read() {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "FAILED doesn't have permission: read_from: 0x{:x?}",
-                        addr
-                    );
-                }
-            })
-            .unwrap();
+            if emu_context::mem_trace_enabled() {
+                log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
+            }
             {
                 log::warn!("mem: read w/o permission at 0x{:x}", addr);
                 return String::new();
@@ -954,18 +795,12 @@ impl Mem64 {
             s.push(b);
             idx += 2;
         }
-        if cfg!(feature = "log_mem_read") {
-            emu_context::with_current_emu(|emu| {
-                if emu.cfg.trace_mem {
-                    log_red!(
-                        emu,
-                        "mem_trace: read_wide_string_n: 0x{:x?} = {:x?}",
-                        self.build_addresses(addr, s.len() + 1),
-                        s
-                    );
-                }
-            })
-            .unwrap();
+        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+            log::trace!(
+                "mem_trace: read_wide_string_n: 0x{:x?} = {:x?}",
+                self.build_addresses(addr, s.len() + 1),
+                s
+            );
         }
         String::from_utf16_lossy(&s)
     }
