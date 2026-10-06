@@ -6,6 +6,7 @@ use super::super::helpers::*;
 /// LDPSW Xt1, Xt2, [addr]: load two 32-bit words, sign-extended to 64 bits.
 pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
     let (addr, wb) = resolve_mem_addr(emu, &ins.operands[2]);
+    guard_mem(emu, addr, 8, false);
     let (Some(v1), Some(v2)) = (emu.maps.read_dword(addr), emu.maps.read_dword(addr + 4)) else {
         log::warn!("LDPSW: cannot read 0x{:x}", addr);
         return false;
