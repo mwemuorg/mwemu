@@ -247,6 +247,26 @@ impl Mem64 {
         self.mem.len()
     }
 
+    /// Drop the first `n` bytes so the map starts at `base + n` (munmap of a head).
+    pub fn drop_front(&mut self, n: usize) {
+        self.mem.drain(..n);
+        self.base_addr += n as u64;
+    }
+
+    /// Keep only the first `n` bytes (munmap of a tail).
+    pub fn truncate(&mut self, n: usize) {
+        self.mem.truncate(n);
+        self.bottom_addr = self.base_addr + n as u64;
+    }
+
+    /// Cut the map at absolute address `at`, returning the bytes from there on
+    /// (munmap of a hole: the caller re-creates the tail as its own map).
+    pub fn split_off(&mut self, at: u64) -> Vec<u8> {
+        let tail = self.mem.split_off((at - self.base_addr) as usize);
+        self.bottom_addr = at;
+        tail
+    }
+
     #[inline(always)]
     pub fn get_base(&self) -> u64 {
         self.base_addr

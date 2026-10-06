@@ -137,7 +137,8 @@ pub struct ThreadContext {
     pub id: u64,                    // Thread ID (e.g., 0x1000, 0x1001, etc.)
     pub suspended: bool,            // Whether thread is suspended
     pub wake_tick: usize,           // Global tick when thread can next run (0 = runnable)
-    pub blocked_on_cs: Option<u64>, // Pointer to critical section if blocked
+    pub blocked_on_cs: Option<u64>, // Pointer to critical section (or futex word) if blocked
+    pub clear_child_tid: u64,       // Linux: word zeroed + futex-woken when the thread exits
     pub handle: u64,
     pub arch: ArchThreadState,
     pub exit_value: Option<u64>, // Some(retval) once the thread has finished (pthread_exit / return)
@@ -175,6 +176,7 @@ impl ThreadContext {
             suspended: false,
             wake_tick: 0, // 0 means runnable
             blocked_on_cs: None,
+            clear_child_tid: 0,
             handle: 0,
             arch: arch_state,
             exit_value: None,

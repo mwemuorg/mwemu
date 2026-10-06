@@ -9,7 +9,7 @@ mod utilities;
 use crate::maps::mem64::Permission;
 use crate::maps::scalar::{LittleEndianScalar, ScalarKind};
 use crate::maps::tlb::LPF_OF;
-use crate::utils::helpers::{likely, unlikely};
+use crate::utils::helpers::likely;
 use crate::windows::constants;
 use ahash::AHashMap;
 use mem64::Mem64;
@@ -110,6 +110,19 @@ impl Maps {
     }
 
     #[inline(always)]
+    /// `prefix`, or `prefix_N` for the first N that is not a map name yet.
+    /// Needed where bases are reused: a map trimmed by `unmap_range` keeps
+    /// its name while a fresh map may later land on its old base.
+    pub fn unique_map_name(&self, prefix: &str) -> String {
+        if !self.exists_mapname(prefix) {
+            return prefix.to_string();
+        }
+        (1..)
+            .map(|n| format!("{prefix}_{n}"))
+            .find(|name| !self.exists_mapname(name))
+            .expect("unbounded range")
+    }
+
     pub fn exists_mapname(&self, name: &str) -> bool {
         self.name_map.contains_key(name)
     }
@@ -712,6 +725,51 @@ impl Maps {
         self.maps.remove(&addr);
     }
 
+    /// Unmap `[addr, addr + len)` with Linux `munmap` semantics: maps fully
+    /// inside the range go away, maps that only partially overlap it are
+    /// trimmed, and a map that contains the whole range is split in two.
+    pub fn unmap_range(&mut self, addr: u64, len: u64) {
+        let Some(end) = addr.checked_add(len) else {
+            return;
+        };
+        let overlapping: Vec<u64> = self
+            .maps
+            .range(..end)
+            .filter(|(_, key)| self.mem_slab[**key].get_bottom() > addr)
+            .map(|(base, _)| *base)
+            .collect();
+        for base in overlapping {
+            let key = self.maps[&base];
+            let bottom = self.mem_slab[key].get_bottom();
+            if addr <= base && end >= bottom {
+                self.dealloc(base);
+            } else if addr <= base {
+                self.mem_slab[key].drop_front((end - base) as usize);
+                self.maps.remove(&base);
+                self.maps.insert(end, key);
+            } else if end >= bottom {
+                self.mem_slab[key].truncate((addr - base) as usize);
+            } else {
+                let mem = &mut self.mem_slab[key];
+                let tail = mem.split_off(end);
+                mem.truncate((addr - base) as usize);
+                let perm = mem.permission();
+                let name = format!("{}_{:x}", mem.get_name(), end);
+                match self.create_map(&name, end, tail.len() as u64, perm) {
+                    Ok(m) => m.force_write_bytes(end, &tail),
+                    Err(e) => log::error!("unmap_range: cannot re-create tail: {e}"),
+                }
+            }
+        }
+        self.tlb.borrow_mut().flush();
+    }
+
+    /// Whether no map touches `[addr, addr + len)`.
+    pub fn is_range_free(&self, addr: u64, len: u64) -> bool {
+        let end = addr.saturating_add(len);
+        !self.is_mapped(addr) && self.maps.range(addr..end).next().is_none()
+    }
+
     pub fn map(&mut self, name: &str, sz: u64, permission: Permission) -> u64 {
         let addr = self.alloc(sz).expect("emu.maps.map(sz) cannot allocate");
         self.create_map(name, addr, sz, permission)
@@ -736,6 +794,13 @@ impl Maps {
         self._alloc(sz, constants::LIBS64_MIN, constants::LIBS64_MAX, true)
     }
 
+    /// Like `lib64_alloc` but the gap search honours the full `sz`, never the
+    /// `max_alloc_size` cap: an mmap reservation must own its whole span even
+    /// when the caller backs only part of it, or the next mapping lands inside.
+    pub fn lib64_reserve(&self, sz: u64) -> Option<u64> {
+        self._alloc_uncapped(sz, constants::LIBS64_MIN, constants::LIBS64_MAX)
+    }
+
     pub fn lib32_alloc(&self, sz: u64) -> Option<u64> {
         self._alloc(sz, constants::LIBS32_MIN, constants::LIBS32_MAX, true)
     }
@@ -749,7 +814,11 @@ impl Maps {
         }
     }
 
-    fn _alloc(&self, size: u64, bottom: u64, top: u64, lib: bool) -> Option<u64> {
+    fn _alloc(&self, size: u64, bottom: u64, top: u64, _lib: bool) -> Option<u64> {
+        self._alloc_uncapped(size.min(self.max_alloc_size), bottom, top)
+    }
+
+    fn _alloc_uncapped(&self, size: u64, bottom: u64, top: u64) -> Option<u64> {
         /*
          * The idea behind this is that we just get the last entry in the range from bottom to top and
          * add the size to that address and check if it out of the top range, if it is false then we found the
@@ -766,14 +835,8 @@ impl Maps {
 
         let bottom_aligned = self.align_up(bottom, Self::DEFAULT_ALIGNMENT);
 
-        let size_max = if unlikely(size > self.max_alloc_size) {
-            self.max_alloc_size
-        } else {
-            size
-        };
-
         // Round up size to alignment
-        let aligned_size = self.align_up(size_max, Self::DEFAULT_ALIGNMENT);
+        let aligned_size = self.align_up(size, Self::DEFAULT_ALIGNMENT);
         let last_entry_end = self
             .maps
             .range(..top)

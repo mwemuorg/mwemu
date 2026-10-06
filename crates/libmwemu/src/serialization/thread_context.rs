@@ -44,6 +44,8 @@ pub struct SerializableThreadContext {
     pub suspended: bool,
     pub wake_tick: usize,
     pub blocked_on_cs: Option<u64>,
+    #[serde(default)]
+    pub clear_child_tid: u64,
     pub handle: u64,
     pub arch: SerializableThreadArch,
 }
@@ -81,6 +83,7 @@ impl From<&ThreadContext> for SerializableThreadContext {
                     suspended: thread.suspended,
                     wake_tick: thread.wake_tick,
                     blocked_on_cs: thread.blocked_on_cs,
+                    clear_child_tid: thread.clear_child_tid,
                     handle: thread.handle,
                     arch: SerializableThreadArch::X86 {
                         regs: *regs,
@@ -116,6 +119,7 @@ impl From<&ThreadContext> for SerializableThreadContext {
                     suspended: thread.suspended,
                     wake_tick: thread.wake_tick,
                     blocked_on_cs: thread.blocked_on_cs,
+                    clear_child_tid: thread.clear_child_tid,
                     handle: thread.handle,
                     arch: SerializableThreadArch::AArch64 {
                         regs: *regs,
@@ -135,6 +139,7 @@ impl From<SerializableThreadContext> for ThreadContext {
             suspended: serialized.suspended,
             wake_tick: serialized.wake_tick,
             blocked_on_cs: serialized.blocked_on_cs,
+            clear_child_tid: serialized.clear_child_tid,
             handle: serialized.handle,
             exit_value: None,
             joining: None,

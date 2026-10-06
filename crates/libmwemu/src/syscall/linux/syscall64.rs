@@ -4,8 +4,11 @@ mod fs;
 mod memory;
 mod misc;
 mod net;
+mod poll;
 mod proc;
 mod signal;
+mod thread;
+mod time;
 /*
  * /usr/include/asm/unistd_64.h
  *
@@ -29,7 +32,10 @@ pub fn gateway(emu: &mut emu::Emu) {
     if !emu.call_syscall_hook(nr) {
         return;
     }
-    if fs::dispatch(emu)
+    if thread::dispatch(emu)
+        || poll::dispatch(emu)
+        || time::dispatch(emu)
+        || fs::dispatch(emu)
         || proc::dispatch(emu)
         || net::dispatch(emu)
         || memory::dispatch(emu)
