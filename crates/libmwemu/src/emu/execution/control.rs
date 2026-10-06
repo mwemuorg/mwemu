@@ -132,6 +132,7 @@ impl Emu {
             self.cfg.verbose = 3;
             self.cfg.trace_mem = true;
             self.cfg.trace_regs = true;
+            crate::emu::emu_context::set_mem_trace(true);
         }
     }
 
