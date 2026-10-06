@@ -9,9 +9,6 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::{env, fs};
 
-#[cfg(target_os = "windows")]
-use windows_sys::Win32::Storage::FileSystem::GetLogicalDrives;
-
 /*
 * Example of used:
 fn main() -> std::io::Result<()> {
@@ -373,18 +370,15 @@ impl FileSystem {
     pub fn list_drives(&self) -> io::Result<HashSet<char>> {
         let mut drives = HashSet::with_capacity(2);
 
-        // If root is empty and we're on Windows, list logical drives
+        // If root is empty and we're on Windows, probe the real drive letters.
+        // `exists()` on `X:\` is a plain std call (no Win32 FFI, no `unsafe`);
+        // the one behavioural difference from `GetLogicalDrives` is that an
+        // empty removable drive is reported as absent rather than present.
         #[cfg(target_os = "windows")]
         if self.root.as_os_str().is_empty() {
-            // SAFETY: `GetLogicalDrives` is a parameterless Win32 call that just
-            // returns a bitmask; there are no pointer or lifetime invariants.
-            unsafe {
-                let drive_bits = GetLogicalDrives();
-                for drive in b'a'..=b'z' {
-                    let drive_index = (drive - b'a') as u32;
-                    if drive_bits & (1 << drive_index) != 0 {
-                        drives.insert(drive as char);
-                    }
+            for drive in 'a'..='z' {
+                if Path::new(&format!("{}:\\", drive)).exists() {
+                    drives.insert(drive);
                 }
             }
             return Ok(drives);

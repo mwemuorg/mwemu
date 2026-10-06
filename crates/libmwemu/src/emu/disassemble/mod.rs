@@ -297,8 +297,10 @@ impl InstructionCache<DecodedInstruction> {
         let index = self.current_instruction_slot + self.current_decode_idx;
         match self.instructions[index] {
             DecodedInstruction::X86(ins) => *out = ins,
+            // Only the x86 run loop fills and drains this cache, so an AArch64
+            // entry here is a cache bug: fail loudly rather than invoke UB.
             DecodedInstruction::AArch64(_) => {
-                unsafe { std::hint::unreachable_unchecked() } // the code will never hit aarch64 consider it is called from InstructionCache x86
+                unreachable!("x86 instruction cache holds an AArch64 entry")
             }
         }
         self.current_decode_idx += 1;
@@ -314,8 +316,9 @@ impl InstructionCache<DecodedInstruction> {
         let index = self.current_instruction_slot + self.current_decode_idx;
         match self.instructions[index] {
             DecodedInstruction::AArch64(ins) => *out = ins,
+            // Mirror of the x86 case: an x86 entry in the AArch64 cache is a bug.
             DecodedInstruction::X86(_) => {
-                unsafe { std::hint::unreachable_unchecked() } // the code will never hit aarch64 consider it is called from InstructionCache x86
+                unreachable!("AArch64 instruction cache holds an x86 entry")
             }
         }
         self.current_decode_idx += 1;

@@ -4,13 +4,15 @@
 
 extern crate clap;
 
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
+use libmwemu::emu::Emu;
 use libmwemu::emu_aarch64;
 use libmwemu::emu32;
 use libmwemu::emu64;
 use libmwemu::serialization;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
-use std::{panic, process};
+use std::process;
 //use libmwemu::definitions;
 use fast_log::Config;
 use fast_log::appender::{Command, FastLogRecord, RecordFormat};
@@ -689,31 +691,30 @@ fn main() -> process::ExitCode {
     // definitions
     //emu.cfg.definitions = definitions::load_definitions("definitions/test.json");
 
-    // setup hook to flush the log when end the program
-    let orig_hook = panic::take_hook();
-    panic::set_hook(Box::new(move |panic_info| {
-        // Try to log emulator state if available
-        libmwemu::emu_context::with_current_emu(|emu| {
-            // log state
-            libmwemu::emu_context::log_emu_state(emu);
-
-            // dump on exit
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(emu, emu.cfg.dump_filename.as_ref().unwrap());
+    // Run the emulation under `catch_unwind` so a panic anywhere in the run
+    // still gets the state dump: once the stack has unwound we own `emu`
+    // again and can read it safely (no global pointer to a borrowed `Emu`).
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| execute(&mut emu, &matches, &filename)));
+    match outcome {
+        Ok(code) => code,
+        Err(payload) => {
+            libmwemu::emu_context::log_emu_state(&emu);
+            if emu.cfg.dump_on_exit
+                && let Some(dump_filename) = emu.cfg.dump_filename.as_ref()
+            {
+                serialization::Serialization::dump(&emu, dump_filename);
             }
-        });
+            log::logger().flush();
+            panic::resume_unwind(payload)
+        }
+    }
+}
 
-        // flush all the log
-        log::logger().flush();
-        // invoke the default handler and exit the process
-        orig_hook(panic_info);
-    }));
-
-    // set current
-    libmwemu::emu_context::set_current_emu(&emu);
-
+/// Load the binary and drive it in the mode the command line selected
+/// (script, GDB server, kernel module init, or a plain run).
+fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::ExitCode {
     // load code
-    emu.load_code(&filename);
+    emu.load_code(filename);
 
     // --sys: override OS after load_code autodetection
     if let Some(sys_str) = matches.value_of("sys") {
@@ -743,9 +744,9 @@ fn main() -> process::ExitCode {
     if matches.is_present("dump") {
         let dump_filename = matches.value_of("dump").expect("specify the dump filename");
         log::info!("loading dump from {}", dump_filename);
-        let old_config = emu.cfg;
-        emu = serialization::Serialization::load(dump_filename);
-        emu.cfg = old_config;
+        let mut loaded = serialization::Serialization::load(dump_filename);
+        loaded.cfg = std::mem::take(&mut emu.cfg);
+        *emu = loaded;
         emu.maps.set_banzai(emu.cfg.skip_unimplemented);
     }
 
@@ -760,10 +761,7 @@ fn main() -> process::ExitCode {
         );
 
         // Run script
-        script.run(&mut emu);
-
-        // Clear the current emu
-        libmwemu::emu_context::clear_current_emu();
+        script.run(emu);
     } else if matches.is_present("gdb") {
         // GDB server mode
         let port: u16 = matches
@@ -774,7 +772,7 @@ fn main() -> process::ExitCode {
         log::info!("Starting GDB remote debugging server...");
 
         let mut server = libmwemu::gdb::GdbServer::new(port, emu.cfg.arch);
-        match server.run(&mut emu) {
+        match server.run(emu) {
             Ok(()) => {
                 log::info!("GDB session ended normally");
             }
@@ -783,8 +781,6 @@ fn main() -> process::ExitCode {
             }
         }
 
-        // Clear the current emu
-        libmwemu::emu_context::clear_current_emu();
         log::logger().flush();
     } else {
         // Kernel module (.ko): its "entry" is init_module, and load_code left PC
@@ -807,7 +803,6 @@ fn main() -> process::ExitCode {
                     println!("{}", f.report());
                 }
             }
-            libmwemu::emu_context::clear_current_emu();
             log::logger().flush();
             return process::ExitCode::SUCCESS;
         }
@@ -820,7 +815,7 @@ fn main() -> process::ExitCode {
         if let Err(ref e) = result
             && e.message != "empty code block"
         {
-            libmwemu::emu_context::log_emu_state(&emu);
+            libmwemu::emu_context::log_emu_state(emu);
         }
 
         // --memory-guard: check leaks and report all findings
@@ -839,9 +834,6 @@ fn main() -> process::ExitCode {
                 }
             }
         }
-
-        // Clear the current emu
-        libmwemu::emu_context::clear_current_emu();
 
         log::logger().flush();
         if let Err(e) = result {

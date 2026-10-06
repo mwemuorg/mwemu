@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::Cell;
 
 use crate::emu::Emu;
 use crate::emu::decoded_instruction::DecodedInstruction;
@@ -19,45 +19,25 @@ fn format_decoded(decoded: &DecodedInstruction) -> String {
     }
 }
 
+// `Mem64` has no access to `Emu` (it only gets `&self`), yet its per-access
+// trace lines (`log_mem_read` / `log_mem_write` features) must still honour
+// `cfg.trace_mem`. Rather than keeping a raw `*const Emu` around — which
+// aliased the run loop's `&mut Emu` — the run loop publishes the one bool the
+// memory layer needs. Plain data, no pointer, no `unsafe`.
 thread_local! {
-    static CURRENT_EMU: RefCell<Option<*const Emu>> = const { RefCell::new(None) };
+    static MEM_TRACE: Cell<bool> = const { Cell::new(false) };
 }
 
-pub fn with_current_emu<F, R>(f: F) -> Option<R>
-where
-    F: FnOnce(&Emu) -> R,
-{
-    CURRENT_EMU.with(|current| {
-        current
-            .borrow()
-            // SAFETY: the stored pointer (if any) was set by `set_current_emu`
-            // from a live `&Emu` and is cleared via `clear_current_emu` before
-            // that `Emu` is dropped, so it is non-null and points at a live
-            // value here. `f` only gets a shared `&Emu`.
-            //
-            // CAVEAT: this reconstructs a `&Emu` from a raw pointer while the
-            // owner may simultaneously hold a `&mut Emu` further up the stack
-            // (e.g. the run loop). That is the fragile part of this global-
-            // pointer pattern — see the module note in the issue. It is only
-            // used for read-only logging of emulator state.
-            .and_then(|ptr| unsafe { ptr.as_ref().map(f) })
-    })
+/// Publish `cfg.trace_mem` for this thread's memory layer. Called by the run
+/// loop entry points, so toggling `cfg.trace_mem` between runs takes effect.
+pub fn set_mem_trace(enabled: bool) {
+    MEM_TRACE.with(|flag| flag.set(enabled));
 }
 
-pub fn set_current_emu(emu: &Emu) {
-    CURRENT_EMU.with(|current| {
-        *current.borrow_mut() = Some(emu as *const _);
-    });
-}
-
-pub fn clear_current_emu() {
-    CURRENT_EMU.with(|current| {
-        *current.borrow_mut() = None;
-    });
-}
-
-pub fn is_emu_set() -> bool {
-    CURRENT_EMU.with(|current| current.borrow().is_some())
+/// Whether `Mem64` should emit its per-access trace lines on this thread.
+#[inline]
+pub fn mem_trace_enabled() -> bool {
+    MEM_TRACE.with(|flag| flag.get())
 }
 
 pub fn log_emu_state(emu: &Emu) {
