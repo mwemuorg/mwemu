@@ -52,9 +52,6 @@ dunce = "1.0.5"
 soft-canonicalize = { version = "0.5", features = ["dunce"] }
 flate2 = "1"
 
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.62.2", features = ["Win32_System_SystemInformation"] }
-windows-sys = { version = "0.59", features = ["Win32", "Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
 env_logger = "0.11.8"
