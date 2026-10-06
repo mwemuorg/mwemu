@@ -70,12 +70,18 @@ fn build_sample(dir: &std::path::Path) -> Option<std::path::PathBuf> {
         .arg(&bin)
         .arg(&src)
         .env("CGO_ENABLED", "0")
+        // Pin the target so the sample is always a Linux x86_64 ELF, whatever
+        // the host is: a bare `go build` on a macOS runner would emit a Mach-O
+        // that this ELF-Linux test cannot load.
+        .env("GOOS", "linux")
+        .env("GOARCH", "amd64")
         .status()
         .ok()?;
     status.success().then_some(bin)
 }
 
 #[test]
+#[cfg(not(target_os = "windows"))] // Windows runners don't run this one
 fn elf64lin_go_goroutines_timers_exec() {
     helpers::setup();
     let dir = tempfile::tempdir().expect("scratch dir");
