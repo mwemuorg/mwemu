@@ -6,5 +6,6 @@ mod mem64_test;
 mod memmove_test;
 mod rdrand_rdseed;
 mod sse_moves;
+mod sse_scalar_arith;
 mod stack64_test;
 mod x86tester_regressions;
