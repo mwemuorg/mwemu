@@ -34,7 +34,6 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "sleep" | "usleep" | "nanosleep" => api_sleep(emu, name),
         "gettimeofday" => api_gettimeofday(emu),
         "clock_gettime" => api_clock_gettime(emu),
-        "getppid" => api_getppid(emu),
         "srand" | "srandom" => api_srand(emu),
         "rand" | "random" => api_rand(emu, 0x7fff_ffff),
         "arc4random" => api_rand(emu, u32::MAX as u64),
@@ -58,13 +57,12 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         | "pthread_mutex_unlock"
         | "pthread_mutex_destroy" => api_return(emu, name, 0),
         "pthread_once" => api_pthread_once(emu),
-        "pthread_self" => api_return(emu, name, 0x1000),
         _ => return false,
     }
     true
 }
 
-fn trace(emu: &Emu, call: &str) {
+pub(super) fn trace(emu: &Emu, call: &str) {
     log::info!(
         "{}** {} macOS API {} {}",
         emu.colors.light_red,
@@ -256,11 +254,6 @@ fn api_clock_gettime(emu: &mut Emu) {
     }
     trace(emu, &format!("clock_gettime() -> {}", now.as_secs()));
     abi.set_ret(emu, 0);
-}
-
-fn api_getppid(emu: &mut Emu) {
-    trace(emu, "getppid() -> 1");
-    ApiAbi::from_emu(emu).set_ret(emu, 1);
 }
 
 /// PRNG state lives in a tiny emulated map so it survives between calls

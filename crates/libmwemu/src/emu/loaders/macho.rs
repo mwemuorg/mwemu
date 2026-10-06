@@ -115,6 +115,16 @@ impl Emu {
             self.inject_macos_globals(&mut export_map, &mut macho.addr_to_symbol);
         }
 
+        // Return-address sentinels: `main` returns into exit(), as dyld would.
+        if self.cfg.arch.is_aarch64() {
+            self.map_macos_sentinels(&mut macho.addr_to_symbol);
+            if let Some(main_return) =
+                crate::macosapi::sentinel_addr(self, crate::macosapi::MAIN_RETURN)
+            {
+                self.regs_aarch64_mut().x[30] = main_return;
+            }
+        }
+
         // Stage 3: Parse chained fixups and resolve GOT entries + rebases
         let (imports, binds, rebases) = macho.parse_chained_fixups();
         log::trace!(
@@ -160,6 +170,20 @@ impl Emu {
         }
 
         self.macho64 = Some(macho);
+    }
+
+    /// Map the sentinel page in the library range so branching or returning
+    /// to it is intercepted like any other API call.
+    fn map_macos_sentinels(&mut self, addr_to_sym: &mut HashMap<u64, String>) {
+        use crate::maps::mem64::Permission;
+        let base = self.maps.map_lib(
+            crate::macosapi::SENTINEL_MAP,
+            0x1000,
+            Permission::READ_EXECUTE,
+        );
+        for (i, sym) in crate::macosapi::SENTINELS.iter().enumerate() {
+            addr_to_sym.insert(base + 4 * i as u64, sym.to_string());
+        }
     }
 
     /// Allocate global data symbols required by macOS binaries and inject them

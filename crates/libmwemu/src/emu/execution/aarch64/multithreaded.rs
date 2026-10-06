@@ -114,9 +114,7 @@ impl Emu {
                     if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
                         return Ok(self.regs_aarch64().pc);
                     }
-                    let any_runnable = self.threads.iter().any(|t| {
-                        !t.suspended && t.wake_tick <= self.tick && t.blocked_on_cs.is_none()
-                    });
+                    let any_runnable = self.threads.iter().any(|t| t.is_runnable(self.tick));
                     if !any_runnable {
                         return Err(MwemuError::new("all emulated threads blocked or suspended"));
                     }

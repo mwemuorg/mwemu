@@ -122,6 +122,7 @@ impl Emu {
             threads: vec![ThreadContext::new(0x1000, arch)],
             current_thread_id: 0,
             global_locks: GlobalLocks::new(),
+            processes: crate::threading::process::ProcessTable::new(),
             definitions: HashMap::new(),
             stored_contexts: HashMap::new(),
             entropy: 0.0,
