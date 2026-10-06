@@ -119,7 +119,8 @@ pub fn apply_shift32(val: u32, style: ShiftStyle, amt: u32) -> u64 {
 }
 
 /// Read `bytes` (1, 2, 4 or 8) little-endian bytes, zero-extended.
-pub fn read_mem(emu: &Emu, addr: u64, bytes: u64) -> Option<u64> {
+pub fn read_mem(emu: &mut Emu, addr: u64, bytes: u64) -> Option<u64> {
+    guard_mem(emu, addr, bytes as u32, false);
     match bytes {
         1 => emu.maps.read_byte(addr).map(u64::from),
         2 => emu.maps.read_word(addr).map(u64::from),
@@ -130,6 +131,7 @@ pub fn read_mem(emu: &Emu, addr: u64, bytes: u64) -> Option<u64> {
 
 /// Write the low `bytes` (1, 2, 4 or 8) bytes of `val`.
 pub fn write_mem(emu: &mut Emu, addr: u64, bytes: u64, val: u64) -> bool {
+    guard_mem(emu, addr, bytes as u32, true);
     match bytes {
         1 => emu.maps.write_byte(addr, val as u8),
         2 => emu.maps.write_word(addr, val as u16),
@@ -210,4 +212,16 @@ pub fn write_fp(emu: &mut Emu, op: &Operand, val: f64) -> bool {
     };
     emu.regs_aarch64_mut().v[*r as usize] = raw;
     true
+}
+
+/// Submit an aarch64 memory access to the kernel memory-safety guard when a
+/// driver (or `--memory-guard`) is active. A plain bool check keeps ordinary
+/// userspace runs free; only guarded runs pay for the ledger lookup. This is
+/// the aarch64 counterpart of the hooks the x86 operand decoder already has.
+#[inline]
+pub fn guard_mem(emu: &mut Emu, addr: u64, bytes: u32, is_write: bool) {
+    if emu.kernel_guard {
+        let rip = emu.regs_aarch64().pc;
+        emu.kernel_guard_access(rip, addr, bytes, is_write);
+    }
 }

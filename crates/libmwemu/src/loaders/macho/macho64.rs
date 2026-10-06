@@ -9,6 +9,8 @@ const MH_MAGIC_64: u32 = 0xFEEDFACF;
 const FAT_MAGIC_64: u32 = 0xBEBAFECA; // = CAFEBABE
 const CPU_TYPE_ARM64: u32 = 0x0100000C;
 const CPU_TYPE_X86_64: u32 = 0x01000007;
+/// `mach_header_64.filetype` for a kernel extension.
+const MH_KEXT_BUNDLE: u32 = 0x0b;
 
 // Chained fixup pointer format constants
 const DYLD_CHAINED_PTR_64_OFFSET: u16 = 6;
@@ -89,6 +91,24 @@ impl Macho64 {
         }
 
         false
+    }
+
+    /// Detect a Mach-O kernel extension (`MH_KEXT_BUNDLE`). A kext is also an
+    /// arm64/x86_64 Mach-O, so this must be checked before the generic
+    /// detectors to route it to the kernel-mode loader. Only plain (non-FAT)
+    /// images are classified here — that is what the kext toolchain emits.
+    pub fn is_macho64_kext(filename: &str) -> bool {
+        let mut f = match std::fs::File::open(filename) {
+            Ok(f) => f,
+            Err(_) => return false,
+        };
+        let mut buf = [0u8; 16];
+        if f.read_exact(&mut buf).is_err() {
+            return false;
+        }
+        let magic = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+        let filetype = u32::from_le_bytes([buf[12], buf[13], buf[14], buf[15]]);
+        magic == MH_MAGIC_64 && filetype == MH_KEXT_BUNDLE
     }
 
     /// Detect a 64-bit x86_64 Mach-O file by reading the first 8 bytes.
@@ -514,17 +534,20 @@ impl Macho64 {
             let raw = u64::from_le_bytes(self.bin[file_off..file_off + 8].try_into().unwrap());
 
             let (bind, next, ordinal, stride) = match pointer_format {
-                // DYLD_CHAINED_PTR_ARM64E (1) / ARM64E_USERLAND24 (12):
-                //   auth:1@63, bind:1@62, next:11@51..61
-                1 | 12 => {
+                // DYLD_CHAINED_PTR_ARM64E (1) / ARM64E_KERNEL (7) /
+                // ARM64E_USERLAND24 (12): auth:1@63, bind:1@62, next:11@51..61.
+                // Ordinal is 24-bit only for USERLAND24; 16-bit otherwise. The
+                // KERNEL format (kexts) chains in 4-byte strides, the others 8.
+                1 | 7 | 12 => {
                     let bind = (raw >> 62) & 1;
                     let next = ((raw >> 51) & 0x7FF) as usize;
-                    let ordinal_mask = if pointer_format == 1 {
-                        0xFFFF
-                    } else {
+                    let ordinal_mask = if pointer_format == 12 {
                         0xFF_FFFF
+                    } else {
+                        0xFFFF
                     };
-                    (bind, next, (raw & ordinal_mask) as u32, 8usize)
+                    let stride = if pointer_format == 7 { 4 } else { 8 };
+                    (bind, next, (raw & ordinal_mask) as u32, stride)
                 }
                 // DYLD_CHAINED_PTR_64 (2) / DYLD_CHAINED_PTR_64_OFFSET (6):
                 //   bind:1@63, next:12@51..62, ordinal:24@0..23
@@ -563,20 +586,21 @@ impl Macho64 {
 
 /// Decode a non-bind chained pointer per `dyld_chained_fixups.h`.
 /// Plain ARM64E (1) and PTR_64 (2) rebases hold an absolute vmaddr; the
-/// userland/offset formats (6, 12) and every authenticated rebase hold an
-/// offset from the image base.
+/// userland/offset/kernel formats (6, 7, 12) and every authenticated rebase
+/// hold an offset from the image base. Authenticated pointers carry a 32-bit
+/// target; plain ARM64E-family pointers a 43-bit target plus a high byte.
 fn decode_rebase(pointer_format: u16, raw: u64, vmaddr: u64) -> ChainedRebase {
-    let auth = matches!(pointer_format, 1 | 12) && raw >> 63 == 1;
+    let auth = matches!(pointer_format, 1 | 7 | 12) && raw >> 63 == 1;
     let (target, high8) = match pointer_format {
         _ if auth => (raw & 0xFFFF_FFFF, 0),
-        1 | 12 => (raw & 0x7FF_FFFF_FFFF, (raw >> 43) & 0xFF),
+        1 | 7 | 12 => (raw & 0x7FF_FFFF_FFFF, (raw >> 43) & 0xFF),
         _ => (raw & 0xF_FFFF_FFFF, (raw >> 36) & 0xFF),
     };
     ChainedRebase {
         vmaddr,
         target,
         high8,
-        relative: auth || matches!(pointer_format, 6 | 12),
+        relative: auth || matches!(pointer_format, 6 | 7 | 12),
     }
 }
 
@@ -631,6 +655,16 @@ mod tests {
     fn userland24_rebase_is_relative_with_high8() {
         let raw = NEXT | (0xAB << 43) | 0x4010;
         assert_eq!(decode_rebase(12, raw, 0x1000), rebase(0x4010, 0xAB, true));
+    }
+
+    #[test]
+    fn arm64e_kernel_rebase_is_relative() {
+        // Format 7 (kext) rebases are image-relative; auth carries a 32-bit
+        // target, plain a 43-bit target plus high8.
+        let auth = (1u64 << 63) | NEXT | 0x4010;
+        assert_eq!(decode_rebase(7, auth, 0x1000), rebase(0x4010, 0, true));
+        let plain = NEXT | (0xAB << 43) | 0x4010;
+        assert_eq!(decode_rebase(7, plain, 0x1000), rebase(0x4010, 0xAB, true));
     }
 
     #[test]

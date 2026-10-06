@@ -14,6 +14,7 @@ use rs_header::pe::{
 };
 
 mod elf;
+mod kext;
 mod ko;
 mod macho;
 mod pe;
@@ -175,6 +176,28 @@ impl Emu {
             // load_elf64 handles thread conversion (via init_linux64_aarch64)
             // and sets PC via set_pc()
             self.load_elf64(filename);
+
+        // Mach-O kernel extension (MH_KEXT_BUNDLE). Checked before the
+        // generic Mach-O branches: a kext is also an arm64/x86_64 Mach-O, but
+        // it has no entry point and is linked into the emulated kernel rather
+        // than run as a process. Loading links it and leaves PC at its `start`
+        // so a plain `mwemu -f driver.kext` does what kextload would.
+        } else if Macho64::is_macho64_kext(filename)
+            && Macho64::is_macho64_aarch64(filename)
+            && !self.cfg.shellcode
+        {
+            self.maps.clear();
+            log::trace!("macho64 kext detected.");
+            match self.load_kext_macho64(filename) {
+                Ok(_) => {
+                    let retpad = self.kernel.as_ref().map(|k| k.layout.retpad()).unwrap_or(0);
+                    if let Some(init) = self.kernel.as_ref().and_then(|k| k.module.init) {
+                        self.stack_push64(retpad);
+                        self.set_pc(init);
+                    }
+                }
+                Err(err) => log::error!("cannot load kext: {err}"),
+            }
 
         // Mach-O AArch64
         } else if Macho64::is_macho64_aarch64(filename) && !self.cfg.shellcode {

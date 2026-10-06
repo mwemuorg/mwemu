@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver test_macos
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -45,6 +45,12 @@ clippy-release:
 # themselves when the artefact is absent, so this is optional.
 driver:
 	$(MAKE) -C drivers/linux/tlm install TESTDIR=$(abspath $(TEST_DIR))
+
+# macOS kext test target: builds drivers/macos/tlm into
+# test/macos_uaf_driver.kext (arm64e). Needs the macOS SDK + clang; the
+# kernel-mode kext tests skip when the artefact is absent, so CI stays green.
+macos-driver:
+	$(MAKE) -C drivers/macos/tlm install TESTDIR=$(abspath $(TEST_DIR))
 
 # Sample PE bundle (msgbox, enigma, ...), fetched once from the mwemu release
 # assets. Everything that needs a sample depends on this, so a fresh checkout

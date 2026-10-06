@@ -17,6 +17,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
             SIMDSizeCode::S => 4,
             _ => 16,
         };
+        guard_mem(emu, addr, (reg_bytes * 2) as u32, true);
         write_simd_to_mem(emu, addr, v1, reg_bytes);
         write_simd_to_mem(emu, addr + reg_bytes, v2, reg_bytes);
         do_writeback(emu, wb);
@@ -29,6 +30,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
     let v1 = read_reg(emu, &ins.operands[0]);
     let v2 = read_reg(emu, &ins.operands[1]);
     let (addr, wb) = resolve_mem_addr(emu, &ins.operands[2]);
+    guard_mem(emu, addr, (sz * 2) as u32, true);
 
     if is64 {
         emu.maps.write_qword(addr, v1);

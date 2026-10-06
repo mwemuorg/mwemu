@@ -141,6 +141,8 @@ impl From<SerializableThreadContext> for ThreadContext {
             blocked_on_cs: serialized.blocked_on_cs,
             clear_child_tid: serialized.clear_child_tid,
             handle: serialized.handle,
+            exit_value: None,
+            joining: None,
             arch: match serialized.arch {
                 SerializableThreadArch::X86 {
                     regs,

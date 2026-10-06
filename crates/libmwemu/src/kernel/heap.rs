@@ -78,7 +78,7 @@ impl KernelChunk {
 }
 
 /// The allocation ledger for one emulated kernel.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KernelHeap {
     slab_cursor: u64,
     slab_end: u64,

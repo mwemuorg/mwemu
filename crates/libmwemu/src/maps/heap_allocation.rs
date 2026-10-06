@@ -13,12 +13,24 @@ const O1HEAP_ALIGNMENT: usize = 256; // Must be a power of 2
 const FRAGMENT_SIZE_MIN: usize = 256;
 const FRAGMENT_SIZE_MAX: usize = (usize::MAX >> 1) + 1;
 
+#[derive(Clone)]
 pub struct O1HeapDiagnostics {
     pub capacity: usize,
     pub allocated: usize,
     pub peak_allocated: usize,
     pub peak_request_size: usize,
     pub oom_count: usize,
+}
+
+/// Plain-data copy of an `O1Heap`: the fragment list in address order plus
+/// the offsets indexed by `hashes`. Rebuilding from it gives a heap that
+/// shares no nodes with the original (an `Rc` clone would share them).
+#[derive(Clone)]
+pub struct O1HeapSnapshot {
+    base: u64,
+    diagnostics: O1HeapDiagnostics,
+    fragments: Vec<(u32, u32, bool)>, // (offset, size, used)
+    hash_keys: Vec<u32>,
 }
 
 /// Result of a successful reallocation.
@@ -69,6 +81,13 @@ pub struct O1Heap {
     hashes: HashMap<u32, RCFrag, nohash_hasher::BuildNoHashHasher<u32>>,
     nonempty_bin_mask: usize,
     diagnostics: O1HeapDiagnostics,
+}
+
+impl Clone for O1Heap {
+    /// Deep copy: the clone shares no fragment nodes with `self`.
+    fn clone(&self) -> Self {
+        Self::from_snapshot(&self.snapshot())
+    }
 }
 
 impl O1Heap {
@@ -170,6 +189,81 @@ impl O1Heap {
 
         self.bins[idx] = Some(fragment);
         self.nonempty_bin_mask |= 1 << idx;
+    }
+
+    /// Any live fragment: used ones stay in `hashes`, free ones sit in a bin.
+    fn any_fragment(&self) -> Option<RCFrag> {
+        self.hashes
+            .values()
+            .next()
+            .cloned()
+            .or_else(|| self.bins.iter().flatten().next().cloned())
+    }
+
+    /// Lowest-address fragment, found by walking `prev` links.
+    fn first_fragment(&self) -> Option<RCFrag> {
+        let mut cur = self.any_fragment()?;
+        loop {
+            let prev = cur.borrow().prev.as_ref().and_then(Weak::upgrade);
+            match prev {
+                Some(p) => cur = p,
+                None => return Some(cur),
+            }
+        }
+    }
+
+    /// Capture the heap bookkeeping as plain data.
+    pub fn snapshot(&self) -> O1HeapSnapshot {
+        let mut fragments = Vec::new();
+        let mut cur = self.first_fragment();
+        while let Some(frag) = cur {
+            let f = frag.borrow();
+            fragments.push((f.offset, f.size, f.used));
+            cur = f.next.clone();
+        }
+        let mut hash_keys: Vec<u32> = self.hashes.keys().copied().collect();
+        hash_keys.sort_unstable();
+        O1HeapSnapshot {
+            base: self.base,
+            diagnostics: self.diagnostics.clone(),
+            fragments,
+            hash_keys,
+        }
+    }
+
+    /// Rebuild a heap from a snapshot. Free fragments are re-binned, so the
+    /// order inside a bin may differ from the source; that can change which
+    /// address a later `allocate` picks, never whether it succeeds.
+    pub fn from_snapshot(snap: &O1HeapSnapshot) -> Self {
+        let mut heap = Self {
+            base: snap.base,
+            bins: vec![None; NUM_BINS_MAX],
+            hashes: HashMap::default(),
+            nonempty_bin_mask: 0,
+            diagnostics: snap.diagnostics.clone(),
+        };
+        let mut by_offset: HashMap<u32, RCFrag> = HashMap::new();
+        let mut prev: Option<RCFrag> = None;
+        for &(offset, size, used) in &snap.fragments {
+            let frag = Rc::new(RefCell::new(Fragment::new(offset, size)));
+            frag.borrow_mut().used = used;
+            if let Some(p) = &prev {
+                p.borrow_mut().next = Some(frag.clone());
+                frag.borrow_mut().prev = Some(Rc::downgrade(p));
+            }
+            if !used {
+                heap.rebin(frag.clone());
+            }
+            by_offset.insert(offset, frag.clone());
+            prev = Some(frag);
+        }
+        // Keep the same index; keys whose node left the list were stale.
+        for key in &snap.hash_keys {
+            if let Some(frag) = by_offset.get(key) {
+                heap.hashes.insert(*key, frag.clone());
+            }
+        }
+        heap
     }
 
     /// Allocate a block of memory
@@ -777,5 +871,79 @@ mod tests {
         assert!(r.is_none());
         assert_eq!(h.diagnostics.oom_count, 1);
         assert!(h.check_fragment_exists(a));
+    }
+
+    /// Mixed heap: block at offset 0 freed, free holes between used blocks.
+    fn fragmented_heap() -> (O1Heap, Vec<u64>) {
+        let mut h = new_heap();
+        let blocks: Vec<u64> = [256, 512, 256, 1024, 256]
+            .iter()
+            .map(|n| h.allocate(*n).unwrap())
+            .collect();
+        h.free(blocks[0]); // offset 0
+        h.free(blocks[2]); // hole between used blocks
+        let live = vec![blocks[1], blocks[3], blocks[4]];
+        (h, live)
+    }
+
+    fn overlaps(a: u64, a_len: usize, b: u64, b_len: usize) -> bool {
+        a < b + b_len as u64 && b < a + a_len as u64
+    }
+
+    #[test]
+    fn test_clone_keeps_live_allocation_sizes() {
+        let (h, live) = fragmented_heap();
+        let c = h.clone();
+        for addr in &live {
+            assert_eq!(c.allocation_size(*addr), h.allocation_size(*addr));
+        }
+        assert_eq!(c.diagnostics.allocated, h.diagnostics.allocated);
+    }
+
+    #[test]
+    fn test_clone_frees_pre_snapshot_pointer() {
+        let (h, live) = fragmented_heap();
+        let mut c = h.clone();
+        let before = c.diagnostics.allocated;
+        c.free(live[0]);
+        assert!(c.diagnostics.allocated < before);
+        assert!(c.allocation_size(live[0]).is_none());
+    }
+
+    #[test]
+    fn test_clone_never_allocates_over_live_blocks() {
+        let (h, live) = fragmented_heap();
+        let mut c = h.clone();
+        let sizes: Vec<usize> = live
+            .iter()
+            .map(|a| h.allocation_size(*a).unwrap())
+            .collect();
+        while let Some(n) = c.allocate(256) {
+            for (addr, len) in live.iter().zip(&sizes) {
+                assert!(
+                    !overlaps(n, 256, *addr, *len),
+                    "0x{:x} overlaps 0x{:x}",
+                    n,
+                    addr
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_clone_is_independent_of_source() {
+        let (mut h, live) = fragmented_heap();
+        let c = h.clone();
+        h.free(live[1]);
+        assert!(h.allocation_size(live[1]).is_none());
+        assert!(c.allocation_size(live[1]).is_some());
+    }
+
+    #[test]
+    fn test_clone_preserves_free_space() {
+        let (mut h, _) = fragmented_heap();
+        let mut c = h.clone();
+        let fill = |x: &mut O1Heap| std::iter::from_fn(|| x.allocate(256)).count();
+        assert_eq!(fill(&mut c), fill(&mut h));
     }
 }

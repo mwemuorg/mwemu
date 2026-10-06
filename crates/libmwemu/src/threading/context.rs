@@ -141,6 +141,8 @@ pub struct ThreadContext {
     pub clear_child_tid: u64,       // Linux: word zeroed + futex-woken when the thread exits
     pub handle: u64,
     pub arch: ArchThreadState,
+    pub exit_value: Option<u64>, // Some(retval) once the thread has finished (pthread_exit / return)
+    pub joining: Option<(u64, u64)>, // (target thread id, retval ptr) while blocked in pthread_join
 }
 
 impl ThreadContext {
@@ -177,7 +179,19 @@ impl ThreadContext {
             clear_child_tid: 0,
             handle: 0,
             arch: arch_state,
+            exit_value: None,
+            joining: None,
         }
+    }
+
+    /// True when the scheduler may give this thread a timeslice at `tick`.
+    #[inline]
+    pub fn is_runnable(&self, tick: usize) -> bool {
+        !self.suspended
+            && self.wake_tick <= tick
+            && self.blocked_on_cs.is_none()
+            && self.exit_value.is_none()
+            && self.joining.is_none()
     }
 }
 
