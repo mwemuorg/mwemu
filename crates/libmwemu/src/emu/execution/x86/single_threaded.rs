@@ -551,6 +551,12 @@ impl Emu {
                         self.advance_pc_x86(sz);
                     }
 
+                    // A clone() just created a second thread: hand over to the
+                    // scheduling loop so both get to run.
+                    if self.cfg.enable_threading && self.threads.len() > 1 {
+                        return self.run_multi_threaded_x86(end_addr);
+                    }
+
                     // RET is fully emulated before run_until_ret stops at its architectural target.
                     if should_stop_after_return {
                         return Ok(self.pc());

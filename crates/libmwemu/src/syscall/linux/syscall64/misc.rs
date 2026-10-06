@@ -77,6 +77,12 @@ macro_rules! syscall_names {
     };
 }
 
+/// Round `len` up to a whole number of 4 KiB pages, as the kernel does for
+/// every mmap/munmap length.
+fn page_align_up(len: u64) -> u64 {
+    (len + 0xfff) & !0xfff
+}
+
 pub(super) fn dispatch(emu: &mut emu::Emu) {
     dispatch_legacy_syscall64(emu);
 }
@@ -107,7 +113,7 @@ fn format_trace_args(args: &[(&str, String)]) -> String {
     rendered
 }
 
-fn trace_syscall64_args(emu: &mut emu::Emu, name: &str, args: &[(&str, String)]) {
+pub(super) fn trace_syscall64_args(emu: &mut emu::Emu, name: &str, args: &[(&str, String)]) {
     super::trace_syscall64(emu, &format!("{name}{}", format_trace_args(args)));
 }
 
@@ -129,7 +135,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
     match emu.regs().rax {
         constants::NR64_RESTART_SYSCALL => super::proc::handle_syscall64_restart(emu),
 
-        constants::NR64_EXIT | constants::NR64_EXIT_GROUP => {
+        constants::NR64_EXIT_GROUP => {
             super::proc::handle_syscall64_exit(emu);
         }
 
@@ -636,7 +642,9 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             let addr = emu.regs().rdi;
             let sz = emu.regs().rsi;
 
-            emu.maps.dealloc(addr);
+            // Partial unmaps are routine (Go trims the unaligned head/tail of
+            // its arena reservations), so this must split, not free by base.
+            emu.maps.unmap_range(addr, page_align_up(sz));
 
             trace_syscall64_args(
                 emu,
@@ -656,46 +664,50 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             let off = emu.regs().r9;
 
             const MAP_FIXED: u64 = 0x10;
+            const PAGE_MASK: u64 = 0xfff;
+            // Anonymous reservations (Go's heap arenas, 512 MiB + alignment)
+            // may be this large; they are PROT_NONE and never touched, so the
+            // zeroed backing costs virtual space only.
+            const RESERVE_MAX: u64 = 0x1_0000_0000;
             let map_fixed = flags & MAP_FIXED != 0;
+            let reservation = prot == 0;
 
-            if sz > 0x4000000 {
+            if sz == 0 || (map_fixed && addr & PAGE_MASK != 0) {
+                emu.regs_mut().rax = constants::EINVAL;
+                trace_syscall64_args(emu, "mmap", &[("result", "EINVAL".to_string())]);
+                return;
+            }
+            // The kernel rounds the length up to whole pages; callers (Go's
+            // runtime among them) rely on the mapping ending page-aligned.
+            sz = page_align_up(sz);
+            let cap = if reservation { RESERVE_MAX } else { 0x4000000 };
+            if sz > cap {
                 log::trace!("/!\\ Warning trying to allocate {} bytes", sz);
-                sz = 0x4000000;
+                sz = cap;
             }
 
-            // A MAP_FIXED request must land exactly where asked: ld.so first
-            // reserves a library's whole span, then re-maps each segment over
-            // it with MAP_FIXED. Relocating those would scatter the segments and
-            // leave the reservation's (linearly-wrong) bytes in place, which
-            // corrupts e.g. libc's _DYNAMIC. Only non-fixed requests get moved.
-            if !map_fixed && (addr == 0 || emu.maps.is_mapped(addr)) {
+            if map_fixed {
+                // MAP_FIXED replaces whatever is there: ld.so maps each
+                // segment over its whole-image reservation this way, and Go
+                // commits slices of its arena reservations with it.
+                emu.maps.unmap_range(addr, sz);
+            } else if addr == 0 || addr & PAGE_MASK != 0 || !emu.maps.is_range_free(addr, sz) {
+                // No hint, or a hint that is unaligned or already taken.
                 addr = emu
                     .maps
-                    .lib64_alloc(sz)
+                    .lib64_reserve(sz)
                     .expect("syscall64 mmap cannot alloc");
             }
 
             // Keep library mappings writable so ld.so can apply relocations to
             // .got / .data even when the file's segment protection is read-only.
             let perm = Permission::from_flags(prot & 1 != 0, true, prot & 4 != 0);
-            let already_mapped = emu.maps.is_mapped(addr);
-            if !already_mapped {
-                emu.maps
-                    .create_map(&format!("mmap_{:x}", addr), addr, sz, perm)
-                    .expect("cannot create mmap map");
-            }
-
-            // Anonymous mapping (MAP_ANON, fd = -1): the region must be
-            // zero-filled. When it lands inside a previous reservation (e.g. the
-            // .bss tail over libc's whole-image reservation) the existing map
-            // still holds file bytes, so explicitly zero it.
-            if !helper::handler_exist(fd)
-                && already_mapped
-                && let Some(map) = emu.maps.get_mem_by_addr_mut(addr)
-            {
-                let room = (map.get_base() + map.size() as u64).saturating_sub(addr);
-                let zeros = vec![0u8; sz.min(room) as usize];
-                map.force_write_bytes(addr, &zeros);
+            let name = emu.maps.unique_map_name(&format!("mmap_{addr:x}"));
+            if let Err(e) = emu.maps.create_map(&name, addr, sz, perm) {
+                log::error!("mmap: {e}");
+                emu.regs_mut().rax = constants::ENOMEM;
+                trace_syscall64_args(emu, "mmap", &[("result", "ENOMEM".to_string())]);
+                return;
             }
 
             if helper::handler_exist(fd) {
@@ -928,39 +940,9 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
         // them in the "unimplemented" catch-all returns the syscall number in
         // rax, which glibc reads as a bogus result (e.g. "the futex facility
         // returned an unexpected error code" then an abort loop).
-        constants::NR64_FUTEX => {
-            // Single-threaded emulation. Implement the value-check semantics so
-            // glibc's lock loops behave: FUTEX_WAIT returns EAGAIN when the word
-            // no longer holds the expected value (otherwise there is no other
-            // thread to wake us, so report a spurious wake with 0).
-            let uaddr = emu.regs().rdi;
-            let op = emu.regs().rsi & 0x7f; // strip PRIVATE / CLOCK_REALTIME flags
-            let val = emu.regs().rdx as u32;
-            const FUTEX_WAIT: u64 = 0;
-            const FUTEX_WAIT_BITSET: u64 = 9;
-            let rax = match op {
-                FUTEX_WAIT | FUTEX_WAIT_BITSET => {
-                    let cur = emu.maps.read_dword(uaddr).unwrap_or(0);
-                    if cur != val {
-                        0xfffffffffffffff5 // -EAGAIN: the word already changed
-                    } else {
-                        // Single-threaded: a real wait here would block forever
-                        // (no sibling thread can wake us), so this is a lock that
-                        // its own owner — us — never released after an emulation
-                        // hiccup. Drop it to the free state and report a wake so
-                        // glibc's `while(xchg(lock,2)) futex_wait` loop re-acquires.
-                        let _ = emu.maps.write_dword(uaddr, 0);
-                        0
-                    }
-                }
-                _ => 0, // FUTEX_WAKE etc.: woke 0 waiters
-            };
-            emu.regs_mut().rax = rax;
-            trace_simple_syscall64(emu, "futex");
-        }
-        constants::NR64_GETTID | constants::NR64_GETPID => {
+        constants::NR64_GETPID => {
             emu.regs_mut().rax = 1000;
-            trace_simple_syscall64(emu, "gettid/getpid");
+            trace_simple_syscall64(emu, "getpid");
         }
         constants::NR64_TGKILL | constants::NR64_TKILL => {
             emu.regs_mut().rax = 0;
