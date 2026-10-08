@@ -143,6 +143,17 @@ pub struct ThreadContext {
     pub arch: ArchThreadState,
     pub exit_value: Option<u64>, // Some(retval) once the thread has finished (pthread_exit / return)
     pub joining: Option<(u64, u64)>, // (target thread id, retval ptr) while blocked in pthread_join
+    pub blocked_on_lock: Option<u64>, // guest mutex / unfair lock address while waiting to own it
+    pub cond_wait: Option<(u64, u64)>, // (cond, mutex) while blocked in pthread_cond_wait
+    pub exclusive: Option<Reservation>, // LDXR/LDXP reservation, checked by STXR/STXP
+}
+
+/// What an exclusive load saw: STXR succeeds only if memory still holds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Reservation {
+    pub addr: u64,
+    pub bytes: u64,
+    pub values: (u64, u64), // second value only used by the pair forms
 }
 
 impl ThreadContext {
@@ -181,7 +192,16 @@ impl ThreadContext {
             arch: arch_state,
             exit_value: None,
             joining: None,
+            blocked_on_lock: None,
+            cond_wait: None,
+            exclusive: None,
         }
+    }
+
+    /// True while parked in pthread_join, a lock or a condition wait.
+    #[inline]
+    pub fn is_waiting_on_sync(&self) -> bool {
+        self.joining.is_some() || self.blocked_on_lock.is_some() || self.cond_wait.is_some()
     }
 
     /// True when the scheduler may give this thread a timeslice at `tick`.
@@ -192,6 +212,8 @@ impl ThreadContext {
             && self.blocked_on_cs.is_none()
             && self.exit_value.is_none()
             && self.joining.is_none()
+            && self.blocked_on_lock.is_none()
+            && self.cond_wait.is_none()
     }
 }
 

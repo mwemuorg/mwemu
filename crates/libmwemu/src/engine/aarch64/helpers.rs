@@ -90,12 +90,14 @@ pub fn read_operand_value(emu: &Emu, op: &Operand) -> u64 {
     }
 }
 
+/// Extend styles (`UXTW #2`, `SXTW #3`, ...) extend first, then shift left
+/// by `amt`, as in scaled register-offset addressing and ADD/SUB (extended).
 pub fn apply_shift(val: u64, style: ShiftStyle, amt: u32) -> u64 {
-    match style {
-        ShiftStyle::LSL => val << amt,
-        ShiftStyle::LSR => val >> amt,
-        ShiftStyle::ASR => ((val as i64) >> amt) as u64,
-        ShiftStyle::ROR => val.rotate_right(amt),
+    let extended = match style {
+        ShiftStyle::LSL => return val << amt,
+        ShiftStyle::LSR => return val >> amt,
+        ShiftStyle::ASR => return ((val as i64) >> amt) as u64,
+        ShiftStyle::ROR => return val.rotate_right(amt),
         ShiftStyle::UXTB => (val as u8) as u64,
         ShiftStyle::UXTH => (val as u16) as u64,
         ShiftStyle::UXTW => (val as u32) as u64,
@@ -104,7 +106,8 @@ pub fn apply_shift(val: u64, style: ShiftStyle, amt: u32) -> u64 {
         ShiftStyle::SXTH => (val as i16) as i64 as u64,
         ShiftStyle::SXTW => (val as i32) as i64 as u64,
         ShiftStyle::SXTX => val,
-    }
+    };
+    extended << amt
 }
 
 /// Shift a 32-bit (W) register operand; ASR and ROR must act on bit 31.

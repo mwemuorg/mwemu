@@ -2,6 +2,7 @@ pub mod libc_extra;
 pub mod libsystem;
 pub mod process;
 pub mod pthread;
+pub mod sync;
 
 /// Map holding return-address sentinels that stand in for dyld/libpthread
 /// frames: returning from `main` exits, returning from a thread routine ends it.

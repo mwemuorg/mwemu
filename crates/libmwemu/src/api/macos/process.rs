@@ -3,6 +3,7 @@
 use super::libc_extra::trace;
 use crate::api::abi::ApiAbi;
 use crate::emu::Emu;
+use crate::threading::process::AtFork;
 
 const RUSAGE_SIZE: u64 = 144;
 
@@ -16,14 +17,17 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "wait4" => api_wait4(emu),
         "getpid" => api_getpid(emu),
         "getppid" => api_getppid(emu),
+        "pthread_atfork" => api_pthread_atfork(emu),
         _ => return false,
     }
     true
 }
 
 fn api_fork(emu: &mut Emu, name: &str) {
+    run_atfork(emu, AtForkPhase::Prepare);
     let parent = emu.processes.pid;
     let child = emu.fork_begin();
+    run_atfork(emu, AtForkPhase::Child);
     trace(
         emu,
         &format!(
@@ -92,4 +96,57 @@ fn api_getppid(emu: &mut Emu) {
     let ppid = emu.processes.ppid;
     trace(emu, &format!("getppid() -> {}", ppid));
     ApiAbi::from_emu(emu).set_ret(emu, ppid);
+}
+
+fn api_pthread_atfork(emu: &mut Emu) {
+    let abi = ApiAbi::from_emu(emu);
+    let handlers = AtFork {
+        prepare: abi.arg(emu, 0),
+        parent: abi.arg(emu, 1),
+        child: abi.arg(emu, 2),
+    };
+    emu.processes.atfork.push(handlers);
+    trace(
+        emu,
+        &format!(
+            "pthread_atfork(prepare=0x{:x}, parent=0x{:x}, child=0x{:x}) -> 0",
+            handlers.prepare, handlers.parent, handlers.child
+        ),
+    );
+    abi.set_ret(emu, 0);
+}
+
+pub(super) enum AtForkPhase {
+    Prepare,
+    Parent,
+    Child,
+}
+
+/// Run the registered atfork handlers for `phase` on the calling thread:
+/// prepare in reverse registration order, parent and child in order.
+pub(super) fn run_atfork(emu: &mut Emu, phase: AtForkPhase) {
+    let mut handlers: Vec<u64> = emu
+        .processes
+        .atfork
+        .iter()
+        .map(|h| match phase {
+            AtForkPhase::Prepare => h.prepare,
+            AtForkPhase::Parent => h.parent,
+            AtForkPhase::Child => h.child,
+        })
+        .filter(|addr| *addr != 0)
+        .collect();
+    if matches!(phase, AtForkPhase::Prepare) {
+        handlers.reverse();
+    }
+    if !handlers.is_empty() && !emu.cfg.arch.is_aarch64() {
+        log::warn!("pthread_atfork handlers are only run on aarch64");
+        return;
+    }
+    for addr in handlers {
+        trace(emu, &format!("atfork handler 0x{:x}", addr));
+        if let Err(e) = emu.aarch64_call64(addr, &[]) {
+            log::warn!("atfork handler 0x{:x} failed: {}", addr, e);
+        }
+    }
 }

@@ -30,6 +30,15 @@ struct ForkFrame {
     guard_heap: Option<KernelHeap>, // --memory-guard allocation ledger
     emulated_stdout: Vec<u8>,
     getopt_char_index: usize,
+    atfork: Vec<AtFork>,
+}
+
+/// Handlers registered with `pthread_atfork` (0 = none).
+#[derive(Clone, Copy)]
+pub struct AtFork {
+    pub prepare: u64,
+    pub parent: u64,
+    pub child: u64,
 }
 
 /// A child that has exited but has not been reaped by `wait*()` yet.
@@ -43,6 +52,7 @@ pub struct ProcessTable {
     pub pid: u64,
     pub ppid: u64,
     pub exit_status: Option<u64>, // wait status of the root process once it has ended
+    pub atfork: Vec<AtFork>,      // pthread_atfork handlers, in registration order
     next_pid: u64,
     frames: Vec<ForkFrame>,
     zombies: Vec<Zombie>,
@@ -60,6 +70,7 @@ impl ProcessTable {
             pid: INITIAL_PID,
             ppid: INITIAL_PPID,
             exit_status: None,
+            atfork: Vec::new(),
             next_pid: INITIAL_PID + 1,
             frames: Vec::new(),
             zombies: Vec::new(),
@@ -105,6 +116,7 @@ impl Emu {
             guard_heap: self.kernel.as_ref().map(|k| k.heap.clone()),
             emulated_stdout: self.emulated_stdout.clone(),
             getopt_char_index: self.getopt_char_index,
+            atfork: self.processes.atfork.clone(),
         };
         self.processes.frames.push(frame);
 
@@ -147,6 +159,7 @@ impl Emu {
         }
         self.emulated_stdout = frame.emulated_stdout;
         self.getopt_char_index = frame.getopt_char_index;
+        self.processes.atfork = frame.atfork;
         self.reset_active_instruction_cache();
         Some(child_pid)
     }

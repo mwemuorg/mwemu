@@ -51,11 +51,6 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "gethostname" => api_gethostname(emu),
         "uname" => api_uname(emu),
         "sigaction" | "sigprocmask" | "sigemptyset" | "sigaddset" => api_return(emu, name, 0),
-        "pthread_mutex_init"
-        | "pthread_mutex_lock"
-        | "pthread_mutex_trylock"
-        | "pthread_mutex_unlock"
-        | "pthread_mutex_destroy" => api_return(emu, name, 0),
         "pthread_once" => api_pthread_once(emu),
         _ => return false,
     }
