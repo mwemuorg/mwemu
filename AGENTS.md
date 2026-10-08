@@ -15,7 +15,7 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 2. no usafe blocks and no unsafe dependencies or risky of supply chain attacks.
 
-3. keep it offline except microsoft symbols server
+3. keep it offline except microsoft symbols server, but also dont spam them.
 
 4. every function 1 unique purpose
 
@@ -25,7 +25,9 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 7. don't break any test, unless the test is bad implemented.
 
-8. Pls use that format: cargo fmt --all -- --check
+8. Please, use that format: cargo fmt --all -- --check
+
+9. Don't do commits unless the user ask for it.
 
 
 ## Testing

@@ -315,21 +315,19 @@ impl Emu {
         self.emu.cfg.shellcode = true;
     }
 
+    fn disable_shellcode_mode(&mut self) {
+        self.emu.cfg.shellcode = false;
+    }
+
+    #[getter]
+    fn get_shellcode(&self) -> bool {
+        self.emu.cfg.shellcode
+    }
+
     /// disable the memory inspector.
     fn disable_inspect_sequence(&mut self) {
         self.emu.cfg.inspect = false;
     }
-
-    /*
-    /// give the binary the posibility of connecting remote hosts to get next stage, use it safelly.
-    fn enable_endpoint_mode(&mut self) {
-        self.emu.cfg.endpoint = true;
-    }
-
-    /// disable the endpoint mode.
-    fn disable_endpoint_mode(&mut self) {
-        self.emu.cfg.endpoint = false;
-    }*/
 
     /// change the default entry point.
     fn set_entry_point(&mut self, addr: u64) {
@@ -1358,6 +1356,11 @@ impl Emu {
         self.emu.cfg.trace_flags = flags;
     }
 
+    #[getter]
+    pub fn get_trace_flags(&self) -> bool {
+        self.emu.cfg.trace_flags
+    }
+
     // Environnement identity
     #[setter]
     pub fn set_module_name(&mut self, name: String) {
@@ -1392,6 +1395,11 @@ impl Emu {
     #[setter]
     pub fn set_host_name(&mut self, name: String) {
         self.emu.cfg.host_name = name;
+    }
+
+    #[getter]
+    pub fn get_host_name(&self) -> String {
+        self.emu.cfg.host_name.clone()
     }
 
     #[setter]
@@ -1495,6 +1503,167 @@ impl Emu {
     /// Clear the accumulated API call log.
     pub fn clear_api_call_log(&mut self) {
         self.emu.api_call_log.clear();
+    }
+
+    // --- Tier 1: config property parity ---
+
+    #[setter]
+    pub fn set_entropy(&mut self, enabled: bool) {
+        self.emu.cfg.entropy = enabled;
+    }
+
+    #[getter]
+    pub fn get_entropy(&self) -> bool {
+        self.emu.cfg.entropy
+    }
+
+    #[setter]
+    pub fn set_linux_real_libc(&mut self, enabled: bool) {
+        self.emu.cfg.linux_real_libc = enabled;
+    }
+
+    #[getter]
+    pub fn get_linux_real_libc(&self) -> bool {
+        self.emu.cfg.linux_real_libc
+    }
+
+    #[setter]
+    pub fn set_max_alloc_size(&mut self, size: u64) {
+        self.emu.cfg.max_alloc_size = size;
+    }
+
+    #[getter]
+    pub fn get_max_alloc_size(&self) -> u64 {
+        self.emu.cfg.max_alloc_size
+    }
+
+    #[setter]
+    pub fn set_arguments(&mut self, args: String) {
+        self.emu.cfg.arguments = args;
+    }
+
+    #[getter]
+    pub fn get_arguments(&self) -> String {
+        self.emu.cfg.arguments.clone()
+    }
+
+    #[setter]
+    pub fn set_verbose_at(&mut self, pos: Option<u64>) {
+        self.emu.cfg.verbose_at = pos;
+    }
+
+    #[getter]
+    pub fn get_verbose_at(&self) -> Option<u64> {
+        self.emu.cfg.verbose_at
+    }
+
+    #[setter]
+    pub fn set_verbose_start(&mut self, start: u64) {
+        self.emu.cfg.verbose_start = start;
+    }
+
+    #[getter]
+    pub fn get_verbose_start(&self) -> u64 {
+        self.emu.cfg.verbose_start
+    }
+
+    #[setter]
+    pub fn set_verbose_end(&mut self, end: u64) {
+        self.emu.cfg.verbose_end = end;
+    }
+
+    #[getter]
+    pub fn get_verbose_end(&self) -> u64 {
+        self.emu.cfg.verbose_end
+    }
+
+    #[setter]
+    pub fn set_endpoint(&mut self, enabled: bool) {
+        self.emu.cfg.endpoint = enabled;
+    }
+
+    #[getter]
+    pub fn get_endpoint(&self) -> bool {
+        self.emu.cfg.endpoint
+    }
+
+    // --- Tier 3: feature methods ---
+
+    /// Initialize the memory guard subsystem. Call after load_binary() and
+    /// before run() when memory_guard is enabled.
+    pub fn memory_guard_init(&mut self) {
+        self.emu.set_memory_guard(true);
+    }
+
+    /// Carry Flag.
+    pub fn flag_cf(&self) -> bool {
+        self.emu.flag_cf()
+    }
+
+    /// Zero Flag.
+    pub fn flag_zf(&self) -> bool {
+        self.emu.flag_zf()
+    }
+
+    /// Sign Flag.
+    pub fn flag_sf(&self) -> bool {
+        self.emu.flag_sf()
+    }
+
+    /// Overflow Flag.
+    pub fn flag_of(&self) -> bool {
+        self.emu.flag_of()
+    }
+
+    /// Direction Flag.
+    pub fn flag_df(&self) -> bool {
+        self.emu.flag_df()
+    }
+
+    /// Parity Flag.
+    pub fn flag_pf(&self) -> bool {
+        self.emu.flag_pf()
+    }
+
+    /// Auxiliary Carry Flag.
+    pub fn flag_af(&self) -> bool {
+        self.emu.flag_af()
+    }
+
+    /// Number of instructions emulated so far (same as get_position).
+    #[getter]
+    pub fn get_instruction_count(&self) -> u64 {
+        self.emu.pos
+    }
+
+    /// Captured stdout bytes from the emulated program.
+    pub fn emulated_stdout(&self) -> Vec<u8> {
+        self.emu.emulated_stdout.clone()
+    }
+
+    /// Enable FPU state tracing (x86 only).
+    pub fn enable_fpu_trace(&mut self) {
+        self.emu.fpu_mut().trace = true;
+    }
+
+    /// Disable FPU state tracing (x86 only).
+    pub fn disable_fpu_trace(&mut self) {
+        self.emu.fpu_mut().trace = false;
+    }
+
+    /// Initialize a Linux AArch64 emulation environment.
+    pub fn init_linux64_aarch64(&mut self) {
+        self.emu.init_linux64_aarch64();
+    }
+
+    /// Initialize a macOS x86_64 emulation environment.
+    pub fn init_macos64(&mut self) {
+        self.emu.init_macos64();
+    }
+
+    /// Initialize a macOS AArch64 emulation environment.
+    pub fn init_macos_aarch64(&mut self) {
+        self.emu.init_macos_aarch64();
     }
 
     // enable-threading

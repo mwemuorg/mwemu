@@ -726,6 +726,9 @@ char *mwemu_get_system_directory(struct MwemuEmu *emu);
 // Set the System directory.
 void mwemu_set_system_directory(struct MwemuEmu *emu, const char *value);
 
+// Get the host name. Free with `mwemu_free_string`.
+char *mwemu_get_host_name(struct MwemuEmu *emu);
+
 // Set the host name.
 void mwemu_set_host_name(struct MwemuEmu *emu, const char *value);
 
@@ -740,6 +743,165 @@ char *mwemu_get_trace_filename(struct MwemuEmu *emu);
 
 // Set the trace filename; a NULL pointer clears it.
 void mwemu_set_trace_filename(struct MwemuEmu *emu, const char *value);
+
+// Get entropy measurement (1/0).
+int32_t mwemu_get_entropy(struct MwemuEmu *emu);
+
+// Enable/disable entropy measurement.
+void mwemu_set_entropy(struct MwemuEmu *emu, int32_t value);
+
+// Get linux real-libc mode (1/0).
+int32_t mwemu_get_linux_real_libc(struct MwemuEmu *emu);
+
+// Enable/disable linux real-libc syscall-intercept mode.
+void mwemu_set_linux_real_libc(struct MwemuEmu *emu, int32_t value);
+
+// Get the maximum allocation size cap.
+uint64_t mwemu_get_max_alloc_size(struct MwemuEmu *emu);
+
+// Set the maximum allocation size cap.
+void mwemu_set_max_alloc_size(struct MwemuEmu *emu, uint64_t value);
+
+// Get the EXE arguments. Free with `mwemu_free_string`.
+char *mwemu_get_arguments(struct MwemuEmu *emu);
+
+// Set the EXE arguments.
+void mwemu_set_arguments(struct MwemuEmu *emu, const char *value);
+
+// Get verbose_at position. Returns 1 if set, 0 if unset.
+int32_t mwemu_get_verbose_at(struct MwemuEmu *emu, uint64_t *out);
+
+// Set verbose_at; `has_value` 0 clears it.
+void mwemu_set_verbose_at(struct MwemuEmu *emu, int32_t has_value, uint64_t value);
+
+// Get verbose_start position.
+uint64_t mwemu_get_verbose_start(struct MwemuEmu *emu);
+
+// Set verbose_start position.
+void mwemu_set_verbose_start(struct MwemuEmu *emu, uint64_t value);
+
+// Get verbose_end position.
+uint64_t mwemu_get_verbose_end(struct MwemuEmu *emu);
+
+// Set verbose_end position.
+void mwemu_set_verbose_end(struct MwemuEmu *emu, uint64_t value);
+
+// Get trace_flags (1/0).
+int32_t mwemu_get_trace_flags(struct MwemuEmu *emu);
+
+// Get shellcode mode (1/0).
+int32_t mwemu_get_shellcode_mode(struct MwemuEmu *emu);
+
+// Disable shellcode mode.
+void mwemu_disable_shellcode_mode(struct MwemuEmu *emu);
+
+// Set architecture by name ("x86", "x86_64"/"x64"/"amd64", "aarch64"/"arm64").
+// Returns 1 on success, 0 on unknown arch.
+int32_t mwemu_set_arch(struct MwemuEmu *emu, const char *arch);
+
+// Get architecture as a string. Free with `mwemu_free_string`.
+char *mwemu_get_arch(struct MwemuEmu *emu);
+
+// Set OS by name ("windows"/"win", "linux", "macos"/"osx"/"darwin").
+// Returns 1 on success, 0 on unknown OS.
+int32_t mwemu_set_os(struct MwemuEmu *emu, const char *os);
+
+// Get OS as a string. Free with `mwemu_free_string`.
+char *mwemu_get_os(struct MwemuEmu *emu);
+
+// Get memory_guard mode (1/0).
+int32_t mwemu_get_memory_guard(struct MwemuEmu *emu);
+
+// Enable/disable memory-guard heap analysis.
+void mwemu_set_memory_guard(struct MwemuEmu *emu, int32_t value);
+
+// Initialize memory-guard tracking after load and before run.
+void mwemu_memory_guard_init(struct MwemuEmu *emu);
+
+// Check for memory leaks (call after run completes).
+void mwemu_memory_guard_check_leaks(struct MwemuEmu *emu);
+
+// Memory-safety findings as a newline-separated string. Free with
+// `mwemu_free_string`. Returns NULL if there are no findings.
+char *mwemu_memory_guard_findings(struct MwemuEmu *emu);
+
+// Get the API call log as a flat array `[pos0, from0, to0, pos1, from1, to1, ...]`
+// with corresponding names. `out_count` receives the number of entries;
+// `out_names` points to an array of `char*` (free each with `mwemu_free_string`),
+// then free `out_names` itself with `mwemu_free_buffer(out_names, count * sizeof(void*))`.
+// The returned `uint64_t` array has `count * 3` elements; free with
+// `mwemu_free_u64_buffer(ptr, count * 3)`.
+uint64_t *mwemu_get_api_call_log(struct MwemuEmu *emu, uintptr_t *out_count, char ***out_names);
+
+// Clear the API call log.
+void mwemu_clear_api_call_log(struct MwemuEmu *emu);
+
+// Manually free a kernel slab object (for testing use-after-free scenarios).
+// Returns 1 if the free was accepted, 0 on error.
+int32_t mwemu_kernel_free(struct MwemuEmu *emu, uint64_t ptr, const char *api);
+
+// Set which allocation to fail (fault injection). `has_value` 0 clears it.
+void mwemu_kernel_set_fail_alloc(struct MwemuEmu *emu, int32_t has_value, uint64_t idx);
+
+// Number of kernel slab allocations performed.
+uint64_t mwemu_kernel_alloc_count(struct MwemuEmu *emu);
+
+// Hex-dump `n` qwords at `addr` to stdout.
+void mwemu_dump_qwords(struct MwemuEmu *emu, uint64_t addr, uint64_t n);
+
+// Hex-dump `n` dwords at `addr` to stdout.
+void mwemu_dump_dwords(struct MwemuEmu *emu, uint64_t addr, uint64_t n);
+
+// Search an ASCII string across all maps (prints results to stdout).
+void mwemu_search_string_in_all(struct MwemuEmu *emu, const char *kw);
+
+// Get the carry flag.
+int32_t mwemu_flag_cf(struct MwemuEmu *emu);
+
+// Get the zero flag.
+int32_t mwemu_flag_zf(struct MwemuEmu *emu);
+
+// Get the sign flag.
+int32_t mwemu_flag_sf(struct MwemuEmu *emu);
+
+// Get the overflow flag.
+int32_t mwemu_flag_of(struct MwemuEmu *emu);
+
+// Get the direction flag.
+int32_t mwemu_flag_df(struct MwemuEmu *emu);
+
+// Get the parity flag.
+int32_t mwemu_flag_pf(struct MwemuEmu *emu);
+
+// Get the auxiliary carry flag.
+int32_t mwemu_flag_af(struct MwemuEmu *emu);
+
+// Number of instructions emulated so far (alias of `mwemu_get_position`).
+uint64_t mwemu_get_instruction_count(struct MwemuEmu *emu);
+
+// Get the emulated program's buffered stdout. Free with `mwemu_free_buffer`.
+uint8_t *mwemu_get_emulated_stdout(struct MwemuEmu *emu, uintptr_t *out_len);
+
+// Enable FPU state tracing.
+void mwemu_enable_fpu_trace(struct MwemuEmu *emu);
+
+// Disable FPU state tracing.
+void mwemu_disable_fpu_trace(struct MwemuEmu *emu);
+
+// Create a 64-bit Linux AArch64 emulator with environment initialized.
+struct MwemuEmu *mwemu_init_linux64_aarch64(void);
+
+// Create a 64-bit macOS x86_64 emulator with environment initialized.
+struct MwemuEmu *mwemu_init_macos64(void);
+
+// Create a macOS AArch64 emulator with environment initialized.
+struct MwemuEmu *mwemu_init_macos_aarch64(void);
+
+// Get endpoint emulation mode (1/0).
+int32_t mwemu_get_endpoint(struct MwemuEmu *emu);
+
+// Enable/disable endpoint (network) emulation.
+void mwemu_set_endpoint(struct MwemuEmu *emu, int32_t value);
 
 // Free a `char*` returned by this library.
 void mwemu_free_string(char *s);

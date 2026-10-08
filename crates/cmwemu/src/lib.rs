@@ -2310,6 +2310,11 @@ pub extern "C" fn mwemu_set_system_directory(emu: *mut MwemuEmu, value: *const c
     e.cfg.system_directory = cstr!(value, ()).to_string();
 }
 
+/// Get the host name. Free with `mwemu_free_string`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_host_name(emu: *mut MwemuEmu) -> *mut c_char {
+    ret_string(emu!(emu, std::ptr::null_mut()).cfg.host_name.clone())
+}
 /// Set the host name.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_set_host_name(emu: *mut MwemuEmu, value: *const c_char) {
@@ -2367,6 +2372,417 @@ pub extern "C" fn mwemu_set_trace_filename(emu: *mut MwemuEmu, value: *const c_c
     if let Some(v) = opt_string_parse(value) {
         e.cfg.trace_filename = v;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Tier 1: Config property parity (entropy, linux_real_libc, max_alloc_size,
+// arguments, verbose_at/start/end, trace_flags getter)
+// ---------------------------------------------------------------------------
+
+/// Get entropy measurement (1/0).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_entropy(emu: *mut MwemuEmu) -> i32 {
+    emu!(emu, 0).cfg.entropy as i32
+}
+/// Enable/disable entropy measurement.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_entropy(emu: *mut MwemuEmu, value: i32) {
+    emu!(emu, ()).cfg.entropy = value != 0;
+}
+
+/// Get linux real-libc mode (1/0).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_linux_real_libc(emu: *mut MwemuEmu) -> i32 {
+    emu!(emu, 0).cfg.linux_real_libc as i32
+}
+/// Enable/disable linux real-libc syscall-intercept mode.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_linux_real_libc(emu: *mut MwemuEmu, value: i32) {
+    emu!(emu, ()).cfg.linux_real_libc = value != 0;
+}
+
+/// Get the maximum allocation size cap.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_max_alloc_size(emu: *mut MwemuEmu) -> u64 {
+    emu!(emu, 0).cfg.max_alloc_size
+}
+/// Set the maximum allocation size cap.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_max_alloc_size(emu: *mut MwemuEmu, value: u64) {
+    emu!(emu, ()).cfg.max_alloc_size = value;
+}
+
+/// Get the EXE arguments. Free with `mwemu_free_string`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_arguments(emu: *mut MwemuEmu) -> *mut c_char {
+    ret_string(emu!(emu, std::ptr::null_mut()).cfg.arguments.clone())
+}
+/// Set the EXE arguments.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_arguments(emu: *mut MwemuEmu, value: *const c_char) {
+    let e = emu!(emu, ());
+    e.cfg.arguments = cstr!(value, ()).to_string();
+}
+
+/// Get verbose_at position. Returns 1 if set, 0 if unset.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_verbose_at(emu: *mut MwemuEmu, out: *mut u64) -> i32 {
+    let e = emu!(emu, 0);
+    match e.cfg.verbose_at {
+        Some(v) => {
+            if !out.is_null() {
+                unsafe { *out = v };
+            }
+            1
+        }
+        None => 0,
+    }
+}
+/// Set verbose_at; `has_value` 0 clears it.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_verbose_at(emu: *mut MwemuEmu, has_value: i32, value: u64) {
+    let e = emu!(emu, ());
+    e.cfg.verbose_at = if has_value != 0 { Some(value) } else { None };
+}
+
+/// Get verbose_start position.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_verbose_start(emu: *mut MwemuEmu) -> u64 {
+    emu!(emu, 0).cfg.verbose_start
+}
+/// Set verbose_start position.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_verbose_start(emu: *mut MwemuEmu, value: u64) {
+    emu!(emu, ()).cfg.verbose_start = value;
+}
+
+/// Get verbose_end position.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_verbose_end(emu: *mut MwemuEmu) -> u64 {
+    emu!(emu, 0).cfg.verbose_end
+}
+/// Set verbose_end position.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_verbose_end(emu: *mut MwemuEmu, value: u64) {
+    emu!(emu, ()).cfg.verbose_end = value;
+}
+
+/// Get trace_flags (1/0).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_trace_flags(emu: *mut MwemuEmu) -> i32 {
+    emu!(emu, 0).cfg.trace_flags as i32
+}
+
+/// Get shellcode mode (1/0).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_shellcode_mode(emu: *mut MwemuEmu) -> i32 {
+    emu!(emu, 0).cfg.shellcode as i32
+}
+/// Disable shellcode mode.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_disable_shellcode_mode(emu: *mut MwemuEmu) {
+    emu!(emu, ()).cfg.shellcode = false;
+}
+
+// ---------------------------------------------------------------------------
+// Tier 2: Catch-up with pymwemu (set_arch/os, memory_guard, api_call_log,
+// kernel fault injection, dump helpers, search_string_in_all)
+// ---------------------------------------------------------------------------
+
+/// Set architecture by name ("x86", "x86_64"/"x64"/"amd64", "aarch64"/"arm64").
+/// Returns 1 on success, 0 on unknown arch.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_arch(emu: *mut MwemuEmu, arch: *const c_char) -> i32 {
+    let e = emu!(emu, 0);
+    let a = cstr!(arch, 0);
+    match a.parse::<libmwemu::arch::Arch>() {
+        Ok(v) => {
+            e.cfg.arch = v;
+            e.maps.is_64bits = v.is_64bits();
+            1
+        }
+        Err(msg) => {
+            set_error(msg);
+            0
+        }
+    }
+}
+/// Get architecture as a string. Free with `mwemu_free_string`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_arch(emu: *mut MwemuEmu) -> *mut c_char {
+    let e = emu!(emu, std::ptr::null_mut());
+    ret_string(e.cfg.arch.to_string())
+}
+
+/// Set OS by name ("windows"/"win", "linux", "macos"/"osx"/"darwin").
+/// Returns 1 on success, 0 on unknown OS.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_os(emu: *mut MwemuEmu, os: *const c_char) -> i32 {
+    let e = emu!(emu, 0);
+    let o = cstr!(os, 0);
+    match o.parse::<libmwemu::arch::OperatingSystem>() {
+        Ok(v) => {
+            e.set_os(v);
+            1
+        }
+        Err(msg) => {
+            set_error(msg);
+            0
+        }
+    }
+}
+/// Get OS as a string. Free with `mwemu_free_string`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_os(emu: *mut MwemuEmu) -> *mut c_char {
+    let e = emu!(emu, std::ptr::null_mut());
+    ret_string(e.get_os().to_string())
+}
+
+/// Get memory_guard mode (1/0).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_memory_guard(emu: *mut MwemuEmu) -> i32 {
+    emu!(emu, 0).cfg.memory_guard as i32
+}
+/// Enable/disable memory-guard heap analysis.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_memory_guard(emu: *mut MwemuEmu, value: i32) {
+    let e = emu!(emu, ());
+    e.set_memory_guard(value != 0);
+}
+
+/// Initialize memory-guard tracking after load and before run.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_memory_guard_init(emu: *mut MwemuEmu) {
+    let e = emu!(emu, ());
+    e.memory_guard_init();
+}
+
+/// Check for memory leaks (call after run completes).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_memory_guard_check_leaks(emu: *mut MwemuEmu) {
+    let e = emu!(emu, ());
+    e.kernel_check_leaks();
+}
+
+/// Memory-safety findings as a newline-separated string. Free with
+/// `mwemu_free_string`. Returns NULL if there are no findings.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_memory_guard_findings(emu: *mut MwemuEmu) -> *mut c_char {
+    let e = emu!(emu, std::ptr::null_mut());
+    let findings = e.kernel_findings();
+    if findings.is_empty() {
+        return std::ptr::null_mut();
+    }
+    let text: Vec<String> = findings.iter().map(|f| f.report()).collect();
+    ret_string(text.join("\n"))
+}
+
+/// Get the API call log as a flat array `[pos0, from0, to0, pos1, from1, to1, ...]`
+/// with corresponding names. `out_count` receives the number of entries;
+/// `out_names` points to an array of `char*` (free each with `mwemu_free_string`),
+/// then free `out_names` itself with `mwemu_free_buffer(out_names, count * sizeof(void*))`.
+/// The returned `uint64_t` array has `count * 3` elements; free with
+/// `mwemu_free_u64_buffer(ptr, count * 3)`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_api_call_log(
+    emu: *mut MwemuEmu,
+    out_count: *mut usize,
+    out_names: *mut *mut *mut c_char,
+) -> *mut u64 {
+    let e = emu!(emu, std::ptr::null_mut());
+    let count = e.api_call_log.len();
+    if !out_count.is_null() {
+        unsafe { *out_count = count };
+    }
+    if count == 0 {
+        if !out_names.is_null() {
+            unsafe { *out_names = std::ptr::null_mut() };
+        }
+        return std::ptr::null_mut();
+    }
+    let mut nums = Vec::with_capacity(count * 3);
+    let mut names: Vec<*mut c_char> = Vec::with_capacity(count);
+    for entry in &e.api_call_log {
+        nums.push(entry.pos);
+        nums.push(entry.from);
+        nums.push(entry.to);
+        names.push(ret_string(entry.name.clone()));
+    }
+    if !out_names.is_null() {
+        let names_box = names.into_boxed_slice();
+        unsafe { *out_names = Box::into_raw(names_box) as *mut *mut c_char };
+    }
+    let boxed = nums.into_boxed_slice();
+    Box::into_raw(boxed) as *mut u64
+}
+
+/// Clear the API call log.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_clear_api_call_log(emu: *mut MwemuEmu) {
+    let e = emu!(emu, ());
+    e.api_call_log.clear();
+}
+
+/// Manually free a kernel slab object (for testing use-after-free scenarios).
+/// Returns 1 if the free was accepted, 0 on error.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_free(emu: *mut MwemuEmu, ptr: u64, api: *const c_char) -> i32 {
+    let e = emu!(emu, 0);
+    let a = cstr!(api, 0);
+    e.kernel_free(ptr, a) as i32
+}
+
+/// Set which allocation to fail (fault injection). `has_value` 0 clears it.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_set_fail_alloc(emu: *mut MwemuEmu, has_value: i32, idx: u64) {
+    let e = emu!(emu, ());
+    e.kernel_set_fail_alloc(if has_value != 0 { Some(idx) } else { None });
+}
+
+/// Number of kernel slab allocations performed.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_kernel_alloc_count(emu: *mut MwemuEmu) -> u64 {
+    emu!(emu, 0).kernel_alloc_count()
+}
+
+/// Hex-dump `n` qwords at `addr` to stdout.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_dump_qwords(emu: *mut MwemuEmu, addr: u64, n: u64) {
+    let e = emu!(emu, ());
+    e.maps.dump_qwords(addr, n);
+}
+
+/// Hex-dump `n` dwords at `addr` to stdout.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_dump_dwords(emu: *mut MwemuEmu, addr: u64, n: u64) {
+    let e = emu!(emu, ());
+    e.maps.dump_dwords(addr, n);
+}
+
+/// Search an ASCII string across all maps (prints results to stdout).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_search_string_in_all(emu: *mut MwemuEmu, kw: *const c_char) {
+    let e = emu!(emu, ());
+    let k = cstr!(kw, ());
+    e.maps.search_string_in_all(k.to_string());
+}
+
+// ---------------------------------------------------------------------------
+// Tier 3: Feature methods (flags, instruction_count, emulated_stdout,
+// FPU trace, platform inits, endpoint)
+// ---------------------------------------------------------------------------
+
+/// Get the carry flag.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_flag_cf(emu: *mut MwemuEmu) -> i32 {
+    let e = emu!(emu, 0);
+    e.flag_cf() as i32
+}
+/// Get the zero flag.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_flag_zf(emu: *mut MwemuEmu) -> i32 {
+    let e = emu!(emu, 0);
+    e.flag_zf() as i32
+}
+/// Get the sign flag.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_flag_sf(emu: *mut MwemuEmu) -> i32 {
+    let e = emu!(emu, 0);
+    e.flag_sf() as i32
+}
+/// Get the overflow flag.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_flag_of(emu: *mut MwemuEmu) -> i32 {
+    let e = emu!(emu, 0);
+    e.flag_of() as i32
+}
+/// Get the direction flag.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_flag_df(emu: *mut MwemuEmu) -> i32 {
+    let e = emu!(emu, 0);
+    e.flag_df() as i32
+}
+/// Get the parity flag.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_flag_pf(emu: *mut MwemuEmu) -> i32 {
+    let e = emu!(emu, 0);
+    e.flag_pf() as i32
+}
+/// Get the auxiliary carry flag.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_flag_af(emu: *mut MwemuEmu) -> i32 {
+    let e = emu!(emu, 0);
+    e.flag_af() as i32
+}
+
+/// Number of instructions emulated so far (alias of `mwemu_get_position`).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_instruction_count(emu: *mut MwemuEmu) -> u64 {
+    emu!(emu, 0).pos
+}
+
+/// Get the emulated program's buffered stdout. Free with `mwemu_free_buffer`.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_emulated_stdout(emu: *mut MwemuEmu, out_len: *mut usize) -> *mut u8 {
+    let e = emu!(emu, std::ptr::null_mut());
+    ret_bytes(e.emulated_stdout.clone(), out_len)
+}
+
+/// Enable FPU state tracing.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_enable_fpu_trace(emu: *mut MwemuEmu) {
+    let e = emu!(emu, ());
+    e.fpu_mut().trace = true;
+}
+/// Disable FPU state tracing.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_disable_fpu_trace(emu: *mut MwemuEmu) {
+    let e = emu!(emu, ());
+    e.fpu_mut().trace = false;
+}
+
+/// Create a 64-bit Linux AArch64 emulator with environment initialized.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_init_linux64_aarch64() -> *mut MwemuEmu {
+    clear_error();
+    let mut emu = libmwemu::emu_aarch64();
+    emu.cfg.console_enabled = false;
+    emu.cfg.verbose = 0;
+    emu.init_linux64_aarch64();
+    boxed(emu)
+}
+
+/// Create a 64-bit macOS x86_64 emulator with environment initialized.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_init_macos64() -> *mut MwemuEmu {
+    clear_error();
+    let mut emu = libmwemu::emu64();
+    emu.cfg.console_enabled = false;
+    emu.cfg.verbose = 0;
+    emu.init_macos64();
+    boxed(emu)
+}
+
+/// Create a macOS AArch64 emulator with environment initialized.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_init_macos_aarch64() -> *mut MwemuEmu {
+    clear_error();
+    let mut emu = libmwemu::emu_aarch64();
+    emu.cfg.console_enabled = false;
+    emu.cfg.verbose = 0;
+    emu.init_macos_aarch64();
+    boxed(emu)
+}
+
+/// Get endpoint emulation mode (1/0).
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_get_endpoint(emu: *mut MwemuEmu) -> i32 {
+    emu!(emu, 0).cfg.endpoint as i32
+}
+/// Enable/disable endpoint (network) emulation.
+#[unsafe(no_mangle)]
+pub extern "C" fn mwemu_set_endpoint(emu: *mut MwemuEmu, value: i32) {
+    emu!(emu, ()).cfg.endpoint = value != 0;
 }
 
 // ---------------------------------------------------------------------------

@@ -6,12 +6,7 @@
 //! The sample is built here with the host's `go` toolchain (static, no cgo),
 //! so the test needs no bundle and skips itself where `go` is absent.
 
-use crate::tests::helpers;
-use crate::*;
-use std::cell::RefCell;
-use std::process::Command;
-use std::rc::Rc;
-
+#[cfg(not(target_os = "windows"))]
 const SOURCE: &str = r#"
 package main
 
@@ -60,8 +55,10 @@ func main() {
 }
 "#;
 
-/// Build the sample into a scratch dir, or `None` when there is no `go`.
+#[cfg(not(target_os = "windows"))]
 fn build_sample(dir: &std::path::Path) -> Option<std::path::PathBuf> {
+    use std::process::Command;
+
     let src = dir.join("main.go");
     let bin = dir.join("sample");
     std::fs::write(&src, SOURCE).ok()?;
@@ -70,9 +67,6 @@ fn build_sample(dir: &std::path::Path) -> Option<std::path::PathBuf> {
         .arg(&bin)
         .arg(&src)
         .env("CGO_ENABLED", "0")
-        // Pin the target so the sample is always a Linux x86_64 ELF, whatever
-        // the host is: a bare `go build` on a macOS runner would emit a Mach-O
-        // that this ELF-Linux test cannot load.
         .env("GOOS", "linux")
         .env("GOARCH", "amd64")
         .status()
@@ -81,8 +75,13 @@ fn build_sample(dir: &std::path::Path) -> Option<std::path::PathBuf> {
 }
 
 #[test]
-#[cfg(not(target_os = "windows"))] // Windows runners don't run this one
+#[cfg(not(target_os = "windows"))]
 fn elf64lin_go_goroutines_timers_exec() {
+    use crate::tests::helpers;
+    use crate::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     helpers::setup();
     let dir = tempfile::tempdir().expect("scratch dir");
     let Some(bin) = build_sample(dir.path()) else {
