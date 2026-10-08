@@ -184,3 +184,15 @@ mod GetFileSize;
 #[path = "../get_file_size_ex.rs"]
 mod get_file_size_ex;
 pub use get_file_size_ex::GetFileSizeEx;
+
+#[path = "../create_directory_a.rs"]
+mod create_directory_a;
+pub use create_directory_a::*;
+
+#[path = "../create_directory_w.rs"]
+mod create_directory_w;
+pub use create_directory_w::*;
+
+#[path = "../delete_file_w.rs"]
+mod delete_file_w;
+pub use delete_file_w::*;

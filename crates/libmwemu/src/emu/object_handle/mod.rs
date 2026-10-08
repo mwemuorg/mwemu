@@ -16,6 +16,14 @@ handle id to get the right handle. In the document, it doesn't specific that the
 
 */
 
+pub struct SectionHandle {
+    pub name: String,
+    pub max_size: u64,
+    pub protection: u32,
+    pub mapped_addr: Option<u64>,
+    pub mapped_size: u64,
+}
+
 enum HandleType {
     /// Permanently occupies slab slot 0 so no real handle ever gets the
     /// NULL-like key 0 (guests treat handle 0 as "no handle").
@@ -23,6 +31,7 @@ enum HandleType {
     FileHandle(FileHandle),
     MappingHandle(MappingHandle),
     HeapHandle(HeapHandle),
+    SectionHandle(SectionHandle),
 }
 
 pub struct HandleManagement {
@@ -246,6 +255,40 @@ impl HandleManagement {
         match self.handle_types.get(key as usize) {
             Some(HandleType::HeapHandle(hh)) if hh.base_addr != 0 => Some(hh.base_addr),
             _ => None,
+        }
+    }
+
+    pub fn insert_section_handle(&mut self, section: SectionHandle) -> u32 {
+        let key = self.handle_types.insert(HandleType::SectionHandle(section));
+        self.number_of_handle += 1;
+        key as u32
+    }
+
+    pub fn get_mut_section_handle(&mut self, key: u32) -> Option<&mut SectionHandle> {
+        if let Some(handle_type) = self.handle_types.get_mut(key as usize) {
+            match handle_type {
+                HandleType::SectionHandle(sh) => Some(sh),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn remove_section_handle(&mut self, key: u32) -> Option<SectionHandle> {
+        if let Some(handle_type) = self.handle_types.try_remove(key as usize) {
+            match handle_type {
+                HandleType::SectionHandle(sh) => {
+                    self.number_of_handle -= 1;
+                    Some(sh)
+                }
+                _ => {
+                    self.handle_types.insert(handle_type);
+                    None
+                }
+            }
+        } else {
+            None
         }
     }
 

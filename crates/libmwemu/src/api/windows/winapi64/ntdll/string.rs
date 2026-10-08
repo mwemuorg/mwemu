@@ -6,6 +6,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "stricmp" => stricmp(emu),
         "strlen" => strlen(emu),
         "sscanf" => sscanf(emu),
+        "RtlInitUnicodeString" => RtlInitUnicodeString(emu),
+        "RtlInitAnsiString" => RtlInitAnsiString(emu),
         _ => return false,
     }
     true
@@ -37,7 +39,7 @@ fn strlen(emu: &mut emu::Emu) {
 fn sscanf(emu: &mut emu::Emu) {
     let buffer_ptr = emu.regs().rcx;
     let fmt_ptr = emu.regs().rdx;
-    let list = emu.regs().r8;
+    let _list = emu.regs().r8;
 
     let buffer = emu.maps.read_string(buffer_ptr);
     let fmt = emu.maps.read_string(fmt_ptr);
@@ -52,7 +54,64 @@ fn sscanf(emu: &mut emu::Emu) {
         .replace("%i", "{}")
         .replace("%o", "{o}")
         .replace("%f", "{}");
-    let params = rust_fmt.matches("{").count();
+    let _params = rust_fmt.matches("{").count();
 
     unimplemented!("sscanf is unimplemented for now.");
+}
+
+pub fn RtlInitUnicodeString(emu: &mut emu::Emu) {
+    let dest_ptr = emu.regs().rcx;
+    let source_ptr = emu.regs().rdx;
+
+    if source_ptr == 0 {
+        // Null source: zero out the UNICODE_STRING64 (16 bytes)
+        emu.maps.write_qword(dest_ptr, 0);
+        emu.maps.write_qword(dest_ptr + 8, 0);
+
+        log_red!(emu, "ntdll!RtlInitUnicodeString (null source)");
+    } else {
+        let s = emu.maps.read_wide_string(source_ptr);
+        let byte_length = (s.encode_utf16().count() * 2) as u16;
+
+        // UNICODE_STRING64: u16 Length, u16 MaximumLength, u32 padding, u64 Buffer
+        emu.maps.write_word(dest_ptr, byte_length);
+        emu.maps
+            .write_word(dest_ptr + 2, byte_length.saturating_add(2));
+        emu.maps.write_dword(dest_ptr + 4, 0); // padding
+        emu.maps.write_qword(dest_ptr + 8, source_ptr);
+
+        log_red!(
+            emu,
+            "ntdll!RtlInitUnicodeString `{}` len: {}",
+            s,
+            byte_length
+        );
+    }
+
+    emu.regs_mut().rax = 0;
+}
+
+pub fn RtlInitAnsiString(emu: &mut emu::Emu) {
+    let dest_ptr = emu.regs().rcx;
+    let source_ptr = emu.regs().rdx;
+
+    if source_ptr == 0 {
+        emu.maps.write_qword(dest_ptr, 0);
+        emu.maps.write_qword(dest_ptr + 8, 0);
+
+        log_red!(emu, "ntdll!RtlInitAnsiString (null source)");
+    } else {
+        let s = emu.maps.read_string(source_ptr);
+        let length = s.len() as u16;
+
+        // ANSI_STRING64: u16 Length, u16 MaximumLength, u32 padding, u64 Buffer
+        emu.maps.write_word(dest_ptr, length);
+        emu.maps.write_word(dest_ptr + 2, length.saturating_add(1));
+        emu.maps.write_dword(dest_ptr + 4, 0); // padding
+        emu.maps.write_qword(dest_ptr + 8, source_ptr);
+
+        log_red!(emu, "ntdll!RtlInitAnsiString `{}` len: {}", s, length);
+    }
+
+    emu.regs_mut().rax = 0;
 }

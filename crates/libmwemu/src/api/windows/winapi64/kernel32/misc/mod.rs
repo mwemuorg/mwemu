@@ -61,3 +61,19 @@ pub use sleep::*;
 #[path = "../win_exec.rs"]
 mod win_exec;
 pub use win_exec::*;
+
+#[path = "../output_debug_string_a.rs"]
+mod output_debug_string_a;
+pub use output_debug_string_a::*;
+
+#[path = "../output_debug_string_w.rs"]
+mod output_debug_string_w;
+pub use output_debug_string_w::*;
+
+#[path = "../set_environment_variable_a.rs"]
+mod set_environment_variable_a;
+pub use set_environment_variable_a::*;
+
+#[path = "../set_environment_variable_w.rs"]
+mod set_environment_variable_w;
+pub use set_environment_variable_w::*;

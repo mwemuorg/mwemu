@@ -3,6 +3,7 @@ use crate::serialization;
 use crate::winapi::helper;
 use crate::winapi::winapi64;
 use crate::windows::constants;
+use crate::windows::constants::*;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
@@ -11,10 +12,22 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "StartServiceCtrlDispatcherA" => StartServiceCtrlDispatcherA(emu),
         "StartServiceCtrlDispatcherW" => StartServiceCtrlDispatcherW(emu),
         "RegOpenKeyExA" => RegOpenKeyExA(emu),
+        "RegOpenKeyExW" => RegOpenKeyExW(emu),
         "RegQueryValueExA" => RegQueryValueExA(emu),
+        "RegQueryValueExW" => RegQueryValueExW(emu),
         "RegCloseKey" => RegCloseKey(emu),
         "GetUserNameA" => GetUserNameA(emu),
         "GetUserNameW" => GetUserNameW(emu),
+        "CryptAcquireContextA" => CryptAcquireContextA(emu),
+        "CryptAcquireContextW" => CryptAcquireContextW(emu),
+        "CryptReleaseContext" => CryptReleaseContext(emu),
+        "CryptCreateHash" => CryptCreateHash(emu),
+        "CryptHashData" => CryptHashData(emu),
+        "CryptGenKey" => CryptGenKey(emu),
+        "CryptEncrypt" => CryptEncrypt(emu),
+        "CryptDecrypt" => CryptDecrypt(emu),
+        "CryptGenRandom" => CryptGenRandom(emu),
+        "AdjustTokenPrivileges" => AdjustTokenPrivileges(emu),
 
         _ => {
             if !emu.cfg.skip_unimplemented {
@@ -82,6 +95,24 @@ fn RegOpenKeyExA(emu: &mut emu::Emu) {
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }
 
+pub fn RegOpenKeyExW(emu: &mut emu::Emu) {
+    let hkey = emu.regs().rcx;
+    let subkey_ptr = emu.regs().rdx;
+    let opts = emu.regs().r8;
+    let sam_desired = emu.regs().r9;
+    let phk_result = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+
+    let subkey = emu.maps.read_wide_string(subkey_ptr);
+
+    log_red!(emu, "advapi32!RegOpenKeyExW {}", subkey);
+
+    if phk_result != 0 {
+        let hndl = helper::handler_create(&format!("registry://{}", subkey));
+        emu.maps.write_qword(phk_result, hndl);
+    }
+    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+}
+
 fn RegCloseKey(emu: &mut emu::Emu) {
     let hkey = emu.regs().rcx;
 
@@ -118,6 +149,32 @@ fn RegQueryValueExA(emu: &mut emu::Emu) {
     }
     if datasz_out > 0 {
         emu.maps.write_qword(datasz_out, 24);
+    }
+    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+}
+
+pub fn RegQueryValueExW(emu: &mut emu::Emu) {
+    let hkey = emu.regs().rcx;
+    let value_ptr = emu.regs().rdx;
+    let reserved = emu.regs().r8;
+    let typ_out = emu.regs().r9;
+    let data_out = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let datasz_out = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+
+    let mut value = String::new();
+    if value_ptr > 0 {
+        value = emu.maps.read_wide_string(value_ptr);
+    }
+
+    log_red!(emu, "advapi32!RegQueryValueExW {}", value);
+
+    if typ_out != 0 {
+        emu.maps.write_dword(typ_out, 1); // REG_SZ
+    }
+    if data_out > 0 && datasz_out > 0 {
+        emu.maps.write_wide_string(data_out, "");
+        let written: u64 = 2; // empty wide string = null terminator (2 bytes)
+        emu.maps.write_dword(datasz_out, written as u32);
     }
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }
@@ -247,4 +304,234 @@ fn GetUserNameW(emu: &mut emu::Emu) {
     );
 
     emu.regs_mut().rax = constants::TRUE;
+}
+
+///// CRYPTO API /////
+
+pub fn CryptAcquireContextA(emu: &mut emu::Emu) {
+    let out_handle = emu.regs().rcx;
+    let container_ptr = emu.regs().rdx;
+    let provider_ptr = emu.regs().r8;
+    let prov_type = emu.regs().r9 as u32;
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as u32;
+
+    let uri = "cryptctx://".to_string();
+    let hndl = helper::handler_create(&uri);
+    if out_handle != 0 {
+        emu.maps.write_qword(out_handle, hndl);
+    }
+
+    let mut sflags = String::new();
+    if flags & CRYPT_VERIFYCONTEXT == CRYPT_VERIFYCONTEXT {
+        sflags.push_str("CRYPT_VERIFYCONTEXT ");
+    }
+    if flags & CRYPT_NEWKEYSET == CRYPT_NEWKEYSET {
+        sflags.push_str("CRYPT_NEWKEYSET ");
+    }
+    if flags & CRYPT_DELETEKEYSET == CRYPT_DELETEKEYSET {
+        sflags.push_str("CRYPT_DELETEKEYSET ");
+    }
+    if flags & CRYPT_MACHINE_KEYSET == CRYPT_MACHINE_KEYSET {
+        sflags.push_str("CRYPT_MACHINE_KEYSET ");
+    }
+    if flags & CRYPT_SILENT == CRYPT_SILENT {
+        sflags.push_str("CRYPT_SILENT ");
+    }
+    if flags & CRYPT_DEFAULT_CONTAINER_OPTIONAL == CRYPT_DEFAULT_CONTAINER_OPTIONAL {
+        sflags.push_str("CRYPT_DEFAULT_CONTAINER_OPTIONAL ");
+    }
+
+    log_red!(
+        emu,
+        "advapi32!CryptAcquireContextA =0x{:x} type: {} flags: `{}`",
+        hndl,
+        prov_type,
+        &sflags
+    );
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptAcquireContextW(emu: &mut emu::Emu) {
+    let out_handle = emu.regs().rcx;
+    let container_ptr = emu.regs().rdx;
+    let provider_ptr = emu.regs().r8;
+    let prov_type = emu.regs().r9 as u32;
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as u32;
+
+    let uri = "cryptctx://".to_string();
+    let hndl = helper::handler_create(&uri);
+    if out_handle != 0 {
+        emu.maps.write_qword(out_handle, hndl);
+    }
+
+    let mut sflags = String::new();
+    if flags & CRYPT_VERIFYCONTEXT == CRYPT_VERIFYCONTEXT {
+        sflags.push_str("CRYPT_VERIFYCONTEXT ");
+    }
+    if flags & CRYPT_NEWKEYSET == CRYPT_NEWKEYSET {
+        sflags.push_str("CRYPT_NEWKEYSET ");
+    }
+    if flags & CRYPT_DELETEKEYSET == CRYPT_DELETEKEYSET {
+        sflags.push_str("CRYPT_DELETEKEYSET ");
+    }
+    if flags & CRYPT_MACHINE_KEYSET == CRYPT_MACHINE_KEYSET {
+        sflags.push_str("CRYPT_MACHINE_KEYSET ");
+    }
+    if flags & CRYPT_SILENT == CRYPT_SILENT {
+        sflags.push_str("CRYPT_SILENT ");
+    }
+    if flags & CRYPT_DEFAULT_CONTAINER_OPTIONAL == CRYPT_DEFAULT_CONTAINER_OPTIONAL {
+        sflags.push_str("CRYPT_DEFAULT_CONTAINER_OPTIONAL ");
+    }
+
+    log_red!(
+        emu,
+        "advapi32!CryptAcquireContextW =0x{:x} type: {} flags: `{}`",
+        hndl,
+        prov_type,
+        &sflags
+    );
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptReleaseContext(emu: &mut emu::Emu) {
+    let hprov = emu.regs().rcx;
+    let flags = emu.regs().rdx as u32;
+
+    log_red!(emu, "advapi32!CryptReleaseContext hProv=0x{:x}", hprov);
+
+    helper::handler_close(hprov);
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptCreateHash(emu: &mut emu::Emu) {
+    let hprov = emu.regs().rcx;
+    let alg_id = emu.regs().rdx as u32;
+    let hkey = emu.regs().r8;
+    let flags = emu.regs().r9 as u32;
+    let ph_hash = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+
+    let alg_name = constants::get_cryptoalgorithm_name(alg_id);
+    let uri = format!("crypthash://{}", alg_name);
+    let hndl = helper::handler_create(&uri);
+
+    if ph_hash != 0 {
+        emu.maps.write_qword(ph_hash, hndl);
+    }
+
+    log_red!(
+        emu,
+        "advapi32!CryptCreateHash alg={} =0x{:x}",
+        alg_name,
+        hndl
+    );
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptHashData(emu: &mut emu::Emu) {
+    let hhash = emu.regs().rcx;
+    let data_ptr = emu.regs().rdx;
+    let data_len = emu.regs().r8;
+    let flags = emu.regs().r9 as u32;
+
+    log_red!(
+        emu,
+        "advapi32!CryptHashData hHash=0x{:x} data=0x{:x} len={}",
+        hhash,
+        data_ptr,
+        data_len
+    );
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptGenKey(emu: &mut emu::Emu) {
+    let hprov = emu.regs().rcx;
+    let alg_id = emu.regs().rdx as u32;
+    let flags = emu.regs().r8;
+    let ph_key = emu.regs().r9;
+
+    let alg_name = constants::get_cryptoalgorithm_name(alg_id);
+    let uri = format!("cryptkey://{}", alg_name);
+    let hndl = helper::handler_create(&uri);
+
+    if ph_key != 0 {
+        emu.maps.write_qword(ph_key, hndl);
+    }
+
+    log_red!(emu, "advapi32!CryptGenKey alg={} =0x{:x}", alg_name, hndl);
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptEncrypt(emu: &mut emu::Emu) {
+    let hkey = emu.regs().rcx;
+    let hhash = emu.regs().rdx;
+    let bfinal = emu.regs().r8;
+    let flags = emu.regs().r9 as u32;
+    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let data_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let buff_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+
+    log_red!(emu, "advapi32!CryptEncrypt hKey=0x{:x}", hkey);
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptDecrypt(emu: &mut emu::Emu) {
+    let hkey = emu.regs().rcx;
+    let hhash = emu.regs().rdx;
+    let bfinal = emu.regs().r8;
+    let flags = emu.regs().r9 as u32;
+    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let data_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+
+    log_red!(emu, "advapi32!CryptDecrypt hKey=0x{:x}", hkey);
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn CryptGenRandom(emu: &mut emu::Emu) {
+    let hprov = emu.regs().rcx;
+    let dw_len = emu.regs().rdx;
+    let pb_buffer = emu.regs().r8;
+
+    log_red!(
+        emu,
+        "advapi32!CryptGenRandom len={} buf=0x{:x}",
+        dw_len,
+        pb_buffer
+    );
+
+    if pb_buffer != 0 && dw_len > 0 {
+        let tick = emu.tick as u8;
+        for i in 0..dw_len {
+            let byte = tick.wrapping_add(i as u8);
+            emu.maps.write_byte(pb_buffer + i, byte);
+        }
+    }
+
+    emu.regs_mut().rax = 1;
+}
+
+pub fn AdjustTokenPrivileges(emu: &mut emu::Emu) {
+    let token_handle = emu.regs().rcx;
+    let disable_all = emu.regs().rdx;
+    let new_state = emu.regs().r8;
+    let buffer_length = emu.regs().r9 as u32;
+    let previous_state = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let return_length = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "advapi32!AdjustTokenPrivileges handle=0x{:x} disableAll={}",
+        token_handle,
+        disable_all
+    );
+
+    emu.regs_mut().rax = 1;
 }

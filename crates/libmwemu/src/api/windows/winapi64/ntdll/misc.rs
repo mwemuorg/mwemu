@@ -18,6 +18,9 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         // kernel32!RestoreLastError forwards to ntdll!RtlRestoreLastWin32Error:
         // just stores rcx into the last-error slot, no return value.
         "RtlRestoreLastWin32Error" | "RestoreLastError" => RestoreLastError(emu),
+        "NtQueryInformationProcess" => NtQueryInformationProcess(emu),
+        "NtQuerySystemInformation" => NtQuerySystemInformation(emu),
+        "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
         _ => return false,
     }
     true
@@ -138,4 +141,85 @@ fn NtSetInformationThread(emu: &mut emu::Emu) {
     );
 
     emu.regs_mut().rax = 0x00000000;
+}
+
+pub fn NtQueryInformationProcess(emu: &mut emu::Emu) {
+    let _process_handle = emu.regs().rcx;
+    let info_class = emu.regs().rdx;
+    let buffer = emu.regs().r8;
+    let buffer_length = emu.regs().r9;
+    let return_length_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "ntdll!NtQueryInformationProcess class: {} buf: 0x{:x} len: {}",
+        info_class,
+        buffer,
+        buffer_length
+    );
+
+    match info_class {
+        0 => {
+            // ProcessBasicInformation — 48 bytes
+            let size: u64 = 48;
+            for i in 0..(size / 8) {
+                emu.maps.write_qword(buffer + i * 8, 0);
+            }
+            if return_length_ptr != 0 {
+                emu.maps.write_dword(return_length_ptr, size as u32);
+            }
+        }
+        _ => {
+            // Unknown class: zero-fill what we can
+            let fill = std::cmp::min(buffer_length, 256);
+            for i in 0..fill {
+                emu.maps.write_byte(buffer + i, 0);
+            }
+            if return_length_ptr != 0 {
+                emu.maps.write_dword(return_length_ptr, fill as u32);
+            }
+        }
+    }
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+}
+
+pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
+    let info_class = emu.regs().rcx;
+    let buffer = emu.regs().rdx;
+    let buffer_length = emu.regs().r8;
+    let return_length_ptr = emu.regs().r9;
+
+    log_red!(
+        emu,
+        "ntdll!NtQuerySystemInformation class: {} buf: 0x{:x} len: {}",
+        info_class,
+        buffer,
+        buffer_length
+    );
+
+    let fill = std::cmp::min(buffer_length, 256);
+    for i in 0..fill {
+        emu.maps.write_byte(buffer + i, 0);
+    }
+    if return_length_ptr != 0 {
+        emu.maps.write_dword(return_length_ptr, fill as u32);
+    }
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+}
+
+pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
+    let compression_format = emu.regs().rcx;
+    let _uncompressed_buffer = emu.regs().rdx;
+    let _uncompressed_buffer_size = emu.regs().r8;
+    let _compressed_buffer = emu.regs().r9;
+
+    log_red!(
+        emu,
+        "ntdll!RtlDecompressBuffer format: 0x{:x} (stub, not implemented)",
+        compression_format
+    );
+
+    emu.regs_mut().rax = constants::STATUS_NOT_IMPLEMENTED;
 }

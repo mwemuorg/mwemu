@@ -1,5 +1,6 @@
 use crate::api::windows::common::ntdll;
 use crate::emu;
+use crate::emu::object_handle::SectionHandle;
 use crate::maps::mem64::Permission;
 use crate::winapi::helper;
 use crate::windows::{constants, structures};
@@ -17,6 +18,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlAddFunctionTable" => RtlAddFunctionTable(emu),
         "RtlCaptureContext" => RtlCaptureContext(emu),
         "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
+        "NtFreeVirtualMemory" => NtFreeVirtualMemory(emu),
+        "NtCreateSection" => NtCreateSection(emu),
+        "NtMapViewOfSection" => NtMapViewOfSection(emu),
+        "NtUnmapViewOfSection" => NtUnmapViewOfSection(emu),
         _ => return false,
     }
     true
@@ -251,4 +256,120 @@ fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {
         history_table
     );
     emu.regs_mut().rax = 0;
+}
+
+pub fn NtFreeVirtualMemory(emu: &mut emu::Emu) {
+    let _process_handle = emu.regs().rcx;
+    let base_addr_ptr = emu.regs().rdx;
+    let _region_size_ptr = emu.regs().r8;
+    let _free_type = emu.regs().r9;
+
+    let base_addr = emu.maps.read_qword(base_addr_ptr).unwrap_or(0);
+
+    log_red!(emu, "ntdll!NtFreeVirtualMemory base: 0x{:x}", base_addr);
+
+    if base_addr != 0 {
+        emu.maps.dealloc(base_addr);
+    }
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+}
+
+pub fn NtCreateSection(emu: &mut emu::Emu) {
+    let section_handle_ptr = emu.regs().rcx;
+    let _desired_access = emu.regs().rdx;
+    let _object_attributes = emu.regs().r8;
+    let max_size_ptr = emu.regs().r9;
+    let protection = emu.maps.read_dword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _alloc_attributes = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _file_handle = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+
+    let max_size = if max_size_ptr != 0 {
+        emu.maps.read_qword(max_size_ptr).unwrap_or(0x10000)
+    } else {
+        0x10000
+    };
+
+    log_red!(
+        emu,
+        "ntdll!NtCreateSection max_size: 0x{:x} prot: 0x{:x}",
+        max_size,
+        protection
+    );
+
+    let section = SectionHandle {
+        name: format!("section_{:x}", emu.pos),
+        max_size,
+        protection,
+        mapped_addr: None,
+        mapped_size: 0,
+    };
+    let key = emu.handle_management.insert_section_handle(section);
+    emu.maps.write_qword(section_handle_ptr, key as u64);
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+}
+
+pub fn NtMapViewOfSection(emu: &mut emu::Emu) {
+    let section_handle = emu.regs().rcx as u32;
+    let _process_handle = emu.regs().rdx;
+    let base_addr_ptr = emu.regs().r8;
+    let _zero_bits = emu.regs().r9;
+    let _commit_size = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _section_offset = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let view_size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+
+    let view_size = if view_size_ptr != 0 {
+        emu.maps.read_qword(view_size_ptr).unwrap_or(0x10000)
+    } else {
+        0x10000
+    };
+
+    let alloc_size = if view_size == 0 { 0x10000 } else { view_size };
+
+    log_red!(
+        emu,
+        "ntdll!NtMapViewOfSection handle: {} view_size: 0x{:x}",
+        section_handle,
+        alloc_size
+    );
+
+    let base = match emu.maps.alloc(alloc_size) {
+        Some(a) => a,
+        None => {
+            log::warn!("ntdll!NtMapViewOfSection: out of memory");
+            emu.regs_mut().rax = constants::STATUS_NO_MEMORY;
+            return;
+        }
+    };
+    emu.maps
+        .create_map(
+            &format!("section_map_{:x}", emu.pos),
+            base,
+            alloc_size,
+            Permission::from_flags(true, true, false),
+        )
+        .expect("ntdll!NtMapViewOfSection cannot create map");
+
+    emu.maps.write_qword(base_addr_ptr, base);
+
+    if let Some(sh) = emu.handle_management.get_mut_section_handle(section_handle) {
+        sh.mapped_addr = Some(base);
+        sh.mapped_size = alloc_size;
+    }
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+}
+
+pub fn NtUnmapViewOfSection(emu: &mut emu::Emu) {
+    let _process_handle = emu.regs().rcx;
+    let base_addr = emu.regs().rdx;
+
+    log_red!(emu, "ntdll!NtUnmapViewOfSection base: 0x{:x}", base_addr);
+
+    if base_addr != 0 {
+        emu.maps.dealloc(base_addr);
+    }
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
 }

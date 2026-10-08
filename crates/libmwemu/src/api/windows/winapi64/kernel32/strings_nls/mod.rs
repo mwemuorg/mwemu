@@ -61,3 +61,11 @@ pub use multi_byte_to_wide_char::*;
 #[path = "../wide_char_to_multi_byte.rs"]
 mod wide_char_to_multi_byte;
 pub use wide_char_to_multi_byte::*;
+
+#[path = "../format_message_a.rs"]
+mod format_message_a;
+pub use format_message_a::*;
+
+#[path = "../format_message_w.rs"]
+mod format_message_w;
+pub use format_message_w::*;

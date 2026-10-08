@@ -69,3 +69,35 @@ pub use tls_set_value::*;
 #[path = "../wait_for_single_object.rs"]
 mod wait_for_single_object;
 pub use wait_for_single_object::*;
+
+#[path = "../wait_for_multiple_objects.rs"]
+mod wait_for_multiple_objects;
+pub use wait_for_multiple_objects::*;
+
+#[path = "../initialize_srw_lock.rs"]
+mod initialize_srw_lock;
+pub use initialize_srw_lock::*;
+
+#[path = "../acquire_srw_lock_exclusive.rs"]
+mod acquire_srw_lock_exclusive;
+pub use acquire_srw_lock_exclusive::*;
+
+#[path = "../acquire_srw_lock_shared.rs"]
+mod acquire_srw_lock_shared;
+pub use acquire_srw_lock_shared::*;
+
+#[path = "../release_srw_lock_exclusive.rs"]
+mod release_srw_lock_exclusive;
+pub use release_srw_lock_exclusive::*;
+
+#[path = "../release_srw_lock_shared.rs"]
+mod release_srw_lock_shared;
+pub use release_srw_lock_shared::*;
+
+#[path = "../try_acquire_srw_lock_exclusive.rs"]
+mod try_acquire_srw_lock_exclusive;
+pub use try_acquire_srw_lock_exclusive::*;
+
+#[path = "../try_acquire_srw_lock_shared.rs"]
+mod try_acquire_srw_lock_shared;
+pub use try_acquire_srw_lock_shared::*;

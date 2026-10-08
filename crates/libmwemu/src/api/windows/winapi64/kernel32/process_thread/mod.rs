@@ -117,3 +117,15 @@ pub use thread32_next::*;
 #[path = "../unhandled_exception_filter.rs"]
 mod unhandled_exception_filter;
 pub use unhandled_exception_filter::*;
+
+#[path = "../exit_thread.rs"]
+mod exit_thread;
+pub use exit_thread::*;
+
+#[path = "../is_wow64_process.rs"]
+mod is_wow64_process;
+pub use is_wow64_process::*;
+
+#[path = "../duplicate_handle.rs"]
+mod duplicate_handle;
+pub use duplicate_handle::*;

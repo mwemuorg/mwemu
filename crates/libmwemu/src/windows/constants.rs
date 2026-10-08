@@ -79,8 +79,22 @@ pub const CP_UTF8: u64 = 65001;
 pub const NUM_BYTES_TRACE: usize = 16;
 pub const VERSION: u64 = 0x1db10106;
 
+pub const WAIT_OBJECT_0: u64 = 0;
 pub const WAIT_TIMEOUT: u64 = 0x00000102;
 pub const WAIT_FAILED: u64 = 0xFFFFFFFF;
+
+pub const GMEM_FIXED: u32 = 0x0000;
+pub const GMEM_ZEROINIT: u32 = 0x0040;
+pub const GPTR: u32 = 0x0040;
+
+pub const IDOK: u64 = 1;
+
+pub const S_OK: u64 = 0;
+pub const S_FALSE: u64 = 1;
+pub const E_NOINTERFACE: u64 = 0x80004002;
+pub const REGDB_E_CLASSNOTREG: u64 = 0x80040154;
+pub const CLASS_E_NOAGGREGATION: u64 = 0x80040110;
+pub const E_OUTOFMEMORY: u64 = 0x8007000E;
 
 //vectored exception handler
 pub const CALL_FIRST: u32 = 1;

@@ -1,4 +1,5 @@
-mod advapi32;
+pub(crate) mod advapi32;
+pub(crate) mod bcrypt;
 mod comctl32;
 mod comctl64;
 mod dnsapi;
@@ -7,16 +8,16 @@ pub mod kernel32;
 mod kernelbase;
 pub(crate) mod msvcrt;
 pub mod ntdll;
-mod ole32;
+pub(crate) mod ole32;
 mod oleaut32;
 mod shell32;
 mod shlwapi;
 mod urlmon;
-mod user32;
+pub(crate) mod user32;
 mod uxtheme;
 mod version;
 mod wincrt;
-mod winhttp;
+pub(crate) mod winhttp;
 mod wininet;
 mod ws2_32;
 
@@ -81,6 +82,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "gdi32.text" => gdi32::gateway(addr, emu),
         "ole32.text" => ole32::gateway(addr, emu),
         "version.text" => version::gateway(addr, emu),
+        "bcrypt.text" => bcrypt::gateway(addr, emu),
         // `msvcrt.text` is intentionally absent: legacy-CRT calls land on the
         // special-case branch in `Emu::set_rip_with_check`, which executes
         // the real mapped bytes. A future AArch64 msvcrt PE that hits this
