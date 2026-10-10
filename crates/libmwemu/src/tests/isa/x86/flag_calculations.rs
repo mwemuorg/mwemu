@@ -6,12 +6,12 @@ pub fn flag_calculations() {
     helpers::setup();
 
     // Test parity flag calculation
-    assert_eq!(crate::flags::PARITY_LOOKUP_TABLE[0], true); // 0 has even parity (0 ones)
-    assert_eq!(crate::flags::PARITY_LOOKUP_TABLE[1], false); // 1 has odd parity (1 one)
-    assert_eq!(crate::flags::PARITY_LOOKUP_TABLE[3], true); // 3 (11b) has even parity (2 ones)
-    assert_eq!(crate::flags::PARITY_LOOKUP_TABLE[7], false); // 7 (111b) has odd parity (3 ones)
-    assert_eq!(crate::flags::PARITY_LOOKUP_TABLE[15], true); // 15 (1111b) has even parity (4 ones)
-    assert_eq!(crate::flags::PARITY_LOOKUP_TABLE[255], true); // 255 (11111111b) has even parity (8 ones)
+    assert!(crate::flags::PARITY_LOOKUP_TABLE[0]); // 0 has even parity (0 ones)
+    assert!(!crate::flags::PARITY_LOOKUP_TABLE[1]); // 1 has odd parity (1 one)
+    assert!(crate::flags::PARITY_LOOKUP_TABLE[3]); // 3 (11b) has even parity (2 ones)
+    assert!(!crate::flags::PARITY_LOOKUP_TABLE[7]); // 7 (111b) has odd parity (3 ones)
+    assert!(crate::flags::PARITY_LOOKUP_TABLE[15]); // 15 (1111b) has even parity (4 ones)
+    assert!(crate::flags::PARITY_LOOKUP_TABLE[255]); // 255 (11111111b) has even parity (8 ones)
 
     // Test flag constants
     assert_eq!(crate::flags::MIN_U8, 0);

@@ -9,5 +9,13 @@
 //!
 //! See `design/ARCHITECTURE.md` and `design/PE_EXTRACTION.md`.
 
+// clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::unusual_byte_groupings)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::while_let_loop)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::doc_lazy_continuation)]
+
 pub mod elf;
 pub mod pe;

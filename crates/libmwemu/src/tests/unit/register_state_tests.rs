@@ -11,7 +11,7 @@ fn test_set_and_get_pre_op_regs() {
     regs.rcx = 0x3333333333333333;
 
     // Set pre-op registers
-    emu.set_pre_op_regs(regs.clone());
+    emu.set_pre_op_regs(regs);
 
     // Get back and verify
     let retrieved = emu.pre_op_regs();
@@ -31,7 +31,7 @@ fn test_set_and_get_post_op_regs() {
     regs.rcx = 0xCCCCCCCCCCCCCCCC;
 
     // Set post-op registers
-    emu.set_post_op_regs(regs.clone());
+    emu.set_post_op_regs(regs);
 
     // Get back and verify
     let retrieved = emu.post_op_regs();

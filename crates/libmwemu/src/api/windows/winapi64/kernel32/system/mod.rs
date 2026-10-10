@@ -61,3 +61,11 @@ pub use get_version_ex_w::*;
 #[path = "../system_time_to_tz_specific_local_time.rs"]
 mod system_time_to_tz_specific_local_time;
 pub use system_time_to_tz_specific_local_time::*;
+
+#[path = "../get_tick_count64.rs"]
+mod get_tick_count64;
+pub use get_tick_count64::*;
+
+#[path = "../query_performance_frequency.rs"]
+mod query_performance_frequency;
+pub use query_performance_frequency::*;

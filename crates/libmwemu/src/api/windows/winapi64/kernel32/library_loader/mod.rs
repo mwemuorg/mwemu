@@ -69,3 +69,7 @@ pub use lock_resource::*;
 #[path = "../sizeof_resource.rs"]
 mod sizeof_resource;
 pub use sizeof_resource::*;
+
+#[path = "../free_library.rs"]
+mod free_library;
+pub use free_library::*;

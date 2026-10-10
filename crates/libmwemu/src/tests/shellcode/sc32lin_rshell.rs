@@ -6,7 +6,7 @@ pub fn sc32lin_rshell() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
 
     let sample = sample!("sc32lin_rshell.bin");
     emu.load_code(&sample);

@@ -34,7 +34,7 @@ pub fn elf64lin_fpu() {
     assert_eq!(emu.fpu_mut().peek_st_f64(6), 3.141592653589793);
     emu.step(); // 6 fsubr  st,st(1)
     assert_eq!(emu.fpu_mut().peek_st_u80(6), 0xc000890fdaa22168c234);
-    assert_eq!(emu.fpu_mut().peek_st_f64(6), -2.141592653589793238);
+    assert_eq!(emu.fpu_mut().peek_st_f64(6), -2.141_592_653_589_793);
     emu.step(); // 7 fchs
     assert_eq!(emu.fpu_mut().peek_st_u80(6), 0x4000890fdaa22168c234);
     assert_eq!(emu.fpu_mut().peek_st_f64(6), 2.141592653589793);

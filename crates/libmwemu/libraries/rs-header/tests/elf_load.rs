@@ -3,6 +3,11 @@
 //! self-contained and exercise the borrow-free `ElfLoader` path without an
 //! emulator.
 
+// clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::unusual_byte_groupings)]
+
 use std::collections::HashMap;
 
 use rs_header::elf::elf32::Elf32;

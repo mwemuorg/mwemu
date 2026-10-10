@@ -69,10 +69,8 @@ impl PE64 {
                     matched = true;
                 } else if level == 1 && name_id == Some(entry_id) {
                     matched = true;
-                } else if level == 2 {
-                    matched = true;
                 } else {
-                    matched = false;
+                    matched = level == 2;
                 }
             } else {
                 let name_offset = (entry.get_name_or_id() & 0x7FFFFFFF) as usize;
@@ -82,10 +80,8 @@ impl PE64 {
                 let resource_name = self.read_resource_name_from_rsrc(rsrc, name_offset);
                 if level == 0 && type_name == Some(resource_name.as_str()) {
                     matched = true;
-                } else if level == 1 && name == Some(resource_name.as_str()) {
-                    matched = true;
                 } else {
-                    matched = false;
+                    matched = level == 1 && name == Some(resource_name.as_str());
                 }
             }
 

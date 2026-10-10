@@ -9,6 +9,8 @@ const MH_MAGIC_64: u32 = 0xFEEDFACF;
 const FAT_MAGIC_64: u32 = 0xBEBAFECA; // = CAFEBABE
 const CPU_TYPE_ARM64: u32 = 0x0100000C;
 const CPU_TYPE_X86_64: u32 = 0x01000007;
+/// `mach_header_64.filetype` for a kernel extension.
+const MH_KEXT_BUNDLE: u32 = 0x0b;
 
 // Chained fixup pointer format constants
 const DYLD_CHAINED_PTR_64_OFFSET: u16 = 6;
@@ -41,6 +43,16 @@ pub struct Macho64 {
 pub struct ChainedBind {
     pub got_vmaddr: u64,
     pub import_ordinal: u32,
+}
+
+/// A chained-fixup rebase. `target` is an absolute vmaddr, or an offset from
+/// the image base when `relative`; `high8` is the pointer's top byte.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ChainedRebase {
+    pub vmaddr: u64,
+    pub target: u64,
+    pub high8: u64,
+    pub relative: bool,
 }
 
 /// An import from the chained fixups import table
@@ -79,6 +91,24 @@ impl Macho64 {
         }
 
         false
+    }
+
+    /// Detect a Mach-O kernel extension (`MH_KEXT_BUNDLE`). A kext is also an
+    /// arm64/x86_64 Mach-O, so this must be checked before the generic
+    /// detectors to route it to the kernel-mode loader. Only plain (non-FAT)
+    /// images are classified here — that is what the kext toolchain emits.
+    pub fn is_macho64_kext(filename: &str) -> bool {
+        let mut f = match std::fs::File::open(filename) {
+            Ok(f) => f,
+            Err(_) => return false,
+        };
+        let mut buf = [0u8; 16];
+        if f.read_exact(&mut buf).is_err() {
+            return false;
+        }
+        let magic = u32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]);
+        let filetype = u32::from_le_bytes([buf[12], buf[13], buf[14], buf[15]]);
+        magic == MH_MAGIC_64 && filetype == MH_KEXT_BUNDLE
     }
 
     /// Detect a 64-bit x86_64 Mach-O file by reading the first 8 bytes.
@@ -305,25 +335,65 @@ impl Macho64 {
     }
 
     /// Get exported symbols with their offsets (relative to binary load address).
+    ///
+    /// Tries the LC_DYLD_INFO export trie first, then falls back to (or
+    /// supplements with) the LC_SYMTAB nlist entries.  arm64e dylibs extracted
+    /// from the dyld shared cache often have an empty or missing export trie
+    /// while their nlist symbol table is intact.
     pub fn get_exports(&self) -> Vec<(String, u64)> {
         let macho = self.reparse().expect("re-parse for exports");
-        match macho.exports() {
-            Ok(exports) => exports.iter().map(|e| (e.name.clone(), e.offset)).collect(),
-            Err(e) => {
-                log::warn!("macho64: cannot read exports: {}", e);
-                Vec::new()
+        let mut result: Vec<(String, u64)> = Vec::new();
+        let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        // 1. Export trie (preferred — contains only public exports).
+        if let Ok(exports) = macho.exports() {
+            for e in &exports {
+                if e.offset != 0 && seen.insert(e.name.clone()) {
+                    result.push((e.name.clone(), e.offset));
+                }
             }
         }
+
+        // 2. Symbol table (nlist) — pick globally-visible defined symbols.
+        //    nlist n_value is an absolute virtual address in the dylib's own
+        //    address space.  Convert to a 0-based offset by subtracting the
+        //    base vmaddr of the __TEXT segment (the lowest mapped segment).
+        if let Some(ref symbols) = macho.symbols {
+            let text_base: u64 = macho
+                .segments
+                .iter()
+                .filter_map(|seg| {
+                    let vmaddr = seg.vmaddr;
+                    if seg.vmsize > 0 { Some(vmaddr) } else { None }
+                })
+                .min()
+                .unwrap_or(0);
+
+            for (name, nlist) in symbols.iter().flatten() {
+                let is_external = nlist.n_type & 0x01 != 0;
+                let is_defined = (nlist.n_type & 0x0e) == 0x0e;
+                if is_external && is_defined && nlist.n_value != 0 {
+                    let offset = nlist.n_value.wrapping_sub(text_base);
+                    let name = name.to_string();
+                    if seen.insert(name.clone()) {
+                        result.push((name, offset));
+                    }
+                }
+            }
+        }
+
+        result
     }
 
-    /// Parse chained fixups to extract imports and their GOT bind locations.
-    /// Returns (imports_table, bind_entries) where each bind entry references
-    /// an import by ordinal and specifies the GOT vmaddr to patch.
-    pub fn parse_chained_fixups(&self) -> (Vec<ChainedImport>, Vec<ChainedBind>) {
+    /// Parse chained fixups to extract imports and their GOT bind/rebase locations.
+    pub fn parse_chained_fixups(
+        &self,
+    ) -> (Vec<ChainedImport>, Vec<ChainedBind>, Vec<ChainedRebase>) {
         let macho = self.reparse().expect("re-parse for fixups");
 
         let mut imports = Vec::new();
         let mut binds = Vec::new();
+        let mut rebases = Vec::new();
 
         for lc in &macho.load_commands {
             if let CommandVariant::DyldChainedFixups(cmd) = &lc.command {
@@ -433,13 +503,19 @@ impl Macho64 {
                         let chain_vm_base =
                             seg_vmaddr + (p as u64 * page_size as u64) + page_start as u64;
 
-                        self.walk_chain(pointer_format, chain_file_base, chain_vm_base, &mut binds);
+                        self.walk_chain(
+                            pointer_format,
+                            chain_file_base,
+                            chain_vm_base,
+                            &mut binds,
+                            &mut rebases,
+                        );
                     }
                 }
             }
         }
 
-        (imports, binds)
+        (imports, binds, rebases)
     }
 
     /// Walk a chain of fixup pointers starting at file_off/vmaddr.
@@ -449,6 +525,7 @@ impl Macho64 {
         mut file_off: usize,
         mut vmaddr: u64,
         binds: &mut Vec<ChainedBind>,
+        rebases: &mut Vec<ChainedRebase>,
     ) {
         loop {
             if file_off + 8 > self.bin.len() {
@@ -456,37 +533,28 @@ impl Macho64 {
             }
             let raw = u64::from_le_bytes(self.bin[file_off..file_off + 8].try_into().unwrap());
 
-            // Per `dyld_chained_fixups.h`. We only need bind status, ordinal,
-            // and stride to chain forward; rebase targets are baked into the
-            // raw bytes already and don't need rewriting for our purposes.
             let (bind, next, ordinal, stride) = match pointer_format {
-                // DYLD_CHAINED_PTR_ARM64E (format 1) — used by macOS arm64e
-                // userland binaries like /bin/ls. 8-byte stride, layout:
-                //   bind:1 (bit 62), auth:1 (bit 63), next:11 (bits 51..61).
-                //   bind variant: ordinal:16 in bits 0..15 (auth uses same 16
-                //   bits for ordinal).
-                1 => {
+                // DYLD_CHAINED_PTR_ARM64E (1) / ARM64E_KERNEL (7) /
+                // ARM64E_USERLAND24 (12): auth:1@63, bind:1@62, next:11@51..61.
+                // Ordinal is 24-bit only for USERLAND24; 16-bit otherwise. The
+                // KERNEL format (kexts) chains in 4-byte strides, the others 8.
+                1 | 7 | 12 => {
                     let bind = (raw >> 62) & 1;
                     let next = ((raw >> 51) & 0x7FF) as usize;
-                    let ordinal = (raw & 0xFFFF) as u32;
-                    (bind, next, ordinal, 8usize)
+                    let ordinal_mask = if pointer_format == 12 {
+                        0xFF_FFFF
+                    } else {
+                        0xFFFF
+                    };
+                    let stride = if pointer_format == 7 { 4 } else { 8 };
+                    (bind, next, (raw & ordinal_mask) as u32, stride)
                 }
-                // DYLD_CHAINED_PTR_64 (2) / DYLD_CHAINED_PTR_64_OFFSET (6) —
-                // 4-byte stride. bind:1 (bit 63), next:12 (bits 51..62),
-                // ordinal:24 (bits 0..23) for bind variant.
+                // DYLD_CHAINED_PTR_64 (2) / DYLD_CHAINED_PTR_64_OFFSET (6):
+                //   bind:1@63, next:12@51..62, ordinal:24@0..23
                 DYLD_CHAINED_PTR_64_OFFSET | 2 => {
                     let bind = raw >> 63;
                     let next = ((raw >> 51) & 0xFFF) as usize;
-                    let ordinal = (raw & 0xFFFFFF) as u32;
-                    (bind, next, ordinal, 4usize)
-                }
-                // DYLD_CHAINED_PTR_ARM64E_USERLAND24 (12) — 8-byte stride,
-                // 24-bit ordinal in the bind variant.
-                12 => {
-                    let bind = (raw >> 62) & 1;
-                    let next = ((raw >> 52) & 0x7FF) as usize;
-                    let ordinal = (raw & 0xFFFFFF) as u32;
-                    (bind, next, ordinal, 8usize)
+                    (bind, next, (raw & 0xFF_FFFF) as u32, 4usize)
                 }
                 _ => {
                     log::warn!(
@@ -503,6 +571,8 @@ impl Macho64 {
                     got_vmaddr: vmaddr,
                     import_ordinal: ordinal,
                 });
+            } else {
+                rebases.push(decode_rebase(pointer_format, raw, vmaddr));
             }
 
             if next == 0 {
@@ -511,6 +581,26 @@ impl Macho64 {
             file_off += next * stride;
             vmaddr += (next * stride) as u64;
         }
+    }
+}
+
+/// Decode a non-bind chained pointer per `dyld_chained_fixups.h`.
+/// Plain ARM64E (1) and PTR_64 (2) rebases hold an absolute vmaddr; the
+/// userland/offset/kernel formats (6, 7, 12) and every authenticated rebase
+/// hold an offset from the image base. Authenticated pointers carry a 32-bit
+/// target; plain ARM64E-family pointers a 43-bit target plus a high byte.
+fn decode_rebase(pointer_format: u16, raw: u64, vmaddr: u64) -> ChainedRebase {
+    let auth = matches!(pointer_format, 1 | 7 | 12) && raw >> 63 == 1;
+    let (target, high8) = match pointer_format {
+        _ if auth => (raw & 0xFFFF_FFFF, 0),
+        1 | 7 | 12 => (raw & 0x7FF_FFFF_FFFF, (raw >> 43) & 0xFF),
+        _ => (raw & 0xF_FFFF_FFFF, (raw >> 36) & 0xFF),
+    };
+    ChainedRebase {
+        vmaddr,
+        target,
+        high8,
+        relative: auth || matches!(pointer_format, 6 | 7 | 12),
     }
 }
 
@@ -527,5 +617,66 @@ pub(crate) fn prot_to_permission(prot: u32) -> Permission {
         (false, true, false) => Permission::WRITE,
         (false, false, true) => Permission::EXECUTE,
         _ => Permission::READ_WRITE, // fallback
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ChainedRebase, decode_rebase};
+
+    const NEXT: u64 = 5 << 51;
+
+    fn rebase(target: u64, high8: u64, relative: bool) -> ChainedRebase {
+        ChainedRebase {
+            vmaddr: 0x1000,
+            target,
+            high8,
+            relative,
+        }
+    }
+
+    #[test]
+    fn arm64e_plain_rebase_is_absolute() {
+        let raw = NEXT | 0x1_0000_C010;
+        assert_eq!(
+            decode_rebase(1, raw, 0x1000),
+            rebase(0x1_0000_C010, 0, false)
+        );
+    }
+
+    #[test]
+    fn auth_rebase_is_base_relative() {
+        let raw = (1 << 63) | NEXT | (0x7 << 49) | 0x4010;
+        assert_eq!(decode_rebase(1, raw, 0x1000), rebase(0x4010, 0, true));
+        assert_eq!(decode_rebase(12, raw, 0x1000), rebase(0x4010, 0, true));
+    }
+
+    #[test]
+    fn userland24_rebase_is_relative_with_high8() {
+        let raw = NEXT | (0xAB << 43) | 0x4010;
+        assert_eq!(decode_rebase(12, raw, 0x1000), rebase(0x4010, 0xAB, true));
+    }
+
+    #[test]
+    fn arm64e_kernel_rebase_is_relative() {
+        // Format 7 (kext) rebases are image-relative; auth carries a 32-bit
+        // target, plain a 43-bit target plus high8.
+        let auth = (1u64 << 63) | NEXT | 0x4010;
+        assert_eq!(decode_rebase(7, auth, 0x1000), rebase(0x4010, 0, true));
+        let plain = NEXT | (0xAB << 43) | 0x4010;
+        assert_eq!(decode_rebase(7, plain, 0x1000), rebase(0x4010, 0xAB, true));
+    }
+
+    #[test]
+    fn ptr64_uses_36bit_target() {
+        let raw = NEXT | (0x12 << 36) | 0x1_0000_4000;
+        assert_eq!(
+            decode_rebase(2, raw, 0x1000),
+            rebase(0x1_0000_4000, 0x12, false)
+        );
+        assert_eq!(
+            decode_rebase(6, raw, 0x1000),
+            rebase(0x1_0000_4000, 0x12, true)
+        );
     }
 }

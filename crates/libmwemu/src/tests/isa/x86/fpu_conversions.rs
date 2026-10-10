@@ -19,7 +19,7 @@ pub fn fpu_conversions() {
     // u80 to f64 conversion
     fpu.set_st_u80(1, 0x4000c90fdaa22168c235);
     fpu.st.print();
-    assert_eq!(fpu.peek_st_logical_f64(1), 3.14159265358979323);
+    assert_eq!(fpu.peek_st_logical_f64(1), 3.141_592_653_589_793);
     assert_eq!(fpu.peek_st_logical_u80(1), 0x4000c90fdaa22168c235);
 
     /*

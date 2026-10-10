@@ -14,7 +14,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
     emu.set_operand_xmm_value_128(
         ins,
         0,
-        (s1 & !((0xffff_ffff_ffff_ffff as u128) << sh)) | (v << sh),
+        (s1 & !(0xffff_ffff_ffff_ffff_u128 << sh)) | (v << sh),
     );
     true
 }

@@ -44,8 +44,8 @@ pub fn mem64_test() {
     mem.write_string(0x400010 + 7, "world!");
     assert_eq!(mem.read_string(0x400010), "Hello, world!");
 
-    assert_eq!(mem.inside(0x4000ab), true);
-    assert_eq!(mem.inside(0x400000 + 1024), false);
+    assert!(mem.inside(0x4000ab));
+    assert!(!mem.inside(0x400000 + 1024));
 
     mem.clear();
 

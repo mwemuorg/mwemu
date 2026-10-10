@@ -5,7 +5,7 @@ use crate::windows::peb::peb32;
 
 pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
     let needle = module.to_ascii_lowercase();
-    if emu.export_indexes.len() != 0 {
+    if !emu.export_indexes.is_empty() {
         for index in emu.export_indexes.iter_ordered() {
             if !index.normalized_name.contains(&needle) {
                 continue;
@@ -162,15 +162,14 @@ pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
 }
 
 pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) {
-    if emu.export_indexes.len() != 0 {
+    if !emu.export_indexes.is_empty() {
         for module in emu.export_indexes.iter_ordered() {
             for (export_name, ord_idx) in module.display_names_for_iter() {
-                if export_name.contains(name) {
-                    if let Some(Some(IndexedExport::Direct { address })) =
+                if export_name.contains(name)
+                    && let Some(Some(IndexedExport::Direct { address })) =
                         module.by_ordinal.get(ord_idx as usize)
-                    {
-                        return (*address, module.module_name.clone(), export_name);
-                    }
+                {
+                    return (*address, module.module_name.clone(), export_name);
                 }
             }
         }

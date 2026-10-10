@@ -5,7 +5,6 @@ use crate::windows::constants;
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
         constants::NR64_RESTART_SYSCALL => handle_syscall64_restart(emu),
-        constants::NR64_EXIT => handle_syscall64_exit(emu),
         constants::NR64_FORK => handle_syscall64_fork(emu),
         constants::NR64_KILL => handle_syscall64_kill(emu),
         constants::NR64_DUP => handle_syscall64_dup(emu),

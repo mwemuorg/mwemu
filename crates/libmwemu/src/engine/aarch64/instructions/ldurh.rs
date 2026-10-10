@@ -5,6 +5,7 @@ use super::super::helpers::*;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
     let (addr, wb) = resolve_mem_addr(emu, &ins.operands[1]);
+    guard_mem(emu, addr, 2, false);
     let val = match emu.maps.read_word(addr) {
         Some(v) => v as u64,
         None => {

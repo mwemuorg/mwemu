@@ -6,6 +6,7 @@
 [![PyPI](https://img.shields.io/pypi/v/pymwemu.svg)](https://pypi.org/project/pymwemu/)
 [![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
 [![MSRV](https://img.shields.io/badge/rustc-1.88+-orange.svg)](https://blog.rust-lang.org/)
+[![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/mwemu-github-io)
 
 ## Official documentation
 

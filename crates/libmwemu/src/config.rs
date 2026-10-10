@@ -78,6 +78,7 @@ pub struct Config {
 
     // --- Analysis ---
     pub entropy: bool, // enable entropy measurement (polymorphic code detection)
+    pub memory_guard: bool, // enable heap memory-safety analysis (UAF, double-free, overflow, leaks)
     pub definitions: HashMap<u64, Definition>, // address annotations (also duplicated on Emu for serialization)
 
     // --- Verbose range ---
@@ -159,6 +160,7 @@ impl Config {
             command: None,
             definitions: HashMap::new(),
             entropy: false,
+            memory_guard: false,
             shellcode: false,
             emulate_winapi: false,
             emulate_winapi_once: false,

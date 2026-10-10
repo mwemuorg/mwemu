@@ -31,6 +31,56 @@ impl OperatingSystem {
     }
 }
 
+impl std::fmt::Display for Arch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Arch::X86 => write!(f, "x86"),
+            Arch::X86_64 => write!(f, "x86_64"),
+            Arch::Aarch64 => write!(f, "aarch64"),
+        }
+    }
+}
+
+impl std::str::FromStr for Arch {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "x86" | "i386" | "i686" => Ok(Arch::X86),
+            "x86_64" | "x64" | "amd64" => Ok(Arch::X86_64),
+            "aarch64" | "arm64" => Ok(Arch::Aarch64),
+            _ => Err(format!(
+                "unknown architecture '{}', expected: x86, x86_64, aarch64",
+                s
+            )),
+        }
+    }
+}
+
+impl std::fmt::Display for OperatingSystem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OperatingSystem::Windows => write!(f, "windows"),
+            OperatingSystem::Linux => write!(f, "linux"),
+            OperatingSystem::MacOS => write!(f, "macos"),
+        }
+    }
+}
+
+impl std::str::FromStr for OperatingSystem {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "windows" | "win" => Ok(OperatingSystem::Windows),
+            "linux" => Ok(OperatingSystem::Linux),
+            "macos" | "osx" | "darwin" => Ok(OperatingSystem::MacOS),
+            _ => Err(format!(
+                "unknown OS '{}', expected: windows, linux, macos",
+                s
+            )),
+        }
+    }
+}
+
 impl Arch {
     /// True for any 64-bit address space (X86_64 or Aarch64).
     /// Use for pointer width, address space decisions (e.g., Maps).

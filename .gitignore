@@ -7,6 +7,7 @@
 # Microsoft/Apple proprietary binaries are NOT redistributable, so keep them
 # out of the repo (they are fetched on demand, extracted via --iso, or copied
 # from the host System32 in CI).
+maps/**/*.dylib
 maps/**/*.dll
 maps/**/*.DLL
 maps/**/*.drv
@@ -28,8 +29,10 @@ crates/*/maps/
 win32_2022/
 shellcodes32/
 shellcodes64/
+scripts/extract_dyld_cache
 .DS_Store
 prompt.md
+resume.sh
 private/
 trace_LdrInitializeThunk.txt
 .offcode.ctx

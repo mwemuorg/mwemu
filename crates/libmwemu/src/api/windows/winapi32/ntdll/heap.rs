@@ -42,7 +42,11 @@ pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
 
     let to_write = std::cmp::min(count, total);
     for (i, key) in keys.iter().take(to_write as usize).enumerate() {
-        let _ = emu.maps.write_dword(buffer + (i as u64) * 4, *key);
+        let addr = emu
+            .handle_management
+            .heap_base_addr(*key)
+            .unwrap_or(*key as u64);
+        let _ = emu.maps.write_dword(buffer + (i as u64) * 4, addr as u32);
     }
 
     emu.stack_pop32(false);

@@ -17,7 +17,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         Some(v) => v,
         None => return false,
     };
-    let nbytes = (emu.get_operand_sz(ins, 1) / 8) as u32;
+    let nbytes = emu.get_operand_sz(ins, 1) / 8;
 
     let mut crc = dest as u32;
     for i in 0..nbytes {

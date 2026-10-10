@@ -557,3 +557,60 @@ fn test_heap_realloc_fallback_move_preserves_data_32() {
         "payload must survive the fallback move"
     );
 }
+
+#[test]
+fn test_heap_handle_is_real_address_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let proc = helpers::call_winapi32(&mut emu, winapi32::kernel32::GetProcessHeap, &[]) as u64;
+    assert_ne!(proc, 0, "GetProcessHeap must not return NULL");
+    assert!(
+        proc > 0xFFFF,
+        "GetProcessHeap must return a real mapped address, not a bare slab index (got 0x{:x})",
+        proc
+    );
+    assert!(
+        emu.maps.read_dword(proc).is_some(),
+        "GetProcessHeap address 0x{:x} must be readable (mapped memory)",
+        proc
+    );
+
+    let proc2 = helpers::call_winapi32(&mut emu, winapi32::kernel32::GetProcessHeap, &[]) as u64;
+    assert_eq!(proc, proc2, "GetProcessHeap must be stable across calls");
+
+    let heap = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::HeapCreate,
+        &[0, 0x1000, 0x10000],
+    ) as u64;
+    assert_ne!(heap, 0, "HeapCreate must not return NULL");
+    assert!(
+        heap > 0xFFFF,
+        "HeapCreate must return a real mapped address, not a bare slab index (got 0x{:x})",
+        heap
+    );
+    assert!(
+        emu.maps.read_dword(heap).is_some(),
+        "HeapCreate address 0x{:x} must be readable (mapped memory)",
+        heap
+    );
+    assert_ne!(
+        heap, proc,
+        "HeapCreate must return a different address than the process heap"
+    );
+
+    let p = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::HeapAlloc,
+        &[heap as u32, 0, 0x100],
+    ) as u64;
+    assert_ne!(p, 0, "HeapAlloc with real-address handle must work");
+
+    let destroyed =
+        helpers::call_winapi32(&mut emu, winapi32::kernel32::HeapDestroy, &[heap as u32]);
+    assert_eq!(
+        destroyed, 1,
+        "HeapDestroy with real-address handle must work"
+    );
+}

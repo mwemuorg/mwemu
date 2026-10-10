@@ -27,11 +27,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     };
 
-    let result = match op_size {
+    match op_size {
         8 => emu.stack_push64(value),
         4 => emu.stack_push32(value as u32),
         _ => emu.stack_push16(value as u16), // the last one have to be 16 bit because there are only 64, 32 and 16 for pop instruction
-    };
-
-    result
+    }
 }

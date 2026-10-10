@@ -6,7 +6,7 @@ pub fn stack64_test() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     emu.init_win32(false, false);
 
     let stack_check = emu.maps.get_map_by_name("stack");

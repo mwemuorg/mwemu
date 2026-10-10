@@ -365,8 +365,8 @@ pub fn idiv32(emu: &mut Emu, value0: u64) {
         return;
     }
 
-    let hi = (emu.regs().get_edx() & 0xffffffff) as u64;
-    let lo = (emu.regs().get_eax() & 0xffffffff) as u64;
+    let hi = emu.regs().get_edx() & 0xffffffff;
+    let lo = emu.regs().get_eax() & 0xffffffff;
     // Widen to i128 so EDX:EAX = i64::MIN divided by -1 cannot overflow.
     let dividend = (((hi << 32) | lo) as i64) as i128;
     let resq = dividend / divisor;

@@ -1,5 +1,3 @@
-use std::convert::TryInto;
-
 use crate::maps::Maps;
 
 use super::ListEntry64;
@@ -355,8 +353,8 @@ impl RtlUserProcessParameters {
     pub fn load(addr: u64, maps: &Maps) -> RtlUserProcessParameters {
         let mut reserved2 = [0u32; 10];
         if let Some(b) = maps.try_read_bytes(addr + 16, 40) {
-            for (i, c) in b.chunks_exact(4).enumerate().take(10) {
-                reserved2[i] = u32::from_le_bytes(c.try_into().unwrap());
+            for (i, c) in b.as_chunks::<4>().0.iter().enumerate().take(10) {
+                reserved2[i] = u32::from_le_bytes(*c);
             }
         }
         RtlUserProcessParameters {

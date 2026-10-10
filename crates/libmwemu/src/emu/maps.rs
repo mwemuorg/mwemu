@@ -125,10 +125,10 @@ impl Emu {
                 fs::create_dir_all(outpath)?;
             } else {
                 // Create parent directories if they don't exist
-                if let Some(p) = outpath.parent() {
-                    if !p.exists() {
-                        fs::create_dir_all(p)?;
-                    }
+                if let Some(p) = outpath.parent()
+                    && !p.exists()
+                {
+                    fs::create_dir_all(p)?;
                 }
 
                 // Extract file

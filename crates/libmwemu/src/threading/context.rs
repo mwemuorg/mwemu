@@ -15,6 +15,12 @@ pub struct X86TraceSnapshot {
     pub post_flags: Flags,
 }
 
+impl Default for X86TraceSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl X86TraceSnapshot {
     pub fn new() -> Self {
         Self {
@@ -31,6 +37,12 @@ impl X86TraceSnapshot {
 pub struct AArch64TraceSnapshot {
     pub pre_regs: RegsAarch64,
     pub post_regs: RegsAarch64,
+}
+
+impl Default for AArch64TraceSnapshot {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AArch64TraceSnapshot {
@@ -125,9 +137,23 @@ pub struct ThreadContext {
     pub id: u64,                    // Thread ID (e.g., 0x1000, 0x1001, etc.)
     pub suspended: bool,            // Whether thread is suspended
     pub wake_tick: usize,           // Global tick when thread can next run (0 = runnable)
-    pub blocked_on_cs: Option<u64>, // Pointer to critical section if blocked
+    pub blocked_on_cs: Option<u64>, // Pointer to critical section (or futex word) if blocked
+    pub clear_child_tid: u64,       // Linux: word zeroed + futex-woken when the thread exits
     pub handle: u64,
     pub arch: ArchThreadState,
+    pub exit_value: Option<u64>, // Some(retval) once the thread has finished (pthread_exit / return)
+    pub joining: Option<(u64, u64)>, // (target thread id, retval ptr) while blocked in pthread_join
+    pub blocked_on_lock: Option<u64>, // guest mutex / unfair lock address while waiting to own it
+    pub cond_wait: Option<(u64, u64)>, // (cond, mutex) while blocked in pthread_cond_wait
+    pub exclusive: Option<Reservation>, // LDXR/LDXP reservation, checked by STXR/STXP
+}
+
+/// What an exclusive load saw: STXR succeeds only if memory still holds it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Reservation {
+    pub addr: u64,
+    pub bytes: u64,
+    pub values: (u64, u64), // second value only used by the pair forms
 }
 
 impl ThreadContext {
@@ -161,9 +187,33 @@ impl ThreadContext {
             suspended: false,
             wake_tick: 0, // 0 means runnable
             blocked_on_cs: None,
+            clear_child_tid: 0,
             handle: 0,
             arch: arch_state,
+            exit_value: None,
+            joining: None,
+            blocked_on_lock: None,
+            cond_wait: None,
+            exclusive: None,
         }
+    }
+
+    /// True while parked in pthread_join, a lock or a condition wait.
+    #[inline]
+    pub fn is_waiting_on_sync(&self) -> bool {
+        self.joining.is_some() || self.blocked_on_lock.is_some() || self.cond_wait.is_some()
+    }
+
+    /// True when the scheduler may give this thread a timeslice at `tick`.
+    #[inline]
+    pub fn is_runnable(&self, tick: usize) -> bool {
+        !self.suspended
+            && self.wake_tick <= tick
+            && self.blocked_on_cs.is_none()
+            && self.exit_value.is_none()
+            && self.joining.is_none()
+            && self.blocked_on_lock.is_none()
+            && self.cond_wait.is_none()
     }
 }
 

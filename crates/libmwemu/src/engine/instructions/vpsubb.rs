@@ -31,10 +31,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _sz: usize, _rep: bool) -> bool
             let s2 = emu
                 .get_operand_ymm_value_256(ins, 2, true)
                 .unwrap_or_default();
-            let mut a = vec![0u8; 32];
-            s1.to_little_endian(&mut a);
-            let mut b = vec![0u8; 32];
-            s2.to_little_endian(&mut b);
+            let a = s1.to_little_endian();
+            let b = s2.to_little_endian();
             let mut r = [0u8; 32];
             for i in 0..32 {
                 r[i] = a[i].wrapping_sub(b[i]);

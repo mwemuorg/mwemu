@@ -18,6 +18,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
         2 => x.ceil(),
         _ => x.trunc(),
     };
-    emu.set_operand_xmm_value_128(ins, 0, (s1 & !(0xffffffff as u128)) | (v.to_bits() as u128));
+    emu.set_operand_xmm_value_128(ins, 0, (s1 & !0xffffffff_u128) | (v.to_bits() as u128));
     true
 }

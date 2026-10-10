@@ -196,10 +196,10 @@ fn winbindex_key(basename: &str, build: &str, machine_type: u64) -> Result<Strin
 fn load_winbindex_index(basename: &str) -> Result<serde_json::Value, Box<dyn Error>> {
     let idx_dir = PathBuf::from("maps/winver/.index");
     let idx_path = idx_dir.join(format!("{}.json", basename));
-    if let Ok(text) = fs::read(&idx_path) {
-        if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&text) {
-            return Ok(v);
-        }
+    if let Ok(text) = fs::read(&idx_path)
+        && let Ok(v) = serde_json::from_slice::<serde_json::Value>(&text)
+    {
+        return Ok(v);
     }
     let url = format!(
         "https://winbindex.m417z.com/data/by_filename_compressed/{}.json.gz",
@@ -237,6 +237,12 @@ impl crate::emu::Emu {
     pub(crate) fn ensure_maps_dll(&self, dll: &str) {
         let filepath = self.cfg.get_maps_folder(dll);
         if std::path::Path::new(&filepath).exists() {
+            return;
+        }
+        // Unit tests never hit the network: `make symbols` provisions the maps
+        // once, and tests skip when they are absent (parallel test processes
+        // fetching into the same folder made CI flaky).
+        if cfg!(test) {
             return;
         }
         // Use the configured build if the consumer picked one (--winver / API),
@@ -368,9 +374,49 @@ fn seed_loader_exe(cache: &Path, is_x64: bool) {
     }
 }
 
+/// One retry at most, after a pause: enough for a stale CDN redirect without
+/// hammering Microsoft's servers.
+const HTTP_ATTEMPTS: u32 = 2;
+const HTTP_RETRY_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+/// Desktop Chrome on Windows, sent on every winver request.
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
+
 /// Minimal blocking HTTP GET returning the body bytes. Follows redirects (msdl
-/// 302s to its blob store).
+/// 302s to its blob store). Transient failures are retried with backoff.
 fn http_get(url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+    let mut attempt = 1;
+    loop {
+        match http_get_once(url) {
+            Ok(bytes) => return Ok(bytes),
+            Err(e) if attempt < HTTP_ATTEMPTS && is_transient(&e) => {
+                log::warn!(
+                    "winver: attempt {} for {} failed ({}), retrying in {:?}",
+                    attempt,
+                    url,
+                    e,
+                    HTTP_RETRY_WAIT
+                );
+                std::thread::sleep(HTTP_RETRY_WAIT);
+                attempt += 1;
+            }
+            Err(e) => return Err(e as Box<dyn Error>),
+        }
+    }
+}
+
+/// Network errors, server errors and 403 are worth one retry: msdl edges
+/// occasionally hand out a cached redirect whose blob signature already
+/// expired, and the blob store answers 403 until a fresh redirect is served.
+/// 429 (rate limited) is never retried, to stay a polite client.
+fn is_transient(e: &ureq::Error) -> bool {
+    match e {
+        ureq::Error::Status(code, _) => *code == 403 || *code >= 500,
+        ureq::Error::Transport(_) => true,
+    }
+}
+
+fn http_get_once(url: &str) -> Result<Vec<u8>, Box<ureq::Error>> {
     // The TLS/HTTP stack (ureq/rustls/ring) dumps OCSP responses and HTTP headers
     // at debug level, which floods mwemu's output when running under -v. Drop the
     // global log level to Warn for the duration of the request and restore it
@@ -379,17 +425,36 @@ fn http_get(url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     // this brief global change doesn't race with other winver downloads.)
     let prev_level = log::max_level();
     log::set_max_level(log::LevelFilter::Warn);
-    let result = (|| -> Result<Vec<u8>, Box<dyn Error>> {
+    let result = (|| -> Result<Vec<u8>, Box<ureq::Error>> {
         let resp = ureq::get(url)
+            .set("User-Agent", USER_AGENT)
             .timeout(std::time::Duration::from_secs(60))
             .call()?;
-        if resp.status() != 200 {
-            return Err(format!("HTTP {} for {}", resp.status(), url).into());
-        }
         let mut bytes = Vec::new();
-        resp.into_reader().read_to_end(&mut bytes)?;
+        resp.into_reader()
+            .read_to_end(&mut bytes)
+            .map_err(|e| Box::new(ureq::Error::from(e)))?;
         Ok(bytes)
     })();
     log::set_max_level(prev_level);
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_transient;
+
+    fn status(code: u16) -> ureq::Error {
+        ureq::Error::Status(code, ureq::Response::new(code, "test", "").unwrap())
+    }
+
+    #[test]
+    fn only_transient_http_errors_are_retried() {
+        for code in [403, 500, 503] {
+            assert!(is_transient(&status(code)), "{} should be retried", code);
+        }
+        for code in [400, 404, 410, 429] {
+            assert!(!is_transient(&status(code)), "{} is permanent", code);
+        }
+    }
 }

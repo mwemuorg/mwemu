@@ -22,7 +22,7 @@ fn mingw64_executes_tls_callbacks() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("exe64win_mingw.bin");
     emu.load_code(&sample);
@@ -49,6 +49,68 @@ fn mingw64_executes_tls_callbacks() {
     assert!(emu.pos >= 300, "expected to reach pos 300, got {}", emu.pos);
 }
 
+/// Implicit TLS: _tls_index must be written and TEB.ThreadLocalStoragePointer
+/// must point to a valid pointer array whose first entry is the TLS data region.
+#[test]
+fn mingw64_implicit_tls_is_initialized() {
+    helpers::setup();
+
+    let mut emu = emu64();
+    emu.cfg.maps_folder = win_maps!(64);
+
+    let sample = sample!("exe64win_mingw.bin");
+    emu.load_code(&sample);
+
+    // _tls_index must be 0 (written by the loader)
+    let tls_index_va = 0x14000707c_u64;
+    let tls_index = emu.maps.read_dword(tls_index_va).unwrap_or(0xFFFF);
+    assert_eq!(tls_index, 0, "_tls_index must be 0 for the main module");
+
+    // TEB+0x58 (ThreadLocalStoragePointer) must be non-zero
+    let teb_base = emu.maps.get_mem("teb").get_base();
+    let tls_ptrs = emu.maps.read_qword(teb_base + 0x58).unwrap_or(0);
+    assert_ne!(tls_ptrs, 0, "TEB.ThreadLocalStoragePointer must be set");
+
+    // The pointer array's first entry must point to mapped TLS data
+    let tls_data = emu.maps.read_qword(tls_ptrs).unwrap_or(0);
+    assert_ne!(tls_data, 0, "TLS pointer array[0] must point to TLS data");
+    assert!(
+        emu.maps.get_addr_name(tls_data).is_some(),
+        "TLS data at 0x{:x} must be in a mapped region",
+        tls_data
+    );
+}
+
+#[test]
+fn mingw32_implicit_tls_is_initialized() {
+    helpers::setup();
+
+    let mut emu = emu32();
+    emu.cfg.maps_folder = win_maps!(32);
+
+    let sample = sample!("exe32win_mingw.bin");
+    emu.load_code(&sample);
+
+    // _tls_index must be 0
+    let tls_index_va = 0x405038_u64;
+    let tls_index = emu.maps.read_dword(tls_index_va).unwrap_or(0xFFFF);
+    assert_eq!(tls_index, 0, "_tls_index must be 0 for the main module");
+
+    // TEB+0x2C (ThreadLocalStoragePointer) must be non-zero
+    let teb_base = emu.maps.get_mem("teb").get_base();
+    let tls_ptrs = emu.maps.read_dword(teb_base + 0x2C).unwrap_or(0);
+    assert_ne!(tls_ptrs, 0, "TEB.ThreadLocalStoragePointer must be set");
+
+    // The pointer array's first entry must point to mapped TLS data
+    let tls_data = emu.maps.read_dword(tls_ptrs as u64).unwrap_or(0);
+    assert_ne!(tls_data, 0, "TLS pointer array[0] must point to TLS data");
+    assert!(
+        emu.maps.get_addr_name(tls_data as u64).is_some(),
+        "TLS data at 0x{:x} must be in a mapped region",
+        tls_data
+    );
+}
+
 /// A PE without a TLS directory must expose zero callbacks. msgbox has no `.tls`;
 /// before the `get_tls_callbacks` guard it misparsed offset 0 into bogus
 /// callback addresses (e.g. 0x300905a4d) that then faulted on execution.
@@ -57,7 +119,7 @@ fn msgbox_has_no_tls_callbacks() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);

@@ -12,7 +12,7 @@ pub fn peb_teb_ldr_structures_test() {
     assert_eq!(structures::TEB64::map_size(), 0x2000);
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.load_code(&sample!("exe32win_minecraft.bin"));
 
     let peb = emu.maps.get_mem("peb");
@@ -33,9 +33,9 @@ pub fn peb_teb_ldr_structures_test() {
     assert!(ldr_addr > 0x1000);
     assert!(emu.maps.is_allocated(ldr_addr));
 
-    let peb_struct = structures::PEB::load(peb_addr, &mut emu.maps);
-    let mut teb_struct = structures::TEB::load(teb_addr, &mut emu.maps);
-    let ldr_struct = structures::PebLdrData::load(ldr_addr, &mut emu.maps);
+    let peb_struct = structures::PEB::load(peb_addr, &emu.maps);
+    let mut teb_struct = structures::TEB::load(teb_addr, &emu.maps);
+    let ldr_struct = structures::PebLdrData::load(ldr_addr, &emu.maps);
 
     assert_eq!(
         ldr_struct.in_load_order_module_list.flink,
@@ -49,7 +49,7 @@ pub fn peb_teb_ldr_structures_test() {
 
     let mut ldr_entry = structures::LdrDataTableEntry::load(
         ldr_struct.in_load_order_module_list.flink as u64,
-        &mut emu.maps,
+        &emu.maps,
     );
     let ntdll_addr = emu.maps.get_mem("ntdll.pe").get_base();
 
@@ -150,7 +150,7 @@ pub fn peb_teb_ldr_structures_test() {
     for expected in ["ntdll.dll", "kernel32.dll", "kernelbase.dll"] {
         ldr_entry = structures::LdrDataTableEntry::load(
             ldr_entry.in_load_order_links.flink as u64,
-            &mut emu.maps,
+            &emu.maps,
         );
 
         assert_eq!(
@@ -192,7 +192,7 @@ pub fn peb_teb_ldr_structures_test() {
         if next == first_entry {
             break;
         }
-        ldr_entry = structures::LdrDataTableEntry::load(next, &mut emu.maps);
+        ldr_entry = structures::LdrDataTableEntry::load(next, &emu.maps);
     }
     assert!(
         found_netapi,
@@ -217,7 +217,7 @@ pub fn peb_teb_ldr_structures_test() {
     // 64BITS //
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     emu.load_code(&sample!("exe64win_msgbox.bin"));
 
     let ntdll_addr = emu.maps.get_mem("ntdll.pe").get_base();
@@ -245,8 +245,8 @@ pub fn peb_teb_ldr_structures_test() {
     assert!(ldr_addr > 0x1000);
     assert!(emu.maps.is_allocated(ldr_addr));
 
-    let peb_struct = structures::PEB64::load(peb_addr, &mut emu.maps);
-    let mut teb_struct = structures::TEB64::load(teb_addr, &mut emu.maps);
+    let peb_struct = structures::PEB64::load(peb_addr, &emu.maps);
+    let mut teb_struct = structures::TEB64::load(teb_addr, &emu.maps);
 
     assert_eq!(peb_struct.image_base_addr, ntdll_addr);
     assert_eq!(peb_struct.ldr, ldr_addr);
@@ -314,10 +314,10 @@ pub fn peb_teb_ldr_structures_test() {
     );
     //assert!(teb_struct.environment_pointer > 0);
 
-    let ldr_struct = structures::PebLdrData64::load(ldr_addr, &mut emu.maps);
+    let ldr_struct = structures::PebLdrData64::load(ldr_addr, &emu.maps);
     let entry_addr = ldr_struct.in_load_order_module_list.flink;
     assert!(entry_addr >= 0x1000);
-    let mut ldr_entry = structures::LdrDataTableEntry64::load(entry_addr, &mut emu.maps);
+    let mut ldr_entry = structures::LdrDataTableEntry64::load(entry_addr, &emu.maps);
 
     //let ntdll_addr = emu.maps.get_mem("ntdll.pe").get_base();
 
@@ -346,7 +346,7 @@ pub fn peb_teb_ldr_structures_test() {
 
     // follow to next flink (ntdll)
     ldr_entry =
-        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &mut emu.maps);
+        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &emu.maps);
 
     assert_eq!(
         ldr_entry.in_memory_order_links.flink,
@@ -361,14 +361,14 @@ pub fn peb_teb_ldr_structures_test() {
     assert_eq!(module, "ntdll.dll");
 
     ldr_entry =
-        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &mut emu.maps);
+        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &emu.maps);
     assert_eq!(
         emu.maps.read_wide_string(ldr_entry.base_dll_name.buffer),
         "kernel32.dll"
     );
 
     ldr_entry =
-        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &mut emu.maps);
+        structures::LdrDataTableEntry64::load(ldr_entry.in_load_order_links.flink, &emu.maps);
     assert_eq!(
         emu.maps.read_wide_string(ldr_entry.base_dll_name.buffer),
         "kernelbase.dll"
@@ -388,12 +388,12 @@ pub fn peb_teb_ldr_structures_test() {
     let sample = sample_w.unwrap();
     assert_eq!(sample, "kernelbase.pe");
 
-    let ntdll_str_ptr = ldr_entry.base_dll_name.buffer as u64;
+    let ntdll_str_ptr = ldr_entry.base_dll_name.buffer;
     assert!(ntdll_str_ptr > 0);
     let ntdll_str = emu.maps.read_wide_string(ntdll_str_ptr);
     assert_eq!(ntdll_str, "kernelbase.dll");
 
-    let ntdll_str_ptr = ldr_entry.full_dll_name.buffer as u64;
+    let ntdll_str_ptr = ldr_entry.full_dll_name.buffer;
     assert!(ntdll_str_ptr > 0);
     let ntdll_str = emu.maps.read_wide_string(ntdll_str_ptr);
     assert_eq!(ntdll_str, "C:\\Windows\\System32\\kernelbase.dll");

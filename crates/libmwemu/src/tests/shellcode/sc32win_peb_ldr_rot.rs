@@ -7,7 +7,7 @@ pub fn sc32win_peb_ldr_rot() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
 
     let sample = sample!("sc32win_peb_ldr_rot.bin");
     emu.load_code(&sample);

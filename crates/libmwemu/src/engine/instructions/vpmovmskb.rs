@@ -38,8 +38,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             };
 
             let mut result: u32 = 0;
-            let mut input_bytes = [0u8; 32];
-            source1.to_little_endian(&mut input_bytes);
+            let input_bytes = source1.to_little_endian();
 
             for (i, byte) in input_bytes.iter().enumerate() {
                 let msb = (byte & 0x80) >> 7;

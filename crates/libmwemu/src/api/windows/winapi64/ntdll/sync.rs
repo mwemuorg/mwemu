@@ -1,6 +1,8 @@
+use crate::api::windows::helper;
 use crate::emu;
 use crate::winapi::winapi64::kernel32::{
-    self, InitializeCriticalSection, TlsAlloc, TlsFree, TlsGetValue, TlsSetValue,
+    self, EnterCriticalSection, InitializeCriticalSection, LeaveCriticalSection, TlsAlloc, TlsFree,
+    TlsGetValue, TlsSetValue,
 };
 use crate::windows::constants;
 
@@ -8,7 +10,9 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
         "RtlInitializeCriticalSection" => InitializeCriticalSection(emu),
         "RtlInitializeCriticalSectionAndSpinCount" => RtlInitializeCriticalSectionAndSpinCount(emu),
-        "RtlEnterCriticalSection" => RtlEnterCriticalSection(emu),
+        "RtlEnterCriticalSection" | "EnterCriticalSection" => EnterCriticalSection(emu),
+        "RtlLeaveCriticalSection" | "LeaveCriticalSection" => LeaveCriticalSection(emu),
+        "RtlDeleteCriticalSection" | "DeleteCriticalSection" => RtlDeleteCriticalSection(emu),
         "RtlInitializeCriticalSectionEx" => RtlInitializeCriticalSectionEx(emu),
         "RtlQueueWorkItem" => RtlQueueWorkItem(emu),
         "NtWaitForSingleObject" => NtWaitForSingleObject(emu),
@@ -19,6 +23,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlTlsFree" => TlsFree(emu),
         "RtlTlsGetValue" => TlsGetValue(emu),
         "RtlTlsSetValue" => TlsSetValue(emu),
+        "NtDelayExecution" => NtDelayExecution(emu),
         _ => return false,
     }
     true
@@ -33,12 +38,10 @@ fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
     emu.regs_mut().rax = 1;
 }
 
-fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
-
-    log_red!(emu, "ntdll!RtlEnterCriticalSection");
-
-    emu.regs_mut().rax = 1;
+fn RtlDeleteCriticalSection(emu: &mut emu::Emu) {
+    let _cs = emu.regs().rcx;
+    log_red!(emu, "ntdll!RtlDeleteCriticalSection");
+    emu.regs_mut().rax = 0;
 }
 
 fn RtlInitializeCriticalSectionEx(emu: &mut emu::Emu) {
@@ -115,4 +118,24 @@ fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
 
     emu.set_veh(0);
     emu.regs_mut().rax = 0;
+}
+
+pub fn NtDelayExecution(emu: &mut emu::Emu) {
+    let _alertable = emu.regs().rcx;
+    let delay_interval_ptr = emu.regs().rdx;
+
+    let interval = emu.maps.read_qword(delay_interval_ptr).unwrap_or(0) as i64;
+
+    // Negative = relative time in 100ns units; convert to milliseconds
+    let millis = if interval < 0 {
+        ((-interval) / 10_000) as u64
+    } else {
+        (interval / 10_000) as u64
+    };
+
+    log_red!(emu, "ntdll!NtDelayExecution interval: {} ms", millis);
+
+    helper::advance_tick(emu, millis);
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
 }

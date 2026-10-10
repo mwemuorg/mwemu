@@ -53,7 +53,7 @@ pub fn VirtualAlloc(emu: &mut emu::Emu) {
         }
     };
 
-    if mem_commit && !mem_reserve {
+    if mem_commit && !mem_reserve && addr > 0 {
         set_last_error(constants::ERROR_SUCCESS);
         log_red!(
             emu,

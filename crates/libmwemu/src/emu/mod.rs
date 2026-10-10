@@ -177,6 +177,7 @@ pub struct Emu {
     pub main_thread_cont: u64,     // main thread continuation/return address
     pub gateway_return: u64,       // return address from API gateway trampoline
     pub global_locks: GlobalLocks, // critical section/mutex tracking
+    pub processes: crate::threading::process::ProcessTable, // Unix pid identity, fork() frames and unreaped children
 
     // --- API call interception ---
     pub hooks: Hooks,             // registered pre/post-instruction callback hooks
@@ -210,6 +211,9 @@ pub struct Emu {
     pub handle_management: HandleManagement, // file and object handle table
     pub section_handles: HashMap<u64, String>, // KnownDll section handle → DLL filename (e.g., "kernel32.dll")
     pub file_handles: HashMap<u64, String>, // NtOpenFile handle → resolved basename (e.g., "kernelbase.dll"); used by NtCreateSection to inherit the dll name
+    pub fts_handles: HashMap<u64, crate::api::macos::libsystem::FtsState>, // macOS FTS traversal state
+    pub getopt_char_index: usize, // position within current argv element for grouped flags (-la)
+    pub emulated_stdout: Vec<u8>, // buffered stdout output from emulated program
     pub syscall_number_map: HashMap<u64, u64>, // real_nr (from loaded ntdll) → canonical_nr (the value our gateway dispatcher matches on). Built at init by scanning ntdll exports; empty means no translation.
     pub syscall_name_by_real: HashMap<u64, String>, // real_nr → "Nt<Name>" as exported by the loaded ntdll. Used in diagnostics so unimplemented-syscall logs name the right function (the static `what_syscall()` table is tied to a single Windows build and would otherwise mislabel cross-build syscalls).
     pub known_dll_dir_handles: HashSet<u64>, // handles returned by NtOpenDirectoryObject for \KnownDlls / \KnownDlls32; used by NtOpenSection to recognise relative DLL opens

@@ -40,7 +40,7 @@ impl PE32 {
 
         for i in 0..entries {
             let mut entry = structures::ImageResourceDirectoryEntry::new();
-            let off2 = off + i as usize * 8 + structures::ImageResourceDirectory::size() as usize;
+            let off2 = off + i as usize * 8 + structures::ImageResourceDirectory::size();
             entry.name_or_id = read_u32_le!(rsrc, off2);
             entry.data_or_directory = read_u32_le!(rsrc, off2 + 4);
 
@@ -100,8 +100,7 @@ impl PE32 {
         let rsrc = self.get_section_ptr_by_name(raw, ".rsrc")?;
         let data_entry =
             self.locate_resource_data_entry(raw, rsrc, 0, 0, type_id, name_id, type_name, name)?;
-        let data_off = PE32::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32)
-            as usize
+        let data_off = PE32::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data) as usize
             - self.opt.image_base as usize;
         Some((data_off as u64, data_entry.size as usize))
     }

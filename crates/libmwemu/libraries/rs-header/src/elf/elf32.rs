@@ -115,7 +115,7 @@ impl Elf32 {
                 && phnum
                     .checked_mul(phent_sz)
                     .and_then(|b| phoff.checked_add(b))
-                    .map_or(true, |end| end > self.bin.len())
+                    .is_none_or(|end| end > self.bin.len())
             {
                 log::warn!("elf32: program-header table extends past end of image");
             } else {
@@ -139,7 +139,7 @@ impl Elf32 {
                 && shnum
                     .checked_mul(shent_sz)
                     .and_then(|b| shoff.checked_add(b))
-                    .map_or(true, |end| end > self.bin.len())
+                    .is_none_or(|end| end > self.bin.len())
             {
                 log::warn!("elf32: section-header table extends past end of image");
             } else {
@@ -227,6 +227,12 @@ pub struct Elf32Ehdr {
     pub e_shentsize: u16,
     pub e_shnum: u16,
     pub e_shstrndx: u16,
+}
+
+impl Default for Elf32Ehdr {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Elf32Ehdr {

@@ -1,5 +1,6 @@
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
+use crate::kernel::heap::Region;
 
 pub fn HeapAlloc(emu: &mut emu::Emu) {
     let hndl = emu
@@ -15,12 +16,19 @@ pub fn HeapAlloc(emu: &mut emu::Emu) {
         .read_dword(emu.regs().get_esp() + 8)
         .expect("kernel32!HeapAlloc cannot read the size") as u64;
 
-    // Apply minimum padding
     if size < emu.cfg.heap_alloc_min_size {
         size = emu.cfg.heap_alloc_min_size;
     }
 
-    match heap_engine::heap_allocate(emu, hndl as u64, size) {
+    let zeroed = flags & 0x00000008 != 0; // HEAP_ZERO_MEMORY
+    let result = if emu.cfg.memory_guard {
+        let addr = emu.kernel_alloc(Region::Slab, size, "heap", "HeapAlloc", zeroed);
+        if addr != 0 { Some(addr) } else { None }
+    } else {
+        heap_engine::heap_allocate(emu, hndl as u64, size)
+    };
+
+    match result {
         Some(heap_addr) => {
             emu.regs_mut().rax = heap_addr;
             log_red!(

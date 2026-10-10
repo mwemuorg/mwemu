@@ -28,7 +28,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
         } else {
             f.round_ties_even()
         };
-        let d: i32 = if x.is_nan() || x >= 2147483648.0 || x < -2147483648.0 {
+        let d: i32 = if x.is_nan() || !(-2147483648.0..2147483648.0).contains(&x) {
             i32::MIN
         } else {
             x as i32

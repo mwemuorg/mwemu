@@ -1,6 +1,11 @@
 //! Parsing tests against mwemu's own `loader.exe` placeholder PEs (small, real,
 //! and not third-party). Bytes are embedded so the tests are self-contained.
 
+// clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::unusual_byte_groupings)]
+
 use rs_header::pe::pe32::PE32;
 use rs_header::pe::pe64::PE64;
 

@@ -745,25 +745,25 @@ pub fn rebuild_ldr_lists(emu: &mut emu::Emu) {
 
     for map_name in &pe_names {
         let stem = map_name.trim_end_matches(".pe");
-        if stem.eq_ignore_ascii_case("ntdll") {
-            if let Some(m) = emu.maps.get_map_by_name(map_name) {
-                modules.push(ModInfo {
-                    name: "ntdll.dll".into(),
-                    base: m.get_base(),
-                });
-            }
+        if stem.eq_ignore_ascii_case("ntdll")
+            && let Some(m) = emu.maps.get_map_by_name(map_name)
+        {
+            modules.push(ModInfo {
+                name: "ntdll.dll".into(),
+                base: m.get_base(),
+            });
         }
     }
 
     for map_name in &pe_names {
         let stem = map_name.trim_end_matches(".pe");
-        if stem.eq_ignore_ascii_case("kernel32") {
-            if let Some(m) = emu.maps.get_map_by_name(map_name) {
-                modules.push(ModInfo {
-                    name: "kernel32.dll".into(),
-                    base: m.get_base(),
-                });
-            }
+        if stem.eq_ignore_ascii_case("kernel32")
+            && let Some(m) = emu.maps.get_map_by_name(map_name)
+        {
+            modules.push(ModInfo {
+                name: "kernel32.dll".into(),
+                base: m.get_base(),
+            });
         }
     }
 

@@ -6,7 +6,7 @@ pub fn sc64lin_arith_100iter() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("sc64lin_arith_100iter.bin");
     emu.load_code(&sample);

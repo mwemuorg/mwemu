@@ -10,11 +10,11 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     );
     let dest = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
     let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-    let mut result = dest & !(0xffffffff as u128);
+    let mut result = dest & !0xffffffff_u128;
     for i in 0..1 {
         let shift = i * 32;
         let a = f32::from_bits(((src >> shift) & 0xffffffff) as _);
-        result |= ((a.sqrt().to_bits() as u128) & (0xffffffff as u128)) << shift;
+        result |= ((a.sqrt().to_bits() as u128) & 0xffffffff_u128) << shift;
     }
     emu.set_operand_xmm_value_128(ins, 0, result);
     true

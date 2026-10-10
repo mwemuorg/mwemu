@@ -14,65 +14,65 @@ pub fn elf64lin_flags() {
 
     // test instruction add
     emu.run(Some(0x401014));
-    assert_eq!(emu.flags().f_cf, true);
-    assert_eq!(emu.flags().f_of, false);
-    assert_eq!(emu.flags().f_zf, true);
-    assert_eq!(emu.flags().f_sf, false);
-    assert_eq!(emu.flags().f_pf, true);
+    assert!(emu.flags().f_cf);
+    assert!(!emu.flags().f_of);
+    assert!(emu.flags().f_zf);
+    assert!(!emu.flags().f_sf);
+    assert!(emu.flags().f_pf);
 
     // test instruction sub
     emu.run(Some(0x40102a));
-    assert_eq!(emu.flags().f_cf, false);
-    assert_eq!(emu.flags().f_of, false);
-    assert_eq!(emu.flags().f_zf, true);
-    assert_eq!(emu.flags().f_sf, false);
-    assert_eq!(emu.flags().f_pf, true);
+    assert!(!emu.flags().f_cf);
+    assert!(!emu.flags().f_of);
+    assert!(emu.flags().f_zf);
+    assert!(!emu.flags().f_sf);
+    assert!(emu.flags().f_pf);
 
     // test instruction cmp
     emu.run(Some(0x401040));
-    assert_eq!(emu.flags().f_cf, true);
-    assert_eq!(emu.flags().f_of, false);
-    assert_eq!(emu.flags().f_zf, false);
-    assert_eq!(emu.flags().f_sf, true);
-    assert_eq!(emu.flags().f_pf, false);
+    assert!(emu.flags().f_cf);
+    assert!(!emu.flags().f_of);
+    assert!(!emu.flags().f_zf);
+    assert!(emu.flags().f_sf);
+    assert!(!emu.flags().f_pf);
 
     // test instruction test
     emu.run(Some(0x401056));
-    assert_eq!(emu.flags().f_cf, false);
-    assert_eq!(emu.flags().f_of, false);
-    assert_eq!(emu.flags().f_zf, true);
-    assert_eq!(emu.flags().f_sf, false);
-    assert_eq!(emu.flags().f_pf, true);
+    assert!(!emu.flags().f_cf);
+    assert!(!emu.flags().f_of);
+    assert!(emu.flags().f_zf);
+    assert!(!emu.flags().f_sf);
+    assert!(emu.flags().f_pf);
 
     // test and
     emu.run(Some(0x40106c));
-    assert_eq!(emu.flags().f_cf, false);
-    assert_eq!(emu.flags().f_of, false);
-    assert_eq!(emu.flags().f_zf, true);
-    assert_eq!(emu.flags().f_sf, false);
-    assert_eq!(emu.flags().f_pf, true);
+    assert!(!emu.flags().f_cf);
+    assert!(!emu.flags().f_of);
+    assert!(emu.flags().f_zf);
+    assert!(!emu.flags().f_sf);
+    assert!(emu.flags().f_pf);
 
     // test or with 0x0
     emu.run(Some(0x401087));
-    assert_eq!(emu.flags().f_cf, false);
-    assert_eq!(emu.flags().f_of, false);
-    assert_eq!(emu.flags().f_zf, false);
-    assert_eq!(emu.flags().f_sf, true);
-    assert_eq!(emu.flags().f_pf, true);
+    assert!(!emu.flags().f_cf);
+    assert!(!emu.flags().f_of);
+    assert!(!emu.flags().f_zf);
+    assert!(emu.flags().f_sf);
+    assert!(emu.flags().f_pf);
 
     // test shl
     emu.run(Some(0x40109d));
-    assert_eq!(emu.flags().f_cf, true);
-    assert_eq!(emu.flags().f_of, true);
-    assert_eq!(emu.flags().f_zf, true);
-    assert_eq!(emu.flags().f_sf, false);
-    assert_eq!(emu.flags().f_pf, true);
+    assert!(emu.flags().f_cf);
+    assert!(emu.flags().f_of);
+    assert!(emu.flags().f_zf);
+    assert!(!emu.flags().f_sf);
+    assert!(emu.flags().f_pf);
 
     // test add
     emu.run(Some(0x4010b8));
-    assert_eq!(emu.flags().f_cf, false);
-    assert_eq!(emu.flags().f_of, true);
-    assert_eq!(emu.flags().f_zf, false);
-    assert_eq!(emu.flags().f_sf, true);
-    assert_eq!(emu.flags().f_pf, true);
+    assert!(!emu.flags().f_cf);
+    assert!(emu.flags().f_of);
+    assert!(!emu.flags().f_zf);
+    assert!(emu.flags().f_sf);
+    assert!(emu.flags().f_pf);
 }

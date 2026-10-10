@@ -15,6 +15,11 @@
 //!
 //! See `.kilo/plans/1783745443585-bulk-rs-header-corpus-parser-plan.md`.
 
+// clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::unusual_byte_groupings)]
+
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 
@@ -174,10 +179,10 @@ fn walk(
         } else if ft.is_file() {
             *files_scanned += 1;
             out.push(p);
-            if let Some(limit) = max_files {
-                if *files_scanned >= limit {
-                    return;
-                }
+            if let Some(limit) = max_files
+                && *files_scanned >= limit
+            {
+                return;
             }
         }
     }
@@ -185,10 +190,10 @@ fn walk(
         if !visited.iter().any(|v| v == &d) {
             visited.push(d.clone());
             walk(&d, dirs_scanned, files_scanned, visited, out, max_files);
-            if let Some(limit) = max_files {
-                if *files_scanned >= limit {
-                    return;
-                }
+            if let Some(limit) = max_files
+                && *files_scanned >= limit
+            {
+                return;
             }
         }
     }
@@ -309,14 +314,12 @@ fn handle_pe32(path: &Path, raw: &[u8], failures: &mut Vec<Failure>, counts: &mu
         }
     }
 
-    if err.is_none() {
-        if (pe.opt.size_of_headers as usize) > raw.len() {
-            err = Some(format!(
-                "size_of_headers {} > raw.len() {}",
-                pe.opt.size_of_headers,
-                raw.len()
-            ));
-        }
+    if err.is_none() && (pe.opt.size_of_headers as usize) > raw.len() {
+        err = Some(format!(
+            "size_of_headers {} > raw.len() {}",
+            pe.opt.size_of_headers,
+            raw.len()
+        ));
     }
 
     if err.is_none() {
@@ -338,7 +341,7 @@ fn handle_pe32(path: &Path, raw: &[u8], failures: &mut Vec<Failure>, counts: &mu
                 ));
                 break;
             }
-            if off.checked_add(sz).map_or(true, |sum| sum > raw.len()) {
+            if off.checked_add(sz).is_none_or(|sum| sum > raw.len()) {
                 err = Some(format!("section {i} off+sz > raw.len() {}", raw.len()));
                 break;
             }
@@ -399,14 +402,12 @@ fn handle_pe64(path: &Path, raw: &[u8], failures: &mut Vec<Failure>, counts: &mu
         }
     }
 
-    if err.is_none() {
-        if (pe.opt.size_of_headers as usize) > raw.len() {
-            err = Some(format!(
-                "size_of_headers {} > raw.len() {}",
-                pe.opt.size_of_headers,
-                raw.len()
-            ));
-        }
+    if err.is_none() && (pe.opt.size_of_headers as usize) > raw.len() {
+        err = Some(format!(
+            "size_of_headers {} > raw.len() {}",
+            pe.opt.size_of_headers,
+            raw.len()
+        ));
     }
 
     if err.is_none() {
@@ -428,7 +429,7 @@ fn handle_pe64(path: &Path, raw: &[u8], failures: &mut Vec<Failure>, counts: &mu
                 ));
                 break;
             }
-            if off.checked_add(sz).map_or(true, |sum| sum > raw.len()) {
+            if off.checked_add(sz).is_none_or(|sum| sum > raw.len()) {
                 err = Some(format!("section {i} off+sz > raw.len() {}", raw.len()));
                 break;
             }
@@ -794,10 +795,10 @@ fn bulk_parse_pe_and_elf_corpus() {
     for path in &files {
         let _ = process_file(path, &cfg, &mut failures, &mut counts);
         processed += 1;
-        if let Some(limit) = cfg.limit {
-            if processed >= limit {
-                break;
-            }
+        if let Some(limit) = cfg.limit
+            && processed >= limit
+        {
+            break;
         }
     }
 

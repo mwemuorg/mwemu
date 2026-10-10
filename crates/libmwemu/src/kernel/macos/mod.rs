@@ -42,7 +42,25 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
             emu.set_kernel_ret(0);
         }
 
-        _ => return false,
+        // --- locking (no-ops: emulation is single-threaded) --------------------
+        // IOLockAlloc hands back a non-null, mapped token the driver stores and
+        // passes back to lock/unlock; it is never dereferenced in this model, so
+        // reusing the kernel data base avoids a tracked allocation (which would
+        // otherwise look like a leak).
+        "IOLockAlloc" | "IORWLockAlloc" | "lck_mtx_alloc_init" | "IOSimpleLockAlloc" => {
+            let token = emu.kernel.as_ref().map(|k| k.layout.data_base).unwrap_or(0);
+            emu.set_kernel_ret(token);
+        }
+        "IOLockLock" | "IOLockUnlock" | "IOLockFree" | "IORWLockRead" | "IORWLockWrite"
+        | "IORWLockUnlock" | "IORWLockFree" | "lck_mtx_lock" | "lck_mtx_unlock"
+        | "lck_mtx_free" | "IOSimpleLockLock" | "IOSimpleLockUnlock" | "IOSimpleLockFree" => {
+            emu.set_kernel_ret(0);
+        }
+
+        // Generic libkern string/memory helpers (memcpy, memset, memcmp,
+        // strlen, …) behave exactly as on Linux and run through the same guard,
+        // so a copy into a freed object is caught inside the kernel call.
+        _ => return crate::kernel::linux::string::dispatch(symbol, emu),
     }
     true
 }

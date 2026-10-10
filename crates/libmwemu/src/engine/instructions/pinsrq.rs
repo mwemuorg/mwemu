@@ -11,7 +11,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     let s = (emu.get_operand_value(ins, 1, true).unwrap_or(0) as u128) & 0xffff_ffff_ffff_ffff;
     let idx = (emu.get_operand_value(ins, 2, true).unwrap_or(0) as u32) & 1;
     let shift = idx * 64;
-    let result = (dest & !((0xffff_ffff_ffff_ffff as u128) << shift)) | (s << shift);
+    let result = (dest & !(0xffff_ffff_ffff_ffff_u128 << shift)) | (s << shift);
     emu.set_operand_xmm_value_128(ins, 0, result);
     true
 }

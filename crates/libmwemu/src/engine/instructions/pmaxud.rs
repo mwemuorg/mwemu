@@ -12,9 +12,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
     let mut result = 0u128;
     for i in 0..4 {
-        let a = ((dest >> (i * 32)) & 0xffffffff) as u32 as u32;
-        let b = ((src >> (i * 32)) & 0xffffffff) as u32 as u32;
-        result |= ((a.max(b) as u32) as u128) << (i * 32);
+        let a = ((dest >> (i * 32)) & 0xffffffff) as u32;
+        let b = ((src >> (i * 32)) & 0xffffffff) as u32;
+        result |= (a.max(b) as u128) << (i * 32);
     }
     emu.set_operand_xmm_value_128(ins, 0, result);
     true

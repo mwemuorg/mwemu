@@ -19,12 +19,12 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     let r = round_ties_even(f);
 
     let result: u64 = if dst_sz == 64 {
-        if f.is_nan() || r >= 9223372036854775808.0 || r < -9223372036854775808.0 {
+        if f.is_nan() || !(-9223372036854775808.0..9223372036854775808.0).contains(&r) {
             0x8000000000000000
         } else {
             (r as i64) as u64
         }
-    } else if f.is_nan() || r >= 2147483648.0 || r < -2147483648.0 {
+    } else if f.is_nan() || !(-2147483648.0..2147483648.0).contains(&r) {
         0x80000000
     } else {
         ((r as i32) as u32) as u64

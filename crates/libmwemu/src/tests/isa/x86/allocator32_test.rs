@@ -9,21 +9,22 @@ pub fn allocator32_test() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
     emu.init_win32(false, false);
 
-    assert_eq!(emu.maps.exists_mapname("shell32.rsrc"), true);
-    assert_eq!(emu.maps.get_map_by_name("shell32.rsrc").is_some(), true);
-    assert_eq!(emu.maps.exists_mapname("notexist"), false);
-    assert_eq!(emu.maps.get_map_by_name("notexist").is_some(), false);
+    // "peb" is always created by init_peb — no DLL download needed.
+    assert!(emu.maps.exists_mapname("peb"));
+    assert!(emu.maps.get_map_by_name("peb").is_some());
+    assert!(!emu.maps.exists_mapname("notexist"));
+    assert!(emu.maps.get_map_by_name("notexist").is_none());
 
     for _ in 0..700 {
-        assert_eq!(emu.maps.alloc(1024).is_some(), true);
-        assert_eq!(emu.maps.lib32_alloc(1024).is_some(), true);
+        assert!(emu.maps.alloc(1024).is_some());
+        assert!(emu.maps.lib32_alloc(1024).is_some());
     }
 
-    assert_eq!(emu.maps.mem_test(), true);
+    assert!(emu.maps.mem_test());
 
     // VirtualAlloc(addr, sz, flAllocationType, flProtect)
     let p = helpers::call_winapi32(
@@ -31,7 +32,7 @@ pub fn allocator32_test() {
         winapi32::kernel32::VirtualAlloc,
         &[0, 1024, constants::MEM_RESERVE, 0x40],
     );
-    assert_eq!(emu.maps.is_allocated(p as u64), true);
+    assert!(emu.maps.is_allocated(p as u64));
 
     helpers::call_winapi32(
         &mut emu,
@@ -59,7 +60,7 @@ pub fn allocator32_test() {
 fn virtual_alloc_zero_size_32() {
     helpers::setup();
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
     emu.init_win32(false, false);
 
@@ -101,7 +102,7 @@ fn virtual_alloc_zero_size_32() {
 fn virtual_alloc_commit_unmapped_32() {
     helpers::setup();
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
     emu.init_win32(false, false);
 

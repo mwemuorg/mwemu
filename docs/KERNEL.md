@@ -164,21 +164,46 @@ An import with no implementation is not fatal: it is reported at load time
 is recorded in `KernelEnv::unimplemented`. That way a partially covered kernel
 still runs a driver as far as it can go.
 
-## Windows and macOS
+## macOS (kexts)
 
-The surfaces are declared and their allocators implemented, so a `.sys` or a
-kext inherits the lifetime analysis as soon as its loader lands:
+The kext loader (`Emu::load_kext_macho64`, `emu/loaders/kext.rs`) links a plain
+BSD (kmod) kext against the emulated XNU kernel. Unlike a `.ko` (an ET_REL with
+section relocations) an arm64e kext is an already-placed image: its segments
+carry final image-relative vmaddrs and its fixups are a chained-pointer list
+(`LC_DYLD_CHAINED_FIXUPS`, pointer format `ARM64E_KERNEL` = 7, a 4-byte-stride
+variant decoded in `macho64.rs`). Loading places the segments contiguously at
+the module base, applies the fixups (rebases become `base + target`, binds the
+address of an interceptable kernel stub), then reads `kmod_info` for the module
+name and its `start`/`stop` entry points — the kext equivalent of
+`init_module`/`cleanup_module`.
 
-- **Windows**: `ExAllocatePool2`, `ExAllocatePoolWithTag`, `ExFreePool`,
-  `ExFreePoolWithTag`, `MmAllocateContiguousMemory`, `RtlCopyMemory`,
-  `RtlZeroMemory`, `DbgPrint`/`DbgPrintEx`. Declared and still to implement: the
-  MDL, IO manager, object manager and synchronisation groups
-  (`libmwemu::kernel::windows::SURFACE`). What is missing is the *loader*: a
-  `.sys` is a PE with a `DriverEntry`, so it needs the PE path with kernel-space
-  placement rather than the ET_REL path.
-- **macOS**: `IOMalloc`, `IOMallocZero`, `IOFree`, `kalloc_external`,
-  `kfree_external`, `IOLog`. The missing piece is again the loader — a kext is a
-  Mach-O `MH_KEXT_BUNDLE` with external relocations.
+The instruction-level memory guard, previously x86-only, is now wired into the
+AArch64 load/store handlers too (gated on `kernel_guard`, so ordinary userspace
+runs pay only a bool check). That is what lets a use-after-free *read* inside an
+arm64e driver be reported, not just the API-level ones — and it makes
+`--memory-guard` effective for AArch64 macOS binaries as well.
+
+Implemented XNU surface: `IOMalloc`/`IOMallocZero`/`IOFree` (and the `kalloc`
+spellings), `IOLog`/`printf`/`kprintf`, the `IOLock`/`lck_mtx` family as no-ops
+(single-threaded), and the generic libkern string/memory helpers (`memcpy`,
+`memmove`, `memset`, …) which fall through to the shared, guarded Linux
+implementations. Still declared only: the `OSObject`/`OSMetaClass` runtime and
+the IOKit matching surface (`libmwemu::kernel::macos::SURFACE`), i.e. C++ IOKit
+drivers.
+
+x86_64 kexts use classic external relocations (`LC_DYSYMTAB`) rather than
+chained fixups, so only arm64e kexts take this path for now.
+
+## Windows
+
+The surface is declared and its allocators implemented, so a `.sys` inherits the
+lifetime analysis as soon as its loader lands: `ExAllocatePool2`,
+`ExAllocatePoolWithTag`, `ExFreePool`, `ExFreePoolWithTag`,
+`MmAllocateContiguousMemory`, `RtlCopyMemory`, `RtlZeroMemory`,
+`DbgPrint`/`DbgPrintEx`. Declared and still to implement: the MDL, IO manager,
+object manager and synchronisation groups (`libmwemu::kernel::windows::SURFACE`).
+What is missing is the *loader*: a `.sys` is a PE with a `DriverEntry`, so it
+needs the PE path with kernel-space placement rather than the ET_REL path.
 
 ## Using it
 
@@ -204,6 +229,12 @@ mwemu -f driver.ko -6 -v
 MCP — see the kernel-mode section of `crates/mwemu-mcp/README.md`.
 
 ## Test target
+
+`drivers/macos/tlm` is the kext counterpart: the same deliberately vulnerable
+telemetry driver as a BSD kmod. `make macos-driver` builds it into
+`test/macos_uaf_driver.kext` (arm64e, needs the macOS SDK) and
+`cargo test -p libmwemu tests::kernel::macos_uaf` drives it end to end. Like the
+Linux target it is loaded only inside mwemu, never `kextload`ed.
 
 `drivers/linux/tlm` is a deliberately vulnerable telemetry driver used as the
 reference target; `make driver` builds it into `test/linux_uaf_driver.ko` and

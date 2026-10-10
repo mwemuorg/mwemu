@@ -22,12 +22,14 @@ pub fn HeapCreate(emu: &mut emu::Emu) {
             return;
         }
     };
+    let base = emu.heap_arenas[arena].base();
     let key = emu.handle_management.insert_heap_handle(HeapHandle::new(
         opts,
         initSZ as usize,
         maxSZ as usize,
         arena,
     ));
-    log_red!(emu, "kernel32!HeapCreate handle=0x{:x}", key as u64);
-    emu.regs_mut().rax = key as u64;
+    emu.handle_management.set_heap_base_addr(key, base);
+    log_red!(emu, "kernel32!HeapCreate handle=0x{:x}", base);
+    emu.regs_mut().rax = base;
 }

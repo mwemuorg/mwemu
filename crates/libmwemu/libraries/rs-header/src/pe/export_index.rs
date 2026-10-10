@@ -116,28 +116,19 @@ pub fn build_export_index(
     // function/name/ordinal table RVAs are VAs in the section space, NOT raw
     // offsets, so checking them against raw.len() directly would always fail
     // for non-zero section bases.
-    let func_table_off = match vaddr_to_off(sections, address_of_functions) {
-        Some(o) => o,
-        None => return None,
-    };
+    let func_table_off = vaddr_to_off(sections, address_of_functions)?;
     let func_table_end = func_table_off.checked_add((nof as usize).checked_mul(4)?)?;
     if address_of_functions == 0 || func_table_end > raw.len() {
         return None;
     }
 
-    let name_table_off = match vaddr_to_off(sections, address_of_names) {
-        Some(o) => o,
-        None => return None,
-    };
+    let name_table_off = vaddr_to_off(sections, address_of_names)?;
     let name_table_end = name_table_off.checked_add((non as usize).checked_mul(4)?)?;
     if address_of_names == 0 || name_table_end > raw.len() {
         return None;
     }
 
-    let ord_table_off = match vaddr_to_off(sections, address_of_name_ordinals) {
-        Some(o) => o,
-        None => return None,
-    };
+    let ord_table_off = vaddr_to_off(sections, address_of_name_ordinals)?;
     let ord_table_end = ord_table_off.checked_add((non as usize).checked_mul(2)?)?;
     if address_of_name_ordinals == 0 || ord_table_end > raw.len() {
         return None;

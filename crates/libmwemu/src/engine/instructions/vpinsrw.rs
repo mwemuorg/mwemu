@@ -11,6 +11,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
     let v = (emu.get_operand_value(ins, 2, true).unwrap_or(0) as u128) & 0xffff;
     let idx = (emu.get_operand_value(ins, 3, true).unwrap_or(0) as u32) & 7;
     let sh = idx * 16;
-    emu.set_operand_xmm_value_128(ins, 0, (s1 & !((0xffff as u128) << sh)) | (v << sh));
+    emu.set_operand_xmm_value_128(ins, 0, (s1 & !(0xffff_u128 << sh)) | (v << sh));
     true
 }

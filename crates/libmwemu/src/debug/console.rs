@@ -243,10 +243,10 @@ impl Console {
             }
         }
 
-        if let Err(e) = fs::remove_file(&tmpfile) {
-            if e.kind() != io::ErrorKind::NotFound {
-                log::error!("temporal file not found");
-            }
+        if let Err(e) = fs::remove_file(&tmpfile)
+            && e.kind() != io::ErrorKind::NotFound
+        {
+            log::error!("temporal file not found");
         }
     }
 

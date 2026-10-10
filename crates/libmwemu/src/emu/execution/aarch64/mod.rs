@@ -37,11 +37,18 @@ impl Emu {
         assert_aarch64_arch(self, "run_aarch64");
         self.reset_active_instruction_cache();
         self.run_preflight()?;
-        if self.cfg.enable_threading && self.threads.len() > 1 {
+        if self.scheduler_active() {
             self.run_multi_threaded_aarch64(end_addr)
         } else {
             self.run_single_threaded_aarch64(end_addr)
         }
+    }
+
+    /// True when the thread scheduler should interleave threads. Host-driven
+    /// callbacks (`aarch64_call64`: pthread_once init, qsort comparators,
+    /// atfork handlers) run to completion on the calling thread instead.
+    pub(crate) fn scheduler_active(&self) -> bool {
+        self.cfg.enable_threading && self.threads.len() > 1 && self.call_depth == 0
     }
 
     /// AArch64 variant of `decode_and_execute`. Panics if the configured

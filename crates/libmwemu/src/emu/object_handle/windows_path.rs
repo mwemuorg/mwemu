@@ -53,18 +53,17 @@ impl WindowsPath {
         let mut chars = stripped.chars().peekable();
 
         // Handle drive letter
-        if let Some(first_char) = chars.peek().copied() {
-            if first_char.is_ascii_alphabetic() {
-                if let Some(':') = chars.clone().nth(1) {
-                    path.drive = Some(first_char.to_ascii_lowercase());
-                    chars.next(); // Skip drive letter
-                    chars.next(); // Skip colon
+        if let Some(first_char) = chars.peek().copied()
+            && first_char.is_ascii_alphabetic()
+            && let Some(':') = chars.clone().nth(1)
+        {
+            path.drive = Some(first_char.to_ascii_lowercase());
+            chars.next(); // Skip drive letter
+            chars.next(); // Skip colon
 
-                    // Skip leading slash if present
-                    if chars.peek() == Some(&'\\') || chars.peek() == Some(&'/') {
-                        chars.next();
-                    }
-                }
+            // Skip leading slash if present
+            if chars.peek() == Some(&'\\') || chars.peek() == Some(&'/') {
+                chars.next();
             }
         }
 

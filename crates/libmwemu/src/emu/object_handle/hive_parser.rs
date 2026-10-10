@@ -566,10 +566,10 @@ impl<R: Read + Seek> HiveParser<R> {
         }
 
         // Add subpaths to parent cache if this is not the root
-        if !current_path.is_empty() {
-            if let Some(cache) = self.subkey_cache.get_mut(current_path) {
-                cache.subpaths.extend(subpaths);
-            }
+        if !current_path.is_empty()
+            && let Some(cache) = self.subkey_cache.get_mut(current_path)
+        {
+            cache.subpaths.extend(subpaths);
         }
 
         Ok(())
@@ -660,7 +660,7 @@ mod tests {
 
         let key_block = KeyBlock {
             block_size: 4096,
-            block_type: [b'n', b'k'],
+            block_type: *b"nk",
             subkey_count: 0,
             subkeys_offset: 0,
             value_count: 0,
@@ -680,7 +680,7 @@ mod tests {
 
         let key_block = KeyBlock {
             block_size: 4096,
-            block_type: [b'n', b'k'],
+            block_type: *b"nk",
             subkey_count: 0,
             subkeys_offset: 0,
             value_count: 0,
@@ -735,7 +735,7 @@ mod tests {
 
         let value_block = ValueBlock {
             block_size: 512,
-            block_type: [b'v', b'k'],
+            block_type: *b"vk",
             name_len: test_name.len() as i16,
             size: 4,
             data_offset: 1024,
@@ -849,7 +849,7 @@ mod tests {
     fn test_offsets_read() {
         let mut data = Vec::new();
         data.extend_from_slice(&4096i32.to_le_bytes()); // block_size
-        data.extend_from_slice(&[b'l', b'f']); // block_type
+        data.extend_from_slice(b"lf"); // block_type
         data.extend_from_slice(&10i16.to_le_bytes()); // count
         data.extend_from_slice(&100i32.to_le_bytes()); // first
         data.extend_from_slice(&200i32.to_le_bytes()); // hash
@@ -860,7 +860,7 @@ mod tests {
         assert!(result.is_ok());
         let offsets = result.unwrap();
         assert_eq!(offsets.block_size, 4096);
-        assert_eq!(offsets.block_type, [b'l', b'f']);
+        assert_eq!(offsets.block_type, *b"lf");
         assert_eq!(offsets.count, 10);
         assert_eq!(offsets.first, 100);
         assert_eq!(offsets.hash, 200);
@@ -870,7 +870,7 @@ mod tests {
     fn test_key_block_read() {
         let mut data = Vec::new();
         data.extend_from_slice(&4096i32.to_le_bytes()); // block_size
-        data.extend_from_slice(&[b'n', b'k']); // block_type
+        data.extend_from_slice(b"nk"); // block_type
         data.extend_from_slice(&[0u8; 18]); // dummy
         data.extend_from_slice(&5i32.to_le_bytes()); // subkey_count
         data.extend_from_slice(&[0u8; 4]); // dummy
@@ -890,7 +890,7 @@ mod tests {
         assert!(result.is_ok());
         let key_block = result.unwrap();
         assert_eq!(key_block.block_size, 4096);
-        assert_eq!(key_block.block_type, [b'n', b'k']);
+        assert_eq!(key_block.block_type, *b"nk");
         assert_eq!(key_block.subkey_count, 5);
         assert_eq!(key_block.subkeys_offset, 1000);
         assert_eq!(key_block.value_count, 3);
@@ -903,7 +903,7 @@ mod tests {
     fn test_value_block_read() {
         let mut data = Vec::new();
         data.extend_from_slice(&512i32.to_le_bytes()); // block_size
-        data.extend_from_slice(&[b'v', b'k']); // block_type
+        data.extend_from_slice(b"vk"); // block_type
         data.extend_from_slice(&9i16.to_le_bytes()); // name_len
         data.extend_from_slice(&4i32.to_le_bytes()); // size
         data.extend_from_slice(&1024i32.to_le_bytes()); // data_offset
@@ -918,7 +918,7 @@ mod tests {
         assert!(result.is_ok());
         let value_block = result.unwrap();
         assert_eq!(value_block.block_size, 512);
-        assert_eq!(value_block.block_type, [b'v', b'k']);
+        assert_eq!(value_block.block_type, *b"vk");
         assert_eq!(value_block.name_len, 9);
         assert_eq!(value_block.size, 4);
         assert_eq!(value_block.data_offset, 1024);

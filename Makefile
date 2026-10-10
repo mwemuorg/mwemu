@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples driver
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -16,26 +16,28 @@ TEST_DIR := test
 all:
 	cargo build --locked --release $(CARGO_TARGET)
 
-# Full local run: fetch the sample bundle, then run the default CI packages.
-tests: samples
+# Full local run: fetch the sample bundle and the Windows DLLs, then run the
+# default CI packages.
+tests: samples symbols
 	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
 	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
 
 # CI run: no bundle, no network. Binary-dependent tests skip themselves via the
-# `sample!` macro when their sample isn't present, so CI runs the self-contained
-# suite green. (The committed maps support files — banzai.csv, loader.exe — are
+# `sample!` macro when their sample isn't present, and Windows-DLL tests via
+# `win_maps!` (no `make symbols` in CI), so CI runs the self-contained suite. (The committed maps support files — banzai.csv, loader.exe — are
 # enough for the tests that only need a maps folder.)
 test-ci:
 	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
 	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
 
-# Lint the same packages and targets as hosted CI. Existing warnings are reported
-# but are not denied until the current warning backlog is addressed separately.
+# Lint the same packages and targets as hosted CI. Warnings are denied
+# (-D warnings); the remaining backlog is grandfathered via crate-level
+# #![allow(...)] blocks marked "clippy v1 burn-down backlog" (see V1-ROADMAP.md).
 clippy:
-	cargo clippy --locked $(CI_PACKAGES) --all-targets $(CARGO_TARGET)
+	cargo clippy --locked $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
 
 clippy-release:
-	cargo clippy --locked --release $(CI_PACKAGES) --all-targets $(CARGO_TARGET)
+	cargo clippy --locked --release $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
 
 # Kernel-mode test target: builds drivers/linux/tlm into test/linux_uaf_driver.ko,
 # the deliberately vulnerable .ko the kernel emulation tests load. Needs the
@@ -43,6 +45,12 @@ clippy-release:
 # themselves when the artefact is absent, so this is optional.
 driver:
 	$(MAKE) -C drivers/linux/tlm install TESTDIR=$(abspath $(TEST_DIR))
+
+# macOS kext test target: builds drivers/macos/tlm into
+# test/macos_uaf_driver.kext (arm64e). Needs the macOS SDK + clang; the
+# kernel-mode kext tests skip when the artefact is absent, so CI stays green.
+macos-driver:
+	$(MAKE) -C drivers/macos/tlm install TESTDIR=$(abspath $(TEST_DIR))
 
 # Sample PE bundle (msgbox, enigma, ...), fetched once from the mwemu release
 # assets. Everything that needs a sample depends on this, so a fresh checkout
@@ -59,6 +67,12 @@ $(TEST_DIR)/exe64win_msgbox.bin:
 	@unzip -o -P mwemuTestSystem test.zip; rm -f test.zip
 
 samples: $(TEST_DIR)/exe64win_msgbox.bin
+
+# Fetch the Windows DLLs the tests load (maps/windows/{x86,x86_64}/) from
+# Microsoft's symbol server, once and sequentially. The test suite itself never
+# downloads: tests that need these DLLs skip via `win_maps!` when absent.
+symbols:
+	cargo test --locked --package libmwemu $(CARGO_TARGET) -- --ignored --exact tests::helpers::fetch_windows_test_dlls
 
 # Optional end-to-end smoke test: emulate a sample PE (needs network for the
 # winver DLL fetch).
@@ -81,17 +95,47 @@ maps: all samples
 sloppy:
 	-python3 scripts/sloppy.py
 
+# Extract macOS dylibs from the local dyld shared cache into maps/macos/aarch64/.
+# Requires macOS with dsc_extractor.bundle (ships with the OS).  The loader
+# strips directory prefixes, so every dylib lands flat in the target folder.
+DYLD_MAPS := maps/macos/aarch64
+DYLD_EXTRACTOR := scripts/extract_dyld_cache
+
+$(DYLD_EXTRACTOR): scripts/extract_dyld_cache.c
+	cc -o $@ $<
+
+dyld: $(DYLD_EXTRACTOR)
+	@echo "[dyld] extracting dyld shared cache (this takes a minute)..."
+	@TMPDIR=$$(mktemp -d); \
+	./$(DYLD_EXTRACTOR) "$$TMPDIR" && \
+	mkdir -p $(DYLD_MAPS) && \
+	for f in "$$TMPDIR"/usr/lib/*.dylib "$$TMPDIR"/usr/lib/system/*.dylib; do \
+		[ -f "$$f" ] || continue; \
+		NAME=$$(basename "$$f"); \
+		if git ls-files --error-unmatch $(DYLD_MAPS)/$$NAME >/dev/null 2>&1; then \
+			echo "  skip $$NAME (tracked stub)"; \
+		else \
+			cp "$$f" $(DYLD_MAPS)/$$NAME; \
+		fi; \
+	done; \
+	rm -rf "$$TMPDIR"; \
+	echo "[dyld] $$(ls $(DYLD_MAPS)/*.dylib 2>/dev/null | wc -l | tr -d ' ') dylibs in $(DYLD_MAPS)/"
+
 # Handy manual runs
 test_syscall: samples
 	cargo run --release -- -f $(TEST_DIR)/exe64win_msgbox.bin -6 --syscall-mode --winver win11
 test_linux:
-	cargo run --release -- -f /bin/ls -A '"-l"' -6
+	cargo run --release -- -f /bin/ls -A '-l' -6
 test_windows: samples
 	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11  -v
+test_macos:
+	cargo run --release $(CARGO_TARGET) -- -f /bin/ls --aarch64 -v --args '-l'
 test_inception:
 	cargo run --release -- -f target/release/mwemu -6 -v
 test_enigma:
 	cargo run --release -- -f  test/exe64win_enigma.bin -6 -v
 test_tls:
 	cargo run --release -- -f  test/exe64win_mingw.bin -6 -v
+test_golang:
+	cargo test --locked --verbose --package libmwemu $(CARGO_TARGET) -- tests::loaders::elf64::elf64lin_go
 

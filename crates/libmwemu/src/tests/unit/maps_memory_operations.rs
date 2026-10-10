@@ -51,7 +51,7 @@ pub fn maps_memory_operations() {
         .maps
         .get_map_by_name("test_map")
         .expect("Fail to get map");
-    assert_eq!(test_map.permission().can_execute(), false);
+    assert!(!test_map.permission().can_execute());
 
     // Test duplicate map creation should fail
     let result2 = emu

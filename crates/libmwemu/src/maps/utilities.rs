@@ -37,12 +37,13 @@ impl Maps {
             return;
         }
         let end_addr = addr + amount as u64 - 1;
-        if let Some(mem) = self.get_mem_by_addr_mut(addr) {
-            if mem.inside(end_addr) && mem.can_write() {
-                let buf = vec![b; amount];
-                mem.write_bytes(addr, &buf);
-                return;
-            }
+        if let Some(mem) = self.get_mem_by_addr_mut(addr)
+            && mem.inside(end_addr)
+            && mem.can_write()
+        {
+            let buf = vec![b; amount];
+            mem.write_bytes(addr, &buf);
+            return;
         }
         for i in 0..amount {
             if !self.write_byte(addr + i as u64, b) {

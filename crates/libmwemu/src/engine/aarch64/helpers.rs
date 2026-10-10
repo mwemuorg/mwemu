@@ -1,11 +1,22 @@
 use crate::emu::Emu;
-use yaxpeax_arm::armv8::a64::{Operand, ShiftStyle, SizeCode};
+use yaxpeax_arm::armv8::a64::{Operand, SIMDSizeCode, ShiftStyle, SizeCode};
 
 pub enum ShiftOp {
     Lsl,
     Lsr,
     Asr,
     Ror,
+}
+
+/// Strip ARMv8.3 Pointer Authentication Code bits from an address.
+/// Userspace macOS uses 47-bit virtual addresses; bits [62:47] carry
+/// the PAC signature and bit 63 selects kernel/user space.
+pub fn pac_strip(addr: u64) -> u64 {
+    if addr & (1 << 55) != 0 {
+        addr | 0xFFFF_0000_0000_0000
+    } else {
+        addr & 0x0000_FFFF_FFFF_FFFF
+    }
 }
 
 pub fn is_64(sz: &SizeCode) -> bool {
@@ -64,20 +75,29 @@ pub fn read_operand_value(emu: &Emu, op: &Operand) -> u64 {
         Operand::Imm64(v) => *v,
         Operand::Imm16(v) => *v as u64,
         Operand::ImmShift(v, shift) => (*v as u64) << (*shift as u64),
-        Operand::RegShift(style, amt, _sz, reg) => {
+        Operand::RegShift(style, amt, sz, reg) => {
             let val = emu.regs_aarch64().get_x(*reg as usize);
-            apply_shift(val, *style, *amt as u32)
+            if is_64(sz) {
+                apply_shift(val, *style, *amt as u32)
+            } else {
+                apply_shift32(val as u32, *style, *amt as u32)
+            }
+        }
+        Operand::SIMDRegister(_, reg) | Operand::SIMDRegisterElements(_, reg, _) => {
+            emu.regs_aarch64().v[*reg as usize] as u64
         }
         _ => unreachable!("unsupported operand for read_operand_value: {:?}", op),
     }
 }
 
+/// Extend styles (`UXTW #2`, `SXTW #3`, ...) extend first, then shift left
+/// by `amt`, as in scaled register-offset addressing and ADD/SUB (extended).
 pub fn apply_shift(val: u64, style: ShiftStyle, amt: u32) -> u64 {
-    match style {
-        ShiftStyle::LSL => val << amt,
-        ShiftStyle::LSR => val >> amt,
-        ShiftStyle::ASR => ((val as i64) >> amt) as u64,
-        ShiftStyle::ROR => val.rotate_right(amt),
+    let extended = match style {
+        ShiftStyle::LSL => return val << amt,
+        ShiftStyle::LSR => return val >> amt,
+        ShiftStyle::ASR => return ((val as i64) >> amt) as u64,
+        ShiftStyle::ROR => return val.rotate_right(amt),
         ShiftStyle::UXTB => (val as u8) as u64,
         ShiftStyle::UXTH => (val as u16) as u64,
         ShiftStyle::UXTW => (val as u32) as u64,
@@ -86,7 +106,46 @@ pub fn apply_shift(val: u64, style: ShiftStyle, amt: u32) -> u64 {
         ShiftStyle::SXTH => (val as i16) as i64 as u64,
         ShiftStyle::SXTW => (val as i32) as i64 as u64,
         ShiftStyle::SXTX => val,
+    };
+    extended << amt
+}
+
+/// Shift a 32-bit (W) register operand; ASR and ROR must act on bit 31.
+pub fn apply_shift32(val: u32, style: ShiftStyle, amt: u32) -> u64 {
+    match style {
+        ShiftStyle::LSL => val.wrapping_shl(amt) as u64,
+        ShiftStyle::LSR => val.wrapping_shr(amt) as u64,
+        ShiftStyle::ASR => ((val as i32).wrapping_shr(amt) as u32) as u64,
+        ShiftStyle::ROR => val.rotate_right(amt) as u64,
+        _ => apply_shift(val as u64, style, amt),
     }
+}
+
+/// Read `bytes` (1, 2, 4 or 8) little-endian bytes, zero-extended.
+pub fn read_mem(emu: &mut Emu, addr: u64, bytes: u64) -> Option<u64> {
+    guard_mem(emu, addr, bytes as u32, false);
+    match bytes {
+        1 => emu.maps.read_byte(addr).map(u64::from),
+        2 => emu.maps.read_word(addr).map(u64::from),
+        4 => emu.maps.read_dword(addr).map(u64::from),
+        _ => emu.maps.read_qword(addr),
+    }
+}
+
+/// Write the low `bytes` (1, 2, 4 or 8) bytes of `val`.
+pub fn write_mem(emu: &mut Emu, addr: u64, bytes: u64, val: u64) -> bool {
+    guard_mem(emu, addr, bytes as u32, true);
+    match bytes {
+        1 => emu.maps.write_byte(addr, val as u8),
+        2 => emu.maps.write_word(addr, val as u16),
+        4 => emu.maps.write_dword(addr, val as u32),
+        _ => emu.maps.write_qword(addr, val),
+    }
+}
+
+/// Access width in bytes of a W/X register operand.
+pub fn reg_bytes(op: &Operand) -> u64 {
+    if operand_is_64(op) { 8 } else { 4 }
 }
 
 /// Resolve a memory operand, returning (effective_address, writeback_info).
@@ -128,5 +187,44 @@ pub fn resolve_mem_addr(emu: &Emu, op: &Operand) -> (u64, Option<(usize, u64)>) 
 pub fn do_writeback(emu: &mut Emu, wb: Option<(usize, u64)>) {
     if let Some((reg, val)) = wb {
         emu.regs_aarch64_mut().set_x_or_sp(reg, val);
+    }
+}
+
+/// Read a scalar S or D floating-point register as f64.
+pub fn read_fp(emu: &Emu, op: &Operand) -> Option<f64> {
+    let Operand::SIMDRegister(sz, r) = op else {
+        return None;
+    };
+    let raw = emu.regs_aarch64().v[*r as usize];
+    match sz {
+        SIMDSizeCode::S => Some(f32::from_bits(raw as u32) as f64),
+        SIMDSizeCode::D => Some(f64::from_bits(raw as u64)),
+        _ => None,
+    }
+}
+
+/// Write a scalar S or D floating-point register, zeroing the upper lanes.
+pub fn write_fp(emu: &mut Emu, op: &Operand, val: f64) -> bool {
+    let Operand::SIMDRegister(sz, r) = op else {
+        return false;
+    };
+    let raw = match sz {
+        SIMDSizeCode::S => (val as f32).to_bits() as u128,
+        SIMDSizeCode::D => val.to_bits() as u128,
+        _ => return false,
+    };
+    emu.regs_aarch64_mut().v[*r as usize] = raw;
+    true
+}
+
+/// Submit an aarch64 memory access to the kernel memory-safety guard when a
+/// driver (or `--memory-guard`) is active. A plain bool check keeps ordinary
+/// userspace runs free; only guarded runs pay for the ledger lookup. This is
+/// the aarch64 counterpart of the hooks the x86 operand decoder already has.
+#[inline]
+pub fn guard_mem(emu: &mut Emu, addr: u64, bytes: u32, is_write: bool) {
+    if emu.kernel_guard {
+        let rip = emu.regs_aarch64().pc;
+        emu.kernel_guard_access(rip, addr, bytes, is_write);
     }
 }

@@ -10,7 +10,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
     if ins.op_count() == 3 {
         let s1 = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
         let s2 = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
-        emu.set_operand_xmm_value_128(ins, 0, (s1 & !(0xffffffff as u128)) | (s2 & 0xffffffff));
+        emu.set_operand_xmm_value_128(ins, 0, (s1 & !0xffffffff_u128) | (s2 & 0xffffffff));
     } else {
         let s = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
         emu.set_operand_xmm_value_128(ins, 0, s & 0xffffffff);

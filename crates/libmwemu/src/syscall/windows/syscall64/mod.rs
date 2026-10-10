@@ -22,19 +22,19 @@ pub(crate) fn resolve_maps_dll(emu: &Emu, basename: &str) -> Option<std::path::P
         return Some(p);
     }
     // Lazy symbol-server fetch (only DLLs; data files were seeded at setup).
-    if let Some(build) = emu.cfg.winver.clone() {
-        if basename.ends_with(".dll") {
-            let cache = std::path::Path::new(&emu.cfg.maps_folder);
-            // syscall64 is the x64 Windows path.
-            match crate::emu::winver::ensure_dll(
-                cache,
-                &build,
-                basename,
-                crate::emu::winver::MACHINE_AMD64,
-            ) {
-                Ok(path) => return Some(path),
-                Err(e) => log::trace!("--winver: {} not fetched: {}", basename, e),
-            }
+    if let Some(build) = emu.cfg.winver.clone()
+        && basename.ends_with(".dll")
+    {
+        let cache = std::path::Path::new(&emu.cfg.maps_folder);
+        // syscall64 is the x64 Windows path.
+        match crate::emu::winver::ensure_dll(
+            cache,
+            &build,
+            basename,
+            crate::emu::winver::MACHINE_AMD64,
+        ) {
+            Ok(path) => return Some(path),
+            Err(e) => log::trace!("--winver: {} not fetched: {}", basename, e),
         }
     }
     None
@@ -181,10 +181,10 @@ pub fn build_syscall_translation_table(emu: &mut Emu) {
         }
         let real_nr = emu.maps.read_dword(base + fn_rva + 4).unwrap_or(0) as u64;
         name_map.insert(real_nr, name.clone());
-        if let Some(&canonical_nr) = by_name.get(name.as_str()) {
-            if real_nr != canonical_nr {
-                map.insert(real_nr, canonical_nr);
-            }
+        if let Some(&canonical_nr) = by_name.get(name.as_str())
+            && real_nr != canonical_nr
+        {
+            map.insert(real_nr, canonical_nr);
         }
     }
     log::trace!(

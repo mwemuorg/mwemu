@@ -29,7 +29,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
             _ => !a.is_nan() && !b.is_nan(),
         };
         if t {
-            result |= (0xffff_ffff_ffff_ffff as u128) << shift;
+            result |= 0xffff_ffff_ffff_ffff_u128 << shift;
         }
     }
     emu.set_operand_xmm_value_128(ins, 0, result);

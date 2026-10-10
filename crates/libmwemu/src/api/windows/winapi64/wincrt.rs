@@ -33,10 +33,10 @@ enum AllocKind {
 }
 
 fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
-    if let Some(heap) = emu.heap_arenas.first() {
-        if let Some(size) = heap.allocation_size(addr) {
-            return AllocKind::Arena { size };
-        }
+    if let Some(heap) = emu.heap_arenas.first()
+        && let Some(size) = heap.allocation_size(addr)
+    {
+        return AllocKind::Arena { size };
     }
 
     match emu.maps.get_mem_by_addr(addr) {
@@ -416,20 +416,19 @@ fn parse_format_specifiers(fmt: &str) -> Vec<&str> {
     let mut chars = fmt.chars().peekable();
 
     while let Some(c) = chars.next() {
-        if c == '%' {
-            if let Some(next) = chars.next() {
-                if next != '%' {
-                    // Skip %% (literal %)
-                    specs.push(match next {
-                        'd' | 'i' => "int",
-                        'x' | 'X' => "hex",
-                        'p' => "ptr",
-                        's' => "str",
-                        // Add other format specifiers as needed
-                        _ => "unknown",
-                    });
-                }
-            }
+        if c == '%'
+            && let Some(next) = chars.next()
+            && next != '%'
+        {
+            // Skip %% (literal %)
+            specs.push(match next {
+                'd' | 'i' => "int",
+                'x' | 'X' => "hex",
+                'p' => "ptr",
+                's' => "str",
+                // Add other format specifiers as needed
+                _ => "unknown",
+            });
         }
     }
     specs

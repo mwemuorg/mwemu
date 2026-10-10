@@ -201,7 +201,7 @@ fn loader_exe_peb_module_order_x86() {
     helpers::setup();
 
     let mut emu = emu32();
-    emu.cfg.maps_folder = helpers::win32_maps_folder();
+    emu.cfg.maps_folder = win_maps!(32);
     let loader = Path::new(&emu.cfg.maps_folder).join("loader.exe");
     assert!(
         loader.is_file(),
@@ -218,7 +218,7 @@ fn loader_exe_peb_module_order_x64() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     let loader = Path::new(&emu.cfg.maps_folder).join("loader.exe");
     assert!(
         loader.is_file(),

@@ -61,56 +61,6 @@ pub fn load_definitions(filename: &str) -> HashMap<u64, Definition> {
     map
 }
 
-#[cfg(test)]
-mod tests {
-    use super::Definitions;
-
-    // Guards the YAML→JSON swap (issue #185, serde_yaml removal): the inline
-    // doc exercises `serde_json` deserialization plus the custom hex-address
-    // deserializer and the optional store/use-context fields.
-    #[test]
-    fn parses_json_definitions() {
-        let json = r#"{
-          "events": [
-            {
-              "address": "0x1800b50a0",
-              "name": "test1_entry",
-              "type": "function_call",
-              "store_context": "test1_call",
-              "parameters": [
-                { "name": "output", "type": "pointer", "source": "rcx" },
-                { "name": "input", "type": "wide_string", "source": "rdx" }
-              ]
-            },
-            {
-              "address": "0x1800b5104",
-              "name": "test1_exit",
-              "type": "function_return",
-              "use_context": "test1_call",
-              "parameters": [
-                { "name": "return_value", "type": "int32", "source": "rax" }
-              ]
-            }
-          ]
-        }"#;
-
-        let defs: Definitions = serde_json::from_str(json).expect("parse");
-        assert_eq!(defs.events.len(), 2);
-
-        let entry = &defs.events[0];
-        assert_eq!(entry.address, 0x1800b50a0); // hex string → u64
-        assert_eq!(entry.name, "test1_entry");
-        assert_eq!(entry.event_type, "function_call");
-        assert_eq!(entry.store_context.as_deref(), Some("test1_call"));
-        assert_eq!(entry.parameters[0].source, "rcx");
-
-        let exit = &defs.events[1];
-        assert_eq!(exit.address, 0x1800b5104);
-        assert_eq!(exit.use_context.as_deref(), Some("test1_call"));
-        assert_eq!(exit.parameters[0].param_type, "int32");
-    }
-}
-
 impl Emu {
     pub fn show_definition(&mut self) {
         let pc = self.pc();
@@ -192,11 +142,11 @@ impl Emu {
                 return val;
             }
             // Try stack offset like "sp+0x20"
-            if source.starts_with("sp+") {
-                if let Ok(offset) = u64::from_str_radix(&source[5..], 16) {
-                    let addr = self.sp() + offset;
-                    return self.maps.read_qword(addr).unwrap_or(0);
-                }
+            if source.starts_with("sp+")
+                && let Ok(offset) = u64::from_str_radix(&source[5..], 16)
+            {
+                let addr = self.sp() + offset;
+                return self.maps.read_qword(addr).unwrap_or(0);
             }
             return 0;
         }
@@ -245,5 +195,55 @@ impl Emu {
             "int32" => format!("{} (0x{:x})", value as i32, value),
             _ => format!("0x{:x}", value),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Definitions;
+
+    // Guards the YAML→JSON swap (issue #185, serde_yaml removal): the inline
+    // doc exercises `serde_json` deserialization plus the custom hex-address
+    // deserializer and the optional store/use-context fields.
+    #[test]
+    fn parses_json_definitions() {
+        let json = r#"{
+          "events": [
+            {
+              "address": "0x1800b50a0",
+              "name": "test1_entry",
+              "type": "function_call",
+              "store_context": "test1_call",
+              "parameters": [
+                { "name": "output", "type": "pointer", "source": "rcx" },
+                { "name": "input", "type": "wide_string", "source": "rdx" }
+              ]
+            },
+            {
+              "address": "0x1800b5104",
+              "name": "test1_exit",
+              "type": "function_return",
+              "use_context": "test1_call",
+              "parameters": [
+                { "name": "return_value", "type": "int32", "source": "rax" }
+              ]
+            }
+          ]
+        }"#;
+
+        let defs: Definitions = serde_json::from_str(json).expect("parse");
+        assert_eq!(defs.events.len(), 2);
+
+        let entry = &defs.events[0];
+        assert_eq!(entry.address, 0x1800b50a0); // hex string → u64
+        assert_eq!(entry.name, "test1_entry");
+        assert_eq!(entry.event_type, "function_call");
+        assert_eq!(entry.store_context.as_deref(), Some("test1_call"));
+        assert_eq!(entry.parameters[0].source, "rcx");
+
+        let exit = &defs.events[1];
+        assert_eq!(exit.address, 0x1800b5104);
+        assert_eq!(exit.use_context.as_deref(), Some("test1_call"));
+        assert_eq!(exit.parameters[0].param_type, "int32");
     }
 }

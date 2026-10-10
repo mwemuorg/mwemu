@@ -1,5 +1,11 @@
+mod linux_go_runtime_syscalls;
+mod linux_libc_tests;
+mod macos_libsystem_tests;
+mod macos_process_tests;
 mod ssdt_win64_tests;
 mod syscall64_ssdt_tests;
 mod threading_operations_tests;
+mod unix_api_helpers;
 mod winapi32_tests;
+mod winapi64_new_apis;
 mod winapi64_tests;

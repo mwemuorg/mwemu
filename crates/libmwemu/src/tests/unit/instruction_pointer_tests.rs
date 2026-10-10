@@ -133,10 +133,7 @@ fn msvcrt_native_executes_text_section_bytes() {
     assert!(emu.step());
     assert_eq!(emu.regs().rip, NATIVE_MAP_BASE);
     assert_eq!(emu.regs().rsp, STACK_TOP - 8);
-    assert_eq!(
-        emu.maps.get_addr_name(NATIVE_MAP_BASE).as_deref(),
-        Some("msvcrt.text"),
-    );
+    assert_eq!(emu.maps.get_addr_name(NATIVE_MAP_BASE), Some("msvcrt.text"),);
     assert_eq!(emu.api_addr_to_name(NATIVE_MAP_BASE), "_initterm");
     assert_eq!(
         calls.borrow().as_slice(),
@@ -159,10 +156,7 @@ fn msvcrt_native_executes_fothk_section_bytes() {
 
     assert!(emu.step());
     assert_eq!(emu.regs().rip, NATIVE_MAP_BASE);
-    assert_eq!(
-        emu.maps.get_addr_name(NATIVE_MAP_BASE).as_deref(),
-        Some("msvcrtfothk"),
-    );
+    assert_eq!(emu.maps.get_addr_name(NATIVE_MAP_BASE), Some("msvcrtfothk"),);
     assert_eq!(emu.regs().rsp, STACK_TOP - 8);
 }
 

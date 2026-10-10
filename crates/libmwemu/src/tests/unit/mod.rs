@@ -11,6 +11,7 @@ mod instruction_pointer_tests;
 mod lazy_flags_bench;
 mod maps_memory_operations;
 mod maps_operations_tests;
+mod maps_unmap_range;
 mod memory_map_operations;
 mod pure_rust_check;
 mod register_state_tests;

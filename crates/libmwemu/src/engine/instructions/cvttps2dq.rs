@@ -13,7 +13,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     for i in 0..4 {
         let f = f32::from_bits(((src >> (i * 32)) & 0xffffffff) as u32);
         let r = if true { f.trunc() } else { f.round_ties_even() };
-        let v: i32 = if r.is_nan() || r >= 2147483648.0 || r < -2147483648.0 {
+        let v: i32 = if r.is_nan() || !(-2147483648.0..2147483648.0).contains(&r) {
             i32::MIN
         } else {
             r as i32

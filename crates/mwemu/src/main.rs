@@ -1,14 +1,18 @@
 #![allow(unexpected_cfgs)]
+// clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
+#![allow(clippy::unnecessary_unwrap)]
 
 extern crate clap;
 
-use clap::{App, Arg};
+use clap::{App, Arg, ArgMatches};
+use libmwemu::emu::Emu;
 use libmwemu::emu_aarch64;
 use libmwemu::emu32;
 use libmwemu::emu64;
 use libmwemu::serialization;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::PathBuf;
-use std::{panic, process};
+use std::process;
 //use libmwemu::definitions;
 use fast_log::Config;
 use fast_log::appender::{Command, FastLogRecord, RecordFormat};
@@ -110,6 +114,12 @@ impl RecordFormat for CustomLogFormat {
     }
 }
 
+impl Default for CustomLogFormat {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CustomLogFormat {
     pub fn new() -> CustomLogFormat {
         Self {}
@@ -120,12 +130,14 @@ fn main() -> process::ExitCode {
     let matches = App::new("MWEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
-        .arg(clap_arg!("filename", "f", "filename", "set the shellcode binary file.", "FILE"))
+        .arg(clap_arg!("filename", "f", "filename", "set the shellcode or binary file.", "FILE"))
         .arg(clap_arg!("dump", "d", "dump", "load from dump.", "FILE"))
         .arg(clap_arg!("verbose", "v", "verbose", "-v syscalls+api calls, -vv assembly, -vvv reps; default shows only syscalls", multiple: true))
         .arg(clap_arg!("verbose_at", "V", "verbose_at", "enable assembly display from position N (-V N) or between positions (-V N-M)", "RANGE"))
         .arg(clap_arg!("64bits", "6", "64bits", "enable 64bits architecture emulation (rejected for PE32/x86 inputs)"))
         .arg(clap_arg!("aarch64", "", "aarch64", "enable AArch64/ARM64 architecture emulation"))
+        .arg(clap_arg!("arch", "", "arch", "target architecture: x86, x86_64 (or x64/amd64), aarch64 (or arm64)", "ARCH"))
+        .arg(clap_arg!("sys", "", "sys", "target OS override: windows (or win), linux, macos (or osx/darwin). Autodetected from binary format if omitted", "OS"))
         .arg(clap_arg!("trace_memory", "m", "trace_memory", "trace all the memory accesses read and write."))
         .arg(clap_arg!("flags", "", "flags", "trace the flags hex value in every instruction."))
         .arg(clap_arg!("maps", "M", "maps", "select the memory maps folder", "PATH"))
@@ -149,7 +161,13 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("test_mode", "t", "test", "test mode"))
         .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
-        .arg(clap_arg!("args", "A", "args", "provide arguments to the EXE like: --args '\"aa\" \"bb\"'", "ARGS"))
+        .arg(Arg::with_name("args")
+            .short("A")
+            .long("args")
+            .help("provide arguments to the EXE like: --args '-l' or --args 'aa bb'")
+            .takes_value(true)
+            .value_name("ARGS")
+            .allow_hyphen_values(true))
         .arg(clap_arg!("trace_filename", "T", "trace_filename", "output trace to specified file", "TRACE_FILENAME"))
         .arg(clap_arg!("trace_start", "S", "trace_start", "start trace at specified position", "TRACE_START"))
         .arg(clap_arg!("log","L", "log", "log output to file", "LOG_FILENAME")) 
@@ -206,6 +224,7 @@ fn main() -> process::ExitCode {
                 )
                 .takes_value(false),
         )
+        .arg(clap_arg!("memory_guard", "", "memory-guard", "enable heap memory-safety analysis: detects use-after-free, double-free, heap overflow and leaks"))
         .arg(clap_arg!("gdb", "g", "gdb", "enable GDB remote debugging server"))
         .arg(clap_arg!("gdb_port", "P", "gdb-port", "set GDB server port (default: 9001)", "PORT"))
         .arg(clap_arg!("gdb_wait", "W", "gdb-wait", "wait for GDB connection before starting"))
@@ -218,8 +237,18 @@ fn main() -> process::ExitCode {
 
     let mut emu: libmwemu::emu::Emu;
 
-    // Architecture selection
-    if matches.is_present("aarch64") {
+    // Architecture selection: --arch takes precedence, then legacy -6/--aarch64
+    if let Some(arch_str) = matches.value_of("arch") {
+        let arch: libmwemu::arch::Arch = match arch_str.parse() {
+            Ok(a) => a,
+            Err(e) => {
+                eprintln!("[mwemu] error: {}", e);
+                return process::ExitCode::from(1u8);
+            }
+        };
+        emu = libmwemu::emu::Emu::new(arch);
+        emu.disable_ctrlc();
+    } else if matches.is_present("aarch64") {
         emu = emu_aarch64();
     } else if matches.is_present("64bits") {
         emu = emu64();
@@ -251,9 +280,12 @@ fn main() -> process::ExitCode {
     // detector, so this never disagrees with `load_code` for a recognized PE.
     // Shellcode/ELF/Mach-O/garbage fall through and are handled by `load_code`
     // as usual.
-    if let Some(msg) =
-        libmwemu::emu::Emu::pe32_x64_mismatch_error(&filename, matches.is_present("64bits"))
-    {
+    let wants_64 = matches.is_present("64bits")
+        || matches
+            .value_of("arch")
+            .map(|a| matches!(a, "x86_64" | "x64" | "amd64"))
+            .unwrap_or(false);
+    if let Some(msg) = libmwemu::emu::Emu::pe32_x64_mismatch_error(&filename, wants_64) {
         eprintln!("[mwemu] error: {}", msg);
         return process::ExitCode::from(1u8);
     }
@@ -390,8 +422,11 @@ fn main() -> process::ExitCode {
     // libmwemu to classify with the very same detectors `load_code` uses, so a
     // shellcode whose first bytes happen to look like an ELF isn't misjudged, and
     // --is_shellcode still forces the Windows shellcode path.
-    let is_non_windows_target =
-        libmwemu::emu::Emu::is_non_windows_file(&filename, matches.is_present("is_shellcode"));
+    let is_non_windows_target = if let Some(sys_str) = matches.value_of("sys") {
+        !matches!(sys_str, "windows" | "win")
+    } else {
+        libmwemu::emu::Emu::is_non_windows_file(&filename, matches.is_present("is_shellcode"))
+    };
 
     // maps
     if matches.is_present("iso") {
@@ -525,6 +560,10 @@ fn main() -> process::ExitCode {
         emu.cfg.enable_threading = true;
     }
 
+    if matches.is_present("memory_guard") {
+        emu.cfg.memory_guard = true;
+    }
+
     // endpoint
     if matches.is_present("endpoint") {
         //TODO: emu::endpoint::warning();
@@ -615,12 +654,11 @@ fn main() -> process::ExitCode {
             matches
                 .value_of("args")
                 .expect("specify the argument string")
-                .to_string()
         );
         emu.cfg.arguments = matches
             .value_of("args")
             .expect("specify the argument string")
-            .to_string();
+            .replace('"', "");
     }
 
     // log to file
@@ -653,31 +691,47 @@ fn main() -> process::ExitCode {
     // definitions
     //emu.cfg.definitions = definitions::load_definitions("definitions/test.json");
 
-    // setup hook to flush the log when end the program
-    let orig_hook = panic::take_hook();
-    panic::set_hook(Box::new(move |panic_info| {
-        // Try to log emulator state if available
-        libmwemu::emu_context::with_current_emu(|emu| {
-            // log state
-            libmwemu::emu_context::log_emu_state(emu);
-
-            // dump on exit
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(emu, emu.cfg.dump_filename.as_ref().unwrap());
+    // Run the emulation under `catch_unwind` so a panic anywhere in the run
+    // still gets the state dump: once the stack has unwound we own `emu`
+    // again and can read it safely (no global pointer to a borrowed `Emu`).
+    let outcome = panic::catch_unwind(AssertUnwindSafe(|| execute(&mut emu, &matches, &filename)));
+    match outcome {
+        Ok(code) => code,
+        Err(payload) => {
+            libmwemu::emu_context::log_emu_state(&emu);
+            if emu.cfg.dump_on_exit
+                && let Some(dump_filename) = emu.cfg.dump_filename.as_ref()
+            {
+                serialization::Serialization::dump(&emu, dump_filename);
             }
-        });
+            log::logger().flush();
+            panic::resume_unwind(payload)
+        }
+    }
+}
 
-        // flush all the log
-        log::logger().flush();
-        // invoke the default handler and exit the process
-        orig_hook(panic_info);
-    }));
-
-    // set current
-    libmwemu::emu_context::set_current_emu(&emu);
-
+/// Load the binary and drive it in the mode the command line selected
+/// (script, GDB server, kernel module init, or a plain run).
+fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::ExitCode {
     // load code
-    emu.load_code(&filename);
+    emu.load_code(filename);
+
+    // --sys: override OS after load_code autodetection
+    if let Some(sys_str) = matches.value_of("sys") {
+        let os: libmwemu::arch::OperatingSystem = match sys_str.parse() {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("[mwemu] error: {}", e);
+                return process::ExitCode::from(1u8);
+            }
+        };
+        emu.set_os(os);
+    }
+
+    // memory guard: init heap ledger after loading so the binary is already mapped
+    if emu.cfg.memory_guard && emu.kernel.is_none() {
+        emu.memory_guard_init();
+    }
 
     // Initialize file system in order to call the create file stuff
     let result_ok = init_file_system(None as Option<PathBuf>);
@@ -690,9 +744,9 @@ fn main() -> process::ExitCode {
     if matches.is_present("dump") {
         let dump_filename = matches.value_of("dump").expect("specify the dump filename");
         log::info!("loading dump from {}", dump_filename);
-        let old_config = emu.cfg;
-        emu = serialization::Serialization::load(dump_filename);
-        emu.cfg = old_config;
+        let mut loaded = serialization::Serialization::load(dump_filename);
+        loaded.cfg = std::mem::take(&mut emu.cfg);
+        *emu = loaded;
         emu.maps.set_banzai(emu.cfg.skip_unimplemented);
     }
 
@@ -707,10 +761,7 @@ fn main() -> process::ExitCode {
         );
 
         // Run script
-        script.run(&mut emu);
-
-        // Clear the current emu
-        libmwemu::emu_context::clear_current_emu();
+        script.run(emu);
     } else if matches.is_present("gdb") {
         // GDB server mode
         let port: u16 = matches
@@ -721,7 +772,7 @@ fn main() -> process::ExitCode {
         log::info!("Starting GDB remote debugging server...");
 
         let mut server = libmwemu::gdb::GdbServer::new(port, emu.cfg.arch);
-        match server.run(&mut emu) {
+        match server.run(emu) {
             Ok(()) => {
                 log::info!("GDB session ended normally");
             }
@@ -730,8 +781,6 @@ fn main() -> process::ExitCode {
             }
         }
 
-        // Clear the current emu
-        libmwemu::emu_context::clear_current_emu();
         log::logger().flush();
     } else {
         // Kernel module (.ko): its "entry" is init_module, and load_code left PC
@@ -754,7 +803,6 @@ fn main() -> process::ExitCode {
                     println!("{}", f.report());
                 }
             }
-            libmwemu::emu_context::clear_current_emu();
             log::logger().flush();
             return process::ExitCode::SUCCESS;
         }
@@ -764,14 +812,28 @@ fn main() -> process::ExitCode {
         let result = emu.run(None);
 
         // Dump registers/stack like the panic hook — run() returns Err without panicking.
-        if let Err(ref e) = result {
-            if e.message != "empty code block" {
-                libmwemu::emu_context::log_emu_state(&mut emu);
-            }
+        if let Err(ref e) = result
+            && e.message != "empty code block"
+        {
+            libmwemu::emu_context::log_emu_state(emu);
         }
 
-        // Clear the current emu
-        libmwemu::emu_context::clear_current_emu();
+        // --memory-guard: check leaks and report all findings
+        if emu.cfg.memory_guard {
+            emu.kernel_check_leaks();
+            let findings = emu.kernel_findings();
+            if findings.is_empty() {
+                log::info!("memory-guard: no heap memory-safety findings");
+            } else {
+                log::warn!(
+                    "memory-guard: {} heap memory-safety finding(s):",
+                    findings.len()
+                );
+                for f in findings {
+                    println!("{}", f.report());
+                }
+            }
+        }
 
         log::logger().flush();
         if let Err(e) = result {

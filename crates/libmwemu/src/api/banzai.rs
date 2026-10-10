@@ -26,7 +26,7 @@ impl Banzai {
         }
         {
             log::warn!("banzai list dont have the params of {}", unimplemented_api);
-            return -1;
+            -1
         }
     }
 

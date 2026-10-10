@@ -1,4 +1,4 @@
-use crate::{config::Config, emu::Emu};
+use crate::{arch::OperatingSystem, config::Config, emu::Emu};
 
 impl Emu {
     /// Set a custom config, normally used only from commandline tool main.rs
@@ -36,5 +36,30 @@ impl Emu {
             }
         }
         self.cfg.verbose = n;
+    }
+
+    /// Enable heap memory-safety analysis (UAF, double-free, overflow, leaks).
+    ///
+    /// Call before `run()` and after `load_code()`. Works on any target:
+    /// Linux ELF, macOS Mach-O, Windows PE, or shellcode.
+    pub fn set_memory_guard(&mut self, enabled: bool) {
+        self.cfg.memory_guard = enabled;
+        if enabled {
+            self.memory_guard_init();
+        }
+    }
+
+    /// Override the target operating system.
+    ///
+    /// Normally autodetected from the binary format (PE→Windows,
+    /// ELF→Linux, Mach-O→macOS). Use this to force a specific OS
+    /// for shellcode or raw dumps that lack a header.
+    pub fn set_os(&mut self, os: OperatingSystem) {
+        self.os = os;
+    }
+
+    /// Get the current target operating system.
+    pub fn get_os(&self) -> OperatingSystem {
+        self.os
     }
 }

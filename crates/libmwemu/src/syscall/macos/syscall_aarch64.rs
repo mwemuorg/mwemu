@@ -29,7 +29,10 @@ pub fn gateway(emu: &mut emu::Emu) {
                 status,
                 emu.colors.nc
             );
-            emu.stop();
+            let wait_status = crate::threading::process::exit_status(status);
+            if let Some(child) = emu.process_exit(wait_status) {
+                emu.regs_aarch64_mut().x[0] = child;
+            }
         }
 
         SYS_WRITE => {
@@ -100,13 +103,21 @@ pub fn gateway(emu: &mut emu::Emu) {
         }
 
         SYS_FORK => {
+            // XNU convention: x1 = 0 in the parent, 1 in the child; x0 holds
+            // the other side's pid. The parent's x0 is set when the child exits.
+            emu.regs_aarch64_mut().x[1] = 0;
+            let parent = emu.processes.pid;
+            let child = emu.fork_begin();
             log::info!(
-                "{}** {} macos syscall fork() {}",
+                "{}** {} macos syscall fork() pid {} -> running child pid {} to completion {}",
                 emu.colors.light_red,
                 emu.pos,
+                parent,
+                child,
                 emu.colors.nc
             );
-            todo!("macos fork syscall");
+            emu.regs_aarch64_mut().x[0] = parent;
+            emu.regs_aarch64_mut().x[1] = 1;
         }
 
         SYS_MMAP => {

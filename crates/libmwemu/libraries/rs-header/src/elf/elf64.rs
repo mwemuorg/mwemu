@@ -129,9 +129,7 @@ fn resolve_extended_counts_64(
 
     let table_present = shoff != 0
         && shent >= core::mem::size_of::<Elf64Shdr>()
-        && shoff
-            .checked_add(shent)
-            .map_or(false, |end| end <= bin.len());
+        && shoff.checked_add(shent).is_some_and(|end| end <= bin.len());
     let s0: Option<Elf64Shdr> = if table_present {
         Some(Elf64Shdr::parse(bin, shoff))
     } else {
@@ -242,7 +240,7 @@ impl Elf64 {
         if phnum > 0
             && phoff
                 .checked_add(ph_table_bytes)
-                .map_or(true, |end| end > bin.len())
+                .is_none_or(|end| end > bin.len())
         {
             return Err(ElfError::new(
                 "program-header table extends past end of image",
@@ -277,7 +275,7 @@ impl Elf64 {
         if shnum > 0
             && shoff
                 .checked_add(sh_table_bytes)
-                .map_or(true, |end| end > bin.len())
+                .is_none_or(|end| end > bin.len())
         {
             return Err(ElfError::new(
                 "section-header table extends past end of image",
@@ -1226,6 +1224,12 @@ pub struct Elf64Ehdr {
     pub e_shentsize: u16,
     pub e_shnum: u16,
     pub e_shstrndx: u16,
+}
+
+impl Default for Elf64Ehdr {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Elf64Ehdr {

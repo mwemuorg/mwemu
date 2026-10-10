@@ -12,9 +12,8 @@ pub fn test_unified_step_and_run_methods() {
 
     // Test 1: Single-threaded mode (default)
     let mut emu = emu64();
-    assert_eq!(
-        emu.is_threading_enabled(),
-        false,
+    assert!(
+        !emu.is_threading_enabled(),
         "Threading should be disabled by default"
     );
 
@@ -32,11 +31,7 @@ pub fn test_unified_step_and_run_methods() {
 
     // Test 2: Enable threading and verify it's set
     emu.enable_threading(true);
-    assert_eq!(
-        emu.is_threading_enabled(),
-        true,
-        "Threading should be enabled"
-    );
+    assert!(emu.is_threading_enabled(), "Threading should be enabled");
 
     // Step again with threading enabled (but still only 1 thread)
     let result = emu.step();
@@ -68,9 +63,9 @@ pub fn test_unified_step_and_run_methods() {
     // Test 4: Verify threading can be toggled
     let mut cfg = Config::new();
     cfg.enable_threading = false;
-    assert_eq!(cfg.enable_threading, false);
+    assert!(!cfg.enable_threading);
     cfg.enable_threading = true;
-    assert_eq!(cfg.enable_threading, true);
+    assert!(cfg.enable_threading);
 }
 
 #[test]

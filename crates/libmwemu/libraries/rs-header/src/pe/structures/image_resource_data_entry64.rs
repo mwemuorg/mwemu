@@ -5,6 +5,12 @@ pub struct ImageResourceDataEntry64 {
     pub reserved: u64,
 }
 
+impl Default for ImageResourceDataEntry64 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImageResourceDataEntry64 {
     pub fn new() -> ImageResourceDataEntry64 {
         ImageResourceDataEntry64 {

@@ -22,7 +22,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
             2 => x.ceil(),
             _ => x.trunc(),
         };
-        result |= ((r.to_bits() as u128) & (0xffffffff as u128)) << shift;
+        result |= ((r.to_bits() as u128) & 0xffffffff_u128) << shift;
     }
     emu.set_operand_xmm_value_128(ins, 0, result);
     true

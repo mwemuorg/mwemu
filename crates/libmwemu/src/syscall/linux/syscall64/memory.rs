@@ -98,7 +98,8 @@ pub(super) fn handle_syscall64_nanosleep(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    // TODO: implement actual sleep
+    // No wall clock to sleep on: let every other thread run first.
+    super::thread::yield_current(emu);
     emu.regs_mut().rax = 0;
 }
 

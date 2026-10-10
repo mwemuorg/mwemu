@@ -24,7 +24,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
         let v = if i * 64 < 128 { slo } else { shi };
         let f = f64::from_bits(((v >> ((i * 64) % 128)) & 0xffff_ffff_ffff_ffff) as u64);
         let x = if true { f.trunc() } else { f.round_ties_even() };
-        let d: i32 = if x.is_nan() || x >= 2147483648.0 || x < -2147483648.0 {
+        let d: i32 = if x.is_nan() || !(-2147483648.0..2147483648.0).contains(&x) {
             i32::MIN
         } else {
             x as i32

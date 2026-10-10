@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: stable
           components: rustfmt
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: stable
           components: clippy
@@ -68,6 +68,7 @@ jobs:
           --package cmwemu
           --all-targets
           --target x86_64-unknown-linux-gnu
+          -- -D warnings
 
   test:
     name: Test (${{ matrix.target }})
@@ -86,27 +87,88 @@ jobs:
             # `-C target-cpu=native`, which crashes with STATUS_ILLEGAL_INSTRUCTION
             # when cached artifacts built on one runner CPU run on another.
             rustflags: -C target-cpu=x86-64
+            # Linux runner: common tests + Linux-specific (ELF, Linux syscalls,
+            # Linux shellcode, kernel). Excludes Windows PE/DLL and macOS tests.
+            nextest-filter: >-
+              not (
+                test(~loaders::pe::)
+                | test(~loaders::hello_world::hello_win)
+                | test(~loaders::hello_world::hello_mac)
+                | test(~loaders::macho::)
+                | test(~os::winapi)
+                | test(~os::ssdt)
+                | test(~os::syscall64_ssdt)
+                | test(~os::threading)
+                | test(~os::macos)
+                | test(~shellcode::sc32win)
+                | test(~shellcode::sc64win)
+                | test(~isa::x86::allocator32)
+                | test(~isa::x86::stack32_test)
+                | test(~isa::x86::exception_handler32)
+                | test(~isa::x64::allocator64)
+                | test(~isa::x64::stack64_test)
+              )
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             cache-key: test-windows-x86_64-pc-windows-msvc
             rustflags: -C target-cpu=x86-64
+            # Windows runner: common tests + Windows-specific (PE loaders, WinAPI,
+            # Windows shellcode). Excludes Linux ELF/kernel and macOS tests.
+            # DLLs are NOT fetched from Microsoft; tests skip via `win_maps!`
+            # when the maps folder is absent.
+            nextest-filter: >-
+              not (
+                test(~loaders::elf64::)
+                | test(~loaders::hello_world::hello_linux)
+                | test(~loaders::hello_world::hello_mac)
+                | test(~loaders::macho::)
+                | test(~os::linux)
+                | test(~os::macos)
+                | test(~shellcode::sc32lin)
+                | test(~shellcode::sc64lin)
+                | test(~kernel::)
+              )
           - os: macos-latest
             target: aarch64-apple-darwin
             cache-key: test-macos-aarch64-apple-darwin
             # No native flag in .cargo/config.toml for aarch64; keep the default.
             rustflags: ''
+            # macOS runner: common tests + macOS-specific (Mach-O loaders, macOS
+            # API). Excludes Windows PE/DLL and Linux-specific tests.
+            nextest-filter: >-
+              not (
+                test(~loaders::pe::)
+                | test(~loaders::elf64::)
+                | test(~loaders::hello_world::hello_win)
+                | test(~loaders::hello_world::hello_linux)
+                | test(~os::winapi)
+                | test(~os::ssdt)
+                | test(~os::syscall64_ssdt)
+                | test(~os::threading)
+                | test(~os::linux)
+                | test(~shellcode::sc32win)
+                | test(~shellcode::sc64win)
+                | test(~shellcode::sc32lin)
+                | test(~shellcode::sc64lin)
+                | test(~isa::x86::allocator32)
+                | test(~isa::x86::stack32_test)
+                | test(~isa::x86::exception_handler32)
+                | test(~isa::x64::allocator64)
+                | test(~isa::x64::stack64_test)
+                | test(~kernel::)
+              )
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
           toolchain: stable
           targets: ${{ matrix.target }}
 
       - name: Install nextest
-        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+        uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
         with:
           tool: nextest
           fallback: none
@@ -123,6 +185,10 @@ jobs:
       - name: Report Rust cache status
         run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
+      # No Windows DLL download here: Microsoft's symbol server throttles CI
+      # runners. Tests needing the DLLs skip via `win_maps!`; run them locally
+      # with `make tests` (which runs `make symbols` first).
+      # Each runner only runs tests relevant to its platform.
       - name: Test
         run: >-
           cargo nextest run --locked
@@ -131,3 +197,4 @@ jobs:
           --package rs-header
           --package cmwemu
           --target ${{ matrix.target }}
+          -E '${{ matrix.nextest-filter }}'

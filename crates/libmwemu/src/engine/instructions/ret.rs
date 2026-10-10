@@ -56,7 +56,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         // apply stack compensation of ret operand
 
         if emu.cfg.is_x64() {
-            if arg % 8 != 0 {
+            if !arg.is_multiple_of(8) {
                 log::trace!("weird ret argument!");
                 return false;
             }
@@ -64,7 +64,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rsp += arg;
             //emu.stack_lvl[emu.stack_lvl_idx] -= arg as i32 / 8;
         } else {
-            if arg % 4 != 0 {
+            if !arg.is_multiple_of(4) {
                 log::trace!("weird ret argument!");
                 return false;
             }
@@ -85,13 +85,14 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     // Undo the SSDT shadow-space padding applied in `call.rs` whenever the
     // matching RET goes back to the PE-side caller. The pad stack only holds
     // RAs for PE→real-DLL transitions, so a hit here is unambiguous.
-    if emu.cfg.is_x64() && emu.cfg.emulate_winapi && ret_addr < LIBS64_MIN {
-        if let Some(&expected) = emu.ssdt_pad_stack.last() {
-            if expected == ret_addr {
-                emu.ssdt_pad_stack.pop();
-                emu.regs_mut().rsp = emu.regs().rsp.wrapping_add(0x20);
-            }
-        }
+    if emu.cfg.is_x64()
+        && emu.cfg.emulate_winapi
+        && ret_addr < LIBS64_MIN
+        && let Some(&expected) = emu.ssdt_pad_stack.last()
+        && expected == ret_addr
+    {
+        emu.ssdt_pad_stack.pop();
+        emu.regs_mut().rsp = emu.regs().rsp.wrapping_add(0x20);
     }
 
     if emu.cfg.is_x64() {

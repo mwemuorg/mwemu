@@ -76,7 +76,7 @@ impl Emu {
         // A driver lives entirely above the user-mode library range, so the
         // usual `addr < LIBS64_MIN` fast path cannot tell its own code from a
         // call into the kernel. Kernel mode answers that question first.
-        if unlikely(self.kernel.is_some()) {
+        if unlikely(self.kernel.as_ref().is_some_and(|k| !k.ledger_only)) {
             return self.kernel_set_pc(addr);
         }
 
@@ -94,11 +94,11 @@ impl Emu {
                 if self.os.is_linux() {
                     return false;
                 }
-                let import = self
-                    .pe64
-                    .as_ref()
-                    .unwrap()
-                    .import_addr_to_dll_and_name(addr);
+                // No PE64 (e.g. a Mach-O guest): there is no IAT to resolve against.
+                let Some(pe64) = self.pe64.as_ref() else {
+                    return false;
+                };
+                let import = pe64.import_addr_to_dll_and_name(addr);
                 return if !import.is_empty() {
                     let (dll, api) = import.split_once('!').unwrap_or(("", ""));
 
@@ -119,7 +119,7 @@ impl Emu {
                         let native_target = if resolved != 0 {
                             self.maps
                                 .get_addr_name(resolved)
-                                .map(|s| winapi64::msvcrt::is_native_section(s))
+                                .map(winapi64::msvcrt::is_native_section)
                                 .unwrap_or(false)
                         } else {
                             false
@@ -170,7 +170,19 @@ impl Emu {
             || name == "code"
             || (!map_name.is_empty() && name.starts_with(&map_name))
             || name == "loader.text"*/
-        if addr < constants::LIBS64_MIN {
+        // Non-syscall mode: ntdll is mapped at its original base (below
+        // LIBS64_MIN), but cross-module calls into it should be intercepted
+        // just like high-address libraries.
+        let is_ntdll_cross_call = addr < constants::LIBS64_MIN
+            && !self.cfg.emulate_winapi
+            && self.os.is_windows()
+            && name.starts_with("ntdll")
+            && {
+                let caller_name = self.maps.get_addr_name(self.regs().rip).unwrap_or("??");
+                !caller_name.starts_with("ntdll")
+            };
+
+        if addr < constants::LIBS64_MIN && !is_ntdll_cross_call {
             // This is the normal case, no linux syscall or winapi to handle
             if self.cfg.verbose > 1 {
                 let rip = self.regs().rip;
@@ -271,7 +283,7 @@ impl Emu {
     /// If the target address is in a loaded library (dylib/so), intercept and
     /// dispatch to the appropriate API handler. Mirrors set_rip() for Windows.
     pub fn set_pc_aarch64(&mut self, addr: u64) -> bool {
-        if unlikely(self.kernel.is_some()) {
+        if unlikely(self.kernel.as_ref().is_some_and(|k| !k.ledger_only)) {
             return self.kernel_set_pc(addr);
         }
 
@@ -380,7 +392,11 @@ impl Emu {
                 if self.os.is_linux() {
                     return false;
                 }
-                let api_name = self.pe32.as_ref().unwrap().import_addr_to_name(addr as u32);
+                // No PE32 (e.g. a Mach-O guest): there is no IAT to resolve against.
+                let Some(pe32) = self.pe32.as_ref() else {
+                    return false;
+                };
+                let api_name = pe32.import_addr_to_name(addr as u32);
                 return if !api_name.is_empty() {
                     // winapi emulation case
                     if self.cfg.emulate_winapi {

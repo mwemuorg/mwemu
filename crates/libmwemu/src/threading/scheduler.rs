@@ -73,8 +73,7 @@ impl ThreadScheduler {
             return false;
         }
 
-        let thread = &emu.threads[thread_idx];
-        !thread.suspended && thread.wake_tick <= emu.tick && thread.blocked_on_cs.is_none()
+        emu.threads[thread_idx].is_runnable(emu.tick)
     }
 
     /// Advance emulator tick to the next thread wake time

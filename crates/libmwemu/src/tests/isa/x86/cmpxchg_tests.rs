@@ -35,7 +35,7 @@ pub fn test_cmpxchg8b_equal() {
     emu.step();
 
     // Check ZF = 1
-    assert_eq!(emu.flags().f_zf, true, "ZF should be set");
+    assert!(emu.flags().f_zf, "ZF should be set");
 
     // Check memory = ECX:EBX
     let new_mem_val = emu.maps.read_qword(0x1000).expect("failed to read memory");
@@ -66,7 +66,7 @@ pub fn test_cmpxchg8b_not_equal() {
     emu.step();
 
     // Check ZF = 0
-    assert_eq!(emu.flags().f_zf, false, "ZF should be clear");
+    assert!(!emu.flags().f_zf, "ZF should be clear");
 
     // Check EDX:EAX = Memory
     assert_eq!(
@@ -122,7 +122,7 @@ pub fn test_cmpxchg16b_equal() {
     emu.step();
 
     // Check ZF = 1
-    assert_eq!(emu.flags().f_zf, true, "ZF should be set");
+    assert!(emu.flags().f_zf, "ZF should be set");
 
     // Check memory = RCX:RBX
     let new_mem_val = emu
@@ -162,7 +162,7 @@ pub fn test_cmpxchg16b_not_equal() {
     emu.step();
 
     // Check ZF = 0
-    assert_eq!(emu.flags().f_zf, false, "ZF should be clear");
+    assert!(!emu.flags().f_zf, "ZF should be clear");
 
     // Check RDX:RAX = Memory
     assert_eq!(

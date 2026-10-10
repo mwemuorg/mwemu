@@ -11,7 +11,7 @@ pub fn gateway(addr: u64, section_name: &str, symbol: &str, emu: &mut crate::emu
                 section_name,
                 addr
             );
-            todo!("Linux API: {} in {}", symbol, section_name);
+            crate::api::abi::ApiAbi::from_emu(emu).set_ret(emu, 0);
         }
     }
 }

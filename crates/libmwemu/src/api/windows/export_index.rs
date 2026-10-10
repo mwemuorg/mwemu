@@ -486,7 +486,7 @@ fn parse_forwarder_and_resolve(
                         return 0;
                     }
                     visited.push(key);
-                    return parse_forwarder_and_resolve(registry, &fwd_value, visited, depth - 1);
+                    return parse_forwarder_and_resolve(registry, fwd_value, visited, depth - 1);
                 }
                 None => return 0,
             }

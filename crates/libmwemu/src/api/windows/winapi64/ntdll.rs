@@ -10,6 +10,10 @@ mod string;
 mod sync;
 
 pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
+pub use memory::{NtCreateSection, NtFreeVirtualMemory, NtMapViewOfSection, NtUnmapViewOfSection};
+pub use misc::{NtQueryInformationProcess, NtQuerySystemInformation, RtlDecompressBuffer};
+pub use string::{RtlInitAnsiString, RtlInitUnicodeString};
+pub use sync::NtDelayExecution;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);

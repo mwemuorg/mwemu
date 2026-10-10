@@ -122,6 +122,7 @@ impl Emu {
             threads: vec![ThreadContext::new(0x1000, arch)],
             current_thread_id: 0,
             global_locks: GlobalLocks::new(),
+            processes: crate::threading::process::ProcessTable::new(),
             definitions: HashMap::new(),
             stored_contexts: HashMap::new(),
             entropy: 0.0,
@@ -136,6 +137,9 @@ impl Emu {
             library_loaded: false,
             section_handles: HashMap::new(),
             file_handles: HashMap::new(),
+            fts_handles: HashMap::new(),
+            getopt_char_index: 0,
+            emulated_stdout: Vec::new(),
             syscall_number_map: HashMap::new(),
             syscall_name_by_real: HashMap::new(),
             known_dll_dir_handles: HashSet::new(),
@@ -620,6 +624,60 @@ impl Emu {
             self.maps.write_qword(off, aval);
             off += 8;
         }
+    }
+
+    /// Set up macOS AArch64 calling convention for _main(argc, argv, envp, apple).
+    /// dyld calls _main with arguments in registers, not on the stack.
+    pub fn write_macos_stack_layout(&mut self) {
+        let sp = self.regs_aarch64().sp;
+
+        // Build the argument list: argv[0] = filename, rest from cfg.arguments
+        let mut args: Vec<String> = vec![self.cfg.filename.clone()];
+        if !self.cfg.arguments.is_empty() {
+            for a in self.cfg.arguments.split_whitespace() {
+                args.push(a.to_string());
+            }
+        }
+        let argc = args.len() as u64;
+
+        // Write argument strings into the stack area
+        let strings_base = sp + 0x200;
+        let mut string_addrs: Vec<u64> = Vec::new();
+        let mut string_off: u64 = 0;
+        for arg in &args {
+            let addr = strings_base + string_off;
+            let bytes = arg.as_bytes();
+            for (i, &b) in bytes.iter().enumerate() {
+                self.maps.write_byte(addr + i as u64, b);
+            }
+            self.maps.write_byte(addr + bytes.len() as u64, 0);
+            string_addrs.push(addr);
+            string_off += (bytes.len() as u64) + 1;
+        }
+
+        // Write argv pointer array on the stack
+        let argv_base = sp + 0x100;
+        for (i, &addr) in string_addrs.iter().enumerate() {
+            self.maps.write_qword(argv_base + (i as u64) * 8, addr);
+        }
+        // argv terminator
+        self.maps
+            .write_qword(argv_base + (string_addrs.len() as u64) * 8, 0);
+
+        // envp = empty array (just NULL terminator)
+        let envp_base = argv_base + ((string_addrs.len() as u64) + 1) * 8;
+        self.maps.write_qword(envp_base, 0);
+
+        // apple[] = empty array (just NULL terminator)
+        let apple_base = envp_base + 8;
+        self.maps.write_qword(apple_base, 0);
+
+        // Set registers: _main(argc, argv, envp, apple)
+        let regs = self.regs_aarch64_mut();
+        regs.x[0] = argc;
+        regs.x[1] = argv_base;
+        regs.x[2] = envp_base;
+        regs.x[3] = apple_base;
     }
 
     /// Initialize macOS aarch64 simulation for Mach-O loading.
@@ -1312,28 +1370,27 @@ impl Emu {
             .create_map(".heap", self.heap_addr, heap_sz, Permission::READ_WRITE)
             .expect("cannot create heap map");
 
-        // Native ntdll!RtlAllocateHeap expects SegmentSignature at offset 0x10
-        self.maps.write_dword(self.heap_addr + 0x10, 0x0DDEEDDEE);
-
-        // ntdll!RtlAllocateHeap accesses FreeLists/BlocksIndex. If 0, it crashes dereferencing NULL.
-        // We put a self-referential or valid pointer so it doesn't crash on [r10+2].
-        // At 0x5203D8 (rsi+rcx*8+80h) it expects a pointer to something. We point it to 0x520400.
-        self.maps
-            .write_qword(self.heap_addr + 0x3D8, self.heap_addr + 0x400);
-
-        // Later accesses [0x520480] and passes it as locking structure. Needs to be != 0 to avoid [0x10] unmapped array
-        self.maps
-            .write_qword(self.heap_addr + 0x480, self.heap_addr + 0x500);
-
         if self.heap_arenas.is_empty() {
             self.heap_arenas.push(Box::new(
                 O1Heap::new(self.heap_addr, heap_sz as u32)
                     .expect("Expect new heap_management but failed"),
             ));
+
+            // Reserve the first 0x800 bytes for the _HEAP header so the
+            // allocator never hands them out and overwrites the struct fields.
+            self.heap_arenas[0].allocate(0x800);
+
             let heap_handle = HeapHandle::new(0x0, heap_sz as usize, 0, self.heap_arenas.len() - 1);
             let key = self.handle_management.insert_heap_handle(heap_handle);
+            self.handle_management
+                .set_heap_base_addr(key, self.heap_addr);
             let process_key = self.handle_management.get_or_insert_process_heap();
             debug_assert_eq!(key, process_key);
         }
+
+        // Populate the _HEAP structure via Heap64 (see docs/ANTI_EMU_HEAP.md).
+        let heap_struct = structures::Heap64::new(self.heap_addr);
+        let heap_map = self.maps.get_mem_mut(".heap");
+        heap_struct.save(heap_map);
     }
 }

@@ -252,10 +252,8 @@ impl Emu {
                     self.instruction_count += 1;
 
                     // --- Limits ---
-                    if has_runtime_limits {
-                        if let Some(limit_pc) = self.check_runtime_limits(addr) {
-                            return Ok(limit_pc);
-                        }
+                    if has_runtime_limits && let Some(limit_pc) = self.check_runtime_limits(addr) {
+                        return Ok(limit_pc);
                     }
 
                     // --- Verbose-at / verbose-range activation ---
@@ -458,7 +456,7 @@ impl Emu {
 
                     // --- Pre-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_pre_instruction.take() {
-                        let decoded = decoded.unwrap_or_else(|| DecodedInstruction::X86(x86_ins));
+                        let decoded = decoded.unwrap_or(DecodedInstruction::X86(x86_ins));
                         let hook_pc = self.pc();
                         let skip = !hook_fn(self, hook_pc, &decoded, sz);
                         self.hooks.hook_on_pre_instruction = Some(hook_fn);
@@ -476,7 +474,7 @@ impl Emu {
                     }
 
                     // --- Entropy ---
-                    if self.cfg.entropy && self.pos % 10000 == 0 {
+                    if self.cfg.entropy && self.pos.is_multiple_of(10000) {
                         self.update_entropy();
                     }
 
@@ -504,7 +502,7 @@ impl Emu {
 
                     // --- Post-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_post_instruction.take() {
-                        let decoded = decoded.unwrap_or_else(|| DecodedInstruction::X86(x86_ins));
+                        let decoded = decoded.unwrap_or(DecodedInstruction::X86(x86_ins));
                         let hook_pc = self.pc();
                         hook_fn(self, hook_pc, &decoded, sz, emulation_ok);
                         self.hooks.hook_on_post_instruction = Some(hook_fn);
@@ -551,6 +549,12 @@ impl Emu {
 
                     if self.rep.is_none() {
                         self.advance_pc_x86(sz);
+                    }
+
+                    // A clone() just created a second thread: hand over to the
+                    // scheduling loop so both get to run.
+                    if self.cfg.enable_threading && self.threads.len() > 1 {
+                        return self.run_multi_threaded_x86(end_addr);
                     }
 
                     // RET is fully emulated before run_until_ret stops at its architectural target.

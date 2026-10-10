@@ -2,6 +2,11 @@
 //! (an in-memory backend), proving the generic loader works without an
 //! emulator and that `import_addr_to_name` is reversible from `iat_names`.
 
+// clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::unusual_byte_groupings)]
+
 use std::collections::HashMap;
 
 use rs_header::pe::PeLoader;
@@ -336,7 +341,7 @@ fn build_synthetic_pe64_with_ordinal_iat(original_first_thunk_rva: u32) -> (PE64
     raw[opt_off + 60..opt_off + 64].copy_from_slice(&SIZE_OF_HEADERS.to_le_bytes());
     // Data directory starts at opt_off + 112; entry 1 is IMPORT.
     let dd_off = opt_off + 112;
-    let import_dir_off = dd_off + 1 * 8;
+    let import_dir_off = dd_off + 8;
     // Image import descriptor sits at the very start of .idata.
     raw[import_dir_off..import_dir_off + 4].copy_from_slice(&IDATA_RVA.to_le_bytes());
     raw[import_dir_off + 4..import_dir_off + 8].copy_from_slice(&0x28u32.to_le_bytes()); // size: one descriptor + terminator
@@ -633,7 +638,7 @@ fn build_synthetic_pe32_with_ordinal_iat(original_first_thunk_rva: u32) -> (PE32
 
     // Data directory: entry 1 is IMPORT.
     let dd_off = opt_off + 96;
-    let import_dir_off = dd_off + 1 * 8;
+    let import_dir_off = dd_off + 8;
     raw[import_dir_off..import_dir_off + 4].copy_from_slice(&IDATA_RVA.to_le_bytes());
     raw[import_dir_off + 4..import_dir_off + 8].copy_from_slice(&0x28u32.to_le_bytes());
 

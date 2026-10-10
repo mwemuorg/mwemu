@@ -2,29 +2,19 @@ use crate::color;
 use crate::emu::Emu;
 use iced_x86::Instruction;
 
-pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
+// SUBSS: scalar f32 subtraction on the low lane; the upper bits of the
+// destination are preserved.
+pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(
         color!("Green"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-
-    let value0 = match emu.get_operand_xmm_value_128(ins, 0, true) {
-        Some(v) => v,
-        None => {
-            log::trace!("error getting value0");
-            return false;
-        }
-    };
-    let value1 = match emu.get_operand_xmm_value_128(ins, 1, true) {
-        Some(v) => v,
-        None => {
-            log::trace!("error getting value1");
-            return false;
-        }
-    };
-
-    let result: u32 = value0 as u32 - value1 as u32;
-    let r128: u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128;
-    emu.set_operand_xmm_value_128(ins, 0, r128);
+    let dest = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
+    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    let a = f32::from_bits((dest & 0xffff_ffff_u128) as _);
+    let b = f32::from_bits((src & 0xffff_ffff_u128) as _);
+    let r: f32 = a - b;
+    let result = (dest & !0xffff_ffff_u128) | (r.to_bits() as u128 & 0xffff_ffff_u128);
+    emu.set_operand_xmm_value_128(ins, 0, result);
     true
 }

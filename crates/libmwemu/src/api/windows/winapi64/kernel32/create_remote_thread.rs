@@ -39,20 +39,20 @@ pub fn CreateRemoteThread(emu: &mut emu::Emu) {
     }
 
     // Allocate stack if requested (otherwise will share/reuse current stack)
-    if stack_size > 0 {
-        if let Some(stack_base) = emu.maps.alloc(stack_size) {
-            let regs = new_thread.regs_x86_mut();
-            regs.rsp = stack_base + stack_size - 8; // Stack grows down
-            regs.rbp = regs.rsp;
-            emu.maps
-                .create_map(
-                    &format!("remote_thread_stack_{:x}", new_thread_id),
-                    stack_base,
-                    stack_size,
-                    Permission::READ_WRITE,
-                )
-                .ok();
-        }
+    if stack_size > 0
+        && let Some(stack_base) = emu.maps.alloc(stack_size)
+    {
+        let regs = new_thread.regs_x86_mut();
+        regs.rsp = stack_base + stack_size - 8; // Stack grows down
+        regs.rbp = regs.rsp;
+        emu.maps
+            .create_map(
+                &format!("remote_thread_stack_{:x}", new_thread_id),
+                stack_base,
+                stack_size,
+                Permission::READ_WRITE,
+            )
+            .ok();
     }
 
     // Sync FPU instruction pointer

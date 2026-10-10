@@ -1,9 +1,8 @@
 use super::{
     DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
-    IMAGE_DIRECTORY_ENTRY_IAT, IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS,
-    IMAGE_FILE_DLL, ImageDosHeader, ImageExportDirectory, ImageFileHeader, ImageImportDescriptor,
-    ImageNtHeaders, ImageOptionalHeader, ImageSectionHeader, PE32, SECTION_HEADER_SZ,
-    TlsDirectory32,
+    IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS, IMAGE_FILE_DLL, ImageDosHeader,
+    ImageExportDirectory, ImageFileHeader, ImageImportDescriptor, ImageNtHeaders,
+    ImageOptionalHeader, ImageSectionHeader, PE32, SECTION_HEADER_SZ, TlsDirectory32,
 };
 use crate::pe::readers::{
     read_c_string, read_c_string_with_max, read_u32_le as read_u32_le_shared,
@@ -199,23 +198,31 @@ impl PE32 {
         }
 
         let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
-        let _iat = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_IAT].virtual_address;
+
+        if entry_tls == 0 {
+            return callbacks;
+        }
 
         let tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
         let tls = TlsDirectory32::load(raw, tls_off);
         tls.print();
 
-        if tls.tls_callbacks < self.opt.image_base - 0xf000 + 0xa400 {
-            {
-                log::warn!("pe32: bad tls callbacks pointer");
-                return Vec::new();
-            }
+        if tls.tls_callbacks == 0 {
+            return callbacks;
         }
-        let mut cb_off = (tls.tls_callbacks - self.opt.image_base - 0xf000 + 0xa400) as usize;
 
-        loop {
+        let cb_rva = tls.tls_callbacks.wrapping_sub(self.opt.image_base);
+        let mut cb_off = PE32::vaddr_to_off(&self.sect_hdr, cb_rva) as usize;
+
+        for _ in 0..64 {
+            if cb_off + 4 > raw.len() {
+                break;
+            }
             let callback: u64 = read_u32_le!(raw, cb_off) as u64;
             if callback == 0 {
+                break;
+            }
+            if callback < self.opt.image_base as u64 {
                 break;
             }
             log::trace!("TLS Callback: 0x{:x}", callback);
@@ -224,5 +231,20 @@ impl PE32 {
         }
 
         callbacks
+    }
+
+    pub fn get_tls_directory(&self, raw: &[u8]) -> Option<TlsDirectory32> {
+        if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {
+            return None;
+        }
+        let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
+        if entry_tls == 0 {
+            return None;
+        }
+        let tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
+        if tls_off + 24 > raw.len() {
+            return None;
+        }
+        Some(TlsDirectory32::load(raw, tls_off))
     }
 }

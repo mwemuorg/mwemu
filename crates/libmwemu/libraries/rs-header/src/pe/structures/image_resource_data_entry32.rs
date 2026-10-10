@@ -5,6 +5,12 @@ pub struct ImageResourceDataEntry32 {
     pub reserved: u32,
 }
 
+impl Default for ImageResourceDataEntry32 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImageResourceDataEntry32 {
     pub fn new() -> ImageResourceDataEntry32 {
         ImageResourceDataEntry32 {

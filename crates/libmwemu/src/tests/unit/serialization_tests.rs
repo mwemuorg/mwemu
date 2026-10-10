@@ -57,7 +57,7 @@ fn test_emu_config_preserved() {
 
     // Verify config can be set
     assert_eq!(emu.cfg.verbose, 3);
-    assert_eq!(emu.cfg.is_x64(), true);
+    assert!(emu.cfg.is_x64());
 }
 
 #[test]

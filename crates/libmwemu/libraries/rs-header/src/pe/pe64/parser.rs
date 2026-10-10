@@ -258,4 +258,19 @@ impl PE64 {
 
         callbacks
     }
+
+    pub fn get_tls_directory(&self, raw: &[u8]) -> Option<TlsDirectory64> {
+        if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {
+            return None;
+        }
+        let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
+        if entry_tls == 0 {
+            return None;
+        }
+        let tls_off = PE64::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
+        if tls_off + 40 > raw.len() {
+            return None;
+        }
+        Some(TlsDirectory64::load(raw, tls_off))
+    }
 }

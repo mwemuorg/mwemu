@@ -9,7 +9,7 @@ const FORWARDER_MAX_DEPTH: u32 = 8;
 
 pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
     let needle = module.to_ascii_lowercase();
-    if emu.export_indexes.len() == 0 {
+    if emu.export_indexes.is_empty() {
         dump_module_iat_scanner(emu, &needle);
         return;
     }
@@ -315,15 +315,14 @@ pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
 }
 
 pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) {
-    if emu.export_indexes.len() != 0 {
+    if !emu.export_indexes.is_empty() {
         for module in emu.export_indexes.iter_ordered() {
             for (export_name, ordinal_index) in &module_display_names(module) {
-                if export_name.contains(name) {
-                    if let Some(Some(IndexedExport::Direct { address })) =
+                if export_name.contains(name)
+                    && let Some(Some(IndexedExport::Direct { address })) =
                         module.by_ordinal.get(*ordinal_index as usize)
-                    {
-                        return (*address, module.module_name.clone(), export_name.clone());
-                    }
+                {
+                    return (*address, module.module_name.clone(), export_name.clone());
                 }
             }
         }

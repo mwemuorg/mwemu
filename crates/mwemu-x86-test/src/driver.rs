@@ -158,8 +158,7 @@ fn read_output(emu: &mut libmwemu::emu::Emu, key: &str, len: usize) -> Result<Ve
         }
         Key::Ymm(name) => {
             let val = emu.regs().get_ymm_by_name(&name);
-            let mut buf = [0u8; 32];
-            val.to_little_endian(&mut buf);
+            let buf = val.to_little_endian();
             Ok(buf[..len.min(32)].to_vec())
         }
         Key::Mem(addr) => match emu.maps.get_mem_by_addr(addr) {

@@ -177,7 +177,6 @@ impl Flink {
         if self.mod_base == 0 {
             {
                 log::warn!("modbase is zero");
-                return;
             }
         }
         /*

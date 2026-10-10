@@ -4,7 +4,7 @@ use std::process::Command;
 // avoid c code, try to be 100% rust
 pub fn pure_rust_check() {
     let output = Command::new("cargo")
-        .args(&["metadata", "--format-version", "1"])
+        .args(["metadata", "--format-version", "1"])
         .output();
 
     assert!(output.is_ok()); // cargo executed well

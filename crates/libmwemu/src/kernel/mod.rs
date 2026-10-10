@@ -184,6 +184,9 @@ pub struct KernelEnv {
     pub log: Vec<String>,
     /// Caches created through `kmem_cache_create`, keyed by handle.
     pub caches: HashMap<u64, KmemCache>,
+    /// Set by `--memory-guard` on a user-mode binary: the env only carries
+    /// the allocation ledger and must not take over control flow.
+    pub ledger_only: bool,
     /// Imported symbols that were called but have no implementation.
     pub unimplemented: Vec<String>,
     /// Callbacks queued by the driver and not run yet.
@@ -226,6 +229,7 @@ impl KernelEnv {
             data_by_name: HashMap::new(),
             log: Vec::new(),
             caches: HashMap::new(),
+            ledger_only: false,
             unimplemented: Vec::new(),
             deferred: Vec::new(),
             registered_drivers: Vec::new(),
@@ -323,6 +327,27 @@ impl Emu {
             KernelOs::Windows => crate::arch::OperatingSystem::Windows,
             KernelOs::MacOS => crate::arch::OperatingSystem::MacOS,
         };
+    }
+
+    /// Bring up just the heap ledger for userspace memory-safety analysis.
+    ///
+    /// Unlike `kernel_init` this does not create a stub area, kernel stack or
+    /// module image — those belong to driver emulation. It only creates the
+    /// `KernelEnv` with its heap so that `kernel_alloc`/`kernel_free` and the
+    /// per-access guard in `operands.rs` work for intercepted `malloc`/`free`.
+    pub fn memory_guard_init(&mut self) {
+        if self.kernel.is_some() {
+            return;
+        }
+        let os = match self.os {
+            crate::arch::OperatingSystem::Linux => KernelOs::Linux,
+            crate::arch::OperatingSystem::MacOS => KernelOs::MacOS,
+            _ => KernelOs::Windows,
+        };
+        let mut env = KernelEnv::new(os);
+        env.ledger_only = true;
+        self.kernel = Some(Box::new(env));
+        self.kernel_guard = true;
     }
 
     /// Address standing for an imported kernel *function*, allocating a stub
@@ -755,25 +780,25 @@ impl Emu {
                 let Some(q) = self.maps.read_qword(struct_ptr + off) else {
                     break;
                 };
-                if q != 0 {
-                    if let Some(kernel) = self.kernel.as_ref() {
-                        let m = &kernel.module;
-                        if probe == 0 && m.is_module_text(q) {
-                            probe = q;
-                            probe_name = m.func_name_at(q).unwrap_or("").to_string();
-                        } else if id_table == 0 && m.is_module_data(q) {
-                            // A data pointer into the module: candidate id_table.
-                            // Skip if it is the driver's own name string (best
-                            // effort — the name reads as printable ASCII).
-                            let s = self.maps.read_string(q);
-                            let looks_stringy = !s.is_empty()
-                                && s.len() <= 40
-                                && s.chars().all(|c| c.is_ascii_graphic() || c == ' ');
-                            if looks_stringy && name.is_empty() {
-                                name = s;
-                            } else {
-                                id_table = q;
-                            }
+                if q != 0
+                    && let Some(kernel) = self.kernel.as_ref()
+                {
+                    let m = &kernel.module;
+                    if probe == 0 && m.is_module_text(q) {
+                        probe = q;
+                        probe_name = m.func_name_at(q).unwrap_or("").to_string();
+                    } else if id_table == 0 && m.is_module_data(q) {
+                        // A data pointer into the module: candidate id_table.
+                        // Skip if it is the driver's own name string (best
+                        // effort — the name reads as printable ASCII).
+                        let s = self.maps.read_string(q);
+                        let looks_stringy = !s.is_empty()
+                            && s.len() <= 40
+                            && s.chars().all(|c| c.is_ascii_graphic() || c == ' ');
+                        if looks_stringy && name.is_empty() {
+                            name = s;
+                        } else {
+                            id_table = q;
                         }
                     }
                 }

@@ -50,14 +50,14 @@ pub fn hooks_system() {
     assert!(hooks.hook_on_syscall.is_some());
 
     // Test if all hooks are set
-    assert!(!hooks.hook_on_interrupt.is_none());
-    assert!(!hooks.hook_on_exception.is_none());
-    assert!(!hooks.hook_on_memory_read.is_none());
-    assert!(!hooks.hook_on_memory_write.is_none());
-    assert!(!hooks.hook_on_pre_instruction.is_none());
-    assert!(!hooks.hook_on_post_instruction.is_none());
-    assert!(!hooks.hook_on_winapi_call.is_none());
-    assert!(!hooks.hook_on_syscall.is_none());
+    assert!(hooks.hook_on_interrupt.is_some());
+    assert!(hooks.hook_on_exception.is_some());
+    assert!(hooks.hook_on_memory_read.is_some());
+    assert!(hooks.hook_on_memory_write.is_some());
+    assert!(hooks.hook_on_pre_instruction.is_some());
+    assert!(hooks.hook_on_post_instruction.is_some());
+    assert!(hooks.hook_on_winapi_call.is_some());
+    assert!(hooks.hook_on_syscall.is_some());
 }
 
 #[test]
@@ -143,7 +143,7 @@ pub fn test_on_interrupt() {
     let mut emu = emu32();
     let code_base = emu.alloc("code", 0x1000, Permission::READ_WRITE_EXECUTE);
     // int 0x80
-    emu.maps.write_spaced_bytes(code_base, &"CD 80".to_string());
+    emu.maps.write_spaced_bytes(code_base, "CD 80");
 
     let call_counter = Arc::new(AtomicI32::new(0));
 
@@ -172,7 +172,7 @@ pub fn test_on_exception() {
     let mut emu = emu32();
     let code_base = emu.alloc("code", 0x1000, Permission::READ_WRITE_EXECUTE);
     // int 3 exception
-    emu.maps.write_spaced_bytes(code_base, &"CC".to_string());
+    emu.maps.write_spaced_bytes(code_base, "CC");
 
     let call_counter = Arc::new(AtomicI32::new(0));
 
@@ -283,7 +283,7 @@ pub fn test_pre_post_hooks() {
     let mut emu = emu32();
     let code_base = emu.alloc("code", 0x1000, Permission::READ_WRITE_EXECUTE);
     // inc eax , inc eax
-    emu.maps.write_spaced_bytes(code_base, &"40 40".to_string());
+    emu.maps.write_spaced_bytes(code_base, "40 40");
 
     let call_counter = Arc::new(AtomicI32::new(0));
 
@@ -324,7 +324,7 @@ pub fn test_post_instruction_hook() {
     let mut emu = emu32();
     let code_base = emu.alloc("code", 0x1000, Permission::READ_WRITE_EXECUTE);
     // inc eax
-    emu.maps.write_spaced_bytes(code_base, &"40".to_string());
+    emu.maps.write_spaced_bytes(code_base, "40");
 
     let call_counter = Arc::new(AtomicI32::new(0));
     let counter = Arc::clone(&call_counter);
@@ -333,7 +333,7 @@ pub fn test_post_instruction_hook() {
         move |emu: &mut Emu, ip: u64, ins: &DecodedInstruction, sz: usize, ok: bool| {
             counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             assert_eq!(ip, code_base);
-            assert_eq!(ok, true);
+            assert!(ok);
         },
     );
 
@@ -350,7 +350,7 @@ pub fn test_winapi_hook() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     let sample = sample!("exe64win_msgbox.bin");
     emu.load_code(&sample);

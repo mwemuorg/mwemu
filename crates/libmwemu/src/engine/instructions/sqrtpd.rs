@@ -15,7 +15,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     for i in 0..2 {
         let shift = i * 64;
         let a = f64::from_bits(((src >> shift) & 0xffff_ffff_ffff_ffff) as _);
-        result |= ((a.sqrt().to_bits() as u128) & (0xffff_ffff_ffff_ffff as u128)) << shift;
+        result |= ((a.sqrt().to_bits() as u128) & 0xffff_ffff_ffff_ffff_u128) << shift;
     }
     emu.set_operand_xmm_value_128(ins, 0, result);
     true

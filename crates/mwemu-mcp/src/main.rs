@@ -127,15 +127,15 @@ fn is_loopback_addr(addr: &str) -> bool {
 /// protocol output.
 #[cfg(unix)]
 fn redirect_stdout_to_stderr() -> std::fs::File {
-    use std::os::fd::FromRawFd;
-    // SAFETY: `dup`/`dup2` are plain libc fd calls. `saved` is a fresh fd from
-    // `dup(1)` that nothing else owns, so `File::from_raw_fd` taking ownership of
-    // it is sound (no double-close, no aliasing of an existing `File`).
-    unsafe {
-        let saved = libc::dup(1);
-        libc::dup2(2, 1);
-        std::fs::File::from_raw_fd(saved)
-    }
+    use std::os::fd::AsFd;
+    // Keep a private dup of the original stdout for the protocol, then point
+    // fd 1 at stderr. Both are safe std/rustix wrappers over dup/dup2.
+    let saved = std::io::stdout()
+        .as_fd()
+        .try_clone_to_owned()
+        .expect("dup(stdout)");
+    rustix::stdio::dup2_stdout(std::io::stderr().as_fd()).expect("dup2(stderr, stdout)");
+    std::fs::File::from(saved)
 }
 
 fn main() -> ExitCode {

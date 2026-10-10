@@ -4,6 +4,12 @@ pub struct ImageResourceDirectoryEntry {
     pub data_or_directory: u32,
 }
 
+impl Default for ImageResourceDirectoryEntry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImageResourceDirectoryEntry {
     pub fn new() -> ImageResourceDirectoryEntry {
         ImageResourceDirectoryEntry {

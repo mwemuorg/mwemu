@@ -5,11 +5,13 @@ pub fn HeapDestroy(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!HeapDestroy hndl: 0x{:x}", hndl);
 
-    if hndl == 0 || hndl > u32::MAX as u64 {
-        emu.regs_mut().rax = 0;
-        return;
-    }
-    let key = hndl as u32;
+    let key = match emu.handle_management.resolve_heap_key(hndl) {
+        Some(k) => k,
+        None => {
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     if emu.handle_management.is_process_heap(key) {
         log_red!(emu, "kernel32!HeapDestroy cannot destroy process heap");
         emu.regs_mut().rax = 0;

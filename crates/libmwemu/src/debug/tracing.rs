@@ -175,33 +175,33 @@ pub fn trace_instruction(emu: &Emu, instruction_count: u64) {
         });
 
         // Calculate and log IPS every 10M instructions
-        if count % 10_000_000 == 0 {
-            if let Some(start_time) = TRACE_START_TIME.with(|s| s.get()) {
-                let elapsed = start_time.elapsed();
-                let elapsed_secs = elapsed.as_secs_f64();
-                if elapsed_secs > 0.0 {
-                    let ips = instruction_count as f64 / elapsed_secs;
+        if count.is_multiple_of(10_000_000)
+            && let Some(start_time) = TRACE_START_TIME.with(|s| s.get())
+        {
+            let elapsed = start_time.elapsed();
+            let elapsed_secs = elapsed.as_secs_f64();
+            if elapsed_secs > 0.0 {
+                let ips = instruction_count as f64 / elapsed_secs;
 
-                    // Rate limit IPS logs to once per second
-                    let now = Instant::now();
-                    let should_log = LAST_IPS_LOG
-                        .with(|l| l.get())
-                        .is_none_or(|last| now.duration_since(last).as_secs() >= 1);
-                    if should_log {
-                        log::info!(
-                            "⚡ IPS: {:.2} ({} instructions in {:.2}s)",
-                            ips,
-                            instruction_count,
-                            elapsed_secs
-                        );
-                        LAST_IPS_LOG.with(|l| l.set(Some(now)));
-                    }
+                // Rate limit IPS logs to once per second
+                let now = Instant::now();
+                let should_log = LAST_IPS_LOG
+                    .with(|l| l.get())
+                    .is_none_or(|last| now.duration_since(last).as_secs() >= 1);
+                if should_log {
+                    log::info!(
+                        "⚡ IPS: {:.2} ({} instructions in {:.2}s)",
+                        ips,
+                        instruction_count,
+                        elapsed_secs
+                    );
+                    LAST_IPS_LOG.with(|l| l.set(Some(now)));
                 }
             }
         }
 
         // Flush every 1M records to avoid losing too much data if we crash
-        if count % 1_000_000 == 0 {
+        if count.is_multiple_of(1_000_000) {
             if let Err(e) = w.flush() {
                 log::error!("Failed to flush trace: {}", e);
             } else {

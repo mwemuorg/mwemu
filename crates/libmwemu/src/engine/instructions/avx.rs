@@ -7,8 +7,7 @@ use crate::emu::Emu;
 use iced_x86::Instruction;
 
 pub fn to_pair(v: U256) -> (u128, u128) {
-    let mut b = [0u8; 32];
-    v.to_little_endian(&mut b);
+    let b = v.to_little_endian();
     (
         u128::from_le_bytes(b[0..16].try_into().unwrap()),
         u128::from_le_bytes(b[16..32].try_into().unwrap()),

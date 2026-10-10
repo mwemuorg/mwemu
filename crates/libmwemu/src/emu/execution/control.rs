@@ -98,40 +98,41 @@ impl Emu {
     }
 
     pub(crate) fn check_runtime_limits(&mut self, pc: u64) -> Option<u64> {
-        if let Some(max) = self.cfg.max_instructions {
-            if self.instruction_count >= max {
-                log::info!("max_instructions limit reached ({})", max);
+        if let Some(max) = self.cfg.max_instructions
+            && self.instruction_count >= max
+        {
+            log::info!("max_instructions limit reached ({})", max);
+            return Some(pc);
+        }
+
+        if let Some(timeout) = self.cfg.timeout_secs
+            && self.instruction_count.is_multiple_of(10000)
+        {
+            let elapsed = self.now.elapsed().as_secs_f64();
+            if elapsed >= timeout {
+                log::info!("timeout reached ({:.1}s >= {:.1}s)", elapsed, timeout);
                 return Some(pc);
             }
         }
 
-        if let Some(timeout) = self.cfg.timeout_secs {
-            if self.instruction_count % 10000 == 0 {
-                let elapsed = self.now.elapsed().as_secs_f64();
-                if elapsed >= timeout {
-                    log::info!("timeout reached ({:.1}s >= {:.1}s)", elapsed, timeout);
-                    return Some(pc);
-                }
-            }
-        }
-
-        if let Some(max) = self.cfg.max_faults {
-            if self.fault_count >= max {
-                log::info!("max_faults limit reached ({})", max);
-                return Some(pc);
-            }
+        if let Some(max) = self.cfg.max_faults
+            && self.fault_count >= max
+        {
+            log::info!("max_faults limit reached ({})", max);
+            return Some(pc);
         }
 
         None
     }
 
     pub(crate) fn update_verbose_at(&mut self) {
-        if let Some(vpos) = self.cfg.verbose_at {
-            if vpos == self.pos {
-                self.cfg.verbose = 3;
-                self.cfg.trace_mem = true;
-                self.cfg.trace_regs = true;
-            }
+        if let Some(vpos) = self.cfg.verbose_at
+            && vpos == self.pos
+        {
+            self.cfg.verbose = 3;
+            self.cfg.trace_mem = true;
+            self.cfg.trace_regs = true;
+            crate::emu::emu_context::set_mem_trace(true);
         }
     }
 

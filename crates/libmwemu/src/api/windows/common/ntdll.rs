@@ -51,7 +51,6 @@ pub(crate) fn rtl_move_memory(emu: &mut emu::Emu, dst: u64, src: u64, sz: usize)
     if !emu.maps.memcpy(dst, src, sz) {
         {
             log::warn!("RtlMoveMemory failed to copy");
-            return;
         }
     }
 }

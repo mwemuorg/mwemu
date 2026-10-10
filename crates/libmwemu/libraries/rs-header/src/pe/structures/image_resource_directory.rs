@@ -7,6 +7,12 @@ pub struct ImageResourceDirectory {
     pub number_of_id_entries: u16,
 }
 
+impl Default for ImageResourceDirectory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ImageResourceDirectory {
     pub fn new() -> ImageResourceDirectory {
         ImageResourceDirectory {

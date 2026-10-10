@@ -385,6 +385,7 @@ impl From<SerializableEmu> for Emu {
             main_thread_cont,
             gateway_return,
             global_locks: GlobalLocks::new(),
+            processes: crate::threading::process::ProcessTable::new(),
             // API call interception (hooks cannot be serialized)
             hooks: Hooks::default(),
             skip_apicall,
@@ -414,6 +415,9 @@ impl From<SerializableEmu> for Emu {
             handle_management: HandleManagement::new(), // TODO: not yet serialized
             section_handles: HashMap::new(),
             file_handles: HashMap::new(),
+            fts_handles: HashMap::new(),
+            getopt_char_index: 0,
+            emulated_stdout: Vec::new(),
             syscall_number_map: HashMap::new(),
             syscall_name_by_real: HashMap::new(),
             known_dll_dir_handles: HashSet::new(),

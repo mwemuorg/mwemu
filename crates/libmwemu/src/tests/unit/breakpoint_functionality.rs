@@ -39,7 +39,7 @@ pub fn breakpoint_functionality() {
     assert_eq!(bp.get_bp(), 0);
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
 
     emu.load_code(&sample!("exe64win_msgbox.bin"));
     assert!(!emu.maps.is_allocated(0));

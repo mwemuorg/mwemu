@@ -1281,10 +1281,10 @@ pub fn nt_create_section(emu: &mut Emu) {
     let h = crate::syscall::windows::syscall64::sync::next_handle();
     // Inherit the DLL backing from the file handle if we tracked one, so the
     // subsequent NtMapViewOfSection on this section loads the real PE.
-    if file_handle != 0 {
-        if let Some(dll_name) = emu.file_handles.get(&file_handle).cloned() {
-            emu.section_handles.insert(h, dll_name);
-        }
+    if file_handle != 0
+        && let Some(dll_name) = emu.file_handles.get(&file_handle).cloned()
+    {
+        emu.section_handles.insert(h, dll_name);
     }
     let _ = emu.maps.write_qword(handle_out, h);
     emu.regs_mut().rax = STATUS_SUCCESS;

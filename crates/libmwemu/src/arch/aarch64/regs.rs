@@ -224,19 +224,17 @@ impl RegsAarch64 {
         if lower == "fp" {
             return Some(self.x[29]);
         }
-        if let Some(n) = lower.strip_prefix('x') {
-            if let Ok(i) = n.parse::<usize>() {
-                if i < 31 {
-                    return Some(self.x[i]);
-                }
-            }
+        if let Some(n) = lower.strip_prefix('x')
+            && let Ok(i) = n.parse::<usize>()
+            && i < 31
+        {
+            return Some(self.x[i]);
         }
-        if let Some(n) = lower.strip_prefix('w') {
-            if let Ok(i) = n.parse::<usize>() {
-                if i < 31 {
-                    return Some(self.x[i] & 0xffffffff);
-                }
-            }
+        if let Some(n) = lower.strip_prefix('w')
+            && let Ok(i) = n.parse::<usize>()
+            && i < 31
+        {
+            return Some(self.x[i] & 0xffffffff);
         }
         None
     }
@@ -259,21 +257,19 @@ impl RegsAarch64 {
             self.x[29] = val;
             return true;
         }
-        if let Some(n) = lower.strip_prefix('x') {
-            if let Ok(i) = n.parse::<usize>() {
-                if i < 31 {
-                    self.x[i] = val;
-                    return true;
-                }
-            }
+        if let Some(n) = lower.strip_prefix('x')
+            && let Ok(i) = n.parse::<usize>()
+            && i < 31
+        {
+            self.x[i] = val;
+            return true;
         }
-        if let Some(n) = lower.strip_prefix('w') {
-            if let Ok(i) = n.parse::<usize>() {
-                if i < 31 {
-                    self.x[i] = val & 0xffffffff;
-                    return true;
-                }
-            }
+        if let Some(n) = lower.strip_prefix('w')
+            && let Ok(i) = n.parse::<usize>()
+            && i < 31
+        {
+            self.x[i] = val & 0xffffffff;
+            return true;
         }
         false
     }

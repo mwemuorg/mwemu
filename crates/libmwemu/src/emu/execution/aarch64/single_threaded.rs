@@ -58,6 +58,18 @@ impl Emu {
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
+                // pthread_create() turned threading on: hand over to the scheduler.
+                if self.scheduler_active() {
+                    return self.run_multi_threaded_aarch64(end_addr);
+                }
+                // No other thread can run here (a forked child, or a host-driven
+                // callback), so a thread parked on a lock or join is deadlocked.
+                if self.threads[self.current_thread_id].is_waiting_on_sync() {
+                    return Err(MwemuError::new(&format!(
+                        "deadlock: thread 0x{:x} is waiting with no other thread able to run",
+                        self.threads[self.current_thread_id].id
+                    )));
+                }
                 let pc = self.pc();
 
                 // Outer-loop limit checks: must run BEFORE attempting to fetch code,
@@ -122,10 +134,8 @@ impl Emu {
                     self.instruction_count += 1;
 
                     // --- Limits ---
-                    if has_runtime_limits {
-                        if let Some(limit_pc) = self.check_runtime_limits(addr) {
-                            return Ok(limit_pc);
-                        }
+                    if has_runtime_limits && let Some(limit_pc) = self.check_runtime_limits(addr) {
+                        return Ok(limit_pc);
                     }
 
                     // --- Verbose-at / verbose-range activation ---
@@ -208,8 +218,7 @@ impl Emu {
 
                     // --- Pre-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_pre_instruction.take() {
-                        let decoded =
-                            decoded.unwrap_or_else(|| DecodedInstruction::AArch64(aarch64_ins));
+                        let decoded = decoded.unwrap_or(DecodedInstruction::AArch64(aarch64_ins));
                         let hook_pc = self.pc();
                         let skip = !hook_fn(self, hook_pc, &decoded, sz);
                         self.hooks.hook_on_pre_instruction = Some(hook_fn);
@@ -220,7 +229,7 @@ impl Emu {
                     }
 
                     // --- Entropy ---
-                    if self.cfg.entropy && self.pos % 10000 == 0 {
+                    if self.cfg.entropy && self.pos.is_multiple_of(10000) {
                         self.update_entropy();
                     }
 
@@ -228,8 +237,7 @@ impl Emu {
                     // Use `show_instruction` so the line gets the same color
                     // as the post-mortem dump and the x86 path.
                     if self.cfg.verbose >= 2 {
-                        let decoded =
-                            decoded.unwrap_or_else(|| DecodedInstruction::AArch64(aarch64_ins));
+                        let decoded = decoded.unwrap_or(DecodedInstruction::AArch64(aarch64_ins));
                         self.show_instruction(color!("Cyan"), &decoded);
                     }
 
@@ -246,8 +254,7 @@ impl Emu {
 
                     // --- Post-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_post_instruction.take() {
-                        let decoded =
-                            decoded.unwrap_or_else(|| DecodedInstruction::AArch64(aarch64_ins));
+                        let decoded = decoded.unwrap_or(DecodedInstruction::AArch64(aarch64_ins));
                         let hook_pc = self.pc();
                         hook_fn(self, hook_pc, &decoded, sz, emulation_ok);
                         self.hooks.hook_on_post_instruction = Some(hook_fn);

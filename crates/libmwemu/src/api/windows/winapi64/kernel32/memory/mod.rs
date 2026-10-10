@@ -84,3 +84,23 @@ pub use virtual_protect_ex::*;
 #[path = "../write_process_memory.rs"]
 mod write_process_memory;
 pub use write_process_memory::*;
+
+#[path = "../global_alloc.rs"]
+mod global_alloc;
+pub use global_alloc::*;
+
+#[path = "../global_free.rs"]
+mod global_free;
+pub use global_free::*;
+
+#[path = "../global_lock.rs"]
+mod global_lock;
+pub use global_lock::*;
+
+#[path = "../global_unlock.rs"]
+mod global_unlock;
+pub use global_unlock::*;
+
+#[path = "../heap_size.rs"]
+mod heap_size;
+pub use heap_size::*;

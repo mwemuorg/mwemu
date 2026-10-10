@@ -300,6 +300,64 @@ impl Emu {
             peb32::update_ldr_entry_base(&exe_name, base as u64, self);
         }
 
+        // 5b. TLS callbacks — same as PE64 but with 32-bit addresses.
+        if set_entry {
+            let cbs = pe32.get_tls_callbacks(&raw, 0);
+            if !cbs.is_empty() {
+                let delta = (base as u64).wrapping_sub(pe32.opt.image_base as u64);
+                self.tls_callbacks = cbs.into_iter().map(|cb| cb.wrapping_add(delta)).collect();
+                log::trace!("PE32 has {} TLS callback(s)", self.tls_callbacks.len());
+            }
+        }
+
+        // 5c. Implicit TLS initialization (32-bit).
+        if set_entry && let Some(tls_dir) = pe32.get_tls_directory(&raw) {
+            let delta = base.wrapping_sub(pe32.opt.image_base);
+            let tls_index_va = tls_dir.tls_index.wrapping_add(delta) as u64;
+            self.maps.write_dword(tls_index_va, 0);
+            log::trace!("TLS: wrote _tls_index=0 at 0x{:x}", tls_index_va);
+
+            let data_start = tls_dir.tls_data_start.wrapping_add(delta) as u64;
+            let data_end = tls_dir.tls_data_end.wrapping_add(delta) as u64;
+            let template_sz = data_end.saturating_sub(data_start) as usize;
+            let total_sz = template_sz + tls_dir.zero_fill_size as usize;
+
+            if total_sz > 0
+                && let Some(tls_data_addr) = self.maps.alloc(total_sz.max(0x1000) as u64)
+            {
+                let _ = self.maps.create_map(
+                    ".tls_data",
+                    tls_data_addr,
+                    total_sz.max(0x1000) as u64,
+                    crate::maps::mem64::Permission::READ_WRITE,
+                );
+                if template_sz > 0 {
+                    self.maps.memcpy(tls_data_addr, data_start, template_sz);
+                }
+                // TEB+0x2C -> pointer array; array[0] -> tls data
+                if let Some(tls_ptrs_addr) = self.maps.alloc(0x1000) {
+                    let _ = self.maps.create_map(
+                        ".tls_ptrs",
+                        tls_ptrs_addr,
+                        0x1000,
+                        crate::maps::mem64::Permission::READ_WRITE,
+                    );
+                    self.maps.write_dword(tls_ptrs_addr, tls_data_addr as u32);
+                    if self.maps.exists_mapname("teb") {
+                        let teb_base = self.maps.get_mem("teb").get_base();
+                        self.maps.write_dword(teb_base + 0x2C, tls_ptrs_addr as u32);
+                        log::trace!(
+                            "TLS: TEB+0x2C=0x{:x} -> [0]=0x{:x} ({}+{} bytes)",
+                            tls_ptrs_addr,
+                            tls_data_addr,
+                            template_sz,
+                            tls_dir.zero_fill_size
+                        );
+                    }
+                }
+            }
+        }
+
         // 6. return values
         let pe_hdr_off = pe32.dos.e_lfanew;
         self.pe32 = Some(pe32);
@@ -462,8 +520,7 @@ impl Emu {
             if set_entry {
                 let preferred = pe64.opt.image_base;
                 let preferred_usable = if let Some(end) = preferred.checked_add(image_span) {
-                    preferred >= 0x10000
-                        && preferred < constants::LIBS64_MIN
+                    (0x10000..constants::LIBS64_MIN).contains(&preferred)
                         && end <= constants::LIBS64_MIN
                         && !self.maps.overlaps(preferred, image_span)
                 } else {
@@ -665,6 +722,56 @@ impl Emu {
                 let delta = base.wrapping_sub(pe64.opt.image_base);
                 self.tls_callbacks = cbs.into_iter().map(|cb| cb.wrapping_add(delta)).collect();
                 log::trace!("PE has {} TLS callback(s)", self.tls_callbacks.len());
+            }
+        }
+
+        // 5c. Implicit TLS initialization — write _tls_index, copy template
+        // data, and set up TEB.ThreadLocalStoragePointer so __declspec(thread)
+        // variables work (critical for MinGW CRT).
+        if set_entry && let Some(tls_dir) = pe64.get_tls_directory(&raw) {
+            let delta = base.wrapping_sub(pe64.opt.image_base);
+            let tls_index_va = tls_dir.tls_index.wrapping_add(delta);
+            self.maps.write_dword(tls_index_va, 0);
+            log::trace!("TLS: wrote _tls_index=0 at 0x{:x}", tls_index_va);
+
+            let data_start = tls_dir.tls_data_start.wrapping_add(delta);
+            let data_end = tls_dir.tls_data_end.wrapping_add(delta);
+            let template_sz = data_end.saturating_sub(data_start) as usize;
+            let total_sz = template_sz + tls_dir.zero_fill_size as usize;
+
+            if total_sz > 0
+                && let Some(tls_data_addr) = self.maps.alloc(total_sz.max(0x1000) as u64)
+            {
+                let _ = self.maps.create_map(
+                    ".tls_data",
+                    tls_data_addr,
+                    total_sz.max(0x1000) as u64,
+                    crate::maps::mem64::Permission::READ_WRITE,
+                );
+                if template_sz > 0 {
+                    self.maps.memcpy(tls_data_addr, data_start, template_sz);
+                }
+                // TEB+0x58 -> pointer array; array[0] -> tls data
+                if let Some(tls_ptrs_addr) = self.maps.alloc(0x1000) {
+                    let _ = self.maps.create_map(
+                        ".tls_ptrs",
+                        tls_ptrs_addr,
+                        0x1000,
+                        crate::maps::mem64::Permission::READ_WRITE,
+                    );
+                    self.maps.write_qword(tls_ptrs_addr, tls_data_addr);
+                    if self.maps.exists_mapname("teb") {
+                        let teb_base = self.maps.get_mem("teb").get_base();
+                        self.maps.write_qword(teb_base + 0x58, tls_ptrs_addr);
+                        log::trace!(
+                            "TLS: TEB+0x58=0x{:x} -> [0]=0x{:x} ({}+{} bytes)",
+                            tls_ptrs_addr,
+                            tls_data_addr,
+                            template_sz,
+                            tls_dir.zero_fill_size
+                        );
+                    }
+                }
             }
         }
 

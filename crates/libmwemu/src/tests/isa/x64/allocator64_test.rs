@@ -9,18 +9,18 @@ pub fn allocator64_test() {
     helpers::setup();
 
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     emu.init_win32(false, false);
 
-    assert_eq!(emu.maps.exists_mapname("notexist"), false);
-    assert_eq!(emu.maps.get_map_by_name("notexist").is_some(), false);
+    assert!(!emu.maps.exists_mapname("notexist"));
+    assert!(emu.maps.get_map_by_name("notexist").is_none());
 
     for _ in 0..500 {
-        assert_eq!(emu.maps.alloc(1024).is_some(), true);
-        assert_eq!(emu.maps.lib64_alloc(1024).is_some(), true);
+        assert!(emu.maps.alloc(1024).is_some());
+        assert!(emu.maps.lib64_alloc(1024).is_some());
     }
 
-    assert_eq!(emu.maps.mem_test(), true);
+    assert!(emu.maps.mem_test());
 
     emu.maps.clear();
 
@@ -30,7 +30,7 @@ pub fn allocator64_test() {
         winapi64::kernel32::VirtualAlloc,
         &[0, 1024, constants::MEM_RESERVE as u64, 0x40],
     );
-    assert_eq!(emu.maps.is_allocated(p), true);
+    assert!(emu.maps.is_allocated(p));
 
     helpers::call_winapi64(
         &mut emu,
@@ -50,15 +50,15 @@ pub fn allocator64_test() {
     );
     assert_eq!(committed, 0x30000000);
 
-    assert_eq!(emu.maps.is_allocated(0x30000000), true);
-    assert_eq!(emu.maps.mem_test(), true);
+    assert!(emu.maps.is_allocated(0x30000000));
+    assert!(emu.maps.mem_test());
 }
 
 #[test]
 fn virtual_alloc_zero_size_64() {
     helpers::setup();
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     emu.init_win32(false, false);
 
     let r = helpers::call_winapi64(
@@ -112,7 +112,7 @@ fn virtual_alloc_zero_size_64() {
 fn virtual_alloc_commit_unmapped_64() {
     helpers::setup();
     let mut emu = emu64();
-    emu.cfg.maps_folder = helpers::win64_maps_folder();
+    emu.cfg.maps_folder = win_maps!(64);
     emu.init_win32(false, false);
 
     // MEM_COMMIT at a fresh, never-mapped fixed address must fail.

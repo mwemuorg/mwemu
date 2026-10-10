@@ -68,8 +68,8 @@ fn macho64_hello_libc_load() {
 
     let printf_map = emu.maps.get_addr_name(printf_addr.0).unwrap_or("unmapped");
     assert!(
-        printf_map.contains("libSystem.B"),
-        "printf should resolve into libSystem.B, got map '{}' at 0x{:x} ({})",
+        printf_map.contains("libSystem.B") || printf_map.contains("libsystem_"),
+        "printf should resolve into libSystem.B or libsystem_*, got map '{}' at 0x{:x} ({})",
         printf_map,
         printf_addr.0,
         printf_addr.1
