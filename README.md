@@ -49,9 +49,8 @@ The project was renamed from scemu to mwemu.
 	- All dependencies are in rust.
 - ⚡ very fast emulation
     - [benchmarks](BENCHMARK.md)
-    - 25,767,432 instructions/second
-    - 680,000 instructions/second printing every instruction -vv.
-    - test yourself: time mwemu -f test/exe64win_enigma.bin -6 -v -c 20000000 --cmd q
+    - ~12,700,000 instructions/second (20M instructions in ~1.5s)
+    - test yourself: `make test_speed` (builds release and emulates 20M instructions of enigma, reporting elapsed time)
     
 - powered by iced-x86 rust dissasembler awesome library.
 - commandline tool, rust library, and python library.

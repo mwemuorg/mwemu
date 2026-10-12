@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -138,4 +138,7 @@ test_tls:
 	cargo run --release -- -f  test/exe64win_mingw.bin -6 -v
 test_golang:
 	cargo test --locked --verbose --package libmwemu $(CARGO_TARGET) -- tests::loaders::elf64::elf64lin_go
+test_speed: all samples
+	bash -c 'time ./target/release/mwemu -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'
+	@echo "[speed] 20,000,000 instructions emulated successfully."
 

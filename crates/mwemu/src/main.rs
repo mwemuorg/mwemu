@@ -395,9 +395,6 @@ fn main() -> process::ExitCode {
             .parse::<u64>()
             .expect("select a valid number to spawn console");
         emu.spawn_console_at(emu.cfg.console_num);
-        if emu.cfg.console_num > 25 {
-            emu.cfg.verbose_at = Some(emu.cfg.console_num - 25);
-        }
     }
     emu.cfg.loops = matches.is_present("loops");
     emu.cfg.nocolors = matches.is_present("nocolors");

@@ -62,6 +62,9 @@ impl Emu {
                         );
                     }
                     Console::spawn_console(self);
+                    if self.process_terminated {
+                        return Ok(pc);
+                    }
                     if self.force_break {
                         self.force_break = false;
                         break;
@@ -155,6 +158,9 @@ impl Emu {
                 return Ok(0);
             }
 
+            if self.process_terminated {
+                return Ok(self.pc());
+            }
             self.is_running.store(1, atomic::Ordering::Relaxed);
             Console::spawn_console(self);
         }
