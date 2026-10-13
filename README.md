@@ -18,9 +18,7 @@ It's a hardware emulator + OS process simulator implemented in pure rust.
 
 This approach is very convenient to malware analysis and other stuff (PE, shellcode etc)
 
-The OS is mainly windows, it emulates a windows process, some very basic support for linux.
-
-The hardware is x86 32/64bits it's fast and reliable.
+Supports x86 32/64-bit and AArch64 architectures. The primary target OS is Windows (full process emulation with PEB/TEB/LDR, WinAPI and syscall interception), with growing support for Linux and macOS (syscalls, ELF/Mach-O loaders, libc shims).
 
 
 ![MWEMU Logo](./docs/pics/mwemu_logo.png)
