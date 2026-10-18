@@ -21,6 +21,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtQueryInformationProcess" => NtQueryInformationProcess(emu),
         "NtQuerySystemInformation" => NtQuerySystemInformation(emu),
         "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
+        "RtlEncodePointer" => RtlEncodePointer(emu),
+        "RtlDecodePointer" => RtlDecodePointer(emu),
         _ => return false,
     }
     true
@@ -222,4 +224,16 @@ pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
     );
 
     emu.regs_mut().rax = constants::STATUS_NOT_IMPLEMENTED;
+}
+
+fn RtlEncodePointer(emu: &mut emu::Emu) {
+    let ptr = emu.regs().rcx;
+    log_red!(emu, "ntdll!RtlEncodePointer 0x{:x}", ptr);
+    emu.regs_mut().rax = ptr;
+}
+
+fn RtlDecodePointer(emu: &mut emu::Emu) {
+    let ptr = emu.regs().rcx;
+    log_red!(emu, "ntdll!RtlDecodePointer 0x{:x}", ptr);
+    emu.regs_mut().rax = ptr;
 }

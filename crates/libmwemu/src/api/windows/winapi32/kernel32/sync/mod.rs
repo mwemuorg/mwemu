@@ -149,3 +149,39 @@ pub use unregister_wait_until_oobe_completed::*;
 #[path = "../wait_named_pipe_a.rs"]
 mod wait_named_pipe_a;
 pub use wait_named_pipe_a::*;
+
+#[path = "../initialize_srw_lock.rs"]
+mod initialize_srw_lock;
+pub use initialize_srw_lock::*;
+
+#[path = "../acquire_srw_lock_exclusive.rs"]
+mod acquire_srw_lock_exclusive;
+pub use acquire_srw_lock_exclusive::*;
+
+#[path = "../acquire_srw_lock_shared.rs"]
+mod acquire_srw_lock_shared;
+pub use acquire_srw_lock_shared::*;
+
+#[path = "../release_srw_lock_exclusive.rs"]
+mod release_srw_lock_exclusive;
+pub use release_srw_lock_exclusive::*;
+
+#[path = "../release_srw_lock_shared.rs"]
+mod release_srw_lock_shared;
+pub use release_srw_lock_shared::*;
+
+#[path = "../try_acquire_srw_lock_exclusive.rs"]
+mod try_acquire_srw_lock_exclusive;
+pub use try_acquire_srw_lock_exclusive::*;
+
+#[path = "../try_acquire_srw_lock_shared.rs"]
+mod try_acquire_srw_lock_shared;
+pub use try_acquire_srw_lock_shared::*;
+
+#[path = "../reset_event.rs"]
+mod reset_event;
+pub use reset_event::*;
+
+#[path = "../wait_for_multiple_objects.rs"]
+mod wait_for_multiple_objects;
+pub use wait_for_multiple_objects::*;

@@ -23,6 +23,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "HttpSendRequestW" => request::http_send_request_w(emu),
         "InternetReadFile" => teardown::internet_read_file(emu),
         "InternetErrorDlg" => teardown::internet_error_dlg(emu),
+        "InternetReadFileExA" => teardown::internet_read_file_ex_a(emu),
+        "InternetReadFileExW" => teardown::internet_read_file_ex_w(emu),
         "HttpQueryInfoA" => request::http_query_info_a(emu),
         "InternetCloseHandle" => teardown::internet_close_handle(emu),
         "InternetCrackUrlA" => url::internet_crack_url_a(emu),

@@ -1,5 +1,6 @@
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
+use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -8,6 +9,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlFreeHeap" => RtlFreeHeap(emu),
         "RtlAllocateHeap" => RtlAllocateHeap(emu),
         "RtlReAllocateHeap" => RtlReAllocateHeap(emu),
+        "RtlFreeAnsiString" => RtlFreeAnsiString(emu),
         _ => return false,
     }
     true
@@ -189,4 +191,10 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     }
 
     emu.regs_mut().rax = new_addr;
+}
+
+fn RtlFreeAnsiString(emu: &mut emu::Emu) {
+    let ptr = arg(emu, 0);
+    log_red!(emu, "ntdll!RtlFreeAnsiString 0x{:x}", ptr);
+    stdcall_ret(emu, 1);
 }

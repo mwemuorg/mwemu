@@ -1,6 +1,8 @@
 mod allocator64_test;
 mod call64;
 mod exception_handler64;
+mod exception_pdata64;
+mod exception_veh_list;
 mod linux_call64;
 mod mem64_test;
 mod memmove_test;

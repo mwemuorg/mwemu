@@ -1,17 +1,17 @@
 use crate::emu;
 
 pub fn AddVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let p1 = emu.regs().rcx as usize;
-    let fptr = emu.regs().rdx as usize;
+    let first = emu.regs().rcx;
+    let fptr = emu.regs().rdx;
 
     log_red!(
         emu,
-        "kernel32!AddVectoredExceptionHandler  {} callback: 0x{:x}",
-        p1,
+        "kernel32!AddVectoredExceptionHandler  first={} callback: 0x{:x}",
+        first,
         fptr
     );
 
-    emu.set_veh(fptr as u64);
+    emu.add_veh(first != 0, fptr);
 
     emu.regs_mut().rax = 0x2c2878;
 }

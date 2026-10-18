@@ -104,3 +104,19 @@ pub use heap32_list_next::*;
 #[path = "../heap32_next.rs"]
 mod heap32_next;
 pub use heap32_next::*;
+
+#[path = "../global_alloc.rs"]
+mod global_alloc;
+pub use global_alloc::*;
+
+#[path = "../global_free.rs"]
+mod global_free;
+pub use global_free::*;
+
+#[path = "../heap_size.rs"]
+mod heap_size;
+pub use heap_size::*;
+
+#[path = "../local_free.rs"]
+mod local_free;
+pub use local_free::*;

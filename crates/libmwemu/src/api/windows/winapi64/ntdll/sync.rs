@@ -91,33 +91,33 @@ fn NtWaitForSingleObject(emu: &mut emu::Emu) {
 }
 
 fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let p1 = emu.regs().rcx;
+    let first = emu.regs().rcx;
     let fptr = emu.regs().rdx;
 
     log_red!(
         emu,
-        "ntdll!RtlAddVectoredExceptionHandler  {} callback: 0x{:x}",
-        p1,
+        "ntdll!RtlAddVectoredExceptionHandler  first={} callback: 0x{:x}",
+        first,
         fptr
     );
 
-    emu.set_veh(fptr);
+    emu.add_veh(first != 0, fptr);
     emu.regs_mut().rax = 0x2c2878;
 }
 
 fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let p1 = emu.regs().rcx;
+    let handle = emu.regs().rcx;
     let fptr = emu.regs().rdx;
 
     log_red!(
         emu,
-        "ntdll!RtlRemoveVectoredExceptionHandler  {} callback: 0x{:x}",
-        p1,
+        "ntdll!RtlRemoveVectoredExceptionHandler  handle=0x{:x} callback: 0x{:x}",
+        handle,
         fptr
     );
 
-    emu.set_veh(0);
-    emu.regs_mut().rax = 0;
+    emu.remove_veh(fptr);
+    emu.regs_mut().rax = 1;
 }
 
 pub fn NtDelayExecution(emu: &mut emu::Emu) {

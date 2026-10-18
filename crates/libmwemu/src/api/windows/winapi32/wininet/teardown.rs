@@ -71,3 +71,30 @@ pub(super) fn internet_close_handle(emu: &mut emu::Emu) {
     pop_stack32(emu, 1);
     emu.regs_mut().rax = 1;
 }
+
+pub(super) fn internet_read_file_ex_a(emu: &mut emu::Emu) {
+    let file_hndl =
+        read_stack_dword(emu, 0, "wininet!InternetReadFileExA cannot read file_hndl") as u64;
+    let buffers_ptr =
+        read_stack_dword(emu, 4, "wininet!InternetReadFileExA cannot read buffers") as u64;
+    log_red!(
+        emu,
+        "wininet!InternetReadFileExA buffers: 0x{:x}",
+        buffers_ptr
+    );
+    if !helper::handler_exist(file_hndl) {
+        log::trace!("\tinvalid handle.");
+    }
+    // INTERNET_BUFFERS.dwBufferLength is at offset 12 (after dwStructSize,
+    // lpcszHeader, dwHeadersLength... layout differs, but reporting 0 bytes
+    // available keeps the caller's read loop terminating cleanly).
+    if buffers_ptr != 0 {
+        emu.maps.write_dword(buffers_ptr + 12, 0);
+    }
+    pop_stack32(emu, 4);
+    emu.regs_mut().rax = 1;
+}
+
+pub(super) fn internet_read_file_ex_w(emu: &mut emu::Emu) {
+    internet_read_file_ex_a(emu);
+}

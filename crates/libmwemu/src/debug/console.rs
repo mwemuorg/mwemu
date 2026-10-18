@@ -926,7 +926,14 @@ impl Console {
                     log::trace!("0x{:x}", emu.seh());
                 }
                 "veh" => {
-                    log::trace!("0x{:x}", emu.veh());
+                    let list = emu.veh_list();
+                    if list.is_empty() {
+                        log::trace!("no VEH handlers");
+                    } else {
+                        for (i, h) in list.iter().enumerate() {
+                            log::trace!("  [{}] 0x{:x}", i, h);
+                        }
+                    }
                 }
                 "ll" => {
                     con.print("ptr");

@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::{arg, stdcall_ret};
 //use crate::debug::console;
 //use crate::windows::constants;
 //use crate::context32;
@@ -21,6 +22,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "_initterm" => _initterm(emu),
         "_initterm_e" => _initterm_e(emu),
         "LocalAlloc" => LocalAlloc(emu),
+        "GetTokenInformation" => GetTokenInformation(emu),
+        "PathCombineA" => PathCombineA(emu),
+        "PathCombineW" => PathCombineW(emu),
+        "IsCharAlphaNumericA" => IsCharAlphaNumericA(emu),
 
         _ => {
             if !emu.cfg.skip_unimplemented {
@@ -161,4 +166,77 @@ fn LocalAlloc(emu: &mut emu::Emu) {
     // push a dummy handle for the global heap
     emu.stack_push32(0x0);
     kernel32::HeapAlloc(emu);
+}
+
+fn GetTokenInformation(emu: &mut emu::Emu) {
+    let token_information_class = arg(emu, 1);
+    log_red!(
+        emu,
+        "kernelbase!GetTokenInformation class: 0x{:x}",
+        token_information_class
+    );
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 5);
+}
+
+fn PathCombineA(emu: &mut emu::Emu) {
+    let dst = arg(emu, 0) as u64;
+    let dir = arg(emu, 1) as u64;
+    let file = arg(emu, 2) as u64;
+    let path1 = if dir != 0 {
+        emu.maps.read_string(dir)
+    } else {
+        String::new()
+    };
+    let path2 = if file != 0 {
+        emu.maps.read_string(file)
+    } else {
+        String::new()
+    };
+    log_red!(
+        emu,
+        "kernelbase!PathCombineA path1: {} path2: {}",
+        path1,
+        path2
+    );
+    if dst != 0 && !path1.is_empty() && !path2.is_empty() {
+        emu.maps.write_string(dst, &format!("{}\\{}", path1, path2));
+    }
+    emu.regs_mut().rax = dst;
+    stdcall_ret(emu, 3);
+}
+
+fn PathCombineW(emu: &mut emu::Emu) {
+    let dst = arg(emu, 0) as u64;
+    let dir = arg(emu, 1) as u64;
+    let file = arg(emu, 2) as u64;
+    let path1 = if dir != 0 {
+        emu.maps.read_wide_string(dir)
+    } else {
+        String::new()
+    };
+    let path2 = if file != 0 {
+        emu.maps.read_wide_string(file)
+    } else {
+        String::new()
+    };
+    log_red!(
+        emu,
+        "kernelbase!PathCombineW path1: {} path2: {}",
+        path1,
+        path2
+    );
+    if dst != 0 && !path1.is_empty() && !path2.is_empty() {
+        emu.maps
+            .write_wide_string(dst, &format!("{}\\{}", path1, path2));
+    }
+    emu.regs_mut().rax = dst;
+    stdcall_ret(emu, 3);
+}
+
+fn IsCharAlphaNumericA(emu: &mut emu::Emu) {
+    let c = arg(emu, 0) as u8 as char;
+    log_red!(emu, "kernelbase!IsCharAlphaNumericA char: {}", c);
+    emu.regs_mut().rax = c.is_ascii_alphanumeric() as u64;
+    stdcall_ret(emu, 1);
 }

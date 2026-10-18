@@ -221,3 +221,15 @@ pub use set_thread_affinity_mask::*;
 #[path = "../set_thread_execution_state.rs"]
 mod set_thread_execution_state;
 pub use set_thread_execution_state::*;
+
+#[path = "../exit_thread.rs"]
+mod exit_thread;
+pub use exit_thread::*;
+
+#[path = "../create_process_w.rs"]
+mod create_process_w;
+pub use create_process_w::*;
+
+#[path = "../process32_first.rs"]
+mod process32_first;
+pub use process32_first::*;

@@ -614,3 +614,112 @@ fn test_heap_handle_is_real_address_32() {
         "HeapDestroy with real-address handle must work"
     );
 }
+
+// ---- newly mirrored 32-bit APIs ----
+
+#[test]
+fn test_global_alloc_free_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    // GlobalAlloc(GMEM_ZEROINIT, 0x80)
+    let p = helpers::call_winapi32(&mut emu, winapi32::kernel32::GlobalAlloc, &[0x40, 0x80]) as u64;
+    assert!(
+        p != 0 && emu.maps.is_mapped(p),
+        "GlobalAlloc returned an unmapped pointer"
+    );
+    assert_eq!(
+        emu.maps.read_dword(p).unwrap(),
+        0,
+        "GMEM_ZEROINIT not honoured"
+    );
+
+    // HeapSize(heap, 0, p) reports the managed size.
+    let sz = helpers::call_winapi32(&mut emu, winapi32::kernel32::HeapSize, &[0, 0, p as u32]);
+    assert!(sz >= 0x80, "HeapSize {} smaller than the request", sz);
+
+    let r = helpers::call_winapi32(&mut emu, winapi32::kernel32::GlobalFree, &[p as u32]);
+    assert_eq!(r, 0, "GlobalFree should return NULL on success");
+}
+
+#[test]
+fn test_lstrcmpiw_32() {
+    helpers::setup();
+    let mut emu = emu32();
+    let a = 0x40000u64;
+    let b = 0x40100u64;
+    emu.maps
+        .create_map("s", 0x40000, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_wide_string(a, "HELLO");
+    emu.maps.write_wide_string(b, "hello");
+
+    let eq = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::lstrcmpiW,
+        &[a as u32, b as u32],
+    ) as i32;
+    assert_eq!(
+        eq, 0,
+        "case-insensitive compare of HELLO/hello should be equal"
+    );
+
+    emu.maps.write_wide_string(b, "world");
+    let ne = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::lstrcmpiW,
+        &[a as u32, b as u32],
+    ) as i32;
+    assert!(ne < 0, "'hello' should sort before 'world'");
+}
+
+#[test]
+fn test_get_locale_info_a_32() {
+    helpers::setup();
+    let mut emu = emu32();
+    let buf = 0x40000u64;
+    emu.maps
+        .create_map("lc", 0x40000, 0x1000, Permission::READ_WRITE);
+
+    // LOCALE_SMONTHNAME1 (0x38) is "January".
+    let n = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetLocaleInfoA,
+        &[0x400, 0x38, buf as u32, 0x100],
+    );
+    assert_eq!(n, "January".len() as u32 + 1, "GetLocaleInfoA wrong length");
+    assert_eq!(emu.maps.read_string(buf), "January");
+}
+
+#[test]
+fn test_reg_open_query_32() {
+    helpers::setup();
+    let mut emu = emu32();
+    let subkey = 0x40000u64;
+    let hkey_out = 0x40100u64;
+    let data = 0x40200u64;
+    let data_sz = 0x40300u64;
+    emu.maps
+        .create_map("reg", 0x40000, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(subkey, "Software\\Microsoft");
+    emu.maps.write_dword(data_sz, 0x40);
+
+    // RegOpenKeyExA(HKLM, subkey, 0, KEY_READ, &hkey)
+    let r = helpers::call_winapi32(
+        &mut emu,
+        winapi32::advapi32::RegOpenKeyExA,
+        &[0x80000002, subkey as u32, 0, 0x20019, hkey_out as u32],
+    );
+    assert_eq!(r, 0, "RegOpenKeyExA should return ERROR_SUCCESS");
+    assert!(
+        emu.maps.read_dword(hkey_out).unwrap() != 0,
+        "no key handle written"
+    );
+
+    // RegQueryValueExA fills a type and a terminated value.
+    let r = helpers::call_winapi32(
+        &mut emu,
+        winapi32::advapi32::RegQueryValueExA,
+        &[0x1234, 0, 0, 0, data as u32, data_sz as u32],
+    );
+    assert_eq!(r, 0, "RegQueryValueExA should return ERROR_SUCCESS");
+}

@@ -337,3 +337,27 @@ pub use update_calendar_day_of_week::*;
 #[path = "../verify_version_info_a.rs"]
 mod verify_version_info_a;
 pub use verify_version_info_a::*;
+
+#[path = "../get_version_ex_a.rs"]
+mod get_version_ex_a;
+pub use get_version_ex_a::*;
+
+#[path = "../system_time_to_file_time.rs"]
+mod system_time_to_file_time;
+pub use system_time_to_file_time::*;
+
+#[path = "../set_environment_variable_a.rs"]
+mod set_environment_variable_a;
+pub use set_environment_variable_a::*;
+
+#[path = "../set_environment_variable_w.rs"]
+mod set_environment_variable_w;
+pub use set_environment_variable_w::*;
+
+#[path = "../get_environment_variable_w.rs"]
+mod get_environment_variable_w;
+pub use get_environment_variable_w::*;
+
+#[path = "../get_module_handle_ex_w.rs"]
+mod get_module_handle_ex_w;
+pub use get_module_handle_ex_w::*;

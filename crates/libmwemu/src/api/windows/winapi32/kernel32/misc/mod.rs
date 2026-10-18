@@ -521,3 +521,35 @@ pub use unregister_application_recovery_callback::*;
 #[path = "../unregister_application_restart.rs"]
 mod unregister_application_restart;
 pub use unregister_application_restart::*;
+
+#[path = "../get_tick_count64.rs"]
+mod get_tick_count64;
+pub use get_tick_count64::*;
+
+#[path = "../query_performance_frequency.rs"]
+mod query_performance_frequency;
+pub use query_performance_frequency::*;
+
+#[path = "../is_wow64_process.rs"]
+mod is_wow64_process;
+pub use is_wow64_process::*;
+
+#[path = "../output_debug_string_a.rs"]
+mod output_debug_string_a;
+pub use output_debug_string_a::*;
+
+#[path = "../output_debug_string_w.rs"]
+mod output_debug_string_w;
+pub use output_debug_string_w::*;
+
+#[path = "../format_message_a.rs"]
+mod format_message_a;
+pub use format_message_a::*;
+
+#[path = "../format_message_w.rs"]
+mod format_message_w;
+pub use format_message_w::*;
+
+#[path = "../duplicate_handle.rs"]
+mod duplicate_handle;
+pub use duplicate_handle::*;

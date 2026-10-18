@@ -209,3 +209,43 @@ pub use write_profile_string_a::*;
 #[path = "../write_profile_string_w.rs"]
 mod write_profile_string_w;
 pub use write_profile_string_w::*;
+
+#[path = "../lstrlen_w.rs"]
+mod lstrlen_w;
+pub use lstrlen_w::*;
+
+#[path = "../lstrcpy_w.rs"]
+mod lstrcpy_w;
+pub use lstrcpy_w::*;
+
+#[path = "../lstrcpyn.rs"]
+mod lstrcpyn;
+pub use lstrcpyn::*;
+
+#[path = "../lstrcat_w.rs"]
+mod lstrcat_w;
+pub use lstrcat_w::*;
+
+#[path = "../lstrcmpi_w.rs"]
+mod lstrcmpi_w;
+pub use lstrcmpi_w::*;
+
+#[path = "../compare_string_w.rs"]
+mod compare_string_w;
+pub use compare_string_w::*;
+
+#[path = "../get_locale_info_a.rs"]
+mod get_locale_info_a;
+pub use get_locale_info_a::*;
+
+#[path = "../get_locale_info_w.rs"]
+mod get_locale_info_w;
+pub use get_locale_info_w::*;
+
+#[path = "../get_user_default_lcid.rs"]
+mod get_user_default_lcid;
+pub use get_user_default_lcid::*;
+
+#[path = "../get_thread_locale.rs"]
+mod get_thread_locale;
+pub use get_thread_locale::*;

@@ -1,5 +1,6 @@
 use crate::api::windows::common::ntdll;
 use crate::emu;
+use crate::winapi::winapi32::{arg, stdcall_ret};
 use scan_fmt::scan_fmt_some;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -8,6 +9,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "strlen" => strlen(emu),
         "strcat" => strcat(emu),
         "sscanf" => sscanf(emu),
+        "RtlInitAnsiString" => RtlInitAnsiString(emu),
         _ => return false,
     }
     true
@@ -90,4 +92,22 @@ fn sscanf(emu: &mut emu::Emu) {
     let _params = scan_fmt_some!(b, &rust_fmt, i32);
 
     unimplemented!("sscanf is unimplemented for now.");
+}
+
+fn RtlInitAnsiString(emu: &mut emu::Emu) {
+    let dest_ptr = arg(emu, 0) as u64;
+    let source_ptr = arg(emu, 1) as u64;
+    // ANSI_STRING32: u16 Length, u16 MaximumLength, u32 Buffer
+    if source_ptr == 0 {
+        emu.maps.write_qword(dest_ptr, 0);
+        log_red!(emu, "ntdll!RtlInitAnsiString (null source)");
+    } else {
+        let s = emu.maps.read_string(source_ptr);
+        let length = s.len() as u16;
+        emu.maps.write_word(dest_ptr, length);
+        emu.maps.write_word(dest_ptr + 2, length.saturating_add(1));
+        emu.maps.write_dword(dest_ptr + 4, source_ptr as u32);
+        log_red!(emu, "ntdll!RtlInitAnsiString `{}` len: {}", s, length);
+    }
+    stdcall_ret(emu, 2);
 }

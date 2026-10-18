@@ -18,7 +18,18 @@ all:
 
 # Full local run: fetch the sample bundle and the Windows DLLs, then run the
 # default CI packages.
-tests: samples symbols
+# Only Windows provisions the Windows DLLs (and only Windows runs the
+# DLL-backed tests). On Linux/macOS those tests skip themselves via the
+# `win_maps!` macro, so `make tests` there never touches Microsoft's symbol
+# server. Run `make symbols` by hand to fetch the DLLs on Linux/macOS and
+# exercise the Windows-emulation tests locally.
+ifeq ($(OS),Windows_NT)
+TESTS_SYMBOLS := symbols
+else
+TESTS_SYMBOLS :=
+endif
+
+tests: samples $(TESTS_SYMBOLS)
 	cargo build --locked $(CI_PACKAGES) $(CARGO_TARGET)
 	cargo test --locked --verbose $(CI_PACKAGES) $(CARGO_TARGET)
 

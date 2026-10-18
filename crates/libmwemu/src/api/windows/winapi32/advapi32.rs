@@ -2,6 +2,7 @@ use crate::emu;
 use crate::serialization;
 use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
+use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants::*;
 use md5;
 
@@ -27,6 +28,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptHashData" => CryptHashData(emu),
         "CryptDeriveKey" => CryptDeriveKey(emu),
 
+        "RegOpenKeyExA" => RegOpenKeyExA(emu),
+        "RegQueryValueExA" => RegQueryValueExA(emu),
+        "RegQueryValueExW" => RegQueryValueExW(emu),
+        "GetUserNameA" => GetUserNameA(emu),
+        "GetUserNameW" => GetUserNameW(emu),
+        "CryptGenRandom" => CryptGenRandom(emu),
+        "AdjustTokenPrivileges" => AdjustTokenPrivileges(emu),
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -636,4 +644,133 @@ fn CryptDeriveKey(emu: &mut emu::Emu) {
         emu.stack_pop32(false);
     }
     emu.regs_mut().rax = 1;
+}
+
+pub fn RegOpenKeyExA(emu: &mut emu::Emu) {
+    let subkey = emu.maps.read_string(arg(emu, 1) as u64);
+    let result_ptr = arg(emu, 4) as u64;
+    log_red!(emu, "advapi32!RegOpenKeyExA {}", subkey);
+    if result_ptr != 0 {
+        let hndl = helper::handler_create(&format!("registry://{}", subkey));
+        emu.maps.write_dword(result_ptr, hndl as u32);
+    }
+    emu.regs_mut().rax = ERROR_SUCCESS;
+    stdcall_ret(emu, 5);
+}
+pub fn RegQueryValueExA(emu: &mut emu::Emu) {
+    let value_ptr = arg(emu, 1) as u64;
+    let type_ptr = arg(emu, 3) as u64;
+    let data_ptr = arg(emu, 4) as u64;
+    let data_size_ptr = arg(emu, 5) as u64;
+    let value = if value_ptr != 0 {
+        emu.maps.read_string(value_ptr)
+    } else {
+        String::new()
+    };
+    log_red!(emu, "advapi32!RegQueryValueExA `{}`", value);
+    if type_ptr != 0 {
+        emu.maps.write_dword(type_ptr, 1); // REG_SZ
+    }
+    // The registry is not modelled: hand back a well-formed empty value.
+    if data_ptr != 0 {
+        emu.maps.write_string(data_ptr, "");
+    }
+    if data_size_ptr != 0 {
+        emu.maps.write_dword(data_size_ptr, 1);
+    }
+    emu.regs_mut().rax = ERROR_SUCCESS;
+    stdcall_ret(emu, 6);
+}
+fn RegQueryValueExW(emu: &mut emu::Emu) {
+    let value_ptr = arg(emu, 1) as u64;
+    let type_ptr = arg(emu, 3) as u64;
+    let data_ptr = arg(emu, 4) as u64;
+    let data_size_ptr = arg(emu, 5) as u64;
+    let value = if value_ptr != 0 {
+        emu.maps.read_wide_string(value_ptr)
+    } else {
+        String::new()
+    };
+    log_red!(emu, "advapi32!RegQueryValueExW `{}`", value);
+    if type_ptr != 0 {
+        emu.maps.write_dword(type_ptr, 1); // REG_SZ
+    }
+    // The registry is not modelled: hand back a well-formed empty value.
+    if data_ptr != 0 {
+        emu.maps.write_wide_string(data_ptr, "");
+    }
+    if data_size_ptr != 0 {
+        emu.maps.write_dword(data_size_ptr, 2);
+    }
+    emu.regs_mut().rax = ERROR_SUCCESS;
+    stdcall_ret(emu, 6);
+}
+fn GetUserNameA(emu: &mut emu::Emu) {
+    let buf = arg(emu, 0) as u64;
+    let size_ptr = arg(emu, 1) as u64;
+    let user = emu.cfg.user_name.clone();
+    let required = user.chars().count() as u32 + 1;
+    let provided = emu.maps.read_dword(size_ptr).unwrap_or(0);
+    log_red!(
+        emu,
+        "advapi32!GetUserNameA '{}' buf size: {}",
+        user,
+        provided
+    );
+    if size_ptr != 0 {
+        emu.maps.write_dword(size_ptr, required);
+    }
+    if buf == 0 || size_ptr == 0 || provided < required {
+        emu.regs_mut().rax = 0;
+    } else {
+        emu.maps.write_string(buf, &user);
+        emu.regs_mut().rax = 1;
+    }
+    stdcall_ret(emu, 2);
+}
+fn GetUserNameW(emu: &mut emu::Emu) {
+    let buf = arg(emu, 0) as u64;
+    let size_ptr = arg(emu, 1) as u64;
+    let user = emu.cfg.user_name.clone();
+    let required = user.chars().count() as u32 + 1;
+    let provided = emu.maps.read_dword(size_ptr).unwrap_or(0);
+    log_red!(
+        emu,
+        "advapi32!GetUserNameW '{}' buf size: {}",
+        user,
+        provided
+    );
+    if size_ptr != 0 {
+        emu.maps.write_dword(size_ptr, required);
+    }
+    if buf == 0 || size_ptr == 0 || provided < required {
+        emu.regs_mut().rax = 0;
+    } else {
+        emu.maps.write_wide_string(buf, &user);
+        emu.regs_mut().rax = 1;
+    }
+    stdcall_ret(emu, 2);
+}
+fn CryptGenRandom(emu: &mut emu::Emu) {
+    let len = arg(emu, 1) as u64;
+    let buf = arg(emu, 2) as u64;
+    log_red!(emu, "advapi32!CryptGenRandom len={} buf=0x{:x}", len, buf);
+    let tick = emu.tick as u8;
+    for i in 0..len {
+        emu.maps.write_byte(buf + i, tick.wrapping_add(i as u8));
+    }
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 3);
+}
+fn AdjustTokenPrivileges(emu: &mut emu::Emu) {
+    let token = arg(emu, 0);
+    let disable_all = arg(emu, 1);
+    log_red!(
+        emu,
+        "advapi32!AdjustTokenPrivileges token=0x{:x} disableAll={}",
+        token,
+        disable_all
+    );
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 6);
 }

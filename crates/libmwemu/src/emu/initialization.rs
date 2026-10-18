@@ -1,12 +1,11 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::io::IsTerminal;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
-use atty::Stream;
 use csv::ReaderBuilder;
-use std::collections::BTreeSet;
 
 use crate::emu::{Emu, InstructionState};
 use crate::maps::mem64::Permission;
@@ -328,7 +327,7 @@ impl Emu {
     pub fn init_win32(&mut self, clear_registers: bool, clear_flags: bool) {
         self.pos = 0;
 
-        if !atty::is(Stream::Stdout) {
+        if !std::io::stdout().is_terminal() {
             self.cfg.nocolors = true;
             self.colors.disable();
             // Auto-disable the interactive console only when the user did NOT
@@ -795,12 +794,22 @@ impl Emu {
 
         self.regs_mut().rbp = 0;
 
-        self.fs_mut().insert(0xffffffffffffffc8, 0); //0x4b6c50
-        self.fs_mut().insert(0xffffffffffffffd0, 0);
-        self.fs_mut().insert(0xffffffffffffffd8, 0x4b27a0);
-        self.fs_mut().insert(0xffffffffffffffa0, 0x4b3980);
-        self.fs_mut().insert(0x18, 0);
-        self.fs_mut().insert(40, 0x4b27a0);
+        // Linux x86-64 TCB (Thread Control Block): allocate a real memory
+        // region and point FS at it so `fs:[offset]` reads hit mapped memory
+        // instead of the legacy hashmap fallback. The glibc TCB layout has:
+        //   +0x00  tcbhead_t.tcb        (self pointer)
+        //   +0x08  tcbhead_t.dtv
+        //   +0x10  tcbhead_t.self       (self pointer, used by __tls_get_addr)
+        //   +0x28  tcbhead_t.stack_guard (stack canary)
+        let tcb_addr: u64 = 0x7ffff9000000;
+        let tcb_size: u64 = 0x1000;
+        self.maps
+            .create_map("linux_tcb", tcb_addr, tcb_size, Permission::READ_WRITE)
+            .expect("cannot create linux_tcb map");
+        self.maps.write_qword(tcb_addr, tcb_addr); // +0x00: self pointer
+        self.maps.write_qword(tcb_addr + 0x10, tcb_addr); // +0x10: self pointer
+        self.maps.write_qword(tcb_addr + 0x28, 0xdeadbeefcafebabe); // +0x28: stack canary
+        self.regs_mut().fs = tcb_addr;
     }
 
     /// This is called from init(), this setup the 32bits windows memory simulation.

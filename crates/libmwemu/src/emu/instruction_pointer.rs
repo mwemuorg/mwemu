@@ -151,6 +151,13 @@ impl Emu {
                     self.force_break = true;
                     self.is_api_run = true;
                     true
+                } else if addr == 0 {
+                    log::trace!(
+                        "entry point returned to address 0x0 — treating as ExitProcess(rax=0x{:x})",
+                        self.regs().rax,
+                    );
+                    self.stop();
+                    true
                 } else {
                     log::error!(
                         "/!\\ set_rip setting rip to non mapped addr 0x{:x} {}",
@@ -413,6 +420,13 @@ impl Emu {
                     winapi32::gateway(addr as u32, "not_loaded", self);
                     self.force_break = true;
                     self.is_api_run = true;
+                    true
+                } else if addr == 0 {
+                    log::trace!(
+                        "entry point returned to address 0x0 — treating as ExitProcess(eax=0x{:x})",
+                        self.regs().get_eax(),
+                    );
+                    self.stop();
                     true
                 } else {
                     log::error!("/!\\ setting eip to non mapped addr 0x{:x}", addr);

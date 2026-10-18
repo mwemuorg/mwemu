@@ -186,8 +186,9 @@ jobs:
         run: echo "cache-hit=${{ steps.rust-cache.outputs.cache-hit }}"
 
       # No Windows DLL download here: Microsoft's symbol server throttles CI
-      # runners. Tests needing the DLLs skip via `win_maps!`; run them locally
-      # with `make tests` (which runs `make symbols` first).
+      # runners. Tests needing the DLLs skip via `win_maps!`. To run them
+      # locally fetch the DLLs first with `make symbols` (on Windows `make
+      # tests` does that automatically; on Linux/macOS it never does).
       # Each runner only runs tests relevant to its platform.
       - name: Test
         run: >-

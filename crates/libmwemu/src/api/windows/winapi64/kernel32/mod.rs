@@ -70,8 +70,28 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "DisconnectNamedPipe" => DisconnectNamedPipe(emu),
         "EncodePointer" => EncodePointer(emu),
         "EnterCriticalSection" => EnterCriticalSection(emu),
+        "EtwEventEnabled" | "EventEnabled" => {
+            log_red!(emu, "kernel32!EtwEventEnabled (stub)");
+            emu.regs_mut().rax = 0;
+        }
+        "EtwEventRegister" | "EventRegister" => {
+            log_red!(emu, "kernel32!EtwEventRegister (stub)");
+            emu.regs_mut().rax = 0;
+        }
+        "EtwEventSetInformation" | "EventSetInformation" => {
+            log_red!(emu, "kernel32!EtwEventSetInformation (stub)");
+            emu.regs_mut().rax = 0;
+        }
+        "EtwEventWriteTransfer" | "EventWriteTransfer" => {
+            log_red!(emu, "kernel32!EtwEventWriteTransfer (stub)");
+            emu.regs_mut().rax = 0;
+        }
         "ExitProcess" => ExitProcess(emu),
         "ExitThread" => ExitThread(emu),
+        "RtlExitUserProcess" => {
+            log_red!(emu, "ntdll!RtlExitUserProcess");
+            emu.stop();
+        }
         "ExpandEnvironmentStringsA" => ExpandEnvironmentStringsA(emu),
         "ExpandEnvironmentStringsW" => ExpandEnvironmentStringsW(emu),
         "FileTimeToSystemTime" => FileTimeToSystemTime(emu),
@@ -108,6 +128,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetCurrentThread" => GetCurrentThread(emu),
         "GetCurrentThreadId" => GetCurrentThreadId(emu),
         "GetEnvironmentStringsW" => GetEnvironmentStringsW(emu),
+        "FreeEnvironmentStringsA" => FreeEnvironmentStrings(emu),
+        "FreeEnvironmentStringsW" => FreeEnvironmentStrings(emu),
         "GetEnvironmentVariableW" => GetEnvironmentVariableW(emu),
         "GetFileAttributesA" => GetFileAttributesA(emu),
         "GetFileAttributesW" => GetFileAttributesW(emu),
@@ -124,6 +146,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetModuleFileNameA" => GetModuleFileNameA(emu),
         "GetModuleFileNameW" => GetModuleFileNameW(emu),
         "GetModuleHandleA" => GetModuleHandleA(emu),
+        "GetModuleHandleExW" => GetModuleHandleExW(emu),
         "GetModuleHandleW" => GetModuleHandleW(emu),
         "GetNativeSystemInfo" => GetNativeSystemInfo(emu),
         "GetProcAddress" => GetProcAddress(emu),

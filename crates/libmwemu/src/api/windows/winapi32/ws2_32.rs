@@ -1,4 +1,7 @@
 use crate::emu;
+use crate::maps::mem64::Permission;
+use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::windows::structures::Hostent;
 //use crate::endpoint;
 use crate::serialization;
 use crate::winapi::helper;
@@ -36,6 +39,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         0x7748cba6 => WsaRecvFrom(emu),
         0x7748cc3f => WsaConnect(emu),
         */
+        "gethostbyname" => gethostbyname(emu),
+        "sendto" => sendto(emu),
+        "recvfrom" => recvfrom(emu),
+        "WsaConnect" => WsaConnect(emu),
+        "WsaRecv" => WsaRecv(emu),
+        "WsaRecvFrom" => WsaRecvFrom(emu),
+        "GetSockName" => GetSockName(emu),
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -717,4 +727,100 @@ fn WsaAccept(emu: &mut emu::Emu) {
     } else {
         emu.regs_mut().rax = 0;
     }
+}
+
+fn gethostbyname(emu: &mut emu::Emu) {
+    let name = emu.maps.read_string(arg(emu, 0) as u64);
+    log_red!(emu, "ws2_32!gethostbyname `{}`", name);
+    // One block holds the hostent, the address and the name string; the
+    // resolved address is a fixed 1.2.3.4 so callers get a well-formed result.
+    let block = emu.maps.alloc(1024).expect("low memory");
+    emu.maps
+        .create_map("hostent", block, 1024, Permission::READ_WRITE)
+        .expect("cannot create hostent map");
+    let name_addr = block + 1024 - 100;
+    emu.maps.write_dword(block, 0x04030201); // the IP
+    emu.maps.write_dword(block + 8, block as u32); // addr_list[0]
+    emu.maps.write_dword(block + 12, 0); // addr_list NULL terminator
+    emu.maps.write_string(name_addr, &name);
+    // 32-bit hostent: h_name, h_aliases, h_addrtype, h_length, h_addr_list
+    let hostent = block + 30;
+    emu.maps.write_dword(hostent, name_addr as u32);
+    emu.maps.write_dword(hostent + 4, 0);
+    emu.maps.write_word(hostent + 8, 2); // AF_INET
+    emu.maps.write_word(hostent + 10, 4);
+    emu.maps.write_dword(hostent + 12, (block + 8) as u32);
+    let _ = Hostent::size();
+    emu.regs_mut().rax = hostent;
+    stdcall_ret(emu, 1);
+}
+fn GetSockName(emu: &mut emu::Emu) {
+    let sock = arg(emu, 0);
+    let sockaddr_ptr = arg(emu, 1) as u64;
+    let namelen_ptr = arg(emu, 2) as u64;
+    log_red!(emu, "ws2_32!GetSockName sock: {}", sock);
+    if sockaddr_ptr != 0 {
+        emu.maps.write_dword(sockaddr_ptr, 0);
+    }
+    if namelen_ptr != 0 {
+        emu.maps.write_dword(namelen_ptr, 16); // sizeof(sockaddr_in)
+    }
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 3);
+}
+fn sendto(emu: &mut emu::Emu) {
+    let sock = arg(emu, 0);
+    let len = arg(emu, 2);
+    log_red!(emu, "ws2_32!sendto sock: {} len: {}", sock, len);
+    if !helper::socket_exist(sock as u64) {
+        log::trace!("\tinvalid socket.");
+    }
+    emu.regs_mut().rax = len as u64; // bytes sent
+    stdcall_ret(emu, 6);
+}
+fn recvfrom(emu: &mut emu::Emu) {
+    let sock = arg(emu, 0);
+    let buff = arg(emu, 1) as u64;
+    let len = arg(emu, 2) as u64;
+    log_red!(
+        emu,
+        "ws2_32!recvfrom sock: {} buff: 0x{:x} len: {}",
+        sock,
+        buff,
+        len
+    );
+    if !helper::socket_exist(sock as u64) {
+        log::trace!("\tinvalid socket.");
+        emu.regs_mut().rax = 0xffff_ffff; // SOCKET_ERROR
+        return;
+    }
+    // No real peer: report an orderly connection close (0 bytes).
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 6);
+}
+fn WsaConnect(emu: &mut emu::Emu) {
+    let sock = arg(emu, 0);
+    log_red!(emu, "ws2_32!WSAConnect sock: {}", sock);
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 7);
+}
+fn WsaRecv(emu: &mut emu::Emu) {
+    let sock = arg(emu, 0);
+    let bytes_recv_ptr = arg(emu, 3) as u64;
+    log_red!(emu, "ws2_32!WSARecv sock: {}", sock);
+    if bytes_recv_ptr != 0 {
+        emu.maps.write_dword(bytes_recv_ptr, 0); // orderly close
+    }
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 7);
+}
+fn WsaRecvFrom(emu: &mut emu::Emu) {
+    let sock = arg(emu, 0);
+    let bytes_recv_ptr = arg(emu, 3) as u64;
+    log_red!(emu, "ws2_32!WSARecvFrom sock: {}", sock);
+    if bytes_recv_ptr != 0 {
+        emu.maps.write_dword(bytes_recv_ptr, 0);
+    }
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 9);
 }

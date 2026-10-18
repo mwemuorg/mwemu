@@ -1,27 +1,29 @@
 use crate::emu;
+use crate::winapi::winapi32::{arg, stdcall_ret};
 
-pub fn GetFileSize(emu: &mut emu::Emu) {
-    let file_handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!HeapAlloc cannot read the handle");
-    let lpFileSizeHigh = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!HeapAlloc cannot read the flags");
+/// BOOL GetFileSizeEx(HANDLE hFile, PLARGE_INTEGER lpFileSize)
+pub fn GetFileSizeEx(emu: &mut emu::Emu) {
+    let handle = arg(emu, 0);
+    let size_ptr = arg(emu, 1) as u64;
+
+    let size = emu
+        .handle_management
+        .get_mut_file_handle(handle)
+        .map(|f| f.file_size);
 
     log_red!(
         emu,
-        "** {} kernel32!GetFileSize file_handle: 0x{:x}",
-        emu.pos,
-        file_handle
+        "kernel32!GetFileSizeEx hndl: 0x{:x} ={:?}",
+        handle,
+        size
     );
 
-    let file_handle = emu
-        .handle_management
-        .get_mut_file_handle(file_handle)
-        .expect("Failed to get file handle");
-    let file_size = file_handle.file_size;
-    emu.regs_mut().set_eax(file_size);
-    emu.maps.write_qword(lpFileSizeHigh as u64, file_size);
+    match size {
+        Some(size) => {
+            emu.maps.write_qword(size_ptr, size);
+            emu.regs_mut().rax = 1;
+        }
+        None => emu.regs_mut().rax = 0,
+    }
+    stdcall_ret(emu, 2);
 }

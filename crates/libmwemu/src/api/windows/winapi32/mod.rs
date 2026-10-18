@@ -1,4 +1,5 @@
-mod advapi32;
+pub mod advapi32;
+mod bcrypt;
 mod crypt32;
 mod dnsapi;
 mod iphlpapi;
@@ -9,16 +10,33 @@ mod mscoree;
 mod msvcrt;
 pub mod ntdll;
 mod ntoskrnl;
+mod ole32;
 mod oleaut32;
 mod shell32;
 mod shlwapi;
 mod urlmon;
 mod user32;
 mod wincrt;
+mod winhttp;
 mod wininet;
 mod ws2_32;
 
 use crate::emu;
+
+/// The `i`-th (0-based) stdcall argument of the API being emulated. The
+/// gateway already consumed the return address, so arguments start at `esp`.
+pub(crate) fn arg(emu: &emu::Emu, i: u64) -> u32 {
+    emu.maps
+        .read_dword(emu.regs().get_esp() + i * 4)
+        .unwrap_or(0)
+}
+
+/// stdcall: the callee removes its `n` arguments from the stack.
+pub(crate) fn stdcall_ret(emu: &mut emu::Emu, n: u32) {
+    for _ in 0..n {
+        emu.stack_pop32(false);
+    }
+}
 
 pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
     emu.regs_mut().sanitize32();
@@ -30,6 +48,9 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
         "ws2_32.text" => ws2_32::gateway(addr, emu),
         "wininet.text" => wininet::gateway(addr, emu),
         "advapi32.text" => advapi32::gateway(addr, emu),
+        "bcrypt.text" => bcrypt::gateway(addr, emu),
+        "ole32.text" => ole32::gateway(addr, emu),
+        "winhttp.text" => winhttp::gateway(addr, emu),
         "crypt32.text" => crypt32::gateway(addr, emu),
         "dnsapi.text" => dnsapi::gateway(addr, emu),
         "mscoree.text" => mscoree::gateway(addr, emu),

@@ -1,6 +1,7 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::helper;
+use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -10,6 +11,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtReadFile" => NtReadFile(emu),
         "NtClose" => NtClose(emu),
         "RtlDosPathNameToNtPathName_U" => RtlDosPathNameToNtPathName_U(emu),
+        "NtSetInformationFile" => NtSetInformationFile(emu),
         _ => return false,
     }
     true
@@ -341,4 +343,19 @@ fn NtClose(emu: &mut emu::Emu) {
     } else {
         emu.regs_mut().rax = constants::STATUS_SUCCESS;
     }
+}
+
+fn NtSetInformationFile(emu: &mut emu::Emu) {
+    let handle = arg(emu, 0);
+    let length = arg(emu, 3);
+    let info_class = arg(emu, 4);
+    log_red!(
+        emu,
+        "ntdll!NtSetInformationFile handle: 0x{:x} info_class: {} length: {}",
+        handle,
+        info_class,
+        length
+    );
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    stdcall_ret(emu, 5);
 }

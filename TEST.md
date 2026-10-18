@@ -15,7 +15,7 @@ Fetch the test sample bundle (needed for steps 4, 5, 6):
 make samples
 ```
 
-Fetch the Windows DLLs the tests load (tests never download them; `make tests` runs this too):
+Fetch the Windows DLLs the tests load (tests never download them). On Windows `make tests` does this for you; on Linux/macOS run it by hand to exercise the Windows-emulation tests, otherwise they skip themselves without touching the symbol server:
 
 ```bash
 make symbols

@@ -622,6 +622,13 @@ impl Emu {
                     self.regs().rip,
                 );
             } else {
+                // msvcrt's DllMain normally initialises _wcmdln and _acmdln
+                // by calling GetCommandLine{W,A}. mwemu does not execute
+                // DllMain for system DLLs, so populate these data exports
+                // here so CRT startup code that reads them finds a valid
+                // command line.
+                self.init_msvcrt_cmdln_globals();
+
                 self.regs_mut().rip = ep;
             }
 
@@ -693,5 +700,48 @@ impl Emu {
         let base = code.get_base();
         code.write_bytes(base, bytes);
         self.set_pc(base);
+    }
+
+    fn init_msvcrt_cmdln_globals(&mut self) {
+        let wcmdln_addr =
+            winapi64::kernel32::resolve_api_name_in_module(self, "msvcrt.dll", "_wcmdln");
+        let acmdln_addr =
+            winapi64::kernel32::resolve_api_name_in_module(self, "msvcrt.dll", "_acmdln");
+
+        if wcmdln_addr == 0 && acmdln_addr == 0 {
+            return;
+        }
+
+        let exe_name = self.cfg.exe_name.clone();
+
+        if wcmdln_addr != 0 {
+            let buf = self
+                .heap_mut()
+                .allocate(2048)
+                .expect("cannot allocate _wcmdln buffer");
+            self.maps.write_wide_string(buf, &exe_name);
+            self.maps.write_qword(wcmdln_addr, buf);
+            log::trace!(
+                "msvcrt!_wcmdln at 0x{:x} → 0x{:x} (L\"{}\")",
+                wcmdln_addr,
+                buf,
+                exe_name
+            );
+        }
+
+        if acmdln_addr != 0 {
+            let buf = self
+                .heap_mut()
+                .allocate(1024)
+                .expect("cannot allocate _acmdln buffer");
+            self.maps.write_string(buf, &exe_name);
+            self.maps.write_qword(acmdln_addr, buf);
+            log::trace!(
+                "msvcrt!_acmdln at 0x{:x} → 0x{:x} (\"{}\")",
+                acmdln_addr,
+                buf,
+                exe_name
+            );
+        }
     }
 }

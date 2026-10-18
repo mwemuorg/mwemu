@@ -38,6 +38,10 @@ pub use get_module_handle_a::*;
 mod get_module_handle_w;
 pub use get_module_handle_w::*;
 
+#[path = "../get_module_handle_ex_w.rs"]
+mod get_module_handle_ex_w;
+pub use get_module_handle_ex_w::*;
+
 #[path = "../get_proc_address.rs"]
 mod get_proc_address;
 pub use get_proc_address::*;

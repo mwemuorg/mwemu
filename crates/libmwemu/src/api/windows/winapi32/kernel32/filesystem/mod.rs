@@ -176,6 +176,7 @@ pub use GetFileSize::GetFileSize;
 
 #[path = "../get_file_size_ex.rs"]
 mod get_file_size_ex;
+pub use get_file_size_ex::*;
 
 #[path = "../backup_read.rs"]
 mod backup_read;
@@ -552,3 +553,23 @@ pub use set_volume_mount_point_w::*;
 #[path = "../write_tapemark.rs"]
 mod write_tapemark;
 pub use write_tapemark::*;
+
+#[path = "../create_directory_a.rs"]
+mod create_directory_a;
+pub use create_directory_a::*;
+
+#[path = "../create_directory_w.rs"]
+mod create_directory_w;
+pub use create_directory_w::*;
+
+#[path = "../delete_file_w.rs"]
+mod delete_file_w;
+pub use delete_file_w::*;
+
+#[path = "../create_file_a.rs"]
+mod create_file_a;
+pub use create_file_a::*;
+
+#[path = "../set_current_directory_a.rs"]
+mod set_current_directory_a;
+pub use set_current_directory_a::*;

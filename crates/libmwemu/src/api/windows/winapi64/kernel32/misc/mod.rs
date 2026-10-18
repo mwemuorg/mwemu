@@ -10,6 +10,10 @@ pub use get_computer_name_a::*;
 mod get_computer_name_w;
 pub use get_computer_name_w::*;
 
+#[path = "../free_environment_strings.rs"]
+mod free_environment_strings;
+pub use free_environment_strings::*;
+
 #[path = "../get_environment_variable_w.rs"]
 mod get_environment_variable_w;
 pub use get_environment_variable_w::*;
