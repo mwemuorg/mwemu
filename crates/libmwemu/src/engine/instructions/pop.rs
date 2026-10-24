@@ -17,9 +17,27 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     };
 
     let value = match op_size {
-        8 => emu.stack_pop64(true).unwrap(),
-        4 => emu.stack_pop32(true).unwrap() as u64,
-        _ => emu.stack_pop16(true).unwrap() as u64, // the last one have to be 16 bit because there are only 64, 32 and 16 for pop instruction
+        8 => match emu.stack_pop64(true) {
+            Some(v) => v,
+            None => {
+                log::trace!("pop: cannot pop 64-bit value from stack");
+                return false;
+            }
+        },
+        4 => match emu.stack_pop32(true) {
+            Some(v) => v as u64,
+            None => {
+                log::trace!("pop: cannot pop 32-bit value from stack");
+                return false;
+            }
+        },
+        _ => match emu.stack_pop16(true) {
+            Some(v) => v as u64,
+            None => {
+                log::trace!("pop: cannot pop 16-bit value from stack");
+                return false;
+            }
+        },
     };
 
     emu.show_instruction_pushpop(

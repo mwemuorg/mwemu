@@ -98,9 +98,7 @@ impl Emu {
         let di = self.regs().rdi;
         let si = self.regs().rsi;
         let total = (count * esz) as usize;
-        let processed: u64;
-
-        match ins.mnemonic() {
+        let processed: u64 = match ins.mnemonic() {
             Stosb | Stosw | Stosd | Stosq => {
                 let end = di + total as u64 - 1;
                 let writable = self
@@ -122,7 +120,7 @@ impl Emu {
                 }
                 self.regs_mut().rdi = di + total as u64;
                 self.regs_mut().rcx = 0;
-                processed = count;
+                count
             }
             Movsb | Movsw | Movsd | Movsq => {
                 let dend = di + total as u64 - 1;
@@ -152,7 +150,7 @@ impl Emu {
                 self.regs_mut().rsi = si + total as u64;
                 self.regs_mut().rdi = di + total as u64;
                 self.regs_mut().rcx = 0;
-                processed = count;
+                count
             }
             Scasb | Scasw | Scasd | Scasq => {
                 let end = di + total as u64 - 1;
@@ -182,7 +180,7 @@ impl Emu {
                 self.set_sub_flags(esz, acc, term);
                 self.regs_mut().rcx = count - k;
                 self.regs_mut().rdi = di + k * esz;
-                processed = k;
+                k
             }
             Lodsb | Lodsw | Lodsd | Lodsq => {
                 let send = si + total as u64 - 1;
@@ -200,10 +198,10 @@ impl Emu {
                 self.set_acc(esz, last);
                 self.regs_mut().rsi = si + total as u64;
                 self.regs_mut().rcx = 0;
-                processed = count;
+                count
             }
             _ => return false,
-        }
+        };
 
         self.rep = None;
         self.pos += processed;

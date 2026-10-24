@@ -3,22 +3,10 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn HeapReAlloc(emu: &mut emu::Emu) {
-    let heap_handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!HeapReAlloc cannot read heap handle") as u64;
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!HeapReAlloc cannot read flags") as u64;
-    let old_mem = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!HeapReAlloc cannot read lpMem") as u64;
-    let new_size_raw = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!HeapReAlloc cannot read dwBytes") as u64;
+    let heap_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let old_mem = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let new_size_raw = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
 
     // stdcall: caller expects us to pop all 4 args regardless of outcome.
     emu.stack_pop32(false);

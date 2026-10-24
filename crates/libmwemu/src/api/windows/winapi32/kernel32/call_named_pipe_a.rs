@@ -2,34 +2,13 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn CallNamedPipeA(emu: &mut emu::Emu) {
-    let lpNamedPipeName = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _lpInBuffer = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _nInBufferSize = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
-    let _lpOutBuffer = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("cannot read the api parameter");
-    let _nOutBufferSize = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("cannot read the api parameter");
-    let _lpBytesRead = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 20)
-        .expect("cannot read the api parameter");
-    let _nTimeOut = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 24)
-        .expect("cannot read the api parameter");
+    let lpNamedPipeName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _lpInBuffer = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _nInBufferSize = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let _lpOutBuffer = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let _nOutBufferSize = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let _lpBytesRead = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
+    let _nTimeOut = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
 
     let lpNamedPipeName = emu.maps.read_string(lpNamedPipeName as u64);
 

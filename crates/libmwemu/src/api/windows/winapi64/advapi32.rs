@@ -34,11 +34,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -54,28 +54,22 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 fn StartServiceCtrlDispatcherA(emu: &mut emu::Emu) {
-    let service_table_entry_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("advapi32!StartServiceCtrlDispatcherA error reading service_table_entry pointer");
+    let service_table_entry_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     let service_name = emu
         .maps
         .read_dword(service_table_entry_ptr as u64)
-        .expect("advapi32!StartServiceCtrlDispatcherA error reading service_name");
+        .unwrap_or(0);
     let service_name = emu
         .maps
         .read_dword((service_table_entry_ptr + 4) as u64)
-        .expect("advapi32!StartServiceCtrlDispatcherA error reading service_name");
+        .unwrap_or(0);
 
     emu.regs_mut().set_eax(1);
 }
 
 fn StartServiceCtrlDispatcherW(emu: &mut emu::Emu) {
-    let service_table_entry_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("advapi32!StartServiceCtrlDispatcherW error reading service_table_entry pointer");
+    let service_table_entry_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     emu.regs_mut().set_eax(1);
 }
@@ -128,14 +122,8 @@ fn RegQueryValueExA(emu: &mut emu::Emu) {
     let value_ptr = emu.regs().rdx;
     let reserved = emu.regs().r8;
     let typ_out = emu.regs().r9;
-    let data_out = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("error reading api aparam");
-    let datasz_out = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("error reading api param");
+    let data_out = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let datasz_out = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let mut value = String::new();
     if value_ptr > 0 {
@@ -198,10 +186,7 @@ fn GetUserNameA(emu: &mut emu::Emu) {
     }
 
     // Read current buffer size (in bytes)
-    let buffer_size = emu
-        .maps
-        .read_qword(in_out_sz)
-        .expect("Cannot read buffer size") as usize;
+    let buffer_size = emu.maps.read_qword(in_out_sz).unwrap_or(0) as usize;
 
     // Calculate required size in bytes (including null terminator)
     let user_name = emu.cfg.user_name.clone();
@@ -261,10 +246,7 @@ fn GetUserNameW(emu: &mut emu::Emu) {
     }
 
     // Read current buffer size (in characters)
-    let buffer_size = emu
-        .maps
-        .read_dword(in_out_sz)
-        .expect("Cannot read buffer size") as usize;
+    let buffer_size = emu.maps.read_dword(in_out_sz).unwrap_or(0) as usize;
 
     // Calculate required size in characters (including null terminator)
     let user_name = emu.cfg.user_name.clone();

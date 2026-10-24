@@ -2,34 +2,13 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn BackupWrite(emu: &mut emu::Emu) {
-    let _hFile = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _lpBuffer = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _nNumberOfBytesToWrite = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
-    let _lpNumberOfBytesWritten = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("cannot read the api parameter");
-    let _bAbort = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("cannot read the api parameter");
-    let _bProcessSecurity = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 20)
-        .expect("cannot read the api parameter");
-    let _lpContext = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 24)
-        .expect("cannot read the api parameter");
+    let _hFile = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _lpBuffer = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _nNumberOfBytesToWrite = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let _lpNumberOfBytesWritten = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let _bAbort = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let _bProcessSecurity = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
+    let _lpContext = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
 
     log_red!(emu, "kernel32!BackupWrite");
 

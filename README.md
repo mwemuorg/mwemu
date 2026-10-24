@@ -28,6 +28,7 @@ Supports x86 32/64-bit and AArch64 architectures. The primary target OS is Windo
 
 - mwemu commandline https://github.com/mwemuorg/mwemu
 - libmwemu crate https://crates.io/crates/libmwemu
+- cmwemu C binding https://github.com/mwemuorg/mwemu/tree/main/crates/cmwemu
 - pymwemu https://pypi.org/project/pymwemu/
 
 

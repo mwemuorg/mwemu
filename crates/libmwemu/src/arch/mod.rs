@@ -3,6 +3,7 @@ pub mod x86;
 
 use serde::{Deserialize, Serialize};
 
+/// CPU architecture for emulation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Arch {
     X86,
@@ -10,6 +11,7 @@ pub enum Arch {
     Aarch64,
 }
 
+/// Target operating system for API/syscall emulation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OperatingSystem {
     Windows,

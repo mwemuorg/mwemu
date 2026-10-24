@@ -333,7 +333,9 @@ impl Emu {
         }
 
         let mut out = String::new();
-        let code = self.maps.get_mem_by_addr(addr).expect("address not mapped");
+        let Some(code) = self.maps.get_mem_by_addr(addr) else {
+            return format!("address 0x{:x} not mapped\n", addr);
+        };
         let block = code.read_from(addr).to_vec();
 
         let bits: u32 = if self.cfg.is_x64() { 64 } else { 32 };
@@ -359,7 +361,9 @@ impl Emu {
     /// Disassemble aarch64 instructions at the given address.
     fn disassemble_aarch64(&self, addr: u64, amount: u32) -> String {
         let mut out = String::new();
-        let code = self.maps.get_mem_by_addr(addr).expect("address not mapped");
+        let Some(code) = self.maps.get_mem_by_addr(addr) else {
+            return format!("address 0x{:x} not mapped\n", addr);
+        };
         let block = code.read_from(addr).to_vec();
 
         let decoder = yaxpeax_arm::armv8::a64::InstDecoder::default();

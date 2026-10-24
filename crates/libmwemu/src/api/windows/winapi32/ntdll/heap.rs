@@ -16,14 +16,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
-    let count = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlGetProcessHeaps cannot read count") as u64;
-    let buffer = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!RtlGetProcessHeaps cannot read buffer") as u64;
+    let count = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let buffer = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     let keys = emu.handle_management.heap_handle_keys();
     let total = keys.len() as u64;
@@ -61,18 +55,9 @@ pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
 }
 
 pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
-    let handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlAllocateHeap cannot read handle param") as u64;
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!RtlAllocateHeap cannot read flags param") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("ntdll!RtlAllocateHeap cannot read size param") as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
     let addr = match heap_engine::heap_allocate(emu, handle, size) {
         Some(a) => a,
@@ -101,14 +86,8 @@ pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
 }
 
 pub fn RtlFreeHeap(emu: &mut emu::Emu) {
-    let handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlFreeHeap cannot read handle param") as u64;
-    let base_addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("ntdll!RtlFreeHeap cannot read base_addr param") as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let base_addr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
     log_red!(
         emu,
@@ -127,22 +106,10 @@ pub fn RtlFreeHeap(emu: &mut emu::Emu) {
 }
 
 pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
-    let handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlReAllocateHeap cannot read handle param") as u64;
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!RtlReAllocateHeap cannot read flags param") as u64;
-    let old_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("ntdll!RtlReAllocateHeap cannot read ptr param") as u64;
-    let new_size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("ntdll!RtlReAllocateHeap cannot read size param") as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let old_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let new_size = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
 
     // stdcall: caller expects us to pop all 4 args regardless of outcome.
     emu.stack_pop32(false);

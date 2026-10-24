@@ -6,6 +6,14 @@ pub use expand_environment_strings_a::*;
 mod expand_environment_strings_w;
 pub use expand_environment_strings_w::*;
 
+#[path = "../free_environment_strings_a.rs"]
+mod free_environment_strings_a;
+pub use free_environment_strings_a::*;
+
+#[path = "../free_environment_strings_w.rs"]
+mod free_environment_strings_w;
+pub use free_environment_strings_w::*;
+
 #[path = "../get_environment_strings.rs"]
 mod get_environment_strings;
 pub use get_environment_strings::*;

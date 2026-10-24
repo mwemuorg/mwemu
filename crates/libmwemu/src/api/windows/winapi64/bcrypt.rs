@@ -11,16 +11,31 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "BCryptOpenAlgorithmProvider" => BCryptOpenAlgorithmProvider(emu),
         "BCryptGenRandom" => BCryptGenRandom(emu),
         "BCryptCloseAlgorithmProvider" => BCryptCloseAlgorithmProvider(emu),
+        "ProcessPrng" => {
+            let pb_data = emu.regs().rcx;
+            let cb_data = emu.regs().rdx;
+            log_red!(
+                emu,
+                "bcrypt!ProcessPrng buf: 0x{:x} len: {}",
+                pb_data,
+                cb_data
+            );
+            for i in 0..cb_data {
+                let byte = ((emu.pos.wrapping_add(i)) & 0xFF) as u8;
+                emu.maps.write_byte(pb_data + i, byte);
+            }
+            emu.regs_mut().rax = 1; // BOOL TRUE
+        }
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",

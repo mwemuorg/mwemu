@@ -1,23 +1,10 @@
 use crate::emu;
 
 pub fn GetThreadPreferredUILanguages(emu: &mut emu::Emu) {
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetThreadPreferredUILanguages cannot read flags");
-    let num_langs_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!GetThreadPreferredUILanguages cannot read num_langs_ptr")
-        as u64;
-    let buff = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!GetThreadPreferredUILanguages cannot read buff") as u64;
-    let out_sz = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!GetThreadPreferredUILanguages cannot read sz") as u64;
+    let flags = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let num_langs_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let buff = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let out_sz = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
 
     emu.maps.write_dword(num_langs_ptr, 0);
     log_red!(emu, "kernel32!GetThreadPreferredUILanguages");

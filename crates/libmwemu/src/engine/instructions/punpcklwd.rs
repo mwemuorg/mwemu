@@ -36,7 +36,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
         emu.set_operand_xmm_value_128(ins, 0, result);
     } else {
-        unimplemented!("unimplemented size");
+        log::warn!("punpcklwd: unsupported operand size {}", sz0);
+        return false;
     }
     true
 }

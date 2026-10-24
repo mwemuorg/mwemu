@@ -134,6 +134,10 @@ pub use get_system_directory_w::*;
 mod get_system_time_as_file_time;
 pub use get_system_time_as_file_time::*;
 
+#[path = "../get_system_time_precise_as_file_time.rs"]
+mod get_system_time_precise_as_file_time;
+pub use get_system_time_precise_as_file_time::*;
+
 #[path = "../get_temp_path_w.rs"]
 mod get_temp_path_w;
 pub use get_temp_path_w::*;

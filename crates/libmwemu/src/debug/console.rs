@@ -595,9 +595,13 @@ impl Console {
                             continue;
                         }
                     };
-                    emu.maps
-                        .create_map(&name, addr, sz, Permission::READ_WRITE_EXECUTE)
-                        .expect("cannot create map from console mc");
+                    if let Err(e) =
+                        emu.maps
+                            .create_map(&name, addr, sz, Permission::READ_WRITE_EXECUTE)
+                    {
+                        log::error!("cannot create map from console mc: {}", e);
+                        continue;
+                    }
                     log::trace!("allocated {} at 0x{:x} sz: {}", name, addr, sz);
                 }
                 "mca" => {
@@ -621,9 +625,13 @@ impl Console {
                         }
                     };
 
-                    emu.maps
-                        .create_map(&name, addr, sz, Permission::READ_WRITE_EXECUTE)
-                        .expect("cannot create map from console mca");
+                    if let Err(e) =
+                        emu.maps
+                            .create_map(&name, addr, sz, Permission::READ_WRITE_EXECUTE)
+                    {
+                        log::error!("cannot create map from console mca: {}", e);
+                        continue;
+                    }
                     log::trace!("allocated {} at 0x{:x} sz: {}", name, addr, sz);
                 }
                 "ml" => {
@@ -654,10 +662,10 @@ impl Console {
                         }
                     };
 
-                    let mem = emu
-                        .maps
-                        .get_mem_by_addr(addr)
-                        .expect("address not found on any map");
+                    let Some(mem) = emu.maps.get_mem_by_addr(addr) else {
+                        log::trace!("address 0x{:x} not found on any map", addr);
+                        continue;
+                    };
                     if emu.cfg.is_x64() {
                         log::trace!(
                             "map: {} 0x{:x}-0x{:x} ({})",
@@ -1043,7 +1051,7 @@ impl Console {
                     if emu.cfg.dump_filename.is_some() {
                         serialization::Serialization::dump(
                             emu,
-                            emu.cfg.dump_filename.as_ref().unwrap(),
+                            emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                         );
                     }
                 }

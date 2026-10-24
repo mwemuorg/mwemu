@@ -634,19 +634,25 @@ pub extern "C" fn mwemu_init_linux64(emu: *mut MwemuEmu, dynamic: i32) {
 }
 
 /// Load a binary (PE/ELF/Mach-O or shellcode) from a file path.
+/// Returns 1 on success, 0 on error.
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_load_binary(emu: *mut MwemuEmu, filename: *const c_char) {
-    let e = emu!(emu, ());
-    let f = cstr!(filename, ());
-    e.load_code(f);
+pub extern "C" fn mwemu_load_binary(emu: *mut MwemuEmu, filename: *const c_char) -> i32 {
+    let e = emu!(emu, 0);
+    let f = cstr!(filename, 0);
+    if e.load_code(f).is_ok() { 1 } else { 0 }
 }
 
 /// Load shellcode from a raw byte buffer.
+/// Returns 1 on success, 0 on error.
 #[unsafe(no_mangle)]
-pub extern "C" fn mwemu_load_code_bytes(emu: *mut MwemuEmu, data: *const u8, len: usize) {
-    let e = emu!(emu, ());
+pub extern "C" fn mwemu_load_code_bytes(emu: *mut MwemuEmu, data: *const u8, len: usize) -> i32 {
+    let e = emu!(emu, 0);
     let bytes = unsafe { slice_u8(data, len) };
-    e.load_code_bytes(bytes);
+    if e.load_code_bytes(bytes).is_ok() {
+        1
+    } else {
+        0
+    }
 }
 
 /// Allocate a named map of `size` bytes (RWX by default). Returns the base

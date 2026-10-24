@@ -4,7 +4,7 @@ use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     if emu.rep.is_some() {
-        if emu.rep.unwrap() == 0 || emu.cfg.verbose >= 3 {
+        if emu.rep.unwrap_or(0) == 0 || emu.cfg.verbose >= 3 {
             emu.show_instruction(
                 color!("LightCyan"),
                 &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
@@ -20,18 +20,25 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     assert!(emu.cfg.is_x64());
 
-    let val = emu
-        .maps
-        .read_qword(emu.regs().rsi)
-        .expect("cannot read memory");
+    let val = match emu.maps.read_qword(emu.regs().rsi) {
+        Some(v) => v,
+        None => {
+            log::trace!("movsq: cannot read memory at rsi=0x{:x}", emu.regs().rsi);
+            return false;
+        }
+    };
     emu.maps.write_qword(emu.regs().rdi, val);
 
     if !emu.flag_df() {
-        emu.regs_mut().rsi += 8;
-        emu.regs_mut().rdi += 8;
+        let v = emu.regs().rsi.wrapping_add(8);
+        emu.regs_mut().rsi = v;
+        let v = emu.regs().rdi.wrapping_add(8);
+        emu.regs_mut().rdi = v;
     } else {
-        emu.regs_mut().rsi -= 8;
-        emu.regs_mut().rdi -= 8;
+        let v = emu.regs().rsi.wrapping_sub(8);
+        emu.regs_mut().rsi = v;
+        let v = emu.regs().rdi.wrapping_sub(8);
+        emu.regs_mut().rdi = v;
     }
     true
 }

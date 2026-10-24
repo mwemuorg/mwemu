@@ -9,7 +9,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     );
 
     if ins.op_count() != 1 {
-        unimplemented!("weird variant of jmp");
+        log::warn!("jmp: unsupported variant with {} operands", ins.op_count());
+        return false;
     }
 
     let addr = match emu.get_jump_value(ins, 0) {

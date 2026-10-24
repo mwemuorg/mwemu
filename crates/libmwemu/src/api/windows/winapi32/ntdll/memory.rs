@@ -29,42 +29,21 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn RtlZeroMemory(emu: &mut emu::Emu) {
-    let dest = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("bad RtlZeroMemory address pointer parameter") as u64;
-    let length = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("bad RtlZeroMemory address length parameter") as u64;
+    let dest = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let length = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
     ntdll::rtl_zero_memory(emu, dest, length);
 }
 
 fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
-    let addr_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("bad NtAllocateVirtualMemory address pointer parameter") as u64;
-    let size_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("bad NtAllocateVirtualMemory size pointer parameter") as u64;
-    let addr = emu
-        .maps
-        .read_dword(addr_ptr)
-        .expect("bad NtAllocateVirtualMemory address parameter") as u64;
-    let size = emu
-        .maps
-        .read_dword(size_ptr)
-        .expect("bad NtAllocateVirtualMemory size parameter") as u64;
+    let addr_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let addr = emu.maps.read_dword(addr_ptr).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(size_ptr).unwrap_or(0) as u64;
 
     let protection_offset = 20;
     let protection_addr = emu.regs().rsp + protection_offset;
-    let protect_value = emu
-        .maps
-        .read_dword(protection_addr)
-        .expect("Failed to read Protection argument at NtAllocateVirtualMemory");
+    let protect_value = emu.maps.read_dword(protection_addr).unwrap_or(0);
 
     let (can_read, can_write, can_execute) = ntdll::protect_to_rwx(protect_value);
 
@@ -103,14 +82,22 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         alloc_addr
     );
 
-    emu.maps
+    if emu
+        .maps
         .create_map(
             format!("valloc_{:x}", alloc_addr).as_str(),
             alloc_addr,
             size,
             Permission::from_flags(can_read, can_write, can_execute),
         )
-        .expect("ntdll!NtAllocateVirtualMemory cannot create map");
+        .is_err()
+    {
+        log::error!(
+            "ntdll!NtAllocateVirtualMemory cannot create map at 0x{:x}",
+            alloc_addr
+        );
+        return;
+    }
 
     if !emu.maps.write_dword(addr_ptr, alloc_addr as u32) {
         {
@@ -127,14 +114,8 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
 }
 
 fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
-    let handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!NtQueryVirtualMemory: error reading handle") as u64;
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!NtQueryVirtualMemory: error reading address") as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let addr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     log_red!(emu, "ntdll!NtQueryVirtualMemory addr: 0x{:x}", addr);
 
@@ -146,11 +127,7 @@ fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
         }
     }
 
-    let out_meminfo_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("ntdll_NtQueryVirtualMemory: error reading out pointer to meminfo")
-        as u64;
+    let out_meminfo_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
 
     if !emu.maps.is_mapped(addr) {
         log::trace!(
@@ -182,26 +159,11 @@ fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
 }
 
 fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
-    let sz = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!NtProtectVirtualMemory error reading sz param") as u64;
-    let status = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!NtProtectVirtualMemory error reading status param") as u64;
-    let page_number =
-        emu.maps
-            .read_dword(emu.regs().get_esp() + 8)
-            .expect("ntdll!NtProtectVirtualMemory error reading page_number param") as u64;
-    let page = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("ntdll!NtProtectVirtualMemory error reading page param") as u64;
-    let old_prot_ptr =
-        emu.maps
-            .read_dword(emu.regs().get_esp() + 16)
-            .expect("ntdll!NtProtectVirtualMemory error reading old prot param") as u64;
+    let sz = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let status = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let page_number = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let page = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let old_prot_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
 
     log_red!(emu, "ntdll!NtProtectVirtualMemory sz: {}", sz);
 
@@ -213,14 +175,8 @@ fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
 }
 
 fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll! CheckRemoteDebuggerPresenterror reading hndl param") as u64;
-    let bool_ptr =
-        emu.maps
-            .read_dword(emu.regs().get_esp() + 4)
-            .expect("ntdll!CheckRemoteDebuggerPresent reading bool ptr param") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let bool_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     log_red!(emu, "ntdll!CheckRemoteDebuggerPresent");
 
@@ -232,18 +188,9 @@ fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
 }
 
 fn memset(emu: &mut emu::Emu) {
-    let ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!memset error reading ptr") as u64;
-    let byte = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!memset error reading byte");
-    let count = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("ntdll!memset error reading count");
+    let ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let byte = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let count = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     ntdll::memset(emu, ptr, byte as u64, count as u64);
 
@@ -255,18 +202,9 @@ fn memset(emu: &mut emu::Emu) {
 }
 
 fn memcpy(emu: &mut emu::Emu) {
-    let dst_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!strcat error reading dst") as u64;
-    let src_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!strcat error reading src") as u64;
-    let count = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("ntdll!strcat error reading src") as usize;
+    let dst_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let src_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let count = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as usize;
 
     ntdll::memcpy(emu, dst_ptr, src_ptr, count);
 

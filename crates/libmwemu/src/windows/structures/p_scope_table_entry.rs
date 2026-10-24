@@ -18,9 +18,9 @@ pub struct PScopeTableEntry {
 impl PScopeTableEntry {
     pub fn load(addr: u64, maps: &Maps) -> PScopeTableEntry {
         PScopeTableEntry {
-            enclosing_level: maps.read_dword(addr).unwrap(),
-            filter_func: maps.read_dword(addr + 4).unwrap(),
-            handler_func: maps.read_dword(addr + 8).unwrap(),
+            enclosing_level: maps.read_dword(addr).unwrap_or(0),
+            filter_func: maps.read_dword(addr + 4).unwrap_or(0),
+            handler_func: maps.read_dword(addr + 8).unwrap_or(0),
         }
     }
 

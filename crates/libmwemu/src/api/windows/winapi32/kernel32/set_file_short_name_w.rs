@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn SetFileShortNameW(emu: &mut emu::Emu) {
-    let _hFile = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let lpShortName = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let _hFile = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let lpShortName = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let lpShortName = emu.maps.read_wide_string(lpShortName as u64);
 

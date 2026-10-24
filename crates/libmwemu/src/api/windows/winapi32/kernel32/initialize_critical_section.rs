@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn InitializeCriticalSection(emu: &mut emu::Emu) {
-    let ptr_crit_sect = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!InitializeCriticalSection cannot read ptr_crit_sect");
+    let ptr_crit_sect = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     emu.stack_pop32(false);
 

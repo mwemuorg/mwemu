@@ -88,7 +88,7 @@ impl Emu {
         let base = self
             .kernel
             .as_ref()
-            .expect("kernel env present")
+            .ok_or_else(|| MwemuError::new("kernel env not present for .ko loading"))?
             .layout
             .module_base;
         let stem = std::path::Path::new(filename)
@@ -162,7 +162,10 @@ impl Emu {
             symbols: obj.symbols,
             unresolved: obj.unresolved,
         };
-        self.kernel.as_mut().expect("kernel env present").module = module;
+        self.kernel
+            .as_mut()
+            .ok_or_else(|| MwemuError::new("kernel env not present for .ko loading"))?
+            .module = module;
 
         self.base = obj.base;
         self.elf64 = Some(elf);

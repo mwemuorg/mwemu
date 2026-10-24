@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn SetProcessAffinityMask(emu: &mut emu::Emu) {
-    let _hProcess = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _dwProcessAffinityMask = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let _hProcess = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _dwProcessAffinityMask = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(emu, "kernel32!SetProcessAffinityMask");
 

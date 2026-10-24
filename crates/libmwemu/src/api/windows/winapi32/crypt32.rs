@@ -1,12 +1,7 @@
 use crate::emu;
 use crate::serialization;
-use crate::winapi::winapi32::kernel32;
-/*
 use crate::winapi::helper;
-use crate::context32;
-use crate::windows::constants;
-use crate::debug::console;
-*/
+use crate::winapi::winapi32::kernel32;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
@@ -14,17 +9,28 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     match api {
         "PkiInitializeCriticalSection" => PkiInitializeCriticalSection(emu),
         "CryptStringToBinaryA" => CryptStringToBinaryA(emu),
+        "CryptDecodeObjectEx" => CryptDecodeObjectEx(emu),
+        "CertOpenStore" => CertOpenStore(emu),
+        "CertOpenSystemStoreA" => CertOpenSystemStoreA(emu),
+        "CertOpenSystemStoreW" => CertOpenSystemStoreW(emu),
+        "CertCloseStore" => CertCloseStore(emu),
+        "CertFindCertificateInStore" => CertFindCertificateInStore(emu),
+        "CertFreeCertificateContext" => CertFreeCertificateContext(emu),
 
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("attempt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!(
+                    "attempt to call unimplemented crypt32 API 0x{:x} {}",
+                    addr,
+                    api
+                );
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -40,14 +46,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 }
 
 fn PkiInitializeCriticalSection(emu: &mut emu::Emu) {
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("crypt32!PkiInitializeCriticalSection error getting flags param");
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("crypt32!PkiInitializeCriticalSection error getting addr param");
+    let addr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(
         emu,
@@ -63,34 +63,13 @@ fn PkiInitializeCriticalSection(emu: &mut emu::Emu) {
 }
 
 fn CryptStringToBinaryA(emu: &mut emu::Emu) {
-    let string = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("crypt32!CryptStringToBinaryA error getting flags param");
-    let num_chars = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("crypt32!PCryptStringToBinaryA error getting addr param");
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("crypt32!CryptStringToBinaryA error getting flags param");
-    let ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("crypt32!PCryptStringToBinaryA error getting addr param");
-    let inout_sz = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("crypt32!CryptStringToBinaryA error getting flags param");
-    let skip = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 20)
-        .expect("crypt32!PCryptStringToBinaryA error getting addr param");
-    let out_flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 24)
-        .expect("crypt32!CryptStringToBinaryA error getting flags param");
+    let string = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let num_chars = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let inout_sz = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let skip = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
+    let out_flags = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
 
     let dflags = match flags {
         0x00000000 => "CRYPT_STRING_BASE64HEADER",
@@ -121,6 +100,146 @@ fn CryptStringToBinaryA(emu: &mut emu::Emu) {
     );
 
     for _ in 0..7 {
+        emu.stack_pop32(false);
+    }
+    emu.regs_mut().rax = 1;
+}
+
+fn CryptDecodeObjectEx(emu: &mut emu::Emu) {
+    let encoding_type = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let struct_type = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let encoded = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let cb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let decode_para = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
+    let pv_struct_info = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
+    let pcb_struct_info = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "crypt32!CryptDecodeObjectEx enc_type: 0x{:x} struct_type: 0x{:x} encoded: 0x{:x} len: {} flags: 0x{:x}",
+        encoding_type,
+        struct_type,
+        encoded,
+        cb_encoded,
+        flags
+    );
+
+    if pcb_struct_info != 0 {
+        emu.maps.write_dword(pcb_struct_info as u64, 0);
+    }
+
+    for _ in 0..8 {
+        emu.stack_pop32(false);
+    }
+    emu.regs_mut().rax = 1;
+}
+
+fn CertOpenStore(emu: &mut emu::Emu) {
+    let store_provider = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let encoding_type = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let hcrypt_prov = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let pv_para = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "crypt32!CertOpenStore provider: 0x{:x} enc: 0x{:x} flags: 0x{:x}",
+        store_provider,
+        encoding_type,
+        flags
+    );
+
+    for _ in 0..5 {
+        emu.stack_pop32(false);
+    }
+
+    let handle = helper::handler_create("cert_store");
+    emu.regs_mut().rax = handle;
+}
+
+fn CertOpenSystemStoreA(emu: &mut emu::Emu) {
+    let hprov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let subsystem = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+
+    let name = emu.maps.read_string(subsystem as u64);
+
+    log_red!(emu, "crypt32!CertOpenSystemStoreA subsystem: {}", name);
+
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+
+    let handle = helper::handler_create(&format!("cert_sys_store://{}", name));
+    emu.regs_mut().rax = handle;
+}
+
+fn CertOpenSystemStoreW(emu: &mut emu::Emu) {
+    let hprov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let subsystem = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+
+    let name = emu.maps.read_wide_string(subsystem as u64);
+
+    log_red!(emu, "crypt32!CertOpenSystemStoreW subsystem: {}", name);
+
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+
+    let handle = helper::handler_create(&format!("cert_sys_store://{}", name));
+    emu.regs_mut().rax = handle;
+}
+
+fn CertCloseStore(emu: &mut emu::Emu) {
+    let h_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "crypt32!CertCloseStore handle: 0x{:x} flags: 0x{:x}",
+        h_store,
+        flags
+    );
+
+    helper::handler_close(h_store as u64);
+
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+    emu.regs_mut().rax = 1;
+}
+
+fn CertFindCertificateInStore(emu: &mut emu::Emu) {
+    let h_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let encoding_type = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let find_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let find_type = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let find_para = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let prev_cert = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "crypt32!CertFindCertificateInStore store: 0x{:x} find_type: 0x{:x}",
+        h_store,
+        find_type
+    );
+
+    for _ in 0..6 {
+        emu.stack_pop32(false);
+    }
+    emu.regs_mut().rax = 0;
+}
+
+fn CertFreeCertificateContext(emu: &mut emu::Emu) {
+    let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "crypt32!CertFreeCertificateContext ctx: 0x{:x}",
+        cert_ctx
+    );
+
+    for _ in 0..1 {
         emu.stack_pop32(false);
     }
     emu.regs_mut().rax = 1;

@@ -2,26 +2,11 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn StringVPrintfWorkerW_0(emu: &mut emu::Emu) {
-    let _pszDest = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _cchDest = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _pcchNewDestLength = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
-    let _pszFormat = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("cannot read the api parameter");
-    let _argList = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("cannot read the api parameter");
+    let _pszDest = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _cchDest = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _pcchNewDestLength = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let _pszFormat = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let _argList = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
 
     log_red!(emu, "kernel32!StringVPrintfWorkerW_0");
 

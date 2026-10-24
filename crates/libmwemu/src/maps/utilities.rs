@@ -74,9 +74,7 @@ impl Maps {
 
     pub fn sizeof_wide(&self, unicode_str_ptr: u64) -> usize {
         const MAX_STR_LEN: usize = 1_000_000;
-        let mut counter: usize = 0;
-
-        for i in (0..MAX_STR_LEN).step_by(2) {
+        for (counter, i) in (0..MAX_STR_LEN).step_by(2).enumerate() {
             let b = match self.read_word(unicode_str_ptr + i as u64) {
                 Some(w) => w,
                 None => return counter,
@@ -84,7 +82,6 @@ impl Maps {
             if b == 0 {
                 return counter;
             }
-            counter += 1;
         }
 
         0
@@ -281,11 +278,11 @@ impl Maps {
         let mut p;
         let mut dst: Vec<char> = Vec::new();
 
-        for i in 0..s.len() {
+        for item in sb.iter().take(s.len()) {
             p = false;
-            for j in 0..valid.len() {
-                if sb[i] == valid[j] {
-                    dst.push(sb[i] as char);
+            for v in valid {
+                if *item == *v {
+                    dst.push(*item as char);
                     p = true;
                     break;
                 }

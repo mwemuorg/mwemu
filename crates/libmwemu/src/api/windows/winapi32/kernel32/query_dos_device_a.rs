@@ -2,18 +2,9 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn QueryDosDeviceA(emu: &mut emu::Emu) {
-    let lpDeviceName = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let lpTargetPath = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _ucchMax = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
+    let lpDeviceName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let lpTargetPath = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _ucchMax = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     let lpDeviceName = emu.maps.read_string(lpDeviceName as u64);
     let lpTargetPath = emu.maps.read_string(lpTargetPath as u64);

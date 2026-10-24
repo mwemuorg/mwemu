@@ -11,10 +11,14 @@ pub fn GetFileSize(emu: &mut emu::Emu) {
         file_handle
     );
 
-    let file_handle = emu
-        .handle_management
-        .get_mut_file_handle(file_handle)
-        .expect("Failed to get file handle");
+    let Some(file_handle) = emu.handle_management.get_mut_file_handle(file_handle) else {
+        log::warn!(
+            "kernel32!GetFileSize: invalid file handle 0x{:x}",
+            file_handle
+        );
+        emu.regs_mut().set_eax(0xFFFFFFFF);
+        return;
+    };
     let file_size = file_handle.file_size;
     emu.regs_mut().set_eax(file_size);
     if lpFileSizeHigh != 0x0 {

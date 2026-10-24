@@ -6,9 +6,16 @@ pub fn FindResourceA(emu: &mut emu::Emu) {
     let lpName = emu.regs().rdx as usize;
     let lpType = emu.regs().r8 as usize;
 
-    let x: Option<(u64, usize)>;
+    let (pe, raw) = match (emu.pe64.as_ref(), emu.pe64_raw.as_deref()) {
+        (Some(pe), Some(raw)) => (pe, raw),
+        _ => {
+            log::warn!("kernel32!FindResourceA: PE64 not loaded");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
-    if lpName > 0xff && lpType > 0xff {
+    let x: Option<(u64, usize)> = if lpName > 0xff && lpType > 0xff {
         let name = emu.maps.read_string(lpName as u64);
         let ntype = emu.maps.read_string(lpType as u64);
         log_red!(
@@ -19,14 +26,7 @@ pub fn FindResourceA(emu: &mut emu::Emu) {
             name,
             ntype
         );
-
-        x = emu.pe64.as_ref().unwrap().get_resource(
-            emu.pe64_raw.as_deref().unwrap(),
-            None,
-            None,
-            Some(name.as_str()),
-            Some(ntype.as_str()),
-        );
+        pe.get_resource(raw, None, None, Some(name.as_str()), Some(ntype.as_str()))
     } else if lpName > 0xff && lpType <= 0xff {
         let name = emu.maps.read_string(lpName as u64);
         log_red!(
@@ -37,14 +37,7 @@ pub fn FindResourceA(emu: &mut emu::Emu) {
             name,
             lpType
         );
-
-        x = emu.pe64.as_ref().unwrap().get_resource(
-            emu.pe64_raw.as_deref().unwrap(),
-            Some(lpType as u32),
-            None,
-            Some(name.as_str()),
-            None,
-        );
+        pe.get_resource(raw, Some(lpType as u32), None, Some(name.as_str()), None)
     } else if lpName <= 0xff && lpType > 0xff {
         let ntype = emu.maps.read_string(lpType as u64);
         log_red!(
@@ -55,15 +48,8 @@ pub fn FindResourceA(emu: &mut emu::Emu) {
             lpName,
             ntype
         );
-
-        x = emu.pe64.as_ref().unwrap().get_resource(
-            emu.pe64_raw.as_deref().unwrap(),
-            None,
-            Some(lpName as u32),
-            None,
-            Some(ntype.as_str()),
-        );
-    } else if lpName <= 0xff && lpType <= 0xff {
+        pe.get_resource(raw, None, Some(lpName as u32), None, Some(ntype.as_str()))
+    } else {
         log_red!(
             emu,
             "** {} kernel32!FindResourceA {:x} `{}` {}",
@@ -72,25 +58,14 @@ pub fn FindResourceA(emu: &mut emu::Emu) {
             lpName,
             lpType
         );
+        pe.get_resource(raw, Some(lpType as u32), Some(lpName as u32), None, None)
+    };
 
-        x = emu.pe64.as_ref().unwrap().get_resource(
-            emu.pe64_raw.as_deref().unwrap(),
-            Some(lpType as u32),
-            Some(lpName as u32),
-            None,
-            None,
-        );
-    } else {
-        unreachable!();
-    }
-
-    if x.is_none() {
+    let Some((addr, size)) = x else {
         log::trace!("{} resource not found!", emu.pos);
         emu.regs_mut().rax = 0;
         return;
-    }
-
-    let (addr, size) = x.unwrap();
+    };
 
     log::trace!("resource addr: 0x{:x} sz: {}", addr, size);
     let hndl = helper::handler_create(&format!("rsrc://{:x}_{}", addr, size));

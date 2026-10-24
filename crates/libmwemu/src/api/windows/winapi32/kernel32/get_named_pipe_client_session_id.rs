@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn GetNamedPipeClientSessionId(emu: &mut emu::Emu) {
-    let _Pipe = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _ClientSessionId = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let _Pipe = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _ClientSessionId = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(emu, "kernel32!GetNamedPipeClientSessionId");
 

@@ -15,8 +15,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
         };
         guard_mem(emu, addr, bytes as u32, false);
         let mut raw = [0u8; 16];
-        for i in 0..bytes {
-            raw[i] = match emu.maps.read_byte(addr + i as u64) {
+        for (i, byte) in raw.iter_mut().enumerate().take(bytes) {
+            *byte = match emu.maps.read_byte(addr + i as u64) {
                 Some(b) => b,
                 None => {
                     log::warn!("LDUR: cannot read byte at 0x{:x}", addr + i as u64);

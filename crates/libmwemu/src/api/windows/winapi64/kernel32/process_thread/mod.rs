@@ -22,6 +22,14 @@ pub use create_thread::*;
 mod create_toolhelp32_snapshot;
 pub use create_toolhelp32_snapshot::*;
 
+#[path = "../module32_first_w.rs"]
+mod module32_first_w;
+pub use module32_first_w::*;
+
+#[path = "../module32_next_w.rs"]
+mod module32_next_w;
+pub use module32_next_w::*;
+
 #[path = "../exit_process.rs"]
 mod exit_process;
 pub use exit_process::*;
@@ -97,6 +105,10 @@ pub use set_thread_locale::*;
 #[path = "../set_thread_stack_guarantee.rs"]
 mod set_thread_stack_guarantee;
 pub use set_thread_stack_guarantee::*;
+
+#[path = "../raise_exception.rs"]
+mod raise_exception;
+pub use raise_exception::*;
 
 #[path = "../set_unhandled_exception_filter.rs"]
 mod set_unhandled_exception_filter;

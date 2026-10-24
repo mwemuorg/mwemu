@@ -3,14 +3,8 @@ use crate::winapi::helper;
 use crate::windows::constants;
 
 pub fn CreateFileW(emu: &mut emu::Emu) {
-    let fname_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!CreateFileW: error reading param") as u64;
-    let access = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!CreateFileW: error reading param");
+    let fname_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let access = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let fname = emu.maps.read_wide_string(fname_ptr);
 

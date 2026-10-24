@@ -7,14 +7,8 @@ pub fn api_DeviceIoControl(emu: &mut emu::Emu) {
     let lpInBuffer = emu.regs().r8;
     let lpOutBuffer = emu.regs().r9;
     let rsp = emu.regs().rsp;
-    let nOutBufferSize = emu
-        .maps
-        .read_qword(rsp + 0x20)
-        .expect("DeviceIoControl arg6 stack error.");
-    let lpBytesReturned = emu
-        .maps
-        .read_qword(rsp + 0x28)
-        .expect("DeviceIoControl arg7 stack error.");
+    let nOutBufferSize = emu.maps.read_qword(rsp + 0x20).unwrap_or(0);
+    let lpBytesReturned = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
 
     log_red!(
         emu,

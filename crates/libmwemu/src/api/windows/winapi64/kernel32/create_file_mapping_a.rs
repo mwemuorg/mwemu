@@ -7,14 +7,8 @@ pub fn CreateFileMappingA(emu: &mut emu::Emu) {
     let _attr = emu.regs().rdx;
     let protect = emu.regs().r8 as u32;
     let max_sz_high = emu.regs().r9;
-    let max_sz_low = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!CreateFileMappingA cannot read max size low");
-    let name_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("kernel32!CreateFileMappingA cannot read name pointer");
+    let max_sz_low = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let name_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let mut name: String = String::new();
     if name_ptr > 0 {

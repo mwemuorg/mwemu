@@ -37,9 +37,9 @@ impl PebLdrData64 {
 
     pub fn load(addr: u64, maps: &Maps) -> PebLdrData64 {
         PebLdrData64 {
-            length: maps.read_dword(addr).unwrap(),
-            initializated: maps.read_dword(addr + 4).unwrap(),
-            sshandle: maps.read_qword(addr + 8).unwrap(),
+            length: maps.read_dword(addr).unwrap_or(0),
+            initializated: maps.read_dword(addr + 4).unwrap_or(0),
+            sshandle: maps.read_qword(addr + 8).unwrap_or(0),
             in_load_order_module_list: ListEntry64::load(addr + 0x10, maps),
             in_memory_order_module_list: ListEntry64::load(addr + 0x20, maps),
             in_initialization_order_module_list: ListEntry64::load(addr + 0x30, maps),

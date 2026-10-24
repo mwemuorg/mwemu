@@ -7,7 +7,14 @@ pub fn SizeofResource(emu: &mut emu::Emu) {
 
     if helper::handler_exist(hResInfo) {
         let uri = helper::handler_get_uri(hResInfo);
-        let size = uri.split("_").last().unwrap().parse::<usize>().unwrap();
+        let size = match uri.split("_").last().and_then(|s| s.parse::<usize>().ok()) {
+            Some(v) => v,
+            None => {
+                log::warn!("SizeofResource: bad handler uri `{}`", uri);
+                emu.regs_mut().rax = 0;
+                return;
+            }
+        };
         log::trace!(
             "** {} kernel32!SizeofResource {:x} {:x} size: {}",
             emu.pos,

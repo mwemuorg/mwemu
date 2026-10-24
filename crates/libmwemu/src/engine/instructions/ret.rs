@@ -50,9 +50,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     }
 
     if ins.op_count() > 0 {
-        let arg = emu
-            .get_operand_value(ins, 0, true)
-            .expect("weird crash on ret");
+        let arg = match emu.get_operand_value(ins, 0, true) {
+            Some(v) => v,
+            None => {
+                log::trace!("ret: cannot read operand value");
+                return false;
+            }
+        };
         // apply stack compensation of ret operand
 
         if emu.cfg.is_x64() {

@@ -12,6 +12,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtQueryInformationFile" => NtQueryInformationFile(emu),
         "NtSetInformationFile" => NtSetInformationFile(emu),
         "NtReadFile" => NtReadFile(emu),
+        "NtWriteFile" => NtWriteFile(emu),
         "NtClose" => NtClose(emu),
         "RtlDosPathNameToNtPathName_U" => RtlDosPathNameToNtPathName_U(emu),
         _ => return false,
@@ -41,10 +42,8 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
         dos_path_name
     );
 
-    let nt_path = if dos_path_name.starts_with("\\\\?\\") {
-        format!("\\??\\{}", &dos_path_name[4..])
-    } else if dos_path_name.len() >= 2 && dos_path_name.chars().nth(1) == Some(':') {
-        format!("\\??\\{}", dos_path_name)
+    let nt_path = if let Some(stripped) = dos_path_name.strip_prefix("\\\\?\\") {
+        format!("\\??\\{}", stripped)
     } else {
         format!("\\??\\{}", dos_path_name)
     };
@@ -61,14 +60,20 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
 
         match emu.maps.alloc((string_length_bytes + 2) as u64) {
             Some(string_buffer_addr) => {
-                emu.maps
+                if emu
+                    .maps
                     .create_map(
                         &format!("nt_path_string_{:x}", string_buffer_addr),
                         string_buffer_addr,
                         (string_length_bytes + 2) as u64,
                         Permission::READ_WRITE,
                     )
-                    .expect("Failed to create nt_path_string map");
+                    .is_err()
+                {
+                    log::error!("ntdll!RtlDosPathNameToNtPathName_U_WithStatus: cannot create map");
+                    emu.regs_mut().rax = constants::STATUS_NO_MEMORY;
+                    return;
+                }
 
                 emu.maps.write_wide_string(string_buffer_addr, &nt_path);
                 emu.maps
@@ -123,34 +128,13 @@ fn NtCreateFile(emu: &mut emu::Emu) {
     let access_mask = emu.regs().rdx;
     let oattrib = emu.regs().r8;
     let iostat = emu.regs().r9;
-    let alloc_sz = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("ntdll!NtCreateFile error reading alloc_sz param");
-    let fattrib = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x28)
-        .expect("ntdll!NtCreateFile error reading fattrib param");
-    let share_access = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x30)
-        .expect("ntdll!NtCreateFile error reading share_access param");
-    let create_disp = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x38)
-        .expect("ntdll!NtCreateFile error reading create_disp param");
-    let create_opt = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x40)
-        .expect("ntdll!NtCreateFile error reading create_opt param");
-    let ea_buff = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x48)
-        .expect("ntdll!NtCreateFile error reading ea_buff param");
-    let ea_len = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x50)
-        .expect("ntdll!NtCreateFile error reading ea_len param");
+    let alloc_sz = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let fattrib = emu.maps.read_dword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let share_access = emu.maps.read_dword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let create_disp = emu.maps.read_dword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let create_opt = emu.maps.read_dword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let ea_buff = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+    let ea_len = emu.maps.read_dword(emu.regs().rsp + 0x50).unwrap_or(0);
 
     log_red!(
         emu,
@@ -314,10 +298,7 @@ fn NtQueryInformationFile(emu: &mut emu::Emu) {
     let stat = emu.regs().rdx;
     let fileinfo = emu.regs().r8;
     let len = emu.regs().r9;
-    let fileinfoctls = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("ntdll!NtQueryInformationFile cannot read fileinfoctls param");
+    let fileinfoctls = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(emu, "ntdll!NtQueryInformationFile");
 
@@ -329,10 +310,7 @@ fn NtSetInformationFile(emu: &mut emu::Emu) {
     let io_status_block = emu.regs().rdx;
     let file_information = emu.regs().r8;
     let length = emu.regs().r9;
-    let file_information_class = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x20)
-        .expect("ntdll!NtSetInformationFile cannot read FileInformationClass param");
+    let file_information_class = emu.maps.read_dword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(
         emu,
@@ -363,26 +341,11 @@ fn NtReadFile(emu: &mut emu::Emu) {
     let ev_hndl = emu.regs().rdx;
     let apc_rout = emu.regs().r8;
     let apc_ctx = emu.regs().r9;
-    let stat = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("ntdll!NtReadFile error reading stat param");
-    let buff = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("ntdll!NtReadFile error reading buff param");
-    let len = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("ntdll!NtReadFile error reading len param") as usize;
-    let off = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x38)
-        .expect("ntdll!NtReadFile error reading off param");
-    let key = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x40)
-        .expect("ntdll!NtReadFile error reading key param");
+    let stat = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let buff = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
+    let off = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let key = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
 
     let file_offset = if off != 0 {
         match emu.maps.read_qword(off) {
@@ -412,10 +375,24 @@ fn NtReadFile(emu: &mut emu::Emu) {
     emu.maps.memset(buff, 0x90, len);
 
     if filename == "\\??\\c:\\cwd" {
-        let mut file = File::open(&emu.filename).unwrap();
+        let mut file = match File::open(&emu.filename) {
+            Ok(f) => f,
+            Err(e) => {
+                log::warn!("NtReadFile: cannot open {}: {}", emu.filename, e);
+                emu.regs_mut().rax = constants::STATUS_OBJECT_NAME_NOT_FOUND;
+                return;
+            }
+        };
         file.seek(SeekFrom::Start(file_offset));
         let mut file_buffer = vec![0u8; len];
-        let bytes_read = file.read(&mut file_buffer).unwrap();
+        let bytes_read = match file.read(&mut file_buffer) {
+            Ok(n) => n,
+            Err(e) => {
+                log::warn!("NtReadFile: read error: {}", e);
+                emu.regs_mut().rax = 0xC0000001; // STATUS_UNSUCCESSFUL
+                return;
+            }
+        };
         for i in 0..bytes_read {
             if let Some(byte_val) = file_buffer.get(i) {
                 emu.maps.write_byte(buff + i as u64, *byte_val);
@@ -430,10 +407,69 @@ fn NtReadFile(emu: &mut emu::Emu) {
             emu.regs_mut().rax = constants::STATUS_SUCCESS;
         }
     } else {
-        unimplemented!("TODO: read {}", filename);
+        log::warn!("NtReadFile: unsupported file read {}", filename);
+        emu.regs_mut().rax = 0xC0000001; // STATUS_UNSUCCESSFUL
     }
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
+}
+
+fn NtWriteFile(emu: &mut emu::Emu) {
+    let file_hndl = emu.regs().rcx;
+    let ev_hndl = emu.regs().rdx;
+    let apc_rout = emu.regs().r8;
+    let apc_ctx = emu.regs().r9;
+    let io_status = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let buff = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
+    let off = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let key = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "ntdll!NtWriteFile hndl: 0x{:x} buff: 0x{:x} sz: {}",
+        file_hndl,
+        buff,
+        len,
+    );
+
+    if len == 0 {
+        if io_status != 0 {
+            emu.maps.write_dword(io_status, 0);
+            emu.maps.write_qword(io_status + 8, 0);
+        }
+        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        return;
+    }
+
+    let mut data = vec![0u8; len];
+    for (i, byte) in data.iter_mut().enumerate() {
+        *byte = emu.maps.read_byte(buff + i as u64).unwrap_or(0);
+    }
+
+    let handle_key = file_hndl as u32;
+    match emu.handle_management.get_mut_file_handle(handle_key) {
+        Some(fh) => match fh.write(&data) {
+            Ok(written) => {
+                if io_status != 0 {
+                    emu.maps.write_dword(io_status, 0);
+                    emu.maps.write_qword(io_status + 8, written as u64);
+                }
+                emu.regs_mut().rax = constants::STATUS_SUCCESS;
+            }
+            Err(e) => {
+                log::warn!("NtWriteFile: write error: {}", e);
+                if io_status != 0 {
+                    emu.maps.write_dword(io_status, 0xC0000001);
+                }
+                emu.regs_mut().rax = 0xC0000001;
+            }
+        },
+        None => {
+            log::warn!("NtWriteFile: invalid handle 0x{:x}", file_hndl);
+            emu.regs_mut().rax = constants::STATUS_INVALID_HANDLE;
+        }
+    }
 }
 
 fn NtClose(emu: &mut emu::Emu) {

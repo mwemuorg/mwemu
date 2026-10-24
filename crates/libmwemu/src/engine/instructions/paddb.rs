@@ -94,7 +94,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             as u128)
             << 120;
     } else {
-        unimplemented!("bad operand size");
+        log::warn!("paddb: unsupported operand size {}", sz);
+        return false;
     }
 
     emu.set_operand_xmm_value_128(ins, 0, result);

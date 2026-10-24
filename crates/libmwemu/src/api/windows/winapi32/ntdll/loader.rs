@@ -12,14 +12,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn LdrLoadDll(emu: &mut emu::Emu) {
-    let libname_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("ntdll!LdrLoadDll error reading libname param") as u64;
-    let libaddr_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("ntdll!LdrLoadDll error reading libaddr param") as u64;
+    let libname_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let libaddr_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
 
     let libname = emu.maps.read_wide_string(libname_ptr);
     log_red!(emu, "ntdll!LdrLoadDll   lib: {}", libname);

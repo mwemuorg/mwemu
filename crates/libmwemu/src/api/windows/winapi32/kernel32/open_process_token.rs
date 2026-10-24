@@ -2,18 +2,9 @@ use crate::emu;
 use crate::winapi::helper;
 
 pub fn OpenProcessToken(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().rsp)
-        .expect("kernel32!OpenProcessToken error reading param");
-    let access = emu
-        .maps
-        .read_dword(emu.regs().rsp + 4)
-        .expect("kernel32!OpenProcessToken error reading param");
-    let ptr_token = emu
-        .maps
-        .read_dword(emu.regs().rsp + 8)
-        .expect("kernel32!OpenProcessToken error reading param") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().rsp).unwrap_or(0);
+    let access = emu.maps.read_dword(emu.regs().rsp + 4).unwrap_or(0);
+    let ptr_token = emu.maps.read_dword(emu.regs().rsp + 8).unwrap_or(0) as u64;
 
     log_red!(emu, "kernel32!OpenProcessToken 0x{:x} {}", hndl, access);
 

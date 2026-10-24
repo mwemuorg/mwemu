@@ -38,7 +38,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             log::trace!("/!\\ bswap of 16bits has undefined behaviours");
         }
     } else {
-        unimplemented!("bswap <16bits makes no sense, isn't it?");
+        log::warn!("bswap: unsupported operand size {}", sz);
+        return false;
     }
 
     /*

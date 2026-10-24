@@ -216,7 +216,7 @@ fn t_config(s: &mut Server, a: &Value) -> Result<Value, String> {
 fn t_load_code_bytes(s: &mut Server, a: &Value) -> Result<Value, String> {
     let bytes = get_bytes(a)?;
     let e = s.emu_mut()?;
-    e.load_code_bytes(&bytes);
+    e.load_code_bytes(&bytes).map_err(|e| e.message)?;
     Ok(json!({
         "ok": true,
         "loaded_bytes": bytes.len(),
@@ -229,7 +229,7 @@ fn t_load_binary(s: &mut Server, a: &Value) -> Result<Value, String> {
     s.require_disk()?;
     let path = req_str(a, "path")?.to_string();
     let e = s.emu_mut()?;
-    e.load_code(&path);
+    e.load_code(&path).map_err(|e| e.message)?;
     Ok(json!({ "ok": true, "path": path, "base": hx(e.base), "pc": hx(e.pc()) }))
 }
 

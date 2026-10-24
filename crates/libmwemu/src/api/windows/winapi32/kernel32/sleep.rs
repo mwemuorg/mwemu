@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn Sleep(emu: &mut emu::Emu) {
-    let millis = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!Sleep cannot read millis");
+    let millis = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(
         emu,

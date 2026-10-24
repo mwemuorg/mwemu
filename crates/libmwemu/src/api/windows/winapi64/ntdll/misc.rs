@@ -1,7 +1,6 @@
 use crate::context::context64::Context64;
 use crate::debug::console::Console;
 use crate::emu;
-use crate::winapi::winapi64::kernel32::set_last_error;
 use crate::windows::{constants, structures};
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -31,16 +30,13 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 fn RestoreLastError(emu: &mut emu::Emu) {
     let err_code = emu.regs().rcx;
     log_red!(emu, "ntdll!RtlRestoreLastWin32Error err: {}", err_code);
-    set_last_error(err_code);
+    emu.set_last_error(err_code);
 }
 
 fn NtGetContextThread(emu: &mut emu::Emu) {
     let handle = emu.regs().rcx;
     let ctx_ptr = emu.regs().rdx;
-    let ctx_ptr2 = emu
-        .maps
-        .read_qword(ctx_ptr)
-        .expect("ntdll_NtGetContextThread: error reading context ptr");
+    let ctx_ptr2 = emu.maps.read_qword(ctx_ptr).unwrap_or(0);
 
     log_red!(emu, "ntdll_NtGetContextThread   ctx:");
 
@@ -61,10 +57,7 @@ fn ZwQueueApcThread(emu: &mut emu::Emu) {
     let apc_routine = emu.regs().rdx;
     let apc_ctx = emu.regs().r8;
     let arg1 = emu.regs().r9;
-    let arg2 = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!ZwQueueApcThread cannot read arg2");
+    let arg2 = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(
         emu,

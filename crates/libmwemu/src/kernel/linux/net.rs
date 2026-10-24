@@ -157,7 +157,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             free(emu, urb, symbol);
         }
         "usb_alloc_coherent" => {
-            let size = emu.kernel_arg(1).max(1).min(0x100000);
+            let size = emu.kernel_arg(1).clamp(1, 0x100000);
             alloc(emu, size, "usb_coherent", symbol, true);
         }
         "usb_free_coherent" => {

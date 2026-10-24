@@ -174,9 +174,10 @@ impl Emu {
                 return 0;
             }
         };
-        self.maps
-            .create_map(name, addr, size, permission)
-            .expect("cannot create map from alloc api");
+        if let Err(e) = self.maps.create_map(name, addr, size, permission) {
+            log::error!("cannot create map '{}' from alloc api: {}", name, e);
+            return 0;
+        }
         addr
     }
 }

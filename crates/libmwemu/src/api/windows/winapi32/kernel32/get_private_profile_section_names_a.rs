@@ -2,18 +2,9 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn GetPrivateProfileSectionNamesA(emu: &mut emu::Emu) {
-    let _lpszReturnBuffer = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _nSize = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let lpFileName = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
+    let _lpszReturnBuffer = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _nSize = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let lpFileName = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     let lpFileName = emu.maps.read_string(lpFileName as u64);
 

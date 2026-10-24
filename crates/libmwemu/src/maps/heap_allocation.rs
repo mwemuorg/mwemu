@@ -285,8 +285,13 @@ impl O1Heap {
         }
 
         // Update peak request size
-        // Calculate fragment size (power of 2).
-        let fragment_size = self.round_up_to_power_of_2(amount);
+        // Calculate fragment size (power of 2, at least FRAGMENT_SIZE_MIN).
+        let raw = self.round_up_to_power_of_2(amount);
+        let fragment_size = if raw == 0 {
+            0
+        } else {
+            raw.max(FRAGMENT_SIZE_MIN)
+        };
         if fragment_size == 0 || fragment_size > self.diagnostics.capacity {
             self.diagnostics.oom_count += 1;
             return None;
@@ -331,9 +336,11 @@ impl O1Heap {
                     self.rebin(new_frag);
                 }
 
-                // Mark as used
+                // Mark as used and re-index in the hash so that
+                // allocation_size / check_fragment_exists can find it.
                 frag_rc.borrow_mut().used = true;
                 frag_rc.borrow_mut().size = fragment_size as u32;
+                self.hashes.insert(frag_offset, frag_rc.clone());
 
                 self.diagnostics.allocated += fragment_size;
                 self.diagnostics.peak_allocated =
@@ -571,7 +578,14 @@ impl O1Heap {
 
         // The allocator reserves the next power-of-two fragment size. A
         // zero result means the rounding operation would overflow usize.
-        let new_frag_size = self.round_up_to_power_of_2(new_amount);
+        // Clamp to FRAGMENT_SIZE_MIN so that shrinking never produces a
+        // fragment smaller than the arena's minimum granularity.
+        let raw = self.round_up_to_power_of_2(new_amount);
+        let new_frag_size = if raw == 0 {
+            0
+        } else {
+            raw.max(FRAGMENT_SIZE_MIN)
+        };
         if new_frag_size == 0
             || new_amount > self.diagnostics.capacity
             || new_frag_size > self.diagnostics.capacity

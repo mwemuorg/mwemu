@@ -96,6 +96,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "strlen" => strlen(emu),
         "strncmp" => strncmp(emu),
         "memcpy" => memcpy(emu),
+        "memset" => crt_memset(emu),
         "abort" => abort(emu),
         "signal" => signal(emu),
         _ => {
@@ -103,11 +104,11 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented CRT API {}", api);
+                log::error!("attempt to call unimplemented CRT API {}", api);
             }
             log::warn!(
                 "calling unimplemented CRT API {} at 0x{:x}",
@@ -164,14 +165,28 @@ fn _set_new_mode(emu: &mut emu::Emu) {
 
 fn __p__commode(emu: &mut emu::Emu) {
     // int * __p__commode(void)
-    let p = allocate_memory(emu, 4).expect("wincrt!__p__commode alloc failed");
+    let p = match allocate_memory(emu, 4) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!__p__commode alloc failed");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     let _ = emu.maps.write_dword(p, 0);
     emu.regs_mut().rax = p;
 }
 
 fn __p__fmode(emu: &mut emu::Emu) {
     // int * __p__fmode(void)
-    let p = allocate_memory(emu, 4).expect("wincrt!__p__fmode alloc failed");
+    let p = match allocate_memory(emu, 4) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!__p__fmode alloc failed");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     let _ = emu.maps.write_dword(p, 0);
     emu.regs_mut().rax = p;
 }
@@ -179,7 +194,14 @@ fn __p__fmode(emu: &mut emu::Emu) {
 fn __p__environ(emu: &mut emu::Emu) {
     // char *** __p__environ(void)
     // Return a pointer to a NULL-terminated environment pointer list (empty env).
-    let envp = allocate_memory(emu, 8).expect("wincrt!__p__environ alloc failed");
+    let envp = match allocate_memory(emu, 8) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!__p__environ alloc failed");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     let _ = emu.maps.write_qword(envp, 0);
     emu.regs_mut().rax = envp;
 }
@@ -192,7 +214,14 @@ fn calloc(emu: &mut emu::Emu) {
         emu.regs_mut().rax = 0;
         return;
     }
-    let base = allocate_memory(emu, total).expect("wincrt!calloc out of memory");
+    let base = match allocate_memory(emu, total) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!calloc out of memory (size={})", total);
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     for i in 0..total {
         let _ = emu.maps.write_byte(base + i, 0);
     }
@@ -223,15 +252,11 @@ fn puts(emu: &mut emu::Emu) {
 fn strlen(emu: &mut emu::Emu) {
     let s = emu.regs().rcx;
     let mut n: u64 = 0;
-    loop {
-        if let Some(b) = emu.maps.read_byte(s + n) {
-            if b == 0 {
-                break;
-            }
-            n += 1;
-        } else {
+    while let Some(b) = emu.maps.read_byte(s + n) {
+        if b == 0 {
             break;
         }
+        n += 1;
         if n > 0x10_0000 {
             break;
         }
@@ -258,6 +283,21 @@ fn strncmp(emu: &mut emu::Emu) {
         i += 1;
     }
     emu.regs_mut().rax = res as u64;
+}
+
+fn crt_memset(emu: &mut emu::Emu) {
+    let dst = emu.regs().rcx;
+    let val = emu.regs().rdx as u8;
+    let count = emu.regs().r8 as usize;
+    log_red!(
+        emu,
+        "wincrt!memset dst:0x{:x} val:{} count:{}",
+        dst,
+        val,
+        count
+    );
+    emu.maps.memset(dst, val, count);
+    emu.regs_mut().rax = dst;
 }
 
 fn memcpy(emu: &mut emu::Emu) {
@@ -353,13 +393,25 @@ fn __p___argv(emu: &mut emu::Emu) {
 
     // First, allocate space for argv array (pointer array)
     // We'll allocate space for 2 pointers - one for program name and null terminator
-    let argv_array_addr = allocate_memory(emu, 16) // 2 * sizeof(pointer) on x64
-        .expect("wincrt!__p___argv cannot allocate argv array");
+    let argv_array_addr = match allocate_memory(emu, 16) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!__p___argv cannot allocate argv array");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
     // Allocate space for program name string (using a dummy name)
     let prog_name = "program.exe\0";
-    let prog_name_addr = allocate_memory(emu, prog_name.len() as u64)
-        .expect("wincrt!__p___argv cannot allocate program name");
+    let prog_name_addr = match allocate_memory(emu, prog_name.len() as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!__p___argv cannot allocate program name");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
     // Write program name string
     emu.maps.write_string(prog_name_addr, prog_name);
@@ -371,8 +423,14 @@ fn __p___argv(emu: &mut emu::Emu) {
     emu.maps.write_qword(argv_array_addr + 8, 0);
 
     // Allocate space for pointer to argv array
-    let p_argv_addr = allocate_memory(emu, 8) // sizeof(pointer) on x64
-        .expect("wincrt!__p___argv cannot allocate p_argv");
+    let p_argv_addr = match allocate_memory(emu, 8) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!__p___argv cannot allocate p_argv");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
 
     // Write pointer to argv array
     emu.maps.write_qword(p_argv_addr, argv_array_addr);
@@ -387,7 +445,14 @@ fn __p___argc(emu: &mut emu::Emu) {
 
     log_red!(emu, "wincrt!__p___argc argc: 0x{:x}", argc);
 
-    let argc_addr = allocate_memory(emu, 4).expect("wincrt!__p___argc cannot allocate");
+    let argc_addr = match allocate_memory(emu, 4) {
+        Some(a) => a,
+        None => {
+            log::error!("wincrt!__p___argc cannot allocate");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     emu.maps.write_dword(argc_addr, 1);
     emu.regs_mut().rax = argc_addr;
 }
@@ -439,10 +504,7 @@ fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
     let file = emu.regs().rdx; // _In_ FILE*
     let format = emu.regs().r8; // _In_ format string ptr
     let locale = emu.regs().r9; // _In_opt_ locale
-    let va_list = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wincrt!__stdio_common_vfprintf cannot read_qword va_list");
+    let va_list = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     // Just try to read the format string
     let fmt_str = emu.maps.read_string(format);
@@ -462,24 +524,18 @@ fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
     for spec in specs {
         match spec {
             "int" | "hex" | "ptr" => {
-                let arg = emu
-                    .maps
-                    .read_qword(current_ptr)
-                    .expect("wincrt!__stdio_common_vfprintf cannot read_qword arg");
+                let arg = emu.maps.read_qword(current_ptr).unwrap_or(0);
                 current_ptr += 8; // Move to next arg
                 log::trace!("arg: {:016x}", arg);
             }
             "str" => {
-                let str_ptr = emu
-                    .maps
-                    .read_qword(current_ptr)
-                    .expect("wincrt!__stdio_common_vfprintf cannot read_qword str_ptr");
+                let str_ptr = emu.maps.read_qword(current_ptr).unwrap_or(0);
                 let string = emu.maps.read_string(str_ptr);
                 current_ptr += 8;
                 log::trace!("string: {}", string);
             }
             _ => {
-                unimplemented!(
+                log::warn!(
                     "wincrt!__stdio_common_vfprintf unknown format character: {}",
                     spec
                 );
@@ -500,7 +556,7 @@ pub fn realloc(emu: &mut emu::Emu) {
             emu.regs_mut().rax = 0;
             return;
         } else {
-            let base = allocate_memory(emu, size).expect("msvcrt!malloc out of memory");
+            let base = allocate_memory(emu, size).unwrap_or(0);
 
             log_red!(emu, "msvcrt!realloc 0x{:x} {} =0x{:x}", addr, size, base);
 
@@ -524,7 +580,7 @@ pub fn realloc(emu: &mut emu::Emu) {
         }
     };
 
-    let new_addr = allocate_memory(emu, size).expect("msvcrt!realloc out of memory");
+    let new_addr = allocate_memory(emu, size).unwrap_or(0);
 
     emu.maps
         .memcpy(new_addr, addr, std::cmp::min(prev_size, size as usize));
@@ -554,7 +610,7 @@ fn malloc(emu: &mut emu::Emu) {
         return;
     }
 
-    let base = allocate_memory(emu, size).expect("msvcrt!malloc out of memory");
+    let base = allocate_memory(emu, size).unwrap_or(0);
 
     log_red!(emu, "msvcrt!malloc {} =0x{:x}", size, base);
 

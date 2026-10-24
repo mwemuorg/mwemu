@@ -47,7 +47,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
             emu.set_operand_value(ins, 0, result as u64);
         }
-        _ => unreachable!(""),
+        _ => {
+            log::warn!("pmovmskb: unexpected operand size");
+            return false;
+        }
     }
     true
 }

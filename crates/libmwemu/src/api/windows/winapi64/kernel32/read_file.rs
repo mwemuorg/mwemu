@@ -6,10 +6,7 @@ pub fn ReadFile(emu: &mut emu::Emu) {
     let lp_buffer = emu.regs().rdx; // Buffer to receive dat
     let n_number_of_bytes_to_read = emu.regs().r8 as u32; // Number of bytes to read
     let lp_number_of_bytes_read = emu.regs().r9; // Pointer to store bytes read
-    let lp_overlapped = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!ReadFile cannot read the overlapped");
+    let lp_overlapped = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(
         emu,

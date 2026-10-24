@@ -98,58 +98,64 @@ impl TEB64 {
         for (index, value) in user32_reserved.iter_mut().enumerate() {
             *value = maps
                 .read_dword(Self::USER32_RESERVED_OFFSET + addr + index as u64 * 4)
-                .unwrap();
+                .unwrap_or(0);
         }
         let mut user_reserved = [0; 5];
         for (index, value) in user_reserved.iter_mut().enumerate() {
             *value = maps
                 .read_dword(Self::USER_RESERVED_OFFSET + addr + index as u64 * 4)
-                .unwrap();
+                .unwrap_or(0);
         }
 
         TEB64 {
             nt_tib: NtTib64::load(addr + Self::NT_TIB_OFFSET, maps),
             environment_pointer: maps
                 .read_qword(addr + Self::ENVIRONMENT_POINTER_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             process_id: maps
                 .read_qword(addr + Self::CLIENT_ID_PROCESS_ID_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             thread_id: maps
                 .read_qword(addr + Self::CLIENT_ID_THREAD_ID_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             active_rpc_handle: maps
                 .read_qword(addr + Self::ACTIVE_RPC_HANDLE_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             thread_local_storage_pointer: maps
                 .read_qword(addr + Self::THREAD_LOCAL_STORAGE_POINTER_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             process_environment_block: maps
                 .read_qword(addr + Self::PROCESS_ENVIRONMENT_BLOCK_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             last_error_value: maps
                 .read_dword(addr + Self::LAST_ERROR_VALUE_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             count_of_owned_critical_sections: maps
                 .read_dword(addr + Self::COUNT_OF_OWNED_CRITICAL_SECTIONS_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             csr_client_thread: maps
                 .read_qword(addr + Self::CSR_CLIENT_THREAD_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             win32_thread_info: maps
                 .read_qword(addr + Self::WIN32_THREAD_INFO_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
             user32_reserved,
             user_reserved,
-            wow32_reserved: maps.read_qword(addr + Self::WOW32_RESERVED_OFFSET).unwrap(),
-            current_locale: maps.read_dword(addr + Self::CURRENT_LOCALE_OFFSET).unwrap(),
+            wow32_reserved: maps
+                .read_qword(addr + Self::WOW32_RESERVED_OFFSET)
+                .unwrap_or(0),
+            current_locale: maps
+                .read_dword(addr + Self::CURRENT_LOCALE_OFFSET)
+                .unwrap_or(0),
             fp_software_status_register: maps
                 .read_dword(addr + Self::FP_SOFTWARE_STATUS_REGISTER_OFFSET)
-                .unwrap(),
-            exception_code: maps.read_dword(addr + Self::EXCEPTION_CODE_OFFSET).unwrap(),
+                .unwrap_or(0),
+            exception_code: maps
+                .read_dword(addr + Self::EXCEPTION_CODE_OFFSET)
+                .unwrap_or(0),
             activation_context_stack_pointer: maps
                 .read_qword(addr + Self::ACTIVATION_CONTEXT_STACK_POINTER_OFFSET)
-                .unwrap(),
+                .unwrap_or(0),
         }
     }
 

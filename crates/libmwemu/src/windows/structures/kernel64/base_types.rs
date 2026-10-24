@@ -28,9 +28,9 @@ impl KSystemTime {
 
     pub fn load(addr: u64, maps: &Maps) -> KSystemTime {
         KSystemTime {
-            low_part: maps.read_dword(addr).unwrap(),
-            high1_time: maps.read_dword(addr + 4).unwrap(),
-            high2_time: maps.read_dword(addr + 8).unwrap(),
+            low_part: maps.read_dword(addr).unwrap_or(0),
+            high1_time: maps.read_dword(addr + 4).unwrap_or(0),
+            high2_time: maps.read_dword(addr + 8).unwrap_or(0),
         }
     }
 
@@ -42,6 +42,7 @@ impl KSystemTime {
 }
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct SSDT {
     pub p_service_table: u64,
     pub p_counter_table: u64,
@@ -71,10 +72,10 @@ impl SSDT {
 
     pub fn load(addr: u64, maps: &Maps) -> SSDT {
         SSDT {
-            p_service_table: maps.read_qword(addr).unwrap(),
-            p_counter_table: maps.read_qword(addr + 8).unwrap(),
-            number_of_services: maps.read_dword(addr + 16).unwrap(),
-            p_argument_table: maps.read_qword(addr + 20).unwrap(),
+            p_service_table: maps.read_qword(addr).unwrap_or(0),
+            p_counter_table: maps.read_qword(addr + 8).unwrap_or(0),
+            number_of_services: maps.read_dword(addr + 16).unwrap_or(0),
+            p_argument_table: maps.read_qword(addr + 20).unwrap_or(0),
         }
     }
 
@@ -114,9 +115,9 @@ impl UnicodeString {
 
     pub fn load(addr: u64, maps: &Maps) -> UnicodeString {
         UnicodeString {
-            length: maps.read_word(addr).unwrap(),
-            maximum_length: maps.read_word(addr + 2).unwrap(),
-            buffer: maps.read_qword(addr + 4).unwrap(),
+            length: maps.read_word(addr).unwrap_or(0),
+            maximum_length: maps.read_word(addr + 2).unwrap_or(0),
+            buffer: maps.read_qword(addr + 4).unwrap_or(0),
         }
     }
 
@@ -157,10 +158,10 @@ impl DeviceIoControl {
 
     pub fn load(addr: u64, maps: &Maps) -> DeviceIoControl {
         DeviceIoControl {
-            output_buffer_length: maps.read_dword(addr).unwrap(),
-            input_buffer_length: maps.read_dword(addr + 4).unwrap(),
-            io_control_code: maps.read_dword(addr + 8).unwrap(),
-            type3_input_buffer: maps.read_qword(addr + 12).unwrap(),
+            output_buffer_length: maps.read_dword(addr).unwrap_or(0),
+            input_buffer_length: maps.read_dword(addr + 4).unwrap_or(0),
+            io_control_code: maps.read_dword(addr + 8).unwrap_or(0),
+            type3_input_buffer: maps.read_qword(addr + 12).unwrap_or(0),
         }
     }
 
@@ -200,9 +201,9 @@ impl StringStruct {
 
     pub fn load(addr: u64, maps: &Maps) -> StringStruct {
         StringStruct {
-            length: maps.read_word(addr).unwrap(),
-            maximum_length: maps.read_word(addr + 2).unwrap(),
-            buffer: maps.read_qword(addr + 4).unwrap(),
+            length: maps.read_word(addr).unwrap_or(0),
+            maximum_length: maps.read_word(addr + 2).unwrap_or(0),
+            buffer: maps.read_qword(addr + 4).unwrap_or(0),
         }
     }
 
@@ -239,8 +240,8 @@ impl ClientId {
 
     pub fn load(addr: u64, maps: &Maps) -> ClientId {
         ClientId {
-            unique_process: maps.read_dword(addr).unwrap(),
-            unique_thread: maps.read_dword(addr + 4).unwrap(),
+            unique_process: maps.read_dword(addr).unwrap_or(0),
+            unique_thread: maps.read_dword(addr + 4).unwrap_or(0),
         }
     }
 
@@ -272,8 +273,8 @@ impl LargeInteger {
 
     pub fn load(addr: u64, maps: &Maps) -> LargeInteger {
         LargeInteger {
-            low_part: maps.read_dword(addr).unwrap(),
-            high_part: maps.read_dword(addr + 4).unwrap(),
+            low_part: maps.read_dword(addr).unwrap_or(0),
+            high_part: maps.read_dword(addr + 4).unwrap_or(0),
         }
     }
 

@@ -2,6 +2,10 @@
 mod create_event_a;
 pub use create_event_a::*;
 
+#[path = "../create_event_w.rs"]
+mod create_event_w;
+pub use create_event_w::*;
+
 #[path = "../create_mutex_a.rs"]
 mod create_mutex_a;
 pub use create_mutex_a::*;

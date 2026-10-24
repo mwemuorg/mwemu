@@ -2,10 +2,7 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn SetDllDirectoryA(emu: &mut emu::Emu) {
-    let lpPathName = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
+    let lpPathName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     let lpPathName = emu.maps.read_string(lpPathName as u64);
 

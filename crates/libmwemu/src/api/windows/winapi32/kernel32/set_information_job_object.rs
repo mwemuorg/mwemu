@@ -2,22 +2,10 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn SetInformationJobObject(emu: &mut emu::Emu) {
-    let _hJob = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _JobObjectInformationClass = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _lpJobObjectInformation = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
-    let _cbJobObjectInformationLength = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("cannot read the api parameter");
+    let _hJob = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _JobObjectInformationClass = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _lpJobObjectInformation = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let _cbJobObjectInformationLength = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
 
     log_red!(emu, "kernel32!SetInformationJobObject");
 

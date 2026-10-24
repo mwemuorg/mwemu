@@ -279,7 +279,8 @@ impl Emu {
                     stack.size() as u64
                 }
                 0x14 => {
-                    unimplemented!("GS:[14]  get stack canary")
+                    log::warn!("GS:[0x14] stack canary not implemented");
+                    0
                 }
                 0x1488 => {
                     if self.cfg.verbose >= 1 {
@@ -334,7 +335,7 @@ impl Emu {
                             .unwrap_or(0),
                         _ => self.maps.read_qword(teb_addr).unwrap_or(0),
                     };
-                    if self.cfg.verbose >= 1 {
+                    if self.cfg.verbose >= 3 {
                         log::trace!("gs:[0x{:x}] -> 0x{:x}  (teb+0x{:x})", mem_addr, v, mem_addr);
                     }
                     return Some(v);
@@ -376,7 +377,14 @@ impl Emu {
                         } else {
                             log::trace!("/!\\ error dereferencing qword on 0x{:x}", mem_addr);
                             self.exception(ExceptionType::QWordDereferencing);
-                            None
+                            if self.cfg.soft_exception_recovery && self.process_terminated {
+                                self.process_terminated = false;
+                                self.is_running
+                                    .store(1, std::sync::atomic::Ordering::Relaxed);
+                                Some(0)
+                            } else {
+                                None
+                            }
                         }
                     }
                 }),
@@ -395,7 +403,14 @@ impl Emu {
                             } else {
                                 log::trace!("/!\\ error dereferencing dword on 0x{:x}", mem_addr);
                                 self.exception(ExceptionType::DWordDereferencing);
-                                None
+                                if self.cfg.soft_exception_recovery && self.process_terminated {
+                                    self.process_terminated = false;
+                                    self.is_running
+                                        .store(1, std::sync::atomic::Ordering::Relaxed);
+                                    Some(0)
+                                } else {
+                                    None
+                                }
                             }
                         }
                     }),
@@ -410,7 +425,14 @@ impl Emu {
                         } else {
                             log::trace!("/!\\ error dereferencing word on 0x{:x}", mem_addr);
                             self.exception(ExceptionType::WordDereferencing);
-                            None
+                            if self.cfg.soft_exception_recovery && self.process_terminated {
+                                self.process_terminated = false;
+                                self.is_running
+                                    .store(1, std::sync::atomic::Ordering::Relaxed);
+                                Some(0)
+                            } else {
+                                None
+                            }
                         }
                     }
                 }),
@@ -425,7 +447,14 @@ impl Emu {
                         } else {
                             log::trace!("/!\\ error dereferencing byte on 0x{:x}", mem_addr);
                             self.exception(ExceptionType::ByteDereferencing);
-                            None
+                            if self.cfg.soft_exception_recovery && self.process_terminated {
+                                self.process_terminated = false;
+                                self.is_running
+                                    .store(1, std::sync::atomic::Ordering::Relaxed);
+                                Some(0)
+                            } else {
+                                None
+                            }
                         }
                     }
                 }),
@@ -524,7 +553,11 @@ impl Emu {
                 }
                 _ => {
                     std::hint::cold_path();
-                    unreachable!("Error something is wrong")
+                    log::warn!(
+                        "operand: unexpected immediate kind {:?}",
+                        ins.op_kind(noperand)
+                    );
+                    None
                 }
             }
         }
@@ -575,9 +608,19 @@ impl Emu {
                 };
 
                 let mem_seg = ins.memory_segment();
+
+                // Compute full effective address for segment-relative writes,
+                // matching the read path: displacement + base register.
+                let seg_offset = if mem_base == Register::None || mem_base == Register::RIP {
+                    temp_displace
+                } else {
+                    let base_val = self.regs().get_reg(mem_base);
+                    base_val.wrapping_add(temp_displace)
+                };
+
                 if unlikely(mem_seg == Register::GS && self.kernel.is_some()) {
                     // Per-CPU store; see the matching read path above.
-                    let addr = self.regs().gs.wrapping_add(temp_displace);
+                    let addr = self.regs().gs.wrapping_add(seg_offset);
                     match (ins.memory_size().size() * 8) as u32 {
                         8 => self.maps.write_byte(addr, value as u8),
                         16 => self.maps.write_word(addr, value as u16),
@@ -590,13 +633,13 @@ impl Emu {
                     // x64 Windows: GS is based at TEB.  Forward writes to teb_base + offset
                     // so that real ntdll code can update TEB fields without writing to address 0.
                     let teb_base = self.maps.get_mem("teb").get_base();
-                    let teb_addr = teb_base.wrapping_add(temp_displace);
-                    if self.cfg.verbose >= 1 {
+                    let teb_addr = teb_base.wrapping_add(seg_offset);
+                    if self.cfg.verbose >= 3 {
                         log::trace!(
                             "gs:[0x{:x}] = 0x{:x}  (teb+0x{:x})",
-                            temp_displace,
+                            seg_offset,
                             value,
-                            temp_displace
+                            seg_offset
                         );
                     }
                     match (ins.memory_size().size() * 8) as u32 {
@@ -732,15 +775,21 @@ impl Emu {
                             } else {
                                 return if self.cfg.skip_unimplemented {
                                     let map_name = format!("banzai_{:x}", mem_addr);
-                                    let map = self
-                                        .maps
-                                        .create_map(
-                                            &map_name,
-                                            mem_addr,
-                                            100,
-                                            Permission::READ_WRITE_EXECUTE,
-                                        )
-                                        .expect("cannot create banzai map");
+                                    let map = match self.maps.create_map(
+                                        &map_name,
+                                        mem_addr,
+                                        100,
+                                        Permission::READ_WRITE_EXECUTE,
+                                    ) {
+                                        Ok(m) => m,
+                                        Err(_) => {
+                                            log::error!(
+                                                "cannot create banzai map at 0x{:x}",
+                                                mem_addr
+                                            );
+                                            return false;
+                                        }
+                                    };
                                     map.write_qword(mem_addr, value2);
                                     true
                                 } else {
@@ -749,6 +798,11 @@ impl Emu {
                                         mem_addr
                                     );
                                     self.exception(ExceptionType::BadAddressDereferencing);
+                                    if self.cfg.soft_exception_recovery && self.process_terminated {
+                                        self.process_terminated = false;
+                                        self.is_running
+                                            .store(1, std::sync::atomic::Ordering::Relaxed);
+                                    }
                                     false
                                 };
                             }
@@ -763,15 +817,21 @@ impl Emu {
                             } else {
                                 return if self.cfg.skip_unimplemented {
                                     let map_name = format!("banzai_{:x}", mem_addr);
-                                    let map = self
-                                        .maps
-                                        .create_map(
-                                            &map_name,
-                                            mem_addr,
-                                            100,
-                                            Permission::READ_WRITE_EXECUTE,
-                                        )
-                                        .expect("cannot create banzai map");
+                                    let map = match self.maps.create_map(
+                                        &map_name,
+                                        mem_addr,
+                                        100,
+                                        Permission::READ_WRITE_EXECUTE,
+                                    ) {
+                                        Ok(m) => m,
+                                        Err(_) => {
+                                            log::error!(
+                                                "cannot create banzai map at 0x{:x}",
+                                                mem_addr
+                                            );
+                                            return false;
+                                        }
+                                    };
                                     map.write_dword(mem_addr, to32!(value2));
                                     true
                                 } else {
@@ -780,6 +840,11 @@ impl Emu {
                                         mem_addr
                                     );
                                     self.exception(ExceptionType::BadAddressDereferencing);
+                                    if self.cfg.soft_exception_recovery && self.process_terminated {
+                                        self.process_terminated = false;
+                                        self.is_running
+                                            .store(1, std::sync::atomic::Ordering::Relaxed);
+                                    }
                                     false
                                 };
                             }
@@ -794,15 +859,21 @@ impl Emu {
                             } else {
                                 return if self.cfg.skip_unimplemented {
                                     let map_name = format!("banzai_{:x}", mem_addr);
-                                    let map = self
-                                        .maps
-                                        .create_map(
-                                            &map_name,
-                                            mem_addr,
-                                            100,
-                                            Permission::READ_WRITE_EXECUTE,
-                                        )
-                                        .expect("cannot create banzai map");
+                                    let map = match self.maps.create_map(
+                                        &map_name,
+                                        mem_addr,
+                                        100,
+                                        Permission::READ_WRITE_EXECUTE,
+                                    ) {
+                                        Ok(m) => m,
+                                        Err(_) => {
+                                            log::error!(
+                                                "cannot create banzai map at 0x{:x}",
+                                                mem_addr
+                                            );
+                                            return false;
+                                        }
+                                    };
                                     map.write_word(mem_addr, value2 as u16);
                                     true
                                 } else {
@@ -811,6 +882,11 @@ impl Emu {
                                         mem_addr
                                     );
                                     self.exception(ExceptionType::BadAddressDereferencing);
+                                    if self.cfg.soft_exception_recovery && self.process_terminated {
+                                        self.process_terminated = false;
+                                        self.is_running
+                                            .store(1, std::sync::atomic::Ordering::Relaxed);
+                                    }
                                     false
                                 };
                             }
@@ -842,15 +918,21 @@ impl Emu {
                                 }
                                 return if self.cfg.skip_unimplemented {
                                     let map_name = format!("banzai_{:x}", mem_addr);
-                                    let map = self
-                                        .maps
-                                        .create_map(
-                                            &map_name,
-                                            mem_addr,
-                                            100,
-                                            Permission::READ_WRITE_EXECUTE,
-                                        )
-                                        .expect("cannot create banzai map");
+                                    let map = match self.maps.create_map(
+                                        &map_name,
+                                        mem_addr,
+                                        100,
+                                        Permission::READ_WRITE_EXECUTE,
+                                    ) {
+                                        Ok(m) => m,
+                                        Err(_) => {
+                                            log::error!(
+                                                "cannot create banzai map at 0x{:x}",
+                                                mem_addr
+                                            );
+                                            return false;
+                                        }
+                                    };
                                     map.write_byte(mem_addr, value2 as u8);
                                     true
                                 } else {
@@ -859,6 +941,11 @@ impl Emu {
                                         mem_addr
                                     );
                                     self.exception(ExceptionType::BadAddressDereferencing);
+                                    if self.cfg.soft_exception_recovery && self.process_terminated {
+                                        self.process_terminated = false;
+                                        self.is_running
+                                            .store(1, std::sync::atomic::Ordering::Relaxed);
+                                    }
                                     false
                                 };
                             }
@@ -873,7 +960,10 @@ impl Emu {
                         32 => self.maps.read_dword(mem_addr).unwrap_or(0) as u64,
                         16 => self.maps.read_word(mem_addr).unwrap_or(0) as u64,
                         8 => self.maps.read_byte(mem_addr).unwrap_or(0) as u64,
-                        _ => unreachable!("weird size: {}", sz),
+                        _ => {
+                            log::warn!("operand: unexpected size {} in memory trace", sz);
+                            0
+                        }
                     };
                     let memory_operation = MemoryOperation {
                         pos: self.pos,
@@ -981,7 +1071,10 @@ impl Emu {
                     mem_addr as u128
                 }
             }
-            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
+            _ => {
+                log::warn!("unimplemented operand type {:?}", ins.op_kind(noperand));
+                return None;
+            }
         };
         Some(value)
     }

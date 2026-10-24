@@ -236,7 +236,7 @@ impl ValueBlock {
         let data_offset = reader.read_i32::<LittleEndian>()?;
         let value_type = (reader.read_i32::<LittleEndian>()? as u32)
             .try_into()
-            .unwrap();
+            .map_err(|_| HiveError::InvalidValueType)?;
 
         // Skip flags and dummy (4 bytes)
         let mut dummy = [0u8; 4];

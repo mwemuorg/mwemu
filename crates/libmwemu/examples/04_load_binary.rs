@@ -34,7 +34,7 @@ fn main() {
     // Windows samples resolve imports against these DLLs. Harmless for ELF.
     emu.cfg.maps_folder = "maps/windows/x86_64/".to_string();
 
-    emu.load_code(&path);
+    emu.load_code(&path).expect("failed to load binary");
 
     // `run_to` stops after N emulated instructions. Use `run(Some(addr))` to
     // stop when a given address is reached instead, or `run(None)` to go until

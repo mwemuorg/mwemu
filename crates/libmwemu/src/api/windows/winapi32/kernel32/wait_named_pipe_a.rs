@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn WaitNamedPipeA(emu: &mut emu::Emu) {
-    let lpNamedPipeName = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _nTimeOut = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let lpNamedPipeName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _nTimeOut = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let lpNamedPipeName = emu.maps.read_string(lpNamedPipeName as u64);
 

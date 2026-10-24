@@ -7,26 +7,11 @@ use crate::windows::constants;
 use super::virtual_alloc_common::{fail, fail_oom};
 
 pub fn VirtualAllocEx(emu: &mut emu::Emu) {
-    let proc_hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!VirtualAllocEx cannot read the proc handle") as u64;
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!VirtualAllocEx cannot read the address") as u64;
-    let orig_size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!VirtualAllocEx cannot read the size") as u64;
-    let typ = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!VirtualAllocEx cannot read the type");
-    let prot = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("kernel32!VirtualAllocEx cannot read the protect");
+    let proc_hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let addr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let orig_size = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let typ = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let prot = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
 
     let size = round_up(orig_size);
     let mem_reserve = (typ & constants::MEM_RESERVE) != 0;
@@ -101,7 +86,7 @@ pub fn VirtualAllocEx(emu: &mut emu::Emu) {
             prot,
             err
         );
-        set_last_error(constants::ERROR_NOT_ENOUGH_MEMORY as u32);
+        set_last_error(emu, constants::ERROR_NOT_ENOUGH_MEMORY as u32);
         emu.regs_mut().rax = 0;
         for _ in 0..5 {
             emu.stack_pop32(false);
@@ -110,7 +95,7 @@ pub fn VirtualAllocEx(emu: &mut emu::Emu) {
     }
 
     if mem_commit && !mem_reserve {
-        set_last_error(constants::ERROR_SUCCESS as u32);
+        set_last_error(emu, constants::ERROR_SUCCESS as u32);
         log_red!(
             emu,
             "kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} sz: {} (rounded {}) flags: {} prot: {} = 0x{:x}",
@@ -129,7 +114,7 @@ pub fn VirtualAllocEx(emu: &mut emu::Emu) {
         return;
     }
 
-    set_last_error(constants::ERROR_SUCCESS as u32);
+    set_last_error(emu, constants::ERROR_SUCCESS as u32);
     log_red!(
         emu,
         "kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} sz: {} (rounded {}) flags: {} prot: {} = 0x{:x}",

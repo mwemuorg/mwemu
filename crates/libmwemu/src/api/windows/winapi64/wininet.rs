@@ -31,11 +31,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -59,10 +59,7 @@ pub fn InternetOpenA(emu: &mut emu::Emu) {
     let access = emu.regs().rdx;
     let proxy_ptr = emu.regs().r8;
     let proxybypass_ptr = emu.regs().r9;
-    let flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!InternetOpenA  cannot read flags");
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let mut uagent = "".to_string();
     let mut proxy = "".to_string();
@@ -103,10 +100,7 @@ pub fn InternetOpenW(emu: &mut emu::Emu) {
     let access = emu.regs().rdx;
     let proxy_ptr = emu.regs().r8;
     let proxybypass_ptr = emu.regs().r9;
-    let flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!InternetOpenW  cannot read flags");
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let mut uagent = "".to_string();
     let mut proxy = "".to_string();
@@ -146,22 +140,10 @@ pub fn InternetConnectA(emu: &mut emu::Emu) {
     let server_ptr = emu.regs().rdx;
     let port = emu.regs().r8;
     let login_ptr = emu.regs().r9;
-    let passw_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!InternetConnectA cannot read passw_ptr");
-    let service = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("wininet!InternetConnectA cannot read service");
-    let flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("wininet!InternetConnectA cannot read flags");
-    let ctx = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x38)
-        .expect("wininet!InternetConnectA cannot read ctx");
+    let passw_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let service = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let ctx = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     let mut server = "".to_string();
     let mut login = "".to_string();
@@ -204,22 +186,10 @@ pub fn InternetConnectW(emu: &mut emu::Emu) {
     let server_ptr = emu.regs().rdx;
     let port = emu.regs().r8;
     let login_ptr = emu.regs().r9;
-    let passw_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!InternetConnectW cannot read passw_ptr");
-    let service = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("wininet!InternetConnectW cannot read service");
-    let flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("wininet!InternetConnectW cannot read flags");
-    let ctx = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x38)
-        .expect("wininet!InternetConnectW cannot read ctx");
+    let passw_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let service = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let ctx = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     let mut server = "".to_string();
     let mut login = "".to_string();
@@ -262,22 +232,10 @@ fn HttpOpenRequestA(emu: &mut emu::Emu) {
     let method_ptr = emu.regs().rdx;
     let path_ptr = emu.regs().r8;
     let version_ptr = emu.regs().r9;
-    let referrer_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!HttpOpenRequestA cannot read referrer_ptr");
-    let access_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("wininet!HttpOpenRequestA cannot read access_ptr");
-    let flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("wininet!HttpOpenRequestA cannot read flags");
-    let ctx = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x38)
-        .expect("wininet!HttpOpenRequestA cannot read ctx");
+    let referrer_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let access_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let ctx = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     let mut method = "".to_string();
     let mut path = "".to_string();
@@ -346,22 +304,10 @@ fn HttpOpenRequestW(emu: &mut emu::Emu) {
     let method_ptr = emu.regs().rdx;
     let path_ptr = emu.regs().r8;
     let version_ptr = emu.regs().r9;
-    let referrer_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!HttpOpenRequestW cannot read referrer_ptr");
-    let access_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("wininet!HttpOpenRequestW cannot read access_ptr");
-    let flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("wininet!HttpOpenRequestW cannot read flags");
-    let ctx = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x38)
-        .expect("wininet!HttpOpenRequestW cannot read ctx");
+    let referrer_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let access_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let ctx = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     let mut method = "".to_string();
     let mut path = "".to_string();
@@ -479,10 +425,7 @@ fn HttpSendRequestA(emu: &mut emu::Emu) {
     let hdrs_ptr = emu.regs().rdx;
     let hdrs_len = emu.regs().r8;
     let opt_ptr = emu.regs().r9;
-    let opt_len = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!HttpSendRequestA cannot read opt_len");
+    let opt_len = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let hdrs = emu.maps.read_string(hdrs_ptr);
     let opt = emu.maps.read_string(opt_ptr);
@@ -507,10 +450,7 @@ fn HttpSendRequestW(emu: &mut emu::Emu) {
     let hdrs_ptr = emu.regs().rdx;
     let hdrs_len = emu.regs().r8;
     let opt_ptr = emu.regs().r9;
-    let opt_len = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("wininet!HttpSendRequestW cannot read opt_len");
+    let opt_len = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let hdrs = emu.maps.read_wide_string(hdrs_ptr);
     let opt = emu.maps.read_wide_string(opt_ptr);

@@ -35,13 +35,13 @@ impl NtTib {
 
     pub fn load(addr: u64, maps: &Maps) -> NtTib {
         NtTib {
-            exception_list: maps.read_qword(addr).unwrap(),
-            stack_base: maps.read_qword(addr + 8).unwrap(),
-            stack_limit: maps.read_qword(addr + 16).unwrap(),
-            reserved1: maps.read_qword(addr + 24).unwrap(),
-            reserved2: maps.read_qword(addr + 32).unwrap(),
-            reserved3: maps.read_qword(addr + 40).unwrap(),
-            self_ptr: maps.read_qword(addr + 48).unwrap(),
+            exception_list: maps.read_qword(addr).unwrap_or(0),
+            stack_base: maps.read_qword(addr + 8).unwrap_or(0),
+            stack_limit: maps.read_qword(addr + 16).unwrap_or(0),
+            reserved1: maps.read_qword(addr + 24).unwrap_or(0),
+            reserved2: maps.read_qword(addr + 32).unwrap_or(0),
+            reserved3: maps.read_qword(addr + 40).unwrap_or(0),
+            self_ptr: maps.read_qword(addr + 48).unwrap_or(0),
         }
     }
 
@@ -105,20 +105,20 @@ impl Teb {
     pub fn load(addr: u64, maps: &Maps) -> Teb {
         Teb {
             nt_tib: NtTib::load(addr, maps),
-            environment_pointer: maps.read_qword(addr + 56).unwrap(),
+            environment_pointer: maps.read_qword(addr + 56).unwrap_or(0),
             client_id: ClientId::load(addr + 64, maps),
-            pad0: maps.read_qword(addr + 80).unwrap(),
-            active_rpc_handle: maps.read_qword(addr + 88).unwrap(),
-            thread_local_storage_pointer: maps.read_qword(addr + 96).unwrap(),
-            process_environment_block: maps.read_qword(addr + 104).unwrap(),
-            last_error_value: maps.read_dword(addr + 112).unwrap(),
-            count_of_owned_critical_sections: maps.read_dword(addr + 116).unwrap(),
-            csr_client_thread: maps.read_qword(addr + 120).unwrap(),
-            win32_thread_info: maps.read_qword(addr + 128).unwrap(),
+            pad0: maps.read_qword(addr + 80).unwrap_or(0),
+            active_rpc_handle: maps.read_qword(addr + 88).unwrap_or(0),
+            thread_local_storage_pointer: maps.read_qword(addr + 96).unwrap_or(0),
+            process_environment_block: maps.read_qword(addr + 104).unwrap_or(0),
+            last_error_value: maps.read_dword(addr + 112).unwrap_or(0),
+            count_of_owned_critical_sections: maps.read_dword(addr + 116).unwrap_or(0),
+            csr_client_thread: maps.read_qword(addr + 120).unwrap_or(0),
+            win32_thread_info: maps.read_qword(addr + 128).unwrap_or(0),
             user32_reserved: [0; 26],
             user_reserved: [0; 5],
-            wow32_reserved: maps.read_qword(addr + 260).unwrap(),
-            current_locale: maps.read_dword(addr + 268).unwrap(),
+            wow32_reserved: maps.read_qword(addr + 260).unwrap_or(0),
+            current_locale: maps.read_dword(addr + 268).unwrap_or(0),
         }
     }
 

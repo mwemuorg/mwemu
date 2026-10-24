@@ -1,4 +1,3 @@
-use crate::winapi::winapi64::kernel32::{LAST_ERROR, clear_last_error};
 use crate::{emu, windows::constants};
 
 // FROM THE ASSEMBLY FILE - THESE ARE THE CORRECT VALUES:
@@ -84,15 +83,14 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
     // Check if it wants buffer size
     if cch_data == 0 {
         emu.regs_mut().rax = required_size as u64;
-        clear_last_error(emu);
+        emu.clear_last_error();
         return;
     }
 
     // Validate buffer pointer
     if lp_lc_data == 0 {
         log::warn!("{} GetLocaleInfoW invalid parameter - null buffer", emu.pos);
-        let mut err = LAST_ERROR.lock().unwrap();
-        *err = constants::ERROR_INVALID_PARAMETER;
+        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -105,8 +103,7 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
             cch_data,
             required_size
         );
-        let mut err = LAST_ERROR.lock().unwrap();
-        *err = constants::ERROR_INSUFFICIENT_BUFFER;
+        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -114,5 +111,5 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
     // Write the result to the buffer
     emu.maps.write_wide_string(lp_lc_data as u64, result);
     emu.regs_mut().rax = required_size as u64;
-    clear_last_error(emu);
+    emu.clear_last_error();
 }

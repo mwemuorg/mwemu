@@ -264,10 +264,13 @@ impl Emu {
                 };
 
             if unlikely(handle_winapi) {
-                let section_name = self
-                    .maps
-                    .get_addr_name(addr)
-                    .expect("/!\\ changing RIP to non mapped addr 0x");
+                let section_name = match self.maps.get_addr_name(addr) {
+                    Some(name) => name,
+                    None => {
+                        log::error!("changing RIP to non mapped addr 0x{:x}", addr);
+                        return false;
+                    }
+                };
                 if winapi64::msvcrt::is_native_section(section_name) {
                     // Native execution: the legacy msvcrt gadget owns its own
                     // `ret`. The gateway model above popped the caller's
@@ -488,7 +491,13 @@ impl Emu {
                 };
 
             if handle_winapi {
-                let name = self.maps.get_addr_name(addr).unwrap();
+                let name = match self.maps.get_addr_name(addr) {
+                    Some(n) => n,
+                    None => {
+                        log::error!("changing EIP to non mapped addr 0x{:x}", addr);
+                        return false;
+                    }
+                };
                 winapi32::gateway(to32!(addr), name.to_string().as_str(), self);
             }
             self.force_break = true;

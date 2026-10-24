@@ -1,22 +1,10 @@
 use crate::emu;
 
 pub fn GetFullPathNameW(emu: &mut emu::Emu) {
-    let file_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetFullPathNameW cannot read file_ptr") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!GetFullPathNameW cannot read size");
-    let buff = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!GetFullPathNameW cannot read buff");
-    let path = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!GetFullPathNameW cannot read path");
+    let file_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let buff = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let path = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
 
     let filename = emu.maps.read_wide_string(file_ptr);
 

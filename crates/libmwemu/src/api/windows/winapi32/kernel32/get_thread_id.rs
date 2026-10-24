@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn GetThreadId(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!GetThreadId bad handle parameter") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     emu.stack_pop32(false);
 

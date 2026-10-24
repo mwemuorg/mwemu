@@ -19,7 +19,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         if emu.regs_mut().rcx == 0 {
             emu.regs_mut().rcx = 0xffffffffffffffff;
         } else {
-            emu.regs_mut().rcx -= 1;
+            let v = emu.regs().rcx.wrapping_sub(1);
+            emu.regs_mut().rcx = v;
         }
 
         if emu.regs().rcx > 0 {
@@ -29,7 +30,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         if emu.regs_mut().get_ecx() == 0 {
             emu.regs_mut().set_ecx(0xffffffff);
         } else {
-            let ecx = emu.regs().get_ecx() - 1;
+            let ecx = emu.regs().get_ecx().wrapping_sub(1);
             emu.regs_mut().set_ecx(ecx);
         }
 

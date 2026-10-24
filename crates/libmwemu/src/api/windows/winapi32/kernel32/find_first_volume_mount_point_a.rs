@@ -2,18 +2,9 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn FindFirstVolumeMountPointA(emu: &mut emu::Emu) {
-    let lpszRootPathName = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _lpszVolumeMountPoint = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _cchBufferLength = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
+    let lpszRootPathName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _lpszVolumeMountPoint = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _cchBufferLength = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     let lpszRootPathName = emu.maps.read_string(lpszRootPathName as u64);
 

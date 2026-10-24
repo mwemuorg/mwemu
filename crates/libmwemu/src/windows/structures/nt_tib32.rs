@@ -36,13 +36,13 @@ impl NtTib32 {
 
     pub fn load(addr: u64, maps: &Maps) -> NtTib32 {
         NtTib32 {
-            exception_list: maps.read_dword(addr).unwrap(),
-            stack_base: maps.read_dword(addr + 4).unwrap(),
-            stack_limit: maps.read_dword(addr + 8).unwrap(),
-            sub_system_tib: maps.read_dword(addr + 12).unwrap(),
-            fiber_data: maps.read_dword(addr + 16).unwrap(),
-            arbitrary_user_pointer: maps.read_dword(addr + 20).unwrap(),
-            self_pointer: maps.read_dword(addr + 24).unwrap(),
+            exception_list: maps.read_dword(addr).unwrap_or(0),
+            stack_base: maps.read_dword(addr + 4).unwrap_or(0),
+            stack_limit: maps.read_dword(addr + 8).unwrap_or(0),
+            sub_system_tib: maps.read_dword(addr + 12).unwrap_or(0),
+            fiber_data: maps.read_dword(addr + 16).unwrap_or(0),
+            arbitrary_user_pointer: maps.read_dword(addr + 20).unwrap_or(0),
+            self_pointer: maps.read_dword(addr + 24).unwrap_or(0),
         }
     }
 

@@ -96,11 +96,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -116,14 +116,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 }
 
 fn _initterm_e(emu: &mut emu::Emu) {
-    let start_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!_initterm_e: error reading start pointer") as u64;
-    let end_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("msvcrt!_initterm_e: error reading en pointer") as u64;
+    let start_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let end_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     log_red!(
         emu,
@@ -136,14 +130,8 @@ fn _initterm_e(emu: &mut emu::Emu) {
 }
 
 fn _initterm(emu: &mut emu::Emu) {
-    let start_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!_initterm_e: error reading start pointer") as u64;
-    let end_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("msvcrt!_initterm_e: error reading end pointer") as u64;
+    let start_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let end_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     log_red!(emu, "msvcrt!_initterm 0x{:x} - 0x{:x}", start_ptr, end_ptr);
 
@@ -151,14 +139,8 @@ fn _initterm(emu: &mut emu::Emu) {
 }
 
 fn StrCmpCA(emu: &mut emu::Emu) {
-    let str1_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!StrCmpA: error reading str1 pointer") as u64;
-    let str2_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("msvcrt!StrCmpA: error reading str2 pointer") as u64;
+    let str1_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let str2_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     if str1_ptr == 0 || str2_ptr == 0 {
         emu.regs_mut().rax = 0xffffffff;
@@ -179,14 +161,8 @@ fn StrCmpCA(emu: &mut emu::Emu) {
 }
 
 fn fopen(emu: &mut emu::Emu) {
-    let filepath_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!fopen error reading filepath pointer") as u64;
-    let mode_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("msvcrt!fopen error reading mode pointer") as u64;
+    let filepath_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let mode_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     if filepath_ptr == 0 || mode_ptr == 0 {
         emu.regs_mut().rax = 0xffffffff;
@@ -203,22 +179,10 @@ fn fopen(emu: &mut emu::Emu) {
 }
 
 fn fwrite(emu: &mut emu::Emu) {
-    let buff_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!fwrite error reading buff_ptr") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("msvcrt!fwrite error reading size");
-    let nemb = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("msvcrt!fwrite error reading nemb");
-    let file = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("msvcrt!fwrite error reading FILE *");
+    let buff_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let nemb = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let file = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
 
     let filename = helper::handler_get_uri(file as u64);
 
@@ -234,10 +198,7 @@ fn fwrite(emu: &mut emu::Emu) {
 }
 
 fn fflush(emu: &mut emu::Emu) {
-    let file = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!fflush error getting FILE *");
+    let file = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     let filename = helper::handler_get_uri(file as u64);
 
@@ -249,10 +210,7 @@ fn fflush(emu: &mut emu::Emu) {
 }
 
 fn fclose(emu: &mut emu::Emu) {
-    let file = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!fclose error getting FILE *");
+    let file = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     let filename = helper::handler_get_uri(file as u64);
 
@@ -270,11 +228,25 @@ fn __p___argc(emu: &mut emu::Emu) {
     let args_base = match emu.maps.get_map_by_name("args") {
         Some(a) => a.get_base(),
         None => {
-            let addr = emu.maps.alloc(1024).expect("out of memory");
-            emu.maps
+            let addr = match emu.maps.alloc(1024) {
+                Some(a) => a,
+                None => {
+                    log::error!("msvcrt!__p___argc: out of memory");
+                    emu.regs_mut().rax = 0;
+                    return;
+                }
+            };
+            match emu
+                .maps
                 .create_map("args", addr, 1024, Permission::READ_WRITE)
-                .expect("cannot create args map")
-                .get_base()
+            {
+                Ok(m) => m.get_base(),
+                Err(e) => {
+                    log::error!("msvcrt!__p___argc: cannot create args map: {}", e);
+                    emu.regs_mut().rax = 0;
+                    return;
+                }
+            }
         }
     };
 
@@ -284,16 +256,13 @@ fn __p___argc(emu: &mut emu::Emu) {
 }
 
 fn malloc(emu: &mut emu::Emu) {
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!malloc error reading size") as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     if size > 0 {
         let base = if emu.cfg.memory_guard {
             emu.kernel_alloc(Region::Slab, size, "malloc", "malloc", false)
         } else {
-            allocate_memory(emu, size).expect("msvcrt!malloc out of memory")
+            allocate_memory(emu, size).unwrap_or(0)
         };
 
         log_red!(emu, "msvcrt!malloc sz: {} addr: 0x{:x}", size, base);
@@ -310,10 +279,7 @@ fn __p__acmdln(emu: &mut emu::Emu) {
 }
 
 fn _onexit(emu: &mut emu::Emu) {
-    let fptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!_onexit") as u64;
+    let fptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(emu, "msvcrt!_onexit 0x{:x}", fptr);
 
@@ -321,10 +287,7 @@ fn _onexit(emu: &mut emu::Emu) {
 }
 
 fn _lock(emu: &mut emu::Emu) {
-    let lock_num = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!_lock");
+    let lock_num = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(emu, "msvcrt!_lock {}", lock_num);
 
@@ -332,10 +295,7 @@ fn _lock(emu: &mut emu::Emu) {
 }
 
 fn free(emu: &mut emu::Emu) {
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!free error reading addr");
+    let addr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(emu, "msvcrt!free 0x{:x}", addr);
 
@@ -347,21 +307,15 @@ fn free(emu: &mut emu::Emu) {
 }
 
 fn realloc(emu: &mut emu::Emu) {
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!realloc error reading addr") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("msvcrt!realloc error reading size") as u64;
+    let addr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     if addr == 0 {
         if size == 0 {
             emu.regs_mut().rax = 0;
             return;
         } else {
-            let base = allocate_memory(emu, size).expect("msvcrt!malloc out of memory");
+            let base = allocate_memory(emu, size).unwrap_or(0);
 
             log_red!(emu, "msvcrt!realloc 0x{:x} {} =0x{:x}", addr, size, base);
 
@@ -388,7 +342,7 @@ fn realloc(emu: &mut emu::Emu) {
     let new_addr = if emu.cfg.memory_guard {
         emu.kernel_alloc(Region::Slab, size, "malloc", "realloc", false)
     } else {
-        allocate_memory(emu, size).expect("msvcrt!realloc out of memory")
+        allocate_memory(emu, size).unwrap_or(0)
     };
 
     emu.maps
@@ -411,15 +365,9 @@ fn realloc(emu: &mut emu::Emu) {
 }
 
 fn strtok(emu: &mut emu::Emu) {
-    let str_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!strtok error reading str_ptr");
+    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
-    let delim_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("msvcrt!strtok error reading delim");
+    let delim_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let str = emu.maps.read_string(str_ptr as u64);
     let delim = emu.maps.read_string(delim_ptr as u64);
@@ -430,19 +378,13 @@ fn strtok(emu: &mut emu::Emu) {
 }
 
 fn __set_app_type(emu: &mut emu::Emu) {
-    let app_type = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!__set_app_type error reading app_type");
+    let app_type = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(emu, "msvcrt!__set_app_type  app_type: 0x{:x}", app_type);
 }
 
 fn exit(emu: &mut emu::Emu) {
-    let status = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("msvcrt!exit error reading param status.");
+    let status = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
     log_red!(emu, "msvcrt!exit {}", status);
     emu.stop();
 }

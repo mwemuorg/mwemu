@@ -5,10 +5,7 @@ pub fn ReadProcessMemory(emu: &mut emu::Emu) {
     let addr = emu.regs().rdx;
     let buff = emu.regs().r8;
     let size = emu.regs().r9;
-    let bytes = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!ReadProcessMemory cannot read bytes");
+    let bytes = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(
         emu,

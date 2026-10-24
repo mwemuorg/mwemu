@@ -390,10 +390,13 @@ pub fn create_ldr_entry(
 ) -> u64 {
     let base_addr;
     let sz = LdrDataTableEntry64::size() + 0x40 + (1024 * 2);
-    let space_addr = emu
-        .maps
-        .alloc(sz)
-        .expect("cannot alloc few bytes to put the LDR for LoadLibraryA");
+    let space_addr = match emu.maps.alloc(sz) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc LDR entry for {}", libname);
+            return 0;
+        }
+    };
     let mut lib = format!("{}.ldr", libname);
     if emu.maps.exists_mapname(&lib) {
         use std::sync::atomic::{AtomicU32, Ordering};
@@ -412,10 +415,16 @@ pub fn create_ldr_entry(
     } else {
         base_addr = space_addr
     }
-    let mem = emu
+    let mem = match emu
         .maps
         .create_map(lib.as_str(), space_addr, sz, Permission::READ_WRITE)
-        .expect("cannot create ldr entry map");
+    {
+        Ok(m) => m,
+        Err(e) => {
+            log::error!("cannot create ldr entry map for {}: {}", libname, e);
+            return 0;
+        }
+    };
     mem.write_byte(space_addr + sz - 1, 0x61);
 
     let full_libname = "C:\\Windows\\System32\\".to_string() + libname;
@@ -674,16 +683,23 @@ fn rebuild_ldrp_module_base_address_index(emu: &mut emu::Emu, entries: &[u64]) {
     let mut node_addrs: Vec<u64> = Vec::with_capacity(items.len());
 
     for &(_, entry_addr) in &items {
-        let ddag_addr = emu.maps.alloc(DDAG_SIZE).expect("cannot alloc DdagNode");
+        let ddag_addr = match emu.maps.alloc(DDAG_SIZE) {
+            Some(a) => a,
+            None => {
+                log::error!("cannot alloc DdagNode");
+                continue;
+            }
+        };
         let seq = DDAG_SEQ.fetch_add(1, Ordering::Relaxed);
-        emu.maps
-            .create_map(
-                &format!("ddag_node.{}", seq),
-                ddag_addr,
-                DDAG_SIZE,
-                Permission::READ_WRITE,
-            )
-            .expect("cannot create DdagNode map");
+        if let Err(e) = emu.maps.create_map(
+            &format!("ddag_node.{}", seq),
+            ddag_addr,
+            DDAG_SIZE,
+            Permission::READ_WRITE,
+        ) {
+            log::error!("cannot create DdagNode map: {}", e);
+            continue;
+        }
 
         // LDR_DDAG_NODE.LoadCount (+0x18) == -1 means "untracked / system" module.
         let _ = emu.maps.write_dword(ddag_addr + 0x18, 0xFFFF_FFFF);

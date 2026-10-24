@@ -41,7 +41,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         32 => emu.flags_overwrite_mut().sub32(value0, value1),
         16 => emu.flags_overwrite_mut().sub16(value0, value1),
         8 => emu.flags_overwrite_mut().sub8(value0, value1),
-        _ => unreachable!("weird size"),
+        _ => {
+            log::warn!("sub: unexpected operand size");
+            return false;
+        }
     };
 
     if !emu.set_operand_value(ins, 0, res) {

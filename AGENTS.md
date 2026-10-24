@@ -29,6 +29,8 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 9. Don't do commits unless the user ask for it.
 
+10. check TEST.md after finishing implementations
+
 
 ## Testing
 

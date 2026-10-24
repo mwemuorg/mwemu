@@ -2,14 +2,8 @@ use crate::emu;
 use crate::winapi::helper;
 
 pub fn CreateToolhelp32Snapshot(emu: &mut emu::Emu) {
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!CreateToolhelp32Snapshot cannot read flags");
-    let pid = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!CreateToolhelp32Snapshot cannot read pid");
+    let flags = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let pid = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(emu, "kernel32!CreateToolhelp32Snapshot pid: {}", pid);
 

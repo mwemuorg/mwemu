@@ -14,14 +14,14 @@ pub struct CppEhRecord {
 impl CppEhRecord {
     pub fn load(addr: u64, maps: &Maps) -> CppEhRecord {
         CppEhRecord {
-            old_esp: maps.read_dword(addr).unwrap(),
-            exc_ptr: maps.read_dword(addr + 4).unwrap(),
-            next: maps.read_dword(addr + 8).unwrap(),
-            exception_handler: maps.read_dword(addr + 12).unwrap(),
+            old_esp: maps.read_dword(addr).unwrap_or(0),
+            exc_ptr: maps.read_dword(addr + 4).unwrap_or(0),
+            next: maps.read_dword(addr + 8).unwrap_or(0),
+            exception_handler: maps.read_dword(addr + 12).unwrap_or(0),
             scope_table: PScopeTableEntry::load(addr + 16, maps),
             try_level: maps
                 .read_dword(addr + 16 + PScopeTableEntry::size())
-                .unwrap(),
+                .unwrap_or(0),
         }
     }
 

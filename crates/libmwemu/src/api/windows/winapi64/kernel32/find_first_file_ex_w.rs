@@ -5,14 +5,8 @@ pub fn FindFirstFileExW(emu: &mut emu::Emu) {
     let info_level = emu.regs().rdx;
     let find_data_ptr = emu.regs().r8;
     let search_op = emu.regs().r9;
-    let search_filter = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!FindFirstFileExW cannot read_qword search_filter");
-    let additional_flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("kernel32!FindFirstFileExW cannot read_qword additional_flags");
+    let search_filter = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let additional_flags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let filename = emu.maps.read_wide_string(filename_ptr);
 

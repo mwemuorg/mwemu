@@ -1,4 +1,4 @@
-use crate::{emu, winapi::winapi64::kernel32::set_last_error, windows::constants};
+use crate::{emu, windows::constants};
 
 pub fn GetComputerNameA(emu: &mut emu::Emu) {
     let buff_ptr = emu.regs().rcx; // LPSTR lpBuffer
@@ -14,16 +14,13 @@ pub fn GetComputerNameA(emu: &mut emu::Emu) {
     // Check if size pointer is valid
     if size_ptr == 0 || !emu.maps.is_mapped(size_ptr) {
         log_red!(emu, "GetComputerNameA: Invalid nSize pointer");
-        set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = constants::FALSE;
         return;
     }
 
     // Read current buffer size (in bytes)
-    let buffer_size = emu
-        .maps
-        .read_dword(size_ptr)
-        .expect("Cannot read buffer size") as usize;
+    let buffer_size = emu.maps.read_dword(size_ptr).unwrap_or(0) as usize;
 
     // Calculate required size in bytes
     let host_name = emu.cfg.host_name.clone();
@@ -33,7 +30,7 @@ pub fn GetComputerNameA(emu: &mut emu::Emu) {
     // Check if output buffer is valid (only if buffer_size > 0)
     if buffer_size > 0 && (buff_ptr == 0 || !emu.maps.is_mapped(buff_ptr)) {
         log_red!(emu, "GetComputerNameA: Invalid lpBuffer pointer");
-        set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = constants::FALSE;
         return;
     }
@@ -49,7 +46,7 @@ pub fn GetComputerNameA(emu: &mut emu::Emu) {
         // Set size to required size (including null terminator)
         emu.maps
             .write_dword(size_ptr, required_size_with_null as u32);
-        set_last_error(constants::ERROR_BUFFER_OVERFLOW);
+        emu.set_last_error(constants::ERROR_BUFFER_OVERFLOW);
         emu.regs_mut().rax = constants::FALSE;
         return;
     }

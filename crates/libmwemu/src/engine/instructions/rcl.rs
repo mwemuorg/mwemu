@@ -10,17 +10,16 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     assert!(ins.op_count() == 1 || ins.op_count() == 2);
 
-    let result: u64;
     let sz = emu.get_operand_sz(ins, 0);
 
-    if ins.op_count() == 1 {
+    let result: u64 = if ins.op_count() == 1 {
         // 1 param
         let value0 = match emu.get_operand_value(ins, 0, true) {
             Some(v) => v,
             None => return false,
         };
 
-        result = emu.flags_mut().rcl(value0, 1, sz);
+        emu.flags_mut().rcl(value0, 1, sz)
     } else {
         // 2 params
         let value0 = match emu.get_operand_value(ins, 0, true) {
@@ -33,8 +32,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             None => return false,
         };
 
-        result = emu.flags_mut().rcl(value0, value1, sz);
-    }
+        emu.flags_mut().rcl(value0, value1, sz)
+    };
 
     if !emu.set_operand_value(ins, 0, result) {
         return false;

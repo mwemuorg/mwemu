@@ -34,11 +34,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -59,10 +59,10 @@ pub(super) fn pop_stack32(emu: &mut emu::Emu, count: usize) {
     }
 }
 
-pub(super) fn read_stack_dword(emu: &mut emu::Emu, offset: u64, what: &str) -> u32 {
+pub(super) fn read_stack_dword(emu: &mut emu::Emu, offset: u64, _what: &str) -> u32 {
     emu.maps
         .read_dword(emu.regs().get_esp() + offset)
-        .expect(what)
+        .unwrap_or(0)
 }
 
 pub(super) fn read_ansi_string_if_present(emu: &mut emu::Emu, ptr: u64) -> String {

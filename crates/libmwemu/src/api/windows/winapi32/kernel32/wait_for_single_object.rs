@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn WaitForSingleObject(emu: &mut emu::Emu) {
-    let handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!WaitForSingleObject error reading handle") as u64;
-    let millis = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!WaitForSingleObject error reading millis");
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let millis = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(
         emu,

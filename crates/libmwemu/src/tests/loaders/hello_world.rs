@@ -211,7 +211,7 @@ fn hello_win_x64() {
 ///      addresses), and
 ///   2. run them before the entry point (best-effort: unimplemented APIs in the
 ///      callback are skipped, not fatal).
-/// Reaching the asserts without a panic/fatal fault proves both.
+///      Reaching the asserts without a panic/fatal fault proves both.
 #[test]
 fn hello_win_x64_runs_tls_callbacks() {
     helpers::setup();

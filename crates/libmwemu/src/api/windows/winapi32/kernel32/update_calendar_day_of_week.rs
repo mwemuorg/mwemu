@@ -2,10 +2,7 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn UpdateCalendarDayOfWeek(emu: &mut emu::Emu) {
-    let _CALDATETIME = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
+    let _CALDATETIME = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(emu, "kernel32!UpdateCalendarDayOfWeek");
 

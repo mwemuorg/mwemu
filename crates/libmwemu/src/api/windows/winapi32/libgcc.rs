@@ -17,11 +17,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -37,23 +37,29 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 }
 
 fn __register_frame_info(emu: &mut emu::Emu) {
-    let p1 = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("advapi32!__register_frame_info error reading param");
-    let p2 = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("advapi32!__register_frame_info error reading param");
+    let p1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(emu, "libgcc!__register_frame_info {:x} {:x}", p1, p2);
 
     let mem = match emu.maps.get_mem_by_addr_mut(0x40E198) {
         Some(m) => m,
-        None => emu
+        None => match emu
             .maps
             .create_map("glob1", 0x40E198, 100, Permission::READ_WRITE_EXECUTE)
-            .expect("cannot create glob1 map"),
+        {
+            Ok(m) => m,
+            Err(e) => {
+                log::error!(
+                    "libgcc!__register_frame_info: cannot create glob1 map: {}",
+                    e
+                );
+                for _ in 0..2 {
+                    emu.stack_pop32(false);
+                }
+                return;
+            }
+        },
     };
 
     mem.write_dword(0x40E198, 0x6e940000);
@@ -65,10 +71,7 @@ fn __register_frame_info(emu: &mut emu::Emu) {
 }
 
 fn __deregister_frame_info(emu: &mut emu::Emu) {
-    let p1 = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("advapi32!__deregister_frame_info error reading param");
+    let p1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(emu, "libgcc!__deregister_frame_info {:x}", p1);
 

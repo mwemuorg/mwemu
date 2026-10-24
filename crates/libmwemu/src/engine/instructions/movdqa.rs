@@ -72,8 +72,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
         emu.set_operand_xmm_value_128(ins, 0, xmm);
     } else {
-        log::trace!("{} sz0: {}  sz1: {}\n", emu.pos, sz0, sz1);
-        unimplemented!("movdqa");
+        log::warn!("movdqa: unsupported operand sizes {}x{}", sz0, sz1);
+        return false;
     }
     true
 }

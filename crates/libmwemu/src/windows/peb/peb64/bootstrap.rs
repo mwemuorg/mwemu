@@ -195,13 +195,20 @@ pub fn ensure_peb_nls_tables(emu: &mut emu::Emu) {
 
 pub fn init_ldr(emu: &mut emu::Emu) -> u64 {
     let ldr_sz = PebLdrData64::size() + 100;
-    let ldr_addr = emu
+    let ldr_addr = match emu.maps.lib64_alloc(ldr_sz as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the LDR");
+            return 0;
+        }
+    };
+    if let Err(e) = emu
         .maps
-        .lib64_alloc(ldr_sz as u64)
-        .expect("cannot alloc the LDR");
-    emu.maps
         .create_map("ldr", ldr_addr, ldr_sz as u64, Permission::READ_WRITE)
-        .expect("cannot create ldr map");
+    {
+        log::error!("cannot create ldr map: {}", e);
+        return 0;
+    }
     let exe_name = emu.cfg.exe_name.clone();
     let module_entry = create_ldr_entry(emu, 0, 0, &exe_name, 0, 0);
     let mut ldr = PebLdrData64::new();
@@ -331,35 +338,45 @@ pub fn init_peb(emu: &mut emu::Emu) {
     let ldr = init_ldr(emu);
     let params_addr = init_arguments(emu);
 
-    let peb_addr = emu
-        .maps
-        .lib64_alloc(PEB64::size() as u64)
-        .expect("cannot alloc the PEB64");
-    let peb_map = emu
-        .maps
-        .create_map(
-            "peb",
-            peb_addr,
-            PEB64::size() as u64,
-            Permission::READ_WRITE,
-        )
-        .expect("cannot create peb map");
+    let peb_addr = match emu.maps.lib64_alloc(PEB64::size() as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the PEB64");
+            return;
+        }
+    };
+    let peb_map = match emu.maps.create_map(
+        "peb",
+        peb_addr,
+        PEB64::size() as u64,
+        Permission::READ_WRITE,
+    ) {
+        Ok(m) => m,
+        Err(e) => {
+            log::error!("cannot create peb map: {}", e);
+            return;
+        }
+    };
     let peb = PEB64::new(0, ldr, params_addr);
     peb.save(peb_map);
     emu.maps.write_byte(peb_addr + 2, 0);
 
-    let teb_addr = emu
-        .maps
-        .lib64_alloc(TEB64::map_size() as u64)
-        .expect("cannot alloc the TEB64");
-    emu.maps
-        .create_map(
-            "teb",
-            teb_addr,
-            TEB64::map_size() as u64,
-            Permission::READ_WRITE,
-        )
-        .expect("cannot create teb map");
+    let teb_addr = match emu.maps.lib64_alloc(TEB64::map_size() as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the TEB64");
+            return;
+        }
+    };
+    if let Err(e) = emu.maps.create_map(
+        "teb",
+        teb_addr,
+        TEB64::map_size() as u64,
+        Permission::READ_WRITE,
+    ) {
+        log::error!("cannot create teb map: {}", e);
+        return;
+    }
     emu.maps.memset(teb_addr, 0, TEB64::map_size());
     let teb = TEB64::new(peb_addr);
     teb.save(emu.maps.get_mem_mut("teb"));
@@ -371,14 +388,20 @@ pub fn init_peb(emu: &mut emu::Emu) {
 /// Allocate and initialize a minimal Windows `_HEAP` (x64) structure.
 fn init_process_heap(emu: &mut emu::Emu) -> u64 {
     let heap_sz: u64 = 0x1000;
-    let h = emu
-        .maps
-        .lib64_alloc(heap_sz)
-        .expect("cannot alloc fake ProcessHeap");
-    let _heap_map = emu
+    let h = match emu.maps.lib64_alloc(heap_sz) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc fake ProcessHeap");
+            return 0;
+        }
+    };
+    if let Err(e) = emu
         .maps
         .create_map("process_heap", h, heap_sz, Permission::READ_WRITE)
-        .expect("cannot create process_heap map");
+    {
+        log::error!("cannot create process_heap map: {}", e);
+        return 0;
+    }
     emu.maps.memset(h, 0, heap_sz as usize);
 
     let self_list = |maps: &mut crate::maps::Maps, addr: u64| {
@@ -423,37 +446,44 @@ pub fn init_peb_teb_empty(emu: &mut emu::Emu) {
     let ldr_addr = init_ldr(emu);
     let params_addr = init_arguments(emu);
 
-    let peb_addr = emu
-        .maps
-        .lib64_alloc(PEB64::size() as u64)
-        .expect("cannot alloc the PEB64");
-    let _peb_map = emu
-        .maps
-        .create_map(
-            "peb",
-            peb_addr,
-            PEB64::size() as u64,
-            Permission::READ_WRITE,
-        )
-        .expect("cannot create peb map");
+    let peb_addr = match emu.maps.lib64_alloc(PEB64::size() as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the PEB64 (empty)");
+            return;
+        }
+    };
+    if let Err(e) = emu.maps.create_map(
+        "peb",
+        peb_addr,
+        PEB64::size() as u64,
+        Permission::READ_WRITE,
+    ) {
+        log::error!("cannot create peb map (empty): {}", e);
+        return;
+    }
     let heap_addr = init_process_heap(emu);
     let peb = PEB64::new(0, ldr_addr, params_addr);
     peb.save(emu.maps.get_mem_mut("peb"));
     emu.maps.write_byte(peb_addr + 2, 0);
     emu.maps.write_qword(peb_addr + 0x30, heap_addr);
 
-    let teb_addr = emu
-        .maps
-        .lib64_alloc(TEB64::map_size() as u64)
-        .expect("cannot alloc the TEB64");
-    emu.maps
-        .create_map(
-            "teb",
-            teb_addr,
-            TEB64::map_size() as u64,
-            Permission::READ_WRITE,
-        )
-        .expect("cannot create teb map");
+    let teb_addr = match emu.maps.lib64_alloc(TEB64::map_size() as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the TEB64 (empty)");
+            return;
+        }
+    };
+    if let Err(e) = emu.maps.create_map(
+        "teb",
+        teb_addr,
+        TEB64::map_size() as u64,
+        Permission::READ_WRITE,
+    ) {
+        log::error!("cannot create teb map (empty): {}", e);
+        return;
+    }
     emu.maps.memset(teb_addr, 0, TEB64::map_size());
     let teb = TEB64::new(peb_addr);
     teb.save(emu.maps.get_mem_mut("teb"));

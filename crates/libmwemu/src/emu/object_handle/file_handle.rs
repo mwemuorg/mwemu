@@ -171,45 +171,54 @@ impl FileHandle {
         let resolved_path = FILE_SYSTEM
             .get()
             .and_then(|file_system| file_system.translate(&windows_path).ok())
-            .unwrap();
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "filesystem not initialized or path translation failed",
+                )
+            })?;
 
-        let metadata = fs::metadata(&resolved_path)?;
+        // For creation modes that may create a new file, ensure parent directory exists
+        if matches!(creation_disposition, 1 | 2 | 4)
+            && let Some(parent) = resolved_path.parent()
+        {
+            let _ = fs::create_dir_all(parent);
+        }
 
-        // Determine if it's a directory *after* potential creation logic (simplified here)
+        // Try to open/create the file first, then get metadata
+        let file_result = match creation_disposition {
+            1 => File::create_new(&resolved_path), // CREATE_NEW
+            2 => File::create(&resolved_path),     // CREATE_ALWAYS
+            3 => File::open(&resolved_path),       // OPEN_EXISTING
+            5 => File::options()
+                .read(true)
+                .write(true)
+                .truncate(true)
+                .open(&resolved_path), // TRUNCATE_EXISTING
+            4 => File::options()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(&resolved_path), // OPEN_ALWAYS
+            _ => {
+                return Err(Box::new(io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "Unknown or unsupported access mode",
+                )));
+            }
+        };
+        let opened_file = file_result?;
+
+        let metadata = opened_file.metadata()?;
         let is_dir = metadata.is_dir();
-
-        let file = if is_dir {
-            // we haven't support opening a directory yet
+        if is_dir {
             return Err(Box::new(io::Error::new(
                 ErrorKind::InvalidInput,
                 "Calling handle other than File isn't support yet",
             )));
-        } else {
-            // It's a file, attempt to open/create based on creation_disposition and access_mode
-            let file_result = match creation_disposition {
-                1 => File::create_new(&resolved_path), // CREATE_NEW
-                2 => File::create(&resolved_path),     // CREATE_ALWAYS
-                3 => File::open(&resolved_path),       // OPEN_EXISTING
-                5 => File::options()
-                    .read(true)
-                    .write(true)
-                    .truncate(true)
-                    .open(&resolved_path), // TRUNCATE_EXISTING
-                4 => File::options()
-                    .read(true)
-                    .write(true)
-                    .create(true)
-                    .open(&resolved_path), // OPEN_ALWAYS
-                _ => {
-                    return Err(Box::new(io::Error::new(
-                        ErrorKind::InvalidInput,
-                        "Unknown or unsupported access mode",
-                    )));
-                }
-            };
-            Some(file_result?)
-        };
-
+        }
+        let file = Some(opened_file);
         let file_size = metadata.len();
         Ok(FileHandle {
             name,
@@ -250,7 +259,7 @@ impl FileHandle {
     }
 
     pub fn write(&mut self, buffer: &[u8]) -> Result<usize, io::Error> {
-        if !(self.is_valid && !self.is_dir) {
+        if !self.is_valid || self.is_dir {
             return Err(io::Error::new(
                 ErrorKind::InvalidInput,
                 "Invalid handle or operation for directory",
@@ -562,15 +571,12 @@ impl FileSystem {
         let base = base.as_ref();
 
         // Convert both paths to absolute and canonicalize if possible
-        let abs_path = soft_canonicalize(path).unwrap();
-        let abs_base = soft_canonicalize(base).unwrap();
+        let abs_path = soft_canonicalize(path).ok()?;
+        let abs_base = soft_canonicalize(base).ok()?;
 
         // Strip prefix if path starts with base
         if abs_path.starts_with(&abs_base) {
-            let remainder = abs_path
-                .strip_prefix(&abs_base)
-                .map_err(|_| io::Error::other("Failed to strip prefix"))
-                .unwrap();
+            let remainder = abs_path.strip_prefix(&abs_base).ok()?;
             Some(PathBuf::from(remainder))
         } else {
             // Return the path as-is if it's not under the base
@@ -613,14 +619,17 @@ impl FileSystemBuilder {
             .root
             .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "Root path not set"))?;
 
-        let result = FileSystem::new(&root);
-        if result.is_err() {
-            let err = result.err().unwrap();
-            println!("Failed to initialize filesystem with err: {}", err);
-            println!("Please check the file location: {}", root.to_str().unwrap());
-            return Err(err);
-        }
-        let mut fs = result?;
+        let mut fs = match FileSystem::new(&root) {
+            Ok(fs) => fs,
+            Err(err) => {
+                log::error!("Failed to initialize filesystem with err: {}", err);
+                log::error!(
+                    "Please check the file location: {}",
+                    root.to_str().unwrap_or("<non-utf8>")
+                );
+                return Err(err);
+            }
+        };
 
         for (src, dest) in self.initial_mappings {
             fs.map(src, dest);

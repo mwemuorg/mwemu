@@ -5,10 +5,7 @@ pub fn FindActCtxSectionStringW(emu: &mut emu::Emu) {
     let section_name_ptr = emu.regs().rdx;
     let string_name_ptr = emu.regs().r8;
     let string_value_ptr = emu.regs().r9;
-    let out_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("error reading out_ptr");
+    let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let mut section_name = String::new();
     let mut string_name = String::new();

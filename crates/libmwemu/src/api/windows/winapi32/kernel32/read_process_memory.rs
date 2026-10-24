@@ -1,26 +1,11 @@
 use crate::emu;
 
 pub fn ReadProcessMemory(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!ReadProcessMemory cannot read the handle");
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!ReadProcessMemory cannot read the base address");
-    let buff = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!ReadProcessMemory cannot read buff") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!ReadProcessMemory cannot read size");
-    let bytes = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("kernel32!ReadProcessMemory cannot read bytes") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let addr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let buff = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let bytes = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
 
     log_red!(
         emu,

@@ -6,8 +6,6 @@ use crate::winapi::winapi64;
 use crate::windows::structures::*;
 
 use crate::maps::mem64::Permission;
-use lazy_static::lazy_static;
-use std::sync::Mutex;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
@@ -41,14 +39,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         */
         _ => {
             if !emu.cfg.skip_unimplemented {
-                if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                    serialization::Serialization::dump(
-                        emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
-                    );
+                if emu.cfg.dump_on_exit
+                    && let Some(ref fname) = emu.cfg.dump_filename
+                {
+                    serialization::Serialization::dump(emu, fname);
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -61,11 +58,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     }
 
     String::new()
-}
-
-lazy_static! {
-    static ref COUNT_SEND: Mutex<u32> = Mutex::new(0);
-    static ref COUNT_RECV: Mutex<u32> = Mutex::new(0);
 }
 
 fn getaddrinfo(emu: &mut emu::Emu) {
@@ -112,9 +104,15 @@ fn getaddrinfo(emu: &mut emu::Emu) {
 
     // Allocate memory for the result
     let heap_management = emu.heap_mut();
-    let addrinfo_addr = heap_management
-        .allocate((addrinfo_size + sockaddr_in_size + 100) as usize)
-        .unwrap();
+    let addrinfo_addr =
+        match heap_management.allocate((addrinfo_size + sockaddr_in_size + 100) as usize) {
+            Some(addr) => addr,
+            None => {
+                log::warn!("ws2_32!getaddrinfo: heap allocation failed");
+                emu.regs_mut().rax = 1;
+                return;
+            }
+        };
     let sockaddr_addr = addrinfo_addr + addrinfo_size;
     let canonname_addr = sockaddr_addr + sockaddr_in_size;
 
@@ -256,19 +254,9 @@ fn connect(emu: &mut emu::Emu) {
     let sock = emu.regs().rcx;
     let sockaddr_ptr = emu.regs().rdx;
     //let sockaddr = emu.maps.read_bytes(sockaddr_ptr, 8);
-    let family: u16 = emu
-        .maps
-        .read_word(sockaddr_ptr)
-        .expect("ws2_32!connect: error reading family");
-    let port: u16 = emu
-        .maps
-        .read_word(sockaddr_ptr + 2)
-        .expect("ws2_32!connect: error reading port")
-        .to_be();
-    let ip: u32 = emu
-        .maps
-        .read_dword(sockaddr_ptr + 4)
-        .expect("ws2_32!connect: error reading ip");
+    let family: u16 = emu.maps.read_word(sockaddr_ptr).unwrap_or(0);
+    let port: u16 = emu.maps.read_word(sockaddr_ptr + 2).unwrap_or(0).to_be();
+    let ip: u32 = emu.maps.read_dword(sockaddr_ptr + 4).unwrap_or(0);
 
     let sip = format!(
         "{}.{}.{}.{}",
@@ -324,9 +312,8 @@ fn recv(emu: &mut emu::Emu) {
         emu.regs_mut().rax = n as u64;
         */
     } else {
-        let mut count_recv = COUNT_RECV.lock().unwrap();
-        *count_recv += 1;
-        if *count_recv > 3 {
+        emu.count_recv += 1;
+        if emu.count_recv > 3 {
             len = 0; // finish the recv loop
         }
 
@@ -375,9 +362,8 @@ fn send(emu: &mut emu::Emu) {
         emu.regs_mut().rax = n as u64;
         */
     } else {
-        let mut count_send = COUNT_SEND.lock().unwrap();
-        *count_send += 1;
-        if *count_send > 3 {
+        emu.count_send += 1;
+        if emu.count_send > 3 {
             len = 0; // finish the send loop
         }
 
@@ -390,18 +376,9 @@ fn bind(emu: &mut emu::Emu) {
     let saddr = emu.regs().rdx;
     let len = emu.regs().r8;
 
-    let family: u16 = emu
-        .maps
-        .read_word(saddr)
-        .expect("ws2_32!connect: error reading family");
-    let port: u16 = emu
-        .maps
-        .read_word(saddr + 2)
-        .expect("ws2_32!connect: error reading port");
-    let ip: u32 = emu
-        .maps
-        .read_dword(saddr + 4)
-        .expect("ws2_32!connect: error reading ip");
+    let family: u16 = emu.maps.read_word(saddr).unwrap_or(0);
+    let port: u16 = emu.maps.read_word(saddr + 2).unwrap_or(0);
+    let ip: u32 = emu.maps.read_dword(saddr + 4).unwrap_or(0);
 
     let sip = format!(
         "{}.{}.{}.{}",
@@ -479,10 +456,7 @@ fn setsockopt(emu: &mut emu::Emu) {
     let level = emu.regs().rdx;
     let optname = emu.regs().r8;
     let optval = emu.regs().r9;
-    let optlen = emu
-        .maps
-        .read_qword(emu.regs().get_esp())
-        .expect("ws2_32!setsockopt: error reading optlen");
+    let optlen = emu.maps.read_qword(emu.regs().get_esp()).unwrap_or(0);
 
     let val = emu.maps.read_dword(optval).unwrap_or_default();
 
@@ -507,10 +481,7 @@ fn getsockopt(emu: &mut emu::Emu) {
     let level = emu.regs().rdx;
     let optname = emu.regs().r8;
     let optval = emu.regs().r9;
-    let optlen = emu
-        .maps
-        .read_qword(emu.regs().get_esp())
-        .expect("ws2_32!getsockopt: error reading optlen");
+    let optlen = emu.maps.read_qword(emu.regs().get_esp()).unwrap_or(0);
 
     emu.maps.write_dword(optval, 1);
 
@@ -529,10 +500,7 @@ fn WsaAccept(emu: &mut emu::Emu) {
     let saddr = emu.regs().rdx;
     let len = emu.regs().r8;
     let cond = emu.regs().r9;
-    let callback = emu
-        .maps
-        .read_qword(emu.regs().get_esp())
-        .expect("ws2_32!WsaAccept: error reading callback");
+    let callback = emu.maps.read_qword(emu.regs().get_esp()).unwrap_or(0);
 
     let bytes = emu.maps.read_string_of_bytes(saddr, len as usize);
 
@@ -570,12 +538,26 @@ fn gethostbyname(emu: &mut emu::Emu) {
 
     log_red!(emu, "ws2_32!gethostbyname `{}`", domain_name);
 
-    let addr = emu.maps.alloc(1024).expect("low memory");
+    let addr = match emu.maps.alloc(1024) {
+        Some(a) => a,
+        None => {
+            log::error!("ws2_32!gethostbyname: out of memory");
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     let str_addr = addr + 1024 - 100;
-    let mem = emu
+    let mem = match emu
         .maps
         .create_map("hostent", addr, 1024, Permission::READ_WRITE)
-        .expect("cannot create hostent map");
+    {
+        Ok(m) => m,
+        Err(e) => {
+            log::error!("ws2_32!gethostbyname: cannot create hostent map: {}", e);
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     mem.write_dword(addr, 0x04030201);
     mem.write_qword(addr + 8, addr);
     mem.write_qword(addr + 16, 0);

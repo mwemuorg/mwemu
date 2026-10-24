@@ -2,18 +2,9 @@ use crate::emu;
 use crate::windows::structures;
 
 pub fn VirtualQuery(emu: &mut emu::Emu) {
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!VirtualQuery cannot read addr") as u64;
-    let out_buff = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!VirtualQuery cannot read out_buff") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!VirtualQuery cannot read size");
+    let addr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let out_buff = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     log_red!(
         emu,

@@ -46,7 +46,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             };
             emu.set_operand_ymm_value_256(ins, 0, source1 ^ source2);
         }
-        _ => unreachable!(""),
+        _ => {
+            log::warn!("vxorps: unexpected operand size");
+            return false;
+        }
     }
     true
 }

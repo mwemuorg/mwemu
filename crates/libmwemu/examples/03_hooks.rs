@@ -68,7 +68,7 @@ fn main() {
         );
     });
 
-    emu.load_code_bytes(code);
+    emu.load_code_bytes(code).expect("failed to load shellcode");
 
     println!("running:");
     for _ in 0..4 {

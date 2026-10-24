@@ -18,7 +18,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         Register::ST5 => emu.fpu_mut().xchg_st(5),
         Register::ST6 => emu.fpu_mut().xchg_st(6),
         Register::ST7 => emu.fpu_mut().xchg_st(7),
-        _ => unimplemented!("impossible case"),
+        _ => {
+            log::warn!("fxch: unexpected register {:?}", ins.op_register(1));
+            return false;
+        }
     }
 
     emu.sync_fpu_ip();

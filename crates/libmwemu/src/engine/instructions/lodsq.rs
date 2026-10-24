@@ -20,12 +20,15 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
         emu.regs_mut().rax = val;
         if emu.flag_df() {
-            emu.regs_mut().rsi -= 8;
+            let v = emu.regs().rsi.wrapping_sub(8);
+            emu.regs_mut().rsi = v;
         } else {
-            emu.regs_mut().rsi += 8;
+            let v = emu.regs().rsi.wrapping_add(8);
+            emu.regs_mut().rsi = v;
         }
     } else {
-        unreachable!("lodsq dont exists in 32bit");
+        log::warn!("lodsq: not available in 32-bit mode");
+        return false;
     }
     true
 }

@@ -25,7 +25,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         32 => logic::div32(emu, value0),
         16 => logic::div16(emu, value0),
         8 => logic::div8(emu, value0),
-        _ => unimplemented!("wrong size"),
+        _ => {
+            log::warn!("div: unsupported operand size {}", sz);
+            return false;
+        }
     }
     true
 }

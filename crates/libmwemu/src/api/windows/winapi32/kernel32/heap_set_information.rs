@@ -1,22 +1,10 @@
 use crate::emu;
 
 pub fn HeapSetInformation(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!HeapSetInformation error reading param");
-    let hinfocls = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!HeapSetInformation error reading param");
-    let hinfo = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!HeapSetInformation error reading param");
-    let hinfo_sz = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!HeapSetInformation error reading param");
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let hinfocls = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let hinfo = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let hinfo_sz = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
 
     log_red!(
         emu,

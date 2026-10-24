@@ -15,11 +15,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -35,15 +35,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 }
 
 fn RtlInitUnicodeString(emu: &mut emu::Emu) {
-    let dst_ptr =
-        emu.maps
-            .read_dword(emu.regs().get_esp())
-            .expect("ntoskrnl!RtlInitUnicodeString: error reading arg1 (dst_ptr)") as u64;
-    let src_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntoskrnl!RtlInitUnicodeString: error reading optional arg2 (src_ptr)")
-        as u64;
+    let dst_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let src_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     if !emu.maps.is_mapped(dst_ptr) {
         log_red!(
@@ -51,7 +44,11 @@ fn RtlInitUnicodeString(emu: &mut emu::Emu) {
             "ntoskrnl!RtlInitUnicodeString worng destination pointer 0x{:x}",
             dst_ptr
         );
-        unreachable!();
+        for _ in 0..2 {
+            emu.stack_pop32(false);
+        }
+        emu.regs_mut().rax = 0;
+        return;
     }
 
     let mut s = "".to_string();

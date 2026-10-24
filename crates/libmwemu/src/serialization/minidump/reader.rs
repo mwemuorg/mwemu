@@ -19,6 +19,7 @@ use crate::serialization::maps::SerializableMaps;
 use crate::serialization::pe32::SerializablePE32;
 use crate::serialization::pe64::SerializablePE64;
 
+#[allow(clippy::large_enum_variant)]
 enum ExtractedContext {
     X86 { regs: Regs64, flags: Flags },
     AArch64 { regs: RegsAarch64 },

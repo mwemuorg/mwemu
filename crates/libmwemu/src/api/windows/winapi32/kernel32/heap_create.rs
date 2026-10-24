@@ -2,18 +2,9 @@ use crate::emu;
 use crate::emu::object_handle::HeapHandle;
 
 pub fn HeapCreate(emu: &mut emu::Emu) {
-    let opts = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!HeapCreate cannot read opts");
-    let init_sz = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!HeapCreate cannot read init_sz");
-    let max_sz = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!HeapCreate cannot read max_sz");
+    let opts = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let init_sz = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let max_sz = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     log_red!(
         emu,

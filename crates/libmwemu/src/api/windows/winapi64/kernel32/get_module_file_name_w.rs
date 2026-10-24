@@ -1,4 +1,4 @@
-use crate::{emu, winapi::winapi64::kernel32::set_last_error, windows::constants};
+use crate::{emu, windows::constants};
 
 pub fn GetModuleFileNameW(emu: &mut emu::Emu) {
     let module_handle = emu.regs().rcx;
@@ -54,7 +54,7 @@ pub fn GetModuleFileNameW(emu: &mut emu::Emu) {
         );
 
         // Set last error for Windows XP+ behavior
-        set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = n_size as u64; // Return buffer size when truncated
     } else {
         // Buffer is large enough

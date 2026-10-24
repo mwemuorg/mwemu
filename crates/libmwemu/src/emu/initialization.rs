@@ -57,6 +57,7 @@ pub struct Lib {
 }
 
 impl Emu {
+    /// Create a new emulator for the given architecture.
     pub fn new(arch: crate::arch::Arch) -> Emu {
         let instruction_state = InstructionState::default();
         let mut cfg = Config::new();
@@ -105,6 +106,7 @@ impl Emu {
             pe32: None,
             pe64_raw: None,
             pe32_raw: None,
+            pe32_flat_loaded: false,
             elf64: None,
             elf32: None,
             macho64: None,
@@ -127,6 +129,10 @@ impl Emu {
             entropy: 0.0,
             heap_arenas: Vec::new(),
             last_error: 0,
+            count_read: 0,
+            count_write: 0,
+            count_send: 0,
+            count_recv: 0,
             is_api_run: false,
             ld_bootstrap: false,
             is_break_on_api: false,
@@ -169,26 +175,34 @@ impl Emu {
         let (stack_base, stack_bottom) = if let Some(stack) = self.maps.get_map_by_name("stack") {
             (stack.get_base(), stack.get_bottom())
         } else {
-            let stack = self
-                .maps
-                .create_map(
-                    "stack",
-                    self.cfg.stack_addr,
-                    0x030000,
-                    Permission::READ_WRITE,
-                )
-                .expect("cannot create stack map");
-            (stack.get_base(), stack.get_bottom())
+            match self.maps.create_map(
+                "stack",
+                self.cfg.stack_addr,
+                0x030000,
+                Permission::READ_WRITE,
+            ) {
+                Ok(stack) => (stack.get_base(), stack.get_bottom()),
+                Err(e) => {
+                    log::error!("cannot create stack map: {}", e);
+                    return;
+                }
+            }
         };
 
-        // Now do all the assertions using the local variables
-        assert!(esp < ebp);
-        assert!(esp > stack_base);
-        assert!(esp < stack_bottom);
-        assert!(ebp > stack_base);
-        assert!(ebp < stack_bottom);
-        assert!(esp >= stack_base && esp < stack_bottom);
-        assert!(ebp >= stack_base && ebp < stack_bottom);
+        if esp >= ebp
+            || esp <= stack_base
+            || esp >= stack_bottom
+            || ebp <= stack_base
+            || ebp >= stack_bottom
+        {
+            log::error!(
+                "init_stack32: stack pointer validation failed esp=0x{:x} ebp=0x{:x} base=0x{:x} bottom=0x{:x}",
+                esp,
+                ebp,
+                stack_base,
+                stack_bottom
+            );
+        }
     }
 
     /// This inits the 64bits stack, it's called from init_cpu() and init()
@@ -222,26 +236,34 @@ impl Emu {
         let (stack_base, stack_bottom) = if let Some(stack) = self.maps.get_map_by_name("stack") {
             (stack.get_base(), stack.get_bottom())
         } else {
-            let stack = self
-                .maps
-                .create_map(
-                    "stack",
-                    self.cfg.stack_addr,
-                    stack_size + 0x2000,
-                    Permission::READ_WRITE,
-                ) // Increased size
-                .expect("cannot create stack map");
-            (stack.get_base(), stack.get_bottom())
+            match self.maps.create_map(
+                "stack",
+                self.cfg.stack_addr,
+                stack_size + 0x2000,
+                Permission::READ_WRITE,
+            ) {
+                Ok(stack) => (stack.get_base(), stack.get_bottom()),
+                Err(e) => {
+                    log::error!("cannot create stack map: {}", e);
+                    return;
+                }
+            }
         };
 
-        // Now do all the assertions using the local variables
-        assert!(rsp < rbp);
-        assert!(rsp > stack_base);
-        assert!(rsp < stack_bottom);
-        assert!(rbp > stack_base);
-        assert!(rbp < stack_bottom);
-        assert!(rsp >= stack_base && rsp < stack_bottom);
-        assert!(rbp >= stack_base && rbp < stack_bottom);
+        if rsp >= rbp
+            || rsp <= stack_base
+            || rsp >= stack_bottom
+            || rbp <= stack_base
+            || rbp >= stack_bottom
+        {
+            log::error!(
+                "init_stack64: stack pointer validation failed rsp=0x{:x} rbp=0x{:x} base=0x{:x} bottom=0x{:x}",
+                rsp,
+                rbp,
+                stack_base,
+                stack_bottom
+            );
+        }
     }
 
     //TODO: tests only in tests.rs
@@ -254,15 +276,16 @@ impl Emu {
 
         let sp = self.cfg.stack_addr + stack_size;
 
-        if self.maps.get_map_by_name("stack").is_none() {
-            self.maps
-                .create_map(
-                    "stack",
-                    self.cfg.stack_addr,
-                    stack_size + 0x2000,
-                    Permission::READ_WRITE,
-                )
-                .expect("cannot create stack map");
+        if self.maps.get_map_by_name("stack").is_none()
+            && let Err(e) = self.maps.create_map(
+                "stack",
+                self.cfg.stack_addr,
+                stack_size + 0x2000,
+                Permission::READ_WRITE,
+            )
+        {
+            log::error!("cannot create aarch64 stack map: {}", e);
+            return;
         }
 
         self.regs_aarch64_mut().sp = sp;
@@ -387,16 +410,24 @@ impl Emu {
 
         // Load banzai metadata only when 32-bit skip-unimplemented mode needs it.
         if !self.cfg.arch.is_64bits() && self.cfg.skip_unimplemented {
-            let mut rdr = ReaderBuilder::new()
-                .from_path(format!("{}/banzai.csv", self.cfg.maps_folder))
-                .expect("banzai.csv not found on maps folder, please download last mwemu maps");
-
-            for result in rdr.records() {
-                let record = result.expect("error parsing banzai.csv");
-                let api = &record[0];
-                let params: i32 = record[1].parse().expect("error parsing banzai.csv");
-
-                self.banzai.add(api, params);
+            match ReaderBuilder::new().from_path(format!("{}/banzai.csv", self.cfg.maps_folder)) {
+                Ok(mut rdr) => {
+                    for result in rdr.records() {
+                        match result {
+                            Ok(record) => {
+                                let api = &record[0];
+                                let params: i32 = record[1].parse().unwrap_or(0);
+                                self.banzai.add(api, params);
+                            }
+                            Err(e) => {
+                                log::warn!("error parsing banzai.csv record: {}", e);
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::error!("banzai.csv not found in maps folder: {}", e);
+                }
             }
         }
 
@@ -415,22 +446,39 @@ impl Emu {
     pub fn heap_mut(&mut self) -> &mut O1Heap {
         if self.heap_arenas.is_empty() {
             let heap_sz: u64 = 4 * 1024 * 1024; // 4 MiB
-            let base = self.maps.alloc(heap_sz).expect("cannot reserve heap arena");
-            if !self.maps.exists_mapname(".heap") {
-                self.maps
-                    .create_map(".heap", base, heap_sz, Permission::READ_WRITE)
-                    .expect("cannot create heap map");
+            let base = match self.maps.alloc(heap_sz) {
+                Some(b) => b,
+                None => {
+                    log::error!(
+                        "cannot reserve heap arena (alloc returned None), using fallback at 0x10000"
+                    );
+                    0x10000
+                }
+            };
+            let map_name = if !self.maps.exists_mapname(".heap") {
+                ".heap"
             } else {
-                self.maps
-                    .create_map(".heap_lazy", base, heap_sz, Permission::READ_WRITE)
-                    .expect("cannot create lazy heap map");
+                ".heap_lazy"
+            };
+            if let Err(e) = self
+                .maps
+                .create_map(map_name, base, heap_sz, Permission::READ_WRITE)
+            {
+                log::error!("cannot create {} map: {}", map_name, e);
             }
             if self.heap_addr == 0 {
                 self.heap_addr = base;
             }
-            self.heap_arenas.push(Box::new(
-                O1Heap::new(base, heap_sz as u32).expect("cannot init heap management"),
-            ));
+            match O1Heap::new(base, heap_sz as u32) {
+                Ok(heap) => self.heap_arenas.push(Box::new(heap)),
+                Err(e) => {
+                    log::error!("cannot init heap management: {}", e);
+                    match O1Heap::new(base, O1Heap::MIN_ARENA_SIZE as u32) {
+                        Ok(heap) => self.heap_arenas.push(Box::new(heap)),
+                        Err(_) => panic!("fatal: cannot initialize any heap arena"),
+                    }
+                }
+            }
         }
         self.heap_arenas.first_mut().unwrap()
     }
@@ -470,9 +518,8 @@ impl Emu {
                 },
             )
             .ok()?;
-        self.heap_arenas.push(Box::new(
-            O1Heap::new(base, arena_size as u32).expect("cannot init heap arena"),
-        ));
+        let heap = O1Heap::new(base, arena_size as u32).ok()?;
+        self.heap_arenas.push(Box::new(heap));
         Some(self.heap_arenas.len() - 1)
     }
 
@@ -729,83 +776,104 @@ impl Emu {
         if dyn_link {
             //self.regs_mut().rsp = 0x7fffffffe2b0;
             self.regs_mut().rsp = 0x7fffffffe790;
-            self.maps
-                .create_map(
-                    "linux_dynamic_stack",
-                    0x7ffffffde000,
-                    0x100000,
-                    Permission::READ_WRITE,
-                )
-                .expect("cannot create linux_dynamic_stack map");
-            //self.maps.create_map("dso_dyn").load_at(0x7ffff7ffd0000);
-            self.maps
-                .create_map("dso_dyn", 0x7ffff7ffd000, 0x1000, Permission::READ_WRITE)
-                .expect("cannot create dso_dyn map");
-            self.maps
-                .create_map(
-                    "linker",
-                    0x7ffff7ffd000 - 0x1000 - 0x10000,
-                    0x10000,
-                    Permission::READ_WRITE,
-                )
-                .expect("cannot create linker map");
+            if let Err(e) = self.maps.create_map(
+                "linux_dynamic_stack",
+                0x7ffffffde000,
+                0x100000,
+                Permission::READ_WRITE,
+            ) {
+                log::error!("cannot create linux_dynamic_stack map: {}", e);
+                return;
+            }
+            if let Err(e) =
+                self.maps
+                    .create_map("dso_dyn", 0x7ffff7ffd000, 0x1000, Permission::READ_WRITE)
+            {
+                log::error!("cannot create dso_dyn map: {}", e);
+            }
+            if let Err(e) = self.maps.create_map(
+                "linker",
+                0x7ffff7ffd000 - 0x1000 - 0x10000,
+                0x10000,
+                Permission::READ_WRITE,
+            ) {
+                log::error!("cannot create linker map: {}", e);
+            }
         } else {
             self.regs_mut().rsp = 0x7fffffffe270;
-            self.maps
-                .create_map(
-                    "linux_static_stack",
-                    0x7ffffffde000,
-                    0x100000,
-                    Permission::READ_WRITE,
-                )
-                .expect("cannot create linux_static_stack map");
-            self.maps
-                .create_map("dso", 0x7ffff7ffd000, 0x100000, Permission::READ_WRITE)
-                .expect("cannot create dso map");
+            if let Err(e) = self.maps.create_map(
+                "linux_static_stack",
+                0x7ffffffde000,
+                0x100000,
+                Permission::READ_WRITE,
+            ) {
+                log::error!("cannot create linux_static_stack map: {}", e);
+                return;
+            }
+            if let Err(e) =
+                self.maps
+                    .create_map("dso", 0x7ffff7ffd000, 0x100000, Permission::READ_WRITE)
+            {
+                log::error!("cannot create dso map: {}", e);
+            }
         }
-        let tls = self
+        match self
             .maps
             .create_map("tls", 0x7ffff8fff000, 0xfff, Permission::READ_WRITE)
-            .expect("cannot create tls map");
-        // Resolve `tls.bin` against `cfg.maps_folder` so we don't depend on
-        // the process-wide CWD (which a parallel test may have changed).
-        let tls_path = self.cfg.get_maps_folder("tls.bin");
-        tls.load(&tls_path);
+        {
+            Ok(tls) => {
+                let tls_path = self.cfg.get_maps_folder("tls.bin");
+                tls.load(&tls_path);
+            }
+            Err(e) => {
+                log::error!("cannot create tls map: {}", e);
+            }
+        }
 
         if dyn_link {
             //heap.set_base(0x555555579000);
         } else {
-            // here we are allocating 4MB of heap memory
             let heap_sz = 0x885900 - 0x4b5000;
-            self.heap_addr = self.maps.alloc(heap_sz).expect("cannot allocate heap");
-            let heap = self
+            self.heap_addr = match self.maps.alloc(heap_sz) {
+                Some(addr) => addr,
+                None => {
+                    log::error!("cannot allocate heap for linux64");
+                    return;
+                }
+            };
+            match self
                 .maps
-                .create_map(".heap", self.heap_addr, heap_sz, Permission::READ_WRITE) //.create_map("heap", 0x4b5b00, 0x4d8000 - 0x4b5000)
-                .expect("cannot create heap map");
-            heap.load("heap.bin");
+                .create_map(".heap", self.heap_addr, heap_sz, Permission::READ_WRITE)
+            {
+                Ok(heap) => {
+                    heap.load("heap.bin");
+                }
+                Err(e) => {
+                    log::error!("cannot create heap map: {}", e);
+                    return;
+                }
+            }
 
             if self.heap_arenas.is_empty() {
-                self.heap_arenas.push(Box::new(
-                    O1Heap::new(self.heap_addr, heap_sz as u32)
-                        .expect("Expect new heap_management but failed"),
-                ));
+                match O1Heap::new(self.heap_addr, heap_sz as u32) {
+                    Ok(heap) => self.heap_arenas.push(Box::new(heap)),
+                    Err(e) => log::error!("cannot init heap management: {}", e),
+                }
             }
         }
 
         self.regs_mut().rbp = 0;
 
-        // Linux x86-64 TCB (Thread Control Block): allocate a real memory
-        // region and point FS at it so `fs:[offset]` reads hit mapped memory
-        // instead of the legacy hashmap fallback. The glibc TCB layout has:
-        //   +0x00  tcbhead_t.tcb        (self pointer)
-        //   +0x08  tcbhead_t.dtv
-        //   +0x10  tcbhead_t.self       (self pointer, used by __tls_get_addr)
-        //   +0x28  tcbhead_t.stack_guard (stack canary)
+        // Linux x86-64 TCB (Thread Control Block)
         let tcb_addr: u64 = 0x7ffff9000000;
         let tcb_size: u64 = 0x1000;
-        self.maps
-            .create_map("linux_tcb", tcb_addr, tcb_size, Permission::READ_WRITE)
-            .expect("cannot create linux_tcb map");
+        if let Err(e) =
+            self.maps
+                .create_map("linux_tcb", tcb_addr, tcb_size, Permission::READ_WRITE)
+        {
+            log::error!("cannot create linux_tcb map: {}", e);
+            return;
+        }
         self.maps.write_qword(tcb_addr, tcb_addr); // +0x00: self pointer
         self.maps.write_qword(tcb_addr + 0x10, tcb_addr); // +0x10: self pointer
         self.maps.write_qword(tcb_addr + 0x28, 0xdeadbeefcafebabe); // +0x28: stack canary
@@ -825,8 +893,14 @@ impl Emu {
         peb32::init_peb(self);
         kuser_shared::init_kuser_shared_data(self);
         winapi32::kernel32::load_library(self, "ntdll.dll");
-        let ntdll_base = self.maps.get_mem("ntdll.pe").get_base();
-        peb32::update_peb_image_base(self, ntdll_base as u32);
+        let ntdll_base = self
+            .maps
+            .get_map_by_name("ntdll.pe")
+            .map(|m| m.get_base())
+            .unwrap_or(0);
+        if ntdll_base != 0 {
+            peb32::update_peb_image_base(self, ntdll_base as u32);
+        }
 
         winapi32::kernel32::load_library(self, "kernel32.dll");
         winapi32::kernel32::load_library(self, "kernelbase.dll");
@@ -849,10 +923,16 @@ impl Emu {
 
     //TODO: tests on tests.rs
     pub fn init_tests(&mut self) {
-        let mem = self
+        let mem = match self
             .maps
             .create_map("test", 0, 1024, Permission::READ_WRITE_EXECUTE)
-            .expect("cannot create test map");
+        {
+            Ok(m) => m,
+            Err(e) => {
+                log::error!("cannot create test map: {}", e);
+                return;
+            }
+        };
         mem.write_qword(0, 0x1122334455667788);
         assert_eq!(mem.read_qword(0), 0x1122334455667788);
         self.maps.free("test");
@@ -1374,16 +1454,22 @@ impl Emu {
 
         let heap_sz = 0x885900 - 0x4b5000;
         self.heap_addr = 0x520000; // Hardcoded in PEB64
-        let heap = self
-            .maps
-            .create_map(".heap", self.heap_addr, heap_sz, Permission::READ_WRITE)
-            .expect("cannot create heap map");
+        if let Err(e) =
+            self.maps
+                .create_map(".heap", self.heap_addr, heap_sz, Permission::READ_WRITE)
+        {
+            log::error!("cannot create heap map: {}", e);
+            return;
+        }
 
         if self.heap_arenas.is_empty() {
-            self.heap_arenas.push(Box::new(
-                O1Heap::new(self.heap_addr, heap_sz as u32)
-                    .expect("Expect new heap_management but failed"),
-            ));
+            match O1Heap::new(self.heap_addr, heap_sz as u32) {
+                Ok(heap) => self.heap_arenas.push(Box::new(heap)),
+                Err(e) => {
+                    log::error!("cannot init heap management: {}", e);
+                    return;
+                }
+            }
 
             // Reserve the first 0x800 bytes for the _HEAP header so the
             // allocator never hands them out and overwrites the struct fields.

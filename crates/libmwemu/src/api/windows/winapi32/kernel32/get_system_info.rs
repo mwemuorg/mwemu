@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn GetSystemInfo(emu: &mut emu::Emu) {
-    let out_sysinfo = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetSystemInfo cannot read out_sysinfo") as u64;
+    let out_sysinfo = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(emu, "kernel32!GetSystemInfo sysinfo: 0x{:x}", out_sysinfo);
 

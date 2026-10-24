@@ -217,16 +217,9 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             let len = emu.regs().rdx;
 
             if sockaddr > 0 && emu.maps.is_mapped(sockaddr) {
-                let fam: u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
-                let port: u16 = emu
-                    .maps
-                    .read_word(sockaddr + 2)
-                    .expect("cannot read the port")
-                    .to_be();
-                let ip: u32 = emu
-                    .maps
-                    .read_dword(sockaddr + 4)
-                    .expect("cannot read the ip");
+                let fam: u16 = emu.maps.read_word(sockaddr).unwrap_or(0);
+                let port: u16 = emu.maps.read_word(sockaddr + 2).unwrap_or(0).to_be();
+                let ip: u32 = emu.maps.read_dword(sockaddr + 4).unwrap_or(0);
                 let sip = format!(
                     "{}.{}.{}.{}",
                     ip & 0xff,
@@ -272,16 +265,9 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             let len = emu.regs().rdx;
 
             if sockaddr > 0 && emu.maps.is_mapped(sockaddr) {
-                let fam: u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
-                let port: u16 = emu
-                    .maps
-                    .read_word(sockaddr + 2)
-                    .expect("cannot read the port")
-                    .to_be();
-                let ip: u32 = emu
-                    .maps
-                    .read_dword(sockaddr + 4)
-                    .expect("cannot read the ip");
+                let fam: u16 = emu.maps.read_word(sockaddr).unwrap_or(0);
+                let port: u16 = emu.maps.read_word(sockaddr + 2).unwrap_or(0).to_be();
+                let ip: u32 = emu.maps.read_dword(sockaddr + 4).unwrap_or(0);
                 let sip = format!(
                     "{}.{}.{}.{}",
                     ip & 0xff,
@@ -456,16 +442,9 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             let addrlen = emu.regs().r9;
 
             if sockaddr != 0 && emu.maps.is_mapped(sockaddr) {
-                let fam: u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
-                let port: u16 = emu
-                    .maps
-                    .read_word(sockaddr + 2)
-                    .expect("cannot read the port")
-                    .to_be();
-                let ip: u32 = emu
-                    .maps
-                    .read_dword(sockaddr + 4)
-                    .expect("cannot read the ip");
+                let fam: u16 = emu.maps.read_word(sockaddr).unwrap_or(0);
+                let port: u16 = emu.maps.read_word(sockaddr + 2).unwrap_or(0).to_be();
+                let ip: u32 = emu.maps.read_dword(sockaddr + 4).unwrap_or(0);
                 let sip = format!(
                     "{}.{}.{}.{}",
                     ip & 0xff,
@@ -693,10 +672,13 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                 emu.maps.unmap_range(addr, sz);
             } else if addr == 0 || addr & PAGE_MASK != 0 || !emu.maps.is_range_free(addr, sz) {
                 // No hint, or a hint that is unaligned or already taken.
-                addr = emu
-                    .maps
-                    .lib64_reserve(sz)
-                    .expect("syscall64 mmap cannot alloc");
+                let Some(reserved) = emu.maps.lib64_reserve(sz) else {
+                    log::error!("syscall64 mmap cannot alloc {} bytes", sz);
+                    emu.regs_mut().rax = constants::ENOMEM;
+                    trace_syscall64_args(emu, "mmap", &[("result", "ENOMEM".to_string())]);
+                    return;
+                };
+                addr = reserved;
             }
 
             // Keep library mappings writable so ld.so can apply relocations to
@@ -718,11 +700,13 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                     //log::trace!("opening lib: {}", filepath);
                     match File::open(&filepath) {
                         Ok(f) => {
-                            let len = f.metadata().unwrap().len();
+                            let len = f.metadata().map(|m| m.len()).unwrap_or(0);
                             let mut reader = BufReader::new(&f);
-                            reader
-                                .seek(SeekFrom::Start(off))
-                                .expect("mmap offset out of file");
+                            if let Err(e) = reader.seek(SeekFrom::Start(off)) {
+                                log::error!("mmap: seek to offset 0x{:x} failed: {}", off, e);
+                                emu.regs_mut().rax = constants::ENOMEM;
+                                return;
+                            }
                             // Read at most `sz` bytes (the requested mapping
                             // length) from `off`. Reading to EOF and trimming to
                             // the *reservation* map's size would overflow this
@@ -731,17 +715,23 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                             // lands inside a larger reservation.
                             {
                                 let mut limited = (&mut reader).take(sz);
-                                limited
-                                    .read_to_end(&mut lib_buff)
-                                    .expect("kernel64 cannot load dynamic library");
+                                if let Err(e) = limited.read_to_end(&mut lib_buff) {
+                                    log::error!("kernel64 cannot load dynamic library: {}", e);
+                                    emu.regs_mut().rax = constants::ENOMEM;
+                                    return;
+                                }
                             }
                             f.sync_all();
                             let _ = len;
 
-                            let map = emu
-                                .maps
-                                .get_mem_by_addr_mut(addr)
-                                .expect("buffer send to read syscall point to no map");
+                            let Some(map) = emu.maps.get_mem_by_addr_mut(addr) else {
+                                log::error!(
+                                    "mmap: no backing map at 0x{:x} for library read",
+                                    addr
+                                );
+                                emu.regs_mut().rax = constants::ENOMEM;
+                                return;
+                            };
 
                             // Clamp so the data can never run past the map end.
                             let mem_end = map.get_base() + map.size() as u64 - 1;
@@ -788,8 +778,12 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             if helper::handler_exist(fd) {
                 let filepath = helper::handler_get_uri(fd);
                 let path = Path::new(&filepath);
-                let metadata = stdfs::metadata(path)
-                    .expect("this file should exist because was opened by kernel64");
+                let Ok(metadata) = stdfs::metadata(path) else {
+                    log::warn!("fstat: cannot stat file {:?}", path);
+                    stat.save(stat_ptr, &mut emu.maps);
+                    emu.regs_mut().rax = 0;
+                    return;
+                };
                 // Real dev/ino are essential: ld.so identifies already-loaded
                 // shared objects by (st_dev, st_ino); reusing constants would
                 // make it treat every library as the same object.

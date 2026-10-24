@@ -376,6 +376,20 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
     // Same guard: a miss against a populated index is authoritative; never pay
     // the O(total exports) PEB walk when the registry is non-empty.
     if !emu.export_indexes.is_empty() {
+        // Fallback: the address may be a forwarded export (e.g. in .rdata) that
+        // the export index doesn't cover, but IAT binding recorded the mapping.
+        if let Some(pe64) = emu.pe64.as_ref() {
+            let name = pe64.import_addr_to_name(addr);
+            if !name.is_empty() {
+                return name;
+            }
+        }
+        if let Some(pe32) = emu.pe32.as_ref() {
+            let name = pe32.import_addr_to_name(addr as u32);
+            if !name.is_empty() {
+                return name;
+            }
+        }
         return String::new();
     }
 

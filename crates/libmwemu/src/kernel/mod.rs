@@ -258,56 +258,64 @@ impl Emu {
         // function pointer, say) must still unwind cleanly instead of running
         // into the next symbol's slot.
         if self.maps.get_map_by_name("kernel.stubs").is_none() {
-            let stubs = self
-                .maps
-                .create_map(
-                    "kernel.stubs",
-                    layout.stub_base,
-                    layout.stub_size,
-                    Permission::READ_EXECUTE,
-                )
-                .expect("cannot create kernel.stubs map");
-            let base = stubs.get_base();
-            let filler = vec![0xc3u8; layout.stub_size as usize];
-            stubs.force_write_bytes(base, &filler);
+            match self.maps.create_map(
+                "kernel.stubs",
+                layout.stub_base,
+                layout.stub_size,
+                Permission::READ_EXECUTE,
+            ) {
+                Ok(stubs) => {
+                    let base = stubs.get_base();
+                    let filler = vec![0xc3u8; layout.stub_size as usize];
+                    stubs.force_write_bytes(base, &filler);
+                }
+                Err(e) => {
+                    log::error!("cannot create kernel.stubs map: {}", e);
+                    return;
+                }
+            }
         }
 
         if self.maps.get_map_by_name("kernel.retpad").is_none() {
-            let pad = self
-                .maps
-                .create_map(
-                    "kernel.retpad",
-                    layout.retpad(),
-                    0x1000,
-                    Permission::READ_EXECUTE,
-                )
-                .expect("cannot create kernel.retpad map");
-            let base = pad.get_base();
-            // `hlt`: returning here means the driver call is over and the CPU
-            // has nothing left to do, which is exactly what halting says.
-            pad.force_write_bytes(base, &[0xf4u8; 0x1000]);
+            match self.maps.create_map(
+                "kernel.retpad",
+                layout.retpad(),
+                0x1000,
+                Permission::READ_EXECUTE,
+            ) {
+                Ok(pad) => {
+                    let base = pad.get_base();
+                    pad.force_write_bytes(base, &[0xf4u8; 0x1000]);
+                }
+                Err(e) => {
+                    log::error!("cannot create kernel.retpad map: {}", e);
+                    return;
+                }
+            }
         }
 
-        if self.maps.get_map_by_name("kernel.data").is_none() {
-            self.maps
-                .create_map(
-                    "kernel.data",
-                    layout.data_base,
-                    layout.data_size,
-                    Permission::READ_WRITE,
-                )
-                .expect("cannot create kernel.data map");
+        if self.maps.get_map_by_name("kernel.data").is_none()
+            && let Err(e) = self.maps.create_map(
+                "kernel.data",
+                layout.data_base,
+                layout.data_size,
+                Permission::READ_WRITE,
+            )
+        {
+            log::error!("cannot create kernel.data map: {}", e);
+            return;
         }
 
-        if self.maps.get_map_by_name("kernel.stack").is_none() {
-            self.maps
-                .create_map(
-                    "kernel.stack",
-                    layout.stack_base,
-                    layout.stack_size,
-                    Permission::READ_WRITE,
-                )
-                .expect("cannot create kernel.stack map");
+        if self.maps.get_map_by_name("kernel.stack").is_none()
+            && let Err(e) = self.maps.create_map(
+                "kernel.stack",
+                layout.stack_base,
+                layout.stack_size,
+                Permission::READ_WRITE,
+            )
+        {
+            log::error!("cannot create kernel.stack map: {}", e);
+            return;
         }
 
         // Start mid-stack: kernel code both pushes and, through our API stubs,
@@ -497,10 +505,16 @@ impl Emu {
         };
         let (addr, size, map_name) = (chunk.addr, chunk.size, chunk.map_name.clone());
 
-        let mem = self
+        let mem = match self
             .maps
             .create_map(&map_name, addr, size, Permission::READ_WRITE)
-            .expect("cannot map kernel allocation");
+        {
+            Ok(m) => m,
+            Err(e) => {
+                log::error!("cannot map kernel allocation: {}", e);
+                return 0;
+            }
+        };
         if zeroed {
             mem.write_bytes(addr, &vec![0u8; size as usize]);
         } else {
@@ -551,11 +565,11 @@ impl Emu {
         }
         let (addr, size) = (chunk.addr, chunk.size);
 
-        self.kernel
-            .as_mut()
-            .expect("kernel env present")
-            .heap
-            .record_free(idx, api, pos, rip);
+        let Some(kernel) = self.kernel.as_mut() else {
+            log::error!("kernel_free: kernel env not present");
+            return false;
+        };
+        kernel.heap.record_free(idx, api, pos, rip);
 
         // SLUB's POISON_FREE: freed memory reads back as 0x6b6b6b6b, the value
         // that shows up in a real kernel oops when a stale pointer is used.
@@ -639,7 +653,12 @@ impl Emu {
             self.regs_mut().rip = self.gateway_return;
         }
 
-        let os = self.kernel.as_ref().expect("kernel env present").os;
+        let Some(kernel_ref) = self.kernel.as_ref() else {
+            log::error!("kernel_set_pc: kernel env not present");
+            self.stop();
+            return true;
+        };
+        let os = kernel_ref.os;
         let handled = match os {
             KernelOs::Linux => linux::gateway(&symbol, self),
             KernelOs::Windows => windows::gateway(&symbol, self),
@@ -651,7 +670,11 @@ impl Emu {
                 "kernel API {} is not implemented — returning 0 and continuing",
                 symbol
             );
-            let kernel = self.kernel.as_mut().expect("kernel env present");
+            let Some(kernel) = self.kernel.as_mut() else {
+                log::error!("kernel_set_pc: kernel env not present");
+                self.stop();
+                return true;
+            };
             if !kernel.unimplemented.iter().any(|s| s == &symbol) {
                 kernel.unimplemented.push(symbol);
             }

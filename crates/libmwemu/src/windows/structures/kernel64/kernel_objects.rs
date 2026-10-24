@@ -3,6 +3,7 @@ use crate::maps::Maps;
 use super::ListEntry64;
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct MDL {
     pub next: u64,
     pub size: u16,
@@ -40,14 +41,14 @@ impl MDL {
 
     pub fn load(addr: u64, maps: &Maps) -> MDL {
         MDL {
-            next: maps.read_qword(addr).unwrap(),
-            size: maps.read_word(addr + 8).unwrap(),
-            mdl_flags: maps.read_word(addr + 10).unwrap(),
-            process: maps.read_qword(addr + 16).unwrap(),
-            mapped_system_va: maps.read_qword(addr + 24).unwrap(),
-            start_va: maps.read_qword(addr + 32).unwrap(),
-            byte_count: maps.read_dword(addr + 40).unwrap(),
-            byte_offset: maps.read_dword(addr + 44).unwrap(),
+            next: maps.read_qword(addr).unwrap_or(0),
+            size: maps.read_word(addr + 8).unwrap_or(0),
+            mdl_flags: maps.read_word(addr + 10).unwrap_or(0),
+            process: maps.read_qword(addr + 16).unwrap_or(0),
+            mapped_system_va: maps.read_qword(addr + 24).unwrap_or(0),
+            start_va: maps.read_qword(addr + 32).unwrap_or(0),
+            byte_count: maps.read_dword(addr + 40).unwrap_or(0),
+            byte_offset: maps.read_dword(addr + 44).unwrap_or(0),
         }
     }
 
@@ -91,9 +92,9 @@ impl KIDTEntry {
 
     pub fn load(addr: u64, maps: &Maps) -> KIDTEntry {
         KIDTEntry {
-            offset_low: maps.read_word(addr).unwrap(),
-            selector: maps.read_word(addr + 2).unwrap(),
-            base: maps.read_dword(addr + 4).unwrap(),
+            offset_low: maps.read_word(addr).unwrap_or(0),
+            selector: maps.read_word(addr + 2).unwrap_or(0),
+            base: maps.read_dword(addr + 4).unwrap_or(0),
         }
     }
 
@@ -138,12 +139,12 @@ impl KIDTEntry64 {
 
     pub fn load(addr: u64, maps: &Maps) -> KIDTEntry64 {
         KIDTEntry64 {
-            offset_low: maps.read_word(addr).unwrap(),
-            selector: maps.read_word(addr + 2).unwrap(),
-            reserved0: maps.read_word(addr + 4).unwrap(),
-            offset_middle: maps.read_word(addr + 6).unwrap(),
-            offset_high: maps.read_dword(addr + 8).unwrap(),
-            reserved1: maps.read_dword(addr + 12).unwrap(),
+            offset_low: maps.read_word(addr).unwrap_or(0),
+            selector: maps.read_word(addr + 2).unwrap_or(0),
+            reserved0: maps.read_word(addr + 4).unwrap_or(0),
+            offset_middle: maps.read_word(addr + 6).unwrap_or(0),
+            offset_high: maps.read_dword(addr + 8).unwrap_or(0),
+            reserved1: maps.read_dword(addr + 12).unwrap_or(0),
         }
     }
 
@@ -278,6 +279,7 @@ impl Mutant {
 }
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct IDT {
     pub limit: u16,
     pub descriptors: u64,
@@ -303,8 +305,8 @@ impl IDT {
 
     pub fn load(addr: u64, maps: &Maps) -> IDT {
         IDT {
-            limit: maps.read_word(addr).unwrap(),
-            descriptors: maps.read_qword(addr + 2).unwrap(),
+            limit: maps.read_word(addr).unwrap_or(0),
+            descriptors: maps.read_qword(addr + 2).unwrap_or(0),
         }
     }
 
@@ -315,6 +317,7 @@ impl IDT {
 }
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct KAPC {
     pub type_: u8,
     pub spare_byte0: u8,

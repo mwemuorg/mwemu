@@ -78,8 +78,8 @@ impl F80 {
 
     pub fn get_bytes(&self) -> [u8; 10] {
         let mut bytes = [0u8; 10];
-        for i in 0..10 {
-            bytes[i] = ((self.st >> (8 * i)) & 0xFF) as u8;
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            *byte = ((self.st >> (8 * i)) & 0xFF) as u8;
         }
         bytes
     }
@@ -329,13 +329,13 @@ impl F80 {
         let mut val = self.to_integer_u128();
         let mut bcd = [0u8; 10];
 
-        for i in 0..9 {
+        for item in bcd.iter_mut().take(9) {
             let lo = (val % 10) as u8;
             val /= 10;
             let hi = (val % 10) as u8;
             val /= 10;
 
-            bcd[i] = (hi << 4) | lo;
+            *item = (hi << 4) | lo;
         }
 
         bcd[9] = if self.is_negative() {
@@ -363,7 +363,10 @@ impl F80 {
         let is_negative = match bcd[9] & 0x0F {
             BCD_SIGN_NEGATIVE => true,
             BCD_SIGN_POSITIVE => false,
-            _ => unreachable!("Invalid BCD sign"),
+            _ => {
+                log::warn!("f80: invalid BCD sign byte 0x{:x}", bcd[9]);
+                false
+            }
         };
 
         self.st = F80::encode_from_u128(value, is_negative);

@@ -41,15 +41,15 @@ impl PebLdrData {
 
     pub fn load(addr: u64, maps: &Maps) -> PebLdrData {
         PebLdrData {
-            length: maps.read_dword(addr).unwrap(),
-            initializated: maps.read_dword(addr + 4).unwrap(),
-            sshandle: maps.read_dword(addr + 8).unwrap(),
+            length: maps.read_dword(addr).unwrap_or(0),
+            initializated: maps.read_dword(addr + 4).unwrap_or(0),
+            sshandle: maps.read_dword(addr + 8).unwrap_or(0),
             in_load_order_module_list: ListEntry::load(addr + 12, maps),
             in_memory_order_module_list: ListEntry::load(addr + 20, maps),
             in_initialization_order_module_list: ListEntry::load(addr + 28, maps),
-            entry_in_progress: maps.read_dword(addr + 36).unwrap(),
-            shutdown_in_progress: maps.read_dword(addr + 40).unwrap(),
-            shutdown_thread_id: maps.read_dword(addr + 44).unwrap(),
+            entry_in_progress: maps.read_dword(addr + 36).unwrap_or(0),
+            shutdown_in_progress: maps.read_dword(addr + 40).unwrap_or(0),
+            shutdown_thread_id: maps.read_dword(addr + 44).unwrap_or(0),
         }
     }
 

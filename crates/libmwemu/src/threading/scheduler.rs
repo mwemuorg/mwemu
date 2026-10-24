@@ -251,15 +251,18 @@ impl ThreadScheduler {
     /// Handle emulator exit
     fn handle_exit(emu: &mut Emu) {
         if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-            crate::serialization::Serialization::dump(emu, emu.cfg.dump_filename.as_ref().unwrap());
+            crate::serialization::Serialization::dump(
+                emu,
+                emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
+            );
         }
 
-        if emu.cfg.trace_regs && emu.cfg.trace_filename.is_some() {
-            emu.trace_file
-                .as_ref()
-                .unwrap()
-                .flush()
-                .expect("failed to flush trace file");
+        if emu.cfg.trace_regs
+            && emu.cfg.trace_filename.is_some()
+            && let Some(f) = emu.trace_file.as_mut()
+            && let Err(e) = f.flush()
+        {
+            log::warn!("failed to flush trace file: {}", e);
         }
     }
 }

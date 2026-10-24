@@ -3,30 +3,12 @@ use crate::windows::constants;
 use crate::{console, emu};
 
 pub fn CreateThread(emu: &mut emu::Emu) {
-    let sec_attr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!CreateThread cannot read sec_attr");
-    let stack_sz = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!CreateThread cannot read stack_sz");
-    let code = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!CreateThread cannot read fptr") as u64;
-    let param = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!CreateThread cannot read param");
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("kernel32!CreateThread cannot read flags") as u64;
-    let tid_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 20)
-        .expect("kernel32!CreateThread cannot read tid_ptr") as u64;
+    let sec_attr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let stack_sz = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let code = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let param = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let tid_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
 
     if tid_ptr > 0 {
         emu.maps.write_dword(tid_ptr, 0x123);

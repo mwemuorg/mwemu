@@ -52,16 +52,16 @@ impl LdrDataTableEntry {
             in_load_order_links: ListEntry::load(addr, maps), // +0x00
             in_memory_order_links: ListEntry::load(addr + 8, maps), // +0x08
             in_initialization_order_links: ListEntry::load(addr + 16, maps), // +0x10
-            dll_base: maps.read_dword(addr + 24).unwrap(),    // +0x18
-            entry_point: maps.read_dword(addr + 28).unwrap(), // +0x1C
-            size_of_image: maps.read_dword(addr + 32).unwrap(), // +0x20
+            dll_base: maps.read_dword(addr + 24).unwrap_or(0), // +0x18
+            entry_point: maps.read_dword(addr + 28).unwrap_or(0), // +0x1C
+            size_of_image: maps.read_dword(addr + 32).unwrap_or(0), // +0x20
             full_dll_name: UnicodeString::load(addr + 36, maps), // +0x24
             base_dll_name: UnicodeString::load(addr + 44, maps), // +0x2C
-            flags: maps.read_dword(addr + 52).unwrap(),       // +0x34
-            load_count: maps.read_word(addr + 56).unwrap(),   // +0x38
-            tls_index: maps.read_word(addr + 58).unwrap(),    // +0x3A
+            flags: maps.read_dword(addr + 52).unwrap_or(0),   // +0x34
+            load_count: maps.read_word(addr + 56).unwrap_or(0), // +0x38
+            tls_index: maps.read_word(addr + 58).unwrap_or(0), // +0x3A
             hash_links: ListEntry::load(addr + 60, maps),     // +0x3C
-            time_date_stamp: maps.read_dword(addr + 68).unwrap(), // +0x44
+            time_date_stamp: maps.read_dword(addr + 68).unwrap_or(0), // +0x44
         }
     }
 

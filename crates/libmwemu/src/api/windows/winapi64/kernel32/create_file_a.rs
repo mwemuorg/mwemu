@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::emu::object_handle::FileHandle;
-use crate::emu::object_handle::file_handle::{FILE_SYSTEM, INVALID_HANDLE_VALUE};
+use crate::emu::object_handle::file_handle::INVALID_HANDLE_VALUE;
 use log::error;
 
 pub fn CreateFileA(emu: &mut emu::Emu) {
@@ -8,18 +8,9 @@ pub fn CreateFileA(emu: &mut emu::Emu) {
     let dw_desired_access = emu.regs().rdx as u32;
     let dw_share_mode = emu.regs().r8 as u32;
     let lp_security_attributes = emu.regs().r9;
-    let dw_creation_disposition =
-        emu.maps
-            .read_qword(emu.regs().rsp + 0x20)
-            .expect("kernel32!CreateFileW cannot read dw_creation_disposition") as u32;
-    let dw_flags_and_attributes =
-        emu.maps
-            .read_qword(emu.regs().rsp + 0x28)
-            .expect("kernel32!CreateFileW cannot read dw_flags_and_attributes") as u32;
-    let h_template_file = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("kernel32!CreateFileW cannot read h_template_file");
+    let dw_creation_disposition = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as u32;
+    let dw_flags_and_attributes = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
+    let h_template_file = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
     log_red!(
         emu,
@@ -46,15 +37,9 @@ pub fn CreateFileA(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    // Map the Windows path to the emulator's path
-    let emu_path = FILE_SYSTEM
-        .get()
-        .and_then(|file_system| file_system.local_to_windows_path(&name_utf8).ok());
-    let emu_path_str = emu_path.unwrap().to_string();
-
     // Attempt to create or open the file using the FileHandle struct
     match FileHandle::new(
-        emu_path_str.clone(), // Use the mapped path string
+        name_utf8.clone(),
         dw_desired_access,
         dw_creation_disposition,
         dw_flags_and_attributes,
@@ -73,6 +58,7 @@ pub fn CreateFileA(emu: &mut emu::Emu) {
         }
         Err(e) => {
             error!("CreateFileA failed for '{}': {}", name_utf8, e);
+            emu.set_last_error(2); // ERROR_FILE_NOT_FOUND
             emu.regs_mut().rax = INVALID_HANDLE_VALUE as u64;
             log_red!(
                 emu,

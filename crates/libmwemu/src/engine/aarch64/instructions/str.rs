@@ -17,8 +17,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
             SIMDSizeCode::B => 1,
         };
         guard_mem(emu, addr, reg_bytes as u32, true);
-        for i in 0..reg_bytes {
-            emu.maps.write_byte(addr + i as u64, raw[i]);
+        for (i, &byte) in raw.iter().enumerate().take(reg_bytes) {
+            emu.maps.write_byte(addr + i as u64, byte);
         }
         do_writeback(emu, wb);
         return true;

@@ -2,17 +2,18 @@ use crate::emu;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn GetLocalTime(emu: &mut emu::Emu) {
-    let lp_system_time = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetLocalTime error reading param") as u64;
+    let lp_system_time = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(emu, "kernel32!GetLocalTime ptr: 0x{:x}", lp_system_time);
 
     let start = SystemTime::now();
-    let since_the_epoch = start
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
+    let since_the_epoch = match start.duration_since(UNIX_EPOCH) {
+        Ok(d) => d,
+        Err(_) => {
+            log::warn!("kernel32!GetLocalTime: system time before UNIX epoch");
+            std::time::Duration::from_secs(0)
+        }
+    };
 
     // This is a naive implementation, real world should use chrono for proper date calculation
     // But for dependencies sake, we might stick to minimal.

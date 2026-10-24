@@ -2,18 +2,9 @@ use crate::emu;
 use crate::winapi::winapi32::kernel32::load_library;
 
 pub fn LoadLibraryExW(emu: &mut emu::Emu) {
-    let libname_ptr =
-        emu.maps
-            .read_dword(emu.regs().get_esp())
-            .expect("kernel32!LoadLibraryExW: error reading libname ptr param") as u64;
-    let hfile = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!LoadLibraryExW: error reading hFile") as u64;
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!LoadLibraryExW: error reading flags") as u64;
+    let libname_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let hfile = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
     let libname = emu.maps.read_wide_string(libname_ptr);
 

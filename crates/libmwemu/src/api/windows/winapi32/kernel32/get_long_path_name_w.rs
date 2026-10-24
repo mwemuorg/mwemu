@@ -1,18 +1,9 @@
 use crate::emu;
 
 pub fn GetLongPathNameW(emu: &mut emu::Emu) {
-    let short_path_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetLongPathNameW: error reading param") as u64;
-    let long_path_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!GetLongPathNameW: error reading param") as u64;
-    let buff = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!GetLongPathNameW: error reading param") as u64;
+    let short_path_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let long_path_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let buff = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
     let short = emu.maps.read_wide_string(short_path_ptr);
 

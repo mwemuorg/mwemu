@@ -8,12 +8,10 @@ impl Maps {
         reference: https://github.com/0x1F9F1/mem/blob/master/include/mem/simd_scanner.h
         maybe using https://github.com/greaka/patterns
          */
-        let map = self.get_map_by_name(map_name);
-        if map.is_none() {
+        let Some(mem) = self.get_map_by_name(map_name) else {
             log::trace!("map not found");
             return None;
-        }
-        let mem = map.unwrap();
+        };
         let bkw = kw.as_bytes();
 
         let mut found: Vec<u64> = Vec::new();
@@ -44,14 +42,15 @@ impl Maps {
     }
 
     pub fn write_spaced_bytes(&mut self, addr: u64, sbs: &str) -> bool {
-        let mut waddr = addr;
         let bs: Vec<&str> = sbs.split(' ').collect();
-        for bsi in bs.iter() {
-            let b = u8::from_str_radix(bsi, 16).expect("bad num conversion");
+        for (waddr, bsi) in (addr..).zip(bs.iter()) {
+            let Ok(b) = u8::from_str_radix(bsi, 16) else {
+                log::warn!("write_spaced_bytes: bad hex byte '{}'", bsi);
+                return false;
+            };
             if !self.write_byte(waddr, b) {
                 return false;
             }
-            waddr += 1;
         }
         true
     }
@@ -73,7 +72,7 @@ impl Maps {
     }
 
     #[inline]
-    fn is_pattern_match_at(memory: &Mem64, address: u64, pattern: &Vec<u8>) -> bool {
+    fn is_pattern_match_at(memory: &Mem64, address: u64, pattern: &[u8]) -> bool {
         for (i, &pattern_byte) in pattern.iter().enumerate() {
             let current_addr = address + (i as u64);
 

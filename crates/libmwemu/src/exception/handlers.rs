@@ -26,7 +26,7 @@ pub enum HandlerKind {
 
 impl HandlerKind {
     #[inline]
-    fn as_u32(self) -> u32 {
+    pub fn as_u32(self) -> u32 {
         match self {
             HandlerKind::Seh => 1,
             HandlerKind::Veh => 2,
@@ -61,12 +61,16 @@ pub fn exit(emu: &mut emu::Emu) {
 }
 
 pub fn enter32(emu: &mut emu::Emu, ex_type: types::ExceptionType, handler_kind: HandlerKind) {
-    let ctx_addr = emu.maps.alloc(0x1000).expect("out of memory");
-    if (ctx_addr + 0x1000) > u32::MAX as u64 {
-        {
-            log::warn!("32bits allocator is giving a too big memory!! for the context32");
+    let ctx_addr = match emu.maps.alloc(0x1000) {
+        Some(a) => a,
+        None => {
+            log::error!("out of memory allocating exception context32");
             return;
         }
+    };
+    if (ctx_addr + 0x1000) > u32::MAX as u64 {
+        log::warn!("32bits allocator is giving a too big memory!! for the context32");
+        return;
     }
     let ctx = emu
         .maps
@@ -113,7 +117,13 @@ pub fn exit32(emu: &mut emu::Emu) {
 }
 
 pub fn enter64(emu: &mut emu::Emu, ex_type: types::ExceptionType, handler_kind: HandlerKind) {
-    let ctx_addr = emu.maps.alloc(0x1000).expect("out of memory");
+    let ctx_addr = match emu.maps.alloc(0x1000) {
+        Some(a) => a,
+        None => {
+            log::error!("out of memory allocating exception context64");
+            return;
+        }
+    };
     let ctx = emu
         .maps
         .create_map("ctx", ctx_addr, 0x1000, Permission::READ_WRITE_EXECUTE);

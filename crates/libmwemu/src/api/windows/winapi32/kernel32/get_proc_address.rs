@@ -1,14 +1,8 @@
 use crate::emu;
 
 pub fn GetProcAddress(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetProcAddress cannot read the handle") as u64;
-    let func_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!GetProcAddress cannot read the func name") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let func_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     emu.stack_pop32(false);
     emu.stack_pop32(false);
@@ -35,7 +29,20 @@ pub fn GetProcAddress(emu: &mut emu::Emu) {
             emu.regs().get_eax() as u32
         );
     } else {
-        log::warn!("kernel32!GetProcAddress error searching 0x{:x}", func_ptr);
+        if is_ordinal {
+            log::warn!(
+                "kernel32!GetProcAddress error: ordinal #{} hndl=0x{:x}",
+                func_ptr & 0xFFFF,
+                hndl
+            );
+        } else {
+            let name = emu.maps.read_string(func_ptr);
+            log::warn!(
+                "kernel32!GetProcAddress error: '{}' hndl=0x{:x}",
+                name,
+                hndl
+            );
+        }
     }
 }
 

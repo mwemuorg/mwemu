@@ -3,14 +3,8 @@ use crate::debug::console;
 use crate::emu;
 
 pub fn SetThreadContext(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!SetThreadContext cannot read the handle");
-    let ctx_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!SetThreadContext cannot read the ctx_ptr");
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let ctx_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(emu, "kernel32!SetThreadContext");
 

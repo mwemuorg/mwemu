@@ -38,7 +38,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         256 => {
             emu.set_operand_ymm_value_256(ins, 0, regs64::U256::from(value));
         }
-        _ => unimplemented!(""),
+        _ => {
+            log::warn!("vmovq: unsupported operand size {}", sz0);
+            return false;
+        }
     }
     true
 }

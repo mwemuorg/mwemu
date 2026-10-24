@@ -32,10 +32,7 @@ fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
     let path_ptr = emu.regs().rdx;
     let characteristics = emu.regs().r8;
     let dll_name_ptr = emu.regs().r9;
-    let out_hndl = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("ntdll!LdrGetDllHandleEx error reading out_hdl");
+    let out_hndl = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let dll_name = emu.maps.read_wide_string(dll_name_ptr);
 

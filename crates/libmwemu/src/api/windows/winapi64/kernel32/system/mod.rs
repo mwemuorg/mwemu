@@ -42,6 +42,10 @@ pub use get_tick_count::*;
 mod get_time_zone_information;
 pub use get_time_zone_information::*;
 
+#[path = "../get_time_zone_information_for_year.rs"]
+mod get_time_zone_information_for_year;
+pub use get_time_zone_information_for_year::*;
+
 #[path = "../get_user_default_lang_id.rs"]
 mod get_user_default_lang_id;
 pub use get_user_default_lang_id::*;

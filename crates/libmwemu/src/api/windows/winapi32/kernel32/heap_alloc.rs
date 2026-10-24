@@ -3,18 +3,9 @@ use crate::emu;
 use crate::kernel::heap::Region;
 
 pub fn HeapAlloc(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!HeapAlloc cannot read the handle");
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!HeapAlloc cannot read the flags");
-    let mut size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!HeapAlloc cannot read the size") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let mut size = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
     if size < emu.cfg.heap_alloc_min_size {
         size = emu.cfg.heap_alloc_min_size;

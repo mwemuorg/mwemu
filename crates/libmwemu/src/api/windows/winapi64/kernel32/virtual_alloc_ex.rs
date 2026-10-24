@@ -1,7 +1,6 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::virtual_alloc::{permissions, round_up};
-use crate::winapi::winapi64::kernel32::set_last_error;
 use crate::windows::constants;
 
 use super::virtual_alloc_common::{fail, fail_oom};
@@ -11,10 +10,7 @@ pub fn VirtualAllocEx(emu: &mut emu::Emu) {
     let addr = emu.regs().rdx;
     let orig_size = emu.regs().r8;
     let typ = emu.regs().r9;
-    let prot = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x20)
-        .expect("kernel32!VirtualAllocEx cannot read_dword protect");
+    let prot = emu.maps.read_dword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let size = round_up(orig_size);
     let typ32 = typ as u32;
@@ -75,13 +71,13 @@ pub fn VirtualAllocEx(emu: &mut emu::Emu) {
             prot,
             err
         );
-        set_last_error(constants::ERROR_NOT_ENOUGH_MEMORY);
+        emu.set_last_error(constants::ERROR_NOT_ENOUGH_MEMORY);
         emu.regs_mut().rax = 0;
         return;
     }
 
     if mem_commit && !mem_reserve {
-        set_last_error(constants::ERROR_SUCCESS);
+        emu.set_last_error(constants::ERROR_SUCCESS);
         log_red!(
             emu,
             "kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} sz: {} (rounded {}) flags: {} prot: {} = 0x{:x}",
@@ -97,7 +93,7 @@ pub fn VirtualAllocEx(emu: &mut emu::Emu) {
         return;
     }
 
-    set_last_error(constants::ERROR_SUCCESS);
+    emu.set_last_error(constants::ERROR_SUCCESS);
     log_red!(
         emu,
         "kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} sz: {} (rounded {}) flags: {} prot: {} = 0x{:x}",

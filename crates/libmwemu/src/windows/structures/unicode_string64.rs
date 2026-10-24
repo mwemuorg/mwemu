@@ -30,10 +30,10 @@ impl UnicodeString64 {
 
     pub fn load(addr: u64, maps: &Maps) -> UnicodeString64 {
         UnicodeString64 {
-            length: maps.read_word(addr).unwrap(),
-            maximum_length: maps.read_word(addr + 2).unwrap(),
-            padding: maps.read_dword(addr + 4).unwrap(),
-            buffer: maps.read_qword(addr + 8).unwrap(),
+            length: maps.read_word(addr).unwrap_or(0),
+            maximum_length: maps.read_word(addr + 2).unwrap_or(0),
+            padding: maps.read_dword(addr + 4).unwrap_or(0),
+            buffer: maps.read_qword(addr + 8).unwrap_or(0),
         }
     }
 

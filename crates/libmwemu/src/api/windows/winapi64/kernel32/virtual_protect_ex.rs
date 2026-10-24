@@ -5,10 +5,7 @@ pub fn VirtualProtectEx(emu: &mut emu::Emu) {
     let addr = emu.regs().rdx;
     let size = emu.regs().r8;
     let new_prot = emu.regs().r9;
-    let oldld_prot_ptr = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!VirtualProtectEx cannot read old_prot");
+    let oldld_prot_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(
         emu,

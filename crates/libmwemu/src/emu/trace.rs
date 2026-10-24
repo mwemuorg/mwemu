@@ -11,13 +11,19 @@ use crate::{
 impl Emu {
     pub fn open_trace_file(&mut self) {
         if let Some(filename) = self.cfg.trace_filename.clone() {
-            let mut trace_file =
-                std::fs::File::create(&filename).expect("Failed to create trace file");
-            writeln!(
+            let mut trace_file = match std::fs::File::create(&filename) {
+                Ok(f) => f,
+                Err(e) => {
+                    log::error!("Failed to create trace file '{}': {}", filename, e);
+                    return;
+                }
+            };
+            if let Err(e) = writeln!(
                 trace_file,
                 r#""Index","Address","Bytes","Disassembly","Registers","Memory","Comments""#
-            )
-            .expect("Failed to write trace file header");
+            ) {
+                log::error!("Failed to write trace file header: {}", e);
+            }
             self.trace_file = Some(trace_file);
         }
     }
@@ -158,7 +164,6 @@ impl Emu {
                 registers, pre_op_regs.r15, post_op_regs.r15
             );
         } else {
-            let post_op_regs = post_op_regs;
             registers = Regs64::diff(pre_op_regs, post_op_regs);
         }
 

@@ -8,12 +8,20 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
 
-    let source = emu
-        .get_operand_xmm_value_128(ins, 1, true)
-        .expect("error getting source");
-    let order = emu
-        .get_operand_value(ins, 2, true)
-        .expect("error getting order");
+    let source = match emu.get_operand_xmm_value_128(ins, 1, true) {
+        Some(v) => v,
+        None => {
+            log::trace!("pshufd: cannot read source operand");
+            return false;
+        }
+    };
+    let order = match emu.get_operand_value(ins, 2, true) {
+        Some(v) => v,
+        None => {
+            log::trace!("pshufd: cannot read order operand");
+            return false;
+        }
+    };
 
     let order1 = get_bit!(order, 0) | (get_bit!(order, 1) << 1);
     let order2 = get_bit!(order, 2) | (get_bit!(order, 3) << 1);

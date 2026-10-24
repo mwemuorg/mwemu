@@ -108,7 +108,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         | "dmam_alloc_coherent"
         | "dma_alloc_noncoherent"
         | "dma_pool_alloc" => {
-            let size = emu.kernel_arg(1).max(1).min(0x100000);
+            let size = emu.kernel_arg(1).clamp(1, 0x100000);
             let ptr = emu.kernel_alloc(
                 crate::kernel::heap::Region::Vmalloc,
                 size,

@@ -76,7 +76,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             let result256: regs64::U256 = regs64::U256::from_little_endian(&result);
             emu.set_operand_ymm_value_256(ins, 0, result256);
         }
-        _ => unreachable!(""),
+        _ => {
+            log::warn!("pcmpeqw: unexpected operand size");
+            return false;
+        }
     }
     true
 }

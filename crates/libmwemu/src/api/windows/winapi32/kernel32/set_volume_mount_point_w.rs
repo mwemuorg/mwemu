@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn SetVolumeMountPointW(emu: &mut emu::Emu) {
-    let _lpszVolumeMountPoint = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let lpszVolumeName = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let _lpszVolumeMountPoint = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let lpszVolumeName = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let lpszVolumeName = emu.maps.read_wide_string(lpszVolumeName as u64);
 

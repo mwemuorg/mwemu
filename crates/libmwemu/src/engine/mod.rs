@@ -1110,11 +1110,12 @@ pub fn emulate_instruction(
         Mnemonic::Ud2 => instructions::ud::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Hlt => instructions::hlt::execute(emu, ins, instruction_sz, rep_step),
         _ => {
-            log::trace!(
-                "{} Unimplemented instruction: {:?}",
+            log::warn!(
+                "{} Unimplemented instruction: {:?} — raising #UD",
                 emu.pos,
                 ins.mnemonic()
             );
+            emu.exception(crate::exception::types::ExceptionType::IllegalInstruction);
             false
         }
     }

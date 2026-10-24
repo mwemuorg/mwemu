@@ -39,7 +39,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "AcquireSRWLockShared" => AcquireSRWLockShared(emu),
         "ActivateActCtx" => ActivateActCtx(emu),
         "AddVectoredExceptionHandler" => AddVectoredExceptionHandler(emu),
-        "AreFileApiIsAnsi" => AreFileApiIsAnsi(emu),
+        "AreFileApiIsAnsi" | "AreFileApisANSI" => AreFileApiIsAnsi(emu),
         "BeginUpdateResourceA" => BeginUpdateResourceA(emu),
         "CloseHandle" => CloseHandle(emu),
         "CompareStringW" => CompareStringW(emu),
@@ -53,6 +53,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CreateDirectoryA" => CreateDirectoryA(emu),
         "CreateDirectoryW" => CreateDirectoryW(emu),
         "CreateEventA" => CreateEventA(emu),
+        "CreateEventW" => CreateEventW(emu),
         "CreateFileA" => CreateFileA(emu),
         "CreateFileW" => CreateFileW(emu),
         "CreateFileMappingA" => CreateFileMappingA(emu),
@@ -138,6 +139,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetFileType" => GetFileType(emu),
         "GetFullPathNameA" => GetFullPathNameA(emu),
         "GetFullPathNameW" => GetFullPathNameW(emu),
+        "GetCurrentPackagePath" => {
+            log_red!(emu, "kernel32!GetCurrentPackagePath (stub)");
+            emu.regs_mut().rax = 0x80073D54; // APPMODEL_ERROR_NO_PACKAGE
+        }
         "GetLastError" => GetLastError(emu),
         "GetLocaleInfoA" => GetLocaleInfoA(emu),
         "GetLocaleInfoW" => GetLocaleInfoW(emu),
@@ -155,6 +160,17 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetStartupInfoA" => GetStartupInfoA(emu),
         "GetStartupInfoW" => GetStartupInfoW(emu),
         "GetStdHandle" => GetStdHandle(emu),
+        "GetStringTypeW" => {
+            let dw_info_type = emu.regs().rcx;
+            let len = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernel32!GetStringTypeW type: {} len: {}",
+                dw_info_type,
+                len
+            );
+            emu.regs_mut().rax = 1;
+        }
         "GetThreadId" => GetThreadId(emu),
         "GetSystemDirectoryA" => GetSystemDirectoryA(emu),
         "GetSystemDirectoryW" => GetSystemDirectoryW(emu),
@@ -162,12 +178,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetSystemInfo" => GetSystemInfo(emu),
         "GetSystemTime" => GetSystemTime(emu),
         "GetSystemTimeAsFileTime" => GetSystemTimeAsFileTime(emu),
+        "GetSystemTimePreciseAsFileTime" => GetSystemTimePreciseAsFileTime(emu),
         "GetTempPathW" => GetTempPathW(emu),
         "GetThreadContext" => GetThreadContext(emu),
         "GetThreadLocale" => GetThreadLocale(emu),
         "GetTickCount" => GetTickCount(emu),
         "GetTickCount64" => GetTickCount64(emu),
         "GetTimeZoneInformation" => GetTimeZoneInformation(emu),
+        "GetTimeZoneInformationForYear" => GetTimeZoneInformationForYear(emu),
         "GetUserDefaultLangId" => GetUserDefaultLangId(emu),
         "GetUserDefaultLCID" => GetUserDefaultLCID(emu),
         "GetVersion" => GetVersion(emu),
@@ -194,9 +212,16 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "InitOnceBeginInitialize" => InitOnceBeginInitialize(emu),
         "IsBadReadPtr" => IsBadReadPtr(emu),
         "IsDebuggerPresent" => IsDebuggerPresent(emu),
+        "IsValidCodePage" => {
+            let cp = emu.regs().rcx;
+            log_red!(emu, "kernel32!IsValidCodePage cp: {}", cp);
+            emu.regs_mut().rax = 1;
+        }
         "IsWow64Process" => IsWow64Process(emu),
         "IsProcessorFeaturePresent" => IsProcessorFeaturePresent(emu),
         "LeaveCriticalSection" => LeaveCriticalSection(emu),
+        "Module32FirstW" => Module32FirstW(emu),
+        "Module32NextW" => Module32NextW(emu),
         "LoadLibraryA" => LoadLibraryA(emu),
         "LoadLibraryExA" => LoadLibraryExA(emu),
         "LoadLibraryExW" => LoadLibraryExW(emu),
@@ -230,6 +255,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "Process32Next" => Process32Next(emu),
         "QueryPerformanceCounter" => QueryPerformanceCounter(emu),
         "QueryPerformanceFrequency" => QueryPerformanceFrequency(emu),
+        "RaiseException" => RaiseException(emu),
         "ReadFile" => ReadFile(emu),
         "ReadProcessMemory" => ReadProcessMemory(emu),
         "RegCloseKey" => RegCloseKey(emu),
@@ -239,6 +265,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "RegSetValueExA" => RegSetValueExA(emu),
         "RegSetValueExW" => RegSetValueExW(emu),
         "ResetEvent" => ResetEvent(emu),
+        "SetEvent" => {
+            let handle = emu.regs().rcx;
+            log_red!(emu, "kernel32!SetEvent handle: 0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
 
         "ReleaseSRWLockExclusive" => ReleaseSRWLockExclusive(emu),
         "ReleaseSRWLockShared" => ReleaseSRWLockShared(emu),
@@ -275,6 +306,23 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "VirtualProtectEx" => VirtualProtectEx(emu),
         "WaitForMultipleObjects" => WaitForMultipleObjects(emu),
         "WaitForSingleObject" => WaitForSingleObject(emu),
+        "VerifyVersionInfoA" | "VerifyVersionInfoW" => {
+            log_red!(emu, "kernel32!VerifyVersionInfo (stub) -> TRUE");
+            emu.regs_mut().rax = 1;
+        }
+        "VerSetConditionMask" => {
+            let mask = emu.regs().rcx;
+            let type_bit = emu.regs().rdx;
+            let condition = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernel32!VerSetConditionMask mask: 0x{:x} type: {} cond: {}",
+                mask,
+                type_bit,
+                condition
+            );
+            emu.regs_mut().rax = mask | (condition << (type_bit & 0x1f));
+        }
         "WideCharToMultiByte" => WideCharToMultiByte(emu),
         "WinExec" => WinExec(emu),
         "WriteConsoleW" => WriteConsoleW(emu),
@@ -282,15 +330,21 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WriteProcessMemory" => WriteProcessMemory(emu),
         "DeviceIoControl" => api_DeviceIoControl(emu),
         _ => {
+            // Windows forwards many Rtl*/Nt* functions through kernel32 →
+            // ntdll. Try ntdll sub-dispatchers before giving up.
+            if super::ntdll::try_dispatch(api, emu) {
+                return String::new();
+            }
+
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",

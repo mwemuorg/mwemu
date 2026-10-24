@@ -10,14 +10,21 @@ use crate::windows::structures::TEB;
 
 pub fn init_ldr(emu: &mut emu::Emu) -> u64 {
     let ldr_sz = PebLdrData::size() + 100;
-    let ldr_addr = emu
-        .maps
-        .lib32_alloc(ldr_sz as u64)
-        .expect("cannot alloc the LDR");
+    let ldr_addr = match emu.maps.lib32_alloc(ldr_sz as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the LDR");
+            return 0;
+        }
+    };
     log::debug!("LDR ALLOCATED AT: 0x{:x}", ldr_addr);
-    emu.maps
+    if let Err(e) = emu
+        .maps
         .create_map("ldr", ldr_addr, ldr_sz as u64, Permission::READ_WRITE)
-        .expect("cannot create ldr map");
+    {
+        log::error!("cannot create ldr map: {}", e);
+        return 0;
+    }
     let exe_name = emu.cfg.exe_name.clone();
     let module_entry = create_ldr_entry(emu, 0, 0, &exe_name, 0, 0) as u32;
     let mut ldr = PebLdrData::new();
@@ -75,29 +82,43 @@ pub fn init_peb(emu: &mut emu::Emu) {
     let ldr = init_ldr(emu);
     let args_addr = init_arguments(emu);
 
-    let peb_addr = emu
-        .maps
-        .lib32_alloc(PEB::size() as u64)
-        .expect("cannot alloc the PEB32");
-    let peb_map = emu
-        .maps
-        .create_map("peb", peb_addr, PEB::size() as u64, Permission::READ_WRITE)
-        .expect("cannot create peb map");
+    let peb_addr = match emu.maps.lib32_alloc(PEB::size() as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the PEB32");
+            return;
+        }
+    };
+    let peb_map =
+        match emu
+            .maps
+            .create_map("peb", peb_addr, PEB::size() as u64, Permission::READ_WRITE)
+        {
+            Ok(m) => m,
+            Err(e) => {
+                log::error!("cannot create peb map: {}", e);
+                return;
+            }
+        };
     let peb = PEB::new(0, ldr as u32, args_addr as u32);
     peb.save(peb_map);
 
-    let teb_addr = emu
-        .maps
-        .lib32_alloc(TEB::map_size() as u64)
-        .expect("cannot alloc the TEB32");
-    emu.maps
-        .create_map(
-            "teb",
-            teb_addr,
-            TEB::map_size() as u64,
-            Permission::READ_WRITE,
-        )
-        .expect("cannot create teb map");
+    let teb_addr = match emu.maps.lib32_alloc(TEB::map_size() as u64) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc the TEB32");
+            return;
+        }
+    };
+    if let Err(e) = emu.maps.create_map(
+        "teb",
+        teb_addr,
+        TEB::map_size() as u64,
+        Permission::READ_WRITE,
+    ) {
+        log::error!("cannot create teb map: {}", e);
+        return;
+    }
     emu.maps.memset(teb_addr, 0, TEB::map_size());
     let teb = TEB::new(peb_addr as u32);
     teb.save(emu.maps.get_mem_mut("teb"));
@@ -137,7 +158,7 @@ impl Flink {
         let flink = emu
             .maps
             .read_dword(ldr.in_load_order_module_list.flink.into())
-            .expect("peb32::new() error reading flink") as u64;
+            .unwrap_or(0) as u64;
 
         Flink {
             flink_addr: flink,
@@ -254,9 +275,7 @@ impl Flink {
 
         if self.num_of_funcs > 0 {
             self.func_name_tbl_rva =
-                emu.maps
-                    .read_dword(self.export_table + 0x20)
-                    .expect(" error reading func_name_tbl_rva") as u64;
+                emu.maps.read_dword(self.export_table + 0x20).unwrap_or(0) as u64;
             self.func_name_tbl = self.func_name_tbl_rva + self.mod_base;
         }
 
@@ -284,39 +303,30 @@ impl Flink {
             Console::spawn_console(emu);
         }
 
-        ordinal.ordinal_tbl_rva = emu
-            .maps
-            .read_dword(self.export_table + 0x24)
-            .expect("error reading ordinal_tbl_rva") as u64;
+        ordinal.ordinal_tbl_rva = emu.maps.read_dword(self.export_table + 0x24).unwrap_or(0) as u64;
         ordinal.ordinal_tbl = ordinal.ordinal_tbl_rva + self.mod_base;
         ordinal.ordinal = emu
             .maps
             .read_word(ordinal.ordinal_tbl + 2 * function_id)
-            .expect("error reading ordinal") as u64;
-        ordinal.func_addr_tbl_rva = emu
-            .maps
-            .read_dword(self.export_table + 0x1c)
-            .expect("error reading func_addr_tbl_rva") as u64;
+            .unwrap_or(0) as u64;
+        ordinal.func_addr_tbl_rva =
+            emu.maps.read_dword(self.export_table + 0x1c).unwrap_or(0) as u64;
         ordinal.func_addr_tbl = ordinal.func_addr_tbl_rva + self.mod_base;
         ordinal.func_rva = emu
             .maps
             .read_dword(ordinal.func_addr_tbl + 4 * ordinal.ordinal)
-            .expect("error reading func_rva") as u64;
+            .unwrap_or(0) as u64;
         ordinal.func_va = ordinal.func_rva + self.mod_base;
 
         ordinal
     }
 
     pub fn get_next_flink(&self, emu: &mut emu::Emu) -> u64 {
-        emu.maps
-            .read_dword(self.flink_addr)
-            .expect("error reading next flink") as u64
+        emu.maps.read_dword(self.flink_addr).unwrap_or(0) as u64
     }
 
     pub fn get_prev_flink(&self, emu: &mut emu::Emu) -> u64 {
-        emu.maps
-            .read_dword(self.flink_addr + 4)
-            .expect("error reading prev flink") as u64
+        emu.maps.read_dword(self.flink_addr + 4).unwrap_or(0) as u64
     }
 
     pub fn next(&mut self, emu: &mut emu::Emu) {
@@ -515,10 +525,13 @@ pub fn create_ldr_entry(
 
     // make space for ldr
     let sz = (LdrDataTableEntry::size() + 0x40 + (1024 * 2)) as u64;
-    let space_addr = emu
-        .maps
-        .alloc(sz)
-        .expect("cannot alloc few bytes to put the LDR for LoadLibraryA");
+    let space_addr = match emu.maps.alloc(sz) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc LDR for LoadLibraryA");
+            return 0;
+        }
+    };
     let mut lib = libname.to_string();
     lib.push_str(".ldr");
     let mut image_sz = 0;
@@ -530,10 +543,13 @@ pub fn create_ldr_entry(
             .unwrap_or(0) as u64;
         base_addr = base;
     } else {
-        let addr = emu
-            .maps
-            .alloc(sz)
-            .expect("out of memory, cannot create the .ldr entry");
+        let addr = match emu.maps.alloc(sz) {
+            Some(a) => a,
+            None => {
+                log::error!("out of memory, cannot create the .ldr entry");
+                return 0;
+            }
+        };
         if addr > u32::MAX as u64 {
             {
                 log::warn!("allocating .ldr  > u32::MAX");
@@ -542,10 +558,16 @@ pub fn create_ldr_entry(
         }
         base_addr = addr as u32;
     }
-    let mem = emu
+    let mem = match emu
         .maps
         .create_map(lib.as_str(), space_addr, sz, Permission::READ_WRITE)
-        .expect("create_ldr_entry cannot create map");
+    {
+        Ok(m) => m,
+        Err(e) => {
+            log::error!("create_ldr_entry cannot create map: {}", e);
+            return 0;
+        }
+    };
     mem.write_byte(space_addr + sz - 1, 0x61);
 
     let full_libname = "C:\\Windows\\System32\\".to_string() + libname;

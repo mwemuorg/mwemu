@@ -167,78 +167,32 @@ impl Context64 {
     }
 
     pub fn load(&mut self, addr: u64, maps: &mut Maps) {
-        self.dr0 = maps
-            .read_qword(addr + 72)
-            .expect("cannot read dr0 from ctx");
-        self.dr1 = maps
-            .read_qword(addr + 80)
-            .expect("cannot read dr1 from ctx");
-        self.dr2 = maps
-            .read_qword(addr + 88)
-            .expect("cannot read dr2 from ctx");
-        self.dr3 = maps
-            .read_qword(addr + 96)
-            .expect("cannot read dr3 from ctx");
-        self.dr6 = maps
-            .read_qword(addr + 104)
-            .expect("cannot read dr6 from ctx");
-        self.dr7 = maps
-            .read_qword(addr + 112)
-            .expect("cannot read dr7 from ctx");
+        self.dr0 = maps.read_qword(addr + 72).unwrap_or(0);
+        self.dr1 = maps.read_qword(addr + 80).unwrap_or(0);
+        self.dr2 = maps.read_qword(addr + 88).unwrap_or(0);
+        self.dr3 = maps.read_qword(addr + 96).unwrap_or(0);
+        self.dr6 = maps.read_qword(addr + 104).unwrap_or(0);
+        self.dr7 = maps.read_qword(addr + 112).unwrap_or(0);
 
-        self.rax = maps
-            .read_qword(addr + 120)
-            .expect("cannot read rax from ctx");
-        self.rcx = maps
-            .read_qword(addr + 128)
-            .expect("cannot read rcx from ctx");
-        self.rdx = maps
-            .read_qword(addr + 136)
-            .expect("cannot read rdx from ctx");
-        self.rbx = maps
-            .read_qword(addr + 144)
-            .expect("cannot read rbx from ctx");
-        self.rsp = maps
-            .read_qword(addr + 152)
-            .expect("cannot read rsp from ctx");
-        self.rbp = maps
-            .read_qword(addr + 160)
-            .expect("cannot read rbp from ctx");
-        self.rdi = maps
-            .read_qword(addr + 168)
-            .expect("cannot read rdi from ctx");
-        self.rsi = maps
-            .read_qword(addr + 176)
-            .expect("cannot read rsi from ctx");
+        self.rax = maps.read_qword(addr + 120).unwrap_or(0);
+        self.rcx = maps.read_qword(addr + 128).unwrap_or(0);
+        self.rdx = maps.read_qword(addr + 136).unwrap_or(0);
+        self.rbx = maps.read_qword(addr + 144).unwrap_or(0);
+        self.rsp = maps.read_qword(addr + 152).unwrap_or(0);
+        self.rbp = maps.read_qword(addr + 160).unwrap_or(0);
+        self.rdi = maps.read_qword(addr + 168).unwrap_or(0);
+        self.rsi = maps.read_qword(addr + 176).unwrap_or(0);
 
-        self.r8 = maps
-            .read_qword(addr + 184)
-            .expect("cannot read r8 from ctx");
-        self.r9 = maps
-            .read_qword(addr + 192)
-            .expect("cannot read r9 from ctx");
-        self.r10 = maps
-            .read_qword(addr + 200)
-            .expect("cannot read r10 from ctx");
-        self.r11 = maps
-            .read_qword(addr + 208)
-            .expect("cannot read r11 from ctx");
-        self.r12 = maps
-            .read_qword(addr + 216)
-            .expect("cannot read r12 from ctx");
-        self.r13 = maps
-            .read_qword(addr + 224)
-            .expect("cannot read r13 from ctx");
-        self.r14 = maps
-            .read_qword(addr + 232)
-            .expect("cannot read r14 from ctx");
-        self.r15 = maps
-            .read_qword(addr + 240)
-            .expect("cannot read r15 from ctx");
+        self.r8 = maps.read_qword(addr + 184).unwrap_or(0);
+        self.r9 = maps.read_qword(addr + 192).unwrap_or(0);
+        self.r10 = maps.read_qword(addr + 200).unwrap_or(0);
+        self.r11 = maps.read_qword(addr + 208).unwrap_or(0);
+        self.r12 = maps.read_qword(addr + 216).unwrap_or(0);
+        self.r13 = maps.read_qword(addr + 224).unwrap_or(0);
+        self.r14 = maps.read_qword(addr + 232).unwrap_or(0);
+        self.r15 = maps.read_qword(addr + 240).unwrap_or(0);
 
-        self.rip = maps
-            .read_qword(addr + 248)
-            .expect("cannot read rip from ctx");
+        self.rip = maps.read_qword(addr + 248).unwrap_or(0);
     }
 
     pub fn sync(&self, regs: &mut Regs64) {

@@ -1,6 +1,3 @@
-/*
-    Little endian 64 bits and inferior bits memory.
-*/
 use crate::emu::emu_context;
 use crate::maps::scalar::{LittleEndianScalar, ScalarTrace};
 use bytemuck::cast_slice;
@@ -13,6 +10,7 @@ use std::io::SeekFrom;
 use std::io::Write;
 use std::io::prelude::*;
 
+/// Memory region permission flags (read/write/execute).
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub struct Permission(u8);
 
@@ -138,6 +136,7 @@ impl std::ops::Not for Permission {
     }
 }
 
+/// A single contiguous memory region with base address, permissions, and byte storage.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Mem64 {
     mem_name: String,
@@ -339,22 +338,24 @@ impl Mem64 {
             }
         }
 
+        if addr < self.base_addr || addr >= self.bottom_addr {
+            return &[];
+        }
         let idx = (addr - self.base_addr) as usize;
         let max_sz = (self.bottom_addr - self.base_addr) as usize;
-        /*
-        let mut sz = idx + 5;
-        if sz > max_sz {
-            sz = max_sz;
-        }*/
-        let r = self.mem.get(idx..max_sz).unwrap();
-        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
-            log::trace!(
-                "mem_trace: read_from: 0x{:x?} = {:x?}",
-                self.build_addresses(addr, max_sz),
+        match self.mem.get(idx..max_sz) {
+            Some(r) => {
+                if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
+                    log::trace!(
+                        "mem_trace: read_from: 0x{:x?} = {:x?}",
+                        self.build_addresses(addr, max_sz),
+                        r
+                    );
+                }
                 r
-            );
+            }
+            None => &[],
         }
-        r
     }
 
     #[inline(always)]
@@ -377,11 +378,9 @@ impl Mem64 {
         let idx = (addr - self.base_addr) as usize;
         let sz2 = idx + sz;
         if sz2 > self.mem.len() {
-            // TODO: log trace?
-            let addr = self.mem.get(idx..self.mem.len()).unwrap();
-            return addr;
+            return self.mem.get(idx..self.mem.len()).unwrap_or(&[]);
         }
-        let r = self.mem.get(idx..sz2).unwrap();
+        let r = self.mem.get(idx..sz2).unwrap_or(&[]);
         if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem_trace: read_bytes: 0x{:x?} = {:x?}",
@@ -397,11 +396,9 @@ impl Mem64 {
         let idx = 0;
         let sz2 = self.size();
         if sz2 > self.mem.len() {
-            // TODO: log trace?
-            let bytes = self.mem.get(idx..self.mem.len()).unwrap();
-            return bytes;
+            return self.mem.get(idx..self.mem.len()).unwrap_or(&[]);
         }
-        let r = self.mem.get(idx..sz2).unwrap();
+        let r = self.mem.get(idx..sz2).unwrap_or(&[]);
         if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem_trace: read_bytes: 0x{:x?} = {:x?}",
@@ -871,9 +868,10 @@ impl Mem64 {
         for i in 0..sz {
             self.mem.push(0);
         }
-        reader
-            .read_exact(&mut self.mem)
-            .expect("cannot load chunk of file");
+        if let Err(e) = reader.read_exact(&mut self.mem) {
+            log::error!("cannot load chunk of file: {}", e);
+            return false;
+        }
         f.sync_all(); // thanks, Alberto Segura
         true
     }
@@ -886,13 +884,20 @@ impl Mem64 {
                 return false;
             }
         };
-        let len = f.metadata().unwrap().len();
+        let len = match f.metadata() {
+            Ok(m) => m.len(),
+            Err(e) => {
+                log::error!("cannot read metadata for '{}': {}", filename, e);
+                return false;
+            }
+        };
         self.bottom_addr = self.base_addr + len;
         let mut reader = BufReader::new(&f);
         self.mem.clear();
-        reader
-            .read_to_end(&mut self.mem)
-            .expect("cannot load map file");
+        if let Err(e) = reader.read_to_end(&mut self.mem) {
+            log::error!("cannot load map file '{}': {}", filename, e);
+            return false;
+        }
         f.sync_all(); // thanks, Alberto Segura
         true
     }
@@ -913,7 +918,15 @@ impl Mem64 {
             }
         };
 
-        let blob = self.mem.get(idx..sz2).unwrap();
+        let Some(blob) = self.mem.get(idx..sz2) else {
+            log::error!(
+                "save: invalid range {}..{} for mem len {}",
+                idx,
+                sz2,
+                self.mem.len()
+            );
+            return;
+        };
 
         match f.write_all(blob) {
             Ok(_) => log::debug!(
@@ -925,7 +938,7 @@ impl Mem64 {
             Err(_) => log::error!("couldn't save the file"),
         }
 
-        f.sync_all().unwrap();
+        let _ = f.sync_all();
     }
 
     pub fn save_all(&self, filename: &str) -> bool {
@@ -936,11 +949,11 @@ impl Mem64 {
             }
         };
 
-        let blob = self.mem.get(0..).unwrap();
+        let blob = self.mem.get(0..).unwrap_or(&[]);
 
         let res = f.write_all(blob).is_ok();
 
-        f.sync_all().unwrap();
+        let _ = f.sync_all();
 
         res
     }

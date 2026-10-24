@@ -39,7 +39,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _sz: usize, _rep: bool) -> bool
             }
             emu.set_operand_ymm_value_256(ins, 0, regs64::U256::from_little_endian(&r));
         }
-        _ => unreachable!(""),
+        _ => {
+            log::warn!("vpsubb: unexpected operand size");
+            return false;
+        }
     }
     true
 }

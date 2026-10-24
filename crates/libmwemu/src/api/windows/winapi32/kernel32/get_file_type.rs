@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn GetFileType(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().rsp)
-        .expect("kernel32!GetFileType error getting hndl param");
+    let hndl = emu.maps.read_dword(emu.regs().rsp).unwrap_or(0);
 
     log_red!(emu, "kernel32!GetFileType 0x{:x}", hndl);
 

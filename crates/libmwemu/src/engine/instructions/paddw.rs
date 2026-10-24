@@ -25,7 +25,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     let lanes = match emu.get_operand_sz(ins, 0) {
         64 => 4,
         128 => 8,
-        _ => unimplemented!("bad operand size"),
+        _ => {
+            log::warn!(
+                "paddw: unsupported operand size {}",
+                emu.get_operand_sz(ins, 0)
+            );
+            return false;
+        }
     };
 
     // Packed add of independent 16-bit lanes, each wrapping modulo 2^16.

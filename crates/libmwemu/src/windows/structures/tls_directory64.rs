@@ -13,12 +13,12 @@ pub struct TlsDirectory64 {
 impl TlsDirectory64 {
     pub fn load(addr: u64, maps: &Maps) -> TlsDirectory64 {
         TlsDirectory64 {
-            tls_data_start: maps.read_qword(addr).unwrap(),
-            tls_data_end: maps.read_qword(addr + 8).unwrap(),
-            tls_index: maps.read_qword(addr + 16).unwrap(),
-            tls_callbacks: maps.read_qword(addr + 24).unwrap(),
-            zero_fill_size: maps.read_dword(addr + 32).unwrap(),
-            characteristic: maps.read_dword(addr + 34).unwrap(),
+            tls_data_start: maps.read_qword(addr).unwrap_or(0),
+            tls_data_end: maps.read_qword(addr + 8).unwrap_or(0),
+            tls_index: maps.read_qword(addr + 16).unwrap_or(0),
+            tls_callbacks: maps.read_qword(addr + 24).unwrap_or(0),
+            zero_fill_size: maps.read_dword(addr + 32).unwrap_or(0),
+            characteristic: maps.read_dword(addr + 34).unwrap_or(0),
         }
     }
 

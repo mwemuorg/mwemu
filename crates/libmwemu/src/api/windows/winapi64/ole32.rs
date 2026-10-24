@@ -9,21 +9,45 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = api.split("!").last().unwrap_or(&api);
     match api {
         "OleInitialize" => OleInitialize(emu),
+        "CoInitialize" => {
+            log_red!(emu, "ole32!CoInitialize");
+            emu.regs_mut().rax = constants::S_OK;
+        }
         "CoInitializeEx" => CoInitializeEx(emu),
         "CoCreateInstance" => CoCreateInstance(emu),
         "CoTaskMemAlloc" => CoTaskMemAlloc(emu),
         "CoTaskMemFree" => CoTaskMemFree(emu),
         "CoUninitialize" => CoUninitialize(emu),
+        "CoResumeClassObjects" => {
+            log_red!(emu, "ole32!CoResumeClassObjects (stub)");
+            emu.regs_mut().rax = constants::S_OK;
+        }
+        "CoAddRefServerProcess" => {
+            log_red!(emu, "ole32!CoAddRefServerProcess (stub)");
+            emu.regs_mut().rax = 1;
+        }
+        "CoReleaseServerProcess" => {
+            log_red!(emu, "ole32!CoReleaseServerProcess (stub)");
+            emu.regs_mut().rax = 0;
+        }
+        "CreateClassMoniker" => {
+            log_red!(emu, "ole32!CreateClassMoniker (stub)");
+            emu.regs_mut().rax = 0x80004001u64; // E_NOTIMPL
+        }
+        "GetRunningObjectTable" => {
+            log_red!(emu, "ole32!GetRunningObjectTable (stub)");
+            emu.regs_mut().rax = 0x80004001u64; // E_NOTIMPL
+        }
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",

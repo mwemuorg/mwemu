@@ -28,9 +28,9 @@ impl UnicodeString {
 
     pub fn load(addr: u64, maps: &Maps) -> UnicodeString {
         UnicodeString {
-            length: maps.read_word(addr).unwrap(),
-            maximum_length: maps.read_word(addr + 2).unwrap(),
-            buffer: maps.read_dword(addr + 4).unwrap(),
+            length: maps.read_word(addr).unwrap_or(0),
+            maximum_length: maps.read_word(addr + 2).unwrap_or(0),
+            buffer: maps.read_dword(addr + 4).unwrap_or(0),
         }
     }
 

@@ -214,10 +214,12 @@ void mwemu_init_win32(struct MwemuEmu *emu);
 void mwemu_init_linux64(struct MwemuEmu *emu, int32_t dynamic);
 
 // Load a binary (PE/ELF/Mach-O or shellcode) from a file path.
-void mwemu_load_binary(struct MwemuEmu *emu, const char *filename);
+// Returns 1 on success, 0 on error.
+int32_t mwemu_load_binary(struct MwemuEmu *emu, const char *filename);
 
 // Load shellcode from a raw byte buffer.
-void mwemu_load_code_bytes(struct MwemuEmu *emu, const uint8_t *data, uintptr_t len);
+// Returns 1 on success, 0 on error.
+int32_t mwemu_load_code_bytes(struct MwemuEmu *emu, const uint8_t *data, uintptr_t len);
 
 // Allocate a named map of `size` bytes (RWX by default). Returns the base
 // address through `out_addr`; 1 on success, 0 on error.

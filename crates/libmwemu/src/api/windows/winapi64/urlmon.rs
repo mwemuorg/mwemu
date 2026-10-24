@@ -13,11 +13,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -37,10 +37,7 @@ fn URLDownloadToFileA(emu: &mut emu::Emu) {
     let sz_url = emu.regs().rdx;
     let sz_filename = emu.regs().r8;
     let dw_reserved = emu.regs().r9;
-    let lpfn_cb = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("urlmon!URLDownloadToFileA error reading lpfn_cb");
+    let lpfn_cb = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let url = emu.maps.read_string(sz_url);
     let filename = emu.maps.read_string(sz_filename);
@@ -60,10 +57,7 @@ fn URLDownloadToFileW(emu: &mut emu::Emu) {
     let sz_url = emu.regs().rdx;
     let sz_filename = emu.regs().r8;
     let dw_reserved = emu.regs().r9;
-    let lpfn_cb = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("urlmon!URLDownloadToFileW error reading lpfn_cb");
+    let lpfn_cb = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let url = emu.maps.read_wide_string(sz_url);
     let filename = emu.maps.read_wide_string(sz_filename);

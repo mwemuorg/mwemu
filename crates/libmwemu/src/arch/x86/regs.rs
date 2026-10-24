@@ -661,7 +661,7 @@ impl Regs64 {
                 self.set_r14l(0);
                 self.set_r15l(0);
             }
-            _ => unimplemented!(),
+            _ => log::error!("clear: unsupported bitness {}", B),
         }
     }
 
@@ -736,7 +736,7 @@ impl Regs64 {
                 log::trace!("  esp: 0x{:x}", self.get_esp());
                 log::trace!("  eip: 0x{:x}", self.get_eip());
             }
-            _ => unimplemented!(),
+            _ => log::error!("print: unsupported bitness {}", B),
         }
 
         log::trace!("---");
@@ -928,7 +928,10 @@ impl Regs64 {
             Register::MM6 => self.mm6,
             Register::MM7 => self.mm7,
 
-            _ => unimplemented!("SSE  XMM register: {:?} ", reg),
+            _ => {
+                log::warn!("get_xmm_reg: unsupported register {:?}", reg);
+                0
+            }
         }
     }
 
@@ -959,7 +962,10 @@ impl Regs64 {
             Register::MM6 => self.mm6 = value,
             Register::MM7 => self.mm7 = value,
 
-            _ => unimplemented!("SSE  XMM register: {:?} ", reg),
+            _ => {
+                log::warn!("set_xmm_reg: unsupported register {:?}", reg);
+                return;
+            }
         };
 
         // XMMn aliases the low 128 bits of YMMn. Mix of SSE/AVX code (e.g. glibc
@@ -1089,7 +1095,10 @@ impl Regs64 {
             Register::YMM14 => self.ymm14,
             Register::YMM15 => self.ymm15,
 
-            _ => unimplemented!("SSE  YMM register: {:?} ", reg),
+            _ => {
+                log::warn!("get_ymm_reg: unsupported register {:?}", reg);
+                U256::default()
+            }
         }
     }
 
@@ -1112,7 +1121,10 @@ impl Regs64 {
             Register::YMM14 => self.ymm14 = value,
             Register::YMM15 => self.ymm15 = value,
 
-            _ => unimplemented!("SSE  YMM register: {:?} ", reg),
+            _ => {
+                log::warn!("set_ymm_reg: unsupported register {:?}", reg);
+                return;
+            }
         };
 
         // Mirror the low 128 bits into the aliased XMM register so subsequent
@@ -1247,7 +1259,10 @@ impl Regs64 {
             Register::CR4 => 0,
             Register::CR5 => 0,
 
-            _ => unimplemented!("unimplemented register {:?}", reg),
+            _ => {
+                log::warn!("get_reg: unsupported register {:?}", reg);
+                0
+            }
         }
     }
 
@@ -1347,7 +1362,9 @@ impl Regs64 {
             Register::CR3 => {}
             Register::CR4 => {}
             Register::CR5 => {}
-            _ => unimplemented!("unimplemented register {:?}", reg),
+            _ => {
+                log::warn!("set_reg: unsupported register {:?}", reg);
+            }
         };
     }
 
@@ -1370,7 +1387,10 @@ impl Regs64 {
             "r14" => Register::R14,
             "r15" => Register::R15,
             "rip" => Register::RIP,
-            _ => unimplemented!("unimplemented register {:?}", reg_name),
+            _ => {
+                log::warn!("set_reg_by_name: unsupported register {}", reg_name);
+                return;
+            }
         };
         self.set_reg(reg, value);
     }
@@ -1502,7 +1522,10 @@ impl Regs64 {
             Register::MM5 => 128,
             Register::MM6 => 128,
             Register::MM7 => 128,
-            _ => unimplemented!("unimplemented register {:?}", reg),
+            _ => {
+                log::warn!("get_size: unsupported register {:?}", reg);
+                0
+            }
         };
 
         sz
@@ -1526,7 +1549,10 @@ impl Regs64 {
             "xmm13" => self.xmm13,
             "xmm14" => self.xmm14,
             "xmm15" => self.xmm15,
-            &_ => unimplemented!("weird register name parsed {}", reg_name),
+            &_ => {
+                log::warn!("get_xmm_by_name: unknown register {}", reg_name);
+                0
+            }
         }
     }
 
@@ -1548,7 +1574,10 @@ impl Regs64 {
             "ymm13" => self.ymm13,
             "ymm14" => self.ymm14,
             "ymm15" => self.ymm15,
-            &_ => unimplemented!("weird register name parsed {}", reg_name),
+            &_ => {
+                log::warn!("get_ymm_by_name: unknown register {}", reg_name);
+                U256::default()
+            }
         }
     }
 
@@ -1628,7 +1657,10 @@ impl Regs64 {
             "dil" => self.get_dil(),
             "bpl" => self.get_bpl(),
             "spl" => self.get_spl(),
-            &_ => unimplemented!("weird register name parsed {}", reg_name),
+            &_ => {
+                log::warn!("get_by_name: unknown register {}", reg_name);
+                0
+            }
         }
     }
 
@@ -1650,7 +1682,9 @@ impl Regs64 {
             "xmm13" => self.xmm13 = value,
             "xmm14" => self.xmm14 = value,
             "xmm15" => self.xmm15 = value,
-            &_ => unimplemented!("weird register name parsed {}", reg_name),
+            &_ => {
+                log::warn!("set_xmm_by_name: unknown register {}", reg_name);
+            }
         }
     }
 
@@ -1672,7 +1706,9 @@ impl Regs64 {
             "ymm13" => self.ymm13 = value,
             "ymm14" => self.ymm14 = value,
             "ymm15" => self.ymm15 = value,
-            &_ => unimplemented!("weird register name parsed {}", reg_name),
+            &_ => {
+                log::warn!("set_ymm_by_name: unknown register {}", reg_name);
+            }
         }
     }
 
@@ -1752,7 +1788,9 @@ impl Regs64 {
             "dil" => self.set_dil(value),
             "bpl" => self.set_bpl(value),
             "spl" => self.set_spl(value),
-            &_ => unreachable!("weird register name parsed {}", reg_name),
+            &_ => {
+                log::warn!("set_reg_by_name: unknown register '{}'", reg_name);
+            }
         }
     }
 

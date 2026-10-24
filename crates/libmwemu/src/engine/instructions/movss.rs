@@ -9,7 +9,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     );
 
     if ins.op_count() > 2 {
-        unimplemented!("Movss with 3 operands is not implemented yet");
+        log::warn!("movss: 3-operand form not implemented yet");
+        return false;
     }
 
     assert!(ins.op_count() == 2);
@@ -41,7 +42,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
         emu.set_operand_xmm_value_128(ins, 0, xmm_value);
     } else {
-        unimplemented!("Movss unimplemented operation");
+        log::warn!("movss: unsupported operand sizes {}x{}", sz0, sz1);
+        return false;
     }
     true
 }

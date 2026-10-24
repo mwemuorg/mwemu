@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn BeginUpdateResourceW(emu: &mut emu::Emu) {
-    let pFileName = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _bDeleteExistingResources = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let pFileName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _bDeleteExistingResources = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let pFileName = emu.maps.read_wide_string(pFileName as u64);
 

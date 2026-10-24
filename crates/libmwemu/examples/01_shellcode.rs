@@ -28,7 +28,7 @@ fn main() {
 
     // Maps the bytes as executable code and points the instruction pointer at
     // them. Registers and flags start zeroed.
-    emu.load_code_bytes(code);
+    emu.load_code_bytes(code).expect("failed to load shellcode");
 
     // `step()` runs exactly one instruction and returns false when execution
     // cannot continue. Use it when you want to watch the machine evolve; see

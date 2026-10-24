@@ -2,18 +2,9 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn EnumSystemGeoID(emu: &mut emu::Emu) {
-    let _GeoClass = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _ParentGeoId = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _lpGeoEnumProc = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
+    let _GeoClass = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _ParentGeoId = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _lpGeoEnumProc = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     log_red!(emu, "kernel32!EnumSystemGeoID");
 

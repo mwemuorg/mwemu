@@ -41,7 +41,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             false,
             false,
         ),
-        _ => unreachable!("weird size"),
+        _ => {
+            log::warn!("xadd: unexpected operand size");
+            return false;
+        }
     };
 
     // set the dest to the sum

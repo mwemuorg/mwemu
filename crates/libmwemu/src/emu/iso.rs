@@ -56,7 +56,9 @@ impl Emu {
 
         if iso_cache_is_fresh(&dest, iso_path, iso_len) {
             log::trace!("--iso: reusing cached system32 at {}", dest.display());
-            self.set_maps_folder(dest.to_str().unwrap());
+            if let Some(s) = dest.to_str() {
+                self.set_maps_folder(s);
+            }
             return Ok(());
         }
 
@@ -113,7 +115,9 @@ impl Emu {
             dest.display()
         );
 
-        self.set_maps_folder(dest.to_str().unwrap());
+        if let Some(s) = dest.to_str() {
+            self.set_maps_folder(s);
+        }
         Ok(())
     }
 
@@ -219,7 +223,9 @@ fn extract_install_image(
             ],
         );
         // `7z e` flattens, so the file lands as just its basename.
-        let basename = Path::new(image).file_name().unwrap();
+        let Some(basename) = Path::new(image).file_name() else {
+            return Err(format!("no filename in image path: {}", image).into());
+        };
         let candidate = tmp.join(basename);
         if candidate.is_file() {
             return Ok(candidate);
@@ -244,7 +250,10 @@ fn pick_image_files(
     win_dir: &str,
     targets: &std::collections::HashSet<String>,
 ) -> Result<Vec<String>, Box<dyn Error>> {
-    let listing = run_7z(sevenzip, &["l", "-slt", image.to_str().unwrap()])?;
+    let image_str = image
+        .to_str()
+        .ok_or_else(|| format!("non-UTF-8 image path: {}", image.display()))?;
+    let listing = run_7z(sevenzip, &["l", "-slt", image_str])?;
 
     // 7z on Linux always reports WIM paths with `/` separators, e.g.
     // `2/Windows/System32/kernel32.dll`, and only matches `/`-style patterns on

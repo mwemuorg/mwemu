@@ -8,18 +8,9 @@ pub fn CreateRemoteThread(emu: &mut emu::Emu) {
     let sec = emu.regs().rdx;
     let stack_size = emu.regs().r8;
     let addr = emu.regs().r9;
-    let param = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("krenel32!CreateRemoteThread cannot read the param");
-    let flags = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("kernel32!CreateRemoteThread cannot read the flags");
-    let out_tid = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("kernel32!CreateRemoteThread cannot read the tid");
+    let param = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let out_tid = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
     log_red!(
         emu,

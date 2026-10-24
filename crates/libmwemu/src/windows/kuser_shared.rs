@@ -262,7 +262,10 @@ pub fn init_kuser_shared_data(emu: &mut emu::Emu) -> u64 {
             0x1000,
             Permission::READ_WRITE,
         )
-        .expect("cannot create KuserSharedData map");
+        .unwrap_or_else(|e| {
+            log::error!("cannot create KuserSharedData map: {}", e);
+            panic!("KuserSharedData is required for emulation");
+        });
 
     // KUSER_SHARED_DATA layout from Windows 11 24H2 (vergiliusproject) / sogen.
     //

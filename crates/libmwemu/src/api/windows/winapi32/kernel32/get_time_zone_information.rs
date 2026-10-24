@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn GetTimeZoneInformation(emu: &mut emu::Emu) {
-    let out_timeZoneInfo = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetTimeZoneInformation cannot read out_timeZoneInfo");
+    let out_timeZoneInfo = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     //TODO: new structure https://learn.microsoft.com/en-us/windows/win32/api/timezoneapi/ns-timezoneapi-time_zone_information
 

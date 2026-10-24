@@ -21,15 +21,13 @@ pub fn gateway(syscall: u64, argv: u64, emu: &mut emu::Emu) {
             } else {
                 String::from("???")
             };
-            log::trace!(
-                "{}{} 0x{:x}: {}{}",
-                emu.colors.red,
-                emu.pos,
+            log::warn!(
+                "ntapi32: unimplemented syscall 0x{:x} at 0x{:x}: {}",
+                syscall,
                 emu.pc(),
-                output,
-                emu.colors.nc
+                output
             );
-            unimplemented!();
+            emu.regs_mut().rax = 0;
         }
     }
 }

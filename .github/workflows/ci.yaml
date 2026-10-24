@@ -16,6 +16,15 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  panic-gate:
+    name: Panic regression gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check panic/unwrap/expect counts
+        run: bash scripts/panic-gate.sh
+
   fmt:
     name: Format
     runs-on: ubuntu-24.04
@@ -26,7 +35,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
-          toolchain: stable
+          toolchain: 1.95.0
           components: rustfmt
 
       - name: Check formatting
@@ -43,7 +52,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
-          toolchain: stable
+          toolchain: 1.95.0
           components: clippy
           targets: x86_64-unknown-linux-gnu
 
@@ -164,7 +173,7 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
         with:
-          toolchain: stable
+          toolchain: 1.95.0
           targets: ${{ matrix.target }}
 
       - name: Install nextest
@@ -199,3 +208,10 @@ jobs:
           --package cmwemu
           --target ${{ matrix.target }}
           -E '${{ matrix.nextest-filter }}'
+
+  # Fuzz smoke test disabled in CI — run locally with `make test_fuzz`.
+  # fuzz-smoke:
+  #   name: Fuzz smoke test
+  #   runs-on: ubuntu-24.04
+  #   timeout-minutes: 15
+  #   needs: clippy

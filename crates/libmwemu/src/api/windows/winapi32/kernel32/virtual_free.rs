@@ -1,18 +1,9 @@
 use crate::emu;
 
 pub fn VirtualFree(emu: &mut emu::Emu) {
-    let addr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!VirtualFree cannot read addr") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!VirtualFree cannot read out_buff");
-    let freeType = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!VirtualFree cannot read size") as u64;
+    let addr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let freeType = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
     log_red!(emu, "kernel32!VirtualFree 0x{:x} {}", addr, size);
 

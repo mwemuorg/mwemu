@@ -1,14 +1,8 @@
 use crate::emu;
 
 pub fn GetComputerNameA(emu: &mut emu::Emu) {
-    let buff_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetComputerNameA cannot read buff param") as u64;
-    let size_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!GetComputerNameA cannot read size param") as u64;
+    let buff_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     let host_name = emu.cfg.host_name.clone();
     if buff_ptr > 0 {

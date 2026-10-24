@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn CreateJobObjectW(emu: &mut emu::Emu) {
-    let _lpJobAttributes = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let lpName = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let _lpJobAttributes = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let lpName = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let lpName = emu.maps.read_wide_string(lpName as u64);
 

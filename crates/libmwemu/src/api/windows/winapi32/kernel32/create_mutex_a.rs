@@ -2,18 +2,9 @@ use crate::emu;
 use crate::winapi::helper;
 
 pub fn CreateMutexA(emu: &mut emu::Emu) {
-    let attr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!CreateMutexA cannot read attr param");
-    let owner = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!CreateMutexA cannot read owner param");
-    let name_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!CreateMutexA cannot read name param") as u64;
+    let attr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let owner = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let name_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let name = emu.maps.read_string(name_ptr);
 
     log_red!(emu, "kernel32!CreateMutexA '{}'", name);

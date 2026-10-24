@@ -451,6 +451,28 @@ impl ExportIndexRegistry {
             }
         }
     }
+
+    /// Find a reflective-loader entry across every registered module.
+    ///
+    /// Reflective-loader payloads (e.g. Cobalt Strike beacons) export a
+    /// `ReflectiveLoader` function — the decorated name varies
+    /// (`_ReflectiveLoader@4`, `ReflectiveLoader`, ...). That export, not the
+    /// PE `AddressOfEntryPoint`, is the real start: it maps/decrypts the image
+    /// and only then calls the true `DllMain`. Returns the
+    /// `(module_name, address)` of the first direct match, or `None`.
+    pub fn resolve_reflective_loader(&self) -> Option<(String, u64)> {
+        for module in self.iter_ordered() {
+            for (name_lc, &ord_idx) in module.by_name.iter() {
+                if name_lc.contains("reflectiveloader")
+                    && let Some(Some(IndexedExport::Direct { address })) =
+                        module.by_ordinal.get(ord_idx as usize)
+                {
+                    return Some((module.module_name.clone(), *address));
+                }
+            }
+        }
+        None
+    }
 }
 /// Parse a forwarder string of the form `dll.symbol` or `dll.#N` and
 /// resolve through the registry. Returns 0 if the target module is not

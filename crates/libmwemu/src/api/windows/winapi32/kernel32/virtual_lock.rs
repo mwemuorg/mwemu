@@ -1,14 +1,8 @@
 use crate::emu;
 
 pub fn VirtualLock(emu: &mut emu::Emu) {
-    let lp_address = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!VirtualLock cannot read lp_address") as u64;
-    let dw_size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!VirtualLock cannot read dw_size") as u64;
+    let lp_address = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let dw_size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     log_red!(
         emu,

@@ -2,18 +2,9 @@ use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
 
 pub fn HeapFree(emu: &mut emu::Emu) {
-    let heap = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!HeapFree cannot read heap handle");
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!HeapFree cannot read flags");
-    let mem = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!HeapFree cannot read mem");
+    let heap = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let mem = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     log_red!(emu, "kernel32!HeapFree mem: 0x{:x}", mem);
 

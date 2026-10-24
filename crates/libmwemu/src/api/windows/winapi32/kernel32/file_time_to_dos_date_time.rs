@@ -1,27 +1,12 @@
 use crate::emu;
 
 pub fn FileTimeToDosDateTime(emu: &mut emu::Emu) {
-    let lpFileTime =
-        emu.maps
-            .read_dword(emu.regs().get_esp())
-            .expect("kernel32!FileTimeToDosDateTime cannot read lpFileTime") as u64;
-    let out_lpFatDate =
-        emu.maps
-            .read_dword(emu.regs().get_esp() + 4)
-            .expect("kernel32!FileTimeToDosDateTime cannot read out_lpFatDate") as u64;
-    let out_lpFatTime =
-        emu.maps
-            .read_dword(emu.regs().get_esp() + 8)
-            .expect("kernel32!FileTimeToDosDateTime cannot read out_lpFatTime") as u64;
+    let lpFileTime = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let out_lpFatDate = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let out_lpFatTime = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
 
-    let dwLowDateTime = emu
-        .maps
-        .read_dword(lpFileTime)
-        .expect("kernel32!FileTimeToLocalFileTime cannot read dwLowDateTime");
-    let dwHighDateTime = emu
-        .maps
-        .read_dword(lpFileTime + 4)
-        .expect("kernel32!FileTimeToLocalFileTime cannot read dwHighDateTime");
+    let dwLowDateTime = emu.maps.read_dword(lpFileTime).unwrap_or(0);
+    let dwHighDateTime = emu.maps.read_dword(lpFileTime + 4).unwrap_or(0);
 
     /*
     let ftSeconds = (dwLowDateTime as u64) | ((dwHighDateTime as u64) << 32);

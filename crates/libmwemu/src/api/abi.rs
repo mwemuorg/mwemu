@@ -22,7 +22,8 @@ impl ApiAbi {
             Self::Aarch64 => {
                 let regs = emu.regs_aarch64();
                 regs.x.get(idx).copied().unwrap_or_else(|| {
-                    unreachable!("AArch64 API arg{} is out of range", idx);
+                    log::warn!("AArch64 API arg{} is out of range", idx);
+                    0
                 })
             }
             Self::X86_64 => match idx {

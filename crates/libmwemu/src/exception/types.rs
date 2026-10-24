@@ -16,6 +16,7 @@ pub enum ExceptionType {
     SettingXmmOperand,         // exception setting xmm operand
     ReadingXmmOperand,         // exception reading xmm operand
     HeapNoMemory,              // HeapAlloc failure with HEAP_GENERATE_EXCEPTIONS
+    IllegalInstruction,        // #UD — unimplemented or invalid opcode
 }
 
 impl PartialEq for ExceptionType {
@@ -43,6 +44,7 @@ impl std::fmt::Display for ExceptionType {
             ExceptionType::SettingXmmOperand => write!(f, "exception setting xmm operand"),
             ExceptionType::ReadingXmmOperand => write!(f, "exception reading xmm operand"),
             ExceptionType::HeapNoMemory => write!(f, "heap out of memory"),
+            ExceptionType::IllegalInstruction => write!(f, "illegal instruction (#UD)"),
         }
     }
 }
@@ -63,6 +65,7 @@ pub fn exception_type_code(ex_type: ExceptionType) -> u32 {
         ExceptionType::SettingXmmOperand => constants::STATUS_SETTING_XMM_OPERAND,
         ExceptionType::ReadingXmmOperand => constants::STATUS_READING_XMM_OPERAND,
         ExceptionType::HeapNoMemory => constants::STATUS_NO_MEMORY as u32,
+        ExceptionType::IllegalInstruction => constants::STATUS_ILLEGAL_INSTRUCTION,
     }
 }
 
@@ -82,6 +85,7 @@ pub fn exception_type_from_code(code: u32) -> ExceptionType {
         constants::STATUS_SETTING_XMM_OPERAND => ExceptionType::SettingXmmOperand,
         constants::STATUS_READING_XMM_OPERAND => ExceptionType::ReadingXmmOperand,
         x if x == constants::STATUS_NO_MEMORY as u32 => ExceptionType::HeapNoMemory,
+        constants::STATUS_ILLEGAL_INSTRUCTION => ExceptionType::IllegalInstruction,
         _ => ExceptionType::BadAddressDereferencing,
     }
 }

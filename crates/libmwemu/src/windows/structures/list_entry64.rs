@@ -19,8 +19,8 @@ impl ListEntry64 {
 
     pub fn load(addr: u64, maps: &Maps) -> ListEntry64 {
         ListEntry64 {
-            flink: maps.read_qword(addr).unwrap(),
-            blink: maps.read_qword(addr + 8).unwrap(),
+            flink: maps.read_qword(addr).unwrap_or(0),
+            blink: maps.read_qword(addr + 8).unwrap_or(0),
         }
     }
 

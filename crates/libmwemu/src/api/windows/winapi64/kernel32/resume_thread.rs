@@ -16,8 +16,8 @@ pub fn ResumeThread(emu: &mut emu::Emu) {
 
     // Extract thread ID from URI (format: "tid://0x1000")
     let tid_str = &uri[6..]; // Skip "tid://"
-    let thread_id = if tid_str.starts_with("0x") {
-        u64::from_str_radix(&tid_str[2..], 16).unwrap_or(0)
+    let thread_id = if let Some(stripped) = tid_str.strip_prefix("0x") {
+        u64::from_str_radix(stripped, 16).unwrap_or(0)
     } else {
         tid_str.parse::<u64>().unwrap_or(0)
     };

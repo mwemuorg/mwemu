@@ -28,7 +28,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             32 => logic::imul32p1(emu, value0),
             16 => logic::imul16p1(emu, value0),
             8 => logic::imul8p1(emu, value0),
-            _ => unimplemented!("wrong size"),
+            _ => {
+                log::warn!("imul: unsupported operand size {}", sz);
+                return false;
+            }
         }
     } else if ins.op_count() == 2 {
         // 2 params
@@ -49,7 +52,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             32 => emu.flags_overwrite_mut().imul32p2(value0, value1),
             16 => emu.flags_overwrite_mut().imul16p2(value0, value1),
             8 => emu.flags_overwrite_mut().imul8p2(value0, value1),
-            _ => unimplemented!("wrong size"),
+            _ => {
+                log::warn!("imul: unsupported operand size {}", sz);
+                return false;
+            }
         };
 
         if !emu.set_operand_value(ins, 0, result) {
@@ -74,7 +80,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             32 => emu.flags_overwrite_mut().imul32p2(value1, value2),
             16 => emu.flags_overwrite_mut().imul16p2(value1, value2),
             8 => emu.flags_overwrite_mut().imul8p2(value1, value2),
-            _ => unimplemented!("wrong size"),
+            _ => {
+                log::warn!("imul: unsupported operand size {}", sz);
+                return false;
+            }
         };
 
         if !emu.set_operand_value(ins, 0, result) {

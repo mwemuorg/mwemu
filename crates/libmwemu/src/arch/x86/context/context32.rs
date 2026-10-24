@@ -79,52 +79,22 @@ impl Context32 {
     }
 
     pub fn load(&mut self, addr: u32, maps: &mut Maps) {
-        self.dr0 = maps
-            .read_dword((addr + 4) as u64)
-            .expect("cannot read dr0 from ctx");
-        self.dr1 = maps
-            .read_dword((addr + 8) as u64)
-            .expect("cannot read dr1 from ctx");
-        self.dr2 = maps
-            .read_dword((addr + 12) as u64)
-            .expect("cannot read dr2 from ctx");
-        self.dr3 = maps
-            .read_dword((addr + 16) as u64)
-            .expect("cannot read dr3 from ctx");
-        self.dr6 = maps
-            .read_dword((addr + 20) as u64)
-            .expect("cannot read dr6 from ctx");
-        self.dr7 = maps
-            .read_dword((addr + 24) as u64)
-            .expect("cannot read dr7 from ctx");
+        self.dr0 = maps.read_dword((addr + 4) as u64).unwrap_or(0);
+        self.dr1 = maps.read_dword((addr + 8) as u64).unwrap_or(0);
+        self.dr2 = maps.read_dword((addr + 12) as u64).unwrap_or(0);
+        self.dr3 = maps.read_dword((addr + 16) as u64).unwrap_or(0);
+        self.dr6 = maps.read_dword((addr + 20) as u64).unwrap_or(0);
+        self.dr7 = maps.read_dword((addr + 24) as u64).unwrap_or(0);
 
-        self.edi = maps
-            .read_dword((addr + 0x9c) as u64)
-            .expect("cannot read edi from ctx");
-        self.esi = maps
-            .read_dword((addr + 0xa0) as u64)
-            .expect("cannot read esi from ctx");
-        self.ebx = maps
-            .read_dword((addr + 0xa4) as u64)
-            .expect("cannot read ebx from ctx");
-        self.edx = maps
-            .read_dword((addr + 0xa8) as u64)
-            .expect("cannot read edx from ctx");
-        self.ecx = maps
-            .read_dword((addr + 0xac) as u64)
-            .expect("cannot read ecx from ctx");
-        self.eax = maps
-            .read_dword((addr + 0xb0) as u64)
-            .expect("cannot read eax from ctx");
-        self.ebp = maps
-            .read_dword((addr + 0xb4) as u64)
-            .expect("cannot read ebp from ctx");
-        self.eip = maps
-            .read_dword((addr + 0xb8) as u64)
-            .expect("cannot read eip from ctx");
-        self.esp = maps
-            .read_dword((addr + 0xc4) as u64)
-            .expect("cannot read esp from ctx");
+        self.edi = maps.read_dword((addr + 0x9c) as u64).unwrap_or(0);
+        self.esi = maps.read_dword((addr + 0xa0) as u64).unwrap_or(0);
+        self.ebx = maps.read_dword((addr + 0xa4) as u64).unwrap_or(0);
+        self.edx = maps.read_dword((addr + 0xa8) as u64).unwrap_or(0);
+        self.ecx = maps.read_dword((addr + 0xac) as u64).unwrap_or(0);
+        self.eax = maps.read_dword((addr + 0xb0) as u64).unwrap_or(0);
+        self.ebp = maps.read_dword((addr + 0xb4) as u64).unwrap_or(0);
+        self.eip = maps.read_dword((addr + 0xb8) as u64).unwrap_or(0);
+        self.esp = maps.read_dword((addr + 0xc4) as u64).unwrap_or(0);
     }
 
     pub fn sync(&self, regs: &mut Regs64) {

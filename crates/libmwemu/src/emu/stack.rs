@@ -17,7 +17,7 @@ impl Emu {
                 rip: pc,
                 op: "write".to_string(),
                 bits: 64,
-                address: sp - 8,
+                address: sp.wrapping_sub(8),
                 old_value: self.maps.read_qword(sp).unwrap_or(0),
                 new_value: value as u64,
                 name: name.to_string(),
@@ -34,7 +34,7 @@ impl Emu {
             );
         }
 
-        let new_sp = sp - 2;
+        let new_sp = sp.wrapping_sub(2);
         self.set_sp(new_sp);
 
         if self.maps.write_word(new_sp, value) {
@@ -67,7 +67,7 @@ impl Emu {
                 rip: self.regs().rip,
                 op: "write".to_string(),
                 bits: 32,
-                address: self.regs().get_esp() - 4,
+                address: self.regs().get_esp().wrapping_sub(4),
                 old_value: self.maps.read_dword(self.regs().get_esp()).unwrap_or(0) as u64,
                 new_value: value as u64,
                 name: name.to_string(),
@@ -84,7 +84,7 @@ impl Emu {
             );
         }
 
-        let esp = self.regs().get_esp() - 4;
+        let esp = self.regs().get_esp().wrapping_sub(4);
         self.regs_mut().set_esp(esp);
         //self.stack_lvl[self.stack_lvl_idx] += 1;
         //log::trace!("push32 stack level is {} deep {}", self.stack_lvl[self.stack_lvl_idx], self.stack_lvl_idx);
@@ -144,7 +144,7 @@ impl Emu {
                 rip: pc,
                 op: "write".to_string(),
                 bits: 64,
-                address: sp - 8,
+                address: sp.wrapping_sub(8),
                 old_value: self.maps.read_qword(sp).unwrap_or(0),
                 new_value: value,
                 name: name.to_string(),
@@ -161,7 +161,7 @@ impl Emu {
             );
         }
 
-        let new_sp = sp - 8;
+        let new_sp = sp.wrapping_sub(8);
         self.set_sp(new_sp);
 
         if self.maps.write_qword(new_sp, value) {

@@ -24,16 +24,16 @@ impl CpInfo {
 
     pub fn load(addr: u64, maps: &Maps) -> CpInfo {
         let mut info = CpInfo::new();
-        info.max_char_size = maps.read_dword(addr).unwrap();
+        info.max_char_size = maps.read_dword(addr).unwrap_or(0);
 
         // Read default char array
         for i in 0..2 {
-            info.default_char[i] = maps.read_byte(addr + 4 + i as u64).unwrap();
+            info.default_char[i] = maps.read_byte(addr + 4 + i as u64).unwrap_or(0);
         }
 
         // Read lead byte array
         for i in 0..12 {
-            info.lead_byte[i] = maps.read_byte(addr + 6 + i as u64).unwrap();
+            info.lead_byte[i] = maps.read_byte(addr + 6 + i as u64).unwrap_or(0);
         }
 
         info

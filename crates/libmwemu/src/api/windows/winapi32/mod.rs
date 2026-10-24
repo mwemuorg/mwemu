@@ -69,10 +69,14 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
             // TODO: banzai check?
             emu.pe32.as_ref().unwrap().import_addr_to_name(addr)
         }
-        _ => unreachable!(
-            "/!\\ winapi32 gateway: trying to execute on {} at 0x{:x}",
-            name, addr
-        ),
+        _ => {
+            log::error!(
+                "/!\\ winapi32 gateway: trying to execute on {} at 0x{:x}",
+                name,
+                addr
+            );
+            return;
+        }
     };
     emu.call_stack_mut().pop();
 }

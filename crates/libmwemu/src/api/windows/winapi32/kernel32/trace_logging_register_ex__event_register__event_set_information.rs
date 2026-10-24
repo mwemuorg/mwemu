@@ -2,18 +2,9 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu: &mut emu::Emu) {
-    let _hProvider = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _pEnableCallback = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _pCallbackContext = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
+    let _hProvider = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _pEnableCallback = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _pCallbackContext = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     log_red!(
         emu,

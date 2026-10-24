@@ -1,4 +1,3 @@
-use crate::winapi::winapi64::kernel32::{LAST_ERROR, clear_last_error};
 use crate::{emu, windows::constants};
 
 pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
@@ -13,7 +12,7 @@ pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
     // If cchData is 0, return required buffer size
     if cch_data == 0 {
         emu.regs_mut().rax = required_size as u64;
-        clear_last_error(emu);
+        emu.clear_last_error();
         return;
     }
 
@@ -25,8 +24,7 @@ pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
             cch_data,
             required_size
         );
-        let mut err = LAST_ERROR.lock().unwrap();
-        *err = constants::ERROR_INSUFFICIENT_BUFFER;
+        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -34,5 +32,5 @@ pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
     // Write result directly to provided buffer
     emu.maps.write_string(lp_lc_data as u64, result);
     emu.regs_mut().rax = result.len() as u64; // Return length without null terminator
-    clear_last_error(emu);
+    emu.clear_last_error();
 }

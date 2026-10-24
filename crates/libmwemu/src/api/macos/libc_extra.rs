@@ -160,8 +160,14 @@ fn api_strndup(emu: &mut Emu) {
     let abi = ApiAbi::from_emu(emu);
     let s = emu.maps.read_string(abi.arg(emu, 0));
     let n = (abi.arg(emu, 1) as usize).min(s.len());
-    let addr =
-        super::libsystem::allocate_memory(emu, n as u64 + 1).expect("macOS strndup: out of memory");
+    let addr = match super::libsystem::allocate_memory(emu, n as u64 + 1) {
+        Some(a) => a,
+        None => {
+            log::error!("macOS strndup: out of memory (n={})", n);
+            abi.set_ret(emu, 0);
+            return;
+        }
+    };
     write_cstring(emu, addr, &s.as_bytes()[..n]);
     trace(emu, &format!("strndup(\"{}\", {}) -> 0x{:x}", s, n, addr));
     abi.set_ret(emu, addr);
@@ -257,10 +263,21 @@ fn rand_state_addr(emu: &mut Emu) -> u64 {
     if let Some(m) = emu.maps.get_map_by_name(RAND_STATE_MAP) {
         return m.get_base();
     }
-    let base = emu.maps.alloc(8).expect("macOS rand: out of memory");
-    emu.maps
+    let base = match emu.maps.alloc(8) {
+        Some(a) => a,
+        None => {
+            log::error!("macOS rand: out of memory");
+            return 0;
+        }
+    };
+    if emu
+        .maps
         .create_map(RAND_STATE_MAP, base, 8, Permission::READ_WRITE)
-        .expect("macOS rand: cannot create map");
+        .is_err()
+    {
+        log::error!("macOS rand: cannot create map");
+        return 0;
+    }
     emu.maps.write_qword(base, 1);
     base
 }

@@ -344,7 +344,7 @@ impl Emu {
                 self.set_eip(addr, false);
             }
         } else {
-            unreachable!();
+            log::warn!("no exception handler registered for {:?}", ex_type);
         }
     }
 }

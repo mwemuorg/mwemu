@@ -16,8 +16,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
         };
         guard_mem(emu, addr, reg_bytes as u32, false);
         let mut raw = [0u8; 16];
-        for i in 0..reg_bytes {
-            raw[i] = emu.maps.read_byte(addr + i as u64).unwrap_or(0);
+        for (i, byte) in raw.iter_mut().enumerate().take(reg_bytes) {
+            *byte = emu.maps.read_byte(addr + i as u64).unwrap_or(0);
         }
         emu.regs_aarch64_mut().v[rd as usize] = u128::from_le_bytes(raw);
         do_writeback(emu, wb);

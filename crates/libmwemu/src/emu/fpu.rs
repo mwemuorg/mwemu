@@ -3,9 +3,8 @@ use crate::{emu::Emu, fpu::FPU, threading::context::ArchThreadState};
 impl Emu {
     pub fn sync_fpu_ip(&mut self) {
         let rip = self.regs().rip;
-        match &mut self.threads[self.current_thread_id].arch {
-            ArchThreadState::X86 { fpu, .. } => fpu.set_ip(rip),
-            _ => {} // no-op on aarch64
+        if let ArchThreadState::X86 { fpu, .. } = &mut self.threads[self.current_thread_id].arch {
+            fpu.set_ip(rip);
         }
     }
 

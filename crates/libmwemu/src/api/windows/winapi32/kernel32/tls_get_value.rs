@@ -1,14 +1,11 @@
 use crate::emu;
 
 pub fn TlsGetValue(emu: &mut emu::Emu) {
-    let idx = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!TlsGetValue cannot read idx");
+    let idx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     emu.stack_pop32(false);
 
-    if idx as usize > emu.tls32().len() {
+    if idx as usize >= emu.tls32().len() {
         emu.regs_mut().set_eax(0);
     } else {
         let tls_entry = emu.tls32()[idx as usize] as u64;

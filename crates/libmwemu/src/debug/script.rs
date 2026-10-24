@@ -42,7 +42,7 @@ impl Script {
         let file = File::open(filename).unwrap();
         let buf = BufReader::new(file);
 
-        for line in buf.lines().flatten() {
+        for line in buf.lines().map_while(Result::ok) {
             self.code.push(line);
         }
     }
@@ -537,10 +537,10 @@ impl Script {
                         }
                     };
 
-                    let mem = emu
-                        .maps
-                        .get_mem_by_addr(addr)
-                        .expect("address not found on any map");
+                    let Some(mem) = emu.maps.get_mem_by_addr(addr) else {
+                        log::trace!("error in line {}, address not found on any map", i);
+                        return;
+                    };
                     if emu.cfg.is_x64() {
                         log::trace!(
                             "map: {} 0x{:x}-0x{:x} ({})",
@@ -732,11 +732,17 @@ impl Script {
                     }
 
                     if emu.cfg.arch.is_aarch64() || emu.cfg.is_x64() {
-                        let value = emu.stack_pop64(false).expect("pop failed");
+                        let Some(value) = emu.stack_pop64(false) else {
+                            log::trace!("error in line {}, pop failed", i);
+                            return;
+                        };
                         log::trace!("poped value 0x{:x}", value);
                         self.result = value;
                     } else {
-                        let value = emu.stack_pop32(false).expect("pop failed");
+                        let Some(value) = emu.stack_pop32(false) else {
+                            log::trace!("error in line {}, pop failed", i);
+                            return;
+                        };
                         log::trace!("poped value 0x{:x}", value);
                         self.result = value as u64;
                     }
@@ -1137,7 +1143,9 @@ impl Script {
                     self.trace = true;
                 }
 
-                _ => unreachable!("error in line {}, unknown command", i),
+                _ => {
+                    log::warn!("script: unknown command in line {}", i);
+                }
             }
         }
     }

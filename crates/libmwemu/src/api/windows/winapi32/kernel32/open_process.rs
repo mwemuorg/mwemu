@@ -2,18 +2,9 @@ use crate::emu;
 use crate::winapi::helper;
 
 pub fn OpenProcess(emu: &mut emu::Emu) {
-    let access = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!OpenProcess cannot read access");
-    let inherit = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!OpenProcess cannot read inherit");
-    let pid = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!OpenProcess cannot read pid");
+    let access = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let inherit = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let pid = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     log_red!(emu, "kernel32!OpenProcess pid: {}", pid);
 

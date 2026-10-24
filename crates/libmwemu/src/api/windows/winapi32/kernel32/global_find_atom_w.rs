@@ -2,10 +2,7 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn GlobalFindAtomW(emu: &mut emu::Emu) {
-    let lpString = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
+    let lpString = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     let lpString = emu.maps.read_wide_string(lpString as u64);
 

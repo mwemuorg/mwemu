@@ -195,16 +195,16 @@ impl Emu {
         if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
             log::trace!("exit position reached");
 
-            if self.cfg.dump_on_exit && self.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(self, self.cfg.dump_filename.as_ref().unwrap());
+            if self.cfg.dump_on_exit
+                && let Some(ref fname) = self.cfg.dump_filename
+            {
+                serialization::Serialization::dump(self, fname);
             }
 
-            if self.cfg.trace_regs && self.cfg.trace_filename.is_some() {
-                self.trace_file
-                    .as_ref()
-                    .unwrap()
-                    .flush()
-                    .expect("failed to flush trace file");
+            if self.cfg.trace_regs
+                && let Some(ref mut tf) = self.trace_file
+            {
+                let _ = tf.flush();
             }
 
             return false;
@@ -271,9 +271,7 @@ impl Emu {
         false
     }
 
-    /// Run until a specific position (emu.pos)
-    /// This don't reset the emu.pos, will meulate from current position to
-    /// selected end_pos included.
+    /// Run from the current position until `end_pos` is reached (inclusive).
     pub fn run_to(&mut self, end_pos: u64) -> Result<u64, MwemuError> {
         self.max_pos = Some(end_pos);
         let r = self.run(None);
@@ -343,15 +341,15 @@ impl Emu {
         // exit position check
         if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
             log::trace!("exit position reached");
-            if self.cfg.dump_on_exit && self.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(self, self.cfg.dump_filename.as_ref().unwrap());
+            if self.cfg.dump_on_exit
+                && let Some(ref fname) = self.cfg.dump_filename
+            {
+                serialization::Serialization::dump(self, fname);
             }
-            if self.cfg.trace_regs && self.cfg.trace_filename.is_some() {
-                self.trace_file
-                    .as_ref()
-                    .unwrap()
-                    .flush()
-                    .expect("failed to flush trace file");
+            if self.cfg.trace_regs
+                && let Some(ref mut tf) = self.trace_file
+            {
+                let _ = tf.flush();
             }
             return false;
         }

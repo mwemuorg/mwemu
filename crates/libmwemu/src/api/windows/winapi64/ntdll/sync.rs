@@ -24,6 +24,14 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlTlsGetValue" => TlsGetValue(emu),
         "RtlTlsSetValue" => TlsSetValue(emu),
         "NtDelayExecution" => NtDelayExecution(emu),
+        "RtlInitializeSListHead" => {
+            let head = emu.regs().rcx;
+            log_red!(emu, "ntdll!RtlInitializeSListHead head: 0x{:x}", head);
+            if head != 0 {
+                emu.maps.write_qword(head, 0);
+                emu.maps.write_qword(head + 8, 0);
+            }
+        }
         _ => return false,
     }
     true

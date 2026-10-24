@@ -1,14 +1,8 @@
 use crate::emu;
 
 pub fn GetCurrentDirectoryA(emu: &mut emu::Emu) {
-    let buff_len = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GetCurrentDirectoryW cannot read buff_len");
-    let buff_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!GetCurrentDirectoryW cannot read buff_ptr") as u64;
+    let buff_len = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let buff_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     emu.maps.write_string(buff_ptr, "c:\\\x00");
 

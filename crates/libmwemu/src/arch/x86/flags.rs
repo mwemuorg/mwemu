@@ -178,7 +178,10 @@ impl Flags {
             32 => result as u32 as i32 as i64 as u64,
             16 => result as u16 as i16 as i64 as u64,
             8 => result as u8 as i8 as i64 as u64,
-            _ => unreachable!("weird size"),
+            _ => {
+                log::warn!("flags: unexpected operand size");
+                0
+            }
         }
     }
 
@@ -199,7 +202,9 @@ impl Flags {
             32 => self.set_lazy_oszapc32(result as u32, carries as u32),
             16 => self.set_lazy_oszapc16(result as u16, carries as u32),
             8 => self.set_lazy_oszapc8(result as u8, carries as u32),
-            _ => unreachable!("weird size"),
+            _ => {
+                log::warn!("flags: unexpected operand size");
+            }
         }
     }
 
@@ -257,7 +262,9 @@ impl Flags {
             32 => self.set_lazy_oszapc32(result as u32, 0),
             16 => self.set_lazy_oszapc16(result as u16, 0),
             8 => self.set_lazy_oszapc8(result as u8, 0),
-            _ => unreachable!("weird size"),
+            _ => {
+                log::warn!("flags: unexpected operand size");
+            }
         }
     }
 
@@ -316,7 +323,10 @@ impl Flags {
             32 => 0xffff_ffff,
             16 => 0xffff,
             8 => 0xff,
-            _ => unreachable!("weird size"),
+            _ => {
+                log::warn!("flags: unexpected operand size");
+                0
+            }
         }
     }
 
@@ -1841,7 +1851,10 @@ impl Flags {
             32 => 0xffff_ffff,
             16 => 0xffff,
             8 => 0xff,
-            _ => unreachable!("Unsupported size for ROL: {}", sz),
+            _ => {
+                log::warn!("flags: unsupported size for ROL: {}", sz);
+                return 0;
+            }
         };
 
         let width = sz;

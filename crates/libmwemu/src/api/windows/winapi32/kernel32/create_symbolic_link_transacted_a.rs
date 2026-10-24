@@ -2,22 +2,10 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn CreateSymbolicLinkTransactedA(emu: &mut emu::Emu) {
-    let lpSymlinkFileName = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let lpTargetFileName = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _dwFlags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
-    let _hTransaction = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("cannot read the api parameter");
+    let lpSymlinkFileName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let lpTargetFileName = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _dwFlags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let _hTransaction = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
 
     let lpSymlinkFileName = emu.maps.read_string(lpSymlinkFileName as u64);
     let lpTargetFileName = emu.maps.read_string(lpTargetFileName as u64);

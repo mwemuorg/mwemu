@@ -12,12 +12,12 @@ pub struct Eh3ExceptionRegistration {
 impl Eh3ExceptionRegistration {
     pub fn load(addr: u64, maps: &Maps) -> Eh3ExceptionRegistration {
         Eh3ExceptionRegistration {
-            next: maps.read_dword(addr).unwrap(),
-            exception_handler: maps.read_dword(addr + 4).unwrap(),
+            next: maps.read_dword(addr).unwrap_or(0),
+            exception_handler: maps.read_dword(addr + 4).unwrap_or(0),
             scope_table: PScopeTableEntry::load(addr + 8, maps),
             try_level: maps
                 .read_dword(addr + 8 + PScopeTableEntry::size())
-                .unwrap(),
+                .unwrap_or(0),
         }
     }
 

@@ -1,31 +1,14 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::kernel32::COUNT_WRITE;
 
 pub fn WriteFile(emu: &mut emu::Emu) {
-    let file_hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!WriteFile cannot read the file_hndl") as u64;
-    let buff = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!WriteFile cannot read the buff") as u64;
-    let size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!WriteFile cannot read the size");
-    let bytes_written = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!WriteFile cannot read the bytes_written") as u64;
-    let overlapped = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("kernel32!WriteFile cannot read the overlapped");
+    let file_hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let buff = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let size = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let bytes_written = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let overlapped = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
 
-    let mut count = COUNT_WRITE.lock().unwrap();
-    *count += 1;
+    emu.count_write += 1;
 
     emu.maps.write_dword(bytes_written, size);
 

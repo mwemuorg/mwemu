@@ -5,10 +5,7 @@ pub fn WriteConsoleW(emu: &mut emu::Emu) {
     let lp_buffer = emu.regs().rdx as usize;
     let n_number_of_chars_to_write = emu.regs().r8 as u32;
     let lp_number_of_chars_written = emu.regs().r9 as usize;
-    let lp_reserved = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!WriteConsoleW cannot read_qword lp_reserved");
+    let lp_reserved = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     // Read the UTF-16 buffer
     let mut wide_chars = Vec::new();
@@ -16,7 +13,7 @@ pub fn WriteConsoleW(emu: &mut emu::Emu) {
         let wchar = emu
             .maps
             .read_word(lp_buffer as u64 + (i * 2) as u64)
-            .unwrap();
+            .unwrap_or(0);
         wide_chars.push(wchar);
     }
 

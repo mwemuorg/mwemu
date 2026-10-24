@@ -80,6 +80,15 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     let old_ptr = emu.regs().r8;
     let new_size = emu.regs().r9;
 
+    log_red!(
+        emu,
+        "ntdll!RtlReAllocateHeap hndl: 0x{:x} flags: 0x{:x} old_ptr: 0x{:x} new_sz: {}",
+        handle,
+        flags,
+        old_ptr,
+        new_size,
+    );
+
     if old_ptr == 0 || new_size == 0 {
         heap_engine::fail_allocation(emu, flags);
         emu.regs_mut().rax = 0;

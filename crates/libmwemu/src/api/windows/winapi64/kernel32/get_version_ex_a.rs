@@ -13,10 +13,7 @@ pub fn GetVersionExA(emu: &mut emu::Emu) {
     }
 
     // Read the dwOSVersionInfoSize field (first 4 bytes) to determine structure type
-    let struct_size = emu
-        .maps
-        .read_dword(version_info_ptr)
-        .expect("Cannot read struct size");
+    let struct_size = emu.maps.read_dword(version_info_ptr).unwrap_or(0);
 
     log_red!(emu, "GetVersionExA: Structure size: {}", struct_size);
 

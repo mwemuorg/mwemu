@@ -1,30 +1,12 @@
 use crate::emu;
 
 pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
-    let codepage = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!MultiByteToWideChar cannot read codepage");
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!MultiByteToWideChar cannot read flags");
-    let utf8_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("kernel32!MultiByteToWideChar cannot read utf8_ptr") as u64;
-    let cbMultiByte = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("kernel32!MultiByteToWideChar cannot read cbMultiByte");
-    let wide_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("kernel32!MultiByteToWideChar cannot read wide_ptr") as u64;
-    let cchWideChar = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 20)
-        .expect("kernel32!MultiByteToWideChar cannot read cchWideChar");
+    let codepage = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let utf8_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let cbMultiByte = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let wide_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let cchWideChar = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
 
     for _ in 0..6 {
         emu.stack_pop32(false);

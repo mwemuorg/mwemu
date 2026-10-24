@@ -15,6 +15,16 @@ pub use misc::{NtQueryInformationProcess, NtQuerySystemInformation, RtlDecompres
 pub use string::{RtlInitAnsiString, RtlInitUnicodeString};
 pub use sync::NtDelayExecution;
 
+pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {
+    file::dispatch(api, emu)
+        || heap::dispatch(api, emu)
+        || loader::dispatch(api, emu)
+        || memory::dispatch(api, emu)
+        || string::dispatch(api, emu)
+        || sync::dispatch(api, emu)
+        || misc::dispatch(api, emu)
+}
+
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);

@@ -262,18 +262,9 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
             match emu.regs().rbx as u32 {
                 constants::SYS_SOCKET => {
                     let sock = helper::socket_create();
-                    let fam = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("socket() cannot read family");
-                    let typ = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("socket() cannot ready type");
-                    let proto = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("socket() cannot read proto");
+                    let fam = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let typ = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let proto = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
                     trace_socketcall32_args(
                         emu,
@@ -289,32 +280,17 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_BIND => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("bind() cannot read sock");
-                    let sockaddr = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("bind() cannot read sockaddr");
-                    let len = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("bind() cannot read len");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
-                    let fam: u16 = emu
-                        .maps
-                        .read_word(sockaddr as u64)
-                        .expect("cannot read family id");
+                    let fam: u16 = emu.maps.read_word(sockaddr as u64).unwrap_or(0);
                     let port: u16 = emu
                         .maps
                         .read_word((sockaddr + 2) as u64)
-                        .expect("cannot read the port")
+                        .unwrap_or(0)
                         .to_be();
-                    let ip: u32 = emu
-                        .maps
-                        .read_dword((sockaddr + 4) as u64)
-                        .expect("cannot read the ip");
+                    let ip: u32 = emu.maps.read_dword((sockaddr + 4) as u64).unwrap_or(0);
                     let sip = format!(
                         "{}.{}.{}.{}",
                         ip & 0xff,
@@ -343,32 +319,17 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_CONNECT => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("connect() cannot read sock");
-                    let sockaddr = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("connect() cannot read sockaddr");
-                    let len = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("connect() cannot read len");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
-                    let fam: u16 = emu
-                        .maps
-                        .read_word(sockaddr as u64)
-                        .expect("cannot read family id");
+                    let fam: u16 = emu.maps.read_word(sockaddr as u64).unwrap_or(0);
                     let port: u16 = emu
                         .maps
                         .read_word((sockaddr + 2) as u64)
-                        .expect("cannot read the port")
+                        .unwrap_or(0)
                         .to_be();
-                    let ip: u32 = emu
-                        .maps
-                        .read_dword((sockaddr + 4) as u64)
-                        .expect("cannot read the ip");
+                    let ip: u32 = emu.maps.read_dword((sockaddr + 4) as u64).unwrap_or(0);
                     let sip = format!(
                         "{}.{}.{}.{}",
                         ip & 0xff,
@@ -407,14 +368,8 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_LISTEN => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("listen() cannot read sock");
-                    let conns = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("listen() cannot read num of conns");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let conns = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
                     trace_socketcall32_args(
                         emu,
@@ -431,18 +386,9 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_ACCEPT => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("accept() cannot read sock");
-                    let sockaddr = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("accept() cannot read sockaddr");
-                    let len = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("accept() cannot read len");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
                     let port: u16 = 8080;
                     let incoming_ip: u32 = 0x11223344;
 
@@ -471,12 +417,9 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_GETSOCKNAME => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("getsockname() cannot read sock");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     trace_socketcall32_args(emu, "getsockname", &[("sock", sock.to_string())]);
-                    todo!("implement this");
+                    log::warn!("getsockname: stub, not implemented");
                 }
 
                 constants::SYS_GETPEERNAME => {
@@ -488,22 +431,10 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_SEND => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("send() cannot read sock");
-                    let buf = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("send() cannot read buff");
-                    let len = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("send() cannot read len");
-                    let flags = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 12)
-                        .expect("send() cannot read flags");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let buf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+                    let flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
 
                     trace_socketcall32_args(
                         emu,
@@ -536,22 +467,10 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_RECV => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("recv() cannot read sock");
-                    let buf = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("recv() cannot read buff");
-                    let len = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("recv() cannot read len");
-                    let flags = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 12)
-                        .expect("recv() cannot read flags");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let buf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+                    let flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
 
                     trace_socketcall32_args(
                         emu,
@@ -585,45 +504,21 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_SENDTO => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("sendto() cannot read sock");
-                    let buf = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 4)
-                        .expect("sendto() cannot read buff");
-                    let len = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("sendto() cannot read len");
-                    let flags = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 12)
-                        .expect("sendto() cannot read flags");
-                    let sockaddr = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 16)
-                        .expect("sendto() cannot read sockaddr");
-                    let addrlen = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 20)
-                        .expect("sendto() cannot read addrlen");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let buf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+                    let flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+                    let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+                    let addrlen = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
 
                     if sockaddr != 0 && emu.maps.is_mapped(sockaddr as u64) {
-                        let fam: u16 = emu
-                            .maps
-                            .read_word(sockaddr as u64)
-                            .expect("cannot read family id");
+                        let fam: u16 = emu.maps.read_word(sockaddr as u64).unwrap_or(0);
                         let port: u16 = emu
                             .maps
                             .read_word((sockaddr + 2) as u64)
-                            .expect("cannot read the port")
+                            .unwrap_or(0)
                             .to_be();
-                        let ip: u32 = emu
-                            .maps
-                            .read_dword((sockaddr + 4) as u64)
-                            .expect("cannot read the ip");
+                        let ip: u32 = emu.maps.read_dword((sockaddr + 4) as u64).unwrap_or(0);
                         let sip = format!(
                             "{}.{}.{}.{}",
                             ip & 0xff,
@@ -669,30 +564,12 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                 }
 
                 constants::SYS_RECVFROM => {
-                    let sock = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp())
-                        .expect("recvfrom() cannot read sock");
-                    let buf = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 8)
-                        .expect("recvfrom() cannot read buff");
-                    let len = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 12)
-                        .expect("recvfrom() cannot read len");
-                    let flags = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 16)
-                        .expect("recvfrom() cannot read flags");
-                    let sockaddr = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 20)
-                        .expect("recvfrom() cannot read sockaddr");
-                    let addrlen = emu
-                        .maps
-                        .read_dword(emu.regs().get_esp() + 24)
-                        .expect("recvfrom() cannot read sockaddr len");
+                    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+                    let buf = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+                    let len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+                    let flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+                    let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
+                    let addrlen = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
 
                     if sockaddr != 0 && emu.maps.is_mapped(sockaddr as u64) {
                         let port: u16 = 8080;
@@ -757,7 +634,9 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                     trace_socketcall32(emu, "sendmmsg");
                 }
 
-                _ => unreachable!("invalid socket call {} ", emu.regs().rbx),
+                _ => {
+                    log::warn!("invalid socket call {}", emu.regs().rbx);
+                }
             }
         }
 

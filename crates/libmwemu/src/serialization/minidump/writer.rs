@@ -22,6 +22,8 @@ const MINIDUMP_MEMORY_INFO_SIZE: u32 = 48;
 const MINIDUMP_SYSTEM_INFO_SIZE: u32 = 56;
 const MINIDUMP_FLAGS_FULL_MEMORY: u64 = 0x802;
 
+type MemoryListResult = (Vec<u8>, Vec<u8>, BTreeMap<u64, MemoryLocation>);
+
 #[derive(Clone, Copy)]
 struct MemoryRegion<'a> {
     name: &'a str,
@@ -249,7 +251,7 @@ fn region_belongs_to_module(name: &str, prefix: &str) -> bool {
 fn build_memory_list_stream(
     regions: &[MemoryRegion<'_>],
     base_rva: u32,
-) -> io::Result<(Vec<u8>, Vec<u8>, BTreeMap<u64, MemoryLocation>)> {
+) -> io::Result<MemoryListResult> {
     let header_size = 4 + ((regions.len() as u32) * MINIDUMP_MEMORY_DESCRIPTOR_SIZE);
     let mut next_data_rva = base_rva + header_size;
     let mut output = Vec::new();

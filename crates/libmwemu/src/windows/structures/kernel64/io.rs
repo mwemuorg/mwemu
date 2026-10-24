@@ -87,6 +87,7 @@ impl KDeviceQueue {
 }
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct KDPC {
     pub type_: u8,
     pub importance: u8,
@@ -320,26 +321,26 @@ impl IoStackLocation {
 
     pub fn load(addr: u64, maps: &Maps) -> IoStackLocation {
         IoStackLocation {
-            major_function: maps.read_byte(addr).unwrap(),
-            minor_function: maps.read_byte(addr + 1).unwrap(),
-            flags: maps.read_byte(addr + 2).unwrap(),
-            control: maps.read_byte(addr + 3).unwrap(),
+            major_function: maps.read_byte(addr).unwrap_or(0),
+            minor_function: maps.read_byte(addr + 1).unwrap_or(0),
+            flags: maps.read_byte(addr + 2).unwrap_or(0),
+            control: maps.read_byte(addr + 3).unwrap_or(0),
             _padding: maps.read_bytes_array::<8>(addr + 4),
             parameters: IoParameters {
                 device_io_control: DeviceIoControl::load(addr + 12, maps),
             },
             device_object: maps
                 .read_qword(addr + 12 + DeviceIoControl::size() as u64)
-                .unwrap(),
+                .unwrap_or(0),
             file_object: maps
                 .read_qword(addr + 12 + DeviceIoControl::size() as u64 + 8)
-                .unwrap(),
+                .unwrap_or(0),
             completion_routine: maps
                 .read_qword(addr + 12 + DeviceIoControl::size() as u64 + 16)
-                .unwrap(),
+                .unwrap_or(0),
             context: maps
                 .read_qword(addr + 12 + DeviceIoControl::size() as u64 + 24)
-                .unwrap(),
+                .unwrap_or(0),
         }
     }
 
@@ -391,8 +392,8 @@ impl IrpOverlay {
 
     pub fn load(addr: u64, maps: &Maps) -> IrpOverlay {
         IrpOverlay {
-            user_apc_routine: maps.read_qword(addr).unwrap(),
-            user_apc_context: maps.read_qword(addr + 8).unwrap(),
+            user_apc_routine: maps.read_qword(addr).unwrap_or(0),
+            user_apc_context: maps.read_qword(addr + 8).unwrap_or(0),
         }
     }
 
@@ -424,8 +425,8 @@ impl IoStatusBlock {
 
     pub fn load(addr: u64, maps: &Maps) -> IoStatusBlock {
         IoStatusBlock {
-            status: maps.read_qword(addr).unwrap(),
-            information: maps.read_qword(addr + 8).unwrap(),
+            status: maps.read_qword(addr).unwrap_or(0),
+            information: maps.read_qword(addr + 8).unwrap_or(0),
         }
     }
 
@@ -493,12 +494,12 @@ impl TailOverlay {
             device_queue_entry: KDeviceQueueEntry::new(),
             padding: maps.read_bytes_array::<8>(addr + 24),
             reserved1: [
-                maps.read_qword(addr + 32).unwrap(),
-                maps.read_qword(addr + 40).unwrap(),
+                maps.read_qword(addr + 32).unwrap_or(0),
+                maps.read_qword(addr + 40).unwrap_or(0),
             ],
             list_entry: ListEntry64::new(),
-            current_stack_location: maps.read_qword(addr + 56).unwrap(),
-            reserved2: maps.read_qword(addr + 64).unwrap(),
+            current_stack_location: maps.read_qword(addr + 56).unwrap_or(0),
+            reserved2: maps.read_qword(addr + 64).unwrap_or(0),
         }
     }
 
@@ -601,26 +602,26 @@ impl Irp {
 
     pub fn load(addr: u64, maps: &Maps) -> Irp {
         Irp {
-            type_: maps.read_word(addr).unwrap(),
-            size: maps.read_word(addr + 2).unwrap(),
-            mdl_address: maps.read_qword(addr + 4).unwrap(),
-            flags: maps.read_dword(addr + 12).unwrap(),
-            associated_irp: maps.read_qword(addr + 16).unwrap(),
+            type_: maps.read_word(addr).unwrap_or(0),
+            size: maps.read_word(addr + 2).unwrap_or(0),
+            mdl_address: maps.read_qword(addr + 4).unwrap_or(0),
+            flags: maps.read_dword(addr + 12).unwrap_or(0),
+            associated_irp: maps.read_qword(addr + 16).unwrap_or(0),
             thread_list_entry: ListEntry64::new(),
             io_status: IoStatusBlock::load(addr + 32, maps),
-            requestor_mode: maps.read_byte(addr + 48).unwrap(),
-            pending_returned: maps.read_byte(addr + 49).unwrap(),
-            stack_count: maps.read_byte(addr + 50).unwrap(),
-            current_location: maps.read_byte(addr + 51).unwrap(),
-            cancel: maps.read_byte(addr + 52).unwrap(),
-            cancel_irql: maps.read_byte(addr + 53).unwrap(),
-            apc_environment: maps.read_byte(addr + 54).unwrap(),
-            allocation_flags: maps.read_byte(addr + 55).unwrap(),
-            user_iosb: maps.read_qword(addr + 56).unwrap(),
-            user_event: maps.read_qword(addr + 64).unwrap(),
+            requestor_mode: maps.read_byte(addr + 48).unwrap_or(0),
+            pending_returned: maps.read_byte(addr + 49).unwrap_or(0),
+            stack_count: maps.read_byte(addr + 50).unwrap_or(0),
+            current_location: maps.read_byte(addr + 51).unwrap_or(0),
+            cancel: maps.read_byte(addr + 52).unwrap_or(0),
+            cancel_irql: maps.read_byte(addr + 53).unwrap_or(0),
+            apc_environment: maps.read_byte(addr + 54).unwrap_or(0),
+            allocation_flags: maps.read_byte(addr + 55).unwrap_or(0),
+            user_iosb: maps.read_qword(addr + 56).unwrap_or(0),
+            user_event: maps.read_qword(addr + 64).unwrap_or(0),
             overlay: IrpOverlay::load(addr + 72, maps),
-            cancel_routine: maps.read_qword(addr + 88).unwrap(),
-            user_buffer: maps.read_qword(addr + 96).unwrap(),
+            cancel_routine: maps.read_qword(addr + 88).unwrap_or(0),
+            user_buffer: maps.read_qword(addr + 96).unwrap_or(0),
             tail: IrpTail::load(addr + 104, maps),
         }
     }

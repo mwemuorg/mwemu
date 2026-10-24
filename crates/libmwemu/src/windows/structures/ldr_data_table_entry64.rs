@@ -52,16 +52,16 @@ impl LdrDataTableEntry64 {
             in_load_order_links: ListEntry64::load(addr, maps),
             in_memory_order_links: ListEntry64::load(addr + 0x10, maps),
             in_initialization_order_links: ListEntry64::load(addr + 0x20, maps),
-            dll_base: maps.read_qword(addr + 0x30).unwrap(),
-            entry_point: maps.read_qword(addr + 0x38).unwrap(),
-            size_of_image: maps.read_dword(addr + 0x40).unwrap(), // dword aligned to qword
+            dll_base: maps.read_qword(addr + 0x30).unwrap_or(0),
+            entry_point: maps.read_qword(addr + 0x38).unwrap_or(0),
+            size_of_image: maps.read_dword(addr + 0x40).unwrap_or(0), // dword aligned to qword
             full_dll_name: UnicodeString64::load(addr + 0x48, maps),
             base_dll_name: UnicodeString64::load(addr + 0x58, maps),
-            flags: maps.read_dword(addr + 0x68).unwrap(),
-            load_count: maps.read_word(addr + 0x6c).unwrap(),
-            tls_index: maps.read_word(addr + 0x6e).unwrap(),
+            flags: maps.read_dword(addr + 0x68).unwrap_or(0),
+            load_count: maps.read_word(addr + 0x6c).unwrap_or(0),
+            tls_index: maps.read_word(addr + 0x6e).unwrap_or(0),
             hash_links: ListEntry64::load(addr + 0x70, maps),
-            time_date_stamp: maps.read_dword(addr + 0x80).unwrap(),
+            time_date_stamp: maps.read_dword(addr + 0x80).unwrap_or(0),
         }
     }
 

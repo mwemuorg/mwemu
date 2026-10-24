@@ -425,13 +425,17 @@ impl Emu {
     }
 
     /// Load the binary to be emulated.
-    fn load_binary(&mut self, filename: &str) {
-        self.emu.load_code(filename);
+    fn load_binary(&mut self, filename: &str) -> PyResult<()> {
+        self.emu
+            .load_code(filename)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.message))
     }
 
     /// Load code from bytes
-    fn load_code_bytes(&mut self, bytes: Vec<u8>) {
-        self.emu.load_code_bytes(&bytes);
+    fn load_code_bytes(&mut self, bytes: Vec<u8>) -> PyResult<()> {
+        self.emu
+            .load_code_bytes(&bytes)
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.message))
     }
 
     /// allocate a buffer on the emulated process address space. (permission defaults to RWX)

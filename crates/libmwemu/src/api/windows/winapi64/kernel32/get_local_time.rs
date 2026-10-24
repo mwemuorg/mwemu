@@ -7,7 +7,7 @@ pub fn GetLocalTime(emu: &mut emu::Emu) {
 
     let duration = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("error getting the localtime");
+        .unwrap_or(std::time::Duration::ZERO);
 
     let seconds = duration.as_secs();
     let seconds_since_midnight = seconds % 86400;

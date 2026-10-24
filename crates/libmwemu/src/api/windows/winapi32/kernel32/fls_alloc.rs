@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn FlsAlloc(emu: &mut emu::Emu) {
-    let callback = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!FlsAlloc cannot read callback");
+    let callback = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(emu, "kernel32!FlsAlloc callback: 0x{:x}", callback);
 

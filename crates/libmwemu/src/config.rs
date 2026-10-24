@@ -4,6 +4,7 @@ use crate::arch::Arch;
 use crate::{debug::definitions::Definition, windows::constants};
 use serde::{Deserialize, Serialize};
 
+/// Emulation configuration controlling architecture, memory layout, tracing, and runtime limits.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
     // --- Binary & architecture ---
@@ -103,6 +104,9 @@ pub struct Config {
     // --- SSDT / loader bootstrap ---
     pub ssdt_use_ldr_initialize_thunk: bool, // use ntdll!LdrInitializeThunk for PE64 loader init
 
+    // --- Fault tolerance ---
+    pub soft_exception_recovery: bool, // continue past unhandled memory faults instead of terminating
+
     // --- Testing ---
     pub test_mode: bool,
     pub emulate_winapi_once: bool,
@@ -185,6 +189,7 @@ impl Config {
             short_circuit_sleep: false,
             allow_empty_code_blocks: false,
             ssdt_use_ldr_initialize_thunk: false,
+            soft_exception_recovery: false,
         }
     }
 

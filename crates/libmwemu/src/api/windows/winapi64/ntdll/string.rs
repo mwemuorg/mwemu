@@ -56,7 +56,7 @@ fn sscanf(emu: &mut emu::Emu) {
         .replace("%f", "{}");
     let _params = rust_fmt.matches("{").count();
 
-    unimplemented!("sscanf is unimplemented for now.");
+    log::warn!("sscanf: stub, not fully implemented");
 }
 
 pub fn RtlInitUnicodeString(emu: &mut emu::Emu) {

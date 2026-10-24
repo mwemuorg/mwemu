@@ -9,8 +9,8 @@ pub struct ExceptionPointers {
 impl ExceptionPointers {
     pub fn load(addr: u64, maps: &Maps) -> ExceptionPointers {
         ExceptionPointers {
-            exception_record: maps.read_dword(addr).unwrap(),
-            context_record: maps.read_dword(addr + 4).unwrap(),
+            exception_record: maps.read_dword(addr).unwrap_or(0),
+            context_record: maps.read_dword(addr + 4).unwrap_or(0),
         }
     }
 

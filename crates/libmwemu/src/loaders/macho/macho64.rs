@@ -284,7 +284,10 @@ impl Macho64 {
     /// Get the list of dependent dylib paths from load commands.
     /// Supports plain Mach-O and FAT/universal binaries.
     pub fn get_libs(&self) -> Vec<String> {
-        let macho = self.reparse().expect("re-parse for libs");
+        let Ok(macho) = self.reparse() else {
+            log::warn!("macho64: cannot re-parse for libs");
+            return vec![];
+        };
         macho
             .libs
             .iter()
@@ -325,7 +328,10 @@ impl Macho64 {
 
     /// Get the list of dependent dylib paths from load commands.
     pub fn get_libs_prev(&self) -> Vec<String> {
-        let macho = self.reparse().expect("re-parse for libs");
+        let Ok(macho) = self.reparse() else {
+            log::warn!("macho64: cannot re-parse for libs (prev)");
+            return vec![];
+        };
         macho
             .libs
             .iter()
@@ -341,7 +347,10 @@ impl Macho64 {
     /// from the dyld shared cache often have an empty or missing export trie
     /// while their nlist symbol table is intact.
     pub fn get_exports(&self) -> Vec<(String, u64)> {
-        let macho = self.reparse().expect("re-parse for exports");
+        let Ok(macho) = self.reparse() else {
+            log::warn!("macho64: cannot re-parse for exports");
+            return vec![];
+        };
         let mut result: Vec<(String, u64)> = Vec::new();
         let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
@@ -389,7 +398,10 @@ impl Macho64 {
     pub fn parse_chained_fixups(
         &self,
     ) -> (Vec<ChainedImport>, Vec<ChainedBind>, Vec<ChainedRebase>) {
-        let macho = self.reparse().expect("re-parse for fixups");
+        let Ok(macho) = self.reparse() else {
+            log::warn!("macho64: cannot re-parse for fixups");
+            return (vec![], vec![], vec![]);
+        };
 
         let mut imports = Vec::new();
         let mut binds = Vec::new();
@@ -413,6 +425,13 @@ impl Macho64 {
                     continue;
                 }
                 let data = &self.bin[base..end];
+                if data.len() < 24 {
+                    log::warn!(
+                        "macho64: chained fixups header too short ({} < 24)",
+                        data.len()
+                    );
+                    continue;
+                }
 
                 // dyld_chained_fixups_header
                 let starts_offset = u32::from_le_bytes(data[4..8].try_into().unwrap()) as usize;
@@ -427,6 +446,10 @@ impl Macho64 {
                         1 => {
                             // DYLD_CHAINED_IMPORT: lib_ordinal:8, weak_import:1, name_offset:23
                             let off = imports_offset + (i as usize * 4);
+                            if off + 4 > data.len() {
+                                log::warn!("macho64: import entry out of bounds at offset {}", off);
+                                break;
+                            }
                             let raw = u32::from_le_bytes(data[off..off + 4].try_into().unwrap());
                             let lib_ordinal = (raw & 0xFF) as i8;
                             let weak = (raw >> 8) & 1 != 0;
@@ -470,6 +493,13 @@ impl Macho64 {
                         continue;
                     }
                     let si = starts_offset + seg_info_off as usize;
+                    if si + 22 > data.len() {
+                        log::warn!(
+                            "macho64: segment info header out of bounds at offset {}",
+                            si
+                        );
+                        break;
+                    }
 
                     let page_size =
                         u16::from_le_bytes(data[si + 4..si + 6].try_into().unwrap()) as usize;
@@ -486,9 +516,13 @@ impl Macho64 {
                         .unwrap_or((0, 0));
 
                     for p in 0..page_count {
-                        let page_start = u16::from_le_bytes(
-                            data[si + 22 + p * 2..si + 24 + p * 2].try_into().unwrap(),
-                        );
+                        let ps_off = si + 22 + p * 2;
+                        if ps_off + 2 > data.len() {
+                            log::warn!("macho64: page_start out of bounds at page {}", p);
+                            break;
+                        }
+                        let page_start =
+                            u16::from_le_bytes(data[ps_off..ps_off + 2].try_into().unwrap());
                         if page_start == 0xFFFF {
                             continue;
                         }
@@ -531,7 +565,10 @@ impl Macho64 {
             if file_off + 8 > self.bin.len() {
                 break;
             }
-            let raw = u64::from_le_bytes(self.bin[file_off..file_off + 8].try_into().unwrap());
+            let Ok(bytes) = self.bin[file_off..file_off + 8].try_into() else {
+                break;
+            };
+            let raw = u64::from_le_bytes(bytes);
 
             let (bind, next, ordinal, stride) = match pointer_format {
                 // DYLD_CHAINED_PTR_ARM64E (1) / ARM64E_KERNEL (7) /

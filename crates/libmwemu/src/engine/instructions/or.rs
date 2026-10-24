@@ -22,28 +22,28 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     };
 
     let sz = emu.get_operand_sz(ins, 0);
-    let result1: u64;
-    let result2: u64;
-
-    match sz {
+    let (result1, result2): (u64, u64) = match sz {
         8 => {
-            result1 = (value0 & 0xff) | (value1 & 0xff);
-            result2 = (value0 & 0xffffffffffffff00) + result1;
+            let r1 = (value0 & 0xff) | (value1 & 0xff);
+            (r1, (value0 & 0xffffffffffffff00) + r1)
         }
         16 => {
-            result1 = (value0 & 0xffff) | (value1 & 0xffff);
-            result2 = (value0 & 0xffffffffffff0000) + result1;
+            let r1 = (value0 & 0xffff) | (value1 & 0xffff);
+            (r1, (value0 & 0xffffffffffff0000) + r1)
         }
         32 => {
-            result1 = (value0 & 0xffffffff) | (value1 & 0xffffffff);
-            result2 = (value0 & 0xffffffff00000000) + result1;
+            let r1 = (value0 & 0xffffffff) | (value1 & 0xffffffff);
+            (r1, (value0 & 0xffffffff00000000) + r1)
         }
         64 => {
-            result1 = value0 | value1;
-            result2 = result1;
+            let r1 = value0 | value1;
+            (r1, r1)
         }
-        _ => unreachable!(""),
-    }
+        _ => {
+            log::warn!("or: unexpected operand size");
+            return false;
+        }
+    };
 
     let bits = emu.get_operand_sz(ins, 0);
     emu.flags_overwrite_mut()

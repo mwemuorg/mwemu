@@ -192,13 +192,20 @@ pub fn gateway(emu: &mut emu::Emu) {
                 // If heap_addr is not set yet, allocate an initial heap region
                 if emu.heap_addr == 0 {
                     let initial_heap_sz: u64 = 0x100000; // 1MB initial heap
-                    let base = emu
+                    let Some(base) = emu.maps.alloc(initial_heap_sz) else {
+                        log::error!("linux aarch64 brk: cannot allocate initial heap");
+                        emu.regs_aarch64_mut().x[0] = 0;
+                        return;
+                    };
+                    if emu
                         .maps
-                        .alloc(initial_heap_sz)
-                        .expect("linux aarch64 brk: cannot allocate initial heap");
-                    emu.maps
                         .create_map(".heap", base, initial_heap_sz, Permission::READ_WRITE)
-                        .expect("linux aarch64 brk: cannot create heap map");
+                        .is_err()
+                    {
+                        log::error!("linux aarch64 brk: cannot create heap map");
+                        emu.regs_aarch64_mut().x[0] = 0;
+                        return;
+                    }
                     emu.heap_addr = base + initial_heap_sz;
                     log::info!(
                         "  brk: initial heap at 0x{:x}, break=0x{:x}",
@@ -256,13 +263,20 @@ pub fn gateway(emu: &mut emu::Emu) {
                 return;
             }
             let permission = prot_to_permission(prot);
-            let base = emu
+            let Some(base) = emu.maps.alloc(len) else {
+                log::error!("linux aarch64 mmap: out of memory");
+                emu.regs_aarch64_mut().x[0] = (-1i64) as u64;
+                return;
+            };
+            if emu
                 .maps
-                .alloc(len)
-                .expect("linux aarch64 mmap: out of memory");
-            emu.maps
                 .create_map(&format!("mmap_{:x}", base), base, len, permission)
-                .expect("linux aarch64 mmap: cannot create map");
+                .is_err()
+            {
+                log::error!("linux aarch64 mmap: cannot create map");
+                emu.regs_aarch64_mut().x[0] = (-1i64) as u64;
+                return;
+            }
             // zero-fill
             for i in 0..std::cmp::min(len, 0x10000) {
                 emu.maps.write_byte(base + i, 0);

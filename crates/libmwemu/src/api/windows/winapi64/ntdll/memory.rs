@@ -18,6 +18,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlAddFunctionTable" => RtlAddFunctionTable(emu),
         "RtlCaptureContext" => RtlCaptureContext(emu),
         "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
+        "RtlVirtualUnwind" => RtlVirtualUnwind(emu),
         "NtFreeVirtualMemory" => NtFreeVirtualMemory(emu),
         "NtCreateSection" => NtCreateSection(emu),
         "NtMapViewOfSection" => NtMapViewOfSection(emu),
@@ -45,21 +46,12 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
     let size_ptr = emu.regs().rdx;
     let protection_offset = 0x30;
     let protection_addr = emu.regs().rsp + protection_offset;
-    let protect_value = emu
-        .maps
-        .read_dword(protection_addr)
-        .expect("Failed to read Protection argument at NtAllocateVirtualMemory");
+    let protect_value = emu.maps.read_dword(protection_addr).unwrap_or(0);
 
     let (can_read, can_write, can_execute) = ntdll::protect_to_rwx(protect_value);
 
-    let addr = emu
-        .maps
-        .read_qword(addr_ptr)
-        .expect("bad NtAllocateVirtualMemory address parameter");
-    let size = emu
-        .maps
-        .read_qword(size_ptr)
-        .expect("bad NtAllocateVirtualMemory size parameter");
+    let addr = emu.maps.read_qword(addr_ptr).unwrap_or(0);
+    let size = emu.maps.read_qword(size_ptr).unwrap_or(0);
 
     let do_alloc: bool = if addr == 0 {
         true
@@ -94,14 +86,22 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         alloc_addr
     );
 
-    emu.maps
+    if emu
+        .maps
         .create_map(
             format!("valloc_{:x}", alloc_addr).as_str(),
             alloc_addr,
             size,
             Permission::from_flags(can_read, can_write, can_execute),
         )
-        .expect("ntdll!NtAllocateVirtualMemory cannot create map");
+        .is_err()
+    {
+        log::error!(
+            "ntdll!NtAllocateVirtualMemory cannot create map at 0x{:x}",
+            alloc_addr
+        );
+        return;
+    }
 
     if !emu.maps.write_qword(addr_ptr, alloc_addr) {
         {
@@ -167,10 +167,7 @@ fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
     let status = emu.regs().rdx;
     let page_number = emu.regs().r8;
     let page = emu.regs().r9;
-    let prot = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("ntdll!NtProtectVirtualMemory error reading old prot param");
+    let prot = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(emu, "ntdll!NtProtectVirtualMemory sz: {} {}", sz, prot);
 
@@ -254,6 +251,23 @@ fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {
         control_pc,
         image_base,
         history_table
+    );
+    emu.regs_mut().rax = 0;
+}
+
+fn RtlVirtualUnwind(emu: &mut emu::Emu) {
+    let handler_type = emu.regs().rcx;
+    let image_base = emu.regs().rdx;
+    let control_pc = emu.regs().r8;
+    let function_entry = emu.regs().r9;
+    log_red!(
+        emu,
+        "** {} ntdll!RtlVirtualUnwind type:{} base:0x{:x} pc:0x{:x} entry:0x{:x}",
+        emu.pos,
+        handler_type,
+        image_base,
+        control_pc,
+        function_entry
     );
     emu.regs_mut().rax = 0;
 }
@@ -342,14 +356,20 @@ pub fn NtMapViewOfSection(emu: &mut emu::Emu) {
             return;
         }
     };
-    emu.maps
+    if emu
+        .maps
         .create_map(
             &format!("section_map_{:x}", emu.pos),
             base,
             alloc_size,
             Permission::from_flags(true, true, false),
         )
-        .expect("ntdll!NtMapViewOfSection cannot create map");
+        .is_err()
+    {
+        log::error!("ntdll!NtMapViewOfSection cannot create map at 0x{:x}", base);
+        emu.regs_mut().rax = constants::STATUS_NO_MEMORY;
+        return;
+    }
 
     emu.maps.write_qword(base_addr_ptr, base);
 

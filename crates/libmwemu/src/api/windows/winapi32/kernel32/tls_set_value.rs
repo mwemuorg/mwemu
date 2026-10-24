@@ -1,14 +1,8 @@
 use crate::emu;
 
 pub fn TlsSetValue(emu: &mut emu::Emu) {
-    let idx = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!TlsSetValue cannot read idx");
-    let val = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("kernel32!TlsSetValue cannot read val_ptr");
+    let idx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let val = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(emu, "kernel32!TlsSetValue idx: {} val: 0x{:x}", idx, val);
 

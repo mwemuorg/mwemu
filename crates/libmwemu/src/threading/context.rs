@@ -60,6 +60,7 @@ impl AArch64TraceSnapshot {
 /// `Option<Box<…>>` so a run without `--trace-regs` skips the per-thread
 /// buffer allocation entirely.
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 pub enum ArchThreadState {
     X86 {
         regs: Regs64,
@@ -72,7 +73,7 @@ pub enum ArchThreadState {
         eh_ctx: u64,
         tls32: Vec<u32>,
         tls64: Vec<u64>,
-        fls: Vec<u32>,
+        fls: Vec<u64>,
         fs: BTreeMap<u64, u64>,
         call_stack: Vec<(u64, u64)>,
         /// Lazily-allocated trace snapshot. `None` until first capture.

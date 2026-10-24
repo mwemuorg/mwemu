@@ -6,22 +6,10 @@ pub fn CreateNamedPipeA(emu: &mut emu::Emu) {
     let open_mode = emu.regs().rcx;
     let pipe_mode = emu.regs().r8;
     let instances = emu.regs().r9;
-    let out_buff_sz = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!CreateNamedPipeA cannot read the to_buff_sz");
-    let in_buff_sz = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("kernel32!CreateNamedPipeA cannot read the in_buff_sz");
-    let timeout = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("kernel32!CreateNamedPipeA cannot read the timeout");
-    let security = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x38)
-        .expect("kernel32!CreateNamedPipeA cannot read the security");
+    let out_buff_sz = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let in_buff_sz = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let timeout = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let security = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     let name = emu.maps.read_string(name_ptr);
 

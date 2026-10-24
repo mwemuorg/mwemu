@@ -2,14 +2,8 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn AddLocalAlternateComputerNameW(emu: &mut emu::Emu) {
-    let Hostname = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _a2 = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
+    let Hostname = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _a2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     let Hostname = emu.maps.read_wide_string(Hostname as u64);
 

@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
-    let callback =
-        emu.maps
-            .read_dword(emu.regs().get_esp())
-            .expect("kernel32!SetUnhandledExceptionFilter cannot read the callback") as u64;
+    let callback = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(
         emu,

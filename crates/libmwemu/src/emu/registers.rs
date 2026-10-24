@@ -3,7 +3,7 @@ use crate::{
 };
 
 impl Emu {
-    // Forwarding methods for thread-specific fields
+    /// x86/x64 register file of the current thread.
     pub fn regs(&self) -> &Regs64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs,
@@ -11,6 +11,7 @@ impl Emu {
         }
     }
 
+    /// Mutable x86/x64 register file of the current thread.
     pub fn regs_mut(&mut self) -> &mut Regs64 {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs,
@@ -18,7 +19,7 @@ impl Emu {
         }
     }
 
-    // AArch64 register accessors
+    /// AArch64 register file of the current thread.
     pub fn regs_aarch64(&self) -> &RegsAarch64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::AArch64 { regs, .. } => regs,
@@ -26,6 +27,7 @@ impl Emu {
         }
     }
 
+    /// Mutable AArch64 register file of the current thread.
     pub fn regs_aarch64_mut(&mut self) -> &mut RegsAarch64 {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::AArch64 { regs, .. } => regs,
@@ -33,7 +35,7 @@ impl Emu {
         }
     }
 
-    // Unified program counter for shared code paths
+    /// Current program counter (rip on x86, pc on AArch64).
     pub fn pc(&self) -> u64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs.rip,
@@ -41,6 +43,7 @@ impl Emu {
         }
     }
 
+    /// Set the program counter.
     pub fn set_pc(&mut self, addr: u64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs.rip = addr,
@@ -48,7 +51,7 @@ impl Emu {
         }
     }
 
-    // Unified stack pointer
+    /// Current stack pointer (rsp on x86, sp on AArch64).
     pub fn sp(&self) -> u64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs.rsp,
@@ -56,6 +59,7 @@ impl Emu {
         }
     }
 
+    /// Set the stack pointer.
     pub fn set_sp(&mut self, addr: u64) {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs.rsp = addr,

@@ -91,14 +91,14 @@ impl MemoryBasicInformation {
 
     pub fn load(addr: u64, maps: &Maps) -> MemoryBasicInformation {
         MemoryBasicInformation {
-            base_address: maps.read_dword(addr).unwrap(),
-            allocation_base: maps.read_dword(addr + 4).unwrap(),
-            allocation_protect: maps.read_dword(addr + 8).unwrap(),
-            partition_id: maps.read_word(addr + 12).unwrap(),
-            region_size: maps.read_dword(addr + 14).unwrap(),
-            state: maps.read_dword(addr + 18).unwrap(),
-            protect: maps.read_dword(addr + 22).unwrap(),
-            typ: maps.read_dword(addr + 26).unwrap(),
+            base_address: maps.read_dword(addr).unwrap_or(0),
+            allocation_base: maps.read_dword(addr + 4).unwrap_or(0),
+            allocation_protect: maps.read_dword(addr + 8).unwrap_or(0),
+            partition_id: maps.read_word(addr + 12).unwrap_or(0),
+            region_size: maps.read_dword(addr + 14).unwrap_or(0),
+            state: maps.read_dword(addr + 18).unwrap_or(0),
+            protect: maps.read_dword(addr + 22).unwrap_or(0),
+            typ: maps.read_dword(addr + 26).unwrap_or(0),
         }
     }
 

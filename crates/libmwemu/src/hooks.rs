@@ -2,14 +2,13 @@ use crate::emu;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::exception::types;
 
-// Hook types using Box<dyn FnMut> for state capture instead of bare fn pointers.
-// return: false will ignore interrupt handling like 0x80 -> linux
+/// Interrupt hook: `(emu, interrupt_number, ip)`. Return false to skip default handling.
 pub type TypeHookOnInterrupt = Box<dyn FnMut(&mut emu::Emu, u64, u64) -> bool>;
-// return: allow handle exception?
+/// Exception hook: `(emu, ip, exception_type)`. Return false to suppress default handling.
 pub type TypeHookOnException = Box<dyn FnMut(&mut emu::Emu, u64, types::ExceptionType) -> bool>;
-// memory read is pre-read you can modify the value that is going to be read.
+/// Pre-read hook: `(emu, ip, addr, size)`. Fires before every memory read.
 pub type TypeHookOnMemoryRead = Box<dyn FnMut(&mut emu::Emu, u64, u64, u32)>;
-// the memory write is pre but you can change the value is going to be written.
+/// Pre-write hook: `(emu, ip, addr, size, value)`. Return the value to actually write.
 pub type TypeHookOnMemoryWrite = Box<dyn FnMut(&mut emu::Emu, u64, u64, u32, u128) -> u128>;
 
 // [BREAKING API CHANGE] returning false will skip the handling of the instruction
@@ -28,6 +27,7 @@ pub type TypeHookOnWinApiCall = Box<dyn FnMut(&mut emu::Emu, u64, u64) -> bool>;
 // the syscall (it set the return register itself) to skip the default handler.
 pub type TypeHookOnSyscall = Box<dyn FnMut(&mut emu::Emu, u64) -> bool>;
 
+/// Callback hooks for intercepting emulation events (interrupts, exceptions, memory, instructions, API calls).
 pub struct Hooks {
     pub hook_on_interrupt: Option<TypeHookOnInterrupt>,
     pub hook_on_exception: Option<TypeHookOnException>,

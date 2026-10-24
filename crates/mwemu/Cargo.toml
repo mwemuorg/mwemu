@@ -1,6 +1,6 @@
 [package]
 name = "mwemu"
-version = "0.8.5"
+version = "0.9.0"
 authors = ["sha0coder"]
 edition.workspace = true
 rust-version.workspace = true

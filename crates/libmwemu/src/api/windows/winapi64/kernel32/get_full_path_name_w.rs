@@ -8,7 +8,6 @@ pub fn GetFullPathNameW(emu: &mut emu::Emu) {
 
     let filename = emu.maps.read_wide_string(file_ptr);
     log_red!(emu, "kernel32!GetFullPathNameW file: {}", filename);
-    // TODO: save the path to buff.
-    //emu.regs_mut().rax = 10;
-    unimplemented!("TODO");
+    log::warn!("GetFullPathNameW: stub, returning 0");
+    emu.regs_mut().rax = 0;
 }

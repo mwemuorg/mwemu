@@ -16,8 +16,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
         };
         guard_mem(emu, addr, bytes as u32, true);
         let raw = val.to_le_bytes();
-        for i in 0..bytes as usize {
-            emu.maps.write_byte(addr + i as u64, raw[i]);
+        for (i, &byte) in raw.iter().enumerate().take(bytes as usize) {
+            emu.maps.write_byte(addr + i as u64, byte);
         }
         do_writeback(emu, wb);
         return true;

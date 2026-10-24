@@ -67,7 +67,8 @@ impl Emu {
         // exactly like the kernel does: map ld.so, build the initial stack with
         // a full auxv, and start executing at ld.so's entry point.
         if ld_bootstrap {
-            self.setup_ld_so_bootstrap(&mut elf64, &interp.unwrap());
+            let interp_str = interp.unwrap_or_default();
+            self.setup_ld_so_bootstrap(&mut elf64, &interp_str);
             self.elf64 = Some(elf64);
             return;
         }

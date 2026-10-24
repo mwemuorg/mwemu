@@ -1,4 +1,3 @@
-use crate::winapi::winapi64::kernel32::{LAST_ERROR, clear_last_error};
 use crate::{emu, windows::constants};
 
 pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
@@ -6,22 +5,10 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     let dw_flags = emu.regs().rdx as usize;
     let lp_wide_char_str = emu.regs().r8 as usize;
     let cch_wide_char = emu.regs().r9 as isize;
-    let lp_multi_byte_str = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x20)
-        .expect("kernel32!WideCharToMultiByte error reading param");
-    let cb_multi_byte = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .expect("kernel32!WideCharToMultiByte error reading param");
-    let lp_default_char = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x30)
-        .expect("kernel32!WideCharToMultiByte error reading param");
-    let lp_used_default_char = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x38)
-        .expect("kernel32!WideCharToMultiByte error reading param");
+    let lp_multi_byte_str = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let cb_multi_byte = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let lp_default_char = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let lp_used_default_char = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     log_red!(
         emu,
@@ -41,8 +28,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     // 1. Input validation
     if lp_wide_char_str == 0 {
         log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
-        let mut err = LAST_ERROR.lock().unwrap();
-        *err = constants::ERROR_INVALID_PARAMETER;
+        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -53,8 +39,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     {
         // Set last error to ERROR_INVALID_PARAMETER
         log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
-        let mut err = LAST_ERROR.lock().unwrap();
-        *err = constants::ERROR_INVALID_PARAMETER;
+        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -70,7 +55,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     // 4. If this is just a size query
     if cb_multi_byte == 0 {
         emu.regs_mut().rax = input_len as u64;
-        clear_last_error(emu);
+        emu.clear_last_error();
         return;
     }
 
@@ -83,8 +68,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
             cb_multi_byte,
             input_len
         );
-        let mut err = LAST_ERROR.lock().unwrap();
-        *err = constants::ERROR_INSUFFICIENT_BUFFER;
+        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -110,7 +94,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
         s.len() as u64
     };
 
-    clear_last_error(emu);
+    emu.clear_last_error();
 
     // LOG THE INPUT WIDE STRING
     if lp_wide_char_str > 0 && !s.is_empty() {

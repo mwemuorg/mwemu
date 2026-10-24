@@ -1,10 +1,7 @@
-#[path = "../abi.rs"]
-mod abi;
-
+use crate::api::abi::ApiAbi;
 use crate::emu::Emu;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
-use abi::ApiAbi;
 
 const ERRNO_MAP: &str = "linux_errno";
 const FAKE_PID: u64 = 1234;
@@ -295,10 +292,23 @@ fn api_errno_location(emu: &mut Emu) {
     let addr = match emu.maps.get_map_by_name(ERRNO_MAP) {
         Some(m) => m.get_base(),
         None => {
-            let base = emu.maps.alloc(8).expect("Linux errno: out of memory");
-            emu.maps
+            let base = match emu.maps.alloc(8) {
+                Some(a) => a,
+                None => {
+                    log::error!("Linux errno: out of memory");
+                    ApiAbi::from_emu(emu).set_ret(emu, 0);
+                    return;
+                }
+            };
+            if emu
+                .maps
                 .create_map(ERRNO_MAP, base, 8, Permission::READ_WRITE)
-                .expect("Linux errno: cannot create map");
+                .is_err()
+            {
+                log::error!("Linux errno: cannot create map");
+                ApiAbi::from_emu(emu).set_ret(emu, 0);
+                return;
+            }
             base
         }
     };
@@ -307,15 +317,26 @@ fn api_errno_location(emu: &mut Emu) {
 }
 
 fn linux_allocate(emu: &mut Emu, size: u64) -> u64 {
-    let alloc = emu.maps.alloc(size).expect("Linux malloc: out of memory");
-    emu.maps
+    let alloc = match emu.maps.alloc(size) {
+        Some(a) => a,
+        None => {
+            log::error!("Linux malloc: out of memory (size={})", size);
+            return 0;
+        }
+    };
+    if emu
+        .maps
         .create_map(
             &format!("alloc_{:x}", alloc),
             alloc,
             size,
             Permission::READ_WRITE,
         )
-        .expect("Linux malloc: cannot create map");
+        .is_err()
+    {
+        log::error!("Linux malloc: cannot create map at 0x{:x}", alloc);
+        return 0;
+    }
     alloc
 }
 

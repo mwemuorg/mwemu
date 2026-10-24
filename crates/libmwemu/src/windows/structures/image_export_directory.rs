@@ -18,17 +18,17 @@ pub struct ImageExportDirectory {
 impl ImageExportDirectory {
     pub fn load(addr: u64, maps: &Maps) -> ImageExportDirectory {
         ImageExportDirectory {
-            characteristics: maps.read_dword(addr).unwrap(),
-            time_date_stamp: maps.read_dword(addr + 4).unwrap(),
-            major_version: maps.read_word(addr + 8).unwrap(),
-            minor_version: maps.read_word(addr + 10).unwrap(),
-            name: maps.read_dword(addr + 12).unwrap(),
-            base: maps.read_dword(addr + 16).unwrap(),
-            number_of_functions: maps.read_dword(addr + 20).unwrap(),
-            number_of_names: maps.read_dword(addr + 24).unwrap(),
-            address_of_functions: maps.read_dword(addr + 28).unwrap(),
-            address_of_names: maps.read_dword(addr + 32).unwrap(),
-            address_of_ordinals: maps.read_dword(addr + 36).unwrap(),
+            characteristics: maps.read_dword(addr).unwrap_or(0),
+            time_date_stamp: maps.read_dword(addr + 4).unwrap_or(0),
+            major_version: maps.read_word(addr + 8).unwrap_or(0),
+            minor_version: maps.read_word(addr + 10).unwrap_or(0),
+            name: maps.read_dword(addr + 12).unwrap_or(0),
+            base: maps.read_dword(addr + 16).unwrap_or(0),
+            number_of_functions: maps.read_dword(addr + 20).unwrap_or(0),
+            number_of_names: maps.read_dword(addr + 24).unwrap_or(0),
+            address_of_functions: maps.read_dword(addr + 28).unwrap_or(0),
+            address_of_names: maps.read_dword(addr + 32).unwrap_or(0),
+            address_of_ordinals: maps.read_dword(addr + 36).unwrap_or(0),
         }
     }
 

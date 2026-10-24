@@ -2,10 +2,7 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
-    let feature = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!IsProcessorFeaturePresent cannot read feature");
+    let feature = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
     emu.stack_pop32(false);
 
     let msg = match feature {

@@ -25,7 +25,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         32 => logic::mul32(emu, value0),
         16 => logic::mul16(emu, value0),
         8 => logic::mul8(emu, value0),
-        _ => unimplemented!("wrong size"),
+        _ => {
+            log::warn!("mul: unsupported operand size {}", sz);
+            return false;
+        }
     }
     true
 }

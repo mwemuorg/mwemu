@@ -16,11 +16,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
                     serialization::Serialization::dump(
                         emu,
-                        emu.cfg.dump_filename.as_ref().unwrap(),
+                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                     );
                 }
 
-                unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
+                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
@@ -36,14 +36,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 }
 
 fn SysAllocStringLen(emu: &mut emu::Emu) {
-    let str_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("oleaut32!SysAllocStringLen cannot read str_ptr") as u64;
-    let mut size = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("oleaut32!SysAllocStringLen cannot read size") as u64;
+    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let mut size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     if size == 0xffffffff {
         size = 1024;
@@ -51,10 +45,17 @@ fn SysAllocStringLen(emu: &mut emu::Emu) {
     size += 1; // null byte
     size += 8; // metadata
 
-    let base = emu
-        .maps
-        .alloc(size + 8)
-        .expect("oleaut32!SysAllocStringLen out of memory");
+    let base = match emu.maps.alloc(size + 8) {
+        Some(a) => a,
+        None => {
+            log::error!("oleaut32!SysAllocStringLen out of memory");
+            for _ in 0..2 {
+                emu.stack_pop32(false);
+            }
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
     let name = format!("alloc_{:x}", base + 8);
     emu.maps
         .create_map(&name, base, size, Permission::READ_WRITE);
@@ -70,10 +71,7 @@ fn SysAllocStringLen(emu: &mut emu::Emu) {
 }
 
 fn SysFreeString(emu: &mut emu::Emu) {
-    let str_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("oleaut32!SysFreeString cannot read host_port") as u64;
+    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(emu, "oleaut32!SysFreeString  0x{:x}", str_ptr);
 

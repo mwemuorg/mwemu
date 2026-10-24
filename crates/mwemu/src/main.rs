@@ -459,27 +459,20 @@ fn main() -> process::ExitCode {
     } else if matches.is_present("maps") {
         emu.set_maps_folder(matches.value_of("maps").expect("specify the maps folder"));
     } else {
-        // No --iso/--winver/--maps: default to genuine win11 DLLs from the
-        // symbol server (same as `--winver win11`), for both 64- and 32-bit
-        // guests, so the emulator runs against a real, current ntdll/kernelbase
-        // instead of the stale bundled maps. set_maps_from_winver picks the
-        // architecture from cfg.arch (already set above). If the fetch fails
-        // (e.g. offline), fall back to the legacy bundled maps so it still runs.
+        // No --iso/--winver/--maps: stay offline and use the bundled maps. The
+        // symbol server is contacted only when the user opts in with
+        // `--winver <ver>` (fetch genuine system DLLs) or `--iso <file>`, so a
+        // plain run never touches Microsoft's servers.
         let legacy = if emu.cfg.is_x64() {
             "maps/windows/x86_64/"
         } else {
             "maps/windows/x86/"
         };
-        match emu.set_maps_from_winver("win11") {
-            Ok(()) => eprintln!("[mwemu] system32 ready: {}", emu.cfg.maps_folder),
-            Err(e) => {
-                eprintln!(
-                    "[mwemu] default --winver win11 failed ({}); falling back to bundled maps",
-                    e
-                );
-                emu.set_maps_folder(legacy);
-            }
-        }
+        eprintln!(
+            "[mwemu] using bundled maps ({}); pass --winver win11 to fetch genuine system DLLs",
+            legacy
+        );
+        emu.set_maps_folder(legacy);
     }
 
     // code base address
@@ -711,7 +704,10 @@ fn main() -> process::ExitCode {
 /// (script, GDB server, kernel module init, or a plain run).
 fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::ExitCode {
     // load code
-    emu.load_code(filename);
+    if let Err(e) = emu.load_code(filename) {
+        eprintln!("[mwemu] load failed: {}", e);
+        return process::ExitCode::FAILURE;
+    }
 
     // --sys: override OS after load_code autodetection
     if let Some(sys_str) = matches.value_of("sys") {

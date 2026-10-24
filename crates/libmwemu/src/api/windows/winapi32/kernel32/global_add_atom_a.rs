@@ -1,10 +1,7 @@
 use crate::emu;
 
 pub fn GlobalAddAtomA(emu: &mut emu::Emu) {
-    let lp_string = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("kernel32!GlobalAddAtomA cannot read lp_string") as u64;
+    let lp_string = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     let atom_name = emu.maps.read_string(lp_string);
 

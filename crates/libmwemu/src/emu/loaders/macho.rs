@@ -7,14 +7,21 @@ use crate::loaders::macho::macho64::Macho64;
 impl Emu {
     /// Load a 64-bit Mach-O binary.
     pub fn load_macho64(&mut self, filename: &str) {
-        let mut macho = Macho64::parse(filename).expect("cannot parse macho64 binary");
+        let mut macho = match Macho64::parse(filename) {
+            Ok(m) => m,
+            Err(e) => {
+                log::error!("cannot parse macho64 binary '{}': {}", filename, e);
+                return;
+            }
+        };
         macho.load(&mut self.maps);
         if self.cfg.arch.is_aarch64() {
             self.init_macos_aarch64();
         } else if self.cfg.arch.is_x64() {
             self.init_macos64();
         } else {
-            unimplemented!("unsupported Mach-O architecture: {:?}", self.cfg.arch);
+            log::error!("unsupported Mach-O architecture: {:?}", self.cfg.arch);
+            return;
         }
         self.set_pc(macho.entry);
 
@@ -197,19 +204,22 @@ impl Emu {
 
         // Allocate a single "macos_globals" region for small data symbols.
         let globals_size: u64 = 0x8000;
-        let globals_base = self
-            .maps
-            .alloc(globals_size)
-            .expect("cannot alloc macos globals");
-        let mem = self
-            .maps
-            .create_map(
-                "macos_globals",
-                globals_base,
-                globals_size,
-                Permission::READ_WRITE,
-            )
-            .expect("cannot create macos_globals map");
+        let Some(globals_base) = self.maps.alloc(globals_size) else {
+            log::error!("cannot alloc macos globals");
+            return;
+        };
+        let mem = match self.maps.create_map(
+            "macos_globals",
+            globals_base,
+            globals_size,
+            Permission::READ_WRITE,
+        ) {
+            Ok(m) => m,
+            Err(_) => {
+                log::error!("cannot create macos_globals map");
+                return;
+            }
+        };
         // Zero-fill
         for i in 0..globals_size {
             mem.write_byte(globals_base + i, 0);
@@ -317,16 +327,22 @@ impl Emu {
     ) -> (u64, Vec<(String, u64)>) {
         use crate::loaders::macho::macho64::prot_to_permission;
 
-        let dylib = Macho64::parse(filename).expect("cannot parse dylib");
+        let dylib = match Macho64::parse(filename) {
+            Ok(d) => d,
+            Err(e) => {
+                log::error!("cannot parse dylib '{}': {}", filename, e);
+                return (0, vec![]);
+            }
+        };
 
         // Calculate total size needed
         let total_size: u64 = dylib.segments.iter().map(|s| s.vmsize).sum();
 
         // Allocate in library address range
-        let base = self
-            .maps
-            .lib64_alloc(total_size.max(0x4000))
-            .expect("cannot allocate space for dylib");
+        let Some(base) = self.maps.lib64_alloc(total_size.max(0x4000)) else {
+            log::error!("cannot allocate space for dylib '{}'", lib_name);
+            return (0, vec![]);
+        };
 
         // Strip extension for map naming: "libSystem.B.dylib" -> "libSystem.B"
         let base_name = lib_name.strip_suffix(".dylib").unwrap_or(lib_name);

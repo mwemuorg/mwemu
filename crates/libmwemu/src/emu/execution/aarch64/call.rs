@@ -24,9 +24,7 @@ pub fn aarch64_call64(emu: &mut Emu, addr: u64, args: &[u64]) -> Result<u64, Mwe
 
     // Load args into x0-x7
     let n = args.len().min(8);
-    for i in 0..n {
-        emu.regs_aarch64_mut().x[i] = args[i];
-    }
+    emu.regs_aarch64_mut().x[..n].copy_from_slice(&args[..n]);
     if args.len() > 8 {
         log::warn!("aarch64_call64: more than 8 args not yet supported");
     }

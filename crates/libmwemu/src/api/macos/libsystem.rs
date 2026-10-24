@@ -18,7 +18,10 @@ fn arg(emu: &Emu, idx: usize) -> u64 {
             3 => emu.regs().rcx,
             4 => emu.regs().r8,
             5 => emu.regs().r9,
-            _ => unreachable!("arg index {} not supported for x86_64 SysV ABI", idx),
+            _ => {
+                log::warn!("arg index {} not supported for x86_64 SysV ABI", idx);
+                0
+            }
         }
     }
 }
@@ -449,7 +452,10 @@ fn get_printf_arg(emu: &Emu, vararg_num: usize, first_vararg: usize) -> u64 {
                 3 => emu.regs().rcx,
                 4 => emu.regs().r8,
                 5 => emu.regs().r9,
-                _ => unreachable!(),
+                _ => {
+                    log::warn!("arg: register idx {} out of range", idx);
+                    0
+                }
             }
         } else {
             let sp = emu.regs().rsp;
@@ -551,7 +557,14 @@ fn api_malloc(emu: &mut Emu) {
         let base = if emu.cfg.memory_guard {
             emu.kernel_alloc(Region::Slab, size, "malloc", "malloc", false)
         } else {
-            allocate_memory(emu, size).expect("macOS malloc: out of memory")
+            match allocate_memory(emu, size) {
+                Some(a) => a,
+                None => {
+                    log::error!("macOS malloc: out of memory (size=0x{:x})", size);
+                    set_ret(emu, 0);
+                    return;
+                }
+            }
         };
         log::info!("  -> 0x{:x}", base);
         set_ret(emu, base);
@@ -576,7 +589,11 @@ fn api_calloc(emu: &mut Emu) {
         let base = if emu.cfg.memory_guard {
             emu.kernel_alloc(Region::Slab, total, "malloc", "calloc", true)
         } else {
-            let b = allocate_memory(emu, total).expect("macOS calloc: out of memory");
+            let Some(b) = allocate_memory(emu, total) else {
+                log::error!("macOS calloc: out of memory (size=0x{:x})", total);
+                set_ret(emu, 0);
+                return;
+            };
             for i in 0..total {
                 emu.maps.write_byte(b + i, 0);
             }
@@ -610,7 +627,14 @@ fn api_realloc(emu: &mut Emu) {
     let base = if emu.cfg.memory_guard {
         emu.kernel_alloc(Region::Slab, size, "malloc", "realloc", false)
     } else {
-        allocate_memory(emu, size).expect("macOS realloc: out of memory")
+        match allocate_memory(emu, size) {
+            Some(addr) => addr,
+            None => {
+                log::error!("macOS realloc: out of memory (size=0x{:x})", size);
+                set_ret(emu, 0);
+                return;
+            }
+        }
     };
     if ptr != 0 {
         for i in 0..size {
@@ -1174,7 +1198,14 @@ fn api_strdup(emu: &mut Emu) {
     let base = if emu.cfg.memory_guard {
         emu.kernel_alloc(Region::Slab, len, "malloc", "strdup", false)
     } else {
-        allocate_memory(emu, len).expect("macOS strdup: out of memory")
+        match allocate_memory(emu, len) {
+            Some(addr) => addr,
+            None => {
+                log::error!("macOS strdup: out of memory (size=0x{:x})", len);
+                set_ret(emu, 0);
+                return;
+            }
+        }
     };
     let bytes = s.as_bytes();
     emu.maps.write_bytes(base, bytes);
@@ -1273,10 +1304,23 @@ fn api_mmap(emu: &mut Emu) {
         return;
     }
     let permission = prot_to_permission(prot);
-    let base = emu.maps.alloc(len).expect("macOS mmap: out of memory");
-    emu.maps
+    let base = match emu.maps.alloc(len) {
+        Some(a) => a,
+        None => {
+            log::error!("macOS mmap: out of memory (len={})", len);
+            set_ret(emu, u64::MAX);
+            return;
+        }
+    };
+    if emu
+        .maps
         .create_map(&format!("mmap_{:x}", base), base, len, permission)
-        .expect("macOS mmap: cannot create map");
+        .is_err()
+    {
+        log::error!("macOS mmap: cannot create map at 0x{:x}", base);
+        set_ret(emu, u64::MAX);
+        return;
+    }
     // zero-fill
     for i in 0..len {
         emu.maps.write_byte(base + i, 0);
@@ -1660,7 +1704,11 @@ fn api_getpwuid(emu: &mut Emu) {
     //   0x38: pw_dir    (char *)
     //   0x40: pw_shell  (char *)
     //   0x48: pw_expire (time_t, 8 bytes)
-    let pw_struct = allocate_memory(emu, 0x50).expect("getpwuid: out of memory");
+    let Some(pw_struct) = allocate_memory(emu, 0x50) else {
+        log::error!("getpwuid: out of memory");
+        set_ret(emu, 0);
+        return;
+    };
     let pw_name = alloc_string(emu, "user");
     let pw_passwd = alloc_string(emu, "*");
     let pw_class = alloc_string(emu, "");
@@ -1694,7 +1742,11 @@ fn api_getpwnam(emu: &mut Emu) {
     let name_ptr = arg(emu, 0);
     let name = emu.maps.read_string(name_ptr);
 
-    let pw_struct = allocate_memory(emu, 0x50).expect("getpwnam: out of memory");
+    let Some(pw_struct) = allocate_memory(emu, 0x50) else {
+        log::error!("getpwnam: out of memory");
+        set_ret(emu, 0);
+        return;
+    };
     let pw_name = alloc_string(emu, &name);
     let pw_passwd = alloc_string(emu, "*");
     let pw_class = alloc_string(emu, "");
@@ -1728,10 +1780,18 @@ fn api_getgrgid(emu: &mut Emu) {
     let gid = arg(emu, 0) as u32;
 
     // struct group: gr_name, gr_passwd, gr_gid, gr_mem
-    let gr_struct = allocate_memory(emu, 0x20).expect("getgrgid: out of memory");
+    let Some(gr_struct) = allocate_memory(emu, 0x20) else {
+        log::error!("getgrgid: out of memory");
+        set_ret(emu, 0);
+        return;
+    };
     let gr_name = alloc_string(emu, "staff");
     let gr_passwd = alloc_string(emu, "*");
-    let gr_mem = allocate_memory(emu, 8).expect("getgrgid: out of memory");
+    let Some(gr_mem) = allocate_memory(emu, 8) else {
+        log::error!("getgrgid: out of memory for gr_mem");
+        set_ret(emu, 0);
+        return;
+    };
     emu.maps.write_qword(gr_mem, 0); // NULL-terminated member list
 
     emu.maps.write_qword(gr_struct, gr_name);
@@ -1775,7 +1835,11 @@ fn api_getgrouplist_2(emu: &mut Emu) {
     let groups_ptr_ptr = arg(emu, 2);
 
     // Allocate a gid_t array with 1 group (staff=20)
-    let groups = allocate_memory(emu, 8).expect("getgrouplist_2: out of memory");
+    let Some(groups) = allocate_memory(emu, 8) else {
+        log::error!("getgrouplist_2: out of memory");
+        set_ret(emu, 0);
+        return;
+    };
     emu.maps.write_dword(groups, 20);
 
     if groups_ptr_ptr != 0 {
@@ -2120,7 +2184,11 @@ fn api_localtime(emu: &mut Emu) {
         emu.colors.nc
     );
     // Allocate a fake struct tm (at least 56 bytes on macOS)
-    let tm = allocate_memory(emu, 64).expect("localtime: alloc");
+    let Some(tm) = allocate_memory(emu, 64) else {
+        log::error!("localtime: out of memory");
+        set_ret(emu, 0);
+        return;
+    };
     // tm_sec=0, tm_min=0, tm_hour=12, tm_mday=1, tm_mon=0, tm_year=125 (2025),
     // tm_wday=3, tm_yday=0, tm_isdst=0
     emu.maps.write_dword(tm, 0); // tm_sec
@@ -2361,7 +2429,11 @@ fn api_sysctl(emu: &mut Emu) {
         }
 
         // Data query: fill with fake processes
-        let buf = allocate_memory(emu, total_size).expect("sysctl: out of memory");
+        let Some(buf) = allocate_memory(emu, total_size) else {
+            log::error!("sysctl: out of memory (size=0x{:x})", total_size);
+            set_ret(emu, 0);
+            return;
+        };
 
         // Zero-fill
         for i in 0..total_size {
@@ -2523,7 +2595,11 @@ fn api_fts_open(emu: &mut Emu) {
     }
 
     // Allocate a fake FTS handle (just a small block to serve as an opaque pointer)
-    let handle = allocate_memory(emu, 64).expect("fts_open: alloc");
+    let Some(handle) = allocate_memory(emu, 64) else {
+        log::error!("fts_open: out of memory");
+        set_ret(emu, 0);
+        return;
+    };
 
     // Create the root FTSENT upfront so children can reference it as fts_parent
     let root_entry = entries.iter().find(|e| e.is_root).cloned();
@@ -2606,13 +2682,22 @@ fn api_fts_read(emu: &mut Emu) {
         emu.colors.nc
     );
 
-    let root_addr = emu.fts_handles.get(&handle).unwrap().root_ftsent;
+    let root_addr = match emu.fts_handles.get(&handle) {
+        Some(h) => h.root_ftsent,
+        None => {
+            log::warn!("fts_read: invalid handle 0x{:x}", handle);
+            set_ret(emu, 0);
+            return;
+        }
+    };
     let ftsent_addr = if root_addr != 0 {
         root_addr
     } else {
         write_ftsent(emu, &entry)
     };
-    emu.fts_handles.get_mut(&handle).unwrap().last_ftsent = ftsent_addr;
+    if let Some(h) = emu.fts_handles.get_mut(&handle) {
+        h.last_ftsent = ftsent_addr;
+    }
     set_ret(emu, ftsent_addr);
 }
 
@@ -2697,7 +2782,9 @@ fn api_fts_children(emu: &mut Emu) {
     }
 
     let head = addrs[0];
-    emu.fts_handles.get_mut(&handle).unwrap().children_head = head;
+    if let Some(h) = emu.fts_handles.get_mut(&handle) {
+        h.children_head = head;
+    }
 
     log::info!(
         "{}** {} macOS API fts_children(0x{:x}, instr=0x{:x}) -> {} entries {}",
@@ -2744,7 +2831,13 @@ fn write_ftsent(emu: &mut Emu, entry: &FtsEntry) -> u64 {
     let name_bytes = entry.name.as_bytes();
     let path_bytes = entry.path.as_bytes();
     let ftsent_size = FTSENT_FTS_NAME + (name_bytes.len() as u64) + 1;
-    let ftsent = allocate_memory(emu, ftsent_size + 256).expect("ftsent: alloc");
+    let ftsent = match allocate_memory(emu, ftsent_size + 256) {
+        Some(addr) => addr,
+        None => {
+            log::error!("write_ftsent: out of memory");
+            return 0;
+        }
+    };
 
     // Zero-fill
     for i in 0..ftsent_size {
@@ -2757,7 +2850,13 @@ fn write_ftsent(emu: &mut Emu, entry: &FtsEntry) -> u64 {
         .write_byte(ftsent + FTSENT_FTS_NAME + name_bytes.len() as u64, 0);
 
     // Allocate and write path string
-    let path_addr = allocate_memory(emu, (path_bytes.len() + 1) as u64).expect("path: alloc");
+    let path_addr = match allocate_memory(emu, (path_bytes.len() + 1) as u64) {
+        Some(addr) => addr,
+        None => {
+            log::error!("write_ftsent: out of memory for path");
+            return 0;
+        }
+    };
     emu.maps.write_bytes(path_addr, path_bytes);
     emu.maps.write_byte(path_addr + path_bytes.len() as u64, 0);
 
@@ -2855,7 +2954,13 @@ fn api_fstat(emu: &mut Emu) {
 
 fn alloc_string(emu: &mut Emu, s: &str) -> u64 {
     let len = s.len() as u64 + 1;
-    let addr = allocate_memory(emu, len).expect("alloc_string: out of memory");
+    let addr = match allocate_memory(emu, len) {
+        Some(a) => a,
+        None => {
+            log::error!("alloc_string: out of memory (len={})", len);
+            return 0;
+        }
+    };
     emu.maps.write_bytes(addr, s.as_bytes());
     emu.maps.write_byte(addr + s.len() as u64, 0);
     addr
@@ -2995,7 +3100,13 @@ impl StatData {
 const STAT_SIZE: u64 = 0x90;
 
 fn write_stat_struct(emu: &mut Emu, st: &StatData) -> u64 {
-    let addr = allocate_memory(emu, STAT_SIZE).expect("stat: alloc");
+    let addr = match allocate_memory(emu, STAT_SIZE) {
+        Some(a) => a,
+        None => {
+            log::error!("write_stat_struct: out of memory");
+            return 0;
+        }
+    };
     write_stat_at(emu, addr, st);
     addr
 }

@@ -72,7 +72,8 @@ pub fn gateway(emu: &mut emu::Emu) {
                 count,
                 emu.colors.nc
             );
-            todo!("macos read syscall");
+            log::warn!("macos read syscall: stub, returning 0 bytes");
+            emu.regs_aarch64_mut().x[0] = 0;
         }
 
         SYS_OPEN => {
@@ -87,7 +88,8 @@ pub fn gateway(emu: &mut emu::Emu) {
                 flags,
                 emu.colors.nc
             );
-            todo!("macos open syscall");
+            log::warn!("macos open syscall: stub, returning -1");
+            emu.regs_aarch64_mut().x[0] = (-1i64) as u64;
         }
 
         SYS_CLOSE => {
@@ -99,7 +101,8 @@ pub fn gateway(emu: &mut emu::Emu) {
                 fd,
                 emu.colors.nc
             );
-            todo!("macos close syscall");
+            log::warn!("macos close syscall: stub, returning 0");
+            emu.regs_aarch64_mut().x[0] = 0;
         }
 
         SYS_FORK => {
@@ -139,7 +142,8 @@ pub fn gateway(emu: &mut emu::Emu) {
                 off,
                 emu.colors.nc
             );
-            todo!("macos mmap syscall");
+            log::warn!("macos mmap syscall: stub, returning MAP_FAILED");
+            emu.regs_aarch64_mut().x[0] = (-1i64) as u64;
         }
 
         SYS_MUNMAP => {
@@ -153,7 +157,8 @@ pub fn gateway(emu: &mut emu::Emu) {
                 len,
                 emu.colors.nc
             );
-            todo!("macos munmap syscall");
+            log::warn!("macos munmap syscall: stub, returning 0");
+            emu.regs_aarch64_mut().x[0] = 0;
         }
 
         SYS_MPROTECT => {
@@ -169,7 +174,8 @@ pub fn gateway(emu: &mut emu::Emu) {
                 prot,
                 emu.colors.nc
             );
-            todo!("macos mprotect syscall");
+            log::warn!("macos mprotect syscall: stub, returning 0");
+            emu.regs_aarch64_mut().x[0] = 0;
         }
 
         SYS_IOCTL => {
@@ -183,7 +189,8 @@ pub fn gateway(emu: &mut emu::Emu) {
                 request,
                 emu.colors.nc
             );
-            todo!("macos ioctl syscall");
+            log::warn!("macos ioctl syscall: stub, returning 0");
+            emu.regs_aarch64_mut().x[0] = 0;
         }
 
         SYS_ISSETUGID => {

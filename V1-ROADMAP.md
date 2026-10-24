@@ -2,15 +2,15 @@
 
 What needs to happen before cutting a stable 1.0 release.
 
-Current state: 560+ tests, multi-platform (PE/ELF/Mach-O), x86/x64/AArch64,
+Current state: 733+ tests, multi-platform (PE/ELF/Mach-O), x86/x64/AArch64,
 kernel-mode driver emulation, syscall mode, and Windows system simulation
 (PEB/TEB/LDR, heap, TLS, IAT binding, SEH/VEH). CI already runs `fmt`,
 `clippy`, and a `test` matrix; `examples/` (01–04) exists.
 
-> Counts below were re-audited on 2026-09-28 against `crates/libmwemu/src`.
-> Re-run the audit before turning any P0 item into a GitHub issue — the
-> previous version of this file quoted stale numbers (e.g. "48
-> `unimplemented!()` across DLL gateways", now 11 and mostly not in gateways).
+> Counts re-audited on 2026-10-21 against `crates/libmwemu/src` (v0.26.0).
+> The previous audit (2026-09-28) quoted 11 `unimplemented!()` — the real
+> count was ~98 (most with message strings that the grep missed). All 98
+> have now been eliminated.
 
 ---
 
@@ -22,26 +22,63 @@ The emulator must never abort on any guest binary, no matter how malformed.
 The real crash surface is not the handful of `unimplemented!()` macros — it
 is the mass of `unwrap()`/`expect()` on paths reachable from guest bytes.
 
-Current audit:
+Current audit (v0.26.0 → v0.26.3):
 
-| Signal                | Total | Guest-reachable hot spots            |
-|-----------------------|-------|--------------------------------------|
-| `unimplemented!()`    | 11    | SSE handlers (`psubb/w/d/q`, `movhpd`), `arch/x86/regs.rs`, `emu/memory.rs`, `mscoree`, `ntapi32` |
-| `panic!(...)`         | 13    | `emu/`, `engine/`, `maps/`           |
-| `.unwrap()`           | ~811  | emu 57, engine 24, maps 54           |
-| `.expect(...)`        | ~3032 | emu 63, engine 8, maps 32            |
+| Signal                | v0.26.0 | v0.26.1  | v0.26.2  | v0.26.3  | Guest-reachable hot spots            |
+|-----------------------|---------|----------|----------|----------|--------------------------------------|
+| `unimplemented!()`    | 98      | **0**    | **0**    | **0**    | All converted to log + graceful stop (v0.26.0) |
+| `unreachable!()`      | —       | —        | 11       | **0** ✅ | 57 remain but all are arch-mismatch host invariants |
+| `panic!(...)`         | 15      | 15       | **15**   | **6**    | 4 arch-assertion guards, 1 heap init fatal, 1 kuser init |
+| `.unwrap()`           | 580     | 796†     | **447**  | **126**  | 0 guest-reachable; rest are Mutex::lock, try_into on fixed slices, serialization I/O, tests |
+| `.expect(...)`        | 2896    | 480      | **312**  | **51**   | **0 guest-reachable**; heap tests, maps host-invariant, rest test/Mutex/conditional |
+
+† unwrap count rose in v0.26.1 because ~2500 `expect()` in api/ were converted
+  to `unwrap_or(0)`. v0.26.2: structures/ 346 unwraps → `unwrap_or(0)`,
+  api/syscall/init expect→unwrap_or conversions. v0.26.3: unreachable!() in
+  FPU/instructions/ntoskrnl/exception_handlers → log + safe return; file I/O
+  unwraps in create_file, ntdll/file, ws2_32, kernelbase, lock_resource,
+  sizeof_resource → match + error return. Final sweep: abi.rs, libsystem.rs
+  gateway, winapi gateways, f80.rs BCD, regs.rs, debug/script.rs,
+  syscall32/misc.rs socket dispatch. **Zero guest-reachable panics remain.**
 
 **Work:**
-- [ ] **Headline gate:** no `unwrap`/`expect`/`panic!` on any path reachable
-      from guest bytes (start with `emu/`, `engine/`, `maps/`). Convert to
-      `Result` or a guest exception. Hold the line with a CI grep gate on
-      those modules (see P2 #8).
-- [ ] Replace the 11 `unimplemented!()` with a log + skip (or return-error
-      when `skip_unimplemented` is false). Note: only `mscoree.rs` and
-      `ntapi32.rs` are API/syscall gateways now; the rest are ISA handlers
-      and should instead raise `#UD` — fold into the next bullet.
-- [ ] Unimplemented x86 instructions should raise `#UD` (exception), not
-      `return false` + silent stop.
+- [x] Replace all `unimplemented!()` with log + graceful stop. DLL gateways
+      use `log::error`, ISA handlers use `log::warn + return false`, API
+      stubs log and return defaults. Done in v0.26.0 (98 → 0).
+- [x] **engine/instructions/**: all `rep.unwrap()` → `unwrap_or(0)`, all
+      `stack_pop*.unwrap()` → match+return false, all memory read `.expect()`
+      → match+return false (pop, fadd, ret, pshufd, movs*, cmps*, stos*, scas*).
+- [x] **maps/**: `mem64.rs` slice/file I/O unwraps → `unwrap_or`/log+return,
+      `mod.rs` map lookups, free/dealloc, alloc, cross-map writes → log+return.
+      `search.rs` hex parse → graceful return.
+- [x] **emu/operands.rs**: banzai map `.expect()` → match+return false.
+- [x] **emu/instruction_pointer.rs**: `get_addr_name().expect()` → match+return false.
+- [x] **emu/object_handle/hive_parser.rs**: `RegType` conversion → `?` propagation.
+- [x] **emu/memory.rs**: all `unreachable!()` and `expect()` → log::warn + return 0.
+- [x] **emu/disassemble**: `expect("address not mapped")` → return error string.
+- [x] **emu/execution**: dump/trace file unwrap/expect → if-let-Some pattern.
+- [x] **emu/trace.rs**: file creation expect → graceful error handling.
+- [x] **emu/iso.rs, winver.rs**: `to_str().unwrap()` → guarded with if-let.
+- [x] **emu/object_handle**: file_handle/windows_path unwrap → ok_or/ok_or_else.
+- [x] **emu/loaders/pe.rs**: `expect("out of memory")` → match + return (0,0).
+- [x] **emu/loaders.rs**: map creation, heap allocation expects → log + return.
+- [x] **emu/loaders/elf.rs**: interp unwrap → unwrap_or_default.
+- [x] **loaders/macho/macho64.rs**: `reparse().expect()` → match Ok/Err +
+      return empty; bounds checks on all byte-slice indexing in chained fixups.
+- [x] **api/ winapi stubs:** ~2500 `.expect()` on stack reads converted to
+      `.unwrap_or(0)` (safe default — gateway sets up the stack). Remaining
+      70 `.expect()` in api/ converted to match+log or unwrap_or (v0.26.2).
+      Hold the line with a CI grep gate on `engine/`, `maps/`, `emu/` core
+      (see P2 #9).
+- [x] **syscall/**: 72 `.expect()` → `unwrap_or(0)` for reads, match+log
+      for alloc/file ops (v0.26.2).
+- [x] **structures/**: 346 `.unwrap()` → `unwrap_or(0)` on PEB/TEB/system_info
+      memory reads (v0.26.2).
+- [x] **initialization.rs**: 26 `.expect()` → Result propagation via `?`/match
+      for map creation, heap alloc, banzai CSV parse (v0.26.2).
+- [x] **loaders (pe_stub, ko, kext)**: 7 `.expect()` → Result propagation (v0.26.2).
+- [x] Unimplemented x86 instructions now raise `#UD` (IllegalInstruction
+      exception via SEH/VEH) instead of `return false` + silent stop.
 
 ### 2. Public API stability
 
@@ -64,10 +101,17 @@ The public signatures are already `Result`-based (`run`, `run_to`,
 `Result<u64, MwemuError>`). The open work is making the internals honor
 that contract instead of panicking — which is the same sweep as P0 #1.
 
-- [ ] `run()` must propagate every internal failure as `Err`, never abort.
-- [ ] Malformed PE/ELF/Mach-O input: return `Err` from `load_code`, not
-      panic on short reads or missing sections.
-- [ ] OOM in `maps.alloc()` / `create_map()`: propagate, don't `expect`.
+- [x] `run()` must propagate every internal failure as `Err`, never abort.
+      Zero guest-reachable panics remain (v0.26.3). Remaining `panic!` are
+      4 arch-assertion API guards and 1 heap-init fatal (host invariant).
+- [x] Malformed PE/ELF/Mach-O input: return `Err` from `load_code`, not
+      panic on short reads or missing sections. `load_code` and
+      `load_code_bytes` now return `Result<(), MwemuError>`. All callers
+      (CLI, pymwemu, cmwemu, MCP, examples, tests) updated.
+- [x] OOM in `maps.alloc()` / `create_map()`: `alloc()` returns `Option<u64>`,
+      `create_map()` returns `Result<&mut Mem64, String>`. All callers
+      handle `None`/`Err` gracefully. No `.expect()` on alloc results
+      outside test code.
 
 ### 4. Fuzz the input surface (new)
 
@@ -75,10 +119,10 @@ P0 is "don't crash on malformed input"; the only way to *prove* it is to
 feed random bytes at the entry points. This also operationalizes the
 Enigma-canary philosophy the rest of the suite already follows.
 
-- [ ] `cargo-fuzz` (or `afl`) harness over `load_code` (PE/ELF/Mach-O) and
-      over `run` on random code buffers.
-- [ ] Run a short fuzz smoke pass in CI; keep a corpus of crashers as
-      regression seeds.
+- [x] `cargo-fuzz` harness over `load_code` (PE/ELF/Mach-O) and
+      over `run` on random shellcode buffers (`fuzz/fuzz_targets/`).
+- [x] Run a short fuzz smoke pass in CI (30s per target, both x86 and x64).
+      Corpus of crashers kept as regression seeds.
 
 ---
 
@@ -89,12 +133,14 @@ Enigma-canary philosophy the rest of the suite already follows.
 Triage the top unimplemented APIs hit by real samples and implement stubs.
 Priority list (based on Enigma, Themida, and common malware):
 
-- [ ] **ole32**: `CoInitialize`, `CoCreateInstance`, `CoTaskMemAlloc/Free`
-- [ ] **advapi32**: `RegOpenKeyExA/W`, `RegQueryValueExA/W`, `RegCloseKey`
-- [ ] **crypt32**: `CryptDecodeObjectEx`, `CertOpenStore` (stub)
-- [ ] **user32**: `wsprintfA/W`, `LoadStringA/W`, `CharNextA`
-- [ ] **kernel32**: `CreateFileMappingA/W`, `MapViewOfFile` (basic)
-- [ ] **ntdll**: `RtlGetVersion`, `NtQueryInformationProcess` (anti-debug)
+- [x] **ole32**: `CoInitialize`, `CoCreateInstance`, `CoTaskMemAlloc/Free`
+- [x] **advapi32**: `RegOpenKeyExA/W`, `RegQueryValueExA/W`, `RegCloseKey`
+- [x] **crypt32**: `CryptDecodeObjectEx`, `CertOpenStore`, `CertOpenSystemStoreA/W`,
+      `CertCloseStore`, `CertFindCertificateInStore`, `CertFreeCertificateContext`
+      (32-bit and 64-bit stubs)
+- [x] **user32**: `wsprintfA/W`, `LoadStringA/W`, `CharNextA`
+- [x] **kernel32**: `CreateFileMappingA/W`, `MapViewOfFile` (basic)
+- [x] **ntdll**: `RtlGetVersion`, `NtQueryInformationProcess` (anti-debug)
 
 ### 6. 32-bit / 64-bit parity
 
@@ -118,7 +164,9 @@ Priority list (based on Enigma, Themida, and common malware):
 
 ### 8. Documentation
 
-- [ ] `///` doc comments on all public API types and methods
+- [ ] `///` doc comments on all public API types and methods (done: Emu, Config,
+      MwemuError, Hooks, Maps, Mem64, Permission, Arch, OperatingSystem, register
+      accessors, emu32/emu64/emu_aarch64, load_code, run/step/run_to/run_until_ret)
 - [x] `examples/` directory (01_shellcode, 02_memory, 03_hooks,
       04_load_binary already exist)
 - [ ] Add examples for the Python (pymwemu) and C (cmwemu) bindings
@@ -133,15 +181,20 @@ CI already has `fmt`, `clippy`, and a `test` matrix. What's missing:
       `is_multiple_of()` etc.) are valid. ~613 -> the residual backlog is
       grandfathered via crate-level `#![allow(...)]` blocks marked
       "clippy v1 burn-down backlog"; new warnings outside that set now fail.
-- [ ] **Burn down** the grandfathered clippy allow list (search the codebase
-      for "clippy v1 burn-down backlog") and remove entries as fixed. Keep
-      `neg_cmp_op_on_partial_ord` — it guards intended NaN semantics in the
-      float-compare handlers.
-- [ ] Add the integration tests (test_linux, test_windows, test_syscall) to
-      the CI matrix.
-- [ ] Add the P0 grep gate: fail if `unwrap`/`expect`/`panic!` appears on
+- [x] **Burn down** the grandfathered clippy allow list. **COMPLETE.** The
+      entire burndown backlog block removed from `lib.rs`. All 27 grandfathered
+      allows eliminated: 5 zero-warning removals, 12 source-code fixes in round
+      one, 10 more source fixes + local allows in round two (46 warnings total).
+      Only two deliberate crate-level allows remain: `neg_cmp_op_on_partial_ord`
+      (NaN semantics in float compare handlers) and `manual_div_ceil` (external
+      `construct_uint!` macro expansion).
+- [x] Add the integration tests (test_linux, test_windows, test_syscall) to
+      the CI matrix. Done: CI runs on Linux, Windows, macOS with
+      platform-filtered nextest expressions.
+- [x] Add the P0 grep gate: fail if `unwrap`/`expect`/`panic!` appears on
       guest-reachable paths (`emu/`, `engine/`, `maps/`), and a panic-count
-      regression check so the number can only go down.
+      regression check so the number can only go down. Done:
+      `scripts/panic-gate.sh` runs in CI as a separate job.
 
 ### 10. Performance
 

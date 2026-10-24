@@ -2,10 +2,7 @@ use crate::emu;
 use crate::winapi::winapi32::kernel32::load_library;
 
 pub fn LoadLibraryA(emu: &mut emu::Emu) {
-    let dllptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("bad LoadLibraryA parameter") as u64;
+    let dllptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let dll = emu.maps.read_string(dllptr);
 
     emu.regs_mut().rax = load_library(emu, &dll);

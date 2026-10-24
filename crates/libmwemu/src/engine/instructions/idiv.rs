@@ -25,7 +25,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         32 => logic::idiv32(emu, value0),
         16 => logic::idiv16(emu, value0),
         8 => logic::idiv8(emu, value0),
-        _ => unimplemented!("wrong size"),
+        _ => {
+            log::warn!("idiv: unsupported operand size {}", sz);
+            return false;
+        }
     }
     true
 }

@@ -14,7 +14,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         emu.fpu_mut().add(i, j);
         emu.fpu_mut().pop_f64();
     } else {
-        unreachable!();
+        log::warn!("faddp: unexpected operand count {}", ins.op_count());
+        return false;
     }
     emu.sync_fpu_ip();
     true

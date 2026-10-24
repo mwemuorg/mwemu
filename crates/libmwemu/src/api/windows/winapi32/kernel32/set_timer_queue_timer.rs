@@ -2,30 +2,12 @@ use crate::emu;
 use crate::windows::constants;
 
 pub fn SetTimerQueueTimer(emu: &mut emu::Emu) {
-    let _TimerQueue = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("cannot read the api parameter");
-    let _Callback = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("cannot read the api parameter");
-    let _Parameter = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("cannot read the api parameter");
-    let _DueTime = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 12)
-        .expect("cannot read the api parameter");
-    let _Period = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 16)
-        .expect("cannot read the api parameter");
-    let _PreferIo = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 20)
-        .expect("cannot read the api parameter");
+    let _TimerQueue = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _Callback = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _Parameter = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let _DueTime = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let _Period = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let _PreferIo = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
 
     log_red!(emu, "kernel32!SetTimerQueueTimer");
 

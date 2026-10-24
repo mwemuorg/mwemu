@@ -53,7 +53,7 @@ impl Emu {
         let base = self
             .kernel
             .as_ref()
-            .expect("kernel env present")
+            .ok_or_else(|| MwemuError::new("kernel env not present for kext loading"))?
             .layout
             .module_base;
 
@@ -165,7 +165,10 @@ impl Emu {
             symbols,
             unresolved: Vec::new(),
         };
-        self.kernel.as_mut().expect("kernel env present").module = module;
+        self.kernel
+            .as_mut()
+            .ok_or_else(|| MwemuError::new("kernel env not present for kext loading"))?
+            .module = module;
 
         self.base = base;
         self.macho64 = Some(macho);

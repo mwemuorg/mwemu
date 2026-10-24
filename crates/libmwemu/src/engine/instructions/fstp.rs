@@ -21,7 +21,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     }
     if ins.op_count() > 1 && ins.op_kind(1) == iced_x86::OpKind::Memory {
-        unreachable!("Fstp: param1 is mem");
+        log::warn!("fstp: unexpected memory operand in param1");
+        return false;
     }
 
     emu.fpu_mut().pop_f64();

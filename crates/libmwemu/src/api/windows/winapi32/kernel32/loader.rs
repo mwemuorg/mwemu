@@ -32,6 +32,16 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
                 peb32::dynamic_link_module(base as u64, pe_off, &dll, emu);
                 emu.library_loaded = true; // Signal to GDB that library list changed
                 base as u64
+            } else if let Some(exports) =
+                crate::emu::loaders::pe_stub_exports::get_stub_exports(&dll)
+            {
+                let base = emu.create_stub_pe32(&dll, exports) as u64;
+                if base != 0 {
+                    peb32::dynamic_link_module(base, 0, &dll, emu);
+                    emu.library_loaded = true;
+                    log::info!("loaded stub PE32 for {}", dll);
+                }
+                base
             } else {
                 log::trace!("dll {} not found.", dll_path);
                 0

@@ -22,14 +22,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
-    let crit_sect = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlInitializeCriticalSectionAndSpinCount error reading crit_sect param");
-    let spin_count = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!RtlInitializeCriticalSectionAndSpinCount error reading spin_count param");
+    let crit_sect = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let spin_count = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionAndSpinCount");
 
@@ -40,10 +34,7 @@ fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
 }
 
 fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlEnterCriticalSection error reading hndl param") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(emu, "ntdll!RtlEnterCriticalSection");
 
@@ -52,10 +43,7 @@ fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
 }
 
 fn RtlLeaveCriticalSection(emu: &mut emu::Emu) {
-    let hndl = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlLeaveCriticalSection error reading hndl param") as u64;
+    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(emu, "ntdll!RtlLeaveCriticalSection");
 
@@ -64,15 +52,8 @@ fn RtlLeaveCriticalSection(emu: &mut emu::Emu) {
 }
 
 fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let first = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlAddVectoredExceptionHandler error reading first param");
-    let fptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!RtlAddVectoredExceptionHandler error reading callback param")
-        as u64;
+    let first = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let fptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
 
     log_red!(
         emu,
@@ -89,11 +70,7 @@ fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
 }
 
 fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let handle = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlRemoveVectoredExceptionHandler error reading handle param")
-        as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     log_red!(
         emu,
@@ -108,19 +85,9 @@ fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
 }
 
 fn RtlInitializeCriticalSectionEx(emu: &mut emu::Emu) {
-    let crit_sect_ptr = emu
-        .maps
-        .read_dword(emu.regs().get_esp())
-        .expect("ntdll!RtlInitializeCriticalSectionEx error reading crit_sect_ptr")
-        as u64;
-    let spin_count = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 4)
-        .expect("ntdll!RtlInitializeCriticalSectionEx error reading spin_count");
-    let flags = emu
-        .maps
-        .read_dword(emu.regs().get_esp() + 8)
-        .expect("ntdll!RtlInitializeCriticalSectionEx error reading flags");
+    let crit_sect_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let spin_count = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionEx");
 

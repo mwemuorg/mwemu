@@ -26,10 +26,10 @@ pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
     if cch == 0 {
         emu.regs_mut().rax = required as u64;
     } else if buf == 0 {
-        set_last_error(constants::ERROR_INVALID_PARAMETER as u32);
+        set_last_error(emu, constants::ERROR_INVALID_PARAMETER as u32);
         emu.regs_mut().rax = 0;
     } else if cch < required {
-        set_last_error(constants::ERROR_INSUFFICIENT_BUFFER as u32);
+        set_last_error(emu, constants::ERROR_INSUFFICIENT_BUFFER as u32);
         emu.regs_mut().rax = 0;
     } else {
         emu.maps.write_string(buf, value);

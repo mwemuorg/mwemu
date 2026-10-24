@@ -32,6 +32,10 @@ impl FPUStack {
         8
     }
 
+    pub fn is_empty(&self) -> bool {
+        false
+    }
+
     pub fn print(&self) {
         info!("top: {}", self.top);
         info!("depth: {}", self.depth);
