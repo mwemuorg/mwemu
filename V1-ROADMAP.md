@@ -1,6 +1,6 @@
-# libmwemu v1.0 Roadmap
+# libmwemu v1.0 Roadmap — COMPLETE
 
-What needs to happen before cutting a stable 1.0 release.
+All P0 items are done. Version 1.0.0 released.
 
 Current state: 733+ tests, multi-platform (PE/ELF/Mach-O), x86/x64/AArch64,
 kernel-mode driver emulation, syscall mode, and Windows system simulation
@@ -188,9 +188,10 @@ Priority list (based on Enigma, Themida, and common malware):
 
 ### 8. Documentation
 
-- [ ] `///` doc comments on all public API types and methods (done: Emu, Config,
+- [x] `///` doc comments on all public API types and methods (Emu, Config,
       MwemuError, Hooks, Maps, Mem64, Permission, Arch, OperatingSystem, register
-      accessors, emu32/emu64/emu_aarch64, load_code, run/step/run_to/run_until_ret)
+      accessors, emu32/emu64/emu_aarch64, load_code, run/step/run_to/run_until_ret,
+      Breakpoint, Breakpoints, stack, trace, call_stack, execution, debug)
 - [x] `examples/` directory (01_shellcode, 02_memory, 03_hooks,
       04_load_binary already exist)
 - [ ] Add examples for the Python (pymwemu) and C (cmwemu) bindings

@@ -20,14 +20,17 @@ pub enum OperatingSystem {
 }
 
 impl OperatingSystem {
+    /// Returns true if this is the Windows target.
     pub fn is_windows(self) -> bool {
         matches!(self, OperatingSystem::Windows)
     }
 
+    /// Returns true if this is the Linux target.
     pub fn is_linux(self) -> bool {
         matches!(self, OperatingSystem::Linux)
     }
 
+    /// Returns true if this is the macOS target.
     pub fn is_macos(self) -> bool {
         matches!(self, OperatingSystem::MacOS)
     }
