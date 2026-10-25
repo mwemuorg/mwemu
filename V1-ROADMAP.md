@@ -1,11 +1,13 @@
-# libmwemu v1.0 Roadmap
+# libmwemu v1.0 Roadmap — COMPLETE
 
-What needs to happen before cutting a stable 1.0 release.
+All P0 and P1 items are done (P1 #7 BlocksIndex deferred — low urgency).
+P2 #8 (Documentation) complete. P2 #9 (CI) complete. P2 #10 (Performance)
+deferred as nice-to-have. Version 1.0.0 released.
 
 Current state: 733+ tests, multi-platform (PE/ELF/Mach-O), x86/x64/AArch64,
 kernel-mode driver emulation, syscall mode, and Windows system simulation
-(PEB/TEB/LDR, heap, TLS, IAT binding, SEH/VEH). CI already runs `fmt`,
-`clippy`, and a `test` matrix; `examples/` (01–04) exists.
+(PEB/TEB/LDR, heap, TLS, IAT binding, SEH/VEH). CI runs `fmt`, `clippy`
+(`-D warnings`), `test` matrix, panic-gate, and fuzz smoke.
 
 > Counts re-audited on 2026-10-21 against `crates/libmwemu/src` (v0.26.0).
 > The previous audit (2026-09-28) quoted 11 `unimplemented!()` — the real
@@ -188,13 +190,16 @@ Priority list (based on Enigma, Themida, and common malware):
 
 ### 8. Documentation
 
-- [ ] `///` doc comments on all public API types and methods (done: Emu, Config,
+- [x] `///` doc comments on all public API types and methods (Emu, Config,
       MwemuError, Hooks, Maps, Mem64, Permission, Arch, OperatingSystem, register
-      accessors, emu32/emu64/emu_aarch64, load_code, run/step/run_to/run_until_ret)
+      accessors, emu32/emu64/emu_aarch64, load_code, run/step/run_to/run_until_ret,
+      Breakpoint, Breakpoints, stack, trace, call_stack, execution, debug)
 - [x] `examples/` directory (01_shellcode, 02_memory, 03_hooks,
       04_load_binary already exist)
-- [ ] Add examples for the Python (pymwemu) and C (cmwemu) bindings
-- [ ] `CHANGELOG.md`
+- [x] Add examples for the Python (pymwemu) and C (cmwemu) bindings
+      pymwemu: 16 scripts in `examples/scripts/` + 3 Jupyter notebooks.
+      cmwemu: `examples/demo.c` with build instructions.
+- [x] `CHANGELOG.md`
 
 ### 9. CI improvements
 

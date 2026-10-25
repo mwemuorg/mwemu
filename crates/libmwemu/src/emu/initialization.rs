@@ -1484,7 +1484,7 @@ impl Emu {
         }
 
         // Populate the _HEAP structure via Heap64 (see docs/ANTI_EMU_HEAP.md).
-        let heap_struct = structures::Heap64::new(self.heap_addr);
+        let heap_struct = structures::Heap64::new(self.heap_addr, heap_sz);
         let heap_map = self.maps.get_mem_mut(".heap");
         heap_struct.save(heap_map);
     }
