@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -165,3 +165,6 @@ test_fuzz:
 	cd fuzz && ASAN_OPTIONS=detect_leaks=0 cargo +nightly fuzz run fuzz_run_shellcode64 -- -max_total_time=$(FUZZ_TIME) $(FUZZ_DICT)
 	@echo "[fuzz] all 4 targets passed ($(FUZZ_TIME)s each)"
 
+
+fmt:
+	cargo fmt --all -- --check
