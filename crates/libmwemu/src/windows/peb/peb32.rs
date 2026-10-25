@@ -97,7 +97,7 @@ fn init_process_heap(emu: &mut emu::Emu) -> u32 {
     }
     emu.maps.memset(h, 0, heap_sz as usize);
 
-    let heap = Heap32::new(h as u32);
+    let heap = Heap32::new(h as u32, heap_sz as u32);
     heap.save(emu.maps.get_mem_mut("process_heap"));
 
     let lock_addr = h + 0x300;
