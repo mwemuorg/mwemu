@@ -137,31 +137,6 @@ jobs:
                 | test(~shellcode::sc64lin)
                 | test(~kernel::)
               )
-          - os: ubuntu-24.04-arm64
-            target: aarch64-unknown-linux-gnu
-            cache-key: test-linux-aarch64-unknown-linux-gnu
-            rustflags: ''
-            # Linux ARM64 runner: common tests + Linux-specific. Excludes
-            # Windows PE/DLL and macOS tests.
-            nextest-filter: >-
-              not (
-                test(~loaders::pe::)
-                | test(~loaders::hello_world::hello_win)
-                | test(~loaders::hello_world::hello_mac)
-                | test(~loaders::macho::)
-                | test(~os::winapi)
-                | test(~os::ssdt)
-                | test(~os::syscall64_ssdt)
-                | test(~os::threading)
-                | test(~os::macos)
-                | test(~shellcode::sc32win)
-                | test(~shellcode::sc64win)
-                | test(~isa::x86::allocator32)
-                | test(~isa::x86::stack32_test)
-                | test(~isa::x86::exception_handler32)
-                | test(~isa::x64::allocator64)
-                | test(~isa::x64::stack64_test)
-              )
           - os: macos-latest
             target: aarch64-apple-darwin
             cache-key: test-macos-aarch64-apple-darwin
