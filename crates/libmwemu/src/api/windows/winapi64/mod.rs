@@ -96,6 +96,31 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
                     log_red!(emu, "winmm!timeGetTime");
                     emu.regs_mut().rax = emu.tick as u64;
                 }
+                "PlaySoundW" => {
+                    log_red!(emu, "winmm!PlaySoundW");
+                    emu.regs_mut().rax = 1;
+                }
+                "mciSendStringA" | "mciSendStringW" => {
+                    log_red!(emu, "winmm!{}", api_name);
+                    emu.regs_mut().rax = 0;
+                }
+                "waveInOpen" => {
+                    let phwi = emu.regs().rcx;
+                    log_red!(emu, "winmm!waveInOpen");
+                    if phwi != 0 {
+                        emu.maps.write_qword(phwi, 0x1337_0001);
+                    }
+                    emu.regs_mut().rax = 0;
+                }
+                "waveInClose"
+                | "waveInStart"
+                | "waveInStop"
+                | "waveInAddBuffer"
+                | "waveInPrepareHeader"
+                | "waveInUnprepareHeader" => {
+                    log_red!(emu, "winmm!{}", api_name);
+                    emu.regs_mut().rax = 0;
+                }
                 _ => {
                     log::warn!("winmm: unimplemented API {}", api_name);
                 }
