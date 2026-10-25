@@ -57,9 +57,9 @@ The project was renamed from scemu to mwemu.
 - memory and register tracking.
 - colorized.
 - stop at specific moment and explore the state or modify it.
-- 339 CPU instructions implemented.
-- 260 winapi 32bits implemented of 15 dlls.
-- 204 winapi 64bits implemented of 10 dlls.
+- 850 CPU instructions implemented.
+- 835 winapi 32bits implemented of 26 dlls.
+- 258 winapi 64bits implemented of 26 dlls.
 - all linux syscalls.
 - SEH chains.
 - vectored exception handler.
