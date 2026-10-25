@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt msrv
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -168,3 +168,6 @@ test_fuzz:
 
 fmt:
 	cargo fmt --all -- --check
+
+msrv:
+	cargo +1.95 check --locked $(CARGO_TARGET)

@@ -137,6 +137,31 @@ jobs:
                 | test(~shellcode::sc64lin)
                 | test(~kernel::)
               )
+          - os: ubuntu-24.04-arm64
+            target: aarch64-unknown-linux-gnu
+            cache-key: test-linux-aarch64-unknown-linux-gnu
+            rustflags: ''
+            # Linux ARM64 runner: common tests + Linux-specific. Excludes
+            # Windows PE/DLL and macOS tests.
+            nextest-filter: >-
+              not (
+                test(~loaders::pe::)
+                | test(~loaders::hello_world::hello_win)
+                | test(~loaders::hello_world::hello_mac)
+                | test(~loaders::macho::)
+                | test(~os::winapi)
+                | test(~os::ssdt)
+                | test(~os::syscall64_ssdt)
+                | test(~os::threading)
+                | test(~os::macos)
+                | test(~shellcode::sc32win)
+                | test(~shellcode::sc64win)
+                | test(~isa::x86::allocator32)
+                | test(~isa::x86::stack32_test)
+                | test(~isa::x86::exception_handler32)
+                | test(~isa::x64::allocator64)
+                | test(~isa::x64::stack64_test)
+              )
           - os: macos-latest
             target: aarch64-apple-darwin
             cache-key: test-macos-aarch64-apple-darwin
@@ -208,6 +233,30 @@ jobs:
           --package cmwemu
           --target ${{ matrix.target }}
           -E '${{ matrix.nextest-filter }}'
+
+  msrv:
+    name: MSRV (1.95)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: fmt
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust 1.95
+        uses: dtolnay/rust-toolchain@02cb101ec7c40f2c49e1d9714d64511d8e1b74de # master
+        with:
+          toolchain: 1.95.0
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          shared-key: msrv-linux-x86_64
+          add-rust-environment-hash-key: true
+          cache-on-failure: true
+
+      - name: Check MSRV compiles
+        run: cargo check --locked --target x86_64-unknown-linux-gnu
 
   # Fuzz smoke test disabled in CI — run locally with `make test_fuzz`.
   # fuzz-smoke:
