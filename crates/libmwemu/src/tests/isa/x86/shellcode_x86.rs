@@ -188,7 +188,7 @@ fn string_instructions_with_32_bit_pointers() {
     assert_eq!(e.regs().get_ecx(), 5, "repne scasb strlen");
     assert_eq!(
         e.regs().get_edi(),
-        (BUF + 6) as u64,
+        BUF + 6,
         "edi stops after the NUL"
     );
 }
