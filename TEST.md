@@ -45,3 +45,4 @@ The steps below show the bare commands; add that flag on Apple Silicon or use th
    Must exit 0. The pre-existing backlog is grandfathered via crate-level
    `#![allow(...)]` blocks marked "clippy v1 burn-down backlog"; new warnings
    outside that set fail the build. MSRV is 1.95.
+9. check `make fmt`

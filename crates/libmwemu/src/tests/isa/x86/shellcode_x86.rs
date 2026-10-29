@@ -186,11 +186,7 @@ fn string_instructions_with_32_bit_pointers() {
     });
     assert_eq!(e.maps.read_bytes(BUF + 32, 5), b"hello", "rep movsb");
     assert_eq!(e.regs().get_ecx(), 5, "repne scasb strlen");
-    assert_eq!(
-        e.regs().get_edi(),
-        BUF + 6,
-        "edi stops after the NUL"
-    );
+    assert_eq!(e.regs().get_edi(), BUF + 6, "edi stops after the NUL");
 }
 
 #[test]
