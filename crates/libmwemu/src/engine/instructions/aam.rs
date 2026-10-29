@@ -7,7 +7,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         color!("LightCyan"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-    assert!(ins.op_count() <= 1);
+    debug_assert!(ins.op_count() <= 1);
 
     let imm = if ins.op_count() == 0 {
         10

@@ -8,8 +8,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
 
-    assert!(ins.op_count() == 2);
-    assert!(emu.get_operand_sz(ins, 0) == emu.get_operand_sz(ins, 1));
+    debug_assert!(ins.op_count() == 2);
+    debug_assert!(emu.get_operand_sz(ins, 0) == emu.get_operand_sz(ins, 1));
 
     let value0 = match emu.get_operand_value(ins, 0, true) {
         Some(v) => v,

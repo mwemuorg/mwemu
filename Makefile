@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt msrv
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -171,3 +171,9 @@ fmt:
 
 msrv:
 	cargo +1.95 check --locked $(CARGO_TARGET)
+
+complexity:
+	@python3 scripts/complexity.py --top 50 || true
+
+complexity-gate:
+	@bash scripts/complexity-gate.sh

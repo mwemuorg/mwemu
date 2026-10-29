@@ -33,6 +33,13 @@ pub struct Maps {
     tlb: RefCell<TLB>,
     /// Maximum allocation size (default 0xffffff / ~16MB). Allocations larger than this are capped.
     pub max_alloc_size: u64,
+    /// Writes that landed in executable memory since the run loop last drained
+    /// them, as `(addr, len)`. The decoded-instruction cache uses it to stay
+    /// coherent with self-modifying code (packers decrypting into RWX memory
+    /// with `rep movs`, vector stores or API calls). Not serialized: a restored
+    /// emulator starts with an empty instruction cache anyway.
+    #[serde(skip)]
+    code_writes: RefCell<Vec<(u64, u64)>>,
 }
 
 impl Default for Maps {
@@ -45,6 +52,7 @@ impl Default for Maps {
             banzai: false,
             tlb: RefCell::new(TLB::new()),
             max_alloc_size: 0xffffff,
+            code_writes: RefCell::new(Vec::new()),
         }
     }
 }
@@ -69,7 +77,42 @@ impl Maps {
             is_64bits,
             tlb,
             max_alloc_size: 0xffffff,
+            code_writes: RefCell::new(Vec::new()),
         }
+    }
+
+    /// Past this many undrained writes the log collapses to "everything"; the
+    /// drain then flushes the whole instruction cache instead of page by page.
+    const CODE_WRITES_CAP: usize = 64;
+    const CODE_WRITES_ALL: (u64, u64) = (0, u64::MAX);
+
+    /// Record a write of `len` bytes at `addr` that hit an executable map.
+    #[inline]
+    fn note_code_write(&self, addr: u64, len: u64) {
+        let mut log = self.code_writes.borrow_mut();
+        if log.first() == Some(&Self::CODE_WRITES_ALL) {
+            return;
+        }
+        if log.len() >= Self::CODE_WRITES_CAP {
+            log.clear();
+            log.push(Self::CODE_WRITES_ALL);
+        } else {
+            log.push((addr, len));
+        }
+    }
+
+    /// Whether a write to executable memory is waiting to be applied to the
+    /// instruction cache. Cheap: checked once per emulated instruction.
+    #[inline(always)]
+    pub fn has_code_writes(&self) -> bool {
+        !self.code_writes.borrow().is_empty()
+    }
+
+    /// Move the pending executable-memory writes into `out` (cleared first).
+    /// A `(0, u64::MAX)` entry means "unknown range, flush everything".
+    pub fn drain_code_writes(&self, out: &mut Vec<(u64, u64)>) {
+        out.clear();
+        out.append(&mut self.code_writes.borrow_mut());
     }
 
     pub fn set_banzai(&mut self, banzai: bool) {
@@ -250,12 +293,14 @@ impl Maps {
             let boundary = mem.get_bottom();
             let lo_len = (boundary - addr) as usize;
             let hi_len = T::SIZE - lo_len;
+            let lo_exec = mem.can_execute();
             if let Some((&next_base, &next_key)) = self.maps.range(boundary..).next()
                 && next_base == boundary
                 && let Some(next_mem) = self.mem_slab.get(next_key)
                 && next_mem.can_write()
                 && next_mem.inside(boundary + hi_len as u64 - 1)
             {
+                let exec = lo_exec || next_mem.can_execute();
                 let mut buf = [0u8; 16];
                 value.write_le(&mut buf);
                 let Some((_, &first_key)) = self.maps.range(..=addr).next_back() else {
@@ -269,6 +314,9 @@ impl Maps {
                     return false;
                 };
                 next_mem_mut.write_bytes(boundary, &buf[lo_len..T::SIZE]);
+                if exec {
+                    self.note_code_write(addr, T::SIZE as u64);
+                }
                 return true;
             }
         }
@@ -277,6 +325,10 @@ impl Maps {
                 let mut buf = [0u8; 16];
                 value.write_le(&mut buf);
                 mem.write_bytes(addr, &buf[..T::SIZE]);
+                let exec = mem.can_execute();
+                if exec {
+                    self.note_code_write(addr, T::SIZE as u64);
+                }
                 true
             }
             Some(mem) => {
@@ -365,6 +417,10 @@ impl Maps {
         match self.get_mem_by_addr_mut(addr) {
             Some(mem) if mem.inside(end_addr) && mem.can_write() => {
                 mem.write_bytes(addr, data);
+                let exec = mem.can_execute();
+                if exec {
+                    self.note_code_write(addr, data.len() as u64);
+                }
                 return true;
             }
             Some(_) => {

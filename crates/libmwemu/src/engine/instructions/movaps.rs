@@ -7,7 +7,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         color!("Green"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-    assert!(ins.op_count() == 2);
+    debug_assert!(ins.op_count() == 2);
 
     let source = match emu.get_operand_xmm_value_128(ins, 1, true) {
         Some(v) => v,

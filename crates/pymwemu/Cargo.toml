@@ -22,7 +22,9 @@ log = "0.4.22"
 pyo3-stub-gen = "0.22.3"
 
 [build-dependencies]
-pyo3-build-config = "0.26.0"
+# `resolve-config` exposes the interpreter pyo3 picked, so build.rs can reject
+# a Python < 3.10 with a clear message (see build.rs).
+pyo3-build-config = { version = "0.26.0", features = ["resolve-config"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]

@@ -7,7 +7,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         color!("LightCyan"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-    assert!(ins.op_count() <= 1);
+    debug_assert!(ins.op_count() <= 1);
 
     let mut low: u64 = emu.regs().get_al();
     let high: u64 = emu.regs().get_ah();

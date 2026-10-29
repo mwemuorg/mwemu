@@ -66,3 +66,11 @@ CACHEDIR.TARGET
 GOALS.md
 DRIVER-HUNT.md
 .kilo/
+
+# built by scripts/rosetta-difftest/run.sh
+scripts/rosetta-difftest/oracle
+scripts/rosetta-difftest/oracle2
+scripts/rosetta-difftest/__pycache__/
+
+# maturin develop drops the extension next to the package
+crates/pymwemu/python/pymwemu/*.so

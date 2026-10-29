@@ -17,9 +17,18 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         );
     }
 
-    let value0 = match emu.get_operand_value(ins, 0, true) {
-        Some(v) => v,
-        None => return false,
+    // Operand 0 is the accumulator in iced; the string element lives at [rdi].
+    let di = if emu.cfg.is_x64() {
+        emu.regs().rdi
+    } else {
+        emu.regs().get_edi()
+    };
+    let value0: u64 = match emu.maps.read_word(di) {
+        Some(v) => v.into(),
+        None => {
+            log::trace!("/!\\ error reading word on rdi 0x{:x}", di);
+            return false;
+        }
     };
 
     let ax = emu.regs().get_ax();

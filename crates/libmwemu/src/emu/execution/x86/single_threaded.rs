@@ -1,6 +1,7 @@
 use std::io::Write as _;
 use std::sync::atomic;
 
+use ahash::AHashMap;
 use iced_x86::{Decoder, DecoderOptions, Instruction};
 
 use crate::debug::console::Console;
@@ -169,9 +170,15 @@ impl Emu {
             || !self.bp.addr.is_empty()
             || !self.bp.instruction.is_empty();
 
-        let mut looped: Vec<u64> = Vec::new();
+        let mut looped: AHashMap<u64, u32> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
+        let mut code_writes: Vec<(u64, u64)> = Vec::new();
+
+        // ntdll!RtlRaiseStatus, resolved from the mapped ntdll's export table.
+        // Its RVA is build-specific (0xdcf0 in the 26100 builds the repo ships),
+        // so the old hardcoded 0x180106fd0 never matched and the check was dead.
+        let rtl_raise_status = self.resolve_ntdll_export("RtlRaiseStatus");
 
         let arch = if is_x64 { 64 } else { 32 };
         let mut x86_ins: Instruction = Instruction::default();
@@ -181,6 +188,11 @@ impl Emu {
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
                 let pc = self.pc();
+
+                // Getting here mid-REP (cache exhausted, refetch, console...) loses
+                // the decoded instruction and its size, so the REP must be decoded
+                // again; rcx/rsi/rdi already carry its progress.
+                self.rep = None;
 
                 // Outer-loop limit checks: must run BEFORE attempting to fetch code,
                 // otherwise PC sitting one past the end (e.g. after final loop iteration
@@ -202,6 +214,13 @@ impl Emu {
                 let mut inner_running = self.instruction_cache_can_decode();
 
                 while inner_running {
+                    // Self-modifying code: apply every write that hit executable
+                    // memory before decoding the next cached instruction. If one
+                    // touched the block being executed, refetch from the PC.
+                    if self.maps.has_code_writes() && self.drain_code_writes_x86(&mut code_writes) {
+                        break;
+                    }
+
                     // Ctrl-C (--handle): drop into the console at a clean
                     // instruction boundary (not mid-REP), then re-fetch. Gated on
                     // the plain `enabled_ctrlc` bool so normal runs never touch
@@ -377,14 +396,13 @@ impl Emu {
                         }
                     }
 
-                    // ntdll!RtlRaiseStatus entry (build-specific RVA 0x106fd0).
-                    // On real Windows an unhandled exception path through here
-                    // terminates the process. In our emulator
-                    // `RtlRaiseNoncontinuableException` returns instead of dying,
-                    // which traps the function in a self-recursion that eats the
-                    // entire stack. Bail cleanly on the first entry — equivalent
-                    // to "unhandled exception -> process terminated".
-                    if addr == 0x180106fd0 {
+                    // ntdll!RtlRaiseStatus entry. On real Windows an unhandled
+                    // exception path through here terminates the process. In our
+                    // emulator `RtlRaiseNoncontinuableException` returns instead
+                    // of dying, which traps the function in a self-recursion that
+                    // eats the entire stack. Bail cleanly on the first entry —
+                    // equivalent to "unhandled exception -> process terminated".
+                    if rtl_raise_status != 0 && addr == rtl_raise_status {
                         let status = self.regs().get_ecx() as u32;
                         log::trace!(
                             "ntdll!RtlRaiseStatus(0x{:x}) at pos={} rsp=0x{:x} — terminating (no handler installed)",

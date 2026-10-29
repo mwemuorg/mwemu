@@ -26,6 +26,24 @@ same procedure, if there is a problem with !tapi-tbd the solution is:
 sudo xcode-select --switch /Library/Developer/CommandLineTools
 ```
 
+## Build from source
+
+Building needs Python >= 3.10 (the `pyo3-stub-gen` dependency references a
+3.10+ exception type). macOS ships 3.9 as `python3`, so a bare
+`cargo build -p pymwemu` stops with a message naming the interpreter it found.
+Either point pyo3 at a newer one:
+
+```bash
+brew install python
+PYO3_PYTHON=$(brew --prefix)/bin/python3.14 cargo build --release -p pymwemu
+```
+
+or let the Makefile pick the newest `python3.x` on PATH and build inside a venv:
+
+```bash
+make -C crates/pymwemu setup-env   # venv + maturin develop --release
+```
+
 ## Download maps
 download maps from releases or better from git:
 https://github.com/mwemuorg/mwemu

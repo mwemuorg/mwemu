@@ -88,9 +88,26 @@ cargo test --target x86_64-apple-darwin
 cargo build --target x86_64-apple-darwin
 ```
 
-The test suite produces worse results when the aarch64 host natively compiles and runs the x86_64 emulation code. When we instead tell the OS/CPU to run in x86_64 mode (via Rosetta), tests behave correctly. The root cause is not fully understood yet — it may be related to how the Rust compiler generates code differently on aarch64 vs x86_64 for our emulation logic.
+The test suite used to produce worse results when the aarch64 host natively
+compiled and ran the x86_64 emulation code. Root cause (found 2026-10-28): the
+SSE/AVX float handlers fed the raw operands to the *host* FPU, and hosts
+disagree on the NaN they generate for an invalid operation (x86 returns the
+negative "real indefinite" `0xffc00000`, AArch64 the positive default NaN
+`0x7fc00000`). Those handlers now implement the x86 NaN rules themselves
+(`engine/instructions/fp.rs`) and the full suite passes natively on Apple
+Silicon. Keep the `--target x86_64-apple-darwin` habit anyway: it is what the
+Makefile and CI assume, and any float path that still goes through the host
+FPU (FMA, `cvt*`, `round*`, x87) is only guaranteed to match the silicon
+under Rosetta. If a test passes under Rosetta and fails natively, that is the
+first place to look.
 
 **Never run bare `cargo test` or `cargo check` on an Apple Silicon host** without the `--target x86_64-apple-darwin` flag.
+
+`pymwemu` additionally needs Python >= 3.10 at build time (`pyo3-stub-gen`),
+and macOS ships 3.9 as `python3`. Its build script stops with a message naming
+the interpreter pyo3 found; fix it with `PYO3_PYTHON=$(brew --prefix)/bin/python3.14`
+or `make -C crates/pymwemu setup-env`, which picks the newest `python3.x` on
+PATH for the venv.
 
 Ensure the target is installed:
 ```bash

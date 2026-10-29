@@ -1,3 +1,4 @@
+use ahash::AHashMap;
 use std::sync::atomic;
 
 use crate::debug::console::Console;
@@ -24,7 +25,7 @@ impl Emu {
         self.is_running.store(1, atomic::Ordering::Relaxed);
         self.install_ctrlc_handler_if_enabled();
 
-        let mut looped: Vec<u64> = Vec::new();
+        let mut looped: AHashMap<u64, u32> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
 

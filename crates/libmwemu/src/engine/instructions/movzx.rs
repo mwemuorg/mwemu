@@ -7,7 +7,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         color!("LightCyan"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-    assert!(ins.op_count() == 2);
+    debug_assert!(ins.op_count() == 2);
 
     let value1 = match emu.get_operand_value(ins, 1, true) {
         Some(v) => v,
@@ -17,7 +17,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     let sz0 = emu.get_operand_sz(ins, 0);
     let sz1 = emu.get_operand_sz(ins, 1);
 
-    assert!(
+    debug_assert!(
         !(sz1 != 8 || sz0 != 16 && sz0 != 32)
             || (sz0 == 32 && sz1 == 16)
             || (sz0 == 64 && sz1 == 32)

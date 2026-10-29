@@ -27,11 +27,14 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     }
 
     if old_al > 0x99 || old_cf {
-        let al = emu.regs().get_al() + 0x60;
+        let al = (emu.regs().get_al() + 0x60) & 0xff;
         emu.regs_mut().set_al(al);
         emu.flags_mut().f_cf = true;
     } else {
         emu.flags_mut().f_cf = false;
     }
+    // SF, ZF and PF follow the adjusted AL (OF is undefined).
+    let al = emu.regs().get_al();
+    emu.flags_mut().calc_flags(al, 8);
     true
 }

@@ -1237,6 +1237,21 @@ impl Emu {
         self.emu.cfg.max_faults
     }
 
+    /// Seed the random source (rdrand/rdseed) so a run is reproducible; None
+    /// goes back to OS entropy on the next run.
+    #[setter]
+    pub fn set_seed(&mut self, seed: Option<u64>) {
+        match seed {
+            Some(s) => self.emu.set_seed(s),
+            None => self.emu.cfg.seed = None,
+        }
+    }
+
+    #[getter]
+    pub fn get_seed(&self) -> Option<u64> {
+        self.emu.cfg.seed
+    }
+
     #[setter]
     pub fn set_exit_position(&mut self, pos: u64) {
         self.emu.cfg.exit_position = pos;

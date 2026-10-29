@@ -2,15 +2,13 @@ use crate::color;
 use crate::emu::Emu;
 use iced_x86::Instruction;
 
-pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
+/// PCMPGTW: signed word compare, `mm` (64-bit) and `xmm` (128-bit) forms.
+/// Each lane of the destination becomes all ones where dest > src, else zero.
+pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(
         color!("Green"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-    assert!(ins.op_count() == 2);
-    assert!(emu.get_operand_sz(ins, 0) == 128);
-    assert!(emu.get_operand_sz(ins, 1) == 128);
-
     let value0 = match emu.get_operand_xmm_value_128(ins, 0, true) {
         Some(v) => v,
         None => return false,
@@ -20,20 +18,20 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         None => return false,
     };
 
+    // The MMX form shares the mnemonic: only the low 64 bits are lanes.
+    let lanes = if ins.op_register(0).is_mm() {
+        64 / 16
+    } else {
+        128 / 16
+    };
     let mut result = 0u128;
-
-    for i in 0..8 {
+    for i in 0..lanes {
         let shift = i * 16;
-        let word0 = (value0 >> shift) & 0xFFFF;
-        let word1 = (value1 >> shift) & 0xFFFF;
-
-        let cmp_result = if word0 > word1 {
-            0xFFFFu128
-        } else {
-            0x0000u128
-        };
-
-        result |= cmp_result << shift;
+        let a = ((value0 >> shift) & 0xffff) as u16 as i16;
+        let b = ((value1 >> shift) & 0xffff) as u16 as i16;
+        if a > b {
+            result |= 0xffffu128 << shift;
+        }
     }
 
     emu.set_operand_xmm_value_128(ins, 0, result);

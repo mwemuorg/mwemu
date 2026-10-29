@@ -1,3 +1,4 @@
+use ahash::AHashMap;
 use std::io::Write as _;
 use std::sync::atomic;
 
@@ -48,7 +49,7 @@ impl Emu {
             || !self.bp.addr.is_empty()
             || !self.bp.instruction.is_empty();
 
-        let mut looped: Vec<u64> = Vec::new();
+        let mut looped: AHashMap<u64, u32> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
 

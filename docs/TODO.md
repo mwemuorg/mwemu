@@ -34,7 +34,7 @@
 31. [x] check pf flag bug
 32. [x] save state to disk and continue
 33. [ ] command to exit the bucle or to see  next instruction
-34. [ ] optimize loop counter
+34. [x] optimize loop counter
 
 
 - the string change non printables for spaces instead of points:

@@ -8,9 +8,10 @@ use iced_x86::{Decoder, DecoderOptions, Instruction};
 const INSTRUCTION_ARRAY_SIZE: usize = 8192 * 64;
 
 // we want the cache size to be store in L1 cache or L2 cache which is lower than 40kb
-const CACHE_SIZE: usize = 2048 * MAX_CACHE_PER_LINE;
-const CACHE_MASK: usize = CACHE_SIZE - 1; // Assumes power of 2
+// One line of MAX_CACHE_PER_LINE entries per page slot (NUM_LINES is a power of 2).
+const NUM_LINES: usize = 2048;
 const MAX_CACHE_PER_LINE: usize = 32;
+const CACHE_SIZE: usize = NUM_LINES * MAX_CACHE_PER_LINE;
 
 // we need INVALID_KEY and INVALID_LEN to be the same as INVALID_LPF_ADDR to optimize for memset
 pub const INVALID_LPF_ADDR: u64 = 0xffffffffffffffff;
@@ -79,10 +80,46 @@ impl<T: Copy + Default> InstructionCache<T> {
         }
     }
 
+    /// First entry of the cache line that serves the page containing `lpf + len`.
+    /// Lines are disjoint and `MAX_CACHE_PER_LINE` long, so probing a full line
+    /// never runs past the end of `cache_entries` (the previous formula gave
+    /// every page its own start index and overflowed for page numbers ending
+    /// in 0xffe1..0xffff).
     #[inline(always)]
     pub fn get_index_of(&self, lpf: u64, len: u64) -> usize {
-        const TLB_MASK: u32 = ((CACHE_SIZE - 1) << 12) as u32;
-        (((lpf + len) & (TLB_MASK as u64)) >> 12) as usize
+        ((lpf.wrapping_add(len) >> 12) as usize & (NUM_LINES - 1)) * MAX_CACHE_PER_LINE
+    }
+
+    /// Drop every lookup entry whose block may contain a byte of
+    /// `[addr, addr + len)`. A block holds at most `block_len` bytes, so it can
+    /// start at most `block_len - 1` bytes before the first written byte.
+    /// The decoded slots are left alone: the block being executed keeps
+    /// decoding from them until the run loop decides to refetch.
+    pub fn invalidate_range(&mut self, addr: u64, len: u64, block_len: u64) {
+        let end = addr.saturating_add(len); // exclusive
+        let first = crate::maps::tlb::LPF_OF(addr.saturating_sub(block_len.saturating_sub(1)));
+        let last = crate::maps::tlb::LPF_OF(end.saturating_sub(1).max(addr));
+        if (last - first) >> 12 >= NUM_LINES as u64 {
+            self.invalidate_all();
+            return;
+        }
+        let mut page = first;
+        loop {
+            let idx = self.get_index_of(page, 0);
+            self.flush_cache_line(idx);
+            if page >= last {
+                break;
+            }
+            page += 0x1000;
+        }
+    }
+
+    /// Drop every lookup entry (the decoded slots stay valid for the block
+    /// currently being executed).
+    pub fn invalidate_all(&mut self) {
+        for entry in &mut self.cache_entries {
+            entry.lpf = INVALID_LPF_ADDR;
+        }
     }
 
     #[inline]
@@ -178,6 +215,20 @@ impl<T: Copy + Default> InstructionCache<T> {
 // --- x86 and aarch64-specific insert methods on the unified cache ---
 
 impl InstructionCache<DecodedInstruction> {
+    /// Whether any not-yet-executed instruction of the x86 block currently
+    /// being decoded from the cache lies in `[start, end)`. Used to refetch
+    /// after a store into the block (self-modifying code).
+    pub fn pending_x86_overlaps(&self, start: u64, end: u64) -> bool {
+        if !self.can_decode() {
+            return false;
+        }
+        let next = self.instructions[self.current_instruction_slot + self.current_decode_idx];
+        let last = self.instructions[self.current_instruction_slot + self.current_decode_len - 1];
+        let block_start = next.address();
+        let block_end = last.address().saturating_add(last.size() as u64);
+        start < block_end && end > block_start
+    }
+
     /// Decode a basic block from an iced-x86 decoder and insert each
     /// instruction as `DecodedInstruction::X86(_)`.
     pub fn insert_x86_from_decoder(

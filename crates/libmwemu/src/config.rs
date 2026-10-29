@@ -55,7 +55,8 @@ pub struct Config {
     pub max_instructions: Option<u64>, // stop after N instructions
     pub timeout_secs: Option<f64>,     // stop after N seconds wall-clock time
     pub max_faults: Option<u32>,       // stop after N faults/exceptions
-    pub loops: bool,                   // count iterations per instruction (slow)
+    pub seed: Option<u64>, // seed for the emulator's random source (rdrand/rdseed); None = seeded from the OS
+    pub loops: bool,       // count iterations per instruction (slow)
     pub allow_empty_code_blocks: bool, // disable empty-code-block detector
 
     // --- API emulation behavior ---
@@ -186,6 +187,7 @@ impl Config {
             max_instructions: None,
             timeout_secs: None,
             max_faults: None,
+            seed: None,
             heap_alloc_min_size: 0,
             short_circuit_sleep: false,
             allow_empty_code_blocks: false,
@@ -438,6 +440,13 @@ impl Config {
     /// Set the maximum number of faults before stopping.
     pub fn set_max_faults(&mut self, faults: Option<u32>) -> &mut Self {
         self.max_faults = faults;
+        self
+    }
+
+    /// Seed the emulator's random source (`rdrand`/`rdseed`) so a run is
+    /// reproducible. Applied when emulation starts; `None` seeds from the OS.
+    pub fn set_seed(&mut self, seed: Option<u64>) -> &mut Self {
+        self.seed = seed;
         self
     }
 

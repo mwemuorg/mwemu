@@ -14,7 +14,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     );
 
     let sz = emu.get_operand_sz(ins, 0);
-    let rnd = rand::random::<u64>();
+    let rnd = emu.random_u64();
     let value = match sz {
         64 => rnd,
         32 => rnd & 0xffff_ffff,

@@ -305,6 +305,7 @@ impl Emu {
     /// both x86 and AArch64 entry points. Caller must have already validated
     /// the architecture.
     pub(crate) fn run_preflight(&mut self) -> Result<(), MwemuError> {
+        self.apply_cfg_seed();
         if !self.os.is_linux()
             && self.cfg.arch.is_64bits()
             && self.cfg.ssdt_use_ldr_initialize_thunk

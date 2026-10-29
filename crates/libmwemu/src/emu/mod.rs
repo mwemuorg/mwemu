@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     collections::{HashMap, HashSet, VecDeque},
     fs::File,
     sync::{Arc, atomic::AtomicU32},
@@ -144,7 +143,8 @@ pub struct Emu {
     pub(crate) ldr_init_done: bool, // true after LdrInitializeThunk call64 completes; switches API dispatch to virtual stubs
     pub(crate) force_reload: bool,  // trigger instruction re-decode
     pub(crate) run_until_ret: bool, // step-over mode: run until next RET
-    pub(crate) rng: RefCell<rand::rngs::ThreadRng>,
+    pub(crate) rng: rand::rngs::StdRng, // random source for rdrand/rdseed; reproducible via `set_seed`
+    pub(crate) rng_seed: Option<u64>,   // seed `rng` was last seeded with (None = from the OS)
 
     // --- Platform & loaded binary ---
     pub os: OperatingSystem,       // target OS (set by loader / init)
@@ -229,6 +229,35 @@ pub struct Emu {
     pub(crate) export_indexes: ExportIndexRegistry,
     pub(crate) symbolic_link_targets: HashMap<u64, String>, // NtOpenSymbolicLinkObject handle → resolved link target (e.g. "\KnownDlls\KnownDllPath" → "C:\\Windows\\System32"); read back by NtQuerySymbolicLinkObject so ntdll's LdrInit can resolve the KnownDlls search path
     pub(crate) ssdt_pad_stack: Vec<u64>, // expected return addresses for PE→DLL CALLs that received an extra 0x20 of shadow-space padding (--ssdt only); a matching RET to PE pops and unpads
+}
+
+// --- Random source ---
+impl Emu {
+    /// Re-seed the emulator's random source so `rdrand`/`rdseed` return the
+    /// same sequence on every run. Also records the seed in `cfg.seed`.
+    pub fn set_seed(&mut self, seed: u64) {
+        use rand::SeedableRng as _;
+        self.cfg.seed = Some(seed);
+        self.rng_seed = Some(seed);
+        self.rng = rand::rngs::StdRng::seed_from_u64(seed);
+    }
+
+    /// Apply `cfg.seed` if it changed since the random source was seeded.
+    /// Called when a run starts, so `cfg.set_seed(..)` works without touching
+    /// the emulator; `run_to` loops keep the sequence going.
+    pub(crate) fn apply_cfg_seed(&mut self) {
+        if let Some(seed) = self.cfg.seed
+            && self.rng_seed != Some(seed)
+        {
+            self.set_seed(seed);
+        }
+    }
+
+    /// Next 64-bit value from the emulator's random source.
+    pub fn random_u64(&mut self) -> u64 {
+        use rand::RngCore as _;
+        self.rng.next_u64()
+    }
 }
 
 // --- Win32 last-error helpers ---

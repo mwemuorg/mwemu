@@ -532,7 +532,9 @@ impl Emu {
         } else {
             match ins.op_kind(noperand) {
                 OpKind::Immediate64 => Some(ins.immediate64()),
-                OpKind::Immediate8 | OpKind::Immediate8_2nd => Some(ins.immediate8() as u64),
+                OpKind::Immediate8 => Some(ins.immediate8() as u64),
+                // Second immediate of ENTER/EXTRQ/INSERTQ: not the low byte of the first one.
+                OpKind::Immediate8_2nd => Some(ins.immediate8_2nd() as u64),
                 OpKind::Immediate16 => Some(ins.immediate16() as u64),
                 OpKind::Immediate32 => Some(ins.immediate32() as u64),
                 OpKind::Immediate8to64 => {
@@ -756,15 +758,8 @@ impl Emu {
                     value
                 };
 
-                // now we flush the cacheline if it is written to executable memory and the cacheline exist
-                let is_flush = self
-                    .maps
-                    .get_mem_by_addr(mem_addr)
-                    .is_some_and(|mem1| mem1.can_execute());
-                if unlikely(is_flush) {
-                    let idx = self.x86_instruction_cache_ref().get_index_of(mem_addr, 0);
-                    self.x86_instruction_cache().flush_cache_line(idx);
-                }
+                // Stores into executable memory are logged by `Maps` and applied
+                // to the instruction cache by the run loop (self-modifying code).
                 match sz {
                     64 => {
                         if unlikely(!self.maps.write_qword(mem_addr, value2)) {
@@ -1081,7 +1076,7 @@ impl Emu {
 
     /// Set an operand of 128 bits, like xmm.
     pub fn set_operand_xmm_value_128(&mut self, ins: &Instruction, noperand: u32, value: u128) {
-        assert!(ins.op_count() > noperand);
+        debug_assert!(ins.op_count() > noperand);
 
         match ins.op_kind(noperand) {
             OpKind::Register => self
@@ -1182,7 +1177,7 @@ impl Emu {
         noperand: u32,
         value: regs64::U256,
     ) {
-        assert!(ins.op_count() > noperand);
+        debug_assert!(ins.op_count() > noperand);
 
         match ins.op_kind(noperand) {
             OpKind::Register => self

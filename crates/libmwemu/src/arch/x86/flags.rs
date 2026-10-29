@@ -1219,44 +1219,19 @@ impl Flags {
     }
 
     pub fn sar1p64(&mut self, value: u64) -> u64 {
-        let s64 = value as i64;
-
-        let sResult = s64 >> 1;
-        let result = sResult as u64;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = false;
-        self.calc_flags(result, 64);
-        result
+        self.sar2p64(value, 1)
     }
 
     pub fn sar1p32(&mut self, value: u64) -> u64 {
-        let s32 = value as u32 as i32;
-        let sResult = s32 >> 1;
-        let result = sResult as u32 as u64;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = false;
-        self.calc_flags(result, 32);
-        result
+        self.sar2p32(value, 1)
     }
 
     pub fn sar1p16(&mut self, value: u64) -> u64 {
-        let s16 = value as u16 as i16;
-        let sResult = s16 >> 1;
-        let result = sResult as u16 as u64;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = false;
-        self.calc_flags(result, 16);
-        result
+        self.sar2p16(value, 1)
     }
 
     pub fn sar1p8(&mut self, value: u64) -> u64 {
-        let s16 = value as u8 as i16;
-        let sResult = s16 >> 1;
-        let result = sResult as u8 as u64;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = false;
-        self.calc_flags(result, 8);
-        result
+        self.sar2p8(value, 1)
     }
 
     //// shr shl unsigned ////
@@ -1409,37 +1384,21 @@ impl Flags {
         result
     }
 
-    // TODO: update shl1 the same as shl2
+    // The `shl r/m, 1` forms are the two-operand forms with a count of one.
     pub fn shl1p64(&mut self, value: u64) -> u64 {
-        let result = value << 1;
-        self.f_cf = ((value >> 63) & 0x1) == 0x1;
-        self.f_of = (self.f_cf as u64 ^ (result >> 63)) == 0x1;
-        self.calc_flags(result, 64);
-        result
+        self.shl2p64(value, 1)
     }
 
     pub fn shl1p32(&mut self, value: u64) -> u64 {
-        let result = (value << 1) & 0xffffffff;
-        self.f_cf = ((value >> 32) & 0x1) == 0x1;
-        self.f_of = (self.f_cf as u64 ^ (result >> 32)) == 0x1;
-        self.calc_flags(result, 32);
-        result
+        self.shl2p32(value, 1)
     }
 
     pub fn shl1p16(&mut self, value: u64) -> u64 {
-        let result = (value << 1) & 0xffff;
-        self.f_cf = ((value >> 16) & 0x1) == 0x1;
-        self.f_of = (self.f_cf as u64 ^ (result >> 16)) == 0x1;
-        self.calc_flags(result, 16);
-        result
+        self.shl2p16(value, 1)
     }
 
     pub fn shl1p8(&mut self, value: u64) -> u64 {
-        let result = (value << 1) & 0xff;
-        self.f_cf = ((value >> 8) & 0x1) == 0x1;
-        self.f_of = (self.f_cf as u64 ^ (result >> 8)) == 0x1;
-        self.calc_flags(result, 8);
-        result
+        self.shl2p8(value, 1)
     }
 
     pub fn shr2p8(&mut self, value0: u64, value1: u64) -> u64 {
@@ -1591,35 +1550,19 @@ impl Flags {
     }
 
     pub fn shr1p64(&mut self, value: u64) -> u64 {
-        let result = value >> 1;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = (((result << 1) ^ result) >> 63) == 0x1;
-        self.calc_flags(result, 64);
-        result
+        self.shr2p64(value, 1)
     }
 
     pub fn shr1p32(&mut self, value: u64) -> u64 {
-        let result = (value >> 1) & 0xffffffff;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = (((result << 1) ^ result) >> 31) == 0x1;
-        self.calc_flags(result, 32);
-        result
+        self.shr2p32(value, 1)
     }
 
     pub fn shr1p16(&mut self, value: u64) -> u64 {
-        let result = (value >> 1) & 0xffff;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = (((result << 1) ^ result) >> 15) == 0x1;
-        self.calc_flags(result, 16);
-        result
+        self.shr2p16(value, 1)
     }
 
     pub fn shr1p8(&mut self, value: u64) -> u64 {
-        let result = (value >> 1) & 0xff;
-        self.f_cf = (value & 0x1) == 0x1;
-        self.f_of = (((result << 1) ^ result) >> 7) == 0x1;
-        self.calc_flags(result, 8);
-        result
+        self.shr2p8(value, 1)
     }
 
     pub fn test(&mut self, value0: u64, value1: u64, sz: u32) {
@@ -1630,66 +1573,41 @@ impl Flags {
     }
 
     //// imul ////
+    // Two/three-operand IMUL: the truncated signed product. CF and OF are set
+    // when the full product differs from the sign-extended truncated product
+    // (SDM), i.e. when it does not fit the destination as a signed value.
     pub fn imul64p2(&mut self, value0: u64, value1: u64) -> u64 {
-        let result: i128 = value0 as i64 as i128 * value1 as i64 as i128;
-        let uresult: u128 = result as u128;
-
-        if uresult > 0xffffffffffffffff {
-            self.f_cf = true;
-            self.f_of = true;
-        } else {
-            self.f_cf = false;
-            self.f_of = false;
-        }
-
-        let res: u64 = (uresult & 0xffffffffffffffff) as u64;
-        res
+        let full = (value0 as i64 as i128).wrapping_mul(value1 as i64 as i128);
+        let res = full as i64;
+        self.set_imul_overflow(full != res as i128);
+        res as u64
     }
 
     pub fn imul32p2(&mut self, value0: u64, value1: u64) -> u64 {
-        let result: i64 = value0 as i32 as i64 * value1 as i32 as i64;
-        let uresult: u64 = result as u64;
-
-        if uresult > 0xffffffff {
-            self.f_cf = true;
-            self.f_of = true;
-        } else {
-            self.f_cf = false;
-            self.f_of = false;
-        }
-
-        let res: u64 = uresult & 0xffffffff;
-        res
+        let full = (value0 as i32 as i64).wrapping_mul(value1 as i32 as i64);
+        let res = full as i32;
+        self.set_imul_overflow(full != res as i64);
+        res as u32 as u64
     }
 
     pub fn imul16p2(&mut self, value0: u64, value1: u64) -> u64 {
-        let result: i32 = value0 as i16 as i32 * value1 as i16 as i32;
-        let uresult: u32 = result as u32;
-
-        if uresult > 0xffff {
-            self.f_cf = true;
-            self.f_of = true;
-        } else {
-            self.f_cf = false;
-            self.f_of = false;
-        }
-
-        (uresult & 0xffff) as u64
+        let full = (value0 as i16 as i32).wrapping_mul(value1 as i16 as i32);
+        let res = full as i16;
+        self.set_imul_overflow(full != res as i32);
+        res as u16 as u64
     }
 
     pub fn imul8p2(&mut self, value0: u64, value1: u64) -> u64 {
-        let result: i16 = value0 as i8 as i16 * value1 as i8 as i16;
-        let uresult: u16 = result as u16;
+        let full = (value0 as i8 as i16).wrapping_mul(value1 as i8 as i16);
+        let res = full as i8;
+        self.set_imul_overflow(full != res as i16);
+        res as u8 as u64
+    }
 
-        if uresult > 0xff {
-            self.f_cf = true;
-            self.f_of = true;
-        } else {
-            self.f_cf = false;
-            self.f_of = false;
-        }
-
-        (uresult & 0xff) as u64
+    #[inline]
+    fn set_imul_overflow(&mut self, overflow: bool) {
+        self.f_cf = overflow;
+        self.f_of = overflow;
     }
 
     pub fn rcr_of_and_cf(&mut self, value0: u64, value1: u64, sz: u32) {
@@ -1904,7 +1822,9 @@ impl Flags {
 
     pub fn shrd(&mut self, value0: u64, value1: u64, count: u64, sz: u32) -> u64 {
         let mask = if sz == 64 { 0x3f } else { 0x1f };
-        let count = count & mask;
+        // A count above the operand size (only reachable with 16-bit operands)
+        // is architecturally undefined; clamp it so the shifts below stay in range.
+        let count = (count & mask).min(sz as u64);
         let res_mask: u64 = match sz {
             64 => 0xffff_ffff_ffff_ffff,
             32 => 0xffff_ffff,
@@ -1929,7 +1849,8 @@ impl Flags {
 
     pub fn shld(&mut self, value0: u64, value1: u64, count: u64, sz: u32) -> u64 {
         let mask = if sz == 64 { 0x3f } else { 0x1f };
-        let count = count & mask;
+        // Same clamp as `shrd`: counts above the operand size are undefined.
+        let count = (count & mask).min(sz as u64);
         let res_mask: u64 = match sz {
             64 => 0xffffffffffffffff,
             32 => 0xffffffff,

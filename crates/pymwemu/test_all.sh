@@ -21,10 +21,21 @@ handle_error() {
     exit 1
 }
 
+# pyo3-stub-gen needs Python >= 3.10 and macOS ships 3.9 as `python3`:
+# prefer the newest versioned interpreter on PATH.
+PYTHON=""
+for p in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do
+    if command -v "$p" >/dev/null 2>&1; then
+        PYTHON="$p"
+        break
+    fi
+done
+[ -n "$PYTHON" ] || handle_error "No python3 interpreter found on PATH"
+
 # Create venv if it doesn't exist
 if [ ! -f "$VENV_PYTHON" ]; then
-    echo "Creating virtual environment..."
-    python3 -m venv "$VENV_DIR" || handle_error "Failed to create virtual environment"
+    echo "Creating virtual environment with $PYTHON..."
+    "$PYTHON" -m venv "$VENV_DIR" || handle_error "Failed to create virtual environment"
     
     # Activate and install maturin
     source "$VENV_ACTIVATE" || handle_error "Failed to activate virtual environment"

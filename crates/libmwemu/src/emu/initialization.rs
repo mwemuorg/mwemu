@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io::IsTerminal;
 use std::sync::Arc;
@@ -119,7 +118,11 @@ impl Emu {
             api_call_log: std::collections::VecDeque::new(),
             base: 0,
             heap_addr: 0,
-            rng: RefCell::new(rand::rng()),
+            rng: {
+                use rand::SeedableRng as _;
+                rand::rngs::StdRng::from_os_rng()
+            },
+            rng_seed: None,
             threads: vec![ThreadContext::new(0x1000, arch)],
             current_thread_id: 0,
             global_locks: GlobalLocks::new(),
