@@ -13,5 +13,6 @@ pub fn AddVectoredExceptionHandler(emu: &mut emu::Emu) {
 
     emu.add_veh(first != 0, fptr);
 
-    emu.regs_mut().rax = 0x2c2878;
+    // the handler address doubles as the handle RemoveVectoredExceptionHandler gets
+    emu.regs_mut().rax = fptr;
 }

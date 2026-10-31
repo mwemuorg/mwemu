@@ -151,8 +151,8 @@ impl Context64 {
         maps.write_qword(addr + 144, self.rbx);
         maps.write_qword(addr + 152, self.rsp);
         maps.write_qword(addr + 160, self.rbp);
-        maps.write_qword(addr + 168, self.rdi);
-        maps.write_qword(addr + 176, self.rsi);
+        maps.write_qword(addr + 168, self.rsi);
+        maps.write_qword(addr + 176, self.rdi);
 
         maps.write_qword(addr + 184, self.r8);
         maps.write_qword(addr + 192, self.r9);
@@ -180,8 +180,8 @@ impl Context64 {
         self.rbx = maps.read_qword(addr + 144).unwrap_or(0);
         self.rsp = maps.read_qword(addr + 152).unwrap_or(0);
         self.rbp = maps.read_qword(addr + 160).unwrap_or(0);
-        self.rdi = maps.read_qword(addr + 168).unwrap_or(0);
-        self.rsi = maps.read_qword(addr + 176).unwrap_or(0);
+        self.rsi = maps.read_qword(addr + 168).unwrap_or(0);
+        self.rdi = maps.read_qword(addr + 176).unwrap_or(0);
 
         self.r8 = maps.read_qword(addr + 184).unwrap_or(0);
         self.r9 = maps.read_qword(addr + 192).unwrap_or(0);
