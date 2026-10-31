@@ -1,3 +1,7 @@
+#[path = "../profile_string.rs"]
+mod profile_string;
+pub use profile_string::*;
+
 #[path = "../reg_close_key.rs"]
 mod reg_close_key;
 pub use reg_close_key::*;

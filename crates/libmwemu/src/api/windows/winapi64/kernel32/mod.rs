@@ -227,7 +227,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "InitializeSRWLock" => InitializeSRWLock(emu),
         "InitOnceBeginInitialize" => InitOnceBeginInitialize(emu),
         "IsBadReadPtr" => IsBadReadPtr(emu),
+        "CheckRemoteDebuggerPresent" => CheckRemoteDebuggerPresent(emu),
         "IsDebuggerPresent" => IsDebuggerPresent(emu),
+        "QueryDosDeviceW" => QueryDosDeviceW(emu),
         "IsValidCodePage" => {
             let cp = emu.regs().rcx;
             log_red!(emu, "kernel32!IsValidCodePage cp: {}", cp);
@@ -585,23 +587,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             log_red!(emu, "kernel32!MoveFileExW '{}' -> '{}'", src_s, dst_s);
             emu.regs_mut().rax = 1;
         }
-        "SetFilePointerEx" => {
-            let handle = emu.regs().rcx;
-            let distance = emu.regs().rdx;
-            let new_pos_ptr = emu.regs().r8;
-            let method = emu.regs().r9;
-            log_red!(
-                emu,
-                "kernel32!SetFilePointerEx h:0x{:x} dist:{} method:{}",
-                handle,
-                distance as i64,
-                method
-            );
-            if new_pos_ptr != 0 {
-                emu.maps.write_qword(new_pos_ptr, distance);
-            }
-            emu.regs_mut().rax = 1;
-        }
+        "SetFilePointerEx" => SetFilePointerEx(emu),
         "FlushFileBuffers" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!FlushFileBuffers h:0x{:x}", handle);
@@ -636,85 +622,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
             emu.regs_mut().rax = 1;
         }
-        "GetPrivateProfileStringA" => {
-            let section = emu.regs().rcx;
-            let key = emu.regs().rdx;
-            let default = emu.regs().r8;
-            let out_buf = emu.regs().r9;
-            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let sec_s = if section != 0 {
-                emu.maps.read_string(section)
-            } else {
-                String::new()
-            };
-            let key_s = if key != 0 {
-                emu.maps.read_string(key)
-            } else {
-                String::new()
-            };
-            let def_s = if default != 0 {
-                emu.maps.read_string(default)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!GetPrivateProfileStringA [{}] {} def:'{}' => '{}'",
-                sec_s,
-                key_s,
-                def_s,
-                def_s
-            );
-            if out_buf != 0 && buf_size > 0 {
-                let write_len = std::cmp::min(def_s.len(), (buf_size - 1) as usize);
-                emu.maps.write_string(out_buf, &def_s[..write_len]);
-            }
-            emu.regs_mut().rax = def_s.len() as u64;
-        }
-        "GetPrivateProfileStringW" => {
-            let section = emu.regs().rcx;
-            let key = emu.regs().rdx;
-            let default = emu.regs().r8;
-            let out_buf = emu.regs().r9;
-            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let sec_s = if section != 0 {
-                emu.maps.read_wide_string(section)
-            } else {
-                String::new()
-            };
-            let key_s = if key != 0 {
-                emu.maps.read_wide_string(key)
-            } else {
-                String::new()
-            };
-            let def_s = if default != 0 {
-                emu.maps.read_wide_string(default)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!GetPrivateProfileStringW [{}] {} => '{}'",
-                sec_s,
-                key_s,
-                def_s
-            );
-            if out_buf != 0 && buf_size > 0 {
-                emu.maps.write_wide_string(out_buf, &def_s);
-            }
-            emu.regs_mut().rax = def_s.len() as u64;
-        }
-        "WritePrivateProfileStringA" | "WritePrivateProfileStringW" => {
-            log_red!(emu, "kernel32!{} (stub) => TRUE", api);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPrivateProfileIntA" | "GetPrivateProfileIntW" => {
-            let _section = emu.regs().rcx;
-            let _key = emu.regs().rdx;
-            let default = emu.regs().r8;
-            log_red!(emu, "kernel32!{} => default {}", api, default);
-            emu.regs_mut().rax = default;
-        }
+        "GetPrivateProfileStringA" => GetPrivateProfileStringA(emu),
+        "GetPrivateProfileStringW" => GetPrivateProfileStringW(emu),
+        "GetProfileStringA" => GetProfileStringA(emu),
+        "GetProfileStringW" => GetProfileStringW(emu),
+        "WritePrivateProfileStringA" => WritePrivateProfileStringA(emu),
+        "WritePrivateProfileStringW" => WritePrivateProfileStringW(emu),
+        "WriteProfileStringA" => WriteProfileStringA(emu),
+        "WriteProfileStringW" => WriteProfileStringW(emu),
+        "GetPrivateProfileIntA" => GetPrivateProfileIntA(emu),
+        "GetPrivateProfileIntW" => GetPrivateProfileIntW(emu),
+        "GetProfileIntA" => GetProfileIntA(emu),
+        "GetProfileIntW" => GetProfileIntW(emu),
 
         // --- Synchronization ---
         "CreateSemaphoreA" | "CreateSemaphoreW" => {

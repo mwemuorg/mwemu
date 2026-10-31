@@ -70,6 +70,10 @@ pub use get_thread_context::*;
 mod get_thread_locale;
 pub use get_thread_locale::*;
 
+#[path = "../check_remote_debugger_present.rs"]
+mod check_remote_debugger_present;
+pub use check_remote_debugger_present::*;
+
 #[path = "../is_debugger_present.rs"]
 mod is_debugger_present;
 pub use is_debugger_present::*;

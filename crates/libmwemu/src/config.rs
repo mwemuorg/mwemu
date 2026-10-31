@@ -64,6 +64,8 @@ pub struct Config {
     pub emulate_winapi: bool,
     pub linux_real_libc: bool, // execute the real mapped libc/ld code, only intercept `syscall`
     pub skip_unimplemented: bool,
+    #[serde(default)]
+    pub stop_on_unimplemented: bool, // stop at the first unimplemented winapi64 call
     pub short_circuit_sleep: bool, // Sleep/Wait calls advance tick but return immediately
 
     // --- Threading ---
@@ -158,6 +160,7 @@ impl Config {
             test_mode: false,
             console_enabled: false,
             skip_unimplemented: false,
+            stop_on_unimplemented: false,
             stack_addr: 0,
             arguments: "".to_string(),
             enable_threading: false, // Default to single-threaded for backward compatibility
@@ -487,6 +490,13 @@ impl Config {
     /// Skip unimplemented API calls instead of stopping.
     pub fn set_skip_unimplemented(&mut self, enabled: bool) -> &mut Self {
         self.skip_unimplemented = enabled;
+        self
+    }
+
+    /// Stop emulation at the first unimplemented winapi64 call instead of
+    /// continuing with an unset return value and unwritten out-parameters.
+    pub fn set_stop_on_unimplemented(&mut self, enabled: bool) -> &mut Self {
+        self.stop_on_unimplemented = enabled;
         self
     }
 

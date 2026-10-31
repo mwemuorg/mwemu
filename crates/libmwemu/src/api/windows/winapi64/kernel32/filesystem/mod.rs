@@ -1,3 +1,7 @@
+#[path = "../query_dos_device_w.rs"]
+mod query_dos_device_w;
+pub use query_dos_device_w::*;
+
 #[path = "../are_file_api_is_ansi.rs"]
 mod are_file_api_is_ansi;
 pub use are_file_api_is_ansi::*;

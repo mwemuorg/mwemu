@@ -88,6 +88,30 @@ struct FileHandleManagement {
 pub static FILE_SYSTEM: OnceLock<FileSystem> = OnceLock::new();
 
 pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> {
+    init_file_system_with_mappings(file_root, Vec::new())
+}
+
+/// Default file system for an emulation: the `file_root` jail plus the main
+/// image visible at the guest path its loader entry reports, so code that
+/// opens its own module file (GetModuleFileName + CreateFile) reads the real
+/// bytes. Call after the binary is loaded.
+pub fn init_guest_file_system(emu: &crate::emu::Emu) -> io::Result<()> {
+    let mut mappings = Vec::new();
+    if !emu.cfg.filename.is_empty() {
+        let guest = crate::winapi::winapi64::kernel32::main_module_path(emu);
+        let host = canonicalize(&emu.cfg.filename)?;
+        let guest = WindowsPath::from_path(&guest).map_err(io::Error::other)?;
+        mappings.push((guest, host));
+    }
+    init_file_system_with_mappings(None as Option<PathBuf>, mappings)
+}
+
+/// Like `init_file_system`, plus operator-provided guest-path -> host-path
+/// mappings (e.g. the emulated image at the path its loader entry reports).
+pub fn init_file_system_with_mappings<P: AsRef<Path>>(
+    file_root: Option<P>,
+    mappings: Vec<(WindowsPath, PathBuf)>,
+) -> io::Result<()> {
     // Resolve the root path
     let root = if let Some(path) = file_root {
         let path = path.as_ref();
@@ -115,7 +139,10 @@ pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> 
     }
 
     // Build filesystem without hardcoded mappings (add them dynamically if needed)
-    let builder = FileSystemBuilder::new().with_root(&root);
+    let builder = mappings.into_iter().fold(
+        FileSystemBuilder::new().with_root(&root),
+        |builder, (src, dest)| builder.with_mapping(src, dest),
+    );
     // If you need the System32 mapping, make it relative to root:
     // .with_mapping(
     //     WindowsPath::from_string("C:\\Windows\\System32"),

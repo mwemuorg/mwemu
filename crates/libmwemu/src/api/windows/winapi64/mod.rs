@@ -13,6 +13,7 @@ pub(crate) mod ole32;
 mod oleaut32;
 mod shell32;
 mod shlwapi;
+pub mod stolen_prologue;
 mod urlmon;
 pub(crate) mod user32;
 mod uxtheme;
@@ -66,7 +67,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
     if !emu.cfg.arch.is_aarch64() {
         emu.regs_mut().sanitize64();
     }
-    match name {
+    let unimplemented = match name {
         "kernel32.text" => kernel32::gateway(addr, emu),
         "kernel32.rdata" => kernel32::gateway(addr, emu),
         "ntdll.text" => ntdll::gateway(addr, emu),
@@ -177,5 +178,21 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         }
     };
 
+    if !unimplemented.is_empty() && emu.cfg.stop_on_unimplemented {
+        stop_on_unimplemented(emu, &unimplemented);
+    }
+
     emu.call_stack_mut().pop();
+}
+
+/// --strict-api: an unimplemented API leaves rax and any out-parameters
+/// unset, so the caller would carry on with garbage. Stop right at the call.
+fn stop_on_unimplemented(emu: &mut emu::Emu, api: &str) {
+    log::error!(
+        "unimplemented API {} called from 0x{:x} at pos {} — stopping (--strict-api)",
+        api,
+        emu.regs().rip,
+        emu.pos
+    );
+    emu.stop();
 }
