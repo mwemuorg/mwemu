@@ -7,6 +7,7 @@ use std::io;
 use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::time::SystemTime;
 use std::{env, fs};
 
 /*
@@ -330,6 +331,55 @@ impl FileHandle {
         self.file.take(); // Drops the File, closing it
         self.is_valid = false;
         // Other cleanup if necessary
+    }
+
+    fn open_file(&self) -> io::Result<&File> {
+        self.file
+            .as_ref()
+            .filter(|_| self.is_valid)
+            .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "No file object associated"))
+    }
+
+    /// Creation, last access and last write time of the file.
+    pub fn times(&self) -> io::Result<[SystemTime; 3]> {
+        let metadata = self.open_file()?.metadata()?;
+        let written = metadata.modified()?;
+        // not every host file system records creation and access times
+        Ok([
+            metadata.created().unwrap_or(written),
+            metadata.accessed().unwrap_or(written),
+            written,
+        ])
+    }
+
+    /// Change the file times; None keeps a time. Hosts without a settable
+    /// creation time ignore `created`.
+    pub fn set_times(
+        &self,
+        created: Option<SystemTime>,
+        accessed: Option<SystemTime>,
+        written: Option<SystemTime>,
+    ) -> io::Result<()> {
+        let mut times = fs::FileTimes::new();
+        if let Some(time) = accessed {
+            times = times.set_accessed(time);
+        }
+        if let Some(time) = written {
+            times = times.set_modified(time);
+        }
+        #[cfg(target_os = "macos")]
+        if let Some(time) = created {
+            use std::os::macos::fs::FileTimesExt;
+            times = times.set_created(time);
+        }
+        #[cfg(windows)]
+        if let Some(time) = created {
+            use std::os::windows::fs::FileTimesExt;
+            times = times.set_created(time);
+        }
+        #[cfg(not(any(target_os = "macos", windows)))]
+        let _ = created;
+        self.open_file()?.set_times(times)
     }
 
     // Getter methods

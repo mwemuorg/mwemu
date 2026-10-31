@@ -13,6 +13,7 @@ pub(crate) mod ole32;
 mod oleaut32;
 mod shell32;
 mod shlwapi;
+pub mod registry;
 pub mod stolen_prologue;
 mod urlmon;
 pub(crate) mod user32;
@@ -144,6 +145,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "api-ms-win-crt-stdio-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-heap-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
+        "ucrtbase.text" => wincrt::gateway(addr, emu),
         "not_loaded" => {
             if emu.cfg.skip_unimplemented {
                 let api = emu

@@ -35,6 +35,9 @@ pub use system::*;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
+    if super::registry::gateway(api, emu) {
+        return String::new();
+    }
     match api {
         "AcquireSRWLockExclusive" => AcquireSRWLockExclusive(emu),
         "AcquireSRWLockShared" => AcquireSRWLockShared(emu),
@@ -150,6 +153,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetFileAttributesA" => GetFileAttributesA(emu),
         "GetFileAttributesW" => GetFileAttributesW(emu),
         "GetFileSize" => GetFileSize(emu),
+        "GetFileTime" => GetFileTime(emu),
+        "SetFileTime" => SetFileTime(emu),
         "GetFileSizeEx" => GetFileSizeEx(emu),
         "GetFileType" => GetFileType(emu),
         "GetFullPathNameA" => GetFullPathNameA(emu),
@@ -310,12 +315,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "RaiseException" => RaiseException(emu),
         "ReadFile" => ReadFile(emu),
         "ReadProcessMemory" => ReadProcessMemory(emu),
-        "RegCloseKey" => RegCloseKey(emu),
-        "RegCreateKeyExA" => RegCreateKeyExA(emu),
-        "RegCreateKeyExW" => RegCreateKeyExW(emu),
-        "RegOpenKeyA" => RegOpenKeyA(emu),
-        "RegSetValueExA" => RegSetValueExA(emu),
-        "RegSetValueExW" => RegSetValueExW(emu),
         "ResetEvent" => ResetEvent(emu),
         "SetEvent" => {
             let handle = emu.regs().rcx;

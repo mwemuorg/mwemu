@@ -3,6 +3,31 @@ pub(crate) fn is_api_set_contract(module: &str) -> bool {
     module.starts_with("api-ms-win-") || module.starts_with("ext-ms-")
 }
 
+/// DLLs implementing an API set contract, the host first. ntdll's ApiSet
+/// schema (a per-build binary blob) is the authoritative mapping, but the
+/// prefixes are stable across builds.
+pub(crate) fn api_set_hosts(contract: &str) -> &'static [&'static str] {
+    let contract = contract.trim().to_ascii_lowercase();
+    let prefix = |p: &str| contract.starts_with(p);
+    if prefix("api-ms-win-crt-") {
+        &["ucrtbase.dll", "msvcp_win.dll", "kernelbase.dll"]
+    } else if prefix("api-ms-win-core-rtlsupport-") || prefix("api-ms-win-core-apiquery-") {
+        // RtlCompareMemory, RtlUnwind, RtlCaptureContext, ApiSetQueryApiSetPresence
+        &["ntdll.dll", "kernelbase.dll"]
+    } else if prefix("api-ms-win-shcore-") {
+        &["shcore.dll", "kernelbase.dll"]
+    } else if prefix("api-ms-win-eventing-") {
+        // ETW user-mode helpers live in ntdll; advapi32 for legacy callers
+        &["ntdll.dll", "kernelbase.dll", "advapi32.dll"]
+    } else if prefix("api-ms-win-security-") {
+        &["sechost.dll", "advapi32.dll", "kernelbase.dll"]
+    } else if prefix("api-ms-win-service-") {
+        &["sechost.dll", "kernelbase.dll"]
+    } else {
+        &["kernelbase.dll", "kernel32.dll"]
+    }
+}
+
 pub(crate) fn normalize_library_name(libname: &str, allow_exe_suffix: bool) -> Option<String> {
     let mut dll = libname.trim().to_ascii_lowercase();
     if dll.is_empty() {

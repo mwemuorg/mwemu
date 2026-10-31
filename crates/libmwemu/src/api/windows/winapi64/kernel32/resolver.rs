@@ -187,32 +187,8 @@ fn resolve_api_name_in_module_inner(emu: &mut emu::Emu, module_lc: &str, name: &
         if addr != 0 {
             return addr;
         }
-        // 2) Fallback: map by contract category. ntdll's ApiSet schema (a
-        //    binary blob compiled per-build) gives the authoritative mapping,
-        //    but the high-traffic prefixes are stable across builds and
-        //    cheaper to check inline.
-        let fallback_modules: &[&str] = if module_lc.starts_with("api-ms-win-crt-") {
-            &["ucrtbase.dll", "msvcp_win.dll", "kernelbase.dll"]
-        } else if module_lc.starts_with("api-ms-win-core-rtlsupport-") {
-            // RtlCompareMemory, RtlUnwind, RtlCaptureContext, … all live in ntdll.
-            &["ntdll.dll", "kernelbase.dll"]
-        } else if module_lc.starts_with("api-ms-win-core-apiquery-") {
-            // ApiSetQueryApiSetPresence — ntdll-resident query helper.
-            &["ntdll.dll", "kernelbase.dll"]
-        } else if module_lc.starts_with("api-ms-win-shcore-") {
-            &["shcore.dll", "kernelbase.dll"]
-        } else if module_lc.starts_with("api-ms-win-eventing-") {
-            // EventRegister, EventWrite*, EventActivityIdControl — in ntdll
-            // on recent Windows (ETW user-mode helpers); fall back to advapi32
-            // for the legacy callers.
-            &["ntdll.dll", "kernelbase.dll", "advapi32.dll"]
-        } else if module_lc.starts_with("api-ms-win-security-") {
-            &["sechost.dll", "advapi32.dll", "kernelbase.dll"]
-        } else if module_lc.starts_with("api-ms-win-service-") {
-            &["sechost.dll", "kernelbase.dll"]
-        } else {
-            &["kernelbase.dll", "kernel32.dll"]
-        };
+        // 2) The contract's host DLLs.
+        let fallback_modules = kernel32_common::api_set_hosts(&module_lc);
         for m in fallback_modules {
             // Index-first, scanner fallback.
             let addr = emu.export_indexes.resolve_name_in_module(m, name);
@@ -267,7 +243,11 @@ pub(crate) fn resolve_forwarded_export_string_depth(
     // Avoid re-entering the PE loader during export resolution (can recurse from delay-load binding).
     // Forwarders should resolve against already-linked modules in the current LDR state.
     let mapped_dll = if kernel32_common::is_api_set_contract(&dll) {
-        "kernelbase.dll".to_string()
+        let hosts = kernel32_common::api_set_hosts(&dll);
+        let loaded = hosts
+            .iter()
+            .find(|host| peb64::get_module_base(host, emu).is_some());
+        loaded.unwrap_or(&hosts[0]).to_string()
     } else {
         dll
     };
