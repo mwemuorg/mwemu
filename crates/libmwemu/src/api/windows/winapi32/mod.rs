@@ -2,6 +2,7 @@ pub mod advapi32;
 mod bcrypt;
 mod crypt32;
 mod dnsapi;
+mod gdi32;
 mod iphlpapi;
 pub mod kernel32;
 mod kernelbase;
@@ -100,120 +101,8 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
             }
             String::new()
         }
-        "gdi32.text" => {
-            let api = kernel32::guess_api_name(emu, addr);
-            let api_name = api.split("!").last().unwrap_or(&api);
-            match api_name {
-                "CreateDCA" | "CreateCompatibleDC" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 0xdc_0001;
-                }
-                "DeleteDC" | "DeleteObject" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                "GetDeviceCaps" => {
-                    let cap = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-                    log_red!(emu, "gdi32!GetDeviceCaps cap:{}", cap);
-                    emu.regs_mut().rax = match cap {
-                        8 => 1920,   // HORZRES
-                        10 => 1080,  // VERTRES
-                        12 => 96,    // LOGPIXELSX
-                        14 => 32,    // BITSPIXEL
-                        88 => 96,    // LOGPIXELSX
-                        90 => 96,    // LOGPIXELSY
-                        117 => 1080, // DESKTOPVERTRES
-                        118 => 1920, // DESKTOPHORZRES
-                        _ => 0,
-                    };
-                }
-                "CreateCompatibleBitmap" => {
-                    log_red!(emu, "gdi32!CreateCompatibleBitmap");
-                    emu.regs_mut().rax = 0xb0_0001;
-                }
-                "SelectObject" => {
-                    let obj = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-                    log_red!(emu, "gdi32!SelectObject obj:0x{:x}", obj);
-                    emu.regs_mut().rax = obj;
-                }
-                "GetObjectA" | "GetObjectW" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 0;
-                }
-                "StretchBlt" | "BitBlt" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                "GetDIBits" => {
-                    log_red!(emu, "gdi32!GetDIBits");
-                    emu.regs_mut().rax = 0;
-                }
-                "CreateFontA" | "CreateFontW" | "CreateFontIndirectA" | "CreateFontIndirectW" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 0x1337_f001;
-                }
-                "GetTextMetricsA" | "GetTextMetricsW" => {
-                    let tm = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-                    if tm != 0 {
-                        emu.maps.write_dword(tm, 16);
-                        emu.maps.write_dword(tm + 4, 13);
-                        emu.maps.write_dword(tm + 8, 3);
-                        emu.maps.write_dword(tm + 12, 0);
-                        emu.maps.write_dword(tm + 16, 0);
-                        emu.maps.write_dword(tm + 20, 7);
-                        emu.maps.write_dword(tm + 24, 14);
-                    }
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                "GetTextExtentPoint32A" | "GetTextExtentPoint32W" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                "SetBkMode" | "SetBkColor" | "SetTextColor" | "SetStretchBltMode" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                "GetStockObject" => {
-                    let idx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-                    log_red!(emu, "gdi32!GetStockObject index:{}", idx);
-                    emu.regs_mut().rax = 0x1337_0000 + idx;
-                }
-                "CreateSolidBrush" => {
-                    log_red!(emu, "gdi32!CreateSolidBrush");
-                    emu.regs_mut().rax = 0x1337_0001;
-                }
-                "CreatePen" => {
-                    log_red!(emu, "gdi32!CreatePen");
-                    emu.regs_mut().rax = 0x1337_0001;
-                }
-                "CreateDIBSection" => {
-                    log_red!(emu, "gdi32!CreateDIBSection");
-                    emu.regs_mut().rax = 0x1337_0001;
-                }
-                "MoveToEx" | "LineTo" | "Rectangle" | "Ellipse" | "SaveDC" | "RestoreDC" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                "SetPixel" | "GetPixel" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 0;
-                }
-                "TextOutA" | "TextOutW" | "ExtTextOutA" | "ExtTextOutW" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                _ => {
-                    if emu.cfg.skip_unimplemented {
-                        log::warn!("banzai: gdi32 skipping {}", api_name);
-                        emu.regs_mut().rax = 0;
-                    } else {
-                        log::warn!("gdi32: unimplemented API {}", api_name);
-                    }
-                }
-            }
-            String::new()
-        }
+        "gdi32.text" => gdi32::gateway(addr, emu),
+        "gdi32.rdata" => gdi32::gateway(addr, emu),
         "msvcp60.text" => {
             let api = kernel32::guess_api_name(emu, addr);
             let api_name = api.split("!").last().unwrap_or(&api);

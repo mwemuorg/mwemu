@@ -22,6 +22,33 @@ pub struct MemoryBasicInformation64 {
 impl MemoryBasicInformation64 {
     pub const SIZE: u64 = 48;
 
+    pub fn guess(addr: u64, maps: &mut Maps) -> Self {
+        match maps.get_mem_by_addr_mut(addr) {
+            Some(mem) => MemoryBasicInformation64 {
+                base_address: mem.get_base(),
+                allocation_base: mem.get_base(),
+                allocation_protect: 0x40, // PAGE_EXECUTE_READWRITE
+                partition_id: 0,
+                reserved: 0,
+                region_size: mem.size() as u64,
+                state: 0x1000, // MEM_COMMIT
+                protect: 0x40,
+                typ: 0x20000, // MEM_PRIVATE
+            },
+            None => MemoryBasicInformation64 {
+                base_address: 0,
+                allocation_base: 0,
+                allocation_protect: 0,
+                partition_id: 0,
+                reserved: 0,
+                region_size: 0,
+                state: 0x10000, // MEM_FREE
+                protect: 1,     // PAGE_NOACCESS
+                typ: 0,
+            },
+        }
+    }
+
     pub fn load(addr: u64, maps: &Maps) -> Self {
         Self {
             base_address: maps.read_qword(addr).unwrap_or(0),
