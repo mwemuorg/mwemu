@@ -53,7 +53,12 @@ pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: 
         }
     }
 
-    log::warn!("unhandled import {}!{}", import_dll, api);
+    if emu.cfg.skip_unimplemented {
+        log::warn!("banzai: skipping unhandled import {}!{}", import_dll, api);
+        emu.regs_mut().rax = 0;
+    } else {
+        log::warn!("unhandled import {}!{}", import_dll, api);
+    }
     emu.call_stack_mut().pop();
 }
 
@@ -123,6 +128,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
                 }
                 _ => {
                     log::warn!("winmm: unimplemented API {}", api_name);
+                    emu.regs_mut().rax = 0;
                 }
             }
             String::new()
@@ -138,15 +144,35 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "api-ms-win-crt-heap-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
         "not_loaded" => {
-            // TODO: banzai check?
-            emu.pe64.as_ref().unwrap().import_addr_to_name(addr)
+            if emu.cfg.skip_unimplemented {
+                let api = emu
+                    .pe64
+                    .as_ref()
+                    .map(|pe| pe.import_addr_to_name(addr))
+                    .unwrap_or_default();
+                log::warn!(
+                    "banzai: skipping not_loaded API 0x{:x} {} at 0x{:x}",
+                    addr,
+                    api,
+                    emu.regs().rip
+                );
+                emu.regs_mut().rax = 0;
+                String::new()
+            } else {
+                emu.pe64.as_ref().unwrap().import_addr_to_name(addr)
+            }
         }
         _ => {
-            log::error!(
-                "/!\\ winapi64 gateway: trying to execute on {} at 0x{:x}",
-                name,
-                addr
-            );
+            if emu.cfg.skip_unimplemented {
+                log::warn!("banzai: skipping unknown section {} at 0x{:x}", name, addr);
+                emu.regs_mut().rax = 0;
+            } else {
+                log::error!(
+                    "/!\\ winapi64 gateway: trying to execute on {} at 0x{:x}",
+                    name,
+                    addr
+                );
+            }
             return;
         }
     };

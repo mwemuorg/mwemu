@@ -57,6 +57,7 @@ pub struct Config {
     pub max_faults: Option<u32>,       // stop after N faults/exceptions
     pub seed: Option<u64>, // seed for the emulator's random source (rdrand/rdseed); None = seeded from the OS
     pub loops: bool,       // count iterations per instruction (slow)
+    pub loop_limit: u64,   // --noloops: break out of loops after N iterations per address (0 = off)
     pub allow_empty_code_blocks: bool, // disable empty-code-block detector
 
     // --- API emulation behavior ---
@@ -137,6 +138,7 @@ impl Config {
             console: false,
             console_num: 0,
             loops: false,
+            loop_limit: 0,
             nocolors: false,
             string_addr: 0,
             inspect: false,
@@ -453,6 +455,12 @@ impl Config {
     /// Enable or disable loop iteration counting (slow).
     pub fn set_loops(&mut self, enabled: bool) -> &mut Self {
         self.loops = enabled;
+        self
+    }
+
+    /// Set the per-address iteration limit for loop breaking (0 = disabled).
+    pub fn set_loop_limit(&mut self, limit: u64) -> &mut Self {
+        self.loop_limit = limit;
         self
     }
 

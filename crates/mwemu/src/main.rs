@@ -147,6 +147,8 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("register", "R", "trace_register", "trace a specific register in every step, value and content", "REGISTER1,REGISTER2"))
         .arg(clap_arg!("console", "c", "console", "select in which moment will spawn the console to inspect.", "NUMBER"))
         .arg(clap_arg!("loops", "l", "loops", "show loop iterations, it is slow."))
+        .arg(clap_arg!("noloops", "", "noloops", "stop emulation when any address executes more than --loop-limit times (default 10000)"))
+        .arg(clap_arg!("loop_limit", "", "loop-limit", "set the per-address iteration limit for --noloops (default 10000)", "N"))
         .arg(clap_arg!("nocolors", "n", "nocolors", "print without colors for redirecting to a file >out"))
         .arg(clap_arg!("string", "s", "string", "monitor string on a specific address", "ADDRESS"))
         .arg(clap_arg!("inspect", "i", "inspect", "monitor memory like: -i 'dword ptr [ebp + 0x24]", "DIRECTION"))
@@ -398,6 +400,14 @@ fn main() -> process::ExitCode {
         emu.spawn_console_at(emu.cfg.console_num);
     }
     emu.cfg.loops = matches.is_present("loops");
+
+    // noloops
+    if matches.is_present("noloops") {
+        emu.cfg.loop_limit = matches
+            .value_of("loop_limit")
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(1_000_000);
+    }
     emu.cfg.nocolors = matches.is_present("nocolors");
 
     // inspect

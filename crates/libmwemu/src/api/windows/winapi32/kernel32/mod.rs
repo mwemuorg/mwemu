@@ -140,6 +140,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "GetCurrentProcess" => GetCurrentProcess(emu),
         "GetCurrentProcessId" => GetCurrentProcessId(emu),
         "GetDiskFreeSpaceA" => GetDiskFreeSpaceA(emu),
+        "GetDiskFreeSpaceExA" => GetDiskFreeSpaceExA(emu),
+        "GetDiskFreeSpaceExW" => GetDiskFreeSpaceExW(emu),
+        "GetDriveTypeA" => GetDriveTypeA(emu),
+        "GetDriveTypeW" => GetDriveTypeW(emu),
         "GetCurrentThreadId" => GetCurrentThreadId(emu),
         "FreeEnvironmentStringsA" => FreeEnvironmentStringsA(emu),
         "FreeEnvironmentStringsW" => FreeEnvironmentStringsW(emu),
@@ -174,6 +178,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "GetSystemTimeAsFileTime" => GetSystemTimeAsFileTime(emu),
         "GetSystemWindowsDirectoryA" => GetSystemWindowsDirectoryA(emu),
         "GetSystemWindowsDirectoryW" => GetSystemWindowsDirectoryW(emu),
+        "GetTempPathA" => GetTempPathA(emu),
         "GetTempPathW" => GetTempPathW(emu),
         "GetThreadContext" => GetThreadContext(emu),
         "GetThreadPreferredUILanguages" => GetThreadPreferredUILanguages(emu),
@@ -184,6 +189,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "GetUserDefaultUILanguage" => GetUserDefaultUILanguage(emu),
         "GetVersion" => GetVersion(emu),
         "GetVersionExW" => GetVersionExW(emu),
+        "GetVolumeInformationA" => GetVolumeInformationA(emu),
+        "GetVolumeInformationW" => GetVolumeInformationW(emu),
         "GetWindowsDirectoryA" => GetWindowsDirectoryA(emu),
         "GetWindowsDirectoryW" => GetWindowsDirectoryW(emu),
         "GlobalAddAtomA" => GlobalAddAtomA(emu),
@@ -215,6 +222,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "lstrcpy" => lstrcpy(emu),
         "lstrlen" => lstrlen(emu),
         "MapViewOfFile" => MapViewOfFile(emu),
+        "Module32First" => Module32First(emu),
+        "Module32FirstW" => Module32FirstW(emu),
+        "Module32Next" => Module32Next(emu),
+        "Module32NextW" => Module32NextW(emu),
         "MoveFileA" => MoveFileA(emu),
         "MoveFileW" => MoveFileW(emu),
         "MultiByteToWideChar" => MultiByteToWideChar(emu),
@@ -233,8 +244,12 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "RegOpenKeyW" => RegOpenKeyW(emu),
         "RegSetValueExA" => RegSetValueExA(emu),
         "RegSetValueExW" => RegSetValueExW(emu),
+        "RemoveDirectoryA" => RemoveDirectoryA(emu),
+        "RemoveDirectoryW" => RemoveDirectoryW(emu),
         "ResumeThread" => ResumeThread(emu),
         "SetErrorMode" => SetErrorMode(emu),
+        "SetFileAttributesA" => SetFileAttributesA(emu),
+        "SetFileAttributesW" => SetFileAttributesW(emu),
         "SetFilePointer" => SetFilePointer(emu),
         "SetHandleCount" => SetHandleCount(emu),
         "SetLastError" => SetLastError(emu),
@@ -851,16 +866,32 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "ZombifyActCtxWorker" => ZombifyActCtxWorker(emu),
 
         _ => {
-            if !emu.cfg.skip_unimplemented {
-                if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                    serialization::Serialization::dump(
-                        emu,
-                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                    );
+            if emu.cfg.skip_unimplemented {
+                let nparams = emu.banzai.get_params(api);
+                if nparams >= 0 {
+                    for _ in 0..nparams {
+                        emu.stack_pop32(false);
+                    }
                 }
-
-                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
+                log::warn!(
+                    "banzai: skipping unimplemented API 0x{:x} {} (nparams={}) at 0x{:x}",
+                    addr,
+                    api,
+                    nparams,
+                    emu.regs().rip
+                );
+                emu.regs_mut().rax = 0;
+                return String::new();
             }
+
+            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
+                serialization::Serialization::dump(
+                    emu,
+                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
+                );
+            }
+
+            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
                 addr,

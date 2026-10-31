@@ -22,9 +22,17 @@ pub use create_thread::*;
 mod create_toolhelp32_snapshot;
 pub use create_toolhelp32_snapshot::*;
 
+#[path = "../module32_first.rs"]
+mod module32_first;
+pub use module32_first::*;
+
 #[path = "../module32_first_w.rs"]
 mod module32_first_w;
 pub use module32_first_w::*;
+
+#[path = "../module32_next.rs"]
+mod module32_next;
+pub use module32_next::*;
 
 #[path = "../module32_next_w.rs"]
 mod module32_next_w;

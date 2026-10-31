@@ -48,14 +48,23 @@ impl Emu {
         )
     }
 
+    /// Detect infinite/anti-emulation loops.
+    ///
+    /// When `--noloops` is active (`loop_limit > 0`), uses a diversity window:
+    /// every `loop_limit` instructions, counts how many **unique** addresses
+    /// were executed. Fewer than 100 unique addresses in a window means the
+    /// emulator is stuck in a tight loop (even if it calls a few APIs).
+    ///
+    /// `window_counter` tracks instructions in the current window.
     pub(crate) fn observe_loop_progress(
         &self,
         addr: u64,
         prev_addr: &mut u64,
         repeat_counter: &mut u32,
         looped: &mut AHashMap<u64, u32>,
+        window_counter: &mut u64,
         infinite_loop_error: &'static str,
-    ) -> Result<(), MwemuError> {
+    ) -> Result<bool, MwemuError> {
         if addr == *prev_addr {
             *repeat_counter = repeat_counter.saturating_add(1);
         } else {
@@ -75,7 +84,28 @@ impl Emu {
             }
         }
 
-        Ok(())
+        if self.cfg.loop_limit > 0 {
+            *window_counter += 1;
+            looped.entry(addr).or_insert(0);
+
+            if *window_counter >= self.cfg.loop_limit {
+                let unique = looped.len() as u64;
+                if unique < 100 {
+                    log::error!(
+                        "noloops: low diversity — {} unique addresses in {} instructions \
+                         (pos={}) — likely anti-emulation loop. Stopping.",
+                        unique,
+                        *window_counter,
+                        self.pos,
+                    );
+                    return Ok(true);
+                }
+                looped.clear();
+                *window_counter = 0;
+            }
+        }
+
+        Ok(false)
     }
 
     pub(crate) fn trace_pre_step_state(&mut self, pos: u64) {

@@ -116,9 +116,14 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                     let cap = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
                     log_red!(emu, "gdi32!GetDeviceCaps cap:{}", cap);
                     emu.regs_mut().rax = match cap {
-                        8 => 32,     // BITSPIXEL
-                        10 => 1920,  // HORZRES
-                        117 => 1080, // VERTRES
+                        8 => 1920,   // HORZRES
+                        10 => 1080,  // VERTRES
+                        12 => 96,    // LOGPIXELSX
+                        14 => 32,    // BITSPIXEL
+                        88 => 96,    // LOGPIXELSX
+                        90 => 96,    // LOGPIXELSY
+                        117 => 1080, // DESKTOPVERTRES
+                        118 => 1920, // DESKTOPHORZRES
                         _ => 0,
                     };
                 }
@@ -126,12 +131,85 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                     log_red!(emu, "gdi32!CreateCompatibleBitmap");
                     emu.regs_mut().rax = 0xb0_0001;
                 }
-                "SelectObject" | "GetObjectA" | "StretchBlt" | "GetDIBits" => {
+                "SelectObject" => {
+                    let obj = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+                    log_red!(emu, "gdi32!SelectObject obj:0x{:x}", obj);
+                    emu.regs_mut().rax = obj;
+                }
+                "GetObjectA" | "GetObjectW" => {
                     log_red!(emu, "gdi32!{}", api_name);
                     emu.regs_mut().rax = 0;
                 }
+                "StretchBlt" | "BitBlt" => {
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 1;
+                }
+                "GetDIBits" => {
+                    log_red!(emu, "gdi32!GetDIBits");
+                    emu.regs_mut().rax = 0;
+                }
+                "CreateFontA" | "CreateFontW" | "CreateFontIndirectA" | "CreateFontIndirectW" => {
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 0x1337_f001;
+                }
+                "GetTextMetricsA" | "GetTextMetricsW" => {
+                    let tm = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+                    if tm != 0 {
+                        emu.maps.write_dword(tm, 16);
+                        emu.maps.write_dword(tm + 4, 13);
+                        emu.maps.write_dword(tm + 8, 3);
+                        emu.maps.write_dword(tm + 12, 0);
+                        emu.maps.write_dword(tm + 16, 0);
+                        emu.maps.write_dword(tm + 20, 7);
+                        emu.maps.write_dword(tm + 24, 14);
+                    }
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 1;
+                }
+                "GetTextExtentPoint32A" | "GetTextExtentPoint32W" => {
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 1;
+                }
+                "SetBkMode" | "SetBkColor" | "SetTextColor" | "SetStretchBltMode" => {
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 1;
+                }
+                "GetStockObject" => {
+                    let idx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+                    log_red!(emu, "gdi32!GetStockObject index:{}", idx);
+                    emu.regs_mut().rax = 0x1337_0000 + idx;
+                }
+                "CreateSolidBrush" => {
+                    log_red!(emu, "gdi32!CreateSolidBrush");
+                    emu.regs_mut().rax = 0x1337_0001;
+                }
+                "CreatePen" => {
+                    log_red!(emu, "gdi32!CreatePen");
+                    emu.regs_mut().rax = 0x1337_0001;
+                }
+                "CreateDIBSection" => {
+                    log_red!(emu, "gdi32!CreateDIBSection");
+                    emu.regs_mut().rax = 0x1337_0001;
+                }
+                "MoveToEx" | "LineTo" | "Rectangle" | "Ellipse" | "SaveDC" | "RestoreDC" => {
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 1;
+                }
+                "SetPixel" | "GetPixel" => {
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 0;
+                }
+                "TextOutA" | "TextOutW" | "ExtTextOutA" | "ExtTextOutW" => {
+                    log_red!(emu, "gdi32!{}", api_name);
+                    emu.regs_mut().rax = 1;
+                }
                 _ => {
-                    log::warn!("gdi32: unimplemented API {}", api_name);
+                    if emu.cfg.skip_unimplemented {
+                        log::warn!("banzai: gdi32 skipping {}", api_name);
+                        emu.regs_mut().rax = 0;
+                    } else {
+                        log::warn!("gdi32: unimplemented API {}", api_name);
+                    }
                 }
             }
             String::new()
@@ -183,15 +261,35 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
         "ntoskrnl.text" => ntoskrnl::gateway(addr, emu),
         "ntoskrnlPAGE" => ntoskrnl::gateway(addr, emu),
         "not_loaded" => {
-            // TODO: banzai check?
-            emu.pe32.as_ref().unwrap().import_addr_to_name(addr)
+            if emu.cfg.skip_unimplemented {
+                let api = emu
+                    .pe32
+                    .as_ref()
+                    .map(|pe| pe.import_addr_to_name(addr))
+                    .unwrap_or_default();
+                log::warn!(
+                    "banzai: skipping not_loaded API 0x{:x} {} at 0x{:x}",
+                    addr,
+                    api,
+                    emu.regs().rip
+                );
+                emu.regs_mut().rax = 0;
+                String::new()
+            } else {
+                emu.pe32.as_ref().unwrap().import_addr_to_name(addr)
+            }
         }
         _ => {
-            log::error!(
-                "/!\\ winapi32 gateway: trying to execute on {} at 0x{:x}",
-                name,
-                addr
-            );
+            if emu.cfg.skip_unimplemented {
+                log::warn!("banzai: skipping unknown section {} at 0x{:x}", name, addr);
+                emu.regs_mut().rax = 0;
+            } else {
+                log::error!(
+                    "/!\\ winapi32 gateway: trying to execute on {} at 0x{:x}",
+                    name,
+                    addr
+                );
+            }
             return;
         }
     };

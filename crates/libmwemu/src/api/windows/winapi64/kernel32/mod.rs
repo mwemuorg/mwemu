@@ -127,6 +127,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetComputerNameA" => GetComputerNameA(emu),
         "GetComputerNameW" => GetComputerNameW(emu),
         "GetDiskFreeSpaceA" => GetDiskFreeSpaceA(emu),
+        "GetDiskFreeSpaceExA" => GetDiskFreeSpaceExA(emu),
+        "GetDiskFreeSpaceExW" => GetDiskFreeSpaceExW(emu),
+        "GetDriveTypeA" => GetDriveTypeA(emu),
+        "GetDriveTypeW" => GetDriveTypeW(emu),
         "GetConsoleCP" => GetConsoleCP(emu),
         "GetConsoleMode" => GetConsoleMode(emu),
         "GetConsoleOutputCP" => GetConsoleOutputCP(emu),
@@ -188,6 +192,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetSystemTime" => GetSystemTime(emu),
         "GetSystemTimeAsFileTime" => GetSystemTimeAsFileTime(emu),
         "GetSystemTimePreciseAsFileTime" => GetSystemTimePreciseAsFileTime(emu),
+        "GetTempPathA" => GetTempPathA(emu),
         "GetTempPathW" => GetTempPathW(emu),
         "GetThreadContext" => GetThreadContext(emu),
         "GetThreadLocale" => GetThreadLocale(emu),
@@ -229,7 +234,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "IsWow64Process" => IsWow64Process(emu),
         "IsProcessorFeaturePresent" => IsProcessorFeaturePresent(emu),
         "LeaveCriticalSection" => LeaveCriticalSection(emu),
+        "Module32First" => Module32First(emu),
         "Module32FirstW" => Module32FirstW(emu),
+        "Module32Next" => Module32Next(emu),
         "Module32NextW" => Module32NextW(emu),
         "LoadLibraryA" => LoadLibraryA(emu),
         "LoadLibraryExA" => LoadLibraryExA(emu),
@@ -374,6 +381,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WriteConsoleW" => WriteConsoleW(emu),
         "WriteFile" => WriteFile(emu),
         "WriteProcessMemory" => WriteProcessMemory(emu),
+        "GetVolumeInformationA" => GetVolumeInformationA(emu),
+        "GetVolumeInformationW" => GetVolumeInformationW(emu),
+        "RemoveDirectoryA" => RemoveDirectoryA(emu),
+        "RemoveDirectoryW" => RemoveDirectoryW(emu),
+        "SetFileAttributesA" => SetFileAttributesA(emu),
+        "SetFileAttributesW" => SetFileAttributesW(emu),
         "DeviceIoControl" => api_DeviceIoControl(emu),
         _ => {
             // Windows forwards many Rtl*/Nt* functions through kernel32 →
@@ -382,16 +395,25 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 return String::new();
             }
 
-            if !emu.cfg.skip_unimplemented {
-                if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                    serialization::Serialization::dump(
-                        emu,
-                        emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                    );
-                }
-
-                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
+            if emu.cfg.skip_unimplemented {
+                log::warn!(
+                    "banzai: skipping unimplemented API 0x{:x} {} at 0x{:x}",
+                    addr,
+                    api,
+                    emu.regs().rip
+                );
+                emu.regs_mut().rax = 0;
+                return String::new();
             }
+
+            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
+                serialization::Serialization::dump(
+                    emu,
+                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
+                );
+            }
+
+            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
                 addr,
