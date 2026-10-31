@@ -14,7 +14,11 @@ fn read_text(emu: &emu::Emu, ptr: u64, wide: bool) -> String {
 }
 
 fn char_len(s: &str, wide: bool) -> usize {
-    if wide { s.encode_utf16().count() } else { s.len() }
+    if wide {
+        s.encode_utf16().count()
+    } else {
+        s.len()
+    }
 }
 
 /// Copy `s` into a buffer of `size` characters. Returns the length written
@@ -145,7 +149,11 @@ fn environment_block(emu: &mut emu::Emu, api: &str, wide: bool) {
         return;
     };
     let name = format!("environment_{:x}", block);
-    if emu.maps.create_map(&name, block, bytes.len() as u64, Permission::READ_WRITE).is_err() {
+    if emu
+        .maps
+        .create_map(&name, block, bytes.len() as u64, Permission::READ_WRITE)
+        .is_err()
+    {
         emu.regs_mut().rax = 0;
         return;
     }

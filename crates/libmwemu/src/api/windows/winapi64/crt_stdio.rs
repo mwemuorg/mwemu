@@ -167,22 +167,23 @@ fn read_text(emu: &emu::Emu, ptr: u64, wide: bool) -> String {
 fn open(emu: &mut emu::Emu, path: &str, mode: &str) -> Result<u64, u32> {
     let update = mode.contains('+');
     let (disposition, mut access, append) = match mode.chars().next() {
-        Some('r') => (3, GENERIC_READ, false),         // OPEN_EXISTING
+        Some('r') => (3, GENERIC_READ, false), // OPEN_EXISTING
         Some('w') if mode.contains('x') => (1, GENERIC_WRITE, false), // CREATE_NEW
-        Some('w') => (2, GENERIC_WRITE, false),        // CREATE_ALWAYS
-        Some('a') => (4, GENERIC_WRITE, true),         // OPEN_ALWAYS
+        Some('w') => (2, GENERIC_WRITE, false), // CREATE_ALWAYS
+        Some('a') => (4, GENERIC_WRITE, true), // OPEN_ALWAYS
         _ => return Err(EINVAL),
     };
     if update {
         access |= GENERIC_READ | GENERIC_WRITE;
     }
-    let file = FileHandle::new(path.to_string(), access, disposition, 0, 0).map_err(|e| {
-        match e.downcast_ref::<std::io::Error>().map(|e| e.kind()) {
-            Some(ErrorKind::NotFound) => ENOENT,
-            Some(ErrorKind::AlreadyExists) => EEXIST,
-            Some(ErrorKind::PermissionDenied) => EACCES,
-            _ => EINVAL,
-        }
+    let file = FileHandle::new(path.to_string(), access, disposition, 0, 0).map_err(|e| match e
+        .downcast_ref::<std::io::Error>()
+        .map(|e| e.kind())
+    {
+        Some(ErrorKind::NotFound) => ENOENT,
+        Some(ErrorKind::AlreadyExists) => EEXIST,
+        Some(ErrorKind::PermissionDenied) => EACCES,
+        _ => EINVAL,
     })?;
     let Some(stream) = allocate_memory(emu, STREAM_SIZE) else {
         return Err(EINVAL);
@@ -341,15 +342,16 @@ fn fwrite(emu: &mut emu::Emu) {
     let data = emu.maps.try_read_bytes(buf, total).map(|b| b.to_vec());
     let append = with_stream(file, |s| s.append).unwrap_or(false);
     let written = match (stream_handle(file), data) {
-        (Some(handle), Some(data)) => emu
-            .handle_management
-            .get_mut_file_handle(handle)
-            .and_then(|fh| {
-                if append {
-                    fh.seek(SeekFrom::End(0)).ok()?;
-                }
-                fh.write(&data).ok()
-            }),
+        (Some(handle), Some(data)) => {
+            emu.handle_management
+                .get_mut_file_handle(handle)
+                .and_then(|fh| {
+                    if append {
+                        fh.seek(SeekFrom::End(0)).ok()?;
+                    }
+                    fh.write(&data).ok()
+                })
+        }
         _ => None,
     };
     log_red!(
@@ -385,7 +387,13 @@ fn fgetc(emu: &mut emu::Emu, api: &str) {
         .handle_management
         .get_mut_file_handle(handle)
         .and_then(|fh| fh.read(&mut byte).ok());
-    log_red!(emu, "wincrt!{} 0x{:x} = {:?}", api, file, read.map(|_| byte[0]));
+    log_red!(
+        emu,
+        "wincrt!{} 0x{:x} = {:?}",
+        api,
+        file,
+        read.map(|_| byte[0])
+    );
     match read {
         Some(1) => emu.regs_mut().rax = byte[0] as u64,
         _ => {
@@ -422,7 +430,12 @@ fn fgets(emu: &mut emu::Emu) {
     }
     let at_eof = !line.ends_with(b"\n") && line.len() + 1 < max as usize;
     with_stream(file, |s| s.eof |= at_eof);
-    log_red!(emu, "wincrt!fgets 0x{:x} = {:?}", file, String::from_utf8_lossy(&line));
+    log_red!(
+        emu,
+        "wincrt!fgets 0x{:x} = {:?}",
+        file,
+        String::from_utf8_lossy(&line)
+    );
     if line.is_empty() {
         emu.regs_mut().rax = 0;
         return;
@@ -449,7 +462,15 @@ fn fseek(emu: &mut emu::Emu, api: &str, offset: i64) {
             .and_then(|fh| fh.seek(target).ok()),
         _ => None,
     };
-    log_red!(emu, "wincrt!{} 0x{:x} {} {} = {:?}", api, file, offset, origin, pos);
+    log_red!(
+        emu,
+        "wincrt!{} 0x{:x} {} {} = {:?}",
+        api,
+        file,
+        offset,
+        origin,
+        pos
+    );
     if pos.is_some() {
         with_stream(file, |s| s.eof = false);
         emu.regs_mut().rax = 0;

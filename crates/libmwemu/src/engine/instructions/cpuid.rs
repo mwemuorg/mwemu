@@ -139,7 +139,14 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             let name = b"Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz";
             brand[..name.len()].copy_from_slice(name);
             let part = &brand[leaf * 16..leaf * 16 + 16];
-            let dword = |i: usize| u32::from_le_bytes(part[i * 4..i * 4 + 4].try_into().unwrap()) as u64;
+            let dword = |i: usize| {
+                u32::from_le_bytes([
+                    part[i * 4],
+                    part[i * 4 + 1],
+                    part[i * 4 + 2],
+                    part[i * 4 + 3],
+                ]) as u64
+            };
             emu.regs_mut().rax = dword(0);
             emu.regs_mut().rbx = dword(1);
             emu.regs_mut().rcx = dword(2);

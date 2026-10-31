@@ -26,7 +26,10 @@ fn defaults(cfg: &Config) -> Vec<(String, String)> {
     [
         ("ALLUSERSPROFILE", "C:\\ProgramData".to_string()),
         ("APPDATA", format!("{}\\AppData\\Roaming", PROFILE)),
-        ("CommonProgramFiles", "C:\\Program Files\\Common Files".to_string()),
+        (
+            "CommonProgramFiles",
+            "C:\\Program Files\\Common Files".to_string(),
+        ),
         ("COMPUTERNAME", cfg.host_name.to_ascii_uppercase()),
         ("ComSpec", "C:\\Windows\\system32\\cmd.exe".to_string()),
         ("HOMEDRIVE", "C:".to_string()),
@@ -38,7 +41,10 @@ fn defaults(cfg: &Config) -> Vec<(String, String)> {
             "Path",
             "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem".to_string(),
         ),
-        ("PATHEXT", ".COM;.EXE;.BAT;.CMD;.VBS;.JS;.WSF;.MSC".to_string()),
+        (
+            "PATHEXT",
+            ".COM;.EXE;.BAT;.CMD;.VBS;.JS;.WSF;.MSC".to_string(),
+        ),
         ("PROCESSOR_ARCHITECTURE", "AMD64".to_string()),
         ("ProgramData", "C:\\ProgramData".to_string()),
         ("ProgramFiles", "C:\\Program Files".to_string()),

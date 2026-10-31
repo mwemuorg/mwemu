@@ -980,8 +980,8 @@ fn crt_wcsncpy(emu: &mut emu::Emu) {
     let ws = emu.maps.read_wide_string(src);
     let chars: Vec<u16> = ws.encode_utf16().collect();
     let copy_len = chars.len().min(n as usize);
-    for i in 0..copy_len {
-        emu.maps.write_word(dst + (i as u64) * 2, chars[i]);
+    for (i, c) in chars.iter().take(copy_len).enumerate() {
+        emu.maps.write_word(dst + (i as u64) * 2, *c);
     }
     for i in copy_len..n as usize {
         emu.maps.write_word(dst + (i as u64) * 2, 0);

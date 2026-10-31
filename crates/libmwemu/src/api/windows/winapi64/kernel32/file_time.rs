@@ -9,8 +9,9 @@ const UNIX_EPOCH_AS_FILETIME: u64 = 116_444_736_000_000_000;
 fn to_filetime(time: SystemTime) -> u64 {
     match time.duration_since(UNIX_EPOCH) {
         Ok(since) => UNIX_EPOCH_AS_FILETIME + (since.as_nanos() / 100) as u64,
-        Err(before) => UNIX_EPOCH_AS_FILETIME
-            .saturating_sub((before.duration().as_nanos() / 100) as u64),
+        Err(before) => {
+            UNIX_EPOCH_AS_FILETIME.saturating_sub((before.duration().as_nanos() / 100) as u64)
+        }
     }
 }
 

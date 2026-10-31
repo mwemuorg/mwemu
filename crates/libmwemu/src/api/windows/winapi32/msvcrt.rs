@@ -400,7 +400,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let _endptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
             let base = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(10);
             let s = emu.maps.read_string(ptr);
-            let val = i64::from_str_radix(s.trim(), base as u32).unwrap_or(0);
+            let val = i64::from_str_radix(s.trim(), base).unwrap_or(0);
             log_red!(emu, "msvcrt!strtol '{}' base:{} => {}", s, base, val);
             emu.regs_mut().rax = val as u64;
         }
@@ -409,7 +409,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let _endptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
             let base = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(10);
             let s = emu.maps.read_string(ptr);
-            let val = u64::from_str_radix(s.trim(), base as u32).unwrap_or(0);
+            let val = u64::from_str_radix(s.trim(), base).unwrap_or(0);
             log_red!(emu, "msvcrt!strtoul '{}' base:{} => {}", s, base, val);
             emu.regs_mut().rax = val;
         }

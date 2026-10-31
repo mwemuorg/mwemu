@@ -217,15 +217,15 @@ impl FileHandle {
         // access right or a disposition that creates or truncates.
         const WRITE_ACCESS: u32 = 0x4000_0000 | 0x1000_0000 | 0x2 | 0x4; // GENERIC_WRITE, GENERIC_ALL, FILE_WRITE_DATA, FILE_APPEND_DATA
         let mut options = File::options();
-        options
-            .read(true)
-            .write(access_mode & WRITE_ACCESS != 0 || matches!(creation_disposition, 1 | 2 | 4 | 5));
+        options.read(true).write(
+            access_mode & WRITE_ACCESS != 0 || matches!(creation_disposition, 1 | 2 | 4 | 5),
+        );
         match creation_disposition {
-            1 => options.create_new(true),                // CREATE_NEW
-            2 => options.create(true).truncate(true),     // CREATE_ALWAYS
-            3 => &mut options,                            // OPEN_EXISTING
-            4 => options.create(true),                    // OPEN_ALWAYS
-            5 => options.truncate(true),                  // TRUNCATE_EXISTING
+            1 => options.create_new(true),            // CREATE_NEW
+            2 => options.create(true).truncate(true), // CREATE_ALWAYS
+            3 => &mut options,                        // OPEN_EXISTING
+            4 => options.create(true),                // OPEN_ALWAYS
+            5 => options.truncate(true),              // TRUNCATE_EXISTING
             _ => {
                 return Err(Box::new(io::Error::new(
                     ErrorKind::InvalidInput,

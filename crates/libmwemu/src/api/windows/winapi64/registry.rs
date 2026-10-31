@@ -69,7 +69,9 @@ fn key_path(hkey: u64) -> Result<String, u64> {
         return Ok(path.to_string());
     }
     let uri = helper::handler_get_uri(hkey);
-    let path = uri.strip_prefix(HANDLE_PREFIX).ok_or(ERROR_INVALID_HANDLE)?;
+    let path = uri
+        .strip_prefix(HANDLE_PREFIX)
+        .ok_or(ERROR_INVALID_HANDLE)?;
     if store::key_exists(path) {
         Ok(path.to_string())
     } else {
@@ -87,7 +89,10 @@ fn finish(emu: &mut emu::Emu, api: &str, what: &str, err: u64) {
 }
 
 fn is_string(kind: u32) -> bool {
-    matches!(kind, store::REG_SZ | store::REG_EXPAND_SZ | store::REG_MULTI_SZ)
+    matches!(
+        kind,
+        store::REG_SZ | store::REG_EXPAND_SZ | store::REG_MULTI_SZ
+    )
 }
 
 /// Data as the caller passed it, converted to the stored form.

@@ -25,7 +25,11 @@ fn read_text(emu: &emu::Emu, ptr: u64, wide: bool) -> String {
 
 /// Write `s` to a buffer of `size` characters; false when it does not fit.
 fn write_text(emu: &mut emu::Emu, ptr: u64, size: usize, s: &str, wide: bool) -> bool {
-    let len = if wide { s.encode_utf16().count() } else { s.len() };
+    let len = if wide {
+        s.encode_utf16().count()
+    } else {
+        s.len()
+    };
     if len + 1 > size {
         return false;
     }

@@ -98,7 +98,8 @@ const STANDARD_KEYS: &[&str] = &[
     "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Hardware Profiles\\Current",
 ];
 
-const NT_CURRENT_VERSION: &str = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion";
+const NT_CURRENT_VERSION: &str =
+    "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion";
 
 fn seed() -> Vec<Key> {
     let mut keys: Vec<Key> = Vec::new();
@@ -283,7 +284,11 @@ pub fn key_info(path: &str) -> Option<KeyInfo> {
     let key = find(&keys, path)?;
     Some(KeyInfo {
         subkeys: subkeys.len() as u32,
-        max_subkey_len: subkeys.iter().map(|s| s.encode_utf16().count() as u32).max().unwrap_or(0),
+        max_subkey_len: subkeys
+            .iter()
+            .map(|s| s.encode_utf16().count() as u32)
+            .max()
+            .unwrap_or(0),
         values: key.values.len() as u32,
         max_value_name_len: key
             .values
@@ -291,6 +296,11 @@ pub fn key_info(path: &str) -> Option<KeyInfo> {
             .map(|(n, _)| n.encode_utf16().count() as u32)
             .max()
             .unwrap_or(0),
-        max_value_len: key.values.iter().map(|(_, v)| v.data.len() as u32).max().unwrap_or(0),
+        max_value_len: key
+            .values
+            .iter()
+            .map(|(_, v)| v.data.len() as u32)
+            .max()
+            .unwrap_or(0),
     })
 }

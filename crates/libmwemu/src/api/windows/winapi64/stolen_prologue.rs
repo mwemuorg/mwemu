@@ -121,7 +121,10 @@ fn export_entry_before(emu: &emu::Emu, addr: u64) -> Option<(u64, u64)> {
             near(body).then_some((body, export))
         })
         .max_by_key(|(body, _)| *body);
-    [direct, via_stub].into_iter().flatten().max_by_key(|(code, _)| *code)
+    [direct, via_stub]
+        .into_iter()
+        .flatten()
+        .max_by_key(|(code, _)| *code)
 }
 
 fn argument_count(emu: &mut emu::Emu, entry: u64) -> usize {
