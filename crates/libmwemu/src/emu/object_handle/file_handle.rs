@@ -213,22 +213,19 @@ impl FileHandle {
             let _ = fs::create_dir_all(parent);
         }
 
-        // Try to open/create the file first, then get metadata
-        let file_result = match creation_disposition {
-            1 => File::create_new(&resolved_path), // CREATE_NEW
-            2 => File::create(&resolved_path),     // CREATE_ALWAYS
-            3 => File::open(&resolved_path),       // OPEN_EXISTING
-            5 => File::options()
-                .read(true)
-                .write(true)
-                .truncate(true)
-                .open(&resolved_path), // TRUNCATE_EXISTING
-            4 => File::options()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(&resolved_path), // OPEN_ALWAYS
+        // Reading is always allowed on the host side; writing needs a write
+        // access right or a disposition that creates or truncates.
+        const WRITE_ACCESS: u32 = 0x4000_0000 | 0x1000_0000 | 0x2 | 0x4; // GENERIC_WRITE, GENERIC_ALL, FILE_WRITE_DATA, FILE_APPEND_DATA
+        let mut options = File::options();
+        options
+            .read(true)
+            .write(access_mode & WRITE_ACCESS != 0 || matches!(creation_disposition, 1 | 2 | 4 | 5));
+        match creation_disposition {
+            1 => options.create_new(true),                // CREATE_NEW
+            2 => options.create(true).truncate(true),     // CREATE_ALWAYS
+            3 => &mut options,                            // OPEN_EXISTING
+            4 => options.create(true),                    // OPEN_ALWAYS
+            5 => options.truncate(true),                  // TRUNCATE_EXISTING
             _ => {
                 return Err(Box::new(io::Error::new(
                     ErrorKind::InvalidInput,
@@ -236,6 +233,7 @@ impl FileHandle {
                 )));
             }
         };
+        let file_result = options.open(&resolved_path);
         let opened_file = file_result?;
 
         let metadata = opened_file.metadata()?;
@@ -338,6 +336,11 @@ impl FileHandle {
             .as_ref()
             .filter(|_| self.is_valid)
             .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "No file object associated"))
+    }
+
+    /// Current size of the file.
+    pub fn length(&self) -> io::Result<u64> {
+        Ok(self.open_file()?.metadata()?.len())
     }
 
     /// Creation, last access and last write time of the file.

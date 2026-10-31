@@ -45,8 +45,16 @@ pub(crate) fn protect(maps: &mut Maps, addr: u64, size: u64, prot: u32) -> Optio
     let (read, write, execute) = permissions(prot);
     let permission = Permission::from_flags(read, write, execute);
     for base in bases {
-        if let Some(mem) = maps.get_mem_by_addr_mut(base) {
-            mem.set_permission(permission);
+        let Some(mem) = maps.get_mem_by_addr_mut(base) else {
+            continue;
+        };
+        let was_executable = mem.can_execute();
+        let size = mem.get_bottom() - base;
+        mem.set_permission(permission);
+        // writes to a non-executable region skip the instruction cache, so
+        // once it is executable again its cached decodes may be stale
+        if execute && !was_executable {
+            maps.note_code_write(base, size);
         }
     }
     Some(old)

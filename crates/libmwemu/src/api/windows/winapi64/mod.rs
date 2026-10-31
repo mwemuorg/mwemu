@@ -2,6 +2,7 @@ pub(crate) mod advapi32;
 pub(crate) mod bcrypt;
 mod comctl32;
 mod comctl64;
+mod crt_stdio;
 mod crypt32;
 mod dnsapi;
 mod gdi32;

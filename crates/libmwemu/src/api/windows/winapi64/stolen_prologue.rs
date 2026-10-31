@@ -37,6 +37,7 @@ const API_ARGUMENT_COUNT: &[(&str, usize)] = &[
     ("IsDebuggerPresent", 0),
     ("GetCursorPos", 1),
     ("GetPhysicalCursorPos", 1),
+    ("fopen_s", 3),
     ("WriteProfileStringA", 3),
     ("WriteProfileStringW", 3),
 ];
