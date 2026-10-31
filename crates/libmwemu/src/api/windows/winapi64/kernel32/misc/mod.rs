@@ -1,3 +1,7 @@
+#[path = "../environment.rs"]
+mod environment;
+pub use environment::*;
+
 #[path = "../close_handle.rs"]
 mod close_handle;
 pub use close_handle::*;
@@ -9,14 +13,6 @@ pub use get_computer_name_a::*;
 #[path = "../get_computer_name_w.rs"]
 mod get_computer_name_w;
 pub use get_computer_name_w::*;
-
-#[path = "../free_environment_strings.rs"]
-mod free_environment_strings;
-pub use free_environment_strings::*;
-
-#[path = "../get_environment_variable_w.rs"]
-mod get_environment_variable_w;
-pub use get_environment_variable_w::*;
 
 #[path = "../get_last_error.rs"]
 mod get_last_error;
@@ -74,10 +70,3 @@ pub use output_debug_string_a::*;
 mod output_debug_string_w;
 pub use output_debug_string_w::*;
 
-#[path = "../set_environment_variable_a.rs"]
-mod set_environment_variable_a;
-pub use set_environment_variable_a::*;
-
-#[path = "../set_environment_variable_w.rs"]
-mod set_environment_variable_w;
-pub use set_environment_variable_w::*;

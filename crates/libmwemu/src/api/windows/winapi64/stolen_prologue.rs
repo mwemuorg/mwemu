@@ -13,6 +13,11 @@
 
     Anything else, in particular a write to an argument register, cannot be
     undone and is refused.
+
+    Some exports are only a `jmp` into the real function body (ucrtbase's
+    _time64 -> common_time); a trampoline that follows that jump skips the
+    body's prologue instead, so the jump target counts as an entry of the
+    export too.
 */
 
 use iced_x86::{Decoder, DecoderOptions, Instruction, Mnemonic, OpKind, Register};
@@ -37,6 +42,7 @@ const API_ARGUMENT_COUNT: &[(&str, usize)] = &[
     ("IsDebuggerPresent", 0),
     ("GetCursorPos", 1),
     ("GetPhysicalCursorPos", 1),
+    ("_time64", 1),
     ("fopen_s", 3),
     ("WriteProfileStringA", 3),
     ("WriteProfileStringW", 3),
@@ -69,10 +75,10 @@ struct Prologue {
 /// those instructions (rsp points at the caller's return address again) and
 /// return the export's entry address.
 pub fn unwind(emu: &mut emu::Emu, addr: u64) -> Option<u64> {
-    let entry = export_entry_before(emu, addr)?;
+    let (code, entry) = export_entry_before(emu, addr)?;
     let argument_count = argument_count(emu, entry);
-    let skipped = emu.maps.try_read_bytes(entry, (addr - entry) as usize)?;
-    let prologue = decode_prologue(skipped, entry, argument_count)?;
+    let skipped = emu.maps.try_read_bytes(code, (addr - code) as usize)?;
+    let prologue = decode_prologue(skipped, code, argument_count)?;
 
     let entry_rsp = emu.regs().rsp + prologue.rsp_delta;
     for reg in &prologue.clobbered {
@@ -85,13 +91,37 @@ pub fn unwind(emu: &mut emu::Emu, addr: u64) -> Option<u64> {
     Some(entry)
 }
 
-/// Closest exported entry point at most MAX_STOLEN_BYTES below `addr`.
-fn export_entry_before(emu: &emu::Emu, addr: u64) -> Option<u64> {
-    emu.export_indexes
+/// Closest entry point at most MAX_STOLEN_BYTES below `addr`: where the
+/// skipped bytes start, and the export to dispatch.
+fn export_entry_before(emu: &emu::Emu, addr: u64) -> Option<(u64, u64)> {
+    let near = |entry: u64| entry < addr && addr - entry <= MAX_STOLEN_BYTES;
+    let direct = emu
+        .export_indexes
         .iter_ordered()
         .flat_map(|module| module.by_address.keys().copied())
-        .filter(|&entry| entry < addr && addr - entry <= MAX_STOLEN_BYTES)
+        .filter(|&entry| near(entry))
         .max()
+        .map(|entry| (entry, entry));
+    // exports of the module containing `addr` that are a `jmp rel32` stub
+    let module = emu
+        .export_indexes
+        .iter_ordered()
+        .filter(|module| module.base <= addr)
+        .max_by_key(|module| module.base)?;
+    let via_stub = module
+        .by_address
+        .keys()
+        .filter_map(|&export| {
+            let stub = emu.maps.try_read_bytes(export, 5)?;
+            if stub[0] != 0xe9 {
+                return None;
+            }
+            let rel = i32::from_le_bytes([stub[1], stub[2], stub[3], stub[4]]) as i64;
+            let body = (export + 5).wrapping_add_signed(rel);
+            near(body).then_some((body, export))
+        })
+        .max_by_key(|(body, _)| *body);
+    [direct, via_stub].into_iter().flatten().max_by_key(|(code, _)| *code)
 }
 
 fn argument_count(emu: &mut emu::Emu, entry: u64) -> usize {

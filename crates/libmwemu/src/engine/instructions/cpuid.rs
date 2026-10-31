@@ -131,6 +131,34 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rcx = 0x121;
             emu.regs_mut().rdx = 0x2c100800;
         }
+        // processor brand string, 16 bytes per leaf in eax, ebx, ecx, edx;
+        // matches the family/model/stepping leaf 1 reports (0x906ed)
+        0x80000002..=0x80000004 => {
+            let leaf = (emu.regs().rax - 0x80000002) as usize;
+            let mut brand = [0u8; 48];
+            let name = b"Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz";
+            brand[..name.len()].copy_from_slice(name);
+            let part = &brand[leaf * 16..leaf * 16 + 16];
+            let dword = |i: usize| u32::from_le_bytes(part[i * 4..i * 4 + 4].try_into().unwrap()) as u64;
+            emu.regs_mut().rax = dword(0);
+            emu.regs_mut().rbx = dword(1);
+            emu.regs_mut().rcx = dword(2);
+            emu.regs_mut().rdx = dword(3);
+        }
+        // L1 cache/TLB: reserved on Intel
+        0x80000005 => {
+            emu.regs_mut().rax = 0;
+            emu.regs_mut().rbx = 0;
+            emu.regs_mut().rcx = 0;
+            emu.regs_mut().rdx = 0;
+        }
+        // L2: 256 KB, 4-way, 64-byte lines
+        0x80000006 => {
+            emu.regs_mut().rax = 0;
+            emu.regs_mut().rbx = 0;
+            emu.regs_mut().rcx = 0x0100_6040;
+            emu.regs_mut().rdx = 0;
+        }
         0x80000007 => {
             emu.regs_mut().rax = 0;
             emu.regs_mut().rbx = 0;

@@ -149,6 +149,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetEnvironmentStringsW" => GetEnvironmentStringsW(emu),
         "FreeEnvironmentStringsA" => FreeEnvironmentStrings(emu),
         "FreeEnvironmentStringsW" => FreeEnvironmentStrings(emu),
+        "GetEnvironmentVariableA" => GetEnvironmentVariableA(emu),
         "GetEnvironmentVariableW" => GetEnvironmentVariableW(emu),
         "GetFileAttributesA" => GetFileAttributesA(emu),
         "GetFileAttributesW" => GetFileAttributesW(emu),
@@ -386,6 +387,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WriteProcessMemory" => WriteProcessMemory(emu),
         "GetVolumeInformationA" => GetVolumeInformationA(emu),
         "GetVolumeInformationW" => GetVolumeInformationW(emu),
+        "GetVolumePathNameA" => GetVolumePathNameA(emu),
+        "GetVolumePathNameW" => GetVolumePathNameW(emu),
         "RemoveDirectoryA" => RemoveDirectoryA(emu),
         "RemoveDirectoryW" => RemoveDirectoryW(emu),
         "SetFileAttributesA" => SetFileAttributesA(emu),
@@ -1105,21 +1108,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
 
         // --- Environment ---
-        "GetEnvironmentStrings" | "GetEnvironmentStringsA" => {
-            log_red!(emu, "kernel32!GetEnvironmentStrings");
-            let block = emu.maps.alloc(0x100).unwrap_or(0);
-            if block != 0 {
-                let _ = emu.maps.create_map(
-                    "env_block",
-                    block,
-                    0x100,
-                    crate::maps::mem64::Permission::READ_WRITE,
-                );
-                emu.maps.write_byte(block, 0);
-                emu.maps.write_byte(block + 1, 0);
-            }
-            emu.regs_mut().rax = block;
-        }
+        "GetEnvironmentStrings" | "GetEnvironmentStringsA" => GetEnvironmentStringsA(emu),
 
         // --- Misc ---
         "Beep" => {

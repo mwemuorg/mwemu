@@ -1,4 +1,5 @@
 pub(crate) mod common;
+pub mod environment_store;
 pub mod export_index;
 pub mod helper;
 pub mod profile_store;

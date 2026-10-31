@@ -71,6 +71,7 @@ pub const ERROR_INVALID_HANDLE: u64 = 6;
 pub const ERROR_NOT_ENOUGH_MEMORY: u64 = 8;
 pub const ERROR_MOD_NOT_FOUND: u64 = 126;
 pub const ERROR_NEGATIVE_SEEK: u64 = 131;
+pub const ERROR_ENVVAR_NOT_FOUND: u64 = 203;
 pub const ERROR_MORE_DATA: u64 = 234;
 pub const ERROR_NO_MORE_ITEMS: u64 = 259;
 pub const ERROR_INVALID_ADDRESS: u64 = 487;
