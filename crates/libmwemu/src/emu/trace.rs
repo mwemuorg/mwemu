@@ -9,6 +9,7 @@ use crate::{
 };
 
 impl Emu {
+    /// Open the trace output file specified in `cfg.trace_filename`.
     pub fn open_trace_file(&mut self) {
         if let Some(filename) = self.cfg.trace_filename.clone() {
             let mut trace_file = match std::fs::File::create(&filename) {

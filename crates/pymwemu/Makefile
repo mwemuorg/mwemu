@@ -2,8 +2,14 @@
 
 .PHONY: setup-env test test-python test-rust clean clean-env rebuild-test
 
-# Default Python interpreter
+# Default Python interpreter. pyo3-stub-gen needs Python >= 3.10 and macOS
+# ships 3.9 as `python3`, so prefer the newest versioned interpreter on PATH
+# (override with `make PYTHON=/path/to/python3.x ...`).
+ifeq ($(OS),Windows_NT)
 PYTHON ?= python3
+else
+PYTHON ?= $(shell for p in python3.14 python3.13 python3.12 python3.11 python3.10 python3; do command -v $$p >/dev/null 2>&1 && { echo $$p; break; }; done)
+endif
 
 # Virtual environment paths
 VENV_DIR = .env
@@ -21,7 +27,7 @@ setup-env:
 	$(PYTHON) -m venv $(VENV_DIR)
 	$(VENV_PYTHON) -m pip install --upgrade pip
 	$(VENV_PYTHON) -m pip install maturin
-	$(VENV_MATURIN) develop --release
+	VIRTUAL_ENV=$(abspath $(VENV_DIR)) $(VENV_MATURIN) develop --release
 	@echo "Test environment ready!"
 	@echo "To activate: source $(VENV_DIR)/bin/activate (Linux/Mac) or $(VENV_DIR)\\Scripts\\activate (Windows)"
 

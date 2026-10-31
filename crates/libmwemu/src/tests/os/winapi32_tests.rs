@@ -723,3 +723,42 @@ fn test_reg_open_query_32() {
     );
     assert_eq!(r, 0, "RegQueryValueExA should return ERROR_SUCCESS");
 }
+
+#[test]
+fn test_get_module_handle_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let name_addr = 0x20000u64;
+    emu.maps
+        .create_map("data", name_addr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_addr, "kernel32.dll");
+
+    emu.maps.create_map(
+        "kernel32.dll",
+        0x70000000,
+        0x10000,
+        Permission::READ_EXECUTE,
+    );
+
+    let h_mod = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetModuleHandleA,
+        &[name_addr as u32],
+    );
+    assert_eq!(
+        h_mod as u64, 0x70000000,
+        "GetModuleHandleA('kernel32.dll') returned incorrect base"
+    );
+}
+
+#[test]
+fn test_close_handle_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let handle = crate::winapi::helper::handler_create("dummy_file");
+
+    let ret = helpers::call_winapi32(&mut emu, winapi32::kernel32::CloseHandle, &[handle as u32]);
+    assert_eq!(ret, 1, "CloseHandle should return TRUE");
+}

@@ -3,7 +3,7 @@ use crate::emu::Emu;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    assert!(ins.op_count() == 1);
+    debug_assert!(ins.op_count() == 1);
 
     if !emu.flag_zf() {
         emu.show_instruction_taken(

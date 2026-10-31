@@ -1,6 +1,6 @@
 [package]
 name = "cmwemu"
-version = "0.25.2"
+version = "1.0.0"
 edition = "2024"
 authors = ["sha0coder"]
 license = "Apache-2.0"
@@ -13,7 +13,7 @@ name = "cmwemu"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
-libmwemu = { path = "../libmwemu", version = "0.27.0" }
+libmwemu = { path = "../libmwemu", version = "1.0.0" }
 
 [build-dependencies]
 cbindgen = "0.29"

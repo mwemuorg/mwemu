@@ -1,6 +1,6 @@
 [package]
 name = "pymwemu"
-version = "0.11.7"
+version = "1.0.0"
 edition = "2024"
 rust-version.workspace = true
 description = "Python bindings for libmwemu: an x86 32/64bits and system internals emulator for securely emulating malware."
@@ -17,12 +17,14 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 pyo3 = "0.26.0"
 env_logger = "0.11.8"
-libmwemu = { path = "../libmwemu", version = "0.27.0" }
+libmwemu = { path = "../libmwemu", version = "1.0.0" }
 log = "0.4.22"
 pyo3-stub-gen = "0.22.3"
 
 [build-dependencies]
-pyo3-build-config = "0.26.0"
+# `resolve-config` exposes the interpreter pyo3 picked, so build.rs can reject
+# a Python < 3.10 with a clear message (see build.rs).
+pyo3-build-config = { version = "0.26.0", features = ["resolve-config"] }
 
 [features]
 extension-module = ["pyo3/extension-module"]

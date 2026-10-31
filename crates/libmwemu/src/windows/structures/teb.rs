@@ -3,6 +3,7 @@ use crate::maps::Maps;
 use crate::maps::mem64::Mem64;
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct TEB {
     pub nt_tib: NtTib32,
     pub environment_pointer: u32,

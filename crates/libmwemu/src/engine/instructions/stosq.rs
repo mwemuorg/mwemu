@@ -3,7 +3,7 @@ use crate::emu::Emu;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    assert!(emu.cfg.is_x64());
+    debug_assert!(emu.cfg.is_x64());
 
     if emu.rep.is_some() {
         if emu.rep.unwrap_or(0) == 0 || emu.cfg.verbose >= 3 {

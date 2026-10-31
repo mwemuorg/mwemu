@@ -1,6 +1,6 @@
 [package]
 name = "mwemu-snapshot"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2024"
 rust-version = "1.95"
 license = "Apache-2.0"
@@ -16,7 +16,7 @@ name = "mwemu-snapshot"
 path = "src/main.rs"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libmwemu = { path = "../libmwemu", version = "0.27.0" }
+libmwemu = { path = "../libmwemu", version = "1.0.0" }
 nix = { version = "0.29", features = ["ptrace", "process", "uio"] }
 ahash = "0.8"
 slab = "0.4"

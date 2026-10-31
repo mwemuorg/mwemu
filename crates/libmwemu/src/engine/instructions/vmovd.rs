@@ -11,7 +11,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
 
-    assert!(ins.op_count() == 2);
+    debug_assert!(ins.op_count() == 2);
 
     let sz0 = emu.get_operand_sz(ins, 0);
 

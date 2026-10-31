@@ -248,11 +248,9 @@ pub use create_file_mapping_numa_a::*;
 
 #[path = "../create_mailslot_a.rs"]
 mod create_mailslot_a;
-pub use create_mailslot_a::*;
 
 #[path = "../create_mailslot_w.rs"]
 mod create_mailslot_w;
-pub use create_mailslot_w::*;
 
 #[path = "../create_tape_partition.rs"]
 mod create_tape_partition;

@@ -10,6 +10,7 @@ mod misc;
 mod string;
 mod sync;
 
+#[cfg(test)]
 pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {

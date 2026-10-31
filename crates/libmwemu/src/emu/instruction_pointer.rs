@@ -441,12 +441,22 @@ impl Emu {
 
         let map_name = self.filename_to_mapname(&self.filename);
 
-        /*
-        if name == "code"
-            || addr < constants::LIBS32_MIN
-            || (!map_name.is_empty() && name.starts_with(&map_name))
-            || name == "loader.text"*/
-        if addr < constants::LIBS32_MIN {
+        // Non-syscall mode: ntdll is mapped at its original base (below
+        // LIBS32_MIN), but cross-module calls into it should be intercepted
+        // just like high-address libraries. Mirrors the 64-bit logic in set_rip.
+        let is_ntdll_cross_call = addr < constants::LIBS32_MIN
+            && !self.cfg.emulate_winapi
+            && self.os.is_windows()
+            && name.starts_with("ntdll")
+            && {
+                let caller_name = self
+                    .maps
+                    .get_addr_name(self.regs().get_eip())
+                    .unwrap_or("??");
+                !caller_name.starts_with("ntdll")
+            };
+
+        if addr < constants::LIBS32_MIN && !is_ntdll_cross_call {
             if self.cfg.verbose > 1 {
                 let eip = self.regs().get_eip();
                 let prev = self.maps.get_addr_name(eip).unwrap_or("??");

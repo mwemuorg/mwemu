@@ -11,6 +11,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlFreeHeap" | "HeapFree" => RtlFreeHeap(emu),
         "RtlReAllocateHeap" | "HeapReAlloc" => RtlReAllocateHeap(emu),
         "RtlGetProcessHeaps" => RtlGetProcessHeaps(emu),
+        "RtlSizeHeap" | "HeapSize" => RtlSizeHeap(emu),
         "RtlFreeAnsiString" => RtlFreeAnsiString(emu),
         _ => return false,
     }
@@ -165,6 +166,21 @@ pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
     } else {
         emu.regs_mut().rax = to_write;
     }
+}
+
+fn RtlSizeHeap(emu: &mut emu::Emu) {
+    let hndl = emu.regs().rcx;
+    let ptr = emu.regs().r8;
+
+    let size = heap_engine::heap_allocation_size(emu, ptr).unwrap_or(0) as u64;
+    log_red!(
+        emu,
+        "ntdll!RtlSizeHeap hndl=0x{:x} ptr=0x{:x} => {}",
+        hndl,
+        ptr,
+        size
+    );
+    emu.regs_mut().rax = size;
 }
 
 fn RtlFreeAnsiString(emu: &mut emu::Emu) {

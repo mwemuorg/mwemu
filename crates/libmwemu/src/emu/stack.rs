@@ -1,6 +1,7 @@
 use crate::{emu::Emu, windows::structures::MemoryOperation};
 
 impl Emu {
+    /// Push a 16-bit value onto the stack. Returns false if SP points to unmapped memory.
     pub fn stack_push16(&mut self, value: u16) -> bool {
         let sp = self.sp();
 
@@ -176,6 +177,7 @@ impl Emu {
         false
     }
 
+    /// Pop a 16-bit value from the stack. Returns None if SP points to unmapped memory.
     pub fn stack_pop16(&mut self, pop_instruction: bool) -> Option<u16> {
         let sp = self.sp();
 

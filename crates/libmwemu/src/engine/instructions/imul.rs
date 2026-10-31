@@ -9,7 +9,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
 
-    assert!(ins.op_count() == 1 || ins.op_count() == 2 || ins.op_count() == 3);
+    debug_assert!(ins.op_count() == 1 || ins.op_count() == 2 || ins.op_count() == 3);
 
     if ins.op_count() == 1 {
         // 1 param

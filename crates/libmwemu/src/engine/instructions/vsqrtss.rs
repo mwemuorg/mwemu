@@ -1,6 +1,7 @@
 use crate::color;
 use crate::emu::Emu;
 use crate::engine::instructions::avx;
+use crate::engine::instructions::fp;
 use iced_x86::Instruction;
 
 // VSQRTSS: VEX scalar/vertical float op.
@@ -9,5 +10,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         color!("Cyan"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-    avx::scalar32(emu, ins, |_, y| y.sqrt())
+    avx::scalar32(emu, ins, |_, y| fp::sqrt_f32(y))
 }

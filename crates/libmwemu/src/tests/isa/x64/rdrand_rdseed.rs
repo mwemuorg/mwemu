@@ -50,3 +50,31 @@ fn rdrand32_zero_extends() {
     );
     assert!(emu.flag_cf(), "RDRAND must set CF=1 on success");
 }
+
+/// With a seed the random source is reproducible across emulator instances,
+/// whether it is set on the emulator or through the config builder.
+#[test]
+fn rdrand_is_reproducible_with_a_seed() {
+    // rdrand rax ; rdrand rbx ; rdseed rcx ; hlt
+    let code = [
+        0x48, 0x0f, 0xc7, 0xf0, 0x48, 0x0f, 0xc7, 0xf3, 0x48, 0x0f, 0xc7, 0xf9, 0xf4,
+    ];
+    let run = |seed: u64, via_cfg: bool| {
+        let mut emu = emu64();
+        if via_cfg {
+            emu.cfg.set_seed(Some(seed));
+        } else {
+            emu.set_seed(seed);
+        }
+        emu.load_code_bytes(&code);
+        emu.run(None).unwrap();
+        (emu.regs().rax, emu.regs().rbx, emu.regs().rcx)
+    };
+    assert_eq!(run(42, false), run(42, false), "same seed, same values");
+    assert_eq!(run(42, false), run(42, true), "cfg.seed and set_seed agree");
+    assert_ne!(
+        run(42, false),
+        run(43, false),
+        "different seed, different values"
+    );
+}

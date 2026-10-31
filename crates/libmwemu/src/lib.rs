@@ -14,24 +14,26 @@
 #[macro_use]
 pub mod utils;
 
-// Grouped modules
-pub mod api;
+// Internal modules — not part of the public API.
+pub(crate) mod api;
+pub(crate) mod engine;
+pub(crate) mod exception;
+pub(crate) mod loaders;
+pub(crate) mod syscall;
+pub(crate) mod threading;
+pub(crate) mod windows;
+
+// Semi-public modules — exposed for advanced use (snapshot, debugger).
 pub mod arch;
 pub mod debug;
-pub mod exception;
 pub mod kernel;
-pub mod loaders;
-pub mod threading;
-pub mod windows;
 
-// Core modules
+// Core public modules
 pub mod emu;
-pub mod engine;
 pub mod maps;
 pub mod serialization;
-pub mod syscall;
 
-// Standalone modules
+// Standalone public modules
 pub mod config;
 pub mod err;
 pub mod hooks;
@@ -44,11 +46,11 @@ pub use arch::x86::flags;
 pub use arch::x86::fpu;
 pub use arch::x86::regs as regs64;
 
-// Backwards-compatible re-exports (api/syscall)
-pub use api::linux as linuxapi;
-pub use api::macos as macosapi;
-pub use api::windows as winapi;
-pub use syscall::windows::ntapi;
+// Internal re-exports used by crate modules (api/syscall).
+pub(crate) use api::linux as linuxapi;
+pub(crate) use api::macos as macosapi;
+pub(crate) use api::windows as winapi;
+pub(crate) use syscall::windows::ntapi;
 
 // Re-exports for external crates
 pub use debug::console;

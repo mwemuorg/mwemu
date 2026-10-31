@@ -15,6 +15,15 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
 ) -> Result<(), MwemuError> {
     super::super::assert_aarch64_arch(emu, "ensure_instruction_cache_populated_aarch64");
 
+    // Self-modifying code: any write into executable memory since the last
+    // block fill invalidates every cached lookup (page-granular tracking is
+    // only done for x86, where blocks carry their addresses).
+    if emu.maps.has_code_writes() {
+        let mut scratch = Vec::new();
+        emu.maps.drain_code_writes(&mut scratch);
+        emu.aarch64_instruction_cache().invalidate_all();
+    }
+
     let cache_hit = emu.aarch64_instruction_cache().lookup_entry(pc, 0);
     if cache_hit {
         return Ok(());

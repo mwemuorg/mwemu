@@ -7,7 +7,8 @@ use iced_x86::Instruction;
 ///
 /// On real silicon CF=0 means "no entropy available, retry"; guests loop on
 /// RDRAND until CF=1, so the emulator always succeeds to avoid a spin. The
-/// value comes from the same `rand` source used elsewhere in mwemu.
+/// value comes from the emulator's random source (`Emu::set_seed` makes it
+/// reproducible).
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(
         color!("Red"),
@@ -15,7 +16,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     );
 
     let sz = emu.get_operand_sz(ins, 0);
-    let rnd = rand::random::<u64>();
+    let rnd = emu.random_u64();
     let value = match sz {
         64 => rnd,
         32 => rnd & 0xffff_ffff,

@@ -9,10 +9,15 @@ mod misc;
 mod string;
 mod sync;
 
+#[cfg(test)]
 pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
+#[cfg(test)]
 pub use memory::{NtCreateSection, NtFreeVirtualMemory, NtMapViewOfSection, NtUnmapViewOfSection};
+#[cfg(test)]
 pub use misc::{NtQueryInformationProcess, NtQuerySystemInformation, RtlDecompressBuffer};
+#[cfg(test)]
 pub use string::{RtlInitAnsiString, RtlInitUnicodeString};
+#[cfg(test)]
 pub use sync::NtDelayExecution;
 
 pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {

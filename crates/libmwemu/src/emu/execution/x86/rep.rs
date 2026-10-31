@@ -1,6 +1,7 @@
 use iced_x86::{Code, Instruction, Mnemonic};
 
 use super::Emu;
+use crate::engine;
 
 impl Emu {
     /// Bulk fast-path for REP-prefixed string instructions. Returns `true` when
@@ -71,7 +72,7 @@ impl Emu {
         // Don't bulk past an instruction-count breakpoint / console / exit
         // position that lands strictly inside this REP — fall back so it stops.
         let lo = self.pos;
-        let hi = self.pos + count;
+        let hi = self.pos.saturating_add(count);
         if self.exp != u64::MAX && self.exp > lo && self.exp < hi {
             return false;
         }
@@ -97,10 +98,21 @@ impl Emu {
         };
         let di = self.regs().rdi;
         let si = self.regs().rsi;
-        let total = (count * esz) as usize;
+        // `rcx = -1` (the strlen idiom) and friends overflow the byte count or
+        // the end address; the per-element path handles those.
+        let Some(total) = count.checked_mul(esz) else {
+            return false;
+        };
+        let Some(dend) = di.checked_add(total - 1) else {
+            return false;
+        };
+        let Some(send) = si.checked_add(total - 1) else {
+            return false;
+        };
+        let total = total as usize;
         let processed: u64 = match ins.mnemonic() {
             Stosb | Stosw | Stosd | Stosq => {
-                let end = di + total as u64 - 1;
+                let end = dend;
                 let writable = self
                     .maps
                     .get_mem_by_addr(di)
@@ -115,16 +127,12 @@ impl Emu {
                 for _ in 0..count {
                     buf.extend_from_slice(unit);
                 }
-                if let Some(mm) = self.maps.get_mem_by_addr_mut(di) {
-                    mm.write_bytes(di, &buf);
-                }
+                self.maps.write_bytes(di, &buf);
                 self.regs_mut().rdi = di + total as u64;
                 self.regs_mut().rcx = 0;
                 count
             }
             Movsb | Movsw | Movsd | Movsq => {
-                let dend = di + total as u64 - 1;
-                let send = si + total as u64 - 1;
                 // Overlapping forward copy has propagation semantics a flat
                 // memcpy wouldn't reproduce — leave those to the per-element path.
                 if di <= send && si <= dend {
@@ -144,16 +152,14 @@ impl Emu {
                     return false;
                 }
                 let src = self.maps.read_bytes(si, total).to_vec();
-                if let Some(mm) = self.maps.get_mem_by_addr_mut(di) {
-                    mm.write_bytes(di, &src);
-                }
+                self.maps.write_bytes(di, &src);
                 self.regs_mut().rsi = si + total as u64;
                 self.regs_mut().rdi = di + total as u64;
                 self.regs_mut().rcx = 0;
                 count
             }
             Scasb | Scasw | Scasd | Scasq => {
-                let end = di + total as u64 - 1;
+                let end = dend;
                 let readable = self
                     .maps
                     .get_mem_by_addr(di)
@@ -183,7 +189,6 @@ impl Emu {
                 k
             }
             Lodsb | Lodsw | Lodsd | Lodsq => {
-                let send = si + total as u64 - 1;
                 let readable = self
                     .maps
                     .get_mem_by_addr(si)
@@ -208,6 +213,54 @@ impl Emu {
         self.instruction_count += processed;
         self.regs_mut().rip += size as u64;
         true
+    }
+
+    /// A string instruction carrying a REP/REPE/REPNE prefix, i.e. one the
+    /// REP state machine iterates.
+    pub(crate) fn is_rep_string_instruction(ins: &Instruction) -> bool {
+        use Mnemonic::*;
+        let prefixed = ins.has_rep_prefix() || ins.has_repe_prefix() || ins.has_repne_prefix();
+        prefixed
+            && matches!(
+                ins.mnemonic(),
+                Movsb
+                    | Movsw
+                    | Movsd
+                    | Movsq
+                    | Stosb
+                    | Stosw
+                    | Stosd
+                    | Stosq
+                    | Lodsb
+                    | Lodsw
+                    | Lodsd
+                    | Lodsq
+                    | Cmpsb
+                    | Cmpsw
+                    | Cmpsd
+                    | Cmpsq
+                    | Scasb
+                    | Scasw
+                    | Scasd
+                    | Scasq
+            )
+    }
+
+    /// Single-step path: run every remaining iteration of a REP string
+    /// instruction through the same state machine as the run loop. `rip` is
+    /// left on the instruction for the caller to advance.
+    pub(crate) fn execute_x86_rep_fully(&mut self, ins: &Instruction, sz: usize) -> bool {
+        let mut ok = true;
+        self.rep = Some(0);
+        while self.regs().rcx != 0 {
+            ok = engine::emulate_instruction(self, ins, sz, true);
+            self.update_x86_rep_state_after_execution(*ins);
+            if !ok || self.rep.is_none() {
+                break;
+            }
+        }
+        self.rep = None;
+        ok
     }
 
     #[inline]

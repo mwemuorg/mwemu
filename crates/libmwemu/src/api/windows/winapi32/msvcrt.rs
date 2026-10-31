@@ -90,7 +90,166 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "exit" => exit(emu),
         "__set_app_type" => __set_app_type(emu),
         "_errno" => _errno(emu),
-
+        "__p__fmode" => __p__global_int(emu, "__p__fmode"),
+        "__p__commode" => __p__global_int(emu, "__p__commode"),
+        "_adjust_fdiv" => __p__global_int(emu, "_adjust_fdiv"),
+        "__setusermatherr" => {
+            log_red!(emu, "msvcrt!__setusermatherr");
+        }
+        "_controlfp" => {
+            let new_val = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let mask = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            log_red!(emu, "msvcrt!_controlfp 0x{:x} 0x{:x}", new_val, mask);
+            emu.regs_mut().rax = 0x0008_001f;
+        }
+        "__getmainargs" => {
+            let p_argc = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_argv = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_env = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(emu, "msvcrt!__getmainargs");
+            if p_argc != 0 {
+                emu.maps.write_dword(p_argc, 1);
+            }
+            if p_argv != 0 {
+                emu.maps.write_dword(p_argv, 0);
+            }
+            if p_env != 0 {
+                emu.maps.write_dword(p_env, 0);
+            }
+            emu.regs_mut().rax = 0;
+        }
+        "_acmdln" | "__p__acmdln" => __p__acmdln(emu),
+        "_XcptFilter" => {
+            log_red!(emu, "msvcrt!_XcptFilter");
+            emu.regs_mut().rax = 0;
+        }
+        "_exit" => exit(emu),
+        "__dllonexit" => {
+            let func = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            log_red!(emu, "msvcrt!__dllonexit 0x{:x}", func);
+            emu.regs_mut().rax = func as u64;
+        }
+        "_except_handler3" | "__CxxFrameHandler" => {
+            log_red!(emu, "msvcrt!{}", api);
+            emu.regs_mut().rax = 0;
+        }
+        "_EH_prolog" => {
+            log_red!(emu, "msvcrt!_EH_prolog");
+        }
+        "_CxxThrowException" => {
+            log_red!(emu, "msvcrt!_CxxThrowException");
+        }
+        "_ftol" => {
+            let val = emu.fpu_mut().get_st(0);
+            log_red!(emu, "msvcrt!_ftol {} => {}", val, val as i64);
+            emu.regs_mut().rax = val as i64 as u64;
+        }
+        "time" => {
+            let t_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let now = 0x6718_0000u64;
+            if t_ptr != 0 {
+                emu.maps.write_dword(t_ptr, now as u32);
+            }
+            log_red!(emu, "msvcrt!time => 0x{:x}", now);
+            emu.regs_mut().rax = now;
+        }
+        "localtime" => {
+            let tm_addr = allocate_memory(emu, 64).unwrap_or(0);
+            log_red!(emu, "msvcrt!localtime => 0x{:x}", tm_addr);
+            emu.regs_mut().rax = tm_addr;
+        }
+        "strftime" => {
+            let dst = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let max_size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let s = "01/01/2024 00:00:00";
+            if dst != 0 && max_size > 0 {
+                emu.maps.write_string(dst, s);
+            }
+            log_red!(emu, "msvcrt!strftime => '{}'", s);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        "srand" => {
+            log_red!(emu, "msvcrt!srand");
+        }
+        "rand" => {
+            log_red!(emu, "msvcrt!rand");
+            emu.regs_mut().rax = 42;
+        }
+        "atoi" => {
+            let ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let s = emu.maps.read_string(ptr);
+            let val = s.parse::<i32>().unwrap_or(0);
+            log_red!(emu, "msvcrt!atoi '{}' => {}", s, val);
+            emu.regs_mut().rax = val as u64;
+        }
+        "_itoa" | "_itow" => {
+            let val = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let buf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let radix = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(10);
+            let s = match radix {
+                16 => format!("{:x}", val),
+                8 => format!("{:o}", val),
+                _ => format!("{}", val),
+            };
+            if buf != 0 {
+                emu.maps.write_string(buf, &s);
+            }
+            log_red!(emu, "msvcrt!{} {} => '{}'", api, val, s);
+            emu.regs_mut().rax = buf;
+        }
+        "getenv" | "_wgetenv" => {
+            let ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let name = emu.maps.read_string(ptr);
+            log_red!(emu, "msvcrt!{} '{}' => NULL", api, name);
+            emu.regs_mut().rax = 0;
+        }
+        "printf" | "sprintf" | "swprintf" => {
+            log_red!(emu, "msvcrt!{}", api);
+            emu.regs_mut().rax = 0;
+        }
+        "strncmp" => {
+            let s1_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let s2_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let n = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as usize;
+            let s1 = emu.maps.read_string(s1_ptr);
+            let s2 = emu.maps.read_string(s2_ptr);
+            let result = s1.get(..n).unwrap_or(&s1).cmp(s2.get(..n).unwrap_or(&s2)) as i32;
+            log_red!(emu, "msvcrt!strncmp '{}' '{}' {} => {}", s1, s2, n, result);
+            emu.regs_mut().rax = result as u64;
+        }
+        "toupper" => {
+            let c = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let upper = (c as u8 as char).to_ascii_uppercase() as u64;
+            emu.regs_mut().rax = upper;
+        }
+        "tolower" => {
+            let c = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let lower = (c as u8 as char).to_ascii_lowercase() as u64;
+            emu.regs_mut().rax = lower;
+        }
+        "wcslen" => {
+            let ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let ws = emu.maps.read_wide_string(ptr);
+            log_red!(emu, "msvcrt!wcslen '{}' => {}", ws, ws.len());
+            emu.regs_mut().rax = ws.len() as u64;
+        }
+        "wcscpy" | "wcscat" | "wcscmp" => {
+            log_red!(emu, "msvcrt!{}", api);
+            emu.regs_mut().rax = 0;
+        }
+        "freopen" | "_wrename" | "_wsystem" => {
+            log_red!(emu, "msvcrt!{}", api);
+            emu.regs_mut().rax = 0;
+        }
+        "_iob" => {
+            let iob_addr = allocate_memory(emu, 96).unwrap_or(0);
+            log_red!(emu, "msvcrt!_iob => 0x{:x}", iob_addr);
+            emu.regs_mut().rax = iob_addr;
+        }
+        "??1type_info@@UAE@XZ" | "??0exception@@QAE@ABV0@@Z" | "??2@YAPAXI@Z" | "??3@YAXPAX@Z" => {
+            log_red!(emu, "msvcrt!{}", api);
+            emu.regs_mut().rax = 0;
+        }
         _ => {
             if !emu.cfg.skip_unimplemented {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -392,4 +551,13 @@ fn exit(emu: &mut emu::Emu) {
 fn _errno(emu: &mut emu::Emu) {
     log_red!(emu, "msvcrt!_errno =0");
     emu.regs_mut().rax = 0;
+}
+
+fn __p__global_int(emu: &mut emu::Emu, name: &str) {
+    let addr = allocate_memory(emu, 4).unwrap_or(0);
+    if addr != 0 {
+        emu.maps.write_dword(addr, 0);
+    }
+    log_red!(emu, "msvcrt!{} => 0x{:x}", name, addr);
+    emu.regs_mut().rax = addr;
 }

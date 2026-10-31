@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -378,7 +377,11 @@ impl From<SerializableEmu> for Emu {
             ldr_init_done: false,
             force_reload,
             run_until_ret,
-            rng: RefCell::new(rand::rng()),
+            rng: {
+                use rand::SeedableRng as _;
+                rand::rngs::StdRng::from_os_rng()
+            },
+            rng_seed: None,
             // Platform & loaded binary
             os,
             pe64: pe64.map(|x| x.into()),

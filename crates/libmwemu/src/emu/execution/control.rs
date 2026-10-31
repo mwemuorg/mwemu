@@ -1,5 +1,7 @@
 use std::sync::{Arc, atomic};
 
+use ahash::AHashMap;
+
 use crate::err::MwemuError;
 
 use super::Emu;
@@ -51,7 +53,7 @@ impl Emu {
         addr: u64,
         prev_addr: &mut u64,
         repeat_counter: &mut u32,
-        looped: &mut Vec<u64>,
+        looped: &mut AHashMap<u64, u32>,
         infinite_loop_error: &'static str,
     ) -> Result<(), MwemuError> {
         if addr == *prev_addr {
@@ -67,9 +69,8 @@ impl Emu {
         }
 
         if self.cfg.loops {
-            looped.push(addr);
-            let count = looped.iter().filter(|&&seen| seen == addr).count() as u32;
-            if count > 2 {
+            let count = looped.entry(addr).and_modify(|c| *c += 1).or_insert(1);
+            if *count > 2 {
                 log::trace!("    loop: {} iterations", count);
             }
         }

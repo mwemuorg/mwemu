@@ -1,6 +1,7 @@
 use crate::debug::console::Console;
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::windows::structures::Heap32;
 use crate::windows::structures::LdrDataTableEntry;
 use crate::windows::structures::OrdinalTable;
 use crate::windows::structures::PEB;
@@ -78,9 +79,37 @@ pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
     addr
 }
 
+fn init_process_heap(emu: &mut emu::Emu) -> u32 {
+    let heap_sz: u64 = 0x400;
+    let h = match emu.maps.lib32_alloc(heap_sz) {
+        Some(a) => a,
+        None => {
+            log::error!("cannot alloc fake ProcessHeap (32-bit)");
+            return 0;
+        }
+    };
+    if let Err(e) = emu
+        .maps
+        .create_map("process_heap", h, heap_sz, Permission::READ_WRITE)
+    {
+        log::error!("cannot create process_heap map: {}", e);
+        return 0;
+    }
+    emu.maps.memset(h, 0, heap_sz as usize);
+
+    let heap = Heap32::new(h as u32, heap_sz as u32);
+    heap.save(emu.maps.get_mem_mut("process_heap"));
+
+    let lock_addr = h + 0x300;
+    emu.maps.write_dword(lock_addr + 0x04, 0xFFFF_FFFF);
+
+    h as u32
+}
+
 pub fn init_peb(emu: &mut emu::Emu) {
     let ldr = init_ldr(emu);
     let args_addr = init_arguments(emu);
+    let heap_addr = init_process_heap(emu);
 
     let peb_addr = match emu.maps.lib32_alloc(PEB::size() as u64) {
         Some(a) => a,
@@ -102,6 +131,8 @@ pub fn init_peb(emu: &mut emu::Emu) {
         };
     let peb = PEB::new(0, ldr as u32, args_addr as u32);
     peb.save(peb_map);
+    // Write ProcessHeap at PEB32 offset +0x18
+    emu.maps.write_dword(peb_addr + 0x18, heap_addr);
 
     let teb_addr = match emu.maps.lib32_alloc(TEB::map_size() as u64) {
         Some(a) => a,

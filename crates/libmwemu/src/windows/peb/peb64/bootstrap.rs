@@ -35,6 +35,36 @@ pub fn ensure_peb_system_dependent_07(emu: &mut emu::Emu) {
     emu.maps.write_qword(peb_base + 0x90, sd07);
 }
 
+/// `TEB+0x1480` (FlsData) and `TEB+0x1858` (heap Flags pointer) are read by
+/// ntdll internal routines during heap init and FLS callbacks. Without valid
+/// pointers ntdll dereferences NULL in syscall mode.
+fn ensure_teb_fls_and_heap_fields(emu: &mut emu::Emu) {
+    if !emu.cfg.arch.is_64bits() {
+        return;
+    }
+    let teb_base = match emu.maps.get_map_by_name("teb") {
+        Some(m) => m.get_base(),
+        None => return,
+    };
+
+    // FlsData (+0x1480): allocate a small zeroed region so ntdll FLS reads
+    // see a valid pointer instead of NULL.
+    if emu.maps.read_qword(teb_base + 0x1480).unwrap_or(0) == 0 {
+        let fls = emu.maps.map("teb_fls_data", 0x100, Permission::READ_WRITE);
+        emu.maps.memset(fls, 0, 0x100);
+        emu.maps.write_qword(teb_base + 0x1480, fls);
+    }
+
+    // +0x1858: ntdll writes &_HEAP.Flags here during heap init. Point it at
+    // the process heap's Flags field so reads return a sane value.
+    if emu.maps.read_qword(teb_base + 0x1858).unwrap_or(0) == 0
+        && let Some(heap) = emu.maps.get_map_by_name("process_heap")
+    {
+        let heap_base = heap.get_base();
+        emu.maps.write_qword(teb_base + 0x1858, heap_base + 0x14);
+    }
+}
+
 /// `TEB+0x2C8` points at the thread activation-context stack.
 fn ensure_teb_activation_context_stack(emu: &mut emu::Emu) {
     if !emu.cfg.arch.is_64bits() {
@@ -382,6 +412,7 @@ pub fn init_peb(emu: &mut emu::Emu) {
     teb.save(emu.maps.get_mem_mut("teb"));
 
     ensure_teb_activation_context_stack(emu);
+    ensure_teb_fls_and_heap_fields(emu);
     ensure_peb_system_dependent_07(emu);
 }
 
@@ -489,6 +520,7 @@ pub fn init_peb_teb_empty(emu: &mut emu::Emu) {
     teb.save(emu.maps.get_mem_mut("teb"));
 
     ensure_teb_activation_context_stack(emu);
+    ensure_teb_fls_and_heap_fields(emu);
     ensure_peb_system_dependent_06(emu);
     ensure_peb_system_dependent_07(emu);
     ensure_peb_nls_tables(emu);

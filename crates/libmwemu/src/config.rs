@@ -55,7 +55,8 @@ pub struct Config {
     pub max_instructions: Option<u64>, // stop after N instructions
     pub timeout_secs: Option<f64>,     // stop after N seconds wall-clock time
     pub max_faults: Option<u32>,       // stop after N faults/exceptions
-    pub loops: bool,                   // count iterations per instruction (slow)
+    pub seed: Option<u64>, // seed for the emulator's random source (rdrand/rdseed); None = seeded from the OS
+    pub loops: bool,       // count iterations per instruction (slow)
     pub allow_empty_code_blocks: bool, // disable empty-code-block detector
 
     // --- API emulation behavior ---
@@ -119,6 +120,7 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Create a new Config with sensible defaults (x86, no tracing, no console).
     pub fn new() -> Config {
         Config {
             filename: String::new(),
@@ -185,6 +187,7 @@ impl Config {
             max_instructions: None,
             timeout_secs: None,
             max_faults: None,
+            seed: None,
             heap_alloc_min_size: 0,
             short_circuit_sleep: false,
             allow_empty_code_blocks: false,
@@ -193,21 +196,25 @@ impl Config {
         }
     }
 
+    /// Returns true when the configured architecture is x86-64.
     #[inline(always)]
     pub fn is_x64(&self) -> bool {
         self.arch.is_x64()
     }
 
+    /// Returns true when the configured architecture is AArch64.
     #[inline(always)]
     pub fn is_aarch64(&self) -> bool {
         self.arch.is_aarch64()
     }
 
+    /// Returns true when the configured architecture is 32-bit x86.
     #[inline(always)]
     pub fn is_x86(&self) -> bool {
         self.arch.is_x86()
     }
 
+    /// Build an absolute path inside the configured maps folder.
     pub fn get_maps_folder(&self, filename: &str) -> String {
         let mut path = self.maps_folder.clone();
         if !path.ends_with('/') {
@@ -215,5 +222,393 @@ impl Config {
         }
         path.push_str(filename);
         path
+    }
+}
+
+// --- Builder-style setters ---
+//
+// Every setter returns `&mut Self` so calls can be chained:
+//
+// ```rust
+// let cfg = Config::new();
+// cfg.set_filename("sample.exe")
+//    .set_arch(Arch::X86_64)
+//    .set_verbose(2);
+// ```
+impl Config {
+    // -- Binary & architecture --
+
+    /// Set the binary filename (full path).
+    pub fn set_filename(&mut self, f: impl Into<String>) -> &mut Self {
+        self.filename = f.into();
+        self
+    }
+
+    /// Set the CPU architecture.
+    pub fn set_arch(&mut self, a: Arch) -> &mut Self {
+        self.arch = a;
+        self
+    }
+
+    /// Enable or disable shellcode mode.
+    pub fn set_shellcode(&mut self, enabled: bool) -> &mut Self {
+        self.shellcode = enabled;
+        self
+    }
+
+    /// Set command-line arguments passed to the emulated binary.
+    pub fn set_arguments(&mut self, args: impl Into<String>) -> &mut Self {
+        self.arguments = args.into();
+        self
+    }
+
+    // -- Memory layout --
+
+    /// Set the base address where code is loaded.
+    pub fn set_code_base_addr(&mut self, addr: u64) -> &mut Self {
+        self.code_base_addr = addr;
+        self
+    }
+
+    /// Set the stack base address.
+    pub fn set_stack_addr(&mut self, addr: u64) -> &mut Self {
+        self.stack_addr = addr;
+        self
+    }
+
+    /// Set the entry point address.
+    pub fn set_entry_point(&mut self, addr: u64) -> &mut Self {
+        self.entry_point = addr;
+        self
+    }
+
+    /// Set the folder containing memory-mapped files (DLL maps, etc.).
+    pub fn set_maps_folder(&mut self, folder: impl Into<String>) -> &mut Self {
+        self.maps_folder = folder.into();
+        self
+    }
+
+    /// Set the Windows version string for DLL resolution.
+    pub fn set_winver(&mut self, ver: Option<String>) -> &mut Self {
+        self.winver = ver;
+        self
+    }
+
+    // -- Heap behavior --
+
+    /// Set the maximum allocation size (larger requests are truncated).
+    pub fn set_max_alloc_size(&mut self, size: u64) -> &mut Self {
+        self.max_alloc_size = size;
+        self
+    }
+
+    /// Set the minimum padding for all heap allocations.
+    pub fn set_heap_alloc_min_size(&mut self, size: u64) -> &mut Self {
+        self.heap_alloc_min_size = size;
+        self
+    }
+
+    // -- Tracing --
+
+    /// Enable or disable memory operation tracing.
+    pub fn set_trace_mem(&mut self, enabled: bool) -> &mut Self {
+        self.trace_mem = enabled;
+        self
+    }
+
+    /// Enable or disable call tracing.
+    pub fn set_trace_calls(&mut self, enabled: bool) -> &mut Self {
+        self.trace_calls = enabled;
+        self
+    }
+
+    /// Enable or disable full register dump on every step.
+    pub fn set_trace_regs(&mut self, enabled: bool) -> &mut Self {
+        self.trace_regs = enabled;
+        self
+    }
+
+    /// Enable tracing of specific registers by name.
+    pub fn set_trace_reg(&mut self, enabled: bool, names: Vec<String>) -> &mut Self {
+        self.trace_reg = enabled;
+        self.reg_names = names;
+        self
+    }
+
+    /// Trace a string at the given address (0 disables).
+    pub fn set_trace_string(&mut self, addr: u64) -> &mut Self {
+        self.trace_string = addr != 0;
+        self.string_addr = addr;
+        self
+    }
+
+    /// Enable or disable flags tracing.
+    pub fn set_trace_flags(&mut self, enabled: bool) -> &mut Self {
+        self.trace_flags = enabled;
+        self
+    }
+
+    /// Set the trace output filename (None disables file tracing).
+    pub fn set_trace_filename(&mut self, filename: Option<String>) -> &mut Self {
+        self.trace_filename = filename;
+        self
+    }
+
+    /// Set the instruction position at which tracing begins.
+    pub fn set_trace_start(&mut self, pos: u64) -> &mut Self {
+        self.trace_start = pos;
+        self
+    }
+
+    /// Enable or disable stack operation tracing.
+    pub fn set_stack_trace(&mut self, enabled: bool) -> &mut Self {
+        self.stack_trace = enabled;
+        self
+    }
+
+    // -- Verbosity & output --
+
+    /// Set the verbosity level (0..3).
+    pub fn set_verbose(&mut self, level: u32) -> &mut Self {
+        self.verbose = level;
+        self
+    }
+
+    /// Set a position at which verbosity activates.
+    pub fn set_verbose_at(&mut self, pos: Option<u64>) -> &mut Self {
+        self.verbose_at = pos;
+        self
+    }
+
+    /// Set a position range for verbose output.
+    pub fn set_verbose_range(&mut self, start: u64, end: u64) -> &mut Self {
+        self.verbose_start = start;
+        self.verbose_end = end;
+        self
+    }
+
+    /// Enable or disable colored output.
+    pub fn set_nocolors(&mut self, enabled: bool) -> &mut Self {
+        self.nocolors = enabled;
+        self
+    }
+
+    // -- Console / interactive debugger --
+
+    /// Spawn the console at instruction count `num`.
+    pub fn set_console_at_pos(&mut self, num: u64) -> &mut Self {
+        self.console = true;
+        self.console_enabled = true;
+        self.console_num = num;
+        self
+    }
+
+    /// Spawn the console when execution reaches `addr`.
+    pub fn set_console_at_addr(&mut self, addr: u64) -> &mut Self {
+        self.console2 = true;
+        self.console_enabled = true;
+        self.console_addr = addr;
+        self
+    }
+
+    /// Enable or disable console operations globally.
+    pub fn set_console_enabled(&mut self, enabled: bool) -> &mut Self {
+        self.console_enabled = enabled;
+        self
+    }
+
+    // -- Execution limits --
+
+    /// Set the instruction position at which emulation stops.
+    pub fn set_exit_position(&mut self, pos: u64) -> &mut Self {
+        self.exit_position = pos;
+        self
+    }
+
+    /// Set the maximum number of instructions to execute.
+    pub fn set_max_instructions(&mut self, max: Option<u64>) -> &mut Self {
+        self.max_instructions = max;
+        self
+    }
+
+    /// Set a wall-clock timeout in seconds.
+    pub fn set_timeout_secs(&mut self, secs: Option<f64>) -> &mut Self {
+        self.timeout_secs = secs;
+        self
+    }
+
+    /// Set the maximum number of faults before stopping.
+    pub fn set_max_faults(&mut self, faults: Option<u32>) -> &mut Self {
+        self.max_faults = faults;
+        self
+    }
+
+    /// Seed the emulator's random source (`rdrand`/`rdseed`) so a run is
+    /// reproducible. Applied when emulation starts; `None` seeds from the OS.
+    pub fn set_seed(&mut self, seed: Option<u64>) -> &mut Self {
+        self.seed = seed;
+        self
+    }
+
+    /// Enable or disable loop iteration counting (slow).
+    pub fn set_loops(&mut self, enabled: bool) -> &mut Self {
+        self.loops = enabled;
+        self
+    }
+
+    /// Allow or disallow empty code blocks.
+    pub fn set_allow_empty_code_blocks(&mut self, enabled: bool) -> &mut Self {
+        self.allow_empty_code_blocks = enabled;
+        self
+    }
+
+    // -- API emulation behavior --
+
+    /// Enable or disable Windows API emulation.
+    pub fn set_emulate_winapi(&mut self, enabled: bool) -> &mut Self {
+        self.emulate_winapi = enabled;
+        self
+    }
+
+    /// Enable or disable real libc execution on Linux.
+    pub fn set_linux_real_libc(&mut self, enabled: bool) -> &mut Self {
+        self.linux_real_libc = enabled;
+        self
+    }
+
+    /// Skip unimplemented API calls instead of stopping.
+    pub fn set_skip_unimplemented(&mut self, enabled: bool) -> &mut Self {
+        self.skip_unimplemented = enabled;
+        self
+    }
+
+    /// Make Sleep/Wait calls return immediately.
+    pub fn set_short_circuit_sleep(&mut self, enabled: bool) -> &mut Self {
+        self.short_circuit_sleep = enabled;
+        self
+    }
+
+    // -- Threading --
+
+    /// Enable or disable thread scheduling.
+    pub fn set_enable_threading(&mut self, enabled: bool) -> &mut Self {
+        self.enable_threading = enabled;
+        self
+    }
+
+    // -- Memory inspection --
+
+    /// Set a memory operand to watch during execution (empty string disables).
+    pub fn set_inspect(&mut self, seq: impl Into<String>) -> &mut Self {
+        let s = seq.into();
+        self.inspect = !s.is_empty();
+        self.inspect_seq = s;
+        self
+    }
+
+    // -- Network emulation --
+
+    /// Enable or disable network endpoint emulation.
+    pub fn set_endpoint(&mut self, enabled: bool) -> &mut Self {
+        self.endpoint = enabled;
+        self
+    }
+
+    // -- Analysis --
+
+    /// Enable or disable entropy measurement.
+    pub fn set_entropy(&mut self, enabled: bool) -> &mut Self {
+        self.entropy = enabled;
+        self
+    }
+
+    /// Enable or disable heap memory-safety analysis.
+    pub fn set_memory_guard(&mut self, enabled: bool) -> &mut Self {
+        self.memory_guard = enabled;
+        self
+    }
+
+    // -- Dump on exit --
+
+    /// Enable or disable memory dump on exit.
+    pub fn set_dump_on_exit(&mut self, enabled: bool) -> &mut Self {
+        self.dump_on_exit = enabled;
+        self
+    }
+
+    /// Set the dump output filename.
+    pub fn set_dump_filename(&mut self, filename: Option<String>) -> &mut Self {
+        self.dump_filename = filename;
+        self
+    }
+
+    // -- Simulated environment constants --
+
+    /// Set the emulated module name.
+    pub fn set_module_name(&mut self, name: impl Into<String>) -> &mut Self {
+        self.module_name = name.into();
+        self
+    }
+
+    /// Set the emulated executable name.
+    pub fn set_exe_name(&mut self, name: impl Into<String>) -> &mut Self {
+        self.exe_name = name.into();
+        self
+    }
+
+    /// Set the emulated user name.
+    pub fn set_user_name(&mut self, name: impl Into<String>) -> &mut Self {
+        self.user_name = name.into();
+        self
+    }
+
+    /// Set the emulated host name.
+    pub fn set_host_name(&mut self, name: impl Into<String>) -> &mut Self {
+        self.host_name = name.into();
+        self
+    }
+
+    /// Set the emulated temp directory path.
+    pub fn set_temp_path(&mut self, path: impl Into<String>) -> &mut Self {
+        self.temp_path = path.into();
+        self
+    }
+
+    /// Set the emulated current working directory.
+    pub fn set_cwd_path(&mut self, path: impl Into<String>) -> &mut Self {
+        self.cwd_path = path.into();
+        self
+    }
+
+    /// Set the emulated Windows directory path.
+    pub fn set_windows_directory(&mut self, path: impl Into<String>) -> &mut Self {
+        self.windows_directory = path.into();
+        self
+    }
+
+    /// Set the emulated System32 directory path.
+    pub fn set_system_directory(&mut self, path: impl Into<String>) -> &mut Self {
+        self.system_directory = path.into();
+        self
+    }
+
+    // -- Other --
+
+    /// Use ntdll LdrInitializeThunk for PE64 loader init.
+    pub fn set_ssdt_use_ldr_initialize_thunk(&mut self, enabled: bool) -> &mut Self {
+        self.ssdt_use_ldr_initialize_thunk = enabled;
+        self
+    }
+
+    /// Continue past unhandled memory faults instead of terminating.
+    pub fn set_soft_exception_recovery(&mut self, enabled: bool) -> &mut Self {
+        self.soft_exception_recovery = enabled;
+        self
+    }
+
+    /// Enable or disable test mode.
+    pub fn set_test_mode(&mut self, enabled: bool) -> &mut Self {
+        self.test_mode = enabled;
+        self
     }
 }

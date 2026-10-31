@@ -108,11 +108,9 @@ pub use create_hard_link_transacted_a::*;
 
 #[path = "../create_job_object_a.rs"]
 mod create_job_object_a;
-pub use create_job_object_a::*;
 
 #[path = "../create_job_object_w.rs"]
 mod create_job_object_w;
-pub use create_job_object_w::*;
 
 #[path = "../create_socket_handle.rs"]
 mod create_socket_handle;

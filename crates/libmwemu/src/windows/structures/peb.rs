@@ -1,6 +1,7 @@
 use crate::maps::{Maps, mem64::Mem64};
 
 #[derive(Debug)]
+#[allow(clippy::upper_case_acronyms)]
 pub struct PEB {
     inheritet_addr_space: u8,
     read_img_file_exec_options: u8,

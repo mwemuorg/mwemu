@@ -7,8 +7,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         color!("Green"),
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
-    assert_eq!(ins.op_count(), 2);
-    assert_eq!(ins.op_register(0), Register::ST0);
+    debug_assert_eq!(ins.op_count(), 2);
+    debug_assert_eq!(ins.op_register(0), Register::ST0);
     match ins.op_register(1) {
         Register::ST0 => emu.fpu_mut().xchg_st(0),
         Register::ST1 => emu.fpu_mut().xchg_st(1),

@@ -43,6 +43,10 @@ impl Maps {
         {
             let buf = vec![b; amount];
             mem.write_bytes(addr, &buf);
+            let exec = mem.can_execute();
+            if exec {
+                self.note_code_write(addr, amount as u64);
+            }
             return;
         }
         for i in 0..amount {
@@ -105,6 +109,10 @@ impl Maps {
             return;
         }
         mem.write_wide_string(to, from);
+        let exec = mem.can_execute();
+        if exec {
+            self.note_code_write(to, (from.len() * 2 + 2) as u64);
+        }
     }
 
     #[inline(always)]

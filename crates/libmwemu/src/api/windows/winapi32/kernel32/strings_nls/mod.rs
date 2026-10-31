@@ -196,7 +196,6 @@ pub use string_v_printf_worker_w::*;
 
 #[path = "../string_v_printf_worker_w_0.rs"]
 mod string_v_printf_worker_w_0;
-pub use string_v_printf_worker_w_0::*;
 
 #[path = "../string_validate_dest_and_length_w.rs"]
 mod string_validate_dest_and_length_w;

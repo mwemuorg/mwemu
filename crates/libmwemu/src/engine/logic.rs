@@ -1,5 +1,6 @@
 use crate::emu::Emu;
 use crate::exception::types;
+use iced_x86::{Code, Instruction, OpKind};
 
 pub fn rol(emu: &mut Emu, val: u64, rot2: u64, bits: u32) -> u64 {
     let mut ret: u64 = val;
@@ -202,8 +203,9 @@ pub fn imul32p1(emu: &mut Emu, value0: u64) {
 }
 
 pub fn imul16p1(emu: &mut Emu, value0: u64) {
-    let value1: i32 = emu.regs().get_ax() as i32;
-    let value2: i32 = value0 as i32;
+    // The operands arrive as u64: go through u16/i16 so they keep their sign.
+    let value1: i32 = emu.regs().get_ax() as u16 as i16 as i32;
+    let value2: i32 = value0 as u16 as i16 as i32;
     let res: i32 = value1 * value2;
     let ures: u32 = res as u32;
     emu.regs_mut().set_dx(((ures & 0xffff0000) >> 16).into());
@@ -228,6 +230,14 @@ pub fn imul8p1(emu: &mut Emu, value0: u64) {
     emu.flags_mut().f_cf = emu.flag_of();
 }
 
+/// #DE for a DIV whose quotient does not fit the destination register. Like the
+/// division by zero it is raised before any register is written.
+fn divide_overflow(emu: &mut Emu) {
+    log::trace!("/!\\ quotient overflow on division");
+    emu.exception(types::ExceptionType::Div0);
+    emu.force_break = true;
+}
+
 pub fn div64(emu: &mut Emu, value0: u64) {
     let mut value1: u128 = emu.regs().rdx as u128;
     value1 <<= 64;
@@ -244,13 +254,13 @@ pub fn div64(emu: &mut Emu, value0: u64) {
 
     let resq: u128 = value1 / value2;
     let resr: u128 = value1 % value2;
+    if resq > u64::MAX as u128 {
+        divide_overflow(emu);
+        return;
+    }
     emu.regs_mut().rax = resq as u64;
     emu.regs_mut().rdx = resr as u64;
     emu.flags_mut().calc_pf(resq as u8);
-    emu.flags_mut().f_of = resq > 0xffffffffffffffff;
-    if emu.flag_of() {
-        log::trace!("/!\\ int overflow on division");
-    }
 }
 
 pub fn div32(emu: &mut Emu, value0: u64) {
@@ -269,13 +279,13 @@ pub fn div32(emu: &mut Emu, value0: u64) {
 
     let resq: u64 = value1 / value2;
     let resr: u64 = value1 % value2;
+    if resq > u32::MAX as u64 {
+        divide_overflow(emu);
+        return;
+    }
     emu.regs_mut().set_eax(resq);
     emu.regs_mut().set_edx(resr);
     emu.flags_mut().calc_pf(resq as u8);
-    emu.flags_mut().f_of = resq > 0xffffffff;
-    if emu.flag_of() {
-        log::trace!("/!\\ int overflow on division");
-    }
 }
 
 pub fn div16(emu: &mut Emu, value0: u64) {
@@ -292,14 +302,14 @@ pub fn div16(emu: &mut Emu, value0: u64) {
 
     let resq: u32 = value1 / value2;
     let resr: u32 = value1 % value2;
+    if resq > u16::MAX as u32 {
+        divide_overflow(emu);
+        return;
+    }
     emu.regs_mut().set_ax(resq.into());
     emu.regs_mut().set_dx(resr.into());
     emu.flags_mut().calc_pf(resq as u8);
-    emu.flags_mut().f_of = resq > 0xffff;
     emu.flags_mut().f_tf = false;
-    if emu.flag_of() {
-        log::trace!("/!\\ int overflow on division");
-    }
 }
 
 pub fn div8(emu: &mut Emu, value0: u64) {
@@ -315,14 +325,14 @@ pub fn div8(emu: &mut Emu, value0: u64) {
 
     let resq: u32 = value1 / value2;
     let resr: u32 = value1 % value2;
+    if resq > u8::MAX as u32 {
+        divide_overflow(emu);
+        return;
+    }
     emu.regs_mut().set_al(resq.into());
     emu.regs_mut().set_ah(resr.into());
     emu.flags_mut().calc_pf(resq as u8);
-    emu.flags_mut().f_of = resq > 0xff;
     emu.flags_mut().f_tf = false;
-    if emu.flag_of() {
-        log::trace!("/!\\ int overflow");
-    }
 }
 
 pub fn idiv64(emu: &mut Emu, value0: u64) {
@@ -569,4 +579,125 @@ pub fn shld(emu: &mut Emu, value0: u64, value1: u64, pcounter: u64, size: u32) -
     emu.flags_overwrite_mut().calc_flags(storage0, size);
 
     (storage0, false)
+}
+
+/// Width of the LOOP/LOOPcc counter. The address-size prefix selects CX, ECX
+/// or RCX, and iced bakes that choice into the `Code` variant.
+pub fn loop_counter_bits(ins: &Instruction) -> u32 {
+    use Code::*;
+    match ins.code() {
+        Loop_rel8_16_CX | Loop_rel8_32_CX | Loope_rel8_16_CX | Loope_rel8_32_CX
+        | Loopne_rel8_16_CX | Loopne_rel8_32_CX => 16,
+        Loop_rel8_16_ECX | Loop_rel8_32_ECX | Loop_rel8_64_ECX | Loope_rel8_16_ECX
+        | Loope_rel8_32_ECX | Loope_rel8_64_ECX | Loopne_rel8_16_ECX | Loopne_rel8_32_ECX
+        | Loopne_rel8_64_ECX => 32,
+        _ => 64,
+    }
+}
+
+/// Decrement the LOOP counter at `bits` width and return the new value.
+pub fn loop_decrement(emu: &mut Emu, bits: u32) -> u64 {
+    let regs = emu.regs_mut();
+    match bits {
+        16 => {
+            let v = (regs.get_cx() as u16).wrapping_sub(1) as u64;
+            regs.set_cx(v);
+            v
+        }
+        32 => {
+            let v = (regs.get_ecx() as u32).wrapping_sub(1) as u64;
+            regs.set_ecx(v);
+            v
+        }
+        _ => {
+            regs.rcx = regs.rcx.wrapping_sub(1);
+            regs.rcx
+        }
+    }
+}
+
+/// Take a LOOP/LOOPcc branch.
+pub fn loop_jump(emu: &mut Emu, addr: u64) -> bool {
+    if emu.cfg.is_x64() {
+        emu.set_rip_with_check(addr, false)
+    } else {
+        emu.set_eip(addr, false)
+    }
+}
+
+/// Target of a BT/BTS/BTR/BTC: the operand-sized element that holds the
+/// selected bit, the bit index inside it and, for a memory base, its address.
+pub struct BitTarget {
+    pub value: u64,
+    pub bit: u32,
+    pub addr: Option<u64>,
+    pub size: u32,
+}
+
+impl BitTarget {
+    pub fn selected_bit(&self) -> bool {
+        (self.value >> self.bit) & 1 == 1
+    }
+}
+
+/// Resolve the bit addressed by operand 0 (bit base) and operand 1 (bit offset).
+/// A register offset on a memory base is a signed element index: the element at
+/// `base + (offset div size) * bytes` is accessed (SDM "Bit(BitBase, BitOffset)"),
+/// so offsets outside the first element reach the neighbouring memory. Register
+/// bases and immediate offsets use the offset modulo the operand size.
+pub fn bit_target(emu: &mut Emu, ins: &Instruction) -> Option<BitTarget> {
+    let size = emu.get_operand_sz(ins, 0);
+    let offset = emu.get_operand_value(ins, 1, true)?;
+    let bit = (offset % size as u64) as u32;
+    if ins.op_kind(0) != OpKind::Memory || ins.op_kind(1) != OpKind::Register {
+        let value = emu.get_operand_value(ins, 0, true)?;
+        return Some(BitTarget {
+            value,
+            bit,
+            addr: None,
+            size,
+        });
+    }
+    let base = emu.get_operand_value(ins, 0, false)?;
+    let element = sign_extend(offset, size) >> size.trailing_zeros();
+    let addr = base.wrapping_add((element * (size / 8) as i64) as u64);
+    let value = read_sized(emu, addr, size)?;
+    Some(BitTarget {
+        value,
+        bit,
+        addr: Some(addr),
+        size,
+    })
+}
+
+/// Write a BTS/BTR/BTC result back to wherever `bit_target` read it from.
+pub fn bit_target_store(emu: &mut Emu, ins: &Instruction, target: &BitTarget, value: u64) -> bool {
+    match target.addr {
+        Some(addr) => write_sized(emu, addr, target.size, value),
+        None => emu.set_operand_value(ins, 0, value),
+    }
+}
+
+fn sign_extend(value: u64, bits: u32) -> i64 {
+    match bits {
+        16 => value as u16 as i16 as i64,
+        32 => value as u32 as i32 as i64,
+        _ => value as i64,
+    }
+}
+
+fn read_sized(emu: &Emu, addr: u64, bits: u32) -> Option<u64> {
+    match bits {
+        16 => emu.maps.read_word(addr).map(u64::from),
+        32 => emu.maps.read_dword(addr).map(u64::from),
+        _ => emu.maps.read_qword(addr),
+    }
+}
+
+fn write_sized(emu: &mut Emu, addr: u64, bits: u32, value: u64) -> bool {
+    match bits {
+        16 => emu.maps.write_word(addr, value as u16),
+        32 => emu.maps.write_dword(addr, value as u32),
+        _ => emu.maps.write_qword(addr, value),
+    }
 }

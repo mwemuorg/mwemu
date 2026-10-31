@@ -228,6 +228,7 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("gdb", "g", "gdb", "enable GDB remote debugging server"))
         .arg(clap_arg!("gdb_port", "P", "gdb-port", "set GDB server port (default: 9001)", "PORT"))
         .arg(clap_arg!("gdb_wait", "W", "gdb-wait", "wait for GDB connection before starting"))
+        .arg(clap_arg!("seed", "", "seed", "seed the emulator's random source (rdrand/rdseed) so the run is reproducible", "NUMBER"))
         .get_matches();
 
     if !matches.is_present("filename") {
@@ -601,6 +602,18 @@ fn main() -> process::ExitCode {
             exit_pos_str.parse::<u64>()
         }
         .expect("invalid position");
+    }
+
+    // deterministic random source
+    if matches.is_present("seed") {
+        let seed_str = matches.value_of("seed").expect("specify the seed");
+        let seed = if let Some(hex) = seed_str.strip_prefix("0x") {
+            u64::from_str_radix(hex, 16)
+        } else {
+            seed_str.parse::<u64>()
+        }
+        .expect("invalid seed");
+        emu.set_seed(seed);
     }
 
     // stack trace (push/pop logging in stack.rs)

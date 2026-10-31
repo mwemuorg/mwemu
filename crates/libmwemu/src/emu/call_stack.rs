@@ -1,6 +1,7 @@
 use crate::{emu::Emu, threading::context::ArchThreadState};
 
 impl Emu {
+    /// Return the current call stack as `(call_site, target)` pairs.
     pub fn call_stack(&self) -> &Vec<(u64, u64)> {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { call_stack, .. } => call_stack,
