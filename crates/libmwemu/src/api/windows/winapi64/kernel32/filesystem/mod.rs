@@ -1,3 +1,15 @@
+#[path = "../volume.rs"]
+mod volume;
+pub use volume::*;
+
+#[path = "../file_time.rs"]
+mod file_time;
+pub use file_time::*;
+
+#[path = "../query_dos_device_w.rs"]
+mod query_dos_device_w;
+pub use query_dos_device_w::*;
+
 #[path = "../are_file_api_is_ansi.rs"]
 mod are_file_api_is_ansi;
 pub use are_file_api_is_ansi::*;
@@ -220,14 +232,6 @@ pub use create_directory_w::*;
 #[path = "../delete_file_w.rs"]
 mod delete_file_w;
 pub use delete_file_w::*;
-
-#[path = "../get_volume_information_a.rs"]
-mod get_volume_information_a;
-pub use get_volume_information_a::*;
-
-#[path = "../get_volume_information_w.rs"]
-mod get_volume_information_w;
-pub use get_volume_information_w::*;
 
 #[path = "../remove_directory_a.rs"]
 mod remove_directory_a;

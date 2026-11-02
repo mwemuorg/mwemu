@@ -8,14 +8,12 @@ use crate::windows::constants::*;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
+    if winapi64::registry::gateway(api, emu) {
+        return String::new();
+    }
     match api {
         "StartServiceCtrlDispatcherA" => StartServiceCtrlDispatcherA(emu),
         "StartServiceCtrlDispatcherW" => StartServiceCtrlDispatcherW(emu),
-        "RegOpenKeyExA" => RegOpenKeyExA(emu),
-        "RegOpenKeyExW" => RegOpenKeyExW(emu),
-        "RegQueryValueExA" => RegQueryValueExA(emu),
-        "RegQueryValueExW" => RegQueryValueExW(emu),
-        "RegCloseKey" => RegCloseKey(emu),
         "GetUserNameA" => GetUserNameA(emu),
         "GetUserNameW" => GetUserNameW(emu),
         "CryptAcquireContextA" => CryptAcquireContextA(emu),
@@ -81,99 +79,6 @@ fn StartServiceCtrlDispatcherW(emu: &mut emu::Emu) {
     let service_table_entry_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     emu.regs_mut().set_eax(1);
-}
-
-fn RegOpenKeyExA(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let opts = emu.regs().r8;
-    let result = emu.regs().r9;
-
-    let subkey = emu.maps.read_string(subkey_ptr);
-
-    log_red!(emu, "advapi32!RegOpenKeyExA {}", subkey);
-
-    emu.maps
-        .write_qword(result, helper::handler_create(&subkey));
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
-}
-
-pub fn RegOpenKeyExW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let opts = emu.regs().r8;
-    let sam_desired = emu.regs().r9;
-    let phk_result = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-
-    let subkey = emu.maps.read_wide_string(subkey_ptr);
-
-    log_red!(emu, "advapi32!RegOpenKeyExW {}", subkey);
-
-    if phk_result != 0 {
-        let hndl = helper::handler_create(&format!("registry://{}", subkey));
-        emu.maps.write_qword(phk_result, hndl);
-    }
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
-}
-
-fn RegCloseKey(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-
-    log_red!(emu, "advapi32!RegCloseKey");
-
-    helper::handler_close(hkey);
-
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
-}
-
-fn RegQueryValueExA(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let value_ptr = emu.regs().rdx;
-    let reserved = emu.regs().r8;
-    let typ_out = emu.regs().r9;
-    let data_out = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let datasz_out = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-
-    let mut value = String::new();
-    if value_ptr > 0 {
-        value = emu.maps.read_string(value_ptr);
-    }
-
-    log_red!(emu, "advapi32!RegQueryValueExA {}", value);
-
-    if data_out > 0 {
-        emu.maps.write_string(data_out, "some_random_reg_contents");
-    }
-    if datasz_out > 0 {
-        emu.maps.write_qword(datasz_out, 24);
-    }
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
-}
-
-pub fn RegQueryValueExW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let value_ptr = emu.regs().rdx;
-    let reserved = emu.regs().r8;
-    let typ_out = emu.regs().r9;
-    let data_out = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let datasz_out = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-
-    let mut value = String::new();
-    if value_ptr > 0 {
-        value = emu.maps.read_wide_string(value_ptr);
-    }
-
-    log_red!(emu, "advapi32!RegQueryValueExW {}", value);
-
-    if typ_out != 0 {
-        emu.maps.write_dword(typ_out, 1); // REG_SZ
-    }
-    if data_out > 0 && datasz_out > 0 {
-        emu.maps.write_wide_string(data_out, "");
-        let written: u64 = 2; // empty wide string = null terminator (2 bytes)
-        emu.maps.write_dword(datasz_out, written as u32);
-    }
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }
 
 fn GetUserNameA(emu: &mut emu::Emu) {

@@ -1,14 +1,13 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::serialization;
-use crate::winapi::helper;
 use crate::winapi::winapi64;
 
 const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 
 /// Allocates from the O1Heap arena for small sizes, maps a dedicated
 /// region otherwise (same threshold as kernel32!HeapAlloc).
-fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
+pub(super) fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
     if size < LARGE_ALLOC_THRESHOLD {
         let heap_manage = emu.heap_mut();
         return heap_manage.allocate(size as usize);
@@ -52,7 +51,7 @@ fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
 }
 
 /// Releases a pointer allocated by `allocate_memory` (or any alloc_ map).
-fn release(emu: &mut emu::Emu, addr: u64) {
+pub(super) fn release(emu: &mut emu::Emu, addr: u64) {
     match classify(emu, addr) {
         AllocKind::Arena { .. } => {
             if let Some(heap) = emu.heap_arenas.first_mut() {
@@ -71,6 +70,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
+    if super::crt_stdio::gateway(api, emu) {
+        return String::new();
+    }
     match api {
         "_initialize_onexit_table" => _initialize_onexit_table(emu),
         "_register_onexit_function" => _register_onexit_function(emu),
@@ -137,14 +139,6 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "_msize" => crt_msize(emu),
         "_aligned_malloc" => crt_aligned_malloc(emu),
         "_aligned_free" => crt_aligned_free(emu),
-        "fopen" | "_wfopen" => crt_fopen(emu),
-        "fclose" => crt_fclose(emu),
-        "fread" => crt_fread(emu),
-        "fwrite" => crt_fwrite(emu),
-        "fflush" => crt_fflush(emu),
-        "fseek" => crt_fseek(emu),
-        "ftell" => crt_ftell(emu),
-        "feof" => crt_feof(emu),
         "fprintf"
         | "sprintf"
         | "snprintf"
@@ -158,8 +152,6 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         | "vwprintf" => crt_print_stub(emu, api),
         "exit" | "_exit" | "_cexit" => crt_exit(emu, api),
         "getenv" | "_wgetenv" => crt_getenv(emu, api),
-        "_errno" => crt_errno(emu),
-        "_set_errno" | "_get_errno" => crt_errno_stub(emu, api),
         "__getmainargs" => crt_getmainargs(emu),
         "__wgetmainargs" => crt_getmainargs(emu),
         "_initterm" => crt_initterm(emu),
@@ -988,8 +980,8 @@ fn crt_wcsncpy(emu: &mut emu::Emu) {
     let ws = emu.maps.read_wide_string(src);
     let chars: Vec<u16> = ws.encode_utf16().collect();
     let copy_len = chars.len().min(n as usize);
-    for i in 0..copy_len {
-        emu.maps.write_word(dst + (i as u64) * 2, chars[i]);
+    for (i, c) in chars.iter().take(copy_len).enumerate() {
+        emu.maps.write_word(dst + (i as u64) * 2, *c);
     }
     for i in copy_len..n as usize {
         emu.maps.write_word(dst + (i as u64) * 2, 0);
@@ -1161,86 +1153,6 @@ fn crt_aligned_free(emu: &mut emu::Emu) {
 
 // --- I/O stubs ---
 
-fn crt_fopen(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let mode_ptr = emu.regs().rdx;
-    let path = emu.maps.read_string(path_ptr);
-    let mode = emu.maps.read_string(mode_ptr);
-    let handle = helper::handler_create(&path);
-    log_red!(emu, "wincrt!fopen '{}' '{}' => 0x{:x}", path, mode, handle);
-    emu.regs_mut().rax = handle;
-}
-
-fn crt_fclose(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
-    log_red!(emu, "wincrt!fclose 0x{:x}", fp);
-    emu.regs_mut().rax = 0;
-}
-
-fn crt_fread(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let size = emu.regs().rdx;
-    let count = emu.regs().r8;
-    let fp = emu.regs().r9;
-    log_red!(
-        emu,
-        "wincrt!fread buf:0x{:x} size:{} count:{} fp:0x{:x}",
-        buf,
-        size,
-        count,
-        fp
-    );
-    emu.regs_mut().rax = 0;
-}
-
-fn crt_fwrite(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let size = emu.regs().rdx;
-    let count = emu.regs().r8;
-    let fp = emu.regs().r9;
-    log_red!(
-        emu,
-        "wincrt!fwrite buf:0x{:x} size:{} count:{} fp:0x{:x}",
-        buf,
-        size,
-        count,
-        fp
-    );
-    emu.regs_mut().rax = count;
-}
-
-fn crt_fflush(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
-    log_red!(emu, "wincrt!fflush 0x{:x}", fp);
-    emu.regs_mut().rax = 0;
-}
-
-fn crt_fseek(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
-    let offset = emu.regs().rdx as i64;
-    let origin = emu.regs().r8;
-    log_red!(
-        emu,
-        "wincrt!fseek fp:0x{:x} offset:{} origin:{}",
-        fp,
-        offset,
-        origin
-    );
-    emu.regs_mut().rax = 0;
-}
-
-fn crt_ftell(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
-    log_red!(emu, "wincrt!ftell 0x{:x} => 0", fp);
-    emu.regs_mut().rax = 0;
-}
-
-fn crt_feof(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
-    log_red!(emu, "wincrt!feof 0x{:x} => 1", fp);
-    emu.regs_mut().rax = 1;
-}
-
 fn crt_format_stub(emu: &mut emu::Emu, api: &str) {
     log_red!(emu, "wincrt!{}", api);
     emu.regs_mut().rax = 0;
@@ -1267,23 +1179,6 @@ fn crt_getenv(emu: &mut emu::Emu, api: &str) {
     let name_ptr = emu.regs().rcx;
     let name = emu.maps.read_string(name_ptr);
     log_red!(emu, "wincrt!{} '{}' => NULL", api, name);
-    emu.regs_mut().rax = 0;
-}
-
-fn crt_errno(emu: &mut emu::Emu) {
-    let p = match allocate_memory(emu, 4) {
-        Some(a) => a,
-        None => {
-            emu.regs_mut().rax = 0;
-            return;
-        }
-    };
-    let _ = emu.maps.write_dword(p, 0);
-    emu.regs_mut().rax = p;
-}
-
-fn crt_errno_stub(emu: &mut emu::Emu, api: &str) {
-    log_red!(emu, "wincrt!{}", api);
     emu.regs_mut().rax = 0;
 }
 

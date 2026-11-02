@@ -11,14 +11,13 @@ use libmwemu::emu32;
 use libmwemu::emu64;
 use libmwemu::serialization;
 use std::panic::{self, AssertUnwindSafe};
-use std::path::PathBuf;
 use std::process;
 //use libmwemu::definitions;
 use fast_log::Config;
 use fast_log::appender::{Command, FastLogRecord, RecordFormat};
 use fast_log::filter::Filter;
 use libmwemu::disable_color;
-use libmwemu::emu::object_handle::file_handle::init_file_system;
+use libmwemu::emu::object_handle::file_handle::init_guest_file_system;
 
 /// Drop log records emitted by `goblin::*` (Mach-O / ELF / PE parser). It uses
 /// `debug!()` to dump every load command, header, and Ctx — under `-vv` (which
@@ -162,6 +161,7 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("stack_trace", "p", "stack_trace", "trace stack on push/pop"))
         .arg(clap_arg!("test_mode", "t", "test", "test mode"))
         .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
+        .arg(clap_arg!("strict_api", "", "strict-api", "stop at the first unimplemented 64bits API instead of continuing with an unset return value"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
         .arg(Arg::with_name("args")
             .short("A")
@@ -417,6 +417,10 @@ fn main() -> process::ExitCode {
             .value_of("inspect")
             .expect("select the address in the way 'dword ptr [eax + 0xa]'")
             .to_string();
+    }
+
+    if matches.is_present("strict_api") {
+        emu.cfg.stop_on_unimplemented = true;
     }
 
     // banzai
@@ -750,7 +754,7 @@ fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::Exit
     }
 
     // Initialize file system in order to call the create file stuff
-    let result_ok = init_file_system(None as Option<PathBuf>);
+    let result_ok = init_guest_file_system(emu);
     if result_ok.is_err() {
         log::error!("Cannot initialize file system (see error above).");
         return process::ExitCode::from(1u8);
