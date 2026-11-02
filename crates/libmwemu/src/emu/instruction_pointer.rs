@@ -245,6 +245,35 @@ impl Emu {
                 return true;
             }
 
+            // Anti-hook trampolines run an API's first instructions themselves
+            // and jump to API+N. Undo that prologue and serve the export with
+            // its winapi stub; library code is never executed for real here.
+            let in_code_section = name.ends_with(".text");
+            let addr = if in_code_section
+                && winapi64::kernel32::guess_api_name(self, addr).is_empty()
+            {
+                match winapi64::stolen_prologue::unwind(self, addr) {
+                    Some(entry) => {
+                        log::trace!(
+                            "jump to 0x{:x} skips the prologue of the API at 0x{:x}",
+                            addr,
+                            entry
+                        );
+                        entry
+                    }
+                    None => {
+                        log::error!(
+                            "jump into library code at 0x{:x} that no winapi stub can serve — stopping",
+                            addr
+                        );
+                        self.stop();
+                        return true;
+                    }
+                }
+            } else {
+                addr
+            };
+
             if self.skip_apicall {
                 self.its_apicall = Some(addr);
                 return false;

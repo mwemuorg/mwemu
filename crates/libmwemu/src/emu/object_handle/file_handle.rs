@@ -7,6 +7,7 @@ use std::io;
 use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::time::SystemTime;
 use std::{env, fs};
 
 /*
@@ -88,6 +89,30 @@ struct FileHandleManagement {
 pub static FILE_SYSTEM: OnceLock<FileSystem> = OnceLock::new();
 
 pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> {
+    init_file_system_with_mappings(file_root, Vec::new())
+}
+
+/// Default file system for an emulation: the `file_root` jail plus the main
+/// image visible at the guest path its loader entry reports, so code that
+/// opens its own module file (GetModuleFileName + CreateFile) reads the real
+/// bytes. Call after the binary is loaded.
+pub fn init_guest_file_system(emu: &crate::emu::Emu) -> io::Result<()> {
+    let mut mappings = Vec::new();
+    if !emu.cfg.filename.is_empty() {
+        let guest = crate::winapi::winapi64::kernel32::main_module_path(emu);
+        let host = canonicalize(&emu.cfg.filename)?;
+        let guest = WindowsPath::from_path(&guest).map_err(io::Error::other)?;
+        mappings.push((guest, host));
+    }
+    init_file_system_with_mappings(None as Option<PathBuf>, mappings)
+}
+
+/// Like `init_file_system`, plus operator-provided guest-path -> host-path
+/// mappings (e.g. the emulated image at the path its loader entry reports).
+pub fn init_file_system_with_mappings<P: AsRef<Path>>(
+    file_root: Option<P>,
+    mappings: Vec<(WindowsPath, PathBuf)>,
+) -> io::Result<()> {
     // Resolve the root path
     let root = if let Some(path) = file_root {
         let path = path.as_ref();
@@ -115,7 +140,10 @@ pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> 
     }
 
     // Build filesystem without hardcoded mappings (add them dynamically if needed)
-    let builder = FileSystemBuilder::new().with_root(&root);
+    let builder = mappings.into_iter().fold(
+        FileSystemBuilder::new().with_root(&root),
+        |builder, (src, dest)| builder.with_mapping(src, dest),
+    );
     // If you need the System32 mapping, make it relative to root:
     // .with_mapping(
     //     WindowsPath::from_string("C:\\Windows\\System32"),
@@ -185,22 +213,19 @@ impl FileHandle {
             let _ = fs::create_dir_all(parent);
         }
 
-        // Try to open/create the file first, then get metadata
-        let file_result = match creation_disposition {
-            1 => File::create_new(&resolved_path), // CREATE_NEW
-            2 => File::create(&resolved_path),     // CREATE_ALWAYS
-            3 => File::open(&resolved_path),       // OPEN_EXISTING
-            5 => File::options()
-                .read(true)
-                .write(true)
-                .truncate(true)
-                .open(&resolved_path), // TRUNCATE_EXISTING
-            4 => File::options()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(&resolved_path), // OPEN_ALWAYS
+        // Reading is always allowed on the host side; writing needs a write
+        // access right or a disposition that creates or truncates.
+        const WRITE_ACCESS: u32 = 0x4000_0000 | 0x1000_0000 | 0x2 | 0x4; // GENERIC_WRITE, GENERIC_ALL, FILE_WRITE_DATA, FILE_APPEND_DATA
+        let mut options = File::options();
+        options.read(true).write(
+            access_mode & WRITE_ACCESS != 0 || matches!(creation_disposition, 1 | 2 | 4 | 5),
+        );
+        match creation_disposition {
+            1 => options.create_new(true),            // CREATE_NEW
+            2 => options.create(true).truncate(true), // CREATE_ALWAYS
+            3 => &mut options,                        // OPEN_EXISTING
+            4 => options.create(true),                // OPEN_ALWAYS
+            5 => options.truncate(true),              // TRUNCATE_EXISTING
             _ => {
                 return Err(Box::new(io::Error::new(
                     ErrorKind::InvalidInput,
@@ -208,6 +233,7 @@ impl FileHandle {
                 )));
             }
         };
+        let file_result = options.open(&resolved_path);
         let opened_file = file_result?;
 
         let metadata = opened_file.metadata()?;
@@ -303,6 +329,60 @@ impl FileHandle {
         self.file.take(); // Drops the File, closing it
         self.is_valid = false;
         // Other cleanup if necessary
+    }
+
+    fn open_file(&self) -> io::Result<&File> {
+        self.file
+            .as_ref()
+            .filter(|_| self.is_valid)
+            .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "No file object associated"))
+    }
+
+    /// Current size of the file.
+    pub fn length(&self) -> io::Result<u64> {
+        Ok(self.open_file()?.metadata()?.len())
+    }
+
+    /// Creation, last access and last write time of the file.
+    pub fn times(&self) -> io::Result<[SystemTime; 3]> {
+        let metadata = self.open_file()?.metadata()?;
+        let written = metadata.modified()?;
+        // not every host file system records creation and access times
+        Ok([
+            metadata.created().unwrap_or(written),
+            metadata.accessed().unwrap_or(written),
+            written,
+        ])
+    }
+
+    /// Change the file times; None keeps a time. Hosts without a settable
+    /// creation time ignore `created`.
+    pub fn set_times(
+        &self,
+        created: Option<SystemTime>,
+        accessed: Option<SystemTime>,
+        written: Option<SystemTime>,
+    ) -> io::Result<()> {
+        let mut times = fs::FileTimes::new();
+        if let Some(time) = accessed {
+            times = times.set_accessed(time);
+        }
+        if let Some(time) = written {
+            times = times.set_modified(time);
+        }
+        #[cfg(target_os = "macos")]
+        if let Some(time) = created {
+            use std::os::macos::fs::FileTimesExt;
+            times = times.set_created(time);
+        }
+        #[cfg(windows)]
+        if let Some(time) = created {
+            use std::os::windows::fs::FileTimesExt;
+            times = times.set_created(time);
+        }
+        #[cfg(not(any(target_os = "macos", windows)))]
+        let _ = created;
+        self.open_file()?.set_times(times)
     }
 
     // Getter methods

@@ -28,6 +28,7 @@ impl Emu {
         let mut looped: AHashMap<u64, u32> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
+        let mut window_counter: u64 = 0;
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
@@ -73,13 +74,17 @@ impl Emu {
                     continue;
                 }
 
-                self.observe_loop_progress(
+                let loop_hit = self.observe_loop_progress(
                     pc,
                     &mut prev_addr,
                     &mut repeat_counter,
                     &mut looped,
+                    &mut window_counter,
                     "infinite loop found",
                 )?;
+                if loop_hit {
+                    return Ok(self.pc());
+                }
 
                 self.trace_pre_step_state(next_pos);
 

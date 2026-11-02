@@ -1,4 +1,4 @@
-use iced_x86::{Code, Instruction, Mnemonic};
+use iced_x86::{Instruction, Mnemonic, OpKind};
 
 use super::Emu;
 use crate::engine;
@@ -244,6 +244,19 @@ impl Emu {
                     | Scasd
                     | Scasq
             )
+            // SSE movsd/cmpsd share the mnemonic; only the string forms
+            // address memory through rsi/rdi
+            && (0..ins.op_count()).any(|i| {
+                matches!(
+                    ins.op_kind(i),
+                    OpKind::MemorySegSI
+                        | OpKind::MemorySegESI
+                        | OpKind::MemorySegRSI
+                        | OpKind::MemoryESDI
+                        | OpKind::MemoryESEDI
+                        | OpKind::MemoryESRDI
+                )
+            })
     }
 
     /// Single-step path: run every remaining iteration of a REP string
@@ -296,12 +309,10 @@ impl Emu {
         instruction: Instruction,
         size: usize,
     ) -> bool {
-        let is_ret = matches!(instruction.code(), Code::Retnw | Code::Retnd | Code::Retnq);
-        let has_rep_prefix = instruction.has_rep_prefix()
-            || instruction.has_repe_prefix()
-            || instruction.has_repne_prefix();
-
-        if is_ret || !has_rep_prefix {
+        // Only string instructions repeat. F2/F3 on anything else is not a
+        // REP: `bnd jcc/jmp/call/ret` (MPX) and mandatory SSE prefixes must
+        // execute once and leave rcx alone.
+        if !Self::is_rep_string_instruction(&instruction) {
             return false;
         }
 

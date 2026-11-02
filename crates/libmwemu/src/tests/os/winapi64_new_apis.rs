@@ -861,17 +861,35 @@ fn test_reg_open_key_ex_w() {
     let result_addr = 0x100100u64;
     emu.maps
         .create_map("regdata", subkey_addr, 0x1000, Permission::READ_WRITE);
-    emu.maps.write_wide_string(subkey_addr, "Software\\Test");
+    emu.maps.write_wide_string(
+        subkey_addr,
+        "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion",
+    );
 
     // RegOpenKeyExW(hKey=HKLM=0x80000002, lpSubKey, ulOptions=0, samDesired, phkResult)
-    emu.maps.write_qword(emu.regs().rsp + 0x20, result_addr);
 
     let ret = helpers::call_winapi64(
         &mut emu,
-        winapi64::advapi32::RegOpenKeyExW,
-        &[0x80000002, subkey_addr, 0, 0xF003F],
+        |emu| {
+            winapi64::registry::gateway("RegOpenKeyExW", emu);
+        },
+        &[0x80000002, subkey_addr, 0, 0xF003F, result_addr],
     );
     assert_eq!(ret, 0, "RegOpenKeyExW should return ERROR_SUCCESS (0)");
+
+    // a key nobody created does not exist
+    emu.maps.write_wide_string(subkey_addr, "Software\\Missing");
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        |emu| {
+            winapi64::registry::gateway("RegOpenKeyExW", emu);
+        },
+        &[0x80000002, subkey_addr, 0, 0xF003F, result_addr],
+    );
+    assert_eq!(
+        ret, 2,
+        "RegOpenKeyExW of a missing key is ERROR_FILE_NOT_FOUND"
+    );
 }
 
 // ─── bcrypt: BCryptOpenAlgorithmProvider + BCryptGenRandom + BCryptClose ───

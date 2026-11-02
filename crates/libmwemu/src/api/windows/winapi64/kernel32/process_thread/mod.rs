@@ -22,9 +22,17 @@ pub use create_thread::*;
 mod create_toolhelp32_snapshot;
 pub use create_toolhelp32_snapshot::*;
 
+#[path = "../module32_first.rs"]
+mod module32_first;
+pub use module32_first::*;
+
 #[path = "../module32_first_w.rs"]
 mod module32_first_w;
 pub use module32_first_w::*;
+
+#[path = "../module32_next.rs"]
+mod module32_next;
+pub use module32_next::*;
 
 #[path = "../module32_next_w.rs"]
 mod module32_next_w;
@@ -61,6 +69,10 @@ pub use get_thread_context::*;
 #[path = "../get_thread_locale.rs"]
 mod get_thread_locale;
 pub use get_thread_locale::*;
+
+#[path = "../check_remote_debugger_present.rs"]
+mod check_remote_debugger_present;
+pub use check_remote_debugger_present::*;
 
 #[path = "../is_debugger_present.rs"]
 mod is_debugger_present;

@@ -57,12 +57,15 @@ pub struct Config {
     pub max_faults: Option<u32>,       // stop after N faults/exceptions
     pub seed: Option<u64>, // seed for the emulator's random source (rdrand/rdseed); None = seeded from the OS
     pub loops: bool,       // count iterations per instruction (slow)
+    pub loop_limit: u64,   // --noloops: break out of loops after N iterations per address (0 = off)
     pub allow_empty_code_blocks: bool, // disable empty-code-block detector
 
     // --- API emulation behavior ---
     pub emulate_winapi: bool,
     pub linux_real_libc: bool, // execute the real mapped libc/ld code, only intercept `syscall`
     pub skip_unimplemented: bool,
+    #[serde(default)]
+    pub stop_on_unimplemented: bool, // stop at the first unimplemented winapi64 call
     pub short_circuit_sleep: bool, // Sleep/Wait calls advance tick but return immediately
 
     // --- Threading ---
@@ -137,6 +140,7 @@ impl Config {
             console: false,
             console_num: 0,
             loops: false,
+            loop_limit: 0,
             nocolors: false,
             string_addr: 0,
             inspect: false,
@@ -156,6 +160,7 @@ impl Config {
             test_mode: false,
             console_enabled: false,
             skip_unimplemented: false,
+            stop_on_unimplemented: false,
             stack_addr: 0,
             arguments: "".to_string(),
             enable_threading: false, // Default to single-threaded for backward compatibility
@@ -456,6 +461,12 @@ impl Config {
         self
     }
 
+    /// Set the per-address iteration limit for loop breaking (0 = disabled).
+    pub fn set_loop_limit(&mut self, limit: u64) -> &mut Self {
+        self.loop_limit = limit;
+        self
+    }
+
     /// Allow or disallow empty code blocks.
     pub fn set_allow_empty_code_blocks(&mut self, enabled: bool) -> &mut Self {
         self.allow_empty_code_blocks = enabled;
@@ -479,6 +490,13 @@ impl Config {
     /// Skip unimplemented API calls instead of stopping.
     pub fn set_skip_unimplemented(&mut self, enabled: bool) -> &mut Self {
         self.skip_unimplemented = enabled;
+        self
+    }
+
+    /// Stop emulation at the first unimplemented winapi64 call instead of
+    /// continuing with an unset return value and unwritten out-parameters.
+    pub fn set_stop_on_unimplemented(&mut self, enabled: bool) -> &mut Self {
+        self.stop_on_unimplemented = enabled;
         self
     }
 

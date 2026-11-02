@@ -20,15 +20,24 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "VariantClear" => VariantClear(emu),
 
         _ => {
-            if !emu.cfg.skip_unimplemented {
-                if emu.cfg.dump_on_exit
-                    && let Some(dump_file) = emu.cfg.dump_filename.as_ref()
-                {
-                    serialization::Serialization::dump(emu, dump_file);
-                }
-
-                log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
+            if emu.cfg.skip_unimplemented {
+                log::warn!(
+                    "banzai: skipping unimplemented API 0x{:x} {} at 0x{:x}",
+                    addr,
+                    api,
+                    emu.regs().rip
+                );
+                emu.regs_mut().rax = 0;
+                return String::new();
             }
+
+            if emu.cfg.dump_on_exit
+                && let Some(dump_file) = emu.cfg.dump_filename.as_ref()
+            {
+                serialization::Serialization::dump(emu, dump_file);
+            }
+
+            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
             log::warn!(
                 "calling unimplemented API 0x{:x} {} at 0x{:x}",
                 addr,

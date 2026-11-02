@@ -6,25 +6,30 @@ use crate::winapi::winapi64::kernel32;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    {
-        if !emu.cfg.skip_unimplemented {
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
-                    emu,
-                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                );
-            }
-
-            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
-        }
+    if emu.cfg.skip_unimplemented {
         log::warn!(
-            "calling unimplemented API 0x{:x} {} at 0x{:x}",
+            "banzai: skipping unimplemented API 0x{:x} {} at 0x{:x}",
             addr,
             api,
             emu.regs().rip
         );
-        api.to_ascii_lowercase()
+        emu.regs_mut().rax = 0;
+        return String::new();
     }
 
-    //String::new()
+    if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
+        serialization::Serialization::dump(
+            emu,
+            emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
+        );
+    }
+
+    log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
+    log::warn!(
+        "calling unimplemented API 0x{:x} {} at 0x{:x}",
+        addr,
+        api,
+        emu.regs().rip
+    );
+    api.to_ascii_lowercase()
 }

@@ -110,21 +110,20 @@ fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
     );
 
     emu.add_veh(first != 0, fptr);
-    emu.regs_mut().rax = 0x2c2878;
+    // the handler address doubles as the handle RtlRemoveVectoredExceptionHandler gets
+    emu.regs_mut().rax = fptr;
 }
 
 fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
     let handle = emu.regs().rcx;
-    let fptr = emu.regs().rdx;
 
     log_red!(
         emu,
-        "ntdll!RtlRemoveVectoredExceptionHandler  handle=0x{:x} callback: 0x{:x}",
-        handle,
-        fptr
+        "ntdll!RtlRemoveVectoredExceptionHandler  handle=0x{:x}",
+        handle
     );
 
-    emu.remove_veh(fptr);
+    emu.remove_veh(handle);
     emu.regs_mut().rax = 1;
 }
 

@@ -88,7 +88,7 @@ impl Maps {
 
     /// Record a write of `len` bytes at `addr` that hit an executable map.
     #[inline]
-    fn note_code_write(&self, addr: u64, len: u64) {
+    pub(crate) fn note_code_write(&self, addr: u64, len: u64) {
         let mut log = self.code_writes.borrow_mut();
         if log.first() == Some(&Self::CODE_WRITES_ALL) {
             return;
@@ -231,6 +231,10 @@ impl Maps {
         // Creating a map can reuse a freed slab slot, leaving stale TLB entries
         // that still point at the recycled key — flush so lookups re-resolve.
         self.tlb.get_mut().flush();
+        // decodes cached for code that used to live at these addresses are stale
+        if permission.can_execute() {
+            self.note_code_write(base, size);
+        }
         Ok(self
             .mem_slab
             .get_mut(base_key)
@@ -850,6 +854,13 @@ impl Maps {
             return;
         };
         self.name_map.remove(mem.get_name());
+        if mem.can_execute() {
+            let (base, size) = (mem.get_base(), mem.size() as u64);
+            self.note_code_write(base, size);
+        }
+        let Some(mem) = self.mem_slab.get_mut(*mem_key) else {
+            return;
+        };
         mem.clear();
         self.mem_slab.remove(*mem_key);
         self.tlb.borrow_mut().flush();

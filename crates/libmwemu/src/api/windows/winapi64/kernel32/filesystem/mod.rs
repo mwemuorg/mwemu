@@ -1,3 +1,15 @@
+#[path = "../volume.rs"]
+mod volume;
+pub use volume::*;
+
+#[path = "../file_time.rs"]
+mod file_time;
+pub use file_time::*;
+
+#[path = "../query_dos_device_w.rs"]
+mod query_dos_device_w;
+pub use query_dos_device_w::*;
+
 #[path = "../are_file_api_is_ansi.rs"]
 mod are_file_api_is_ansi;
 pub use are_file_api_is_ansi::*;
@@ -94,6 +106,22 @@ pub use get_current_directory_w::*;
 mod get_disk_free_space_a;
 pub use get_disk_free_space_a::*;
 
+#[path = "../get_disk_free_space_ex_a.rs"]
+mod get_disk_free_space_ex_a;
+pub use get_disk_free_space_ex_a::*;
+
+#[path = "../get_disk_free_space_ex_w.rs"]
+mod get_disk_free_space_ex_w;
+pub use get_disk_free_space_ex_w::*;
+
+#[path = "../get_drive_type_a.rs"]
+mod get_drive_type_a;
+pub use get_drive_type_a::*;
+
+#[path = "../get_drive_type_w.rs"]
+mod get_drive_type_w;
+pub use get_drive_type_w::*;
+
 #[path = "../get_file_attributes_a.rs"]
 mod get_file_attributes_a;
 pub use get_file_attributes_a::*;
@@ -137,6 +165,10 @@ pub use get_system_time_as_file_time::*;
 #[path = "../get_system_time_precise_as_file_time.rs"]
 mod get_system_time_precise_as_file_time;
 pub use get_system_time_precise_as_file_time::*;
+
+#[path = "../get_temp_path_a.rs"]
+mod get_temp_path_a;
+pub use get_temp_path_a::*;
 
 #[path = "../get_temp_path_w.rs"]
 mod get_temp_path_w;
@@ -200,3 +232,19 @@ pub use create_directory_w::*;
 #[path = "../delete_file_w.rs"]
 mod delete_file_w;
 pub use delete_file_w::*;
+
+#[path = "../remove_directory_a.rs"]
+mod remove_directory_a;
+pub use remove_directory_a::*;
+
+#[path = "../remove_directory_w.rs"]
+mod remove_directory_w;
+pub use remove_directory_w::*;
+
+#[path = "../set_file_attributes_a.rs"]
+mod set_file_attributes_a;
+pub use set_file_attributes_a::*;
+
+#[path = "../set_file_attributes_w.rs"]
+mod set_file_attributes_w;
+pub use set_file_attributes_w::*;

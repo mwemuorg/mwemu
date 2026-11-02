@@ -44,6 +44,7 @@ pub const STATUS_BUFFER_OVERFLOW: u64 = 0xC0000005;
 pub const STATUS_ACCESS_DENIED: u64 = 0xC0000022;
 pub const STATUS_END_OF_FILE: u64 = 0xC0000011;
 pub const STATUS_INVALID_HANDLE: u64 = 0xC0000008;
+pub const STATUS_CONFLICTING_ADDRESSES: u64 = 0xC0000018;
 pub const STATUS_NO_MEMORY: u64 = 0xC0000017;
 pub const STATUS_ACCESS_VIOLATION: u64 = 0xC0000005;
 pub const STATUS_INVALID_ADDRESS: u64 = 0xC0000141;
@@ -59,11 +60,29 @@ pub const STATUS_FILE_INVALID: u64 = 0xC0000098;
 pub const STATUS_BUFFER_TOO_SMALL: u64 = 0xC0000023;
 pub const STATUS_PRIVILEGE_NOT_HELD: u64 = 0xC0000061;
 
+/// NT device of the guest's only volume (C:), shared by every API that
+/// turns a DOS path into an NT device path.
+pub const SYSTEM_VOLUME_DEVICE: &str = "\\Device\\HarddiskVolume3";
+
 pub const ERROR_SUCCESS: u64 = 0;
+pub const ERROR_FILE_NOT_FOUND: u64 = 2;
+pub const ERROR_ACCESS_DENIED: u64 = 5;
+pub const ERROR_INVALID_HANDLE: u64 = 6;
 pub const ERROR_NOT_ENOUGH_MEMORY: u64 = 8;
+pub const ERROR_MOD_NOT_FOUND: u64 = 126;
+pub const ERROR_NEGATIVE_SEEK: u64 = 131;
+pub const ERROR_ENVVAR_NOT_FOUND: u64 = 203;
+pub const ERROR_MORE_DATA: u64 = 234;
+pub const ERROR_NO_MORE_ITEMS: u64 = 259;
+pub const ERROR_INVALID_ADDRESS: u64 = 487;
+pub const ERROR_KEY_DELETED: u64 = 1018;
+pub const ERROR_UNSUPPORTED_TYPE: u64 = 1630;
 pub const ERROR_BUFFER_OVERFLOW: u64 = 0x6f;
 pub const ERROR_INVALID_PARAMETER: u64 = 0x57;
 pub const ERROR_INSUFFICIENT_BUFFER: u64 = 0x7a;
+pub const ERROR_INVALID_WINDOW_HANDLE: u64 = 1400;
+pub const ERROR_CLASS_DOES_NOT_EXIST: u64 = 1411;
+pub const ERROR_CLASS_HAS_WINDOWS: u64 = 1412;
 
 pub const HRESULT_E_INVALID_ARG: u64 = 0x80070057;
 /*

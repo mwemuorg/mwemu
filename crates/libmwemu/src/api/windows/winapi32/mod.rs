@@ -2,6 +2,7 @@ pub mod advapi32;
 mod bcrypt;
 mod crypt32;
 mod dnsapi;
+mod gdi32;
 mod iphlpapi;
 pub mod kernel32;
 mod kernelbase;
@@ -100,42 +101,8 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
             }
             String::new()
         }
-        "gdi32.text" => {
-            let api = kernel32::guess_api_name(emu, addr);
-            let api_name = api.split("!").last().unwrap_or(&api);
-            match api_name {
-                "CreateDCA" | "CreateCompatibleDC" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 0xdc_0001;
-                }
-                "DeleteDC" | "DeleteObject" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 1;
-                }
-                "GetDeviceCaps" => {
-                    let cap = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-                    log_red!(emu, "gdi32!GetDeviceCaps cap:{}", cap);
-                    emu.regs_mut().rax = match cap {
-                        8 => 32,     // BITSPIXEL
-                        10 => 1920,  // HORZRES
-                        117 => 1080, // VERTRES
-                        _ => 0,
-                    };
-                }
-                "CreateCompatibleBitmap" => {
-                    log_red!(emu, "gdi32!CreateCompatibleBitmap");
-                    emu.regs_mut().rax = 0xb0_0001;
-                }
-                "SelectObject" | "GetObjectA" | "StretchBlt" | "GetDIBits" => {
-                    log_red!(emu, "gdi32!{}", api_name);
-                    emu.regs_mut().rax = 0;
-                }
-                _ => {
-                    log::warn!("gdi32: unimplemented API {}", api_name);
-                }
-            }
-            String::new()
-        }
+        "gdi32.text" => gdi32::gateway(addr, emu),
+        "gdi32.rdata" => gdi32::gateway(addr, emu),
         "msvcp60.text" => {
             let api = kernel32::guess_api_name(emu, addr);
             let api_name = api.split("!").last().unwrap_or(&api);
@@ -183,15 +150,35 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
         "ntoskrnl.text" => ntoskrnl::gateway(addr, emu),
         "ntoskrnlPAGE" => ntoskrnl::gateway(addr, emu),
         "not_loaded" => {
-            // TODO: banzai check?
-            emu.pe32.as_ref().unwrap().import_addr_to_name(addr)
+            if emu.cfg.skip_unimplemented {
+                let api = emu
+                    .pe32
+                    .as_ref()
+                    .map(|pe| pe.import_addr_to_name(addr))
+                    .unwrap_or_default();
+                log::warn!(
+                    "banzai: skipping not_loaded API 0x{:x} {} at 0x{:x}",
+                    addr,
+                    api,
+                    emu.regs().rip
+                );
+                emu.regs_mut().rax = 0;
+                String::new()
+            } else {
+                emu.pe32.as_ref().unwrap().import_addr_to_name(addr)
+            }
         }
         _ => {
-            log::error!(
-                "/!\\ winapi32 gateway: trying to execute on {} at 0x{:x}",
-                name,
-                addr
-            );
+            if emu.cfg.skip_unimplemented {
+                log::warn!("banzai: skipping unknown section {} at 0x{:x}", name, addr);
+                emu.regs_mut().rax = 0;
+            } else {
+                log::error!(
+                    "/!\\ winapi32 gateway: trying to execute on {} at 0x{:x}",
+                    name,
+                    addr
+                );
+            }
             return;
         }
     };

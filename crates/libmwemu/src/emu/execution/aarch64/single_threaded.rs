@@ -52,6 +52,7 @@ impl Emu {
         let mut looped: AHashMap<u64, u32> = AHashMap::new();
         let mut prev_addr: u64 = 0;
         let mut repeat_counter: u32 = 0;
+        let mut window_counter: u64 = 0;
 
         let mut aarch64_ins = yaxpeax_arm::armv8::a64::Instruction::default();
         let mut block: Vec<u8> = Vec::with_capacity(constants::BLOCK_LEN + 1);
@@ -203,13 +204,17 @@ impl Emu {
 
                     // --- Loop detection ---
                     if self.rep.is_none() {
-                        self.observe_loop_progress(
+                        let loop_hit = self.observe_loop_progress(
                             addr,
                             &mut prev_addr,
                             &mut repeat_counter,
                             &mut looped,
+                            &mut window_counter,
                             "infinite loop found",
                         )?;
+                        if loop_hit {
+                            return Ok(self.pc());
+                        }
                     }
 
                     // --- Pre-instruction tracing ---

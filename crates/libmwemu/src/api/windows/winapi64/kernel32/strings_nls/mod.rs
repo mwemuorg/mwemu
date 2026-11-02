@@ -2,21 +2,9 @@
 mod compare_string_w;
 pub use compare_string_w::*;
 
-#[path = "../expand_environment_strings_a.rs"]
-mod expand_environment_strings_a;
-pub use expand_environment_strings_a::*;
-
-#[path = "../expand_environment_strings_w.rs"]
-mod expand_environment_strings_w;
-pub use expand_environment_strings_w::*;
-
 #[path = "../find_act_ctx_section_string_w.rs"]
 mod find_act_ctx_section_string_w;
 pub use find_act_ctx_section_string_w::*;
-
-#[path = "../get_environment_strings_w.rs"]
-mod get_environment_strings_w;
-pub use get_environment_strings_w::*;
 
 #[path = "../lstrcat_a.rs"]
 mod lstrcat_a;

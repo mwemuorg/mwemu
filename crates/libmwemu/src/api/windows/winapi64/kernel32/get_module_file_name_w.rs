@@ -27,14 +27,10 @@ pub fn GetModuleFileNameW(emu: &mut emu::Emu) {
         return;
     }
 
-    // Determine which module name to use based on handle
-    let module_name = if module_handle == 0 {
-        // NULL handle means current process executable
-        emu.cfg.module_name.clone()
-    } else {
-        // TODO: Look up actual module by handle
-        // For now, just use the default module name
-        emu.cfg.module_name.clone()
+    let Some(module_name) = module_path(emu, module_handle) else {
+        emu.set_last_error(constants::ERROR_MOD_NOT_FOUND);
+        emu.regs_mut().rax = 0;
+        return;
     };
 
     let name_chars = module_name.chars().count();
@@ -69,4 +65,20 @@ pub fn GetModuleFileNameW(emu: &mut emu::Emu) {
 
         emu.regs_mut().rax = name_chars as u64; // Return actual length (without null terminator)
     }
+}
+
+/// Guest path of the module loaded at `handle` (NULL = the main image), the
+/// same path its loader entry reports; None for an unknown handle.
+pub fn module_path(emu: &emu::Emu, handle: u64) -> Option<String> {
+    if handle == 0 || handle == emu.base {
+        return Some(main_module_path(emu));
+    }
+    emu.export_indexes
+        .get_by_base(handle)
+        .map(|module| format!("C:\\Windows\\System32\\{}", module.module_name))
+}
+
+/// `C:\<exe_name>`, matching the main image's LDR FullDllName.
+pub fn main_module_path(emu: &emu::Emu) -> String {
+    format!("C:\\{}", emu.cfg.exe_name)
 }
