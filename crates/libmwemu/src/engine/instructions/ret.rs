@@ -1,5 +1,6 @@
 use crate::debug::console::Console;
 use crate::emu::Emu;
+use crate::exception::seh32;
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::LIBS64_MIN;
 use crate::{color, exception::handlers as exception};
@@ -79,9 +80,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     }
 
+    if emu.eh_ctx() != 0 && seh32::handle_return(emu, ret_addr) {
+        return true;
+    }
+
     emu.call_stack_mut().pop();
 
-    if emu.eh_ctx() != 0 {
+    if emu.eh_ctx() != 0 && !seh32::is_active(emu) {
         exception::exit(emu);
         return true;
     }

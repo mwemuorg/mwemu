@@ -16,6 +16,7 @@ mod memory_map_operations;
 mod pure_rust_check;
 mod register_state_tests;
 mod regsisters_test;
+mod seh32_arguments;
 mod serialization_tests;
 mod should_serialize;
 mod test_unified_step_and_run_methods;
