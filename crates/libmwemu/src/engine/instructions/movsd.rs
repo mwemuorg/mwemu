@@ -70,7 +70,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 }
             };
 
-            emu.maps.write_dword(emu.regs().rdi, val);
+            let addr = emu.regs().rdi;
+            let value = emu.call_memory_write_hook(addr, 32, val.into()) as u32;
+            emu.maps.write_dword(addr, value);
 
             if !emu.flag_df() {
                 let v = emu.regs().rsi.wrapping_add(4);
@@ -93,7 +95,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                     return false;
                 }
             };
-            emu.maps.write_dword(emu.regs().get_edi(), val);
+            let addr = emu.regs().get_edi();
+            let value = emu.call_memory_write_hook(addr, 32, val.into()) as u32;
+            emu.maps.write_dword(addr, value);
 
             if !emu.flag_df() {
                 let esi = emu.regs().get_esi().wrapping_add(4);

@@ -18,5 +18,6 @@ mod register_state_tests;
 mod regsisters_test;
 mod serialization_tests;
 mod should_serialize;
+mod string_memory_hooks;
 mod test_unified_step_and_run_methods;
 mod utility_functions_tests;

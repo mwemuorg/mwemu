@@ -33,7 +33,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 }
             }
         };
-        if !emu.maps.write_byte(emu.regs().rdi, val) {
+        let addr = emu.regs().rdi;
+        let value = emu.call_memory_write_hook(addr, 8, val.into()) as u8;
+        if !emu.maps.write_byte(addr, value) {
             static FIRST_OOB: std::sync::atomic::AtomicBool =
                 std::sync::atomic::AtomicBool::new(false);
             let rdi = emu.regs().rdi;
@@ -80,7 +82,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 }
             }
         };
-        if !emu.maps.write_byte(emu.regs().get_edi(), val) {
+        let addr = emu.regs().get_edi();
+        let value = emu.call_memory_write_hook(addr, 8, val.into()) as u8;
+        if !emu.maps.write_byte(addr, value) {
             log::trace!("cannot write memory on edi");
             return false;
         }
