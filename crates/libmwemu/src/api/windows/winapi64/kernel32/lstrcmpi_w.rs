@@ -25,5 +25,6 @@ pub fn LStrCmpIW(emu: &mut emu::Emu) {
         }
     };
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = result;
 }

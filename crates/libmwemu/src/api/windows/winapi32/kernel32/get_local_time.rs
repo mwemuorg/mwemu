@@ -61,4 +61,5 @@ pub fn GetLocalTime(emu: &mut emu::Emu) {
     emu.maps.write_word(lp_system_time + offset, w_millis);
 
     emu.stack_pop32(false);
+    emu.regs_mut().rax = 1;
 }

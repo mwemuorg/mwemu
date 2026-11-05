@@ -197,21 +197,89 @@ pub(super) fn http_send_request_w(emu: &mut emu::Emu) {
 }
 
 pub(super) fn http_query_info_a(emu: &mut emu::Emu) {
-    let _hrequest = read_stack_dword(emu, 0, "wininet!HttpQueryInfoA cannot read hrequest") as u64;
-    let _infolvl = read_stack_dword(emu, 4, "wininet!HttpQueryInfoA cannot read infolvl") as u64;
-    let buff = read_stack_dword(emu, 8, "wininet!HttpQueryInfoA cannot read buffer") as u64;
-    let buff_len =
+    let handle = read_stack_dword(emu, 0, "wininet!HttpQueryInfoA cannot read hrequest") as u64;
+    let info_level = read_stack_dword(emu, 4, "wininet!HttpQueryInfoA cannot read infolvl");
+    let buffer = read_stack_dword(emu, 8, "wininet!HttpQueryInfoA cannot read buffer") as u64;
+    let buffer_len_ptr =
         read_stack_dword(emu, 12, "wininet!HttpQueryInfoA cannot read buffer len") as u64;
-    let _index = read_stack_dword(emu, 16, "wininet!HttpQueryInfoA cannot read index") as u64;
+    let _index = read_stack_dword(emu, 16, "wininet!HttpQueryInfoA cannot read index");
+    let level_raw = info_level & 0x0000FFFF;
 
     log_red!(
         emu,
-        "wininet!HttpQueryInfoA buff: 0x{:x} sz:{}",
-        buff,
-        buff_len
+        "wininet!HttpQueryInfoA handle: 0x{:x} level: 0x{:x} (raw: {})",
+        handle,
+        info_level,
+        level_raw
     );
 
     pop_stack32(emu, 5);
 
-    emu.regs_mut().rax = 1;
+    let response: Option<&str> = match level_raw {
+        1 => Some("text/html"),
+        5 => Some("1024"),
+        19 => Some("200"),
+        21 => Some("HTTP/1.1 200 OK"),
+        22 => Some("HTTP/1.1 200 OK\r\n"),
+        _ => None,
+    };
+
+    match response {
+        Some(val) => {
+            if buffer != 0 {
+                emu.maps.write_string(buffer, val);
+            }
+            if buffer_len_ptr != 0 {
+                emu.maps.write_dword(buffer_len_ptr, val.len() as u32);
+            }
+            emu.regs_mut().rax = 1;
+        }
+        None => {
+            emu.regs_mut().rax = 0;
+        }
+    }
+}
+
+pub(super) fn http_query_info_w(emu: &mut emu::Emu) {
+    let handle = read_stack_dword(emu, 0, "wininet!HttpQueryInfoW cannot read hrequest") as u64;
+    let info_level = read_stack_dword(emu, 4, "wininet!HttpQueryInfoW cannot read infolvl");
+    let buffer = read_stack_dword(emu, 8, "wininet!HttpQueryInfoW cannot read buffer") as u64;
+    let buffer_len_ptr =
+        read_stack_dword(emu, 12, "wininet!HttpQueryInfoW cannot read buffer len") as u64;
+    let _index = read_stack_dword(emu, 16, "wininet!HttpQueryInfoW cannot read index");
+    let level_raw = info_level & 0x0000FFFF;
+
+    log_red!(
+        emu,
+        "wininet!HttpQueryInfoW handle: 0x{:x} level: 0x{:x} (raw: {})",
+        handle,
+        info_level,
+        level_raw
+    );
+
+    pop_stack32(emu, 5);
+
+    let response: Option<&str> = match level_raw {
+        1 => Some("text/html"),
+        5 => Some("1024"),
+        19 => Some("200"),
+        21 => Some("HTTP/1.1 200 OK"),
+        22 => Some("HTTP/1.1 200 OK\r\n"),
+        _ => None,
+    };
+
+    match response {
+        Some(val) => {
+            if buffer != 0 {
+                emu.maps.write_wide_string(buffer, val);
+            }
+            if buffer_len_ptr != 0 {
+                emu.maps.write_dword(buffer_len_ptr, (val.len() * 2) as u32);
+            }
+            emu.regs_mut().rax = 1;
+        }
+        None => {
+            emu.regs_mut().rax = 0;
+        }
+    }
 }

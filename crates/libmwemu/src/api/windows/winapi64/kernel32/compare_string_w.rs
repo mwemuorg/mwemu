@@ -77,5 +77,6 @@ pub fn CompareStringW(emu: &mut emu::Emu) {
 
     log::trace!("\t\t'{}' == '{}'  ={}", s1, s2, result);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = result as u64;
 }

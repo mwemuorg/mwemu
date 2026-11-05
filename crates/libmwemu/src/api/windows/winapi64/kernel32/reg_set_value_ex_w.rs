@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::windows::constants;
 
 pub fn RegSetValueExW(emu: &mut emu::Emu) {
     let h_key = emu.regs().rcx;
@@ -21,5 +20,6 @@ pub fn RegSetValueExW(emu: &mut emu::Emu) {
         data_ptr
     );
 
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

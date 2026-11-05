@@ -1,0 +1,10 @@
+use crate::emu;
+
+pub fn UnmapViewOfFile(emu: &mut emu::Emu) {
+    let base_addr = emu.regs().rcx;
+
+    log_red!(emu, "kernel32!UnmapViewOfFile addr:0x{:x}", base_addr);
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
+}

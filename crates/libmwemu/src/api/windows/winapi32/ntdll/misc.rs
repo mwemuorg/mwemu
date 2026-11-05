@@ -22,6 +22,9 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlEncodePointer" => RtlEncodePointer(emu),
         "RtlDecodePointer" => RtlDecodePointer(emu),
         "RtlSizeHeap" => RtlSizeHeap(emu),
+        "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
+        "RtlRestoreLastWin32Error" | "RestoreLastError" => RestoreLastError(emu),
+        "ZwQueueApcThread" => ZwQueueApcThread(emu),
         _ => return false,
     }
     true
@@ -200,4 +203,51 @@ fn RtlSizeHeap(emu: &mut emu::Emu) {
     log_red!(emu, "ntdll!RtlSizeHeap mem: 0x{:x} ={:?}", mem, size);
     emu.regs_mut().rax = size.map(|s| s as u64).unwrap_or(0xffff_ffff);
     stdcall_ret(emu, 3);
+}
+pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
+    let compression_format = arg(emu, 0) as u16;
+    let uncompressed_buffer = arg(emu, 1) as u64;
+    let uncompressed_buffer_size = arg(emu, 2) as u64;
+    let compressed_buffer = arg(emu, 3) as u64;
+    let compressed_buffer_size = arg(emu, 4) as u64;
+    let final_uncompressed_size = arg(emu, 5) as u64;
+
+    emu.regs_mut().rax = crate::api::windows::common::ntdll::rtl_decompress_buffer(
+        emu,
+        compression_format,
+        uncompressed_buffer,
+        uncompressed_buffer_size,
+        compressed_buffer,
+        compressed_buffer_size,
+        final_uncompressed_size,
+    );
+    stdcall_ret(emu, 6);
+}
+
+fn RestoreLastError(emu: &mut emu::Emu) {
+    let err_code = arg(emu, 0) as u64;
+    log_red!(emu, "ntdll!RtlRestoreLastWin32Error err: {}", err_code);
+    emu.set_last_error(err_code);
+    stdcall_ret(emu, 1);
+}
+
+fn ZwQueueApcThread(emu: &mut emu::Emu) {
+    let thread_handle = arg(emu, 0);
+    let apc_routine = arg(emu, 1);
+    let apc_ctx = arg(emu, 2);
+    let a1 = arg(emu, 3);
+    let a2 = arg(emu, 4);
+
+    log_red!(
+        emu,
+        "ntdll!ZwQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {}",
+        thread_handle,
+        apc_routine,
+        apc_ctx,
+        a1,
+        a2
+    );
+
+    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    stdcall_ret(emu, 5);
 }

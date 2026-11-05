@@ -8,5 +8,6 @@ pub fn GetVersionExW(emu: &mut emu::Emu) {
     let os_version_info = structures::OsVersionInfoExW::new();
     os_version_info.save(version_info_ptr, &mut emu.maps);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

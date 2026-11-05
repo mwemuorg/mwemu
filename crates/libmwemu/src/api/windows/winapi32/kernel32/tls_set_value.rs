@@ -15,6 +15,7 @@ pub fn TlsSetValue(emu: &mut emu::Emu) {
         emu.tls32_mut()[idx as usize] = val;
     }
 
+    emu.set_last_error(0);
     emu.stack_pop32(false);
     emu.stack_pop32(false);
     emu.regs_mut().set_eax(1);

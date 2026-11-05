@@ -18,6 +18,7 @@ pub fn RegSetValueExW(emu: &mut emu::Emu) {
         value_type,
         data_ptr
     );
+    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..6 {

@@ -26,19 +26,7 @@ pub fn GetDiskFreeSpaceA(emu: &mut emu::Emu) {
     // So 5th arg is at [RSP + 40]? No, [RSP + 32].
     // Let's assume standard offset for now. Emu reads memory.
 
-    let total_clusters_ptr = emu
-        .maps
-        .read_qword(emu.regs().get_esp() + 40) // 32 (shadow) + 8 (push 5th arg)? No, usually on stack just above shadow.
-        .unwrap_or(0);
-    // Logic:
-    // CALL instr: pushes RetAddr (8 bytes). RSP -= 8.
-    // Inside function:
-    // Arg5 is at RSP + 8 + 32 = RSP + 40.
-    // We POPPED RetAddr in `handle_winapi`. So RSP is back to pre-call state.
-    // So Arg5 is at RSP + 32 ?
-    // Actually shadow space is allocated by caller *above* the arguments?
-    // No, shadow space is "home" for first 4 arguments.
-    // Arg5 is at [RSP+32] immediately above shadow space.
+    let total_clusters_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let root_path = if root_path_ptr != 0 {
         emu.maps.read_string(root_path_ptr)

@@ -6,5 +6,6 @@ pub fn Thread32Next(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!Thread32Next");
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_NO_MORE_FILES;
 }

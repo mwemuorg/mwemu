@@ -5,6 +5,7 @@ pub fn LoadLibraryA(emu: &mut emu::Emu) {
     let dllptr = emu.regs().rcx;
     let dll = emu.maps.read_string(dllptr);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = load_library(emu, &dll);
 
     if emu.cfg.verbose >= 1 {

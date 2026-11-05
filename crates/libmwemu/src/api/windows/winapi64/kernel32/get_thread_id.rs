@@ -5,6 +5,7 @@ pub fn GetThreadId(emu: &mut emu::Emu) {
 
     for i in 0..emu.threads.len() {
         if emu.threads[i].handle == hndl {
+            emu.set_last_error(0);
             emu.regs_mut().rax = emu.threads[i].id;
             log_red!(
                 emu,

@@ -10,9 +10,11 @@ pub fn VirtualFree(emu: &mut emu::Emu) {
     match emu.maps.get_mem_by_addr(addr) {
         Some(mem) => {
             emu.maps.dealloc(mem.get_base());
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         None => {
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
     }

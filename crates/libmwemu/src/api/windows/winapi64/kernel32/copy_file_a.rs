@@ -10,5 +10,6 @@ pub fn CopyFileA(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!CopyFileA `{}` to `{}`", src, dst);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

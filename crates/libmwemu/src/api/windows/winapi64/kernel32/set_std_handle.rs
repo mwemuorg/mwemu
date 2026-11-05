@@ -1,0 +1,16 @@
+use crate::emu;
+
+pub fn SetStdHandle(emu: &mut emu::Emu) {
+    let nstd = emu.regs().rcx as u32;
+    let handle = emu.regs().rdx;
+
+    log_red!(
+        emu,
+        "kernel32!SetStdHandle nstd:0x{:x} handle:0x{:x}",
+        nstd,
+        handle
+    );
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
+}

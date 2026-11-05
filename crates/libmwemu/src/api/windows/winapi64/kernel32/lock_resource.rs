@@ -10,6 +10,7 @@ pub fn LockResource(emu: &mut emu::Emu) {
             Some(v) => v + emu.base,
             None => {
                 log::warn!("LockResource: bad handler uri `{}`", uri);
+                emu.set_last_error(0);
                 emu.regs_mut().rax = 0;
                 return;
             }

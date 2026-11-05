@@ -11,6 +11,7 @@ pub fn is_library_loaded(emu: &mut emu::Emu, libname: &str) -> bool {
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     let Some(mut dll) = kernel32_common::normalize_library_name(libname, false) else {
+        emu.set_last_error(0);
         emu.regs_mut().rax = 0;
         return 0;
     };

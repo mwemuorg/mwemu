@@ -8,6 +8,7 @@ pub fn DeleteFileW(emu: &mut emu::Emu) {
         "kernel32!DeleteFileW `{}` (stub: not deleting)",
         filename
     );
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 1);
 }

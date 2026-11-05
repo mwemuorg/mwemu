@@ -6,6 +6,7 @@ pub fn GlobalFree(emu: &mut emu::Emu) {
     let mem = arg(emu, 0) as u64;
     log_red!(emu, "kernel32!GlobalFree mem: 0x{:x}", mem);
     heap_engine::heap_free(emu, 0, mem);
+    emu.set_last_error(0);
     emu.regs_mut().rax = 0;
     stdcall_ret(emu, 1);
 }

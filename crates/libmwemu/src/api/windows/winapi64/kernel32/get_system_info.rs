@@ -7,4 +7,6 @@ pub fn GetSystemInfo(emu: &mut emu::Emu) {
 
     let mut sysinfo = structures::SystemInfo64::new();
     sysinfo.save(out_sysinfo, &mut emu.maps);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

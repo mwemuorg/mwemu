@@ -6,6 +6,7 @@ pub fn GetFileType(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GetFileType 0x{:x}", hndl);
 
     emu.stack_pop32(false);
+    emu.set_last_error(0);
     emu.regs_mut().rax = 3;
 
     /*

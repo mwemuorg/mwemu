@@ -7,6 +7,7 @@ pub fn TlsFree(emu: &mut emu::Emu) {
 
     if idx < emu.tls64().len() {
         emu.tls64_mut()[idx] = 0; // Clear the slot
+        emu.set_last_error(0);
         emu.regs_mut().rax = 1; // Return TRUE
     } else {
         emu.regs_mut().rax = 0; // Return FALSE if invalid index

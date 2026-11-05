@@ -14,6 +14,7 @@ pub fn lstrcmpA(emu: &mut emu::Emu) {
 
     let result = s1.cmp(&s2);
     if result == std::cmp::Ordering::Less {
+        emu.set_last_error(0);
         emu.regs_mut().rax = 0xffffffff;
     } else if result == std::cmp::Ordering::Greater {
         emu.regs_mut().rax = 1;

@@ -73,25 +73,85 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "EncodePointer" => EncodePointer(emu),
         "EnterCriticalSection" => EnterCriticalSection(emu),
         "EtwEventEnabled" | "EventEnabled" => {
-            log_red!(emu, "kernel32!EtwEventEnabled (stub)");
-            emu.regs_mut().rax = 0;
+            let reg_handle = emu.regs().rcx;
+            let event_descriptor = emu.regs().rdx;
+            let level = if event_descriptor != 0 {
+                emu.maps.read_byte(event_descriptor).unwrap_or(0)
+            } else {
+                0
+            };
+            log_red!(
+                emu,
+                "kernel32!EventEnabled handle:0x{:x} level:{}",
+                reg_handle,
+                level
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
         }
         "EtwEventRegister" | "EventRegister" => {
-            log_red!(emu, "kernel32!EtwEventRegister (stub)");
+            let provider_guid = emu.regs().rcx;
+            let callback = emu.regs().rdx;
+            let _callback_ctx = emu.regs().r8;
+            let reg_handle_ptr = emu.regs().r9;
+            let guid_str = emu.maps.read_string(provider_guid);
+            let hndl = helper::handler_create(&guid_str);
+            if reg_handle_ptr != 0 {
+                emu.maps.write_qword(reg_handle_ptr, hndl);
+            }
+            log_red!(
+                emu,
+                "kernel32!EventRegister guid:'{}' cb:0x{:x} => handle:0x{:x}",
+                guid_str,
+                callback,
+                hndl
+            );
             emu.regs_mut().rax = 0;
         }
         "EtwEventSetInformation" | "EventSetInformation" => {
-            log_red!(emu, "kernel32!EtwEventSetInformation (stub)");
+            let reg_handle = emu.regs().rcx;
+            let info_class = emu.regs().rdx;
+            let info_ptr = emu.regs().r8;
+            let info_len = emu.regs().r9;
+            let info_data = if info_ptr != 0 {
+                emu.maps.read_string(info_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernel32!EventSetInformation handle:0x{:x} class:{} data:'{}' len:{}",
+                reg_handle,
+                info_class,
+                info_data,
+                info_len
+            );
             emu.regs_mut().rax = 0;
         }
         "EtwEventWriteTransfer" | "EventWriteTransfer" => {
-            log_red!(emu, "kernel32!EtwEventWriteTransfer (stub)");
+            let reg_handle = emu.regs().rcx;
+            let event_descriptor = emu.regs().rdx;
+            let activity_id = emu.regs().r8;
+            let _related_id = emu.regs().r9;
+            let desc_str = if event_descriptor != 0 {
+                emu.maps.read_string(event_descriptor)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernel32!EventWriteTransfer handle:0x{:x} desc:'{}' activity:0x{:x}",
+                reg_handle,
+                desc_str,
+                activity_id
+            );
             emu.regs_mut().rax = 0;
         }
         "ExitProcess" => ExitProcess(emu),
         "ExitThread" => ExitThread(emu),
         "RtlExitUserProcess" => {
-            log_red!(emu, "ntdll!RtlExitUserProcess");
+            let exit_code = emu.regs().rcx;
+            log_red!(emu, "ntdll!RtlExitUserProcess code:{}", exit_code);
             emu.stop();
         }
         "ExpandEnvironmentStringsA" => ExpandEnvironmentStringsA(emu),
@@ -115,12 +175,15 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             log_red!(emu, "kernel32!FlsFree idx: {}", idx);
             if (idx as usize) < emu.fls().len() {
                 emu.fls_mut()[idx as usize] = 0;
+                emu.set_last_error(0);
                 emu.regs_mut().rax = 1;
             } else {
+                emu.set_last_error(0);
                 emu.regs_mut().rax = 0;
             }
         }
         "FlsGetValue" => FlsGetValue(emu),
+        "FlsGetValue2" => FlsGetValue2(emu),
         "FlsSetValue" => FlsSetValue(emu),
         "FreeResource" => FreeResource(emu),
         "GetACP" => GetACP(emu),
@@ -155,7 +218,17 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetFullPathNameA" => GetFullPathNameA(emu),
         "GetFullPathNameW" => GetFullPathNameW(emu),
         "GetCurrentPackagePath" => {
-            log_red!(emu, "kernel32!GetCurrentPackagePath (stub)");
+            let path_length_ptr = emu.regs().rcx;
+            let path_ptr = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernel32!GetCurrentPackagePath length_ptr:0x{:x} path_ptr:0x{:x}",
+                path_length_ptr,
+                path_ptr
+            );
+            if path_length_ptr != 0 {
+                emu.maps.write_dword(path_length_ptr, 0);
+            }
             emu.regs_mut().rax = 0x80073D54; // APPMODEL_ERROR_NO_PACKAGE
         }
         "GetLastError" => GetLastError(emu),
@@ -176,13 +249,65 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetStartupInfoW" => GetStartupInfoW(emu),
         "GetStdHandle" => GetStdHandle(emu),
         "GetStringTypeW" => {
-            let dw_info_type = emu.regs().rcx;
-            let len = emu.regs().r8;
+            let dw_info_type = emu.regs().rcx as u32;
+            let lp_src_str = emu.regs().rdx;
+            let cch_src = emu.regs().r8 as i32;
+            let lp_char_type = emu.regs().r9;
+
+            let actual_len = if cch_src == -1 {
+                let s = emu.maps.read_wide_string(lp_src_str);
+                s.len() + 1
+            } else {
+                cch_src as usize
+            };
+
+            if lp_char_type != 0 && actual_len > 0 {
+                for i in 0..actual_len {
+                    let ch = emu.maps.read_word(lp_src_str + (i as u64) * 2).unwrap_or(0);
+                    let ct = match dw_info_type {
+                        1 => {
+                            // CT_CTYPE1
+                            let mut t: u16 = 0;
+                            if (ch as u8 as char).is_ascii_uppercase() {
+                                t |= 0x0001; // C1_UPPER
+                            }
+                            if (ch as u8 as char).is_ascii_lowercase() {
+                                t |= 0x0002; // C1_LOWER
+                            }
+                            if (ch as u8 as char).is_ascii_digit() {
+                                t |= 0x0004; // C1_DIGIT
+                            }
+                            if ch == b' ' as u16 || ch == b'\t' as u16 {
+                                t |= 0x0008; // C1_SPACE
+                            }
+                            if (ch as u8 as char).is_ascii_punctuation() {
+                                t |= 0x0010; // C1_PUNCT
+                            }
+                            if ch < 0x20 || ch == 0x7f {
+                                t |= 0x0020; // C1_CNTRL
+                            }
+                            if (ch as u8 as char).is_ascii_alphanumeric() {
+                                t |= 0x0100; // C1_ALPHA
+                            }
+                            t
+                        }
+                        2 if (ch as u8 as char).is_ascii_alphanumeric() => {
+                            2 // CT_CTYPE2 — C2_LEFTTORIGHT
+                        }
+                        2 => {
+                            0 // CT_CTYPE2 — C2_NOTAPPLICABLE
+                        }
+                        _ => 0,
+                    };
+                    emu.maps.write_word(lp_char_type + (i as u64) * 2, ct);
+                }
+            }
+
             log_red!(
                 emu,
-                "kernel32!GetStringTypeW type: {} len: {}",
+                "kernel32!GetStringTypeW type:{} len:{} => TRUE",
                 dw_info_type,
-                len
+                actual_len
             );
             emu.regs_mut().rax = 1;
         }
@@ -231,6 +356,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "IsValidCodePage" => {
             let cp = emu.regs().rcx;
             log_red!(emu, "kernel32!IsValidCodePage cp: {}", cp);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "IsWow64Process" => IsWow64Process(emu),
@@ -318,6 +444,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SetEvent" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!SetEvent handle: 0x{:x}", handle);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
 
@@ -331,6 +459,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SetHandleCount" => {
             let count = emu.regs().rcx;
             log_red!(emu, "kernel32!SetHandleCount count: {}", count);
+            emu.set_last_error(0);
             emu.regs_mut().rax = count;
         }
         "SetFilePointer" => SetFilePointer(emu),
@@ -350,6 +479,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "TlsAlloc" => TlsAlloc(emu),
         "TlsFree" => TlsFree(emu),
         "TlsGetValue" => TlsGetValue(emu),
+        "TlsGetValue2" => TlsGetValue2(emu),
         "TlsSetValue" => TlsSetValue(emu),
         "UnhandledExceptionFilter" => UnhandledExceptionFilter(emu),
         "VirtualAlloc" => VirtualAlloc(emu),
@@ -362,7 +492,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WaitForMultipleObjects" => WaitForMultipleObjects(emu),
         "WaitForSingleObject" => WaitForSingleObject(emu),
         "VerifyVersionInfoA" | "VerifyVersionInfoW" => {
-            log_red!(emu, "kernel32!VerifyVersionInfo (stub) -> TRUE");
+            let version_info = emu.regs().rcx;
+            let type_mask = emu.regs().rdx;
+            let condition_mask = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernel32!{} info:0x{:x} type_mask:0x{:x} cond_mask:0x{:x} -> TRUE",
+                api,
+                version_info,
+                type_mask,
+                condition_mask
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VerSetConditionMask" => {
@@ -376,6 +517,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 type_bit,
                 condition
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = mask | (condition << (type_bit & 0x1f));
         }
         "WideCharToMultiByte" => WideCharToMultiByte(emu),
@@ -413,17 +555,37 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CompareStringA" => {
             let locale = emu.regs().rcx;
             let flags = emu.regs().rdx;
-            let s1 = emu.regs().r8;
-            let _len1 = emu.regs().r9;
-            let str1 = emu.maps.read_string(s1);
+            let s1_ptr = emu.regs().r8;
+            let _len1 = emu.regs().r9 as i32;
+            let s2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let _len2 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+            let str1 = emu.maps.read_string(s1_ptr);
+            let str2 = if s2_ptr != 0 {
+                emu.maps.read_string(s2_ptr)
+            } else {
+                String::new()
+            };
+            let ignore_case = flags & 1 != 0;
+            let result = if ignore_case {
+                str1.to_lowercase().cmp(&str2.to_lowercase())
+            } else {
+                str1.cmp(&str2)
+            };
+            let ret = match result {
+                std::cmp::Ordering::Less => 1u64,
+                std::cmp::Ordering::Equal => 2,
+                std::cmp::Ordering::Greater => 3,
+            };
             log_red!(
                 emu,
-                "kernel32!CompareStringA locale:{} flags:0x{:x} '{}'",
+                "kernel32!CompareStringA locale:{} flags:0x{:x} '{}' '{}' => {}",
                 locale,
                 flags,
-                str1
+                str1,
+                str2,
+                ret
             );
-            emu.regs_mut().rax = 2; // CSTR_EQUAL
+            emu.regs_mut().rax = ret;
         }
         "CompareStringOrdinal" => {
             let s1 = emu.regs().rcx;
@@ -455,19 +617,65 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "GetStringTypeA" => {
             let locale = emu.regs().rcx;
-            let dw_info_type = emu.regs().rdx;
-            let len = emu.regs().r9;
+            let dw_info_type = emu.regs().rdx as u32;
+            let lp_src_str = emu.regs().r8;
+            let cch_src = emu.regs().r9 as i32;
+            let lp_char_type = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+
+            let actual_len = if cch_src == -1 {
+                let s = emu.maps.read_string(lp_src_str);
+                s.len() + 1
+            } else {
+                cch_src as usize
+            };
+
+            if lp_char_type != 0 && actual_len > 0 {
+                for i in 0..actual_len {
+                    let ch = emu.maps.read_byte(lp_src_str + i as u64).unwrap_or(0) as char;
+                    let ct: u16 = match dw_info_type {
+                        1 => {
+                            let mut t: u16 = 0;
+                            if ch.is_ascii_uppercase() {
+                                t |= 0x0001;
+                            }
+                            if ch.is_ascii_lowercase() {
+                                t |= 0x0002;
+                            }
+                            if ch.is_ascii_digit() {
+                                t |= 0x0004;
+                            }
+                            if ch == ' ' || ch == '\t' {
+                                t |= 0x0008;
+                            }
+                            if ch.is_ascii_punctuation() {
+                                t |= 0x0010;
+                            }
+                            if (ch as u32) < 0x20 || ch as u32 == 0x7f {
+                                t |= 0x0020;
+                            }
+                            if ch.is_ascii_alphanumeric() {
+                                t |= 0x0100;
+                            }
+                            t
+                        }
+                        _ => 0,
+                    };
+                    emu.maps.write_word(lp_char_type + (i as u64) * 2, ct);
+                }
+            }
+
             log_red!(
                 emu,
-                "kernel32!GetStringTypeA locale:{} type:{} len:{}",
+                "kernel32!GetStringTypeA locale:{} type:{} len:{} => TRUE",
                 locale,
                 dw_info_type,
-                len
+                actual_len
             );
             emu.regs_mut().rax = 1;
         }
         "GetOEMCP" => {
             log_red!(emu, "kernel32!GetOEMCP => 437");
+            emu.set_last_error(0);
             emu.regs_mut().rax = 437;
         }
 
@@ -484,10 +692,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 size
             );
             if size < structures::MemoryBasicInformation64::SIZE {
+                emu.set_last_error(0);
                 emu.regs_mut().rax = 0;
             } else {
                 let mbi = structures::MemoryBasicInformation64::guess(addr, &mut emu.maps);
                 mbi.save(out_buff, &mut emu.maps);
+                emu.set_last_error(0);
                 emu.regs_mut().rax = structures::MemoryBasicInformation64::SIZE;
             }
         }
@@ -504,10 +714,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 size
             );
             if size < structures::MemoryBasicInformation64::SIZE {
+                emu.set_last_error(0);
                 emu.regs_mut().rax = 0;
             } else {
                 let mbi = structures::MemoryBasicInformation64::guess(addr, &mut emu.maps);
                 mbi.save(out_buff, &mut emu.maps);
+                emu.set_last_error(0);
                 emu.regs_mut().rax = structures::MemoryBasicInformation64::SIZE;
             }
         }
@@ -557,8 +769,30 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
             emu.regs_mut().rax = path.len() as u64;
         }
-        "SearchPathA" | "SearchPathW" => {
-            log_red!(emu, "kernel32!{} (stub) => 0", api);
+        "SearchPathA" => {
+            let _path = emu.regs().rcx;
+            let filename = emu.regs().rdx;
+            let _ext = emu.regs().r8;
+            let name_s = if filename != 0 {
+                emu.maps.read_string(filename)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernel32!SearchPathA '{}' => 0 (not found)", name_s);
+            emu.set_last_error(2); // ERROR_FILE_NOT_FOUND
+            emu.regs_mut().rax = 0;
+        }
+        "SearchPathW" => {
+            let _path = emu.regs().rcx;
+            let filename = emu.regs().rdx;
+            let _ext = emu.regs().r8;
+            let name_s = if filename != 0 {
+                emu.maps.read_wide_string(filename)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernel32!SearchPathW '{}' => 0 (not found)", name_s);
+            emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
         "CopyFileExW" => {
@@ -587,39 +821,51 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "SetFilePointerEx" => {
             let handle = emu.regs().rcx;
-            let distance = emu.regs().rdx;
+            let distance = emu.regs().rdx as i64;
             let new_pos_ptr = emu.regs().r8;
-            let method = emu.regs().r9;
+            let method = emu.regs().r9 as u32;
             log_red!(
                 emu,
                 "kernel32!SetFilePointerEx h:0x{:x} dist:{} method:{}",
                 handle,
-                distance as i64,
+                distance,
                 method
             );
-            if new_pos_ptr != 0 {
-                emu.maps.write_qword(new_pos_ptr, distance);
+            if helper::handler_exist(handle) {
+                helper::handler_seek(handle, distance, method);
+                let pos = helper::handler_tell(handle);
+                if new_pos_ptr != 0 {
+                    emu.maps.write_qword(new_pos_ptr, pos as u64);
+                }
+            } else if new_pos_ptr != 0 {
+                emu.maps.write_qword(new_pos_ptr, distance as u64);
             }
             emu.regs_mut().rax = 1;
         }
         "FlushFileBuffers" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!FlushFileBuffers h:0x{:x}", handle);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SetEndOfFile" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!SetEndOfFile h:0x{:x}", handle);
+            if helper::handler_exist(handle) {
+                helper::handler_set_eof(handle);
+            }
             emu.regs_mut().rax = 1;
         }
         "LockFile" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!LockFile h:0x{:x}", handle);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UnlockFile" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!UnlockFile h:0x{:x}", handle);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CreatePipe" => {
@@ -704,8 +950,60 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
             emu.regs_mut().rax = def_s.len() as u64;
         }
-        "WritePrivateProfileStringA" | "WritePrivateProfileStringW" => {
-            log_red!(emu, "kernel32!{} (stub) => TRUE", api);
+        "WritePrivateProfileStringA" => {
+            let section = emu.regs().rcx;
+            let key = emu.regs().rdx;
+            let value = emu.regs().r8;
+            let sec_s = if section != 0 {
+                emu.maps.read_string(section)
+            } else {
+                String::new()
+            };
+            let key_s = if key != 0 {
+                emu.maps.read_string(key)
+            } else {
+                String::new()
+            };
+            let val_s = if value != 0 {
+                emu.maps.read_string(value)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernel32!WritePrivateProfileStringA [{}] {}='{}'",
+                sec_s,
+                key_s,
+                val_s
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "WritePrivateProfileStringW" => {
+            let section = emu.regs().rcx;
+            let key = emu.regs().rdx;
+            let value = emu.regs().r8;
+            let sec_s = if section != 0 {
+                emu.maps.read_wide_string(section)
+            } else {
+                String::new()
+            };
+            let key_s = if key != 0 {
+                emu.maps.read_wide_string(key)
+            } else {
+                String::new()
+            };
+            let val_s = if value != 0 {
+                emu.maps.read_wide_string(value)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernel32!WritePrivateProfileStringW [{}] {}='{}'",
+                sec_s,
+                key_s,
+                val_s
+            );
             emu.regs_mut().rax = 1;
         }
         "GetPrivateProfileIntA" | "GetPrivateProfileIntW" => {
@@ -713,6 +1011,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let _key = emu.regs().rdx;
             let default = emu.regs().r8;
             log_red!(emu, "kernel32!{} => default {}", api, default);
+            emu.set_last_error(0);
             emu.regs_mut().rax = default;
         }
 
@@ -879,16 +1178,44 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
         }
         "WakeConditionVariable" | "WakeAllConditionVariable" => {
-            log_red!(emu, "kernel32!{} (stub)", api);
+            let cv = emu.regs().rcx;
+            log_red!(emu, "kernel32!{} cv:0x{:x}", api, cv);
         }
-        "SleepConditionVariableSRW" | "SleepConditionVariableCS" => {
-            log_red!(emu, "kernel32!{} (stub) => TRUE", api);
+        "SleepConditionVariableSRW" => {
+            let cv = emu.regs().rcx;
+            let lock = emu.regs().rdx;
+            let ms = emu.regs().r8;
+            let flags = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernel32!SleepConditionVariableSRW cv:0x{:x} lock:0x{:x} ms:{} flags:{}",
+                cv,
+                lock,
+                ms,
+                flags
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SleepConditionVariableCS" => {
+            let cv = emu.regs().rcx;
+            let cs = emu.regs().rdx;
+            let ms = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernel32!SleepConditionVariableCS cv:0x{:x} cs:0x{:x} ms:{}",
+                cv,
+                cs,
+                ms
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SleepEx" => {
             let ms = emu.regs().rcx;
             let alertable = emu.regs().rdx;
             log_red!(emu, "kernel32!SleepEx ms:{} alertable:{}", ms, alertable);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WaitForSingleObjectEx" => {
@@ -902,6 +1229,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 ms,
                 alertable
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0; // WAIT_OBJECT_0
         }
         "WaitForMultipleObjectsEx" => {
@@ -916,6 +1244,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 wait_all,
                 ms
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0; // WAIT_OBJECT_0
         }
 
@@ -941,6 +1270,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetProcessId" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!GetProcessId h:0x{:x} => 1337", handle);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1337;
         }
         "SetThreadAffinityMask" => {
@@ -952,6 +1282,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 mask
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1; // previous mask
         }
         "SetProcessAffinityMask" => {
@@ -963,6 +1294,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 mask
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "GetActiveProcessorCount" => {
@@ -974,6 +1306,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 group,
                 count
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = count;
         }
         "GetMaximumProcessorCount" => {
@@ -985,6 +1318,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 group,
                 count
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = count;
         }
         "GetProcessWorkingSetSize" => {
@@ -1001,7 +1335,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "SetProcessWorkingSetSize" => {
-            log_red!(emu, "kernel32!SetProcessWorkingSetSize (stub) => TRUE");
+            log_red!(emu, "kernel32!SetProcessWorkingSetSize => TRUE");
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SetThreadContext" => {
@@ -1009,15 +1344,17 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let context = emu.regs().rdx;
             log_red!(
                 emu,
-                "kernel32!SetThreadContext h:0x{:x} ctx:0x{:x} (stub)",
+                "kernel32!SetThreadContext h:0x{:x} ctx:0x{:x}",
                 handle,
                 context
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SuspendThread" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!SuspendThread h:0x{:x}", handle);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0; // previous suspend count
         }
         "Process32FirstW" => {
@@ -1025,31 +1362,47 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let entry = emu.regs().rdx;
             log_red!(
                 emu,
-                "kernel32!Process32FirstW snap:0x{:x} entry:0x{:x} => FALSE",
+                "kernel32!Process32FirstW snap:0x{:x} entry:0x{:x}",
                 snap,
                 entry
             );
-            emu.regs_mut().rax = 0;
+            if entry != 0 {
+                // PROCESSENTRY32W.dwSize at offset 0
+                emu.maps.write_dword(entry, 556); // sizeof(PROCESSENTRY32W)
+                // th32ProcessID at offset 8
+                emu.maps.write_dword(entry + 8, 4); // System process
+                // cntThreads at offset 20
+                emu.maps.write_dword(entry + 20, 1);
+                // th32ParentProcessID at offset 24
+                emu.maps.write_dword(entry + 24, 0);
+                // szExeFile at offset 44 (wide string)
+                emu.maps.write_wide_string(entry + 44, "System");
+            }
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
         }
         "Process32NextW" => {
             let snap = emu.regs().rcx;
             let entry = emu.regs().rdx;
             log_red!(
                 emu,
-                "kernel32!Process32NextW snap:0x{:x} entry:0x{:x} => FALSE",
+                "kernel32!Process32NextW snap:0x{:x} entry:0x{:x} => no more",
                 snap,
                 entry
             );
+            emu.set_last_error(18); // ERROR_NO_MORE_FILES
             emu.regs_mut().rax = 0;
         }
 
         // --- Locale/NLS ---
         "GetUserDefaultUILanguage" => {
             log_red!(emu, "kernel32!GetUserDefaultUILanguage => 0x0409");
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0x0409;
         }
         "SetLocaleInfoA" | "SetLocaleInfoW" => {
-            log_red!(emu, "kernel32!{} (stub) => TRUE", api);
+            log_red!(emu, "kernel32!{} => TRUE", api);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "GetLocaleInfoEx" => {
@@ -1129,6 +1482,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GlobalDeleteAtom" => {
             let atom = emu.regs().rcx;
             log_red!(emu, "kernel32!GlobalDeleteAtom atom:0x{:x}", atom);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "GlobalFindAtomA" => {
@@ -1153,14 +1507,48 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
             emu.set_last_error(2);
         }
-        "GlobalGetAtomNameA" | "GlobalGetAtomNameW" => {
+        "GlobalGetAtomNameA" => {
             let atom = emu.regs().rcx;
-            log_red!(emu, "kernel32!{} atom:0x{:x} => 0", api, atom);
-            emu.regs_mut().rax = 0;
+            let buf = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let name = format!("Atom#{:04X}", atom);
+            log_red!(
+                emu,
+                "kernel32!GlobalGetAtomNameA atom:0x{:x} => '{}'",
+                atom,
+                name
+            );
+            if buf != 0 && buf_size > 0 {
+                emu.maps.write_string(buf, &name);
+                emu.regs_mut().rax = name.len() as u64;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+            emu.set_last_error(0);
+        }
+        "GlobalGetAtomNameW" => {
+            let atom = emu.regs().rcx;
+            let buf = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let name = format!("Atom#{:04X}", atom);
+            log_red!(
+                emu,
+                "kernel32!GlobalGetAtomNameW atom:0x{:x} => '{}'",
+                atom,
+                name
+            );
+            if buf != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf, &name);
+                emu.regs_mut().rax = name.len() as u64;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+            emu.set_last_error(0);
         }
         "GlobalFlags" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!GlobalFlags h:0x{:x} => 0", handle);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "GlobalSize" => {
@@ -1170,20 +1558,40 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 None => 0,
             };
             log_red!(emu, "kernel32!GlobalSize h:0x{:x} => {}", handle, sz);
+            emu.set_last_error(0);
             emu.regs_mut().rax = sz;
         }
         "GlobalReAlloc" => {
             let handle = emu.regs().rcx;
             let size = emu.regs().rdx;
             let flags = emu.regs().r8;
+            let new_ptr = if size > 0 {
+                if let Some(addr) = emu.maps.alloc(size) {
+                    // Copy old data if we had it
+                    if let Some(old_mem) = emu.maps.get_mem_by_addr(handle) {
+                        let copy_size = old_mem.size().min(size as usize);
+                        for i in 0..copy_size {
+                            let b = emu.maps.read_byte(handle + i as u64).unwrap_or(0);
+                            emu.maps.write_byte(addr + i as u64, b);
+                        }
+                    }
+                    addr
+                } else {
+                    0
+                }
+            } else {
+                handle
+            };
             log_red!(
                 emu,
-                "kernel32!GlobalReAlloc h:0x{:x} sz:{} flags:0x{:x} => h",
+                "kernel32!GlobalReAlloc h:0x{:x} sz:{} flags:0x{:x} => 0x{:x}",
                 handle,
                 size,
-                flags
+                flags,
+                new_ptr
             );
-            emu.regs_mut().rax = handle; // simplified: return same handle
+            emu.set_last_error(0);
+            emu.regs_mut().rax = new_ptr;
         }
 
         // --- Environment ---
@@ -1208,6 +1616,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let freq = emu.regs().rcx;
             let duration = emu.regs().rdx;
             log_red!(emu, "kernel32!Beep freq:{} dur:{}", freq, duration);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "GetSystemWindowsDirectoryA" => {

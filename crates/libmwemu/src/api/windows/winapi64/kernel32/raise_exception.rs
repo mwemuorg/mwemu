@@ -8,12 +8,11 @@ pub fn RaiseException(emu: &mut emu::Emu) {
 
     log_red!(
         emu,
-        "kernel32!RaiseException code:0x{:x} flags:0x{:x} nargs:{} args:0x{:x}",
+        "kernel32!RaiseException code:0x{:08x} flags:0x{:x} nArgs:{} pArgs:0x{:x}",
         code,
         flags,
         num_args,
-        args_ptr,
+        args_ptr
     );
-
-    emu.regs_mut().rax = 0;
+    emu.set_last_error(0);
 }

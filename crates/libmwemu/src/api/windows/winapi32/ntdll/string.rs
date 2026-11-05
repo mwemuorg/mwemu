@@ -10,6 +10,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "strcat" => strcat(emu),
         "sscanf" => sscanf(emu),
         "RtlInitAnsiString" => RtlInitAnsiString(emu),
+        "RtlInitUnicodeString" => RtlInitUnicodeString(emu),
         _ => return false,
     }
     true
@@ -84,6 +85,34 @@ fn RtlInitAnsiString(emu: &mut emu::Emu) {
         emu.maps.write_word(dest_ptr + 2, length.saturating_add(1));
         emu.maps.write_dword(dest_ptr + 4, source_ptr as u32);
         log_red!(emu, "ntdll!RtlInitAnsiString `{}` len: {}", s, length);
+    }
+    stdcall_ret(emu, 2);
+}
+
+fn RtlInitUnicodeString(emu: &mut emu::Emu) {
+    let dest_ptr = arg(emu, 0) as u64;
+    let source_ptr = arg(emu, 1) as u64;
+
+    if source_ptr == 0 {
+        emu.maps.write_dword(dest_ptr, 0);
+        emu.maps.write_dword(dest_ptr + 4, 0);
+        log_red!(emu, "ntdll!RtlInitUnicodeString (null source)");
+    } else {
+        let s = emu.maps.read_wide_string(source_ptr);
+        let byte_length = (s.encode_utf16().count() * 2) as u16;
+
+        // UNICODE_STRING32: u16 Length, u16 MaximumLength, DWORD Buffer
+        emu.maps.write_word(dest_ptr, byte_length);
+        emu.maps
+            .write_word(dest_ptr + 2, byte_length.saturating_add(2));
+        emu.maps.write_dword(dest_ptr + 4, source_ptr as u32);
+
+        log_red!(
+            emu,
+            "ntdll!RtlInitUnicodeString `{}` len: {}",
+            s,
+            byte_length
+        );
     }
     stdcall_ret(emu, 2);
 }

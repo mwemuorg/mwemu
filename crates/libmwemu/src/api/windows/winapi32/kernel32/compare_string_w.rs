@@ -29,6 +29,7 @@ pub fn CompareStringW(emu: &mut emu::Emu) {
         std::cmp::Ordering::Greater => 3, // CSTR_GREATER_THAN
     };
     log_red!(emu, "kernel32!CompareStringW '{}' '{}' ={}", s1, s2, result);
+    emu.set_last_error(0);
     emu.regs_mut().rax = result;
     stdcall_ret(emu, 6);
 }

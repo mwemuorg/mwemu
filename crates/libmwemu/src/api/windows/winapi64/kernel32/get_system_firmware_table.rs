@@ -35,6 +35,7 @@ pub fn GetSystemFirmwareTable(emu: &mut emu::Emu) {
 
     // TODO: Return actual bytes written/required, or 0 on error
     if buffer_size == 0 {
+        emu.set_last_error(0);
         emu.regs_mut().rax = 1024 * 1024; // 1MB
     } else {
         emu.regs_mut().rax = 0; // Return 0 (error) for now

@@ -9,4 +9,6 @@ pub fn GetNativeSystemInfo(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GetNativeSysteminfo {:?}", sysinfo);
 
     log_red!(emu, "kernel32!GetNativeSysteminfo 0x{:x}", ptr_sysinfo);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

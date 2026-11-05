@@ -1,19 +1,24 @@
+use crate::api::windows::helper;
 use crate::emu;
 
 pub fn SetFilePointer(emu: &mut emu::Emu) {
-    let hfile = emu.regs().rcx;
-    let dist_low = emu.regs().rdx as i32;
-    let dist_high_ptr = emu.regs().r8;
-    let method = emu.regs().r9;
-
+    let h_file = emu.regs().rcx;
+    let distance = emu.regs().rdx as i32;
+    let p_distance_high = emu.regs().r8;
+    let move_method = emu.regs().r9 as u32;
     log_red!(
         emu,
-        "kernel32!SetFilePointer hFile:0x{:x} dist:{} high_ptr:0x{:x} method:{}",
-        hfile,
-        dist_low,
-        dist_high_ptr,
-        method
+        "kernel32!SetFilePointer handle:0x{:x} dist:{} high:0x{:x} method:{}",
+        h_file,
+        distance,
+        p_distance_high,
+        move_method
     );
-
-    emu.regs_mut().rax = dist_low as u64;
+    if helper::handler_exist(h_file) {
+        let pos = helper::handler_seek(h_file, distance as i64, move_method);
+        emu.set_last_error(0);
+        emu.regs_mut().rax = pos.max(0) as u64;
+    } else {
+        emu.regs_mut().rax = 0xFFFFFFFF;
+    }
 }

@@ -1,0 +1,16 @@
+use crate::emu;
+
+pub fn PowerClearRequest(emu: &mut emu::Emu) {
+    let handle = emu.regs().rcx;
+    let request_type = emu.regs().rdx;
+
+    log_red!(
+        emu,
+        "kernel32!PowerClearRequest handle:0x{:x} request_type:0x{:x}",
+        handle,
+        request_type
+    );
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
+}

@@ -1,3 +1,4 @@
+mod crypto_compression_unit_tests;
 mod linux_go_runtime_syscalls;
 mod linux_libc_tests;
 mod macos_libsystem_tests;
@@ -9,3 +10,7 @@ mod unix_api_helpers;
 mod winapi32_tests;
 mod winapi64_new_apis;
 mod winapi64_tests;
+mod winapi_crypt_inet_ntdll_tests;
+mod winapi_gdi32_shell32_tests;
+mod winapi_socket_handler_tests;
+mod winapi_ws2_ole_tests;

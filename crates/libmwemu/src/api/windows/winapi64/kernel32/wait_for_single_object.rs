@@ -20,5 +20,6 @@ pub fn WaitForSingleObject(emu: &mut emu::Emu) {
         emu.tick += millis as usize;
     }
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = constants::WAIT_TIMEOUT;
 }

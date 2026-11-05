@@ -23,6 +23,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtCreateSection" => NtCreateSection(emu),
         "NtMapViewOfSection" => NtMapViewOfSection(emu),
         "NtUnmapViewOfSection" => NtUnmapViewOfSection(emu),
+        "CheckRemoteDebuggerPresent" => CheckRemoteDebuggerPresent(emu),
+        "memcpy" => memcpy(emu),
         _ => return false,
     }
     true
@@ -392,4 +394,24 @@ pub fn NtUnmapViewOfSection(emu: &mut emu::Emu) {
     }
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
+}
+
+fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
+    let _handle = emu.regs().rcx;
+    let bool_ptr = emu.regs().rdx;
+
+    log_red!(emu, "ntdll!CheckRemoteDebuggerPresent");
+
+    if bool_ptr != 0 {
+        emu.maps.write_dword(bool_ptr, 0);
+    }
+    emu.regs_mut().rax = 1;
+}
+
+fn memcpy(emu: &mut emu::Emu) {
+    let dst = emu.regs().rcx;
+    let src = emu.regs().rdx;
+    let count = emu.regs().r8;
+    ntdll::memcpy(emu, dst, src, count as usize);
+    emu.regs_mut().rax = dst;
 }

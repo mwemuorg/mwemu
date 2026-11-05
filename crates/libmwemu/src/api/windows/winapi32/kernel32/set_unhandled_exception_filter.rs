@@ -9,6 +9,7 @@ pub fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
         callback
     );
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = emu.uef();
     emu.set_uef(callback);
 

@@ -1,8 +1,8 @@
 pub mod advapi32;
 mod bcrypt;
-mod crypt32;
+pub(crate) mod crypt32;
 mod dnsapi;
-mod gdi32;
+pub(crate) mod gdi32;
 mod iphlpapi;
 pub mod kernel32;
 mod kernelbase;
@@ -11,18 +11,19 @@ mod mscoree;
 mod msvcrt;
 pub mod ntdll;
 mod ntoskrnl;
-mod ole32;
-mod oleaut32;
-mod shell32;
+pub(crate) mod ole32;
+pub(crate) mod oleaut32;
+pub(crate) mod shell32;
 mod shlwapi;
 mod urlmon;
 mod user32;
 mod wincrt;
 mod winhttp;
 mod wininet;
-mod ws2_32;
+pub(crate) mod ws2_32;
 
 use crate::emu;
+use crate::winapi::helper;
 
 /// The `i`-th (0-based) stdcall argument of the API being emulated. The
 /// gateway already consumed the return address, so arguments start at `esp`.
@@ -76,15 +77,34 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                 | "waveInUnprepareHeader"
                 | "mciSendStringA"
                 | "mciSendStringW" => {
-                    log_red!(emu, "winmm!{}", api_name);
+                    let cmd_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+                    let cmd = if cmd_ptr != 0 {
+                        emu.maps.read_string(cmd_ptr)
+                    } else {
+                        String::new()
+                    };
+                    log_red!(emu, "winmm!{} cmd:'{}'", api_name, cmd);
+                    for _ in 0..4 {
+                        emu.stack_pop32(false);
+                    }
                     emu.regs_mut().rax = 0;
                 }
                 "timeGetTime" => {
-                    log_red!(emu, "winmm!timeGetTime");
+                    log_red!(emu, "winmm!timeGetTime => {}", emu.tick);
+                    helper::advance_tick(emu, 1);
                     emu.regs_mut().rax = emu.tick as u64;
                 }
                 "PlaySoundW" => {
-                    log_red!(emu, "winmm!PlaySoundW");
+                    let sound_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+                    let sound = if sound_ptr != 0 {
+                        emu.maps.read_wide_string(sound_ptr)
+                    } else {
+                        String::new()
+                    };
+                    log_red!(emu, "winmm!PlaySoundW sound:'{}'", sound);
+                    for _ in 0..3 {
+                        emu.stack_pop32(false);
+                    }
                     emu.regs_mut().rax = 1;
                 }
                 "waveInOpen" => {
@@ -108,6 +128,9 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
             let api_name = api.split("!").last().unwrap_or(&api);
             log_red!(emu, "msvcp60!{}", api_name);
             emu.regs_mut().rax = 0;
+            for _ in 0..1u32 {
+                emu.stack_pop32(false);
+            }
             String::new()
         }
         "gdiplus.text" => {
@@ -115,7 +138,16 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
             let api_name = api.split("!").last().unwrap_or(&api);
             match api_name {
                 "GdiplusStartup" => {
+                    let token_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+                    let _input = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+                    let _output = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
                     log_red!(emu, "gdiplus!GdiplusStartup");
+                    if token_ptr != 0 {
+                        emu.maps.write_dword(token_ptr, 1);
+                    }
+                    for _ in 0..3 {
+                        emu.stack_pop32(false);
+                    }
                     emu.regs_mut().rax = 0;
                 }
                 "GdipAlloc" => {
@@ -133,9 +165,17 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                     };
                     log_red!(emu, "gdiplus!GdipAlloc sz:{} => 0x{:x}", size, alloc_addr);
                     emu.regs_mut().rax = alloc_addr;
+                    for _ in 0..1u32 {
+                        emu.stack_pop32(false);
+                    }
                 }
                 "GdipFree" => {
-                    log_red!(emu, "gdiplus!GdipFree");
+                    let ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+                    log_red!(emu, "gdiplus!GdipFree ptr:0x{:x}", ptr);
+                    if ptr != 0 {
+                        emu.maps.free(&format!("gdip_alloc_{:x}", ptr));
+                    }
+                    emu.stack_pop32(false);
                     emu.regs_mut().rax = 0;
                 }
                 _ => {

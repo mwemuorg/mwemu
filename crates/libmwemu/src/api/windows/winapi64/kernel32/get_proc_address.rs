@@ -15,6 +15,7 @@ pub fn GetProcAddress(emu: &mut emu::Emu) {
         resolve_name_via_registry_or_scanner(emu, hndl, &func, func_ptr)
     };
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = resolved;
     if emu.cfg.verbose >= 1 {
         if resolved != 0 {

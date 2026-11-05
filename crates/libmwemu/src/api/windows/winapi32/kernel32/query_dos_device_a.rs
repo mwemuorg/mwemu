@@ -16,6 +16,7 @@ pub fn QueryDosDeviceA(emu: &mut emu::Emu) {
         lpTargetPath
     );
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..3 {

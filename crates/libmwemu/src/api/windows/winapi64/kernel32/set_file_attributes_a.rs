@@ -9,5 +9,6 @@ pub fn SetFileAttributesA(emu: &mut emu::Emu) {
         path,
         attrs
     );
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

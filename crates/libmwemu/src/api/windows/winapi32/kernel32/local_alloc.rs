@@ -5,4 +5,6 @@ pub fn LocalAlloc(emu: &mut emu::Emu) {
     // We just forward the LocalAlloc to HeapAlloc
     emu.stack_push32(0x0); // push a dummy value consider HeapAlloc for nows always call from the global heap
     HeapAlloc(emu);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

@@ -12,10 +12,11 @@ pub fn SetEnvironmentVariableA(emu: &mut emu::Emu) {
     };
     log_red!(
         emu,
-        "kernel32!SetEnvironmentVariableA `{}`=`{}` (stub)",
+        "kernel32!SetEnvironmentVariableA `{}`=`{}`",
         name,
         value
     );
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 2);
 }

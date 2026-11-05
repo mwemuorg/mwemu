@@ -6,4 +6,5 @@ pub fn clear_last_error(emu: &mut emu::Emu) {
 
 pub fn set_last_error(emu: &mut emu::Emu, err_code: u64) {
     emu.set_last_error(err_code);
+    emu.regs_mut().rax = 1;
 }

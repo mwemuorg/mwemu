@@ -6,5 +6,6 @@ pub fn RegCloseKey(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!RegCloseKey hkey: 0x{:x}", hKey);
     emu.stack_pop32(false);
+    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }

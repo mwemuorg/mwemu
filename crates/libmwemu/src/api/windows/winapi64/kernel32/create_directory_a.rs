@@ -6,7 +6,8 @@ pub fn CreateDirectoryA(emu: &mut emu::Emu) {
 
     let path = emu.maps.read_string(path_ptr);
 
-    log_red!(emu, "kernel32!CreateDirectoryA `{}` (stub)", path);
+    log_red!(emu, "kernel32!CreateDirectoryA `{}`", path);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

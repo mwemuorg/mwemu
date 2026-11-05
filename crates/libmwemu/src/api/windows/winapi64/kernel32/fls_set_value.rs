@@ -15,5 +15,6 @@ pub fn FlsSetValue(emu: &mut emu::Emu) {
         emu.fls_mut()[idx as usize] = val;
     }
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

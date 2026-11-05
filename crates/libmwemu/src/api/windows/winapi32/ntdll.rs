@@ -12,6 +12,8 @@ mod sync;
 
 #[cfg(test)]
 pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
+#[cfg(test)]
+pub use misc::RtlDecompressBuffer;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);

@@ -21,6 +21,7 @@ pub fn HeapAlloc(emu: &mut emu::Emu) {
 
     match result {
         Some(heap_addr) => {
+            emu.set_last_error(0);
             emu.regs_mut().rax = heap_addr;
             log_red!(
                 emu,

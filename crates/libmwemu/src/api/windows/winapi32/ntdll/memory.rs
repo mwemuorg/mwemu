@@ -23,6 +23,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlMoveMemory" => RtlMoveMemory(emu),
         "RtlCopyMemory" => RtlCopyMemory(emu),
         "NtFlushInstructionCache" => NtFlushInstructionCache(emu),
+        "RtlAddFunctionTable" => RtlAddFunctionTable(emu),
+        "RtlCaptureContext" => RtlCaptureContext(emu),
+        "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
+        "RtlVirtualUnwind" => RtlVirtualUnwind(emu),
         _ => return false,
     }
     true
@@ -335,4 +339,58 @@ fn NtFlushInstructionCache(emu: &mut emu::Emu) {
     log_red!(emu, "ntdll!NtFlushInstructionCache 0x{:x} sz: {}", addr, sz);
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 3);
+}
+
+fn RtlAddFunctionTable(emu: &mut emu::Emu) {
+    let _function_table = arg(emu, 0);
+    let _entry_count = arg(emu, 1);
+    let _base_address = arg(emu, 2);
+    log_red!(emu, "ntdll!RtlAddFunctionTable");
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 3);
+}
+
+fn RtlCaptureContext(emu: &mut emu::Emu) {
+    let context_record = arg(emu, 0);
+    log_red!(
+        emu,
+        "** {} ntdll!RtlCaptureContext {:x}",
+        emu.pos,
+        context_record
+    );
+    stdcall_ret(emu, 1);
+}
+
+fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {
+    let control_pc = arg(emu, 0);
+    let image_base = arg(emu, 1);
+    let history_table = arg(emu, 2);
+    log_red!(
+        emu,
+        "** {} ntdll!RtlLookupFunctionEntry {:x} {:x} {:x}",
+        emu.pos,
+        control_pc,
+        image_base,
+        history_table
+    );
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 3);
+}
+
+fn RtlVirtualUnwind(emu: &mut emu::Emu) {
+    let handler_type = arg(emu, 0);
+    let image_base = arg(emu, 1);
+    let control_pc = arg(emu, 2);
+    let function_entry = arg(emu, 3);
+    log_red!(
+        emu,
+        "** {} ntdll!RtlVirtualUnwind type:{} base:0x{:x} pc:0x{:x} entry:0x{:x}",
+        emu.pos,
+        handler_type,
+        image_base,
+        control_pc,
+        function_entry
+    );
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 4);
 }

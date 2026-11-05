@@ -23,4 +23,5 @@ pub fn GetLocalTime(emu: &mut emu::Emu) {
     emu.maps.write_bytes(ptr, &buffer);
 
     log_red!(emu, "kernel32!GetLocalTime");
+    emu.regs_mut().rax = 1;
 }

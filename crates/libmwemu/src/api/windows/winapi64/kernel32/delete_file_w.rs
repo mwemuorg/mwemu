@@ -11,5 +11,6 @@ pub fn DeleteFileW(emu: &mut emu::Emu) {
         filename
     );
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

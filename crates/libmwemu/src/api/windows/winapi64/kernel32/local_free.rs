@@ -7,5 +7,6 @@ pub fn LocalFree(emu: &mut emu::Emu) {
 
     let heap_management = emu.heap_mut();
     heap_management.free(addr);
+    emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

@@ -16,5 +16,6 @@ pub fn VirtualProtectEx(emu: &mut emu::Emu) {
         new_prot
     );
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

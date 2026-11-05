@@ -6,9 +6,10 @@ use crate::windows::constants;
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
         "RtlGetProcessHeaps" => RtlGetProcessHeaps(emu),
-        "RtlFreeHeap" => RtlFreeHeap(emu),
-        "RtlAllocateHeap" => RtlAllocateHeap(emu),
-        "RtlReAllocateHeap" => RtlReAllocateHeap(emu),
+        "RtlFreeHeap" | "HeapFree" => RtlFreeHeap(emu),
+        "RtlAllocateHeap" | "HeapAlloc" => RtlAllocateHeap(emu),
+        "RtlReAllocateHeap" | "HeapReAlloc" => RtlReAllocateHeap(emu),
+        "HeapSize" => RtlSizeHeap(emu),
         "RtlFreeAnsiString" => RtlFreeAnsiString(emu),
         _ => return false,
     }
@@ -158,6 +159,14 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     }
 
     emu.regs_mut().rax = new_addr;
+}
+
+fn RtlSizeHeap(emu: &mut emu::Emu) {
+    let mem = arg(emu, 2) as u64;
+    let size = heap_engine::heap_allocation_size(emu, mem);
+    log_red!(emu, "ntdll!HeapSize mem: 0x{:x} ={:?}", mem, size);
+    emu.regs_mut().rax = size.map(|s| s as u64).unwrap_or(0xffff_ffff);
+    stdcall_ret(emu, 3);
 }
 
 fn RtlFreeAnsiString(emu: &mut emu::Emu) {

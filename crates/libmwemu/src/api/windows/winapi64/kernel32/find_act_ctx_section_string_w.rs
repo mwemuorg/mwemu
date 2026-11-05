@@ -32,5 +32,6 @@ pub fn FindActCtxSectionStringW(emu: &mut emu::Emu) {
         string_value
     );
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

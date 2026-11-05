@@ -1,19 +1,58 @@
 use crate::emu;
-
 pub fn GetEnvironmentVariableW(emu: &mut emu::Emu) {
-    let lp_name = emu.regs().rcx as usize;
-    let lp_buffer = emu.regs().rdx as usize;
-    let n_size = emu.regs().r8 as usize;
-    let name = emu.maps.read_wide_string(lp_name as u64);
+    let lp_name = emu.regs().rcx;
+    let lp_buffer = emu.regs().rdx;
+    let n_size = emu.regs().r8 as u32;
+    let name = emu.maps.read_wide_string(lp_name);
+
+    let value = match name.to_uppercase().as_str() {
+        "SYSTEMROOT" | "WINDIR" => "C:\\Windows".to_string(),
+        "SYSTEMDRIVE" => "C:".to_string(),
+        "COMSPEC" => "C:\\Windows\\system32\\cmd.exe".to_string(),
+        "TEMP" | "TMP" => emu.cfg.temp_path.clone(),
+        "PATH" => "C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem".to_string(),
+        "PATHEXT" => ".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC".to_string(),
+        "USERNAME" => emu.cfg.user_name.clone(),
+        "USERPROFILE" => format!("C:\\Users\\{}", emu.cfg.user_name),
+        "APPDATA" => format!("C:\\Users\\{}\\AppData\\Roaming", emu.cfg.user_name),
+        "LOCALAPPDATA" => format!("C:\\Users\\{}\\AppData\\Local", emu.cfg.user_name),
+        "PROGRAMFILES" => "C:\\Program Files".to_string(),
+        "PROGRAMFILES(X86)" => "C:\\Program Files (x86)".to_string(),
+        "COMPUTERNAME" => emu.cfg.host_name.clone(),
+        "NUMBER_OF_PROCESSORS" => "4".to_string(),
+        "PROCESSOR_ARCHITECTURE" => "AMD64".to_string(),
+        "OS" => "Windows_NT".to_string(),
+        _ => {
+            log_red!(
+                emu,
+                "kernel32!GetEnvironmentVariableW '{}' => not found",
+                name
+            );
+            emu.set_last_error(203);
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
+
+    let chars_needed = value.chars().count() as u32 + 1;
+
     log_red!(
         emu,
-        "** {} kernel32!GetEnvironmentVariableW {:x} {:x} {:x} name: {}",
-        emu.pos,
-        lp_name,
-        lp_buffer,
-        n_size,
-        name
+        "kernel32!GetEnvironmentVariableW '{}' = '{}'",
+        name,
+        value
     );
-    // TODO: implement this
-    emu.regs_mut().rax = 1;
+
+    if n_size == 0 || lp_buffer == 0 {
+        emu.regs_mut().rax = chars_needed as u64;
+        return;
+    }
+
+    if n_size < chars_needed {
+        emu.regs_mut().rax = chars_needed as u64;
+        return;
+    }
+
+    emu.maps.write_wide_string(lp_buffer, &value);
+    emu.regs_mut().rax = (chars_needed - 1) as u64;
 }

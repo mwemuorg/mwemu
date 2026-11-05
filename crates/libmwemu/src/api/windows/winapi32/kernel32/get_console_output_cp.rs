@@ -1,8 +1,9 @@
 use crate::emu;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::helper;
 
 pub fn GetConsoleOutputCP(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GetConsoleOutputCP");
-    emu.regs_mut().rax = 0x409;
-    stdcall_ret(emu, 0);
+    helper::advance_tick(emu, 1);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 437;
 }

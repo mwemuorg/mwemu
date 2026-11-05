@@ -26,6 +26,10 @@ pub use fls_alloc::*;
 mod fls_get_value;
 pub use fls_get_value::*;
 
+#[path = "../fls_get_value2.rs"]
+mod fls_get_value2;
+pub use fls_get_value2::*;
+
 #[path = "../fls_set_value.rs"]
 mod fls_set_value;
 pub use fls_set_value::*;
@@ -65,6 +69,10 @@ pub use tls_free::*;
 #[path = "../tls_get_value.rs"]
 mod tls_get_value;
 pub use tls_get_value::*;
+
+#[path = "../tls_get_value2.rs"]
+mod tls_get_value2;
+pub use tls_get_value2::*;
 
 #[path = "../tls_set_value.rs"]
 mod tls_set_value;

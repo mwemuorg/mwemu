@@ -18,6 +18,7 @@ pub fn HeapCreate(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             log_red!(emu, "kernel32!HeapCreate failed: cannot reserve arena");
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             return;
         }

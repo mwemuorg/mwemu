@@ -9,6 +9,7 @@ pub fn HeapSize(emu: &mut emu::Emu) {
     match heap_engine::heap_allocation_size(emu, mem) {
         Some(size) => {
             log_red!(emu, "kernel32!HeapSize mem: 0x{:x} ={}", mem, size);
+            emu.set_last_error(0);
             emu.regs_mut().rax = size as u64;
         }
         None => {

@@ -19,6 +19,7 @@ pub fn CopyFileExA(emu: &mut emu::Emu) {
         lpNewFileName
     );
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..6 {

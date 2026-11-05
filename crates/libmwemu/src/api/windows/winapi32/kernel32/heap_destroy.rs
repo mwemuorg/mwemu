@@ -10,18 +10,21 @@ pub fn HeapDestroy(emu: &mut emu::Emu) {
     let key = match emu.handle_management.resolve_heap_key(hndl) {
         Some(k) => k,
         None => {
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             return;
         }
     };
     if emu.handle_management.is_process_heap(key) {
         log_red!(emu, "kernel32!HeapDestroy cannot destroy process heap");
+        emu.set_last_error(0);
         emu.regs_mut().rax = 0;
         return;
     }
     match emu.handle_management.remove_heap_handle(key) {
         Some(handle) => {
             emu.destroy_heap_arena(handle.arena);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         None => emu.regs_mut().rax = 0,

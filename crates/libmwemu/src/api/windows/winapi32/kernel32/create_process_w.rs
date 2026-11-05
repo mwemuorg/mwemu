@@ -15,6 +15,7 @@ pub fn CreateProcessW(emu: &mut emu::Emu) {
         String::new()
     };
     log_red!(emu, "kernel32!CreateProcessW `{}` `{}`", appname, cmdline);
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 10);
 }

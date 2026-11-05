@@ -12,5 +12,6 @@ pub fn LoadResource(emu: &mut emu::Emu) {
         hResInfo
     );
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = hResInfo;
 }

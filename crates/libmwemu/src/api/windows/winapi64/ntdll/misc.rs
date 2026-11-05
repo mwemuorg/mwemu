@@ -22,6 +22,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
         "RtlEncodePointer" => RtlEncodePointer(emu),
         "RtlDecodePointer" => RtlDecodePointer(emu),
+        "RtlVectoredExceptionHandler" => RtlVectoredExceptionHandler(emu),
+        "VerSetConditionMask" => VerSetConditionMask(emu),
         _ => return false,
     }
     true
@@ -205,18 +207,22 @@ pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
 }
 
 pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
-    let compression_format = emu.regs().rcx;
-    let _uncompressed_buffer = emu.regs().rdx;
-    let _uncompressed_buffer_size = emu.regs().r8;
-    let _compressed_buffer = emu.regs().r9;
+    let compression_format = emu.regs().rcx as u16;
+    let uncompressed_buffer = emu.regs().rdx;
+    let uncompressed_buffer_size = emu.regs().r8;
+    let compressed_buffer = emu.regs().r9;
+    let compressed_buffer_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let final_uncompressed_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
-    log_red!(
+    emu.regs_mut().rax = crate::api::windows::common::ntdll::rtl_decompress_buffer(
         emu,
-        "ntdll!RtlDecompressBuffer format: 0x{:x} (stub, not implemented)",
-        compression_format
+        compression_format,
+        uncompressed_buffer,
+        uncompressed_buffer_size,
+        compressed_buffer,
+        compressed_buffer_size,
+        final_uncompressed_size,
     );
-
-    emu.regs_mut().rax = constants::STATUS_NOT_IMPLEMENTED;
 }
 
 fn RtlEncodePointer(emu: &mut emu::Emu) {
@@ -229,4 +235,24 @@ fn RtlDecodePointer(emu: &mut emu::Emu) {
     let ptr = emu.regs().rcx;
     log_red!(emu, "ntdll!RtlDecodePointer 0x{:x}", ptr);
     emu.regs_mut().rax = ptr;
+}
+
+fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
+    let first = emu.regs().rcx;
+    let fptr = emu.regs().rdx;
+
+    log_red!(
+        emu,
+        "ntdll!RtlVectoredExceptionHandler first={} callback: 0x{:x}",
+        first,
+        fptr
+    );
+
+    emu.add_veh(first != 0, fptr);
+    emu.regs_mut().rax = 0x2c2878;
+}
+
+fn VerSetConditionMask(emu: &mut emu::Emu) {
+    log_red!(emu, "ntdll!VerSetConditionMask");
+    emu.regs_mut().rax = 0xffff;
 }

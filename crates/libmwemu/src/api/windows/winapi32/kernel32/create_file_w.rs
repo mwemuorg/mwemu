@@ -29,6 +29,6 @@ pub fn CreateFileW(emu: &mut emu::Emu) {
     //if perm == "r" {
     //    emu.regs_mut().rax = constants::INVALID_HANDLE_VALUE_32;
     //} else {
-    emu.regs_mut().rax = helper::handler_create(&format!("file://{}", fname)) as u64;
+    emu.regs_mut().rax = helper::handler_create(&format!("file://{}", fname));
     //}
 }

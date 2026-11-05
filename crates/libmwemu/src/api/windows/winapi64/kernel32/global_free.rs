@@ -7,5 +7,6 @@ pub fn GlobalFree(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GlobalFree mem: 0x{:x}", mem);
 
     heap_engine::heap_free(emu, 0, mem);
+    emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

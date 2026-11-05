@@ -1,11 +1,13 @@
+use crate::api::windows::helper;
 use crate::emu;
-use crate::windows::constants;
 
 pub fn RegCloseKey(emu: &mut emu::Emu) {
-    let h_key = emu.regs().rcx;
+    let hkey = emu.regs().rcx;
 
-    log_red!(emu, "kernel32!RegCloseKey hkey: 0x{:x}", h_key);
+    log_red!(emu, "kernel32!RegCloseKey hKey:0x{:x}", hkey);
 
-    // Stub implementation, always successful
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    if helper::handler_exist(hkey) {
+        helper::handler_close(hkey);
+    }
+    emu.regs_mut().rax = 0;
 }

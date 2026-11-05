@@ -609,14 +609,15 @@ fn test_rtl_decompress_buffer() {
     helpers::setup();
     let mut emu = emu64();
 
+    // LZNT1 with null/empty compressed buffer returns STATUS_BAD_COMPRESSION_BUFFER
     let status = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::RtlDecompressBuffer,
-        &[0x0002, 0, 0, 0], // COMPRESSION_FORMAT_LZNT1
+        &[0x0002, 0, 0, 0], // COMPRESSION_FORMAT_LZNT1, null buffers
     );
     assert_ne!(
         status, 0,
-        "RtlDecompressBuffer stub should return STATUS_NOT_IMPLEMENTED"
+        "RtlDecompressBuffer with null buffers should not succeed"
     );
 }
 

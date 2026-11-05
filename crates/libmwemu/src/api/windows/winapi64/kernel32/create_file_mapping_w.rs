@@ -26,6 +26,7 @@ pub fn CreateFileMappingW(emu: &mut emu::Emu) {
 
     let handle_key = emu.handle_management.insert_mapping_handle(mapping_handle);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = handle_key as u64;
 
     log_red!(

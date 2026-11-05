@@ -17,5 +17,6 @@ pub fn HeapFree(emu: &mut emu::Emu) {
     } else {
         heap_engine::heap_free(emu, heap as u64, mem as u64);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

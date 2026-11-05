@@ -4,6 +4,7 @@ use crate::windows::peb::peb32;
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     let Some(dll) = kernel32_common::normalize_library_name(libname, true) else {
+        emu.set_last_error(0);
         emu.regs_mut().rax = 0;
         return 0;
     };

@@ -10,4 +10,5 @@ pub fn LocalAlloc(emu: &mut emu::Emu) {
     emu.regs_mut().rdx = flags;
     emu.regs_mut().r8 = size;
     HeapAlloc(emu);
+    emu.set_last_error(0);
 }

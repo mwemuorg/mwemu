@@ -9,4 +9,6 @@ pub fn GetSystemInfo(emu: &mut emu::Emu) {
     // sysinfo.save(out_sysinfo, &mut emu.maps);
 
     emu.stack_pop32(false);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

@@ -5,6 +5,7 @@ pub fn LoadLibraryW(emu: &mut emu::Emu) {
     let dllptr = emu.regs().rcx;
     let dll = emu.maps.read_wide_string(dllptr);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = load_library(emu, &dll);
 
     log_red!(

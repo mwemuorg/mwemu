@@ -10,6 +10,7 @@ pub fn ResumeThread(emu: &mut emu::Emu) {
     let uri = helper::handler_get_uri(hndl);
     if !uri.starts_with("tid://") {
         log::error!("ResumeThread: Invalid thread handle 0x{:x}", hndl);
+        emu.set_last_error(0);
         emu.regs_mut().rax = 0xFFFFFFFF; // -1 for error
         return;
     }

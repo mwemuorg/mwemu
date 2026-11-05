@@ -1,19 +1,16 @@
 use crate::emu;
 
 pub fn VirtualLock(emu: &mut emu::Emu) {
-    let lp_address = emu.regs().rcx;
-    let dw_size = emu.regs().rdx;
+    let param1 = emu.regs().rcx;
+    let param2 = emu.regs().rdx;
 
     log_red!(
         emu,
-        "kernel32!VirtualLock addr: 0x{:x} size: 0x{:x}",
-        lp_address,
-        dw_size
+        "kernel32!VirtualLock param1:0x{:x} param2:0x{:x}",
+        param1,
+        param2
     );
 
-    // TODO: Implement actual memory locking functionality
-    // VirtualLock locks pages in physical memory to prevent paging to disk
-    // For emulation purposes, this is typically not critical
-
-    emu.regs_mut().rax = 1; // Return TRUE (non-zero)
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

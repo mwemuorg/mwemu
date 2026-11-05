@@ -42,6 +42,8 @@ pub struct Handler {
     id: u64,
     uri: String,
     data: Vec<u8>,
+    pos: i64,
+    eof: bool,
 }
 
 impl Handler {
@@ -50,6 +52,8 @@ impl Handler {
             id,
             uri: uri.to_string(),
             data: vec![],
+            pos: 0,
+            eof: false,
         }
     }
 }
@@ -57,6 +61,16 @@ impl Handler {
 lazy_static! {
     static ref HANDLERS: Mutex<Vec<Handler>> = Mutex::new(Vec::new());
     static ref SOCKETS: Mutex<Vec<u64>> = Mutex::new(vec![0; 0]);
+}
+
+pub fn handler_reset() {
+    let mut handles = HANDLERS.lock().unwrap();
+    handles.clear();
+}
+
+pub fn socket_reset() {
+    let mut sockets = SOCKETS.lock().unwrap();
+    sockets.clear();
 }
 
 pub fn handler_create(uri: &str) -> u64 {
@@ -118,6 +132,97 @@ pub fn handler_get_uri(hndl: u64) -> String {
 pub fn handler_find_by_uri(uri: &str) -> Option<u64> {
     let handles = HANDLERS.lock().unwrap();
     handles.iter().find(|h| h.uri == uri).map(|h| h.id)
+}
+
+pub fn handler_seek(hndl: u64, offset: i64, origin: u32) -> i64 {
+    let mut handles = HANDLERS.lock().unwrap();
+    if let Some(h) = handles.iter_mut().find(|h| h.id == hndl) {
+        let new_pos = match origin {
+            0 => offset,                       // SEEK_SET
+            1 => h.pos + offset,               // SEEK_CUR
+            2 => h.data.len() as i64 + offset, // SEEK_END
+            _ => return -1,
+        };
+        h.pos = new_pos.max(0);
+        h.eof = false;
+        h.pos
+    } else {
+        -1
+    }
+}
+
+pub fn handler_tell(hndl: u64) -> i64 {
+    let handles = HANDLERS.lock().unwrap();
+    handles
+        .iter()
+        .find(|h| h.id == hndl)
+        .map(|h| h.pos)
+        .unwrap_or(-1)
+}
+
+pub fn handler_eof(hndl: u64) -> bool {
+    let handles = HANDLERS.lock().unwrap();
+    handles
+        .iter()
+        .find(|h| h.id == hndl)
+        .map(|h| h.eof)
+        .unwrap_or(true)
+}
+
+pub fn handler_set_eof(hndl: u64) {
+    let mut handles = HANDLERS.lock().unwrap();
+    if let Some(h) = handles.iter_mut().find(|h| h.id == hndl) {
+        h.eof = true;
+    }
+}
+
+pub fn handler_get_bytes(hndl: u64) -> Vec<u8> {
+    let handles = HANDLERS.lock().unwrap();
+    match handles.iter().position(|h| h.id == hndl) {
+        Some(idx) => handles[idx].data.clone(),
+        None => vec![],
+    }
+}
+
+pub fn handler_read_bytes(hndl: u64, count: usize) -> Vec<u8> {
+    let mut handles = HANDLERS.lock().unwrap();
+    if let Some(idx) = handles.iter().position(|h| h.id == hndl) {
+        let pos = handles[idx].pos as usize;
+        let end = (pos + count).min(handles[idx].data.len());
+        if pos >= handles[idx].data.len() {
+            handles[idx].eof = true;
+            return vec![];
+        }
+        let result = handles[idx].data[pos..end].to_vec();
+        handles[idx].pos = end as i64;
+        if end >= handles[idx].data.len() {
+            handles[idx].eof = true;
+        }
+        result
+    } else {
+        vec![]
+    }
+}
+
+pub fn handler_write_bytes(hndl: u64, data: &[u8]) {
+    let mut handles = HANDLERS.lock().unwrap();
+    if let Some(idx) = handles.iter().position(|h| h.id == hndl) {
+        let pos = handles[idx].pos as usize;
+        let needed = pos + data.len();
+        if needed > handles[idx].data.len() {
+            handles[idx].data.resize(needed, 0);
+        }
+        handles[idx].data[pos..pos + data.len()].copy_from_slice(data);
+        handles[idx].pos = (pos + data.len()) as i64;
+    }
+}
+
+pub fn handler_size(hndl: u64) -> i64 {
+    let handles = HANDLERS.lock().unwrap();
+    match handles.iter().position(|h| h.id == hndl) {
+        Some(idx) => handles[idx].data.len() as i64,
+        None => -1,
+    }
 }
 
 pub fn socket_create() -> u64 {

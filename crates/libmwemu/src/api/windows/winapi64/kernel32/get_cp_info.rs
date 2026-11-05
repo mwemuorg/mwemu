@@ -33,5 +33,6 @@ pub fn GetCPInfo(emu: &mut emu::Emu) {
     cp_info.save(lp_cp_info, &mut emu.maps);
 
     // Return TRUE to indicate success
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

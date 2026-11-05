@@ -1,9 +1,9 @@
 use crate::emu;
 //use crate::serialization;
+use crate::winapi::helper;
 use crate::winapi::winapi64;
 
 //use crate::windows::constants;
-//use crate::winapi::helper;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
@@ -25,9 +25,37 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SetUnhandledExceptionFilter" => SetUnhandledExceptionFilter(emu),
         "LocalAlloc" => LocalAlloc(emu),
         "LCMapStringEx" => {
-            let src_len = emu.regs().get_r9d() as i32;
-            log_red!(emu, "kernelbase!LCMapStringEx src_len: {}", src_len);
-            emu.regs_mut().rax = if src_len > 0 { src_len as u64 } else { 0 };
+            let _locale_ptr = emu.regs().rcx;
+            let flags = emu.regs().rdx as u32;
+            let src_ptr = emu.regs().r8;
+            let src_len = emu.regs().r9 as i32;
+            let dst_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let src = if src_ptr != 0 {
+                emu.maps.read_wide_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let mapped = if flags & 0x00000100 != 0 {
+                src.to_uppercase()
+            } else if flags & 0x00000200 != 0 {
+                src.to_lowercase()
+            } else {
+                src.clone()
+            };
+            let result_len = mapped.encode_utf16().count() + 1;
+            if dst_ptr != 0 && dst_len > 0 {
+                emu.maps.write_wide_string(dst_ptr, &mapped);
+            }
+            log_red!(
+                emu,
+                "kernelbase!LCMapStringEx flags:0x{:x} '{}' => '{}'",
+                flags,
+                src,
+                mapped
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result_len as u64;
         }
         "AppPolicyGetProcessTerminationMethod" => {
             let policy_ptr = emu.regs().rdx;
@@ -39,6 +67,26768 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 emu.maps.write_dword(policy_ptr, 0);
             }
             emu.regs_mut().rax = 0;
+        }
+
+        "AccessCheck" => {
+            let p_sd = emu.regs().rcx;
+            let client_token = emu.regs().rdx;
+            let desired_access = emu.regs().r8;
+            let generic_mapping = emu.regs().r9;
+            let priv_set = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let priv_set_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let granted_access = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let access_status = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!AccessCheck sd:0x{:x} token:0x{:x} desired:0x{:x}",
+                p_sd,
+                client_token,
+                desired_access
+            );
+            if granted_access != 0 {
+                emu.maps.write_dword(granted_access, desired_access as u32);
+            }
+            if access_status != 0 {
+                emu.maps.write_dword(access_status, 1);
+            }
+            if priv_set_len != 0 {
+                emu.maps.write_dword(priv_set_len, 0);
+            }
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AccessCheckAndAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!AccessCheckAndAuditAlarmW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AccessCheckByType" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AccessCheckByType arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AccessCheckByTypeAndAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!AccessCheckByTypeAndAuditAlarmW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AccessCheckByTypeResultList" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AccessCheckByTypeResultList arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AccessCheckByTypeResultListAndAuditAlarmByHandleW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!AccessCheckByTypeResultListAndAuditAlarmByHandleW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AccessCheckByTypeResultListAndAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!AccessCheckByTypeResultListAndAuditAlarmW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AcquireStateLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!AcquireStateLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAccessAllowedAce" => {
+            let acl_ptr = emu.regs().rcx;
+            let ace_revision = emu.regs().rdx as u32;
+            let access_mask = emu.regs().r8 as u32;
+            let sid_ptr = emu.regs().r9;
+            if acl_ptr != 0 && sid_ptr != 0 {
+                let sub_count = emu.maps.read_byte(sid_ptr + 1).unwrap_or(1) as u32;
+                let sid_len = 8 + sub_count * 4;
+                let ace_size = (8 + sid_len) as u16; // ACE_HEADER(4) + ACCESS_MASK(4) + SID
+                let acl_size = emu.maps.read_word(acl_ptr + 2).unwrap_or(8) as u64;
+                let ace_count = emu.maps.read_word(acl_ptr + 4).unwrap_or(0);
+                // Find end of existing ACEs
+                let mut offset = 8u64;
+                for _ in 0..ace_count {
+                    let sz = emu.maps.read_word(acl_ptr + offset + 2).unwrap_or(0) as u64;
+                    offset += sz;
+                }
+                if offset + ace_size as u64 <= acl_size {
+                    emu.maps.write_byte(acl_ptr + offset, 0); // ACCESS_ALLOWED_ACE_TYPE
+                    emu.maps.write_byte(acl_ptr + offset + 1, 0); // AceFlags
+                    emu.maps.write_word(acl_ptr + offset + 2, ace_size);
+                    emu.maps.write_dword(acl_ptr + offset + 4, access_mask);
+                    for i in 0..sid_len as u64 {
+                        let b = emu.maps.read_byte(sid_ptr + i).unwrap_or(0);
+                        emu.maps.write_byte(acl_ptr + offset + 8 + i, b);
+                    }
+                    emu.maps.write_word(acl_ptr + 4, ace_count + 1);
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!AddAccessAllowedAce acl:0x{:x} rev:{} mask:0x{:x} sid:0x{:x}",
+                acl_ptr,
+                ace_revision,
+                access_mask,
+                sid_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAccessAllowedAceEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddAccessAllowedAceEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAccessAllowedObjectAce" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddAccessAllowedObjectAce h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAccessDeniedAce" => {
+            let acl_ptr = emu.regs().rcx;
+            let ace_revision = emu.regs().rdx as u32;
+            let access_mask = emu.regs().r8 as u32;
+            let sid_ptr = emu.regs().r9;
+            if acl_ptr != 0 && sid_ptr != 0 {
+                let sub_count = emu.maps.read_byte(sid_ptr + 1).unwrap_or(1) as u32;
+                let sid_len = 8 + sub_count * 4;
+                let ace_size = (8 + sid_len) as u16;
+                let acl_size = emu.maps.read_word(acl_ptr + 2).unwrap_or(8) as u64;
+                let ace_count = emu.maps.read_word(acl_ptr + 4).unwrap_or(0);
+                let mut offset = 8u64;
+                for _ in 0..ace_count {
+                    let sz = emu.maps.read_word(acl_ptr + offset + 2).unwrap_or(0) as u64;
+                    offset += sz;
+                }
+                if offset + ace_size as u64 <= acl_size {
+                    emu.maps.write_byte(acl_ptr + offset, 1); // ACCESS_DENIED_ACE_TYPE
+                    emu.maps.write_byte(acl_ptr + offset + 1, 0);
+                    emu.maps.write_word(acl_ptr + offset + 2, ace_size);
+                    emu.maps.write_dword(acl_ptr + offset + 4, access_mask);
+                    for i in 0..sid_len as u64 {
+                        let b = emu.maps.read_byte(sid_ptr + i).unwrap_or(0);
+                        emu.maps.write_byte(acl_ptr + offset + 8 + i, b);
+                    }
+                    emu.maps.write_word(acl_ptr + 4, ace_count + 1);
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!AddAccessDeniedAce acl:0x{:x} rev:{} mask:0x{:x} sid:0x{:x}",
+                acl_ptr,
+                ace_revision,
+                access_mask,
+                sid_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAccessDeniedAceEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddAccessDeniedAceEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAccessDeniedObjectAce" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddAccessDeniedObjectAce h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAce" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!AddAce arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAuditAccessAce" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddAuditAccessAce arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAuditAccessAceEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddAuditAccessAceEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddAuditAccessObjectAce" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddAuditAccessObjectAce h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddDependencyToProcessPackageGraph" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddDependencyToProcessPackageGraph h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddExtensionProgId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddExtensionProgId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddMandatoryAce" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddMandatoryAce arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddPackageDependency" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddPackageDependency arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddPackageDependency2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddPackageDependency2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddPackageNameAliasesByPackageDependency" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddPackageNameAliasesByPackageDependency arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddPackageNameAliasesByPackageFullName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddPackageNameAliasesByPackageFullName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AdjustTokenGroups" => {
+            let token = emu.regs().rcx;
+            let reset_to_default = emu.regs().rdx;
+            let new_state = emu.regs().r8;
+            let buf_len = emu.regs().r9;
+            let prev_state = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let ret_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!AdjustTokenGroups token:0x{:x} reset:{} new:0x{:x}",
+                token,
+                reset_to_default,
+                new_state
+            );
+            if ret_len != 0 {
+                emu.maps.write_dword(ret_len, 0);
+            }
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AdjustTokenPrivileges" => {
+            let token = emu.regs().rcx;
+            let disable_all = emu.regs().rdx;
+            let new_state = emu.regs().r8;
+            let buf_len = emu.regs().r9;
+            let prev_state = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let ret_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!AdjustTokenPrivileges token:0x{:x} disable_all:{} new:0x{:x}",
+                token,
+                disable_all,
+                new_state
+            );
+            if ret_len != 0 {
+                emu.maps.write_dword(ret_len, 0);
+            }
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AllocateAndInitializeSid" => {
+            let p_id_authority = emu.regs().rcx;
+            let n_sub_authority_count = emu.regs().rdx as u8;
+            let sub0 = emu.regs().r8 as u32;
+            let sub1 = emu.regs().r9 as u32;
+            let sub2 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
+            let sub3 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as u32;
+            let sub4 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as u32;
+            let sub5 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0) as u32;
+            let sub6 = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0) as u32;
+            let sub7 = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0) as u32;
+            let pp_sid = emu.maps.read_qword(emu.regs().rsp + 0x58).unwrap_or(0);
+
+            let count = n_sub_authority_count.min(8) as usize;
+            let sid_size = (8 + count * 4) as u64;
+
+            log_red!(
+                emu,
+                "kernelbase!AllocateAndInitializeSid count:{} pp_sid:0x{:x}",
+                count,
+                pp_sid
+            );
+
+            if let Some(base) = emu.maps.alloc(sid_size) {
+                let _ = emu.maps.create_map(
+                    &format!("sid_{:x}", base),
+                    base,
+                    sid_size,
+                    crate::maps::mem64::Permission::READ_WRITE,
+                );
+                emu.maps.write_byte(base, 1); // revision
+                emu.maps.write_byte(base + 1, count as u8);
+                // Copy 6-byte identifier authority
+                for i in 0..6u64 {
+                    let b = emu.maps.read_byte(p_id_authority + i).unwrap_or(0);
+                    emu.maps.write_byte(base + 2 + i, b);
+                }
+                let subs = [sub0, sub1, sub2, sub3, sub4, sub5, sub6, sub7];
+                for (i, &s) in subs.iter().enumerate().take(count) {
+                    emu.maps.write_dword(base + 8 + (i as u64) * 4, s);
+                }
+                if pp_sid != 0 {
+                    emu.maps.write_qword(pp_sid, base);
+                }
+                emu.set_last_error(0);
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.set_last_error(8); // ERROR_NOT_ENOUGH_MEMORY
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "AllocateLocallyUniqueId" => {
+            let luid_ptr = emu.regs().rcx;
+            static LUID_COUNTER: std::sync::atomic::AtomicU64 =
+                std::sync::atomic::AtomicU64::new(0x10000);
+            let val = LUID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if luid_ptr != 0 {
+                emu.maps.write_dword(luid_ptr, val as u32);
+                emu.maps.write_dword(luid_ptr + 4, 0);
+            }
+            log_red!(
+                emu,
+                "kernelbase!AllocateLocallyUniqueId ptr:0x{:x} => 0x{:x}",
+                luid_ptr,
+                val
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AllocateUserPhysicalPages2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AllocateUserPhysicalPages2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppContainerDeriveSidFromMoniker" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppContainerDeriveSidFromMoniker arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppContainerFreeMemory" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppContainerFreeMemory arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppContainerLookupDisplayNameMrtReference" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppContainerLookupDisplayNameMrtReference arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppContainerLookupMoniker" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppContainerLookupMoniker arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppContainerRegisterSid" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppContainerRegisterSid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppContainerUnregisterSid" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppContainerUnregisterSid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXCheckPplSupport" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXCheckPplSupport arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXFreeMemory" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXFreeMemory arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXGetApplicationData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXGetApplicationData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXGetDevelopmentMode" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXGetDevelopmentMode arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXGetOSMinVersion" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXGetOSMinVersion arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXGetPackageCapabilities" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXGetPackageCapabilities arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXGetPackageSid" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXGetPackageSid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXLookupDisplayName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXLookupDisplayName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXLookupMoniker" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXLookupMoniker arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXPostSuccessExtension" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXPostSuccessExtension arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXPreCreationExtension" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXPreCreationExtension arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXReleaseAppXContext" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXReleaseAppXContext arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXUpdatePackageCapabilities" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXUpdatePackageCapabilities arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ApplicationUserModelIdFromProductId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ApplicationUserModelIdFromProductId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AreAllAccessesGranted" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AreAllAccessesGranted arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AreAnyAccessesGranted" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AreAnyAccessesGranted arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AreExternalFeatureDependenciesEnabled" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AreExternalFeatureDependenciesEnabled arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AreThereVisibleLogoffScriptsInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AreThereVisibleLogoffScriptsInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AreThereVisibleShutdownScriptsInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AreThereVisibleShutdownScriptsInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ArmFeatureUsageSubscriberFlushNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ArmFeatureUsageSubscriberFlushNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseDllFreeResourceId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseDllFreeResourceId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseDllMapResourceIdW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!BaseDllMapResourceIdW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseFreeAppCompatDataForProcess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseFreeAppCompatDataForProcess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseGetConsoleReference" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseGetConsoleReference arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseMarkFileForDelete" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseMarkFileForDelete h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseReadAppCompatDataForProcess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseReadAppCompatDataForProcess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BasepAdjustObjectAttributesForPrivateNamespace" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BasepAdjustObjectAttributesForPrivateNamespace h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BasepCopyFileCallback" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BasepCopyFileCallback h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BasepCopyFileExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!BasepCopyFileExW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BasepNotifyTrackingService" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BasepNotifyTrackingService arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CLOSE_LOCAL_HANDLE_INTERNAL" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!CLOSE_LOCAL_HANDLE_INTERNAL handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CallEnclave" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CallEnclave arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CharLowerA" => {
+            let str_ptr = emu.regs().rcx;
+            if str_ptr > 0xffff {
+                let s = emu.maps.read_string(str_ptr);
+                let lower = s.to_lowercase();
+                emu.maps.write_string(str_ptr, &lower);
+                log_red!(emu, "kernelbase!CharLowerA '{}' => '{}'", s, lower);
+                emu.regs_mut().rax = str_ptr;
+            } else {
+                let ch = str_ptr as u8;
+                let lowered = (ch as char).to_lowercase().next().unwrap_or(ch as char) as u64;
+                log_red!(emu, "kernelbase!CharLowerA char:0x{:x}", str_ptr);
+                emu.regs_mut().rax = lowered;
+            }
+        }
+        "CharLowerBuffA" => {
+            let buf = emu.regs().rcx;
+            let len = emu.regs().rdx as usize;
+            log_red!(emu, "kernelbase!CharLowerBuffA buf:0x{:x} len:{}", buf, len);
+            if buf != 0 && len > 0 {
+                let count = len.min(0x10000);
+                for i in 0..count {
+                    let b = emu.maps.read_byte(buf + i as u64).unwrap_or(0);
+                    if b.is_ascii_uppercase() {
+                        emu.maps.write_byte(buf + i as u64, b + 32);
+                    }
+                }
+                emu.regs_mut().rax = count as u64;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "CharLowerW" => {
+            let str_ptr = emu.regs().rcx;
+            if str_ptr > 0xffff {
+                let s = emu.maps.read_wide_string(str_ptr);
+                let lower = s.to_lowercase();
+                emu.maps.write_wide_string(str_ptr, &lower);
+                log_red!(emu, "kernelbase!CharLowerW '{}' => '{}'", s, lower);
+                emu.regs_mut().rax = str_ptr;
+            } else {
+                let ch = (str_ptr as u16) as u32;
+                let lowered = char::from_u32(ch)
+                    .map(|c| c.to_lowercase().next().unwrap_or(c) as u64)
+                    .unwrap_or(str_ptr);
+                log_red!(emu, "kernelbase!CharLowerW char:0x{:x}", str_ptr);
+                emu.regs_mut().rax = lowered;
+            }
+        }
+        "CharNextA" => {
+            let p0 = emu.regs().rcx;
+            let b = if p0 != 0 {
+                emu.maps.read_byte(p0).unwrap_or(0)
+            } else {
+                0
+            };
+            log_red!(emu, "kernelbase!CharNextA 0x{:x}", p0);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if b == 0 { p0 } else { p0 + 1 };
+        }
+        "CharNextExA" => {
+            let _codepage = emu.regs().rcx;
+            let ptr = emu.regs().rdx;
+            let _flags = emu.regs().r8;
+            let b = if ptr != 0 {
+                emu.maps.read_byte(ptr).unwrap_or(0)
+            } else {
+                0
+            };
+            log_red!(emu, "kernelbase!CharNextExA ptr:0x{:x}", ptr);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if b == 0 { ptr } else { ptr + 1 };
+        }
+        "CharNextW" => {
+            let p0 = emu.regs().rcx;
+            let w = if p0 != 0 {
+                emu.maps.read_word(p0).unwrap_or(0)
+            } else {
+                0
+            };
+            log_red!(emu, "kernelbase!CharNextW 0x{:x}", p0);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if w == 0 { p0 } else { p0 + 2 };
+        }
+        "CharPrevA" => {
+            let start_ptr = emu.regs().rcx;
+            let current_ptr = emu.regs().rdx;
+            let result = if current_ptr <= start_ptr {
+                start_ptr
+            } else {
+                current_ptr - 1
+            };
+            log_red!(
+                emu,
+                "kernelbase!CharPrevA start:0x{:x} cur:0x{:x} => 0x{:x}",
+                start_ptr,
+                current_ptr,
+                result
+            );
+            emu.regs_mut().rax = result;
+        }
+        "CharPrevExA" => {
+            let _codepage = emu.regs().rcx;
+            let start_ptr = emu.regs().rdx;
+            let current_ptr = emu.regs().r8;
+            let _flags = emu.regs().r9;
+            let result = if current_ptr <= start_ptr {
+                start_ptr
+            } else {
+                current_ptr - 1
+            };
+            log_red!(
+                emu,
+                "kernelbase!CharPrevExA start:0x{:x} cur:0x{:x} => 0x{:x}",
+                start_ptr,
+                current_ptr,
+                result
+            );
+            emu.regs_mut().rax = result;
+        }
+        "CharPrevW" => {
+            let start_ptr = emu.regs().rcx;
+            let current_ptr = emu.regs().rdx;
+            let result = if current_ptr <= start_ptr {
+                start_ptr
+            } else {
+                current_ptr - 2
+            };
+            log_red!(
+                emu,
+                "kernelbase!CharPrevW start:0x{:x} cur:0x{:x} => 0x{:x}",
+                start_ptr,
+                current_ptr,
+                result
+            );
+            emu.regs_mut().rax = result;
+        }
+        "CharUpperA" => {
+            let str_ptr = emu.regs().rcx;
+            if str_ptr > 0xffff {
+                let s = emu.maps.read_string(str_ptr);
+                let upper = s.to_uppercase();
+                emu.maps.write_string(str_ptr, &upper);
+                log_red!(emu, "kernelbase!CharUpperA '{}' => '{}'", s, upper);
+                emu.regs_mut().rax = str_ptr;
+            } else {
+                let ch = str_ptr as u8;
+                let uppered = (ch as char).to_uppercase().next().unwrap_or(ch as char) as u64;
+                log_red!(emu, "kernelbase!CharUpperA char:0x{:x}", str_ptr);
+                emu.regs_mut().rax = uppered;
+            }
+        }
+        "CharUpperBuffA" => {
+            let buf = emu.regs().rcx;
+            let len = emu.regs().rdx as usize;
+            log_red!(emu, "kernelbase!CharUpperBuffA buf:0x{:x} len:{}", buf, len);
+            if buf != 0 && len > 0 {
+                let count = len.min(0x10000);
+                for i in 0..count {
+                    let b = emu.maps.read_byte(buf + i as u64).unwrap_or(0);
+                    if b.is_ascii_lowercase() {
+                        emu.maps.write_byte(buf + i as u64, b - 32);
+                    }
+                }
+                emu.regs_mut().rax = count as u64;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "CharUpperBuffW" => {
+            let buf = emu.regs().rcx;
+            let len = emu.regs().rdx as usize;
+            log_red!(emu, "kernelbase!CharUpperBuffW buf:0x{:x} len:{}", buf, len);
+            if buf != 0 && len > 0 {
+                let count = len.min(0x10000);
+                for i in 0..count {
+                    let w = emu.maps.read_word(buf + (i as u64) * 2).unwrap_or(0);
+                    if w >= b'a' as u16 && w <= b'z' as u16 {
+                        emu.maps.write_word(buf + (i as u64) * 2, w - 32);
+                    }
+                }
+                emu.regs_mut().rax = count as u64;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "CharUpperW" => {
+            let str_ptr = emu.regs().rcx;
+            if str_ptr > 0xffff {
+                let s = emu.maps.read_wide_string(str_ptr);
+                let upper = s.to_uppercase();
+                emu.maps.write_wide_string(str_ptr, &upper);
+                log_red!(emu, "kernelbase!CharUpperW '{}' => '{}'", s, upper);
+                emu.regs_mut().rax = str_ptr;
+            } else {
+                let ch = (str_ptr as u16) as u32;
+                let uppered = char::from_u32(ch)
+                    .map(|c| c.to_uppercase().next().unwrap_or(c) as u64)
+                    .unwrap_or(str_ptr);
+                log_red!(emu, "kernelbase!CharUpperW char:0x{:x}", str_ptr);
+                emu.regs_mut().rax = uppered;
+            }
+        }
+        "CheckGroupPolicyEnabled" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CheckGroupPolicyEnabled arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CheckIfStateChangeNotificationExists" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CheckIfStateChangeNotificationExists arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CheckIsMSIXPackage" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CheckIsMSIXPackage arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CheckTokenMembership" => {
+            let token = emu.regs().rcx;
+            let sid_to_check = emu.regs().rdx;
+            let is_member = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!CheckTokenMembership token:0x{:x} sid:0x{:x}",
+                token,
+                sid_to_check
+            );
+            if is_member != 0 {
+                emu.maps.write_dword(is_member, 1); // TRUE - is a member
+            }
+            emu.regs_mut().rax = 1; // success
+        }
+        "ChrCmpIA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!ChrCmpIA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ChrCmpIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!ChrCmpIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseStateAtom" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseStateAtom handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseStateChangeNotification" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!CloseStateChangeNotification handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CloseStateContainer" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseStateContainer handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseStateLock" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseStateLock handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CommandLineToArgvW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!CommandLineToArgvW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CommitStateAtom" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CommitStateAtom arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "CompareObjectHandles" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CompareObjectHandles arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "ConvertAuxiliaryCounterToPerformanceCounter" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ConvertAuxiliaryCounterToPerformanceCounter arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "ConvertPerformanceCounterToAuxiliaryCounter" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ConvertPerformanceCounterToAuxiliaryCounter arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "ConvertToAutoInheritPrivateObjectSecurity" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ConvertToAutoInheritPrivateObjectSecurity arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "CopyFileFromAppW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let dst = emu.maps.read_wide_string(dst_ptr);
+            log_red!(emu, "kernelbase!CopyFileFromAppW '{}' -> '{}'", src, dst);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CopyMemoryNonTemporal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CopyMemoryNonTemporal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "CopySid" => {
+            let dest_len = emu.regs().rcx as usize;
+            let dest_ptr = emu.regs().rdx;
+            let src_ptr = emu.regs().r8;
+            if dest_ptr != 0 && src_ptr != 0 && dest_len > 0 {
+                let sub_auth_count = emu.maps.read_byte(src_ptr + 1).unwrap_or(0) as usize;
+                let sid_len = 8 + sub_auth_count * 4;
+                let copy_len = sid_len.min(dest_len);
+                for i in 0..copy_len {
+                    let b = emu.maps.read_byte(src_ptr + i as u64).unwrap_or(0);
+                    emu.maps.write_byte(dest_ptr + i as u64, b);
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!CopySid len:{} dst:0x{:x} src:0x{:x}",
+                dest_len,
+                dest_ptr,
+                src_ptr
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CouldMultiUserAppsBehaviorBePossibleForPackage" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CouldMultiUserAppsBehaviorBePossibleForPackage arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "CreateAppContainerToken" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateAppContainerToken");
+            log_red!(emu, "kernelbase!CreateAppContainerToken => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateAppSiloToken" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateAppSiloToken");
+            log_red!(emu, "kernelbase!CreateAppSiloToken => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateDirectoryFromAppW" => {
+            let path_ptr = emu.regs().rcx;
+            let security = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!CreateDirectoryFromAppW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateFile2FromAppW" => {
+            let path_ptr = emu.regs().rcx;
+            let access = emu.regs().rdx;
+            let share = emu.regs().r8;
+            let security = emu.regs().r9;
+            let disposition = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let template = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let path = emu.maps.read_wide_string(path_ptr);
+            let hndl = helper::handler_create(&format!("file_{}", path));
+            log_red!(
+                emu,
+                "kernelbase!CreateFile2FromAppW '{}' access:0x{:x} disp:{}, => 0x{:x}",
+                path,
+                access,
+                disposition,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFileFromAppW" => {
+            let path_ptr = emu.regs().rcx;
+            let access = emu.regs().rdx;
+            let share = emu.regs().r8;
+            let security = emu.regs().r9;
+            let disposition = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let template = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let path = emu.maps.read_wide_string(path_ptr);
+            let hndl = helper::handler_create(&format!("file_{}", path));
+            log_red!(
+                emu,
+                "kernelbase!CreateFileFromAppW '{}' access:0x{:x} disp:{}, => 0x{:x}",
+                path,
+                access,
+                disposition,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFileMapping2" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateFileMapping2");
+            log_red!(emu, "kernelbase!CreateFileMapping2 => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreatePrivateObjectSecurity" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreatePrivateObjectSecurity");
+            log_red!(
+                emu,
+                "kernelbase!CreatePrivateObjectSecurity => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreatePrivateObjectSecurityEx" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreatePrivateObjectSecurityEx");
+            log_red!(
+                emu,
+                "kernelbase!CreatePrivateObjectSecurityEx => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreatePrivateObjectSecurityWithMultipleInheritance" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreatePrivateObjectSecurityWithMultipleInheritance");
+            log_red!(
+                emu,
+                "kernelbase!CreatePrivateObjectSecurityWithMultipleInheritance => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreatePseudoConsoleAsUser" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreatePseudoConsoleAsUser");
+            log_red!(emu, "kernelbase!CreatePseudoConsoleAsUser => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateRestrictedToken" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateRestrictedToken");
+            log_red!(emu, "kernelbase!CreateRestrictedToken => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateStateAtom" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateStateAtom");
+            log_red!(emu, "kernelbase!CreateStateAtom => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateStateChangeNotification" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateStateChangeNotification");
+            log_red!(
+                emu,
+                "kernelbase!CreateStateChangeNotification => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateStateContainer" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateStateContainer");
+            log_red!(emu, "kernelbase!CreateStateContainer => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateStateLock" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateStateLock");
+            log_red!(emu, "kernelbase!CreateStateLock => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateStateSubcontainer" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateStateSubcontainer");
+            log_red!(emu, "kernelbase!CreateStateSubcontainer => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateWellKnownSid" => {
+            let well_known_sid_type = emu.regs().rcx as u32;
+            let domain_sid = emu.regs().rdx;
+            let p_sid = emu.regs().r8;
+            let cb_sid = emu.regs().r9;
+
+            log_red!(
+                emu,
+                "kernelbase!CreateWellKnownSid type:{} buf:0x{:x}",
+                well_known_sid_type,
+                p_sid
+            );
+
+            let sid_size: u32 = 28; // 8 + 5*4 = typical SID
+            if cb_sid != 0 {
+                let provided = emu.maps.read_dword(cb_sid).unwrap_or(0);
+                emu.maps.write_dword(cb_sid, sid_size);
+                if provided < sid_size {
+                    emu.set_last_error(122); // ERROR_INSUFFICIENT_BUFFER
+                    emu.regs_mut().rax = 0;
+                } else if p_sid != 0 {
+                    // Write a mock SID: revision=1, sub_auth_count=5, NT authority
+                    emu.maps.write_byte(p_sid, 1); // revision
+                    emu.maps.write_byte(p_sid + 1, 5); // sub-authority count
+                    // identifier authority: NT Authority {0,0,0,0,0,5}
+                    for i in 0..5u64 {
+                        emu.maps.write_byte(p_sid + 2 + i, 0);
+                    }
+                    emu.maps.write_byte(p_sid + 7, 5);
+                    // sub-authorities: 21, 0, 0, 0, 500 (admin-like)
+                    emu.maps.write_dword(p_sid + 8, 21);
+                    emu.maps.write_dword(p_sid + 12, 0);
+                    emu.maps.write_dword(p_sid + 16, 0);
+                    emu.maps.write_dword(p_sid + 20, 0);
+                    emu.maps.write_dword(p_sid + 24, 500);
+                    emu.set_last_error(0);
+                    emu.regs_mut().rax = 1;
+                } else {
+                    emu.set_last_error(87); // ERROR_INVALID_PARAMETER
+                    emu.regs_mut().rax = 0;
+                }
+            } else {
+                emu.set_last_error(87);
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "CveEventWrite" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!CveEventWrite 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DecodeRemotePointer" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DecodeRemotePointer arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DelayLoadFailureHookLookup" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DelayLoadFailureHookLookup arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteAce" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!DeleteAce handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteEnclave" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!DeleteEnclave handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteFileFromAppW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!DeleteFileFromAppW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeletePackageDependency" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DeletePackageDependency handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DeletePersistedRegistryValue" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DeletePersistedRegistryValue handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteStateAtomValue" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!DeleteStateAtomValue handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteStateContainer" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!DeleteStateContainer handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteStateContainerValue" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DeleteStateContainerValue handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DeriveCapabilitySidsFromName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DeriveCapabilitySidsFromName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DestroyPrivateObjectSecurity" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DestroyPrivateObjectSecurity handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DisablePredefinedHandleTableInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DisablePredefinedHandleTableInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsBindWithSpnExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!DsBindWithSpnExW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsCrackNamesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!DsCrackNamesW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsFreeDomainControllerInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!DsFreeDomainControllerInfoW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsFreeNameResultW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!DsFreeNameResultW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsFreeNgcKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DsFreeNgcKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsFreePasswordCredentials" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DsFreePasswordCredentials arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsGetDomainControllerInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!DsGetDomainControllerInfoW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsMakePasswordCredentialsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!DsMakePasswordCredentialsW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsReadNgcKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!DsReadNgcKeyW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsUnBindW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!DsUnBindW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DsWriteNgcKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!DsWriteNgcKeyW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DuplicateStateContainerHandle" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DuplicateStateContainerHandle h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DuplicateToken" => {
+            let token = emu.regs().rcx;
+            let imp_level = emu.regs().rdx;
+            let out_ptr = emu.regs().r8;
+            let new_token = helper::handler_create("token");
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, new_token);
+            }
+            log_red!(
+                emu,
+                "kernelbase!DuplicateToken h:0x{:x} level:{} => 0x{:x}",
+                token,
+                imp_level,
+                new_token
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DuplicateTokenEx" => {
+            let token = emu.regs().rcx;
+            let desired_access = emu.regs().rdx;
+            let _security_attr = emu.regs().r8;
+            let imp_level = emu.regs().r9;
+            let token_type = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let new_token = helper::handler_create("token");
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, new_token);
+            }
+            log_red!(
+                emu,
+                "kernelbase!DuplicateTokenEx h:0x{:x} access:0x{:x} level:{} type:{} => 0x{:x}",
+                token,
+                desired_access,
+                imp_level,
+                token_type,
+                new_token
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EmptyWorkingSet" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EmptyWorkingSet arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EncodeRemotePointer" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EncodeRemotePointer arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnterCriticalPolicySectionInternal" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!EnterCriticalPolicySectionInternal 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumDeviceDrivers" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumDeviceDrivers arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumDynamicTimeZoneInformation" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumDynamicTimeZoneInformation arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumPageFilesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumPageFilesA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumPageFilesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumPageFilesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumProcessModules" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumProcessModules h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumProcessModulesEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumProcessModulesEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumProcesses" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumProcesses h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumerateExtensionNames" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumerateExtensionNames arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumerateStateAtomValues" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumerateStateAtomValues arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumerateStateContainerItems" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumerateStateContainerItems arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EqualDomainSid" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EqualDomainSid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EqualPrefixSid" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EqualPrefixSid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EqualSid" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!EqualSid p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventActivityIdControl" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventActivityIdControl 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventProviderEnabled" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventProviderEnabled 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventUnregister" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventUnregister 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventWrite" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventWrite 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventWriteEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventWriteEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventWriteString" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventWriteString 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ExtensionProgIdExists" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ExtensionProgIdExists arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindFirstFileExFromAppW" => {
+            let path_ptr = emu.regs().rcx;
+            let find_data_ptr = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let hndl = helper::handler_create(&format!("find_{}", path));
+            if find_data_ptr != 0 {
+                emu.maps.write_dword(find_data_ptr, 0x80); // dwFileAttributes = NORMAL
+            }
+            log_red!(
+                emu,
+                "kernelbase!FindFirstFileExFromAppW '{}' => 0x{:x}",
+                path,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstFreeAce" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FindFirstFreeAce arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindPackageDependency" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FindPackageDependency arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ForceSyncFgPolicyInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ForceSyncFgPolicyInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FormatApplicationUserModelIdA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!FormatApplicationUserModelIdA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeGPOListInternalA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FreeGPOListInternalA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeGPOListInternalW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FreeGPOListInternalW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeSid" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!FreeSid handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "GenerateGPNotificationInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GenerateGPNotificationInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAcceptLanguagesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetAcceptLanguagesA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAcceptLanguagesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetAcceptLanguagesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAce" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(emu, "kernelbase!GetAce p1:0x{:x} p2:0x{:x}", p1, p2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAclInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetAclInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAdjustObjectAttributesForPrivateNamespaceRoutine" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetAdjustObjectAttributesForPrivateNamespaceRoutine h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAlternatePackageRoots" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetAlternatePackageRoots h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetApiSetModuleBaseName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetApiSetModuleBaseName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAppDataFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetAppDataFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAppModelVersion" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetAppModelVersion h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetApplicationUserModelIdFromToken" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetApplicationUserModelIdFromToken h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAppliedGPOListInternalA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetAppliedGPOListInternalA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAppliedGPOListInternalW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetAppliedGPOListInternalW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCPFileNameFromRegistry" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCPFileNameFromRegistry h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCPHashNode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCPHashNode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCalendar" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCalendar h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommPorts" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCommPorts h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageApplicationContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageApplicationContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageApplicationResourcesContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageApplicationResourcesContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageGlobalizationContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageGlobalizationContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageInfo2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageInfo2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageInfo3" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageInfo3 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageInfo_PackageNameAliases" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageInfo_PackageNameAliases h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackagePath2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackagePath2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageResourcesContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageResourcesContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageSecurityContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageSecurityContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentTargetPlatformContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentTargetPlatformContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDeveloperDriveEnablementState" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetDeveloperDriveEnablementState h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDeviceDriverBaseNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDeviceDriverBaseNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDeviceDriverBaseNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDeviceDriverBaseNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDeviceDriverFileNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDeviceDriverFileNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDeviceDriverFileNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDeviceDriverFileNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDiskSpaceInformationWCOS" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetDiskSpaceInformationWCOS h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDynamicTimeZoneInformationEffectiveYears" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetDynamicTimeZoneInformationEffectiveYears h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEffectivePackageStatusForUser" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetEffectivePackageStatusForUser h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEffectivePackageStatusForUserSid" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetEffectivePackageStatusForUserSid h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEightBitStringToUnicodeSizeRoutine" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetEightBitStringToUnicodeSizeRoutine h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEightBitStringToUnicodeStringRoutine" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetEightBitStringToUnicodeStringRoutine h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetExtensionApplicationUserModelId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetExtensionApplicationUserModelId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetExtensionProgIds" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetExtensionProgIds h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetExtensionProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetExtensionProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetExtensionProperty2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetExtensionProperty2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFallbackDisplayName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFallbackDisplayName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFeatureToggleConfiguration" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFeatureToggleConfiguration h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFeatureTogglesChangeToken" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFeatureTogglesChangeToken h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileAttributesExFromAppW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileAttributesExFromAppW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileSecurityW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileSecurityW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileVersionInfoByHandle" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFileVersionInfoByHandle h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileVersionInfoExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileVersionInfoExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileVersionInfoExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileVersionInfoExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileVersionInfoSizeExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileVersionInfoSizeExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileVersionInfoSizeExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileVersionInfoSizeExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileVersionInfoSizeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileVersionInfoSizeW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileVersionInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetFileVersionInfoW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetGPOListInternalA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetGPOListInternalA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetGPOListInternalW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetGPOListInternalW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetGamingDeviceModelInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetGamingDeviceModelInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetHivePath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetHivePath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetIdForPackageDependencyContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetIdForPackageDependencyContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetIntegratedDisplaySize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetIntegratedDisplaySize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetIsEdpEnabled" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetIsEdpEnabled h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetIsWdagEnabled" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetIsWdagEnabled h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetKernelObjectSecurity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetKernelObjectSecurity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetLengthSid" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetLengthSid");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 28;
+        }
+        "GetLocaleInfoHelper" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetLocaleInfoHelper h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetMappedFileNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetMappedFileNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetMappedFileNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetMappedFileNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetMemoryNumaClosestInitiatorNode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetMemoryNumaClosestInitiatorNode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetMemoryNumaPerformanceInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetMemoryNumaPerformanceInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleBaseNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetModuleBaseNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleBaseNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetModuleBaseNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleFileNameExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetModuleFileNameExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleFileNameExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetModuleFileNameExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetModuleInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNamedLocaleHashNode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNamedLocaleHashNode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNextFgPolicyRefreshInfoInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNextFgPolicyRefreshInfoInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetOsManufacturingMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetOsManufacturingMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetOsSafeBootMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetOsSafeBootMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageApplicationContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageApplicationContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageApplicationProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageApplicationProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageApplicationPropertyString" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageApplicationPropertyString h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageApplicationResourcesContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageApplicationResourcesContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageDependencyInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageDependencyInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageFamilyNameFromFilePath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageFamilyNameFromFilePath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageFamilyNameFromProgId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageFamilyNameFromProgId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageFamilyNameFromToken" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageFamilyNameFromToken h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageFullNameFromToken" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageFullNameFromToken h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageGlobalizationContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageGlobalizationContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageGlobalizationProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageGlobalizationProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageGraphRevisionId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageGraphRevisionId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageInfo2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageInfo2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageInfo3" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageInfo3 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageNameAliasesByPackageFullName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageNameAliasesByPackageFullName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageOSMaxVersionTested" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageOSMaxVersionTested h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackagePathByFullName2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackagePathByFullName2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackagePathOnVolume" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackagePathOnVolume h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackagePropertyString" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackagePropertyString h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageResourcesContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageResourcesContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageResourcesProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageResourcesProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageSecurityContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageSecurityContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageSecurityProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageSecurityProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageStatus" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageStatus h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageStatusForUser" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageStatusForUser h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageStatusForUserSid" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageStatusForUserSid h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageTargetPlatformProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageTargetPlatformProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageVolumeSisPath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageVolumeSisPath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackagedDataForFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackagedDataForFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPerformanceInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPerformanceInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPersistedFileLocationW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetPersistedFileLocationW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPersistedRegistryLocationW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetPersistedRegistryLocationW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPersistedRegistryValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetPersistedRegistryValueW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPreviousFgPolicyRefreshInfoInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPreviousFgPolicyRefreshInfoInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPrivateObjectSecurity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPrivateObjectSecurity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcAddressForCaller" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcAddressForCaller h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessImageFileNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetProcessImageFileNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessImageFileNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetProcessImageFileNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessMemoryInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessMemoryInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessesUsingPackageDependency" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessesUsingPackageDependency h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProtocolAumid" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProtocolAumid h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProtocolProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProtocolProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPtrCalData" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPtrCalData h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPtrCalDataArray" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPtrCalDataArray h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPublisherCacheFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPublisherCacheFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPublisherRootFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPublisherRootFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetRegistryExtensionFlags" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetRegistryExtensionFlags h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetRegistryValueWithFallbackW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetRegistryValueWithFallbackW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetResolvedPackageFullNameForPackageDependency" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetResolvedPackageFullNameForPackageDependency h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetResolvedPackageFullNameForPackageDependency2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetResolvedPackageFullNameForPackageDependency2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetRoamingLastObservedChangeTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetRoamingLastObservedChangeTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetRuntimeAttestationReport" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetRuntimeAttestationReport h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSecureSystemAppDataFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSecureSystemAppDataFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSecurityDescriptorControl" => {
+            let sd_ptr = emu.regs().rcx;
+            let control_ptr = emu.regs().rdx;
+            let revision_ptr = emu.regs().r8;
+            if sd_ptr != 0 {
+                let control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if control_ptr != 0 {
+                    emu.maps.write_word(control_ptr, control);
+                }
+                if revision_ptr != 0 {
+                    let rev = emu.maps.read_byte(sd_ptr).unwrap_or(1);
+                    emu.maps.write_dword(revision_ptr, rev as u32);
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetSecurityDescriptorControl sd:0x{:x}",
+                sd_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSecurityDescriptorDacl" => {
+            let sd_ptr = emu.regs().rcx;
+            let dacl_present_ptr = emu.regs().rdx;
+            let dacl_ptr_ptr = emu.regs().r8;
+            let defaulted_ptr = emu.regs().r9;
+            if sd_ptr != 0 {
+                let control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                let has_dacl = (control & 0x0004) != 0;
+                let dacl = emu.maps.read_qword(sd_ptr + 28).unwrap_or(0);
+                if dacl_present_ptr != 0 {
+                    emu.maps
+                        .write_dword(dacl_present_ptr, if has_dacl { 1 } else { 0 });
+                }
+                if dacl_ptr_ptr != 0 {
+                    emu.maps
+                        .write_qword(dacl_ptr_ptr, if has_dacl { dacl } else { 0 });
+                }
+                if defaulted_ptr != 0 {
+                    let defaulted = (control & 0x0008) != 0;
+                    emu.maps
+                        .write_dword(defaulted_ptr, if defaulted { 1 } else { 0 });
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetSecurityDescriptorDacl sd:0x{:x}",
+                sd_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSecurityDescriptorGroup" => {
+            let sd_ptr = emu.regs().rcx;
+            let group_ptr_ptr = emu.regs().rdx;
+            let defaulted_ptr = emu.regs().r8;
+            if sd_ptr != 0 {
+                let group = emu.maps.read_qword(sd_ptr + 20).unwrap_or(0);
+                let control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if group_ptr_ptr != 0 {
+                    emu.maps.write_qword(group_ptr_ptr, group);
+                }
+                if defaulted_ptr != 0 {
+                    let defaulted = (control & 0x0002) != 0; // SE_GROUP_DEFAULTED
+                    emu.maps
+                        .write_dword(defaulted_ptr, if defaulted { 1 } else { 0 });
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetSecurityDescriptorGroup sd:0x{:x}",
+                sd_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSecurityDescriptorLength" => {
+            let sd_ptr = emu.regs().rcx;
+            // Minimum SD size: Rev(1)+Sbz1(1)+Control(2)+Owner(8)+Group(8)+Sacl(8)+Dacl(8) = 36
+            let mut length = 36u64;
+            if sd_ptr != 0 {
+                let control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if (control & 0x0004) != 0 {
+                    // SE_DACL_PRESENT
+                    let dacl = emu.maps.read_qword(sd_ptr + 28).unwrap_or(0);
+                    if dacl != 0 {
+                        let dacl_size = emu.maps.read_word(dacl + 2).unwrap_or(8) as u64;
+                        length += dacl_size;
+                    }
+                }
+                if (control & 0x0010) != 0 {
+                    // SE_SACL_PRESENT
+                    let sacl = emu.maps.read_qword(sd_ptr + 20).unwrap_or(0);
+                    if sacl != 0 {
+                        let sacl_size = emu.maps.read_word(sacl + 2).unwrap_or(8) as u64;
+                        length += sacl_size;
+                    }
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetSecurityDescriptorLength sd:0x{:x} => {}",
+                sd_ptr,
+                length
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = length;
+        }
+        "GetSecurityDescriptorOwner" => {
+            let sd_ptr = emu.regs().rcx;
+            let owner_ptr_ptr = emu.regs().rdx;
+            let defaulted_ptr = emu.regs().r8;
+            if sd_ptr != 0 {
+                let owner = emu.maps.read_qword(sd_ptr + 12).unwrap_or(0);
+                let control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if owner_ptr_ptr != 0 {
+                    emu.maps.write_qword(owner_ptr_ptr, owner);
+                }
+                if defaulted_ptr != 0 {
+                    let defaulted = (control & 0x0001) != 0; // SE_OWNER_DEFAULTED
+                    emu.maps
+                        .write_dword(defaulted_ptr, if defaulted { 1 } else { 0 });
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetSecurityDescriptorOwner sd:0x{:x}",
+                sd_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSecurityDescriptorRMControl" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSecurityDescriptorRMControl h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSecurityDescriptorSacl" => {
+            let sd_ptr = emu.regs().rcx;
+            let sacl_present_ptr = emu.regs().rdx;
+            let sacl_ptr_ptr = emu.regs().r8;
+            let defaulted_ptr = emu.regs().r9;
+            if sd_ptr != 0 {
+                let control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                let has_sacl = (control & 0x0010) != 0; // SE_SACL_PRESENT
+                let sacl = emu.maps.read_qword(sd_ptr + 20).unwrap_or(0);
+                if sacl_present_ptr != 0 {
+                    emu.maps
+                        .write_dword(sacl_present_ptr, if has_sacl { 1 } else { 0 });
+                }
+                if sacl_ptr_ptr != 0 {
+                    emu.maps
+                        .write_qword(sacl_ptr_ptr, if has_sacl { sacl } else { 0 });
+                }
+                if defaulted_ptr != 0 {
+                    let defaulted = (control & 0x0020) != 0; // SE_SACL_DEFAULTED
+                    emu.maps
+                        .write_dword(defaulted_ptr, if defaulted { 1 } else { 0 });
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetSecurityDescriptorSacl sd:0x{:x}",
+                sd_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSerializedAtomBytes" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSerializedAtomBytes h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSharedLocalFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSharedLocalFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSidIdentifierAuthority" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSidIdentifierAuthority h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSidLengthRequired" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSidLengthRequired h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSidSubAuthority" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!GetSidSubAuthority p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSidSubAuthorityCount" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetSidSubAuthorityCount");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStagedPackageOrigin" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStagedPackageOrigin h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStagedPackagePathByFullName2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStagedPackagePathByFullName2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStateContainerDepth" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStateContainerDepth h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStateRootFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStateRootFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStateRootFolderBase" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStateRootFolderBase h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStateSettingsFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStateSettingsFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStateVersion" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStateVersion h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStringTableEntry" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStringTableEntry h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemAppDataFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemAppDataFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemLeapSecondInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemLeapSecondInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemMetadataPath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemMetadataPath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemMetadataPathForPackage" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemMetadataPathForPackage h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemMetadataPathForPackageFamily" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemMetadataPathForPackageFamily h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemStateRootFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemStateRootFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemTimeAdjustmentPrecise" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemTimeAdjustmentPrecise h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemWow64Directory2A" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetSystemWow64Directory2A '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemWow64Directory2W" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetSystemWow64Directory2W '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTargetPlatformContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetTargetPlatformContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTraceEnableFlags" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetTraceEnableFlags h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTraceEnableLevel" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetTraceEnableLevel h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTraceLoggerHandle" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetTraceLoggerHandle h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUnicodeStringToEightBitSizeRoutine" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUnicodeStringToEightBitSizeRoutine h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUnicodeStringToEightBitStringRoutine" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUnicodeStringToEightBitStringRoutine h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserInfoWord" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserInfoWord h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserOverrideString" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserOverrideString h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserOverrideWord" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserOverrideWord h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetWindowsAccountDomainSid" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetWindowsAccountDomainSid h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetWsChanges" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetWsChanges h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetWsChangesEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetWsChangesEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GuardCheckLongJumpTarget" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GuardCheckLongJumpTarget arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HasPolicyForegroundProcessingCompletedInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!HasPolicyForegroundProcessingCompletedInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HashData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!HashData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ImpersonateAnonymousToken" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ImpersonateAnonymousToken h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ImpersonateLoggedOnUser" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!ImpersonateLoggedOnUser");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ImpersonateNamedPipeClient" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ImpersonateNamedPipeClient h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ImpersonateSelf" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ImpersonateSelf arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IncrementPackageStatusVersion" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!IncrementPackageStatusVersion arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeAcl" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(emu, "kernelbase!InitializeAcl p1:0x{:x} p2:0x{:x}", p1, p2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeProcessForWsWatch" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeProcessForWsWatch h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeSecurityDescriptor" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!InitializeSecurityDescriptor p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeSid" => {
+            let sid_ptr = emu.regs().rcx;
+            let authority_ptr = emu.regs().rdx;
+            let sub_count = emu.regs().r8 as u8;
+            if sid_ptr != 0 {
+                emu.maps.write_byte(sid_ptr, 1); // Revision = 1
+                emu.maps.write_byte(sid_ptr + 1, sub_count);
+                if authority_ptr != 0 {
+                    for i in 0..6u64 {
+                        let b = emu.maps.read_byte(authority_ptr + i).unwrap_or(0);
+                        emu.maps.write_byte(sid_ptr + 2 + i, b);
+                    }
+                }
+                for i in 0..sub_count as u64 {
+                    emu.maps.write_dword(sid_ptr + 8 + i * 4, 0);
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!InitializeSid ptr:0x{:x} auth:0x{:x} subs:{}",
+                sid_ptr,
+                authority_ptr,
+                sub_count
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InternalLcidToName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InternalLcidToName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumCalendarInfo" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumCalendarInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumDateFormats" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumDateFormats arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumLanguageGroupLocales" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumLanguageGroupLocales arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumSystemCodePages" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumSystemCodePages arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumSystemLanguageGroups" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumSystemLanguageGroups arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumSystemLocales" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumSystemLocales arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumTimeFormats" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumTimeFormats arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Internal_EnumUILanguages" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Internal_EnumUILanguages arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InternetTimeFromSystemTimeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!InternetTimeFromSystemTimeA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InternetTimeFromSystemTimeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!InternetTimeFromSystemTimeW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InternetTimeToSystemTimeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!InternetTimeToSystemTimeA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InternetTimeToSystemTimeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!InternetTimeToSystemTimeW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InvalidateAppModelVersionCache" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InvalidateAppModelVersionCache arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsApiSetImplemented" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsApiSetImplemented 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharAlphaA" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_string(str_ptr);
+            log_red!(emu, "kernelbase!IsCharAlphaA '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharAlphaNumericW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(
+                emu,
+                "kernelbase!IsCharAlphaNumericW '{}' 0x{:x}",
+                name,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharAlphaW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(emu, "kernelbase!IsCharAlphaW '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharBlankW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!IsCharBlankW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharCntrlW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!IsCharCntrlW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharDigitW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!IsCharDigitW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharLowerA" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_string(str_ptr);
+            log_red!(emu, "kernelbase!IsCharLowerA '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharLowerW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(emu, "kernelbase!IsCharLowerW '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharPunctW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!IsCharPunctW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharSpaceA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!IsCharSpaceA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharSpaceW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!IsCharSpaceW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharUpperA" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_string(str_ptr);
+            log_red!(emu, "kernelbase!IsCharUpperA '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharUpperW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(emu, "kernelbase!IsCharUpperW '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsCharXDigitW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!IsCharXDigitW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsDeveloperModeEnabled" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsDeveloperModeEnabled 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsDeveloperModePolicyApplied" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsDeveloperModePolicyApplied 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsInternetESCEnabled" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsInternetESCEnabled 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsMrtResourceRedirectionEnabled" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsMrtResourceRedirectionEnabled 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsOnDemandRegistrationSupportedForExtensionCategory" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsOnDemandRegistrationSupportedForExtensionCategory 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsSideloadingEnabled" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsSideloadingEnabled 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsSideloadingPolicyApplied" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsSideloadingPolicyApplied 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsSyncForegroundPolicyRefresh" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsSyncForegroundPolicyRefresh 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsTimeZoneRedirectionEnabled" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsTimeZoneRedirectionEnabled 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsTokenRestricted" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsTokenRestricted 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidAcl" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsValidAcl 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidRelativeSecurityDescriptor" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsValidRelativeSecurityDescriptor 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidSecurityDescriptor" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsValidSecurityDescriptor 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidSid" => {
+            let p_sid = emu.regs().rcx;
+            let valid = if p_sid != 0 {
+                let revision = emu.maps.read_byte(p_sid).unwrap_or(0);
+                let sub_count = emu.maps.read_byte(p_sid + 1).unwrap_or(0);
+                if revision == 1 && sub_count <= 15 {
+                    1u64
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            log_red!(emu, "kernelbase!IsValidSid sid:0x{:x} => {}", p_sid, valid);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = valid;
+        }
+        "IsWellKnownSid" => {
+            let sid = emu.regs().rcx;
+            let well_known_type = emu.regs().rdx as u32;
+            let result = if sid != 0 {
+                let revision = emu.maps.read_byte(sid).unwrap_or(0);
+                let sub_count = emu.maps.read_byte(sid + 1).unwrap_or(0);
+                if revision == 1 && sub_count > 0 {
+                    let sub0 = emu.maps.read_dword(sid + 8).unwrap_or(0);
+                    match well_known_type {
+                        0 => sub0 == 0,
+                        1 => sub0 == 0,
+                        22 => sub0 == 544,
+                        _ => false,
+                    }
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+            log_red!(
+                emu,
+                "kernelbase!IsWellKnownSid sid:0x{:x} type:{} => {}",
+                sid,
+                well_known_type,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if result { 1 } else { 0 };
+        }
+        "KernelBaseGetGlobalData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!KernelBaseGetGlobalData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "KernelbasePostInit" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!KernelbasePostInit arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LeaveCriticalPolicySectionInternal" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!LeaveCriticalPolicySectionInternal 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadEnclaveImageA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!LoadEnclaveImageA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadEnclaveImageW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!LoadEnclaveImageW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadStringA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!LoadStringA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadStringByReference" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LoadStringByReference arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadStringW" => {
+            let hinstance = emu.regs().rcx;
+            let id = emu.regs().rdx as u32;
+            let buffer_ptr = emu.regs().r8;
+            let buffer_len = emu.regs().r9 as u32;
+            log_red!(
+                emu,
+                "kernelbase!LoadStringW inst:0x{:x} id:{} buf:0x{:x} len:{}",
+                hinstance,
+                id,
+                buffer_ptr,
+                buffer_len
+            );
+            if buffer_ptr != 0 && buffer_len > 0 {
+                let fake = format!("String_{}", id);
+                emu.maps.write_wide_string(buffer_ptr, &fake);
+                emu.regs_mut().rax = fake.len() as u64;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "LogStagedFeatureUsage" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LogStagedFeatureUsage arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MakeAbsoluteSD" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MakeAbsoluteSD arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MakeAbsoluteSD2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MakeAbsoluteSD2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MakeSelfRelativeSD" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MakeSelfRelativeSD arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapGenericMask" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapGenericMask arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapPredefinedHandleInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapPredefinedHandleInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapViewOfFile3" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapViewOfFile3 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapViewOfFile3FromApp" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapViewOfFile3FromApp h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapViewOfFileNuma2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapViewOfFileNuma2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MoveFileFromAppW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let dst = emu.maps.read_wide_string(dst_ptr);
+            log_red!(emu, "kernelbase!MoveFileFromAppW '{}' -> '{}'", src, dst);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MoveFileWithProgressTransactedW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let dst = emu.maps.read_wide_string(dst_ptr);
+            log_red!(
+                emu,
+                "kernelbase!MoveFileWithProgressTransactedW '{}' -> '{}'",
+                src,
+                dst
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MsixIsSystemPackageByAppUserModelId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MsixIsSystemPackageByAppUserModelId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MsixIsSystemPackageByPackageFullName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MsixIsSystemPackageByPackageFullName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NamedPipeEventEnum" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!NamedPipeEventEnum 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NamedPipeEventSelect" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!NamedPipeEventSelect 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsDispatchAnsiEnumProc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsDispatchAnsiEnumProc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsGetACPFromLocale" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsGetACPFromLocale arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsIsUserDefaultLocale" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsIsUserDefaultLocale arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsValidateLocale" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsValidateLocale arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NotifyFeatureToggleUsage" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!NotifyFeatureToggleUsage 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NotifyRedirectedStringChange" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!NotifyRedirectedStringChange 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ObjectCloseAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ObjectCloseAuditAlarmW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ObjectDeleteAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ObjectDeleteAuditAlarmW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ObjectOpenAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ObjectOpenAuditAlarmW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ObjectPrivilegeAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ObjectPrivilegeAuditAlarmW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "OpenCommPort" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenCommPort");
+            log_red!(emu, "kernelbase!OpenCommPort => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenDedicatedMemoryPartition" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenDedicatedMemoryPartition");
+            log_red!(
+                emu,
+                "kernelbase!OpenDedicatedMemoryPartition => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenFileMappingFromApp" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenFileMappingFromApp");
+            log_red!(emu, "kernelbase!OpenFileMappingFromApp => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenGlobalizationUserSettingsKey" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenGlobalizationUserSettingsKey");
+            log_red!(
+                emu,
+                "kernelbase!OpenGlobalizationUserSettingsKey => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenPackageInfoByFullNameForMachine" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenPackageInfoByFullNameForMachine");
+            log_red!(
+                emu,
+                "kernelbase!OpenPackageInfoByFullNameForMachine => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenPackageInfoByFullNameForUser" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenPackageInfoByFullNameForUser");
+            log_red!(
+                emu,
+                "kernelbase!OpenPackageInfoByFullNameForUser => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenRegKey" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenRegKey");
+            log_red!(emu, "kernelbase!OpenRegKey => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenStateAtom" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenStateAtom");
+            log_red!(emu, "kernelbase!OpenStateAtom => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenStateExplicitForUserSid" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenStateExplicitForUserSid");
+            log_red!(
+                emu,
+                "kernelbase!OpenStateExplicitForUserSid => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenStateExplicitForUserSidString" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenStateExplicitForUserSidString");
+            log_red!(
+                emu,
+                "kernelbase!OpenStateExplicitForUserSidString => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OverrideRoamingDataModificationTimesInRange" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!OverrideRoamingDataModificationTimesInRange arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFamilyNameFromFullNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PackageFamilyNameFromFullNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFamilyNameFromIdA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PackageFamilyNameFromIdA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFamilyNameFromProductId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageFamilyNameFromProductId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFullNameFromIdA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PackageFullNameFromIdA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFullNameFromProductId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageFullNameFromProductId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageIdFromFullNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PackageIdFromFullNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageIdFromProductId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageIdFromProductId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageIsEffectiveSupportedUsersMultiple" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageIsEffectiveSupportedUsersMultiple arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageNameAndPublisherIdFromFamilyNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PackageNameAndPublisherIdFromFamilyNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackagePublisherAddUserIfNecessary" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackagePublisherAddUserIfNecessary arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackagePublisherIdFromPublisher" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackagePublisherIdFromPublisher arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageRelativeApplicationIdFromProductId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageRelativeApplicationIdFromProductId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageSidFromFamilyName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageSidFromFamilyName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageSidFromProductId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageSidFromProductId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ParseApplicationUserModelIdA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ParseApplicationUserModelIdA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ParseURLA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!ParseURLA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ParseURLW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!ParseURLW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAddBackslashA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathAddBackslashA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAddBackslashW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathAddBackslashW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAddExtensionA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathAddExtensionA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAddExtensionW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathAddExtensionW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAllocCanonicalize" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PathAllocCanonicalize arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAllocCombine" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PathAllocCombine arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAppendA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathAppendA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathAppendW" => {
+            let path_ptr = emu.regs().rcx;
+            let more_ptr = emu.regs().rdx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let more = if more_ptr != 0 {
+                emu.maps.read_wide_string(more_ptr)
+            } else {
+                String::new()
+            };
+            let result = if path.is_empty() {
+                more.clone()
+            } else if more.is_empty() {
+                path.clone()
+            } else {
+                let sep = if path.ends_with('\\') || path.ends_with('/') {
+                    ""
+                } else {
+                    "\\"
+                };
+                format!("{}{}{}", path, sep, more)
+            };
+            if path_ptr != 0 {
+                emu.maps.write_wide_string(path_ptr, &result);
+            }
+            log_red!(
+                emu,
+                "kernelbase!PathAppendW '{}' + '{}' => '{}'",
+                path,
+                more,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathCanonicalizeA" => {
+            let dst_ptr = emu.regs().rcx;
+            let src_ptr = emu.regs().rdx;
+            let src = if src_ptr != 0 {
+                emu.maps.read_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let mut parts: Vec<&str> = Vec::new();
+            for component in src.split(|c| c == '\\' || c == '/') {
+                match component {
+                    "." | "" => {}
+                    ".." => {
+                        parts.pop();
+                    }
+                    _ => parts.push(component),
+                }
+            }
+            let canonical = parts.join("\\");
+            let result = if src.starts_with("\\\\") {
+                format!("\\\\{}", canonical)
+            } else if src.len() >= 3
+                && src.as_bytes().get(1) == Some(&b':')
+                && src.as_bytes().get(2) == Some(&b'\\')
+            {
+                format!("{}:\\{}", &src[..1], canonical)
+            } else {
+                canonical
+            };
+            if dst_ptr != 0 {
+                emu.maps.write_string(dst_ptr, &result);
+            }
+            log_red!(
+                emu,
+                "kernelbase!PathCanonicalizeA '{}' => '{}'",
+                src,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathCanonicalizeW" => {
+            let dst_ptr = emu.regs().rcx;
+            let src_ptr = emu.regs().rdx;
+            let src = if src_ptr != 0 {
+                emu.maps.read_wide_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let mut parts: Vec<&str> = Vec::new();
+            for component in src.split(|c| c == '\\' || c == '/') {
+                match component {
+                    "." | "" => {}
+                    ".." => {
+                        parts.pop();
+                    }
+                    _ => parts.push(component),
+                }
+            }
+            let canonical = parts.join("\\");
+            let result = if src.starts_with("\\\\") {
+                format!("\\\\{}", canonical)
+            } else if src.len() >= 2
+                && src.as_bytes().get(1) == Some(&b':')
+                && src.as_bytes().get(2) == Some(&b'\\')
+            {
+                format!("{}:\\{}", &src[..1], canonical)
+            } else {
+                canonical
+            };
+            if dst_ptr != 0 {
+                emu.maps.write_wide_string(dst_ptr, &result);
+            }
+            log_red!(
+                emu,
+                "kernelbase!PathCanonicalizeW '{}' => '{}'",
+                src,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathCchAddBackslash" | "PathCchAddBackslashEx" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let mut result_path = path.clone();
+            if !result_path.ends_with('\\') && !result_path.is_empty() {
+                result_path.push('\\');
+            }
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(emu, "kernelbase!{} '{}' => '{}'", api, path, result_path);
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchAddExtension" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let ext_ptr = emu.regs().r8;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let ext = emu.maps.read_wide_string(ext_ptr);
+            let result_path = if path.contains('.') {
+                path.clone()
+            } else {
+                let dot_ext = if ext.starts_with('.') {
+                    ext.clone()
+                } else {
+                    format!(".{}", ext)
+                };
+                format!("{}{}", path, dot_ext)
+            };
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!PathCchAddExtension '{}' + '{}' => '{}'",
+                path,
+                ext,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchAppend" | "PathCchAppendEx" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let more_ptr = emu.regs().r8;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let more = emu.maps.read_wide_string(more_ptr);
+            let result_path =
+                if more.starts_with('\\') || (more.len() >= 2 && more.as_bytes()[1] == b':') {
+                    more.clone()
+                } else if path.ends_with('\\') {
+                    format!("{}{}", path, more)
+                } else {
+                    format!("{}\\{}", path, more)
+                };
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!{} '{}' + '{}' => '{}'",
+                api,
+                path,
+                more,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchCanonicalize" | "PathCchCanonicalizeEx" => {
+            let out_ptr = emu.regs().rcx;
+            let cch_out = emu.regs().rdx as usize;
+            let path_ptr = emu.regs().r8;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let mut parts: Vec<&str> = Vec::new();
+            for part in path.split('\\') {
+                match part {
+                    "." => {}
+                    ".." => {
+                        parts.pop();
+                    }
+                    _ => parts.push(part),
+                }
+            }
+            let result_path = parts.join("\\");
+            emu.maps.write_wide_string(out_ptr, &result_path);
+            log_red!(emu, "kernelbase!{} '{}' => '{}'", api, path, result_path);
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchCombine" | "PathCchCombineEx" => {
+            let out_ptr = emu.regs().rcx;
+            let cch_out = emu.regs().rdx as usize;
+            let dir_ptr = emu.regs().r8;
+            let file_ptr = emu.regs().r9;
+            let dir = emu.maps.read_wide_string(dir_ptr);
+            let file = emu.maps.read_wide_string(file_ptr);
+            let result_path =
+                if file.starts_with('\\') || (file.len() >= 2 && file.as_bytes()[1] == b':') {
+                    file.clone()
+                } else if dir.ends_with('\\') {
+                    format!("{}{}", dir, file)
+                } else {
+                    format!("{}\\{}", dir, file)
+                };
+            emu.maps.write_wide_string(out_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!{} '{}' + '{}' => '{}'",
+                api,
+                dir,
+                file,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchFindExtension" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let ext_out = emu.regs().r8;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let ext_offset = if let Some(pos) = path.rfind('.') {
+                if path[pos..].contains('\\') {
+                    path.len()
+                } else {
+                    pos
+                }
+            } else {
+                path.len()
+            };
+            let result_addr = path_ptr + (ext_offset as u64) * 2;
+            if ext_out != 0 {
+                emu.maps.write_qword(ext_out, result_addr);
+            }
+            log_red!(
+                emu,
+                "kernelbase!PathCchFindExtension '{}' ext_offset:{}",
+                path,
+                ext_offset
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchIsRoot" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let is_root = path == "\\" || (path.len() == 3 && path.ends_with(":\\"));
+            log_red!(emu, "kernelbase!PathCchIsRoot '{}' => {}", path, is_root);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_root { 1 } else { 0 };
+        }
+        "PathCchRemoveBackslash" | "PathCchRemoveBackslashEx" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let result_path = if path.len() > 1 && path.ends_with('\\') {
+                path.trim_end_matches('\\').to_string()
+            } else {
+                path.clone()
+            };
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(emu, "kernelbase!{} '{}' => '{}'", api, path, result_path);
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchRemoveExtension" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let result_path = if let Some(pos) = path.rfind('.') {
+                if path[pos..].contains('\\') {
+                    path.clone()
+                } else {
+                    path[..pos].to_string()
+                }
+            } else {
+                path.clone()
+            };
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!PathCchRemoveExtension '{}' => '{}'",
+                path,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchRemoveFileSpec" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let result_path = if let Some(pos) = path.rfind('\\') {
+                path[..pos].to_string()
+            } else {
+                String::new()
+            };
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!PathCchRemoveFileSpec '{}' => '{}'",
+                path,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchRenameExtension" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let ext_ptr = emu.regs().r8;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let ext = emu.maps.read_wide_string(ext_ptr);
+            let base = if let Some(pos) = path.rfind('.') {
+                if path[pos..].contains('\\') {
+                    path.clone()
+                } else {
+                    path[..pos].to_string()
+                }
+            } else {
+                path.clone()
+            };
+            let dot_ext = if ext.starts_with('.') {
+                ext.clone()
+            } else {
+                format!(".{}", ext)
+            };
+            let result_path = format!("{}{}", base, dot_ext);
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!PathCchRenameExtension '{}' + '{}' => '{}'",
+                path,
+                ext,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchSkipRoot" => {
+            let path_ptr = emu.regs().rcx;
+            let result_ptr = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let skip =
+                if path.len() >= 3 && path.as_bytes()[1] == b':' && path.as_bytes()[2] == b'\\' {
+                    3
+                } else if path.starts_with("\\\\") {
+                    if let Some(pos) = path[2..].find('\\') {
+                        pos + 3
+                    } else {
+                        path.len()
+                    }
+                } else if path.starts_with('\\') {
+                    1
+                } else {
+                    0
+                };
+            let after_root = path_ptr + (skip as u64) * 2;
+            if result_ptr != 0 {
+                emu.maps.write_qword(result_ptr, after_root);
+            }
+            log_red!(emu, "kernelbase!PathCchSkipRoot '{}' skip:{}", path, skip);
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchStripPrefix" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let result_path = if path.starts_with("\\\\?\\") {
+                path[4..].to_string()
+            } else {
+                path.clone()
+            };
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!PathCchStripPrefix '{}' => '{}'",
+                path,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCchStripToRoot" => {
+            let path_ptr = emu.regs().rcx;
+            let cch_path = emu.regs().rdx as usize;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let result_path =
+                if path.len() >= 3 && path.as_bytes()[1] == b':' && path.as_bytes()[2] == b'\\' {
+                    path[..3].to_string()
+                } else if path.starts_with('\\') {
+                    "\\".to_string()
+                } else {
+                    path.clone()
+                };
+            emu.maps.write_wide_string(path_ptr, &result_path);
+            log_red!(
+                emu,
+                "kernelbase!PathCchStripToRoot '{}' => '{}'",
+                path,
+                result_path
+            );
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "PathCommonPrefixA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathCommonPrefixA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathCommonPrefixW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathCommonPrefixW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathCreateFromUrlA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathCreateFromUrlA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathCreateFromUrlAlloc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PathCreateFromUrlAlloc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathCreateFromUrlW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathCreateFromUrlW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathFileExistsA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathFileExistsA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathFileExistsW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathFileExistsW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathFindExtensionA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let filename = path
+                .rfind('\\')
+                .or_else(|| path.rfind('/'))
+                .map(|p| &path[p + 1..])
+                .unwrap_or(&path);
+            if let Some(dot_pos) = filename.rfind('.') {
+                let abs_dot = path.len() - filename.len() + dot_pos;
+                emu.set_last_error(0);
+                emu.regs_mut().rax = path_ptr + abs_dot as u64;
+            } else {
+                emu.regs_mut().rax = path_ptr + path.len() as u64;
+            }
+            log_red!(emu, "kernelbase!PathFindExtensionA '{}'", path);
+        }
+        "PathFindExtensionW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let filename = path
+                .rfind('\\')
+                .or_else(|| path.rfind('/'))
+                .map(|p| &path[p + 1..])
+                .unwrap_or(&path);
+            if let Some(dot_pos) = filename.rfind('.') {
+                let offset_in_filename =
+                    filename[..dot_pos].encode_utf16().count() + path.len() - filename.len();
+                let ext_offset_chars = path[..path.len() - filename.len()].encode_utf16().count()
+                    + filename[..dot_pos].encode_utf16().count();
+                emu.set_last_error(0);
+                emu.regs_mut().rax = path_ptr + (ext_offset_chars as u64) * 2;
+            } else {
+                let total_chars: u64 = path.encode_utf16().count() as u64;
+                emu.regs_mut().rax = path_ptr + total_chars * 2;
+            }
+            log_red!(emu, "kernelbase!PathFindExtensionW '{}'", path);
+        }
+        "PathFindFileNameA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernelbase!PathFindFileNameA path: '{}'", path);
+            if let Some(pos) = path.rfind('\\').or_else(|| path.rfind('/')) {
+                emu.set_last_error(0);
+                emu.regs_mut().rax = path_ptr + (pos as u64) + 1;
+            } else {
+                emu.regs_mut().rax = path_ptr;
+            }
+        }
+        "PathFindFileNameW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernelbase!PathFindFileNameW path: '{}'", path);
+            if let Some(pos) = path.rfind('\\').or_else(|| path.rfind('/')) {
+                emu.set_last_error(0);
+                emu.regs_mut().rax = path_ptr + ((pos as u64) + 1) * 2;
+            } else {
+                emu.regs_mut().rax = path_ptr;
+            }
+        }
+        "PathFindNextComponentA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathFindNextComponentA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathFindNextComponentW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathFindNextComponentW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathGetArgsA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathGetArgsA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathGetArgsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathGetArgsW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathGetCharTypeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathGetCharTypeA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathGetCharTypeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathGetCharTypeW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathGetDriveNumberA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let result = if path.len() >= 2 && path.as_bytes()[1] == b':' {
+                let ch = path.as_bytes()[0].to_ascii_uppercase();
+                if (b'A'..=b'Z').contains(&ch) {
+                    (ch - b'A') as u64
+                } else {
+                    u64::MAX
+                }
+            } else {
+                u64::MAX
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathGetDriveNumberA '{}' => {}",
+                path,
+                result as i64
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        "PathGetDriveNumberW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let result = if path.len() >= 2 && path.as_bytes()[1] == b':' {
+                let ch = path.as_bytes()[0].to_ascii_uppercase();
+                if (b'A'..=b'Z').contains(&ch) {
+                    (ch - b'A') as u64
+                } else {
+                    u64::MAX
+                }
+            } else {
+                u64::MAX
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathGetDriveNumberW '{}' => {}",
+                path,
+                result as i64
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        "PathIsFileSpecA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_filespec = !path.contains('\\') && !path.contains('/') && !path.contains(':');
+            log_red!(
+                emu,
+                "kernelbase!PathIsFileSpecA '{}' => {}",
+                path,
+                is_filespec
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_filespec { 1 } else { 0 };
+        }
+        "PathIsFileSpecW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_filespec = !path.contains('\\') && !path.contains('/') && !path.contains(':');
+            log_red!(
+                emu,
+                "kernelbase!PathIsFileSpecW '{}' => {}",
+                path,
+                is_filespec
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_filespec { 1 } else { 0 };
+        }
+        "PathIsLFNFileSpecA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let filename = path
+                .rfind('\\')
+                .or_else(|| path.rfind('/'))
+                .map(|p| &path[p + 1..])
+                .unwrap_or(&path);
+            let is_lfn = filename.len() > 12
+                || filename.contains(' ')
+                || filename.chars().filter(|c| *c == '.').count() > 1;
+            log_red!(
+                emu,
+                "kernelbase!PathIsLFNFileSpecA '{}' => {}",
+                path,
+                is_lfn
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_lfn { 1 } else { 0 };
+        }
+        "PathIsLFNFileSpecW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let filename = path
+                .rfind('\\')
+                .or_else(|| path.rfind('/'))
+                .map(|p| &path[p + 1..])
+                .unwrap_or(&path);
+            let is_lfn = filename.len() > 12
+                || filename.contains(' ')
+                || filename.chars().filter(|c| *c == '.').count() > 1;
+            log_red!(
+                emu,
+                "kernelbase!PathIsLFNFileSpecW '{}' => {}",
+                path,
+                is_lfn
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_lfn { 1 } else { 0 };
+        }
+        "PathIsPrefixA" => {
+            let prefix_ptr = emu.regs().rcx;
+            let path_ptr = emu.regs().rdx;
+            let prefix = if prefix_ptr != 0 {
+                emu.maps.read_string(prefix_ptr)
+            } else {
+                String::new()
+            };
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_prefix = path.to_lowercase().starts_with(&prefix.to_lowercase());
+            log_red!(
+                emu,
+                "kernelbase!PathIsPrefixA '{}' of '{}' => {}",
+                prefix,
+                path,
+                is_prefix
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_prefix { 1 } else { 0 };
+        }
+        "PathIsPrefixW" => {
+            let prefix_ptr = emu.regs().rcx;
+            let path_ptr = emu.regs().rdx;
+            let prefix = if prefix_ptr != 0 {
+                emu.maps.read_wide_string(prefix_ptr)
+            } else {
+                String::new()
+            };
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_prefix = path.to_lowercase().starts_with(&prefix.to_lowercase());
+            log_red!(
+                emu,
+                "kernelbase!PathIsPrefixW '{}' of '{}' => {}",
+                prefix,
+                path,
+                is_prefix
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_prefix { 1 } else { 0 };
+        }
+        "PathIsRelativeA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            let is_relative =
+                !path.starts_with("\\") && !path.contains(":\\") && !path.starts_with("/");
+            log_red!(
+                emu,
+                "kernelbase!PathIsRelativeA '{}' => {}",
+                path,
+                is_relative
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_relative { 1 } else { 0 };
+        }
+        "PathIsRelativeW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let is_relative =
+                !path.starts_with("\\") && !path.contains(":\\") && !path.starts_with("/");
+            log_red!(
+                emu,
+                "kernelbase!PathIsRelativeW '{}' => {}",
+                path,
+                is_relative
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_relative { 1 } else { 0 };
+        }
+        "PathIsRootA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_root = path == "\\"
+                || (path.len() == 3 && path.as_bytes()[1] == b':' && path.as_bytes()[2] == b'\\');
+            log_red!(emu, "kernelbase!PathIsRootA '{}' => {}", path, is_root);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_root { 1 } else { 0 };
+        }
+        "PathIsRootW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_root = path == "\\"
+                || (path.len() == 3 && path.as_bytes()[1] == b':' && path.as_bytes()[2] == b'\\');
+            log_red!(emu, "kernelbase!PathIsRootW '{}' => {}", path, is_root);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_root { 1 } else { 0 };
+        }
+        "PathIsSameRootA" => {
+            let path1_ptr = emu.regs().rcx;
+            let path2_ptr = emu.regs().rdx;
+            let path1 = if path1_ptr != 0 {
+                emu.maps.read_string(path1_ptr)
+            } else {
+                String::new()
+            };
+            let path2 = if path2_ptr != 0 {
+                emu.maps.read_string(path2_ptr)
+            } else {
+                String::new()
+            };
+            let root1 = path1.get(..3).unwrap_or("").to_lowercase();
+            let root2 = path2.get(..3).unwrap_or("").to_lowercase();
+            let same = !root1.is_empty() && root1 == root2;
+            log_red!(
+                emu,
+                "kernelbase!PathIsSameRootA '{}' vs '{}' => {}",
+                path1,
+                path2,
+                same
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if same { 1 } else { 0 };
+        }
+        "PathIsSameRootW" => {
+            let path1_ptr = emu.regs().rcx;
+            let path2_ptr = emu.regs().rdx;
+            let path1 = if path1_ptr != 0 {
+                emu.maps.read_wide_string(path1_ptr)
+            } else {
+                String::new()
+            };
+            let path2 = if path2_ptr != 0 {
+                emu.maps.read_wide_string(path2_ptr)
+            } else {
+                String::new()
+            };
+            let root1 = path1.get(..3).unwrap_or("").to_lowercase();
+            let root2 = path2.get(..3).unwrap_or("").to_lowercase();
+            let same = !root1.is_empty() && root1 == root2;
+            log_red!(
+                emu,
+                "kernelbase!PathIsSameRootW '{}' vs '{}' => {}",
+                path1,
+                path2,
+                same
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if same { 1 } else { 0 };
+        }
+        "PathIsUNCA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_unc = path.starts_with("\\\\");
+            log_red!(emu, "kernelbase!PathIsUNCA '{}' => {}", path, is_unc);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_unc { 1 } else { 0 };
+        }
+        "PathIsUNCEx" => {
+            let path_ptr = emu.regs().rcx;
+            let server_ptr_ptr = emu.regs().rdx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_unc = path.starts_with("\\\\");
+            if is_unc && server_ptr_ptr != 0 {
+                emu.maps.write_qword(server_ptr_ptr, path_ptr + 4);
+            }
+            log_red!(emu, "kernelbase!PathIsUNCEx '{}' => {}", path, is_unc);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_unc { 1 } else { 0 };
+        }
+        "PathIsUNCServerA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_server = path.starts_with("\\\\") && !path[2..].contains('\\');
+            log_red!(
+                emu,
+                "kernelbase!PathIsUNCServerA '{}' => {}",
+                path,
+                is_server
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_server { 1 } else { 0 };
+        }
+        "PathIsUNCServerShareA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_share = if path.starts_with("\\\\") {
+                let rest = &path[2..];
+                rest.matches('\\').count() == 1 && !rest.ends_with('\\')
+            } else {
+                false
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathIsUNCServerShareA '{}' => {}",
+                path,
+                is_share
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_share { 1 } else { 0 };
+        }
+        "PathIsUNCServerShareW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_share = if path.starts_with("\\\\") {
+                let rest = &path[2..];
+                rest.matches('\\').count() == 1 && !rest.ends_with('\\')
+            } else {
+                false
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathIsUNCServerShareW '{}' => {}",
+                path,
+                is_share
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_share { 1 } else { 0 };
+        }
+        "PathIsUNCServerW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_server = path.starts_with("\\\\") && !path[2..].contains('\\');
+            log_red!(
+                emu,
+                "kernelbase!PathIsUNCServerW '{}' => {}",
+                path,
+                is_server
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_server { 1 } else { 0 };
+        }
+        "PathIsUNCW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_unc = path.starts_with("\\\\");
+            log_red!(emu, "kernelbase!PathIsUNCW '{}' => {}", path, is_unc);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_unc { 1 } else { 0 };
+        }
+        "PathIsURLA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_url = path.contains("://");
+            log_red!(emu, "kernelbase!PathIsURLA '{}' => {}", path, is_url);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_url { 1 } else { 0 };
+        }
+        "PathIsURLW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            let is_url = path.contains("://");
+            log_red!(emu, "kernelbase!PathIsURLW '{}' => {}", path, is_url);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = if is_url { 1 } else { 0 };
+        }
+        "PathIsValidCharA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathIsValidCharA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathIsValidCharW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathIsValidCharW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathMatchSpecA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathMatchSpecA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathMatchSpecExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathMatchSpecExA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathMatchSpecExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathMatchSpecExW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathMatchSpecW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathMatchSpecW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathParseIconLocationA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathParseIconLocationA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathParseIconLocationW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathParseIconLocationW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathQuoteSpacesA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathQuoteSpacesA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathQuoteSpacesW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathQuoteSpacesW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathRelativePathToA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathRelativePathToA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathRelativePathToW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathRelativePathToW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathRemoveBackslashA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            if path.ends_with('\\') {
+                let end_pos = path.len() - 1;
+                emu.maps.write_byte(path_ptr + end_pos as u64, 0);
+                emu.regs_mut().rax = path_ptr + end_pos as u64;
+            } else {
+                let end_pos = path.len();
+                emu.regs_mut().rax = path_ptr + end_pos as u64;
+            }
+            log_red!(emu, "kernelbase!PathRemoveBackslashA '{}'", path);
+        }
+        "PathRemoveBackslashW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            if path.ends_with('\\') {
+                let char_count = path.encode_utf16().count();
+                let end_pos = (char_count - 1) * 2;
+                emu.maps.write_word(path_ptr + end_pos as u64, 0);
+                emu.regs_mut().rax = path_ptr + end_pos as u64;
+            } else {
+                let char_count = path.encode_utf16().count();
+                emu.regs_mut().rax = path_ptr + (char_count * 2) as u64;
+            }
+            log_red!(emu, "kernelbase!PathRemoveBackslashW '{}'", path);
+        }
+        "PathRemoveBlanksA" => {
+            let path_ptr = emu.regs().rcx;
+            if path_ptr != 0 {
+                let path = emu.maps.read_string(path_ptr);
+                let trimmed = path.trim();
+                emu.maps.write_string(path_ptr, trimmed);
+                log_red!(
+                    emu,
+                    "kernelbase!PathRemoveBlanksA '{}' => '{}'",
+                    path,
+                    trimmed
+                );
+            }
+        }
+        "PathRemoveBlanksW" => {
+            let path_ptr = emu.regs().rcx;
+            if path_ptr != 0 {
+                let path = emu.maps.read_wide_string(path_ptr);
+                let trimmed = path.trim().to_string();
+                emu.maps.write_wide_string(path_ptr, &trimmed);
+                log_red!(
+                    emu,
+                    "kernelbase!PathRemoveBlanksW '{}' => '{}'",
+                    path,
+                    trimmed
+                );
+            }
+        }
+        "PathRemoveExtensionA" => {
+            let path_ptr = emu.regs().rcx;
+            if path_ptr != 0 {
+                let path = emu.maps.read_string(path_ptr);
+                let filename = path
+                    .rfind('\\')
+                    .or_else(|| path.rfind('/'))
+                    .map(|p| &path[p + 1..])
+                    .unwrap_or(&path);
+                if let Some(dot_pos) = filename.rfind('.') {
+                    let abs_dot = path.len() - filename.len() + dot_pos;
+                    emu.maps.write_byte(path_ptr + abs_dot as u64, 0);
+                }
+                log_red!(emu, "kernelbase!PathRemoveExtensionA '{}'", path);
+            }
+        }
+        "PathRemoveExtensionW" => {
+            let path_ptr = emu.regs().rcx;
+            if path_ptr != 0 {
+                let path = emu.maps.read_wide_string(path_ptr);
+                let filename = path
+                    .rfind('\\')
+                    .or_else(|| path.rfind('/'))
+                    .map(|p| &path[p + 1..])
+                    .unwrap_or(&path);
+                if let Some(dot_pos) = filename.rfind('.') {
+                    let prefix_chars = path[..path.len() - filename.len()].encode_utf16().count();
+                    let dot_chars = filename[..dot_pos].encode_utf16().count();
+                    let abs_char_pos = prefix_chars + dot_chars;
+                    emu.maps.write_word(path_ptr + (abs_char_pos as u64) * 2, 0);
+                }
+                log_red!(emu, "kernelbase!PathRemoveExtensionW '{}'", path);
+            }
+        }
+        "PathRemoveFileSpecA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_string(path_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernelbase!PathRemoveFileSpecA path: '{}'", path);
+            if let Some(pos) = path.rfind('\\').or_else(|| path.rfind('/')) {
+                emu.maps.write_byte(path_ptr + pos as u64, 0);
+                emu.regs_mut().rax = 1; // TRUE, spec removed
+            } else {
+                emu.regs_mut().rax = 0; // FALSE
+            }
+        }
+        "PathRemoveFileSpecW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = if path_ptr != 0 {
+                emu.maps.read_wide_string(path_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernelbase!PathRemoveFileSpecW path: '{}'", path);
+            if let Some(pos) = path.rfind('\\').or_else(|| path.rfind('/')) {
+                emu.maps.write_word(path_ptr + (pos as u64) * 2, 0);
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "PathRenameExtensionA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathRenameExtensionA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathRenameExtensionW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathRenameExtensionW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathSearchAndQualifyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathSearchAndQualifyA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathSearchAndQualifyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathSearchAndQualifyW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathSkipRootA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathSkipRootA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathSkipRootW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathSkipRootW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathStripPathA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathStripPathA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathStripPathW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathStripPathW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathStripToRootA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathStripToRootA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathStripToRootW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathStripToRootW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathUnExpandEnvStringsA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathUnExpandEnvStringsA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathUnExpandEnvStringsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PathUnExpandEnvStringsW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathUnquoteSpacesA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathUnquoteSpacesA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PathUnquoteSpacesW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PathUnquoteSpacesW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwAddQueryItem" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwAddQueryItem arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwClearCounterSetSecurity" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwClearCounterSetSecurity arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwCollectData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwCollectData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwCompleteNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwCompleteNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwCreateNotifier" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwCreateNotifier arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwCreateQuery" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwCreateQuery arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwDisconnectCounterSet" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwDisconnectCounterSet arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwEnumerateInstances" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwEnumerateInstances arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwIsNotifierAlive" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwIsNotifierAlive arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwQueryCounterSetSecurity" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwQueryCounterSetSecurity arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwReadNotificationData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwReadNotificationData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwRegisterCounterSet" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwRegisterCounterSet arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwRemoveQueryItem" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwRemoveQueryItem arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwSendNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwSendNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwSendStatelessNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwSendStatelessNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwSetCounterSetSecurity" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwSetCounterSetSecurity arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PcwSetQueryItemUserData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PcwSetQueryItemUserData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfCreateInstance" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfCreateInstance arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfDecrementULongCounterValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfDecrementULongCounterValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfDecrementULongLongCounterValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfDecrementULongLongCounterValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfDeleteInstance" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfDeleteInstance arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfIncrementULongCounterValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfIncrementULongCounterValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfIncrementULongLongCounterValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfIncrementULongLongCounterValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfQueryInstance" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfQueryInstance arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfSetCounterRefValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfSetCounterRefValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfSetCounterSetInfo" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfSetCounterSetInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfSetULongCounterValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfSetULongCounterValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfSetULongLongCounterValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfSetULongLongCounterValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfStartProvider" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfStartProvider arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfStartProviderEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfStartProviderEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PerfStopProvider" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PerfStopProvider arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PoolPerAppKeyStateInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PoolPerAppKeyStateInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PrivilegeCheck" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PrivilegeCheck arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PrivilegedServiceAuditAlarmW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!PrivilegedServiceAuditAlarmW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ProductIdFromPackageFamilyName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ProductIdFromPackageFamilyName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmCreateKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmCreateKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmCreateKeyWithDynamicId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmCreateKeyWithDynamicId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmEqualApplication" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmEqualApplication arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmEqualPackage" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmEqualPackage arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmGetApplicationNameFromKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmGetApplicationNameFromKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmGetAumidFromKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmGetAumidFromKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmGetDynamicIdFromKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmGetDynamicIdFromKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmGetKeyFromProcess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmGetKeyFromProcess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmGetKeyFromToken" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmGetKeyFromToken h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmGetPackageFullNameFromKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmGetPackageFullNameFromKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmIsChildKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmIsChildKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmIsDynamicKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmIsDynamicKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PsmIsValidKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PsmIsValidKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PublishStateChangeNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PublishStateChangeNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PublisherFromPackageFullName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PublisherFromPackageFullName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QISearch" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QISearch arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryAuxiliaryCounterFrequency" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryAuxiliaryCounterFrequency h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryGlobalizationUserSettingsStatus" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryGlobalizationUserSettingsStatus h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryInterruptTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryInterruptTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryInterruptTimePrecise" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryInterruptTimePrecise h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryOptionalDelayLoadedAPI" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryOptionalDelayLoadedAPI h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryPartitionInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryPartitionInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuerySecurityAccessMask" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuerySecurityAccessMask h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryStateAtomValueInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryStateAtomValueInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryStateContainerCreatedNew" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryStateContainerCreatedNew h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryStateContainerItemInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryStateContainerItemInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryUnbiasedInterruptTimePrecise" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryUnbiasedInterruptTimePrecise h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryVirtualMemoryInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryVirtualMemoryInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryWorkingSet" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryWorkingSet h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryWorkingSetEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryWorkingSetEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkGetData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkGetData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkGetData2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkGetData2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabled" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabled arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabled2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabled2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabled3" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabled3 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabledForPackage" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabledForPackage arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabledForPackage2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabledForPackage2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabledForPackage3" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabledForPackage3 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabledForPackage4" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabledForPackage4 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QuirkIsEnabledForProcess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QuirkIsEnabledForProcess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RaiseCustomSystemEventTrigger" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!RaiseCustomSystemEventTrigger 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadStateAtomValue" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ReadStateAtomValue h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadStateContainerValue" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ReadStateContainerValue h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RecordFeatureUsage2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RecordFeatureUsage2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RefreshPackageInfo" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RefreshPackageInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RefreshPolicyExInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RefreshPolicyExInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RefreshPolicyInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RefreshPolicyInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegCreateKeyExInternalA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegCreateKeyExInternalA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegCreateKeyExInternalW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegCreateKeyExInternalW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegDeleteKeyExInternalA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteKeyExInternalA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegDeleteKeyExInternalW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteKeyExInternalW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegDeleteKeyValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!RegDeleteKeyValueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegDeleteKeyValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!RegDeleteKeyValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnGetAppKeyEventAddressInternal" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnGetAppKeyEventAddressInternal 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnGetAppKeyLoaded" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnGetAppKeyLoaded h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnGetClassesEnumTableAddressInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnGetClassesEnumTableAddressInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnGetHKEY_ClassesRootAddress" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnGetHKEY_ClassesRootAddress arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnGetTermsrvRegistryExtensionFlags" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnGetTermsrvRegistryExtensionFlags arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnResetAppKeyLoaded" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnResetAppKeyLoaded h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnSetDllHasThreadStateGlobal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnSetDllHasThreadStateGlobal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegKrnSetTermsrvRegistryExtensionFlags" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegKrnSetTermsrvRegistryExtensionFlags arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegLoadAppKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegLoadAppKeyA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegLoadAppKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegLoadAppKeyW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegOpenKeyExInternalA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegOpenKeyExInternalA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegOpenKeyExInternalW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegOpenKeyExInternalW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegQueryMultipleValuesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegQueryMultipleValuesA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegQueryMultipleValuesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegQueryMultipleValuesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegSetKeyValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegSetKeyValueA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegSetKeyValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegSetKeyValueW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegisterGPNotificationInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegisterGPNotificationInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegisterStateChangeNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegisterStateChangeNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegisterStateLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!RegisterStateLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegisterTraceGuidsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegisterTraceGuidsW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReleasePackagedDataForFile" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!ReleasePackagedDataForFile handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseStateLock" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ReleaseStateLock handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "RemapPredefinedHandleInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemapPredefinedHandleInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveDirectoryFromAppW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!RemoveDirectoryFromAppW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveExtensionProgIds" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemoveExtensionProgIds h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemovePackageDependency" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemovePackageDependency h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemovePackageStatus" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemovePackageStatus h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemovePackageStatusForUser" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemovePackageStatusForUser h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReplaceFileExInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ReplaceFileExInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReplaceFileFromAppW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!ReplaceFileFromAppW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResetState" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ResetState h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RestoreThreadPreferredUILanguages" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RestoreThreadPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RevertToSelf" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!RevertToSelf arg1:0x{:x}", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RsopLoggingEnabledInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RsopLoggingEnabledInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHCoCreateInstance" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SHCoCreateInstance arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHExpandEnvironmentStringsA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHExpandEnvironmentStringsA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHExpandEnvironmentStringsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHExpandEnvironmentStringsW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHLoadIndirectString" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SHLoadIndirectString arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHLoadIndirectStringInternal" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SHLoadIndirectStringInternal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegCloseUSKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SHRegCloseUSKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegCreateUSKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegCreateUSKeyA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegCreateUSKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegCreateUSKeyW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegDeleteEmptyUSKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHRegDeleteEmptyUSKeyA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegDeleteEmptyUSKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHRegDeleteEmptyUSKeyW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegDeleteUSValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegDeleteUSValueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegDeleteUSValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegDeleteUSValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegEnumUSKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegEnumUSKeyA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegEnumUSKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegEnumUSKeyW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegEnumUSValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegEnumUSValueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegEnumUSValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegEnumUSValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegGetBoolUSValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHRegGetBoolUSValueA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegGetBoolUSValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHRegGetBoolUSValueW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegGetUSValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegGetUSValueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegGetUSValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegGetUSValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegOpenUSKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegOpenUSKeyA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegOpenUSKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegOpenUSKeyW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegQueryInfoUSKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHRegQueryInfoUSKeyA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegQueryInfoUSKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SHRegQueryInfoUSKeyW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegQueryUSValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegQueryUSValueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegQueryUSValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegQueryUSValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegSetUSValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegSetUSValueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegSetUSValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegSetUSValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegWriteUSValueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegWriteUSValueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHRegWriteUSValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SHRegWriteUSValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SHTruncateString" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SHTruncateString arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SaveAlternatePackageRootPath" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SaveAlternatePackageRootPath arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SaveStateRootFolderPath" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SaveStateRootFolderPath arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetAclInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetAclInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetClientDynamicTimeZoneInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetClientDynamicTimeZoneInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetClientTimeZoneInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetClientTimeZoneInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetExtensionProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetExtensionProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileAttributesFromAppW" => {
+            let path_ptr = emu.regs().rcx;
+            let attrs = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(
+                emu,
+                "kernelbase!SetFileAttributesFromAppW '{}' attrs:0x{:x}",
+                path,
+                attrs
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileSecurityW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetFileSecurityW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetIsDeveloperModeEnabled" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetIsDeveloperModeEnabled h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetIsSideloadingEnabled" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetIsSideloadingEnabled h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetKernelObjectSecurity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetKernelObjectSecurity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetPersistedRegistryBOOL" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetPersistedRegistryBOOL h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetPersistedRegistryDWORD" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetPersistedRegistryDWORD h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetPersistedRegistryString" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetPersistedRegistryString h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetPersistedRegistryValue" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetPersistedRegistryValue h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetPrivateObjectSecurity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetPrivateObjectSecurity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetPrivateObjectSecurityEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetPrivateObjectSecurityEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessGroupAffinity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessGroupAffinity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessValidCallTargets" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessValidCallTargets h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessValidCallTargetsForMappedView" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessValidCallTargetsForMappedView h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProtocolProperty" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProtocolProperty h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetRoamingLastObservedChangeTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetRoamingLastObservedChangeTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSecurityAccessMask" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetSecurityAccessMask h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSecurityDescriptorControl" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetSecurityDescriptorControl h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSecurityDescriptorDacl" => {
+            let sd_ptr = emu.regs().rcx;
+            let dacl_present = emu.regs().rdx != 0;
+            let dacl_ptr = emu.regs().r8;
+            let defaulted = emu.regs().r9 != 0;
+            if sd_ptr != 0 {
+                let mut control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if dacl_present {
+                    control |= 0x0004;
+                } else {
+                    control &= !0x0004;
+                }
+                if defaulted {
+                    control |= 0x0008;
+                } else {
+                    control &= !0x0008;
+                }
+                emu.maps.write_word(sd_ptr + 2, control);
+                emu.maps.write_qword(sd_ptr + 28, dacl_ptr);
+            }
+            log_red!(
+                emu,
+                "kernelbase!SetSecurityDescriptorDacl sd:0x{:x} present:{} dacl:0x{:x}",
+                sd_ptr,
+                dacl_present,
+                dacl_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSecurityDescriptorGroup" => {
+            let sd_ptr = emu.regs().rcx;
+            let group_ptr = emu.regs().rdx;
+            let defaulted = emu.regs().r8 != 0;
+            if sd_ptr != 0 {
+                emu.maps.write_qword(sd_ptr + 20, group_ptr);
+                let mut control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if defaulted {
+                    control |= 0x0002;
+                } else {
+                    control &= !0x0002;
+                }
+                emu.maps.write_word(sd_ptr + 2, control);
+            }
+            log_red!(
+                emu,
+                "kernelbase!SetSecurityDescriptorGroup sd:0x{:x} group:0x{:x}",
+                sd_ptr,
+                group_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSecurityDescriptorOwner" => {
+            let sd_ptr = emu.regs().rcx;
+            let owner_ptr = emu.regs().rdx;
+            let defaulted = emu.regs().r8 != 0;
+            if sd_ptr != 0 {
+                emu.maps.write_qword(sd_ptr + 12, owner_ptr);
+                let mut control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if defaulted {
+                    control |= 0x0001;
+                } else {
+                    control &= !0x0001;
+                }
+                emu.maps.write_word(sd_ptr + 2, control);
+            }
+            log_red!(
+                emu,
+                "kernelbase!SetSecurityDescriptorOwner sd:0x{:x} owner:0x{:x}",
+                sd_ptr,
+                owner_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSecurityDescriptorRMControl" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetSecurityDescriptorRMControl h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSecurityDescriptorSacl" => {
+            let sd_ptr = emu.regs().rcx;
+            let sacl_present = emu.regs().rdx != 0;
+            let sacl_ptr = emu.regs().r8;
+            let defaulted = emu.regs().r9 != 0;
+            if sd_ptr != 0 {
+                let mut control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
+                if sacl_present {
+                    control |= 0x0010;
+                } else {
+                    control &= !0x0010;
+                }
+                if defaulted {
+                    control |= 0x0020;
+                } else {
+                    control &= !0x0020;
+                }
+                emu.maps.write_word(sd_ptr + 2, control);
+                emu.maps.write_qword(sd_ptr + 20, sacl_ptr);
+            }
+            log_red!(
+                emu,
+                "kernelbase!SetSecurityDescriptorSacl sd:0x{:x} present:{} sacl:0x{:x}",
+                sd_ptr,
+                sacl_present,
+                sacl_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetStateVersion" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetStateVersion h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSystemTimeAdjustmentPrecise" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetSystemTimeAdjustmentPrecise h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadPreferredUILanguages2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadPreferredUILanguages2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetTokenInformation" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!SetTokenInformation p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SharedLocalIsEnabled" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SharedLocalIsEnabled arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SpecialMBToWC" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SpecialMBToWC arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCSpnA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCSpnA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCSpnIA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCSpnIA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCSpnIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCSpnIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCSpnW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCSpnW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCatBuffA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCatBuffA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCatBuffW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCatBuffW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCatChainW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCatChainW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrChrA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrChrA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrChrA_MB" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!StrChrA_MB arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrChrIA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrChrIA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrChrIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrChrIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrChrNIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrChrNIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrChrNW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrChrNW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrChrW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrChrW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpCA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpCA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpCW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpCW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpICA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpICA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpICW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpICW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpLogicalW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpLogicalW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNCA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNCA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNCW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNCW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNIA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNIA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNICA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNICA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNICW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNICW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpNW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpNW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCmpW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCpyNW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCpyNW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCpyNXA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCpyNXA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCpyNXW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrCpyNXW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrDupA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrDupA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrDupW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrDupW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrIsIntlEqualA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrIsIntlEqualA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrIsIntlEqualW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrIsIntlEqualW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrPBrkA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrPBrkA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrPBrkW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrPBrkW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrRChrA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrRChrA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrRChrIA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrRChrIA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrRChrIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrRChrIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrRChrW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrRChrW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrRStrIA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrRStrIA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrRStrIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrRStrIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrSpnA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrSpnA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrSpnW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrSpnW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrStrA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrStrA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrStrIA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrStrIA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrStrIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrStrIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrStrNIW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrStrNIW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrStrNW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrStrNW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrStrW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrStrW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrToInt64ExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrToInt64ExA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrToInt64ExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrToInt64ExW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrToIntA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrToIntA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrToIntExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrToIntExA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrToIntExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrToIntExW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrToIntW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrToIntW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrTrimA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrTrimA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StrTrimW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!StrTrimW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SubscribeEdpEnabledStateChange" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SubscribeEdpEnabledStateChange arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SubscribeFeatureUsageFlush" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SubscribeFeatureUsageFlush arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SubscribeStateChangeNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SubscribeStateChangeNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SubscribeWdagEnabledStateChange" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SubscribeWdagEnabledStateChange arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TerminateEnclave" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TerminateEnclave h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TerminateProcessOnMemoryExhaustion" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TerminateProcessOnMemoryExhaustion h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestClose" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TestClose arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestControlReporting" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TestControlReporting arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestCreate" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TestCreate arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestOpen" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TestOpen arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestQueryData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TestQueryData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestRecoverResults" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TestRecoverResults arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestReport" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TestReport arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TestUnlockData" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!TestUnlockData 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TraceEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!TraceEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TraceMessage" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TraceMessage arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TraceMessageVa" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TraceMessageVa arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TryCreatePackageDependency" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TryCreatePackageDependency arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TryCreatePackageDependency2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TryCreatePackageDependency2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnmapViewOfFile2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnmapViewOfFile2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnregisterGPNotificationInternal" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnregisterGPNotificationInternal h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnregisterStateChangeNotification" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnregisterStateChangeNotification h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnregisterStateLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!UnregisterStateLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnregisterTraceGuids" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnregisterTraceGuids h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnsubscribeEdpEnabledStateChange" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnsubscribeEdpEnabledStateChange arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnsubscribeFeatureUsageFlush" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnsubscribeFeatureUsageFlush arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnsubscribeStateChangeNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnsubscribeStateChangeNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnsubscribeWdagEnabledStateChange" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnsubscribeWdagEnabledStateChange arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UpdatePackageStatus" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UpdatePackageStatus arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UpdatePackageStatusForUser" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UpdatePackageStatusForUser arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UpdatePackageStatusForUserSid" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UpdatePackageStatusForUserSid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlApplySchemeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlApplySchemeA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlApplySchemeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlApplySchemeW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCanonicalizeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCanonicalizeA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCanonicalizeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCanonicalizeW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCombineA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCombineA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCombineW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCombineW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCompareA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCompareA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCompareW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCompareW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCreateFromPathA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCreateFromPathA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlCreateFromPathW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlCreateFromPathW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlEscapeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlEscapeA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlEscapeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlEscapeW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlFixupW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlFixupW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlGetLocationA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlGetLocationA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlGetLocationW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlGetLocationW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlGetPartA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlGetPartA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlGetPartW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlGetPartW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlHashA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlHashA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlHashW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlHashW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlIsA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!UrlIsA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlIsNoHistoryA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!UrlIsNoHistoryA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlIsNoHistoryW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!UrlIsNoHistoryW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlIsOpaqueA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!UrlIsOpaqueA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlIsOpaqueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!UrlIsOpaqueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlIsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!UrlIsW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlUnescapeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlUnescapeA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UrlUnescapeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!UrlUnescapeW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerFindFileA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!VerFindFileA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerFindFileW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!VerFindFileW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerQueryValueW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!VerQueryValueW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyApplicationUserModelId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyApplicationUserModelId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyApplicationUserModelIdA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!VerifyApplicationUserModelIdA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageFamilyName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageFamilyName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageFamilyNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageFamilyNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageFullName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageFullName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageFullNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageFullNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageIdA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!VerifyPackageIdA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!VerifyPackageNameA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackagePublisher" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackagePublisher arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackagePublisherA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackagePublisherA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageRelativeApplicationId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageRelativeApplicationId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyPackageRelativeApplicationIdA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!VerifyPackageRelativeApplicationIdA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualAlloc2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VirtualAlloc2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualAlloc2FromApp" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VirtualAlloc2FromApp arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualAllocFromApp" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VirtualAllocFromApp arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualProtectFromApp" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VirtualProtectFromApp arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualUnlockEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!VirtualUnlockEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WTSGetServiceSessionId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WTSGetServiceSessionId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WTSIsServerContainer" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WTSIsServerContainer arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForMachinePolicyForegroundProcessingInternal" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!WaitForMachinePolicyForegroundProcessingInternal 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForUserPolicyForegroundProcessingInternal" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!WaitForUserPolicyForegroundProcessingInternal 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitOnAddress" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WaitOnAddress 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WakeByAddressAll" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WakeByAddressAll arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WakeByAddressSingle" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WakeByAddressSingle arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerSetMaxProcessHoldMilliseconds" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerSetMaxProcessHoldMilliseconds h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerpNotifyLoadStringResource" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerpNotifyLoadStringResource arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerpNotifyUseStringResource" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerpNotifyUseStringResource arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WilFailureNotifyWatchers" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WilFailureNotifyWatchers arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WilFailureWatcherResume" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WilFailureWatcherResume arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WilFailureWatcherSubscribe" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WilFailureWatcherSubscribe arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WilFailureWatcherSuspend" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WilFailureWatcherSuspend arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WilFailureWatcherUnsubscribe" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WilFailureWatcherUnsubscribe arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Wow64SetThreadDefaultGuestMachine" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64SetThreadDefaultGuestMachine h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteStateAtomValue" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WriteStateAtomValue h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteStateContainerValue" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WriteStateContainerValue h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "_AddMUIStringToCache" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_AddMUIStringToCache {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_GetMUIStringFromCache" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_GetMUIStringFromCache {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_OpenMuiStringCache" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_OpenMuiStringCache {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__FC_Query_Config" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__FC_Query_Config {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__FC_Query_System" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__FC_Query_System {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__FC_Report" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__FC_Report {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__FC_Subscribe" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__FC_Subscribe {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__FC_Unsubscribe" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__FC_Unsubscribe {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__argc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!__argc arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "__dllonexit3" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__dllonexit3 {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__wargv" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__wargv {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__wgetmainargs" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__wgetmainargs {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_amsg_exit" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_amsg_exit {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_c_exit" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_c_exit {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_cexit" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!_cexit arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "_invalid_parameter" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_invalid_parameter {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_onexit" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_onexit {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_purecall" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_purecall {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_time64" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_time64 {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "hgets" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!hgets arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "hwprintf" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!hwprintf {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "time" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!time arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "wprintf" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!wprintf {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+
+        "AcquireSRWLockExclusive" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!AcquireSRWLockExclusive 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AcquireSRWLockShared" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!AcquireSRWLockShared 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ActivateActCtx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ActivateActCtx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddConsoleAliasA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!AddConsoleAliasA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddConsoleAliasW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!AddConsoleAliasW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddDllDirectory" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddDllDirectory arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddRefActCtx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddRefActCtx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddResourceAttributeAce" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddResourceAttributeAce arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddSIDToBoundaryDescriptor" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddSIDToBoundaryDescriptor arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddScopedPolicyIDAce" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddScopedPolicyIDAce arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddVectoredContinueHandler" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddVectoredContinueHandler h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AddVectoredExceptionHandler" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AddVectoredExceptionHandler h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AllocConsole" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AllocConsole arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            let handle = helper::handler_create("allocconsole");
+            emu.regs_mut().rax = handle;
+        }
+        "AllocConsoleWithOptions" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AllocConsoleWithOptions arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AllocateUserPhysicalPages" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AllocateUserPhysicalPages arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AllocateUserPhysicalPagesNuma" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AllocateUserPhysicalPagesNuma arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppPolicyGetClrCompat" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppPolicyGetClrCompat arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppPolicyGetCreateFileAccess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppPolicyGetCreateFileAccess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppPolicyGetLifecycleManagement" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppPolicyGetLifecycleManagement arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppPolicyGetMediaFoundationCodecLoading" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppPolicyGetMediaFoundationCodecLoading arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppPolicyGetShowDeveloperDiagnostic" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppPolicyGetShowDeveloperDiagnostic arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppPolicyGetThreadInitializationType" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppPolicyGetThreadInitializationType h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppPolicyGetWindowingModel" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppPolicyGetWindowingModel arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AppXGetOSMaxVersionTested" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AppXGetOSMaxVersionTested arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AreFileApisANSI" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AreFileApisANSI h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AreShortNamesEnabled" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!AreShortNamesEnabled arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "AttachConsole" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!AttachConsole");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseCheckAppcompatCache" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseCheckAppcompatCache arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseCheckAppcompatCacheEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseCheckAppcompatCacheEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseCleanupAppcompatCacheSupport" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseCleanupAppcompatCacheSupport arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseDumpAppcompatCache" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseDumpAppcompatCache arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseFlushAppcompatCache" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseFlushAppcompatCache arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseFormatObjectAttributes" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseFormatObjectAttributes h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseGetNamedObjectDirectory" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseGetNamedObjectDirectory h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseInitAppcompatCacheSupport" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseInitAppcompatCacheSupport arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseIsAppcompatInfrastructureDisabled" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseIsAppcompatInfrastructureDisabled arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BaseUpdateAppcompatCache" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BaseUpdateAppcompatCache arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Beep" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!Beep arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingCancelRequest" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingCancelRequest arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingFlushFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingFlushFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingReadFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingReadFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingReadFileScatter" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingReadFileScatter h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingRegisterBuffers" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingRegisterBuffers arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingRegisterFileHandles" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingRegisterFileHandles h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingWriteFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingWriteFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "BuildIoRingWriteFileGather" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!BuildIoRingWriteFileGather h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CallNamedPipeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let p6 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!CallNamedPipeW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CallbackMayRunLong" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CallbackMayRunLong arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CancelIo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CancelIo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CancelIoEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CancelIoEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CancelSynchronousIo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CancelSynchronousIo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CancelThreadpoolIo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CancelThreadpoolIo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CancelWaitableTimer" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!CancelWaitableTimer 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CeipIsOptedIn" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CeipIsOptedIn arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ChangeTimerQueueTimer" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!ChangeTimerQueueTimer 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CheckAllowDecryptedRemoteDestinationPolicy" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CheckAllowDecryptedRemoteDestinationPolicy arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CheckRemoteDebuggerPresent" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CheckRemoteDebuggerPresent arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CheckTokenCapability" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CheckTokenCapability h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CheckTokenMembershipEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CheckTokenMembershipEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ClearCommBreak" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ClearCommBreak arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ClearCommError" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ClearCommError arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseHandle" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseHandle 0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseIoRing" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseIoRing handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "ClosePackageInfo" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ClosePackageInfo handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "ClosePrivateNamespace" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!ClosePrivateNamespace handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "ClosePseudoConsole" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ClosePseudoConsole handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseState" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseState handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseThreadpool" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseThreadpool handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseThreadpoolCleanupGroup" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!CloseThreadpoolCleanupGroup handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CloseThreadpoolCleanupGroupMembers" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!CloseThreadpoolCleanupGroupMembers handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CloseThreadpoolIo" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseThreadpoolIo handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseThreadpoolTimer" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseThreadpoolTimer handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseThreadpoolWait" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseThreadpoolWait handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CloseThreadpoolWork" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!CloseThreadpoolWork handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "CompareFileTime" => {
+            let ft1_ptr = emu.regs().rcx;
+            let ft2_ptr = emu.regs().rdx;
+            let ft1_lo = emu.maps.read_dword(ft1_ptr).unwrap_or(0) as u64;
+            let ft1_hi = emu.maps.read_dword(ft1_ptr + 4).unwrap_or(0) as u64;
+            let ft2_lo = emu.maps.read_dword(ft2_ptr).unwrap_or(0) as u64;
+            let ft2_hi = emu.maps.read_dword(ft2_ptr + 4).unwrap_or(0) as u64;
+            let t1 = (ft1_hi << 32) | ft1_lo;
+            let t2 = (ft2_hi << 32) | ft2_lo;
+            let result: i32 = match t1.cmp(&t2) {
+                std::cmp::Ordering::Less => -1,
+                std::cmp::Ordering::Equal => 0,
+                std::cmp::Ordering::Greater => 1,
+            };
+            log_red!(
+                emu,
+                "kernelbase!CompareFileTime 0x{:x} vs 0x{:x} => {}",
+                t1,
+                t2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u32 as u64;
+        }
+        "CompareStringA" => {
+            let _locale = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let str1_ptr = emu.regs().r8;
+            let _len1 = emu.regs().r9 as i32;
+            let str2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s1 = if str1_ptr != 0 {
+                emu.maps.read_string(str1_ptr)
+            } else {
+                String::new()
+            };
+            let s2 = if str2_ptr != 0 {
+                emu.maps.read_string(str2_ptr)
+            } else {
+                String::new()
+            };
+            let result = match s1.to_lowercase().cmp(&s2.to_lowercase()) {
+                std::cmp::Ordering::Less => 1u64,
+                std::cmp::Ordering::Equal => 2,
+                std::cmp::Ordering::Greater => 3,
+            };
+            log_red!(
+                emu,
+                "kernelbase!CompareStringA '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        "CompareStringEx" => {
+            let _locale_ptr = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let str1_ptr = emu.regs().r8;
+            let _len1 = emu.regs().r9 as i32;
+            let str2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s1 = if str1_ptr != 0 {
+                emu.maps.read_wide_string(str1_ptr)
+            } else {
+                String::new()
+            };
+            let s2 = if str2_ptr != 0 {
+                emu.maps.read_wide_string(str2_ptr)
+            } else {
+                String::new()
+            };
+            let result = match s1.to_lowercase().cmp(&s2.to_lowercase()) {
+                std::cmp::Ordering::Less => 1u64,
+                std::cmp::Ordering::Equal => 2,
+                std::cmp::Ordering::Greater => 3,
+            };
+            log_red!(
+                emu,
+                "kernelbase!CompareStringEx '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        "CompareStringOrdinal" => {
+            let str1_ptr = emu.regs().rcx;
+            let len1 = emu.regs().rdx as i32;
+            let str2_ptr = emu.regs().r8;
+            let len2 = emu.regs().r9 as i32;
+            let ignore_case = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s1 = emu.maps.read_wide_string(str1_ptr);
+            let s2 = emu.maps.read_wide_string(str2_ptr);
+            let result = if ignore_case != 0 {
+                match s1.to_lowercase().cmp(&s2.to_lowercase()) {
+                    std::cmp::Ordering::Less => 1u64,
+                    std::cmp::Ordering::Equal => 2,
+                    std::cmp::Ordering::Greater => 3,
+                }
+            } else {
+                match s1.cmp(&s2) {
+                    std::cmp::Ordering::Less => 1,
+                    std::cmp::Ordering::Equal => 2,
+                    std::cmp::Ordering::Greater => 3,
+                }
+            };
+            log_red!(
+                emu,
+                "kernelbase!CompareStringOrdinal '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        "CompareStringW" => {
+            let _locale = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let str1_ptr = emu.regs().r8;
+            let _len1 = emu.regs().r9 as i32;
+            let str2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s1 = if str1_ptr != 0 {
+                emu.maps.read_wide_string(str1_ptr)
+            } else {
+                String::new()
+            };
+            let s2 = if str2_ptr != 0 {
+                emu.maps.read_wide_string(str2_ptr)
+            } else {
+                String::new()
+            };
+            let result = match s1.to_lowercase().cmp(&s2.to_lowercase()) {
+                std::cmp::Ordering::Less => 1,
+                std::cmp::Ordering::Equal => 2,
+                std::cmp::Ordering::Greater => 3,
+            };
+            log_red!(
+                emu,
+                "kernelbase!CompareStringW '{}' vs '{}' -> {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        "ConnectNamedPipe" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!ConnectNamedPipe p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ContinueDebugEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!ContinueDebugEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ConvertDefaultLocale" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ConvertDefaultLocale arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "ConvertFiberToThread" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ConvertFiberToThread arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "ConvertThreadToFiber" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ConvertThreadToFiber arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "ConvertThreadToFiberEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ConvertThreadToFiberEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "CopyContext" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CopyContext arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "CopyFile2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CopyFile2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "CopyFileExW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let dst = emu.maps.read_wide_string(dst_ptr);
+            log_red!(emu, "kernelbase!CopyFileExW '{}' -> '{}'", src, dst);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CopyFileW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let dst = emu.maps.read_wide_string(dst_ptr);
+            log_red!(emu, "kernelbase!CopyFileW '{}' -> '{}'", src, dst);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateActCtxW" => {
+            let arg1 = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(arg1);
+            let hndl = helper::handler_create(&format!("kb_{}", name));
+            log_red!(emu, "kernelbase!CreateActCtxW '{}' => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateBoundaryDescriptorW" => {
+            let arg1 = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(arg1);
+            let hndl = helper::handler_create(&format!("kb_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreateBoundaryDescriptorW '{}' => 0x{:x}",
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateConsoleScreenBuffer" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateConsoleScreenBuffer");
+            log_red!(emu, "kernelbase!CreateConsoleScreenBuffer => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateDirectory2A" => {
+            let path_ptr = emu.regs().rcx;
+            let security = emu.regs().rdx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!CreateDirectory2A '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateDirectory2W" => {
+            let path_ptr = emu.regs().rcx;
+            let security = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!CreateDirectory2W '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateDirectoryA" => {
+            let path_ptr = emu.regs().rcx;
+            let security = emu.regs().rdx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!CreateDirectoryA '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateDirectoryExW" => {
+            let path_ptr = emu.regs().rcx;
+            let security = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!CreateDirectoryExW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateDirectoryW" => {
+            let path_ptr = emu.regs().rcx;
+            let security = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!CreateDirectoryW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateEnclave" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateEnclave");
+            log_red!(emu, "kernelbase!CreateEnclave => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateEventA" => {
+            let security = emu.regs().rcx;
+            let manual_reset = emu.regs().rdx;
+            let initial_state = emu.regs().r8;
+            let name_ptr = emu.regs().r9;
+            let name = if name_ptr != 0 {
+                emu.maps.read_string(name_ptr)
+            } else {
+                String::from("unnamed")
+            };
+            let hndl = helper::handler_create(&format!("event_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreateEventA '{}' manual:{} initial:{} => 0x{:x}",
+                name,
+                manual_reset,
+                initial_state,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateEventExA" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!CreateEventExA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4
+            );
+            let hndl = helper::handler_create("event://CreateEventExA");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateEventExW" => {
+            let security = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let access = emu.regs().r9;
+            let name = if name_ptr != 0 {
+                emu.maps.read_wide_string(name_ptr)
+            } else {
+                String::from("unnamed")
+            };
+            let hndl = helper::handler_create(&format!("event_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreateEventExW '{}' flags:0x{:x} => 0x{:x}",
+                name,
+                flags,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateEventW" => {
+            let security = emu.regs().rcx;
+            let manual_reset = emu.regs().rdx;
+            let initial_state = emu.regs().r8;
+            let name_ptr = emu.regs().r9;
+            let name = if name_ptr != 0 {
+                emu.maps.read_wide_string(name_ptr)
+            } else {
+                String::from("unnamed")
+            };
+            let hndl = helper::handler_create(&format!("event_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreateEventW '{}' manual:{} initial:{} => 0x{:x}",
+                name,
+                manual_reset,
+                initial_state,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFiber" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateFiber");
+            log_red!(emu, "kernelbase!CreateFiber => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFiberEx" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateFiberEx");
+            log_red!(emu, "kernelbase!CreateFiberEx => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFile2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!CreateFile2 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4
+            );
+            let hndl = helper::handler_create("file://CreateFile2");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFile3" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateFile3");
+            log_red!(emu, "kernelbase!CreateFile3 => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFileA" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!CreateFileA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x} arg7:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6,
+                arg7
+            );
+            let hndl = helper::handler_create("file://CreateFileA");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFileMappingFromApp" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateFileMappingFromApp");
+            log_red!(emu, "kernelbase!CreateFileMappingFromApp => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFileMappingNumaW" => {
+            let file_handle = emu.regs().rcx;
+            let security = emu.regs().rdx;
+            let protect = emu.regs().r8;
+            let max_size_high = emu.regs().r9;
+            let max_size_low = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let name_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let name = if name_ptr != 0 {
+                emu.maps.read_wide_string(name_ptr)
+            } else {
+                String::from("(anon)")
+            };
+            let hndl = helper::handler_create(&format!("filemap_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreateFileMappingNumaW file:0x{:x} '{}' => 0x{:x}",
+                file_handle,
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFileMappingW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!CreateFileMappingW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6
+            );
+            let hndl = helper::handler_create("filemap://CreateFileMappingW");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateFileW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!CreateFileW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6
+            );
+            let hndl = helper::handler_create("file://opened");
+            assert!(hndl < 0x00000001_00000000);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateHardLinkA" => {
+            let arg1 = emu.regs().rcx;
+            let name = emu.maps.read_string(arg1);
+            let hndl = helper::handler_create(&format!("kb_{}", name));
+            log_red!(emu, "kernelbase!CreateHardLinkA '{}' => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateHardLinkW" => {
+            let arg1 = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(arg1);
+            let hndl = helper::handler_create(&format!("kb_{}", name));
+            log_red!(emu, "kernelbase!CreateHardLinkW '{}' => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateIoCompletionPort" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!CreateIoCompletionPort arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4
+            );
+            let hndl = helper::handler_create("iocp://CreateIoCompletionPort");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateIoRing" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateIoRing");
+            log_red!(emu, "kernelbase!CreateIoRing => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateMemoryResourceNotification" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateMemoryResourceNotification");
+            log_red!(
+                emu,
+                "kernelbase!CreateMemoryResourceNotification => 0x{:x}",
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateMutexA" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!CreateMutexA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("mutex://CreateMutexA");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateMutexExA" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!CreateMutexExA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4
+            );
+            let hndl = helper::handler_create("mutex://CreateMutexExA");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateMutexExW" => {
+            let security = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let access = emu.regs().r9;
+            let name = if name_ptr != 0 {
+                emu.maps.read_wide_string(name_ptr)
+            } else {
+                String::from("unnamed")
+            };
+            let hndl = helper::handler_create(&format!("mutex_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreateMutexExW '{}' flags:0x{:x} => 0x{:x}",
+                name,
+                flags,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateMutexW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!CreateMutexW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("mutex://CreateMutexW");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateNamedPipeW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!CreateNamedPipeW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x} arg7:0x{:x} arg8:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6,
+                arg7,
+                arg8
+            );
+            let hndl = helper::handler_create("pipe://CreateNamedPipeW");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreatePipe" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreatePipe");
+            log_red!(emu, "kernelbase!CreatePipe => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreatePrivateNamespaceW" => {
+            let arg1 = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(arg1);
+            let hndl = helper::handler_create(&format!("kb_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreatePrivateNamespaceW '{}' => 0x{:x}",
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateProcessA" => {
+            let app_name_ptr = emu.regs().rcx;
+            let cmd_line_ptr = emu.regs().rdx;
+            let proc_attrs = emu.regs().r8;
+            let thread_attrs = emu.regs().r9;
+            let inherit = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let env = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let cur_dir_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let startup_info = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let proc_info = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let app = if app_name_ptr != 0 {
+                emu.maps.read_string(app_name_ptr)
+            } else {
+                String::new()
+            };
+            let cmd = if cmd_line_ptr != 0 {
+                emu.maps.read_string(cmd_line_ptr)
+            } else {
+                String::new()
+            };
+            if proc_info != 0 {
+                let hndl = helper::handler_create(&format!("process_{}", app));
+                let thread_hndl = helper::handler_create("process_thread");
+                emu.maps.write_dword(proc_info + 8, 0x1000); // dwProcessId
+                emu.maps.write_dword(proc_info + 12, 0x2000); // dwThreadId
+            }
+            log_red!(emu, "kernelbase!CreateProcessA app:'{}' cmd:'{}'", app, cmd);
+            emu.regs_mut().rax = 1;
+        }
+        "CreateProcessAsUserA" => {
+            let app_name_ptr = emu.regs().rcx;
+            let cmd_line_ptr = emu.regs().rdx;
+            let proc_attrs = emu.regs().r8;
+            let thread_attrs = emu.regs().r9;
+            let inherit = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let env = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let cur_dir_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let startup_info = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let proc_info = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let app = if app_name_ptr != 0 {
+                emu.maps.read_string(app_name_ptr)
+            } else {
+                String::new()
+            };
+            let cmd = if cmd_line_ptr != 0 {
+                emu.maps.read_string(cmd_line_ptr)
+            } else {
+                String::new()
+            };
+            if proc_info != 0 {
+                let hndl = helper::handler_create(&format!("process_{}", app));
+                let thread_hndl = helper::handler_create("process_thread");
+                emu.maps.write_dword(proc_info + 8, 0x1000); // dwProcessId
+                emu.maps.write_dword(proc_info + 12, 0x2000); // dwThreadId
+            }
+            log_red!(
+                emu,
+                "kernelbase!CreateProcessAsUserA app:'{}' cmd:'{}'",
+                app,
+                cmd
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CreateProcessAsUserW" => {
+            let app_name_ptr = emu.regs().rcx;
+            let cmd_line_ptr = emu.regs().rdx;
+            let proc_attrs = emu.regs().r8;
+            let thread_attrs = emu.regs().r9;
+            let inherit = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let env = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let cur_dir_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let startup_info = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let proc_info = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let app = if app_name_ptr != 0 {
+                emu.maps.read_wide_string(app_name_ptr)
+            } else {
+                String::new()
+            };
+            let cmd = if cmd_line_ptr != 0 {
+                emu.maps.read_wide_string(cmd_line_ptr)
+            } else {
+                String::new()
+            };
+            if proc_info != 0 {
+                let hndl = helper::handler_create(&format!("process_{}", app));
+                let thread_hndl = helper::handler_create("process_thread");
+                emu.maps.write_dword(proc_info + 8, 0x1000); // dwProcessId
+                emu.maps.write_dword(proc_info + 12, 0x2000); // dwThreadId
+            }
+            log_red!(
+                emu,
+                "kernelbase!CreateProcessAsUserW app:'{}' cmd:'{}'",
+                app,
+                cmd
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CreateProcessInternalA" => {
+            let app_name_ptr = emu.regs().rcx;
+            let cmd_line_ptr = emu.regs().rdx;
+            let proc_attrs = emu.regs().r8;
+            let thread_attrs = emu.regs().r9;
+            let inherit = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let env = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let cur_dir_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let startup_info = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let proc_info = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let app = if app_name_ptr != 0 {
+                emu.maps.read_string(app_name_ptr)
+            } else {
+                String::new()
+            };
+            let cmd = if cmd_line_ptr != 0 {
+                emu.maps.read_string(cmd_line_ptr)
+            } else {
+                String::new()
+            };
+            if proc_info != 0 {
+                let hndl = helper::handler_create(&format!("process_{}", app));
+                let thread_hndl = helper::handler_create("process_thread");
+                emu.maps.write_dword(proc_info + 8, 0x1000); // dwProcessId
+                emu.maps.write_dword(proc_info + 12, 0x2000); // dwThreadId
+            }
+            log_red!(
+                emu,
+                "kernelbase!CreateProcessInternalA app:'{}' cmd:'{}'",
+                app,
+                cmd
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CreateProcessInternalW" => {
+            let app_name_ptr = emu.regs().rcx;
+            let cmd_line_ptr = emu.regs().rdx;
+            let proc_attrs = emu.regs().r8;
+            let thread_attrs = emu.regs().r9;
+            let inherit = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let env = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let cur_dir_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let startup_info = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let proc_info = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let app = if app_name_ptr != 0 {
+                emu.maps.read_wide_string(app_name_ptr)
+            } else {
+                String::new()
+            };
+            let cmd = if cmd_line_ptr != 0 {
+                emu.maps.read_wide_string(cmd_line_ptr)
+            } else {
+                String::new()
+            };
+            if proc_info != 0 {
+                let hndl = helper::handler_create(&format!("process_{}", app));
+                let thread_hndl = helper::handler_create("process_thread");
+                emu.maps.write_dword(proc_info + 8, 0x1000); // dwProcessId
+                emu.maps.write_dword(proc_info + 12, 0x2000); // dwThreadId
+            }
+            log_red!(
+                emu,
+                "kernelbase!CreateProcessInternalW app:'{}' cmd:'{}'",
+                app,
+                cmd
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "CreateProcessW" => {
+            let app_name_ptr = emu.regs().rcx;
+            let cmd_line_ptr = emu.regs().rdx;
+            let proc_attrs = emu.regs().r8;
+            let thread_attrs = emu.regs().r9;
+            let inherit = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let env = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let cur_dir_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let startup_info = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let proc_info = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let app = if app_name_ptr != 0 {
+                emu.maps.read_wide_string(app_name_ptr)
+            } else {
+                String::new()
+            };
+            let cmd = if cmd_line_ptr != 0 {
+                emu.maps.read_wide_string(cmd_line_ptr)
+            } else {
+                String::new()
+            };
+            if proc_info != 0 {
+                let hndl = helper::handler_create(&format!("process_{}", app));
+                let thread_hndl = helper::handler_create("process_thread");
+                emu.maps.write_dword(proc_info + 8, 0x1000); // dwProcessId
+                emu.maps.write_dword(proc_info + 12, 0x2000); // dwThreadId
+            }
+            log_red!(emu, "kernelbase!CreateProcessW app:'{}' cmd:'{}'", app, cmd);
+            emu.regs_mut().rax = 1;
+        }
+        "CreatePseudoConsole" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreatePseudoConsole");
+            log_red!(emu, "kernelbase!CreatePseudoConsole => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateRemoteThread" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!CreateRemoteThread arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x} arg7:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6,
+                arg7
+            );
+            let hndl = helper::handler_create("thread://CreateRemoteThread");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateRemoteThreadEx" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateRemoteThreadEx");
+            log_red!(emu, "kernelbase!CreateRemoteThreadEx => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateSemaphoreExW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!CreateSemaphoreExW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6
+            );
+            let hndl = helper::handler_create("semaphore://CreateSemaphoreExW");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateSemaphoreW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!CreateSemaphoreW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4
+            );
+            let hndl = helper::handler_create("semaphore://CreateSemaphoreW");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateSymbolicLinkW" => {
+            let arg1 = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(arg1);
+            let hndl = helper::handler_create(&format!("kb_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!CreateSymbolicLinkW '{}' => 0x{:x}",
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateThread" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!CreateThread arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6
+            );
+            let hndl = helper::handler_create("thread://CreateThread");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateThreadpool" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateThreadpool");
+            log_red!(emu, "kernelbase!CreateThreadpool => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateThreadpoolCleanupGroup" => {
+            log_red!(emu, "kernelbase!CreateThreadpoolCleanupGroup");
+            let hndl = helper::handler_create("threadpool_cleanup_group");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateThreadpoolIo" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateThreadpoolIo");
+            log_red!(emu, "kernelbase!CreateThreadpoolIo => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateThreadpoolTimer" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateThreadpoolTimer");
+            log_red!(emu, "kernelbase!CreateThreadpoolTimer => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateThreadpoolWait" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateThreadpoolWait");
+            log_red!(emu, "kernelbase!CreateThreadpoolWait => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateThreadpoolWork" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateThreadpoolWork");
+            log_red!(emu, "kernelbase!CreateThreadpoolWork => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateTimerQueue" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateTimerQueue");
+            log_red!(emu, "kernelbase!CreateTimerQueue => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateTimerQueueTimer" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("CreateTimerQueueTimer");
+            log_red!(emu, "kernelbase!CreateTimerQueueTimer => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateWaitableTimerExW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!CreateWaitableTimerExW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4
+            );
+            let hndl = helper::handler_create("timer://CreateWaitableTimerExW");
+            emu.regs_mut().rax = hndl;
+        }
+        "CreateWaitableTimerW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!CreateWaitableTimerW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("timer://CreateWaitableTimerW");
+            emu.regs_mut().rax = hndl;
+        }
+        "CtrlRoutine" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!CtrlRoutine arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeactivateActCtx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DeactivateActCtx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DebugActiveProcess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DebugActiveProcess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DebugActiveProcessStop" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DebugActiveProcessStop h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DebugBreak" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DebugBreak arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DecodePointer" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DecodePointer arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DecodeSystemPointer" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DecodeSystemPointer arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DefineDosDeviceW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!DefineDosDeviceW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DelayLoadFailureHook" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DelayLoadFailureHook arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteBoundaryDescriptor" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DeleteBoundaryDescriptor handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteCriticalSection" => {
+            let cs_ptr = emu.regs().rcx;
+            if cs_ptr != 0 {
+                emu.maps.write_qword(cs_ptr, 0);
+            }
+            log_red!(emu, "kernelbase!DeleteCriticalSection 0x{:x}", cs_ptr);
+        }
+        "DeleteFiber" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!DeleteFiber handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteFile2A" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!DeleteFile2A '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteFile2W" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!DeleteFile2W '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteFileA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!DeleteFileA '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteFileW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!DeleteFileW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteProcThreadAttributeList" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DeleteProcThreadAttributeList handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteSynchronizationBarrier" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DeleteSynchronizationBarrier handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteTimerQueue" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!DeleteTimerQueue handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteTimerQueueEx" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!DeleteTimerQueueEx handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteTimerQueueTimer" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!DeleteTimerQueueTimer handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "DeleteVolumeMountPointW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!DeleteVolumeMountPointW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DeviceIoControl" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DeviceIoControl arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DisableThreadLibraryCalls" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!DisableThreadLibraryCalls");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DisassociateCurrentThreadFromCallback" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DisassociateCurrentThreadFromCallback h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DiscardVirtualMemory" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!DiscardVirtualMemory arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DisconnectNamedPipe" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!DisconnectNamedPipe");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DnsHostnameToComputerNameExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!DnsHostnameToComputerNameExW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "DuplicateHandle" => {
+            let src_process = emu.regs().rcx;
+            let src_handle = emu.regs().rdx;
+            let dst_process = emu.regs().r8;
+            let dst_handle_ptr = emu.regs().r9;
+            let hndl = helper::handler_create("dup_handle");
+            if dst_handle_ptr != 0 {
+                emu.maps.write_qword(dst_handle_ptr, hndl);
+            }
+            log_red!(
+                emu,
+                "kernelbase!DuplicateHandle src:0x{:x} => 0x{:x}",
+                src_handle,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnableProcessOptionalXStateFeatures" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnableProcessOptionalXStateFeatures h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EncodePointer" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EncodePointer arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EncodeSystemPointer" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EncodeSystemPointer arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnterCriticalSection" => {
+            let cs_ptr = emu.regs().rcx;
+            helper::advance_tick(emu, 1);
+            log_red!(emu, "kernelbase!EnterCriticalSection 0x{:x}", cs_ptr);
+        }
+        "EnterSynchronizationBarrier" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EnterSynchronizationBarrier 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumCalendarInfoExEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumCalendarInfoExEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumCalendarInfoExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumCalendarInfoExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumCalendarInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumCalendarInfoW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumDateFormatsExEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumDateFormatsExEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumDateFormatsExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumDateFormatsExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumDateFormatsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumDateFormatsW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumLanguageGroupLocalesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumLanguageGroupLocalesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceLanguagesExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceLanguagesExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceLanguagesExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceLanguagesExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceNamesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceNamesA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceNamesExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceNamesExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceNamesExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceNamesExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceNamesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceNamesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceTypesExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceTypesExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumResourceTypesExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumResourceTypesExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemCodePagesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumSystemCodePagesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemFirmwareTables" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumSystemFirmwareTables arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemGeoID" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumSystemGeoID arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemGeoNames" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumSystemGeoNames arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemLanguageGroupsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumSystemLanguageGroupsW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemLocalesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!EnumSystemLocalesA '{}' p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemLocalesEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!EnumSystemLocalesEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumSystemLocalesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!EnumSystemLocalesW '{}' p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumTimeFormatsEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EnumTimeFormatsEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumTimeFormatsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumTimeFormatsW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EnumUILanguagesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!EnumUILanguagesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EscapeCommFunction" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!EscapeCommFunction arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventEnabled" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventEnabled 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventRegister" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventRegister 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventSetInformation" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventSetInformation 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "EventWriteTransfer" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!EventWriteTransfer 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ExitProcess" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!ExitProcess");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ExitThread" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ExitThread h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ExpandEnvironmentStringsA" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let size = emu.regs().r8;
+            let src = emu.maps.read_string(src_ptr);
+            let expanded = expand_env_vars(&src);
+            if dst_ptr != 0 && size > expanded.len() as u64 {
+                emu.maps.write_string(dst_ptr, &expanded);
+            }
+            log_red!(
+                emu,
+                "kernelbase!ExpandEnvironmentStringsA '{}' => '{}'",
+                src,
+                expanded
+            );
+            emu.regs_mut().rax = expanded.len() as u64 + 1;
+        }
+        "ExpandEnvironmentStringsW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let size = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let expanded = expand_env_vars(&src);
+            if dst_ptr != 0 && size > expanded.len() as u64 {
+                emu.maps.write_wide_string(dst_ptr, &expanded);
+            }
+            log_red!(
+                emu,
+                "kernelbase!ExpandEnvironmentStringsW '{}' => '{}'",
+                src,
+                expanded
+            );
+            emu.regs_mut().rax = expanded.len() as u64 + 1;
+        }
+        "ExpungeConsoleCommandHistoryA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ExpungeConsoleCommandHistoryA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ExpungeConsoleCommandHistoryW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ExpungeConsoleCommandHistoryW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FatalAppExitA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FatalAppExitA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FatalAppExitW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FatalAppExitW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FileTimeToLocalFileTime" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!FileTimeToLocalFileTime p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FileTimeToSystemTime" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!FileTimeToSystemTime p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FillConsoleOutputAttribute" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!FillConsoleOutputAttribute p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FillConsoleOutputCharacterA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!FillConsoleOutputCharacterA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FillConsoleOutputCharacterW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!FillConsoleOutputCharacterW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindActCtxSectionGuid" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FindActCtxSectionGuid h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindActCtxSectionStringW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!FindActCtxSectionStringW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindClose" => {
+            let hfind = emu.regs().rcx;
+            log_red!(emu, "kernelbase!FindClose handle:0x{:x}", hfind);
+            if helper::handler_exist(hfind) {
+                helper::handler_close(hfind);
+            }
+            emu.regs_mut().rax = 1;
+        }
+        "FindCloseChangeNotification" => {
+            let handle = emu.regs().rcx;
+            log_red!(emu, "kernelbase!FindCloseChangeNotification 0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+        }
+        "FindFirstChangeNotificationA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            let hndl = helper::handler_create("change");
+            log_red!(
+                emu,
+                "kernelbase!FindFirstChangeNotificationA '{}' p1:0x{:x} p2:0x{:x} => 0x{:x}",
+                s,
+                p1,
+                p2,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstChangeNotificationW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            let hndl = helper::handler_create("change");
+            log_red!(
+                emu,
+                "kernelbase!FindFirstChangeNotificationW '{}' p1:0x{:x} p2:0x{:x} => 0x{:x}",
+                s,
+                p1,
+                p2,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstFileA" => {
+            let filename_ptr = emu.regs().rcx;
+            let find_data = emu.regs().rdx;
+            let pattern = emu.maps.read_string(filename_ptr);
+            log_red!(
+                emu,
+                "kernelbase!FindFirstFileA pattern:'{}' data:0x{:x}",
+                pattern,
+                find_data
+            );
+            if find_data != 0 {
+                emu.maps.write_dword(find_data, 0x80); // dwFileAttributes = FILE_ATTRIBUTE_NORMAL
+                emu.maps.write_dword(find_data + 28, 0); // nFileSizeHigh
+                emu.maps.write_dword(find_data + 32, 1024); // nFileSizeLow
+                emu.maps.write_string(find_data + 44, "dummy.txt");
+            }
+            let hndl = helper::handler_create("findfile://search");
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstFileExA" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!FindFirstFileExA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6
+            );
+            let hndl = helper::handler_create("findfile://FindFirstFileExA");
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstFileExW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!FindFirstFileExW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
+                arg1,
+                arg2,
+                arg3,
+                arg4,
+                arg5,
+                arg6
+            );
+            let hndl = helper::handler_create("findfile://FindFirstFileExW");
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstFileNameW" => {
+            let path_ptr = emu.regs().rcx;
+            let find_data_ptr = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let hndl = helper::handler_create(&format!("find_{}", path));
+            if find_data_ptr != 0 {
+                emu.maps.write_dword(find_data_ptr, 0x80); // dwFileAttributes = NORMAL
+            }
+            log_red!(
+                emu,
+                "kernelbase!FindFirstFileNameW '{}' => 0x{:x}",
+                path,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstFileW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FindFirstFileW arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let hndl = helper::handler_create("findfile://FindFirstFileW");
+            emu.regs_mut().rax = hndl;
+        }
+        "FindFirstStreamW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FindFirstStreamW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindFirstVolumeW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FindFirstVolumeW arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let hndl = helper::handler_create("findvolume://FindFirstVolumeW");
+            emu.regs_mut().rax = hndl;
+        }
+        "FindNLSString" => {
+            let locale_id = emu.regs().rcx as u32;
+            let flags = emu.regs().rdx as u32;
+            let src_ptr = emu.regs().r8;
+            let src_count = emu.regs().r9 as i32;
+            let src = emu.maps.read_wide_string(src_ptr);
+            log_red!(
+                emu,
+                "kernelbase!FindNLSString locale:{} flags:0x{:x} src:'{}'",
+                locale_id,
+                flags,
+                src
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = -1i64 as u64; // not found
+        }
+        "FindNLSStringEx" => {
+            let locale_ptr = emu.regs().rcx;
+            let flags = emu.regs().rdx as u32;
+            let src_ptr = emu.regs().r8;
+            let src_count = emu.regs().r9 as i32;
+            let value_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let locale = if locale_ptr != 0 && locale_ptr > 0xffff {
+                emu.maps.read_wide_string(locale_ptr)
+            } else {
+                String::new()
+            };
+            let src = emu.maps.read_wide_string(src_ptr);
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                String::new()
+            };
+            let result = if let Some(pos) = src.to_lowercase().find(&value.to_lowercase()) {
+                pos as i64
+            } else {
+                -1i64
+            };
+            log_red!(
+                emu,
+                "kernelbase!FindNLSStringEx locale:'{}' src:'{}' find:'{}' => {}",
+                locale,
+                src,
+                value,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u64;
+        }
+        "FindNextChangeNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FindNextChangeNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            let handle = helper::handler_create("findnextchangenotification");
+            emu.regs_mut().rax = handle;
+        }
+        "FindNextFileA" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_string(str_ptr);
+            log_red!(emu, "kernelbase!FindNextFileA '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindNextFileNameW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(emu, "kernelbase!FindNextFileNameW '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindNextFileW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(emu, "kernelbase!FindNextFileW '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindNextStreamW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FindNextStreamW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindNextVolumeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!FindNextVolumeW '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindPackagesByPackageFamily" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FindPackagesByPackageFamily arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FindResourceExW" => {
+            let module = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let type_ptr = emu.regs().r8;
+            let name = if name_ptr > 0xffff {
+                emu.maps.read_wide_string(name_ptr)
+            } else {
+                format!("#{}", name_ptr)
+            };
+            let hndl = helper::handler_create(&format!("resource_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!FindResourceExW module:0x{:x} '{}' => 0x{:x}",
+                module,
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "FindResourceW" => {
+            let module = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let type_ptr = emu.regs().r8;
+            let name = if name_ptr > 0xffff {
+                emu.maps.read_wide_string(name_ptr)
+            } else {
+                format!("#{}", name_ptr)
+            };
+            let hndl = helper::handler_create(&format!("resource_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!FindResourceW module:0x{:x} '{}' => 0x{:x}",
+                module,
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "FindStringOrdinal" => {
+            let flags = emu.regs().rcx as u32;
+            let src_ptr = emu.regs().rdx;
+            let src_len = emu.regs().r8 as i32;
+            let value_ptr = emu.regs().r9;
+            let value_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+            let ignore_case = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) != 0;
+            let src = if src_ptr != 0 {
+                emu.maps.read_wide_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                String::new()
+            };
+            let result = if ignore_case {
+                src.to_lowercase().find(&value.to_lowercase())
+            } else {
+                src.find(&value)
+            };
+            let idx = result.map(|p| p as i64).unwrap_or(-1);
+            log_red!(
+                emu,
+                "kernelbase!FindStringOrdinal '{}' in '{}' => {}",
+                value,
+                src,
+                idx
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = idx as u64;
+        }
+        "FindVolumeClose" => {
+            let handle = emu.regs().rcx;
+            log_red!(emu, "kernelbase!FindVolumeClose 0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+        }
+        "FlsAlloc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlsAlloc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlsFree" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlsFree arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlsGetValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlsGetValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlsGetValue2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlsGetValue2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlsSetValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlsSetValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlushConsoleInputBuffer" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlushConsoleInputBuffer h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlushFileBuffers" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!FlushFileBuffers");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlushInstructionCache" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlushInstructionCache h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlushProcessWriteBuffers" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlushProcessWriteBuffers h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FlushViewOfFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FlushViewOfFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FoldStringW" => {
+            let _flags = emu.regs().rcx as u32;
+            let src_ptr = emu.regs().rdx;
+            let src_len = emu.regs().r8 as i32;
+            let dst_ptr = emu.regs().r9;
+            let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+            let src = if src_ptr != 0 {
+                emu.maps.read_wide_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let result_len = src.encode_utf16().count() + 1;
+            if dst_ptr != 0 && dst_len > 0 {
+                emu.maps.write_wide_string(dst_ptr, &src);
+            }
+            log_red!(emu, "kernelbase!FoldStringW '{}' => {}", src, result_len);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result_len as u64;
+        }
+        "FormatApplicationUserModelId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!FormatApplicationUserModelId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FormatMessageA" => {
+            let flags = emu.regs().rcx;
+            let source = emu.regs().rdx;
+            let msg_id = emu.regs().r8;
+            let lang_id = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let msg = format!("Error {}", msg_id);
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, &msg);
+            }
+            log_red!(
+                emu,
+                "kernelbase!FormatMessageA flags:0x{:x} msg_id:{} => '{}'",
+                flags,
+                msg_id,
+                msg
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = msg.len() as u64;
+        }
+        "FormatMessageW" => {
+            let flags = emu.regs().rcx;
+            let source = emu.regs().rdx;
+            let msg_id = emu.regs().r8;
+            let lang_id = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let msg = format!("Error {}", msg_id);
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, &msg);
+            }
+            log_red!(
+                emu,
+                "kernelbase!FormatMessageW flags:0x{:x} msg_id:{} => '{}'",
+                flags,
+                msg_id,
+                msg
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = msg.len() as u64;
+        }
+        "FreeConsole" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!FreeConsole handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeEnvironmentStringsA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FreeEnvironmentStringsA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeEnvironmentStringsW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!FreeEnvironmentStringsW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeLibrary" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!FreeLibrary handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeLibraryAndExitThread" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!FreeLibraryAndExitThread handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "FreeLibraryWhenCallbackReturns" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!FreeLibraryWhenCallbackReturns handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "FreeResource" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!FreeResource handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "FreeUserPhysicalPages" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!FreeUserPhysicalPages handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "GenerateConsoleCtrlEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GenerateConsoleCtrlEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetACP" => {
+            winapi64::kernel32::GetACP(emu);
+        }
+        "GetAppContainerAce" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetAppContainerAce h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetAppContainerNamedObjectPath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetAppContainerNamedObjectPath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetApplicationRecoveryCallback" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetApplicationRecoveryCallback h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetApplicationRestartSettings" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetApplicationRestartSettings h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetApplicationUserModelId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetApplicationUserModelId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCPInfo" => {
+            let cp = emu.regs().rcx;
+            let info_ptr = emu.regs().rdx;
+            if info_ptr != 0 {
+                emu.maps.write_dword(info_ptr, 1); // MaxCharSize
+                emu.maps.write_byte(info_ptr + 4, 0x3f); // DefaultChar[0] = '?'
+            }
+            log_red!(emu, "kernelbase!GetCPInfo cp:{}", cp);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCPInfoExW" => {
+            let cp = emu.regs().rcx;
+            let flags = emu.regs().rdx;
+            let info_ptr = emu.regs().r8;
+            if info_ptr != 0 {
+                emu.maps.write_dword(info_ptr, 1);
+                emu.maps.write_byte(info_ptr + 4, 0x3f);
+            }
+            log_red!(emu, "kernelbase!GetCPInfoExW cp:{} flags:0x{:x}", cp, flags);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCachedSigningLevel" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCachedSigningLevel h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCalendarInfoEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCalendarInfoEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCalendarInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetCalendarInfoW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetCommConfig" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCommConfig h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommMask" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCommMask h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommModemStatus" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCommModemStatus h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommProperties" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCommProperties h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommState" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCommState h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommTimeouts" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCommTimeouts h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommandLineA" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_string(str_ptr);
+            log_red!(emu, "kernelbase!GetCommandLineA '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCommandLineW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(emu, "kernelbase!GetCommandLineW '{}' 0x{:x}", name, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCompressedFileSizeA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetCompressedFileSizeA '{}' p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4096;
+        }
+        "GetCompressedFileSizeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetCompressedFileSizeW '{}' p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4096;
+        }
+        "GetComputerNameExA" => {
+            let _name_type = emu.regs().rcx as u32;
+            let buf = emu.regs().rdx;
+            let size_ptr = emu.regs().r8;
+            let name = "DESKTOP";
+            log_red!(emu, "kernelbase!GetComputerNameExA buf:0x{:x}", buf);
+            if buf != 0 {
+                emu.maps.write_string(buf, name);
+            }
+            if size_ptr != 0 {
+                emu.maps.write_dword(size_ptr, name.len() as u32);
+            }
+            emu.regs_mut().rax = 1;
+        }
+        "GetComputerNameExW" => {
+            let _name_type = emu.regs().rcx as u32;
+            let buf = emu.regs().rdx;
+            let size_ptr = emu.regs().r8;
+            let name = "DESKTOP";
+            log_red!(emu, "kernelbase!GetComputerNameExW buf:0x{:x}", buf);
+            if buf != 0 {
+                for (i, ch) in name.encode_utf16().enumerate() {
+                    emu.maps.write_word(buf + (i as u64) * 2, ch);
+                }
+                emu.maps.write_word(buf + (name.len() as u64) * 2, 0);
+            }
+            if size_ptr != 0 {
+                emu.maps.write_dword(size_ptr, name.len() as u32);
+            }
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasExesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasExesA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasExesLengthA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasExesLengthA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasExesLengthW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasExesLengthW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasExesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasExesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasesA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasesLengthA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasesLengthA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasesLengthW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasesLengthW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleAliasesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleAliasesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleCP" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleCP h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleCommandHistoryA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleCommandHistoryA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleCommandHistoryLengthA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleCommandHistoryLengthA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleCommandHistoryLengthW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleCommandHistoryLengthW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleCommandHistoryW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleCommandHistoryW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleCursorInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleCursorInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleDisplayMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleDisplayMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleFontSize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleFontSize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleHistoryInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleHistoryInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleInputExeNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleInputExeNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleInputExeNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleInputExeNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleMode" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!GetConsoleMode p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleOriginalTitleA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleOriginalTitleA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleOriginalTitleW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleOriginalTitleW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleOutputCP" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleOutputCP h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleProcessList" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleProcessList h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleScreenBufferInfo" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!GetConsoleScreenBufferInfo p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleScreenBufferInfoEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleScreenBufferInfoEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleSelectionInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleSelectionInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetConsoleTitleA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!GetConsoleTitleA '{}' p1:0x{:x}", s, p1);
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetConsoleTitleW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!GetConsoleTitleW '{}' p1:0x{:x}", s, p1);
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetConsoleWindow" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetConsoleWindow h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrencyFormatEx" => {
+            let _locale_ptr = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let value_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                "0".to_string()
+            };
+            let formatted = format!("${}", value);
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, &formatted);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetCurrencyFormatEx '{}' => '{}'",
+                value,
+                formatted
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (formatted.len() + 1) as u64;
+        }
+        "GetCurrencyFormatW" => {
+            let _locale = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let value_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                "0".to_string()
+            };
+            let formatted = format!("${}", value);
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, &formatted);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetCurrencyFormatW '{}' => '{}'",
+                value,
+                formatted
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (formatted.len() + 1) as u64;
+        }
+        "GetCurrentActCtx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentActCtx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentApplicationUserModelId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentApplicationUserModelId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentConsoleFont" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentConsoleFont h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentConsoleFontEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentConsoleFontEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentDirectoryA" => {
+            let size = emu.regs().rcx as u32;
+            let buf = emu.regs().rdx;
+            let cwd = "C:\\Users\\admin";
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentDirectoryA buf:0x{:x} sz:{}",
+                buf,
+                size
+            );
+            if buf != 0 && (cwd.len() as u32) < size {
+                emu.maps.write_string(buf, cwd);
+            }
+            emu.regs_mut().rax = cwd.len() as u64;
+        }
+        "GetCurrentDirectoryW" => {
+            let size = emu.regs().rcx as u32;
+            let buf = emu.regs().rdx;
+            let cwd = "C:\\Users\\admin";
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentDirectoryW buf:0x{:x} sz:{}",
+                buf,
+                size
+            );
+            if buf != 0 && (cwd.len() as u32) < size {
+                for (i, ch) in cwd.encode_utf16().enumerate() {
+                    emu.maps.write_word(buf + (i as u64) * 2, ch);
+                }
+                emu.maps.write_word(buf + (cwd.len() as u64) * 2, 0);
+            }
+            emu.regs_mut().rax = cwd.len() as u64;
+        }
+        "GetCurrentPackageFamilyName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageFamilyName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageFullName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageFullName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackageInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackageInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentPackagePath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentPackagePath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentProcess" => {
+            winapi64::kernel32::GetCurrentProcess(emu);
+        }
+        "GetCurrentProcessId" => {
+            winapi64::kernel32::GetCurrentProcessId(emu);
+        }
+        "GetCurrentProcessorNumber" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentProcessorNumber h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentProcessorNumberEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentProcessorNumberEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetCurrentThread" => {
+            log_red!(emu, "kernelbase!GetCurrentThread");
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetCurrentThreadId" => {
+            winapi64::kernel32::GetCurrentThreadId(emu);
+        }
+        "GetCurrentThreadStackLimits" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetCurrentThreadStackLimits h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDateFormatA" => {
+            let _locale = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let _date_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let date = "11/01/2026";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, date);
+            }
+            log_red!(emu, "kernelbase!GetDateFormatA => '{}'", date);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (date.len() + 1) as u64;
+        }
+        "GetDateFormatEx" => {
+            let _locale_ptr = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let _date_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let date = "11/01/2026";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, date);
+            }
+            log_red!(emu, "kernelbase!GetDateFormatEx => '{}'", date);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (date.len() + 1) as u64;
+        }
+        "GetDateFormatW" => {
+            let buf = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let date = "11/01/2026";
+            log_red!(emu, "kernelbase!GetDateFormatW -> '{}'", date);
+            if buf != 0 && buf_size > 0 {
+                for (i, ch) in date.encode_utf16().enumerate() {
+                    emu.maps.write_word(buf + (i as u64) * 2, ch);
+                }
+                emu.maps.write_word(buf + (date.len() as u64) * 2, 0);
+            }
+            emu.regs_mut().rax = (date.len() + 1) as u64;
+        }
+        "GetDiskFreeSpaceA" => {
+            let root_ptr = emu.regs().rcx;
+            let spc_ptr = emu.regs().rdx;
+            let bps_ptr = emu.regs().r8;
+            let free_clusters_ptr = emu.regs().r9;
+            let total_clusters_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let root = if root_ptr != 0 {
+                emu.maps.read_string(root_ptr)
+            } else {
+                String::from("C:\\")
+            };
+            if spc_ptr != 0 {
+                emu.maps.write_dword(spc_ptr, 8);
+            }
+            if bps_ptr != 0 {
+                emu.maps.write_dword(bps_ptr, 512);
+            }
+            if free_clusters_ptr != 0 {
+                emu.maps.write_dword(free_clusters_ptr, 1000000);
+            }
+            if total_clusters_ptr != 0 {
+                emu.maps.write_dword(total_clusters_ptr, 2000000);
+            }
+            log_red!(emu, "kernelbase!GetDiskFreeSpaceA '{}'", root);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDiskFreeSpaceExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDiskFreeSpaceExA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDiskFreeSpaceExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDiskFreeSpaceExW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDiskFreeSpaceW" => {
+            let root_ptr = emu.regs().rcx;
+            let spc_ptr = emu.regs().rdx;
+            let bps_ptr = emu.regs().r8;
+            let free_clusters_ptr = emu.regs().r9;
+            let total_clusters_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let root = if root_ptr != 0 {
+                emu.maps.read_wide_string(root_ptr)
+            } else {
+                String::from("C:\\")
+            };
+            if spc_ptr != 0 {
+                emu.maps.write_dword(spc_ptr, 8);
+            }
+            if bps_ptr != 0 {
+                emu.maps.write_dword(bps_ptr, 512);
+            }
+            if free_clusters_ptr != 0 {
+                emu.maps.write_dword(free_clusters_ptr, 1000000);
+            }
+            if total_clusters_ptr != 0 {
+                emu.maps.write_dword(total_clusters_ptr, 2000000);
+            }
+            log_red!(emu, "kernelbase!GetDiskFreeSpaceW '{}'", root);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDiskSpaceInformationA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDiskSpaceInformationA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDiskSpaceInformationW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetDiskSpaceInformationW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDriveTypeA" => {
+            let root_ptr = emu.regs().rcx;
+            let root = if root_ptr != 0 {
+                emu.maps.read_string(root_ptr)
+            } else {
+                String::from("C:\\")
+            };
+            log_red!(emu, "kernelbase!GetDriveTypeA '{}' => DRIVE_FIXED", root);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 3;
+        }
+        "GetDriveTypeW" => {
+            let root_ptr = emu.regs().rcx;
+            let root = if root_ptr != 0 {
+                emu.maps.read_wide_string(root_ptr)
+            } else {
+                String::from("C:\\")
+            };
+            log_red!(emu, "kernelbase!GetDriveTypeW '{}' => DRIVE_FIXED", root);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 3;
+        }
+        "GetDurationFormatEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetDurationFormatEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetDynamicTimeZoneInformation" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetDynamicTimeZoneInformation");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEnabledXStateFeatures" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetEnabledXStateFeatures h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEnvironmentStrings" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetEnvironmentStrings arg1:0x{:x}", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetEnvironmentStringsA" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_string(str_ptr);
+            log_red!(
+                emu,
+                "kernelbase!GetEnvironmentStringsA '{}' 0x{:x}",
+                name,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEnvironmentStringsW" => {
+            let str_ptr = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(str_ptr);
+            log_red!(
+                emu,
+                "kernelbase!GetEnvironmentStringsW '{}' 0x{:x}",
+                name,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetEnvironmentVariableA" => {
+            let name_ptr = emu.regs().rcx;
+            let buf_ptr = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let name = emu.maps.read_string(name_ptr);
+            let name_upper = name.to_uppercase();
+            let value = match name_upper.as_str() {
+                "PATH" => Some("C:\\Windows\\system32;C:\\Windows"),
+                "TEMP" | "TMP" => Some("C:\\Users\\User\\AppData\\Local\\Temp"),
+                "USERPROFILE" => Some("C:\\Users\\User"),
+                "SYSTEMROOT" | "WINDIR" => Some("C:\\Windows"),
+                "SYSTEMDRIVE" => Some("C:"),
+                "COMPUTERNAME" => Some("DESKTOP-MWEMU"),
+                "USERNAME" => Some("User"),
+                "APPDATA" => Some("C:\\Users\\User\\AppData\\Roaming"),
+                "LOCALAPPDATA" => Some("C:\\Users\\User\\AppData\\Local"),
+                "PROGRAMFILES" => Some("C:\\Program Files"),
+                "PROGRAMDATA" => Some("C:\\ProgramData"),
+                "HOMEDRIVE" => Some("C:"),
+                "HOMEPATH" => Some("\\Users\\User"),
+                "COMSPEC" => Some("C:\\Windows\\system32\\cmd.exe"),
+                "NUMBER_OF_PROCESSORS" => Some("4"),
+                "PROCESSOR_ARCHITECTURE" => Some("AMD64"),
+                "OS" => Some("Windows_NT"),
+                _ => None,
+            };
+            if let Some(val) = value {
+                log_red!(
+                    emu,
+                    "kernelbase!GetEnvironmentVariableA '{}' => '{}'",
+                    name,
+                    val
+                );
+                if buf_ptr != 0 && buf_size > val.len() as u64 {
+                    emu.maps.write_string(buf_ptr, val);
+                    emu.regs_mut().rax = val.len() as u64;
+                } else {
+                    emu.regs_mut().rax = val.len() as u64 + 1;
+                }
+            } else {
+                log_red!(
+                    emu,
+                    "kernelbase!GetEnvironmentVariableA '{}' => NOT FOUND",
+                    name
+                );
+                emu.set_last_error(203); // ERROR_ENVVAR_NOT_FOUND
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "GetEnvironmentVariableW" => {
+            let name_ptr = emu.regs().rcx;
+            let buf_ptr = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let name = emu.maps.read_wide_string(name_ptr);
+            let value = match name.to_uppercase().as_str() {
+                "SYSTEMROOT" | "WINDIR" => "C:\\Windows".to_string(),
+                "TEMP" | "TMP" => "C:\\Users\\user\\AppData\\Local\\Temp".to_string(),
+                "PROGRAMFILES" => "C:\\Program Files".to_string(),
+                "PROGRAMFILES(X86)" => "C:\\Program Files (x86)".to_string(),
+                "COMSPEC" => "C:\\Windows\\system32\\cmd.exe".to_string(),
+                "USERPROFILE" => "C:\\Users\\user".to_string(),
+                "APPDATA" => "C:\\Users\\user\\AppData\\Roaming".to_string(),
+                "LOCALAPPDATA" => "C:\\Users\\user\\AppData\\Local".to_string(),
+                "SYSTEMDRIVE" => "C:".to_string(),
+                "PATH" => "C:\\Windows\\system32;C:\\Windows".to_string(),
+                "COMPUTERNAME" => "DESKTOP-MWEMU".to_string(),
+                "USERNAME" => "user".to_string(),
+                "OS" => "Windows_NT".to_string(),
+                "NUMBER_OF_PROCESSORS" => "4".to_string(),
+                "PROCESSOR_ARCHITECTURE" => "x86".to_string(),
+                _ => String::new(),
+            };
+            if value.is_empty() {
+                emu.set_last_error(203);
+                emu.regs_mut().rax = 0;
+            } else if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, &value);
+                emu.regs_mut().rax = value.len() as u64;
+            } else {
+                emu.regs_mut().rax = value.len() as u64 + 1;
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetEnvironmentVariableW '{}' => '{}'",
+                name,
+                value
+            );
+        }
+        "GetEraNameCountedString" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetEraNameCountedString h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetErrorMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetErrorMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetExitCodeProcess" => {
+            let handle = emu.regs().rcx;
+            let exit_code_ptr = emu.regs().rdx;
+            if exit_code_ptr != 0 {
+                emu.maps.write_dword(exit_code_ptr, 259); // STILL_ACTIVE
+            }
+            log_red!(emu, "kernelbase!GetExitCodeProcess handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "GetExitCodeThread" => {
+            let handle = emu.regs().rcx;
+            let exit_code_ptr = emu.regs().rdx;
+            if exit_code_ptr != 0 {
+                emu.maps.write_dword(exit_code_ptr, 259); // STILL_ACTIVE
+            }
+            log_red!(emu, "kernelbase!GetExitCodeThread handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileAttributesA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!GetFileAttributesA '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x80;
+        }
+        "GetFileAttributesExA" => {
+            let path_ptr = emu.regs().rcx;
+            let info_level = emu.regs().rdx;
+            let file_info_ptr = emu.regs().r8;
+            let path = emu.maps.read_string(path_ptr);
+            if file_info_ptr != 0 {
+                emu.maps.write_dword(file_info_ptr, 0x80); // dwFileAttributes = NORMAL
+                emu.maps.write_dword(file_info_ptr + 28, 0); // nFileSizeHigh
+                emu.maps.write_dword(file_info_ptr + 32, 4096); // nFileSizeLow
+            }
+            log_red!(emu, "kernelbase!GetFileAttributesExA '{}'", path);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileAttributesExW" => {
+            let path_ptr = emu.regs().rcx;
+            let info_level = emu.regs().rdx;
+            let file_info_ptr = emu.regs().r8;
+            let path = emu.maps.read_wide_string(path_ptr);
+            if file_info_ptr != 0 {
+                emu.maps.write_dword(file_info_ptr, 0x80);
+                emu.maps.write_dword(file_info_ptr + 28, 0);
+                emu.maps.write_dword(file_info_ptr + 32, 4096);
+            }
+            log_red!(emu, "kernelbase!GetFileAttributesExW '{}'", path);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileAttributesW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!GetFileAttributesW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x80;
+        }
+        "GetFileInformationByHandle" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!GetFileInformationByHandle p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileInformationByHandleEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!GetFileInformationByHandleEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileInformationByName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFileInformationByName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileMUIInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFileMUIInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileMUIPath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFileMUIPath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileSize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFileSize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFileSizeEx" => {
+            let hfile = emu.regs().rcx;
+            let size_ptr = emu.regs().rdx;
+            let file_size: u64 = 4096;
+            if size_ptr != 0 {
+                emu.maps.write_qword(size_ptr, file_size);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetFileSizeEx h:0x{:x} => {}",
+                hfile,
+                file_size
+            );
+            emu.regs_mut().rax = 1; // TRUE
+        }
+        "GetFileTime" => {
+            let hfile = emu.regs().rcx;
+            let creation_ptr = emu.regs().rdx;
+            let access_ptr = emu.regs().r8;
+            let write_ptr = emu.regs().r9;
+            let filetime: u64 = 0x01D7_A000_0000_0000;
+            if creation_ptr != 0 {
+                emu.maps.write_qword(creation_ptr, filetime);
+            }
+            if access_ptr != 0 {
+                emu.maps.write_qword(access_ptr, filetime);
+            }
+            if write_ptr != 0 {
+                emu.maps.write_qword(write_ptr, filetime);
+            }
+            log_red!(emu, "kernelbase!GetFileTime h:0x{:x}", hfile);
+            emu.regs_mut().rax = 1; // TRUE
+        }
+        "GetFileType" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetFileType h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetFinalPathNameByHandleA" => {
+            let handle = emu.regs().rcx;
+            let buf = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let uri = helper::handler_get_uri(handle);
+            let path = uri.strip_prefix("file://").unwrap_or("C:\\unknown");
+            log_red!(
+                emu,
+                "kernelbase!GetFinalPathNameByHandleA h:0x{:x} => '{}'",
+                handle,
+                path
+            );
+            if buf != 0 && buf_size > 0 {
+                emu.maps.write_string(buf, path);
+            }
+            emu.regs_mut().rax = path.len() as u64;
+        }
+        "GetFinalPathNameByHandleW" => {
+            let handle = emu.regs().rcx;
+            let buf = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let uri = helper::handler_get_uri(handle);
+            let path = uri.strip_prefix("file://").unwrap_or("C:\\unknown");
+            log_red!(
+                emu,
+                "kernelbase!GetFinalPathNameByHandleW h:0x{:x} => '{}'",
+                handle,
+                path
+            );
+            if buf != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf, path);
+            }
+            emu.regs_mut().rax = path.len() as u64;
+        }
+        "GetFullPathNameA" => {
+            let path_ptr = emu.regs().rcx;
+            let buf_size = emu.regs().rdx;
+            let buf_ptr = emu.regs().r8;
+            let filepart_ptr = emu.regs().r9;
+            let path = emu.maps.read_string(path_ptr);
+            let full = format!("C:\\mwemu\\{}", path);
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, &full);
+            }
+            log_red!(emu, "kernelbase!GetFullPathNameA '{}' => '{}'", path, full);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = full.len() as u64;
+        }
+        "GetFullPathNameW" => {
+            let path_ptr = emu.regs().rcx;
+            let buf_size = emu.regs().rdx;
+            let buf_ptr = emu.regs().r8;
+            let filepart_ptr = emu.regs().r9;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let full = format!("C:\\mwemu\\{}", path);
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, &full);
+            }
+            log_red!(emu, "kernelbase!GetFullPathNameW '{}' => '{}'", path, full);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = full.len() as u64;
+        }
+        "GetGeoInfoEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetGeoInfoEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetGeoInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetGeoInfoW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetHandleInformation" => {
+            let handle = emu.regs().rcx;
+            let flags_ptr = emu.regs().rdx;
+            if flags_ptr != 0 {
+                emu.maps.write_dword(flags_ptr, 0); // no flags set
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetHandleInformation h:0x{:x} flags_ptr:0x{:x}",
+                handle,
+                flags_ptr
+            );
+            emu.regs_mut().rax = 1; // TRUE
+        }
+        "GetIoRingInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetIoRingInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetLargePageMinimum" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetLargePageMinimum h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetLargestConsoleWindowSize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetLargestConsoleWindowSize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetLastError" => {
+            winapi64::kernel32::GetLastError(emu);
+        }
+        "GetLocalTime" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetLocalTime");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetLocaleInfoA" => {
+            let locale = emu.regs().rcx;
+            let lctype = emu.regs().rdx;
+            let buf_ptr = emu.regs().r8;
+            let buf_size = emu.regs().r9;
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, "en-US");
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetLocaleInfoA locale:0x{:x} type:0x{:x}",
+                locale,
+                lctype
+            );
+            emu.regs_mut().rax = 6;
+        }
+        "GetLocaleInfoEx" => {
+            let locale_ptr = emu.regs().rcx;
+            let lctype = emu.regs().rdx;
+            let buf_ptr = emu.regs().r8;
+            let buf_size = emu.regs().r9;
+            let locale = emu.maps.read_wide_string(locale_ptr);
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, "en-US");
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetLocaleInfoEx '{}' type:0x{:x}",
+                locale,
+                lctype
+            );
+            emu.regs_mut().rax = 6;
+        }
+        "GetLocaleInfoW" => {
+            let locale = emu.regs().rcx;
+            let lctype = emu.regs().rdx;
+            let buf_ptr = emu.regs().r8;
+            let buf_size = emu.regs().r9;
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, "en-US");
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetLocaleInfoW locale:0x{:x} type:0x{:x}",
+                locale,
+                lctype
+            );
+            emu.regs_mut().rax = 6;
+        }
+        "GetLogicalDriveStringsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetLogicalDriveStringsW '{}' p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4;
+        }
+        "GetLogicalDrives" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetLogicalDrives arg1:0x{:x}", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetLogicalProcessorInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetLogicalProcessorInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetLogicalProcessorInformationEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetLogicalProcessorInformationEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetLongPathNameA" => {
+            let short_ptr = emu.regs().rcx;
+            let long_ptr = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let path = if short_ptr != 0 {
+                emu.maps.read_string(short_ptr)
+            } else {
+                String::new()
+            };
+            if long_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(long_ptr, &path);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetLongPathNameA '{}' => len:{}",
+                path,
+                path.len() + 1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (path.len() + 1) as u64;
+        }
+        "GetLongPathNameW" => {
+            let short_ptr = emu.regs().rcx;
+            let long_ptr = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let path = if short_ptr != 0 {
+                emu.maps.read_wide_string(short_ptr)
+            } else {
+                String::new()
+            };
+            let char_count = path.encode_utf16().count() + 1;
+            if long_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(long_ptr, &path);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetLongPathNameW '{}' => len:{}",
+                path,
+                char_count
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = char_count as u64;
+        }
+        "GetMachineTypeAttributes" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetMachineTypeAttributes h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetMemoryErrorHandlingCapabilities" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetMemoryErrorHandlingCapabilities h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleFileNameA" => {
+            let module = emu.regs().rcx;
+            let buf_ptr = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let name = "C:\\mwemu\\program.exe";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, name);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetModuleFileNameA module:0x{:x} => '{}'",
+                module,
+                name
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = name.len() as u64;
+        }
+        "GetModuleFileNameW" => {
+            let module = emu.regs().rcx;
+            let buf_ptr = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let name = "C:\\mwemu\\program.exe";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, name);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetModuleFileNameW module:0x{:x} => '{}'",
+                module,
+                name
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = name.len() as u64;
+        }
+        "GetModuleHandleA" => {
+            let name_ptr = emu.regs().rcx;
+            let name = if name_ptr != 0 {
+                emu.maps.read_string(name_ptr)
+            } else {
+                String::from("(null)")
+            };
+            let hndl = helper::handler_create(&format!("module_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!GetModuleHandleA '{}' => 0x{:x}",
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "GetModuleHandleExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetModuleHandleExA '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleHandleExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetModuleHandleExW '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "GetModuleHandleW" => {
+            let mod_name_ptr = emu.regs().rcx;
+            let mod_name: String;
+            if mod_name_ptr == 0 {
+                mod_name = "self".to_string();
+                emu.regs_mut().rax = match emu.maps.get_base() {
+                    Some(base) => base,
+                    None => helper::handler_create(&mod_name),
+                }
+            } else {
+                mod_name = emu.maps.read_wide_string(mod_name_ptr).to_lowercase();
+                let mod_mem = match emu.maps.get_mem2(&mod_name) {
+                    Some(m) => m,
+                    None => {
+                        emu.regs_mut().rax = 0;
+                        log_red!(emu, "kernelbase!GetModuleHandleW '{}' not found", mod_name);
+                        return String::new();
+                    }
+                };
+                emu.regs_mut().rax = mod_mem.get_base();
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetModuleHandleW '{}' =0x{:x}",
+                mod_name,
+                emu.regs().rax
+            );
+        }
+        "GetNLSVersion" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNLSVersion h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNLSVersionEx" => {
+            let func = emu.regs().rcx as u32;
+            let locale_ptr = emu.regs().rdx;
+            let info_ptr = emu.regs().r8;
+            let locale = if locale_ptr != 0 && locale_ptr > 0xffff {
+                emu.maps.read_wide_string(locale_ptr)
+            } else {
+                "en-US".to_string()
+            };
+            if info_ptr != 0 {
+                emu.maps.write_dword(info_ptr, 32); // dwNLSVersionInfoSize
+                emu.maps.write_dword(info_ptr + 4, 6); // dwNLSVersion
+                emu.maps.write_dword(info_ptr + 8, 2); // dwDefinedVersion
+                emu.maps.write_dword(info_ptr + 12, 0); // dwEffectiveId
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetNLSVersionEx func:{} locale:'{}'",
+                func,
+                locale
+            );
+            emu.regs_mut().rax = 1; // TRUE
+        }
+        "GetNamedPipeAttribute" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNamedPipeAttribute h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNamedPipeClientComputerNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetNamedPipeClientComputerNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNamedPipeHandleStateW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let p6 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetNamedPipeHandleStateW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNamedPipeInfo" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!GetNamedPipeInfo p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNativeSystemInfo" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetNativeSystemInfo");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNumaHighestNodeNumber" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNumaHighestNodeNumber h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNumaNodeProcessorMask2" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNumaNodeProcessorMask2 h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNumaNodeProcessorMaskEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNumaNodeProcessorMaskEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNumaProximityNodeEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNumaProximityNodeEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNumberFormatEx" => {
+            let _locale_ptr = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let value_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                "0".to_string()
+            };
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, &value);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetNumberFormatEx '{}' => '{}'",
+                value,
+                value
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (value.len() + 1) as u64;
+        }
+        "GetNumberFormatW" => {
+            let _locale = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let value_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                "0".to_string()
+            };
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, &value);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetNumberFormatW '{}' => '{}'",
+                value,
+                value
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (value.len() + 1) as u64;
+        }
+        "GetNumberOfConsoleInputEvents" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetNumberOfConsoleInputEvents 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetNumberOfConsoleMouseButtons" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetNumberOfConsoleMouseButtons h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetOEMCP" => {
+            let handle = emu.regs().rcx;
+            let out_buf = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetOEMCP {}:0x{:x} {}:0x{:x}",
+                "handle",
+                handle,
+                "out_buf",
+                out_buf
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetOverlappedResult" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetOverlappedResult h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetOverlappedResultEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetOverlappedResultEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageApplicationIds" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageApplicationIds h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageFamilyName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageFamilyName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageFullName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageFullName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackageInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackageInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackagePath" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackagePath h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackagePathByFullName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackagePathByFullName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPackagesByPackageFamily" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPackagesByPackageFamily h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPhysicallyInstalledSystemMemory" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetPhysicallyInstalledSystemMemory h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetPriorityClass" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetPriorityClass");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x20;
+        }
+        "GetProcAddress" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!GetProcAddress p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessDefaultCpuSetMasks" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessDefaultCpuSetMasks h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessDefaultCpuSets" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessDefaultCpuSets h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessGroupAffinity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessGroupAffinity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessHandleCount" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!GetProcessHandleCount p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessHeap" => {
+            let handle = emu.regs().rcx;
+            let out_buf = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessHeap {}:0x{:x} {}:0x{:x}",
+                "handle",
+                handle,
+                "out_buf",
+                out_buf
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetProcessHeaps" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessHeaps h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessId" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetProcessId");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x1234;
+        }
+        "GetProcessIdOfThread" => {
+            let handle = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessIdOfThread h:0x{:x} => 1337",
+                handle
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1337;
+        }
+        "GetProcessInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessMitigationPolicy" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessMitigationPolicy h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessPreferredUILanguages" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessPriorityBoost" => {
+            let handle = emu.regs().rcx;
+            let disable_ptr = emu.regs().rdx;
+            if disable_ptr != 0 {
+                emu.maps.write_dword(disable_ptr, 0); // boost not disabled
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetProcessPriorityBoost h:0x{:x} => FALSE",
+                handle
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessShutdownParameters" => {
+            let level_ptr = emu.regs().rcx;
+            let flags_ptr = emu.regs().rdx;
+            if level_ptr != 0 {
+                emu.maps.write_dword(level_ptr, 0x280); // default = 640
+            }
+            if flags_ptr != 0 {
+                emu.maps.write_dword(flags_ptr, 0);
+            }
+            log_red!(emu, "kernelbase!GetProcessShutdownParameters => 0x280");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessTimes" => {
+            let handle = emu.regs().rcx;
+            let creation_ptr = emu.regs().rdx;
+            let exit_ptr = emu.regs().r8;
+            let kernel_ptr = emu.regs().r9;
+            let user_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if creation_ptr != 0 {
+                emu.maps.write_qword(creation_ptr, 0x01D0_0000_0000_0000);
+            }
+            if exit_ptr != 0 {
+                emu.maps.write_qword(exit_ptr, 0);
+            }
+            if kernel_ptr != 0 {
+                emu.maps.write_qword(kernel_ptr, 1000000);
+            }
+            if user_ptr != 0 {
+                emu.maps.write_qword(user_ptr, 5000000);
+            }
+            log_red!(emu, "kernelbase!GetProcessTimes h:0x{:x}", handle);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessVersion" => {
+            let process_id = emu.regs().rcx;
+            // Returns major.minor in HIWORD.LOWORD: Windows 10 = 0x000A0000
+            let version = 0x000A_0000u64;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessVersion pid:{} => 0x{:x}",
+                process_id,
+                version
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = version;
+        }
+        "GetProcessWorkingSetSize" => {
+            let handle = emu.regs().rcx;
+            let min_ptr = emu.regs().rdx;
+            let max_ptr = emu.regs().r8;
+            if min_ptr != 0 {
+                emu.maps.write_qword(min_ptr, 204800); // 200 KB min
+            }
+            if max_ptr != 0 {
+                emu.maps.write_qword(max_ptr, 1413120); // ~1.3 MB max
+            }
+            log_red!(emu, "kernelbase!GetProcessWorkingSetSize h:0x{:x}", handle);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessWorkingSetSizeEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessWorkingSetSizeEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProcessorSystemCycleTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProcessorSystemCycleTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetProductInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetProductInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetQueuedCompletionStatus" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetQueuedCompletionStatus h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetQueuedCompletionStatusEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetQueuedCompletionStatusEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetShortPathNameW" => {
+            let long_ptr = emu.regs().rcx;
+            let short_ptr = emu.regs().rdx;
+            let buf_size = emu.regs().r8;
+            let path = if long_ptr != 0 {
+                emu.maps.read_wide_string(long_ptr)
+            } else {
+                String::new()
+            };
+            let char_count = path.encode_utf16().count() + 1;
+            if short_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(short_ptr, &path);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetShortPathNameW '{}' => len:{}",
+                path,
+                char_count
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = char_count as u64;
+        }
+        "GetStagedPackagePathByFullName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStagedPackagePathByFullName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStartupInfoW" => {
+            let info_ptr = emu.regs().rcx;
+            if info_ptr != 0 {
+                let cb = if true { 104u32 } else { 68u32 };
+                emu.maps.write_dword(info_ptr, cb);
+            }
+            log_red!(emu, "kernelbase!GetStartupInfoW");
+        }
+        "GetStateFolder" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStateFolder h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStdHandle" => {
+            let std_handle = emu.regs().rcx;
+            let name = match std_handle as i64 {
+                -10 => "STD_INPUT",
+                -11 => "STD_OUTPUT",
+                -12 => "STD_ERROR",
+                _ => "UNKNOWN",
+            };
+            let hndl = helper::handler_create(&format!("std_{}", name));
+            log_red!(emu, "kernelbase!GetStdHandle {} => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "GetStringScripts" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetStringScripts h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStringTypeA" => {
+            let locale = emu.regs().rcx;
+            let info_type = emu.regs().rdx;
+            let src_ptr = emu.regs().r8;
+            let src_len = emu.regs().r9;
+            let src = if src_ptr != 0 {
+                emu.maps.read_string(src_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetStringTypeA type:0x{:x} '{}'",
+                info_type,
+                src
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetStringTypeExW" => {
+            let _locale = emu.regs().rcx;
+            let info_type = emu.regs().rdx as u32;
+            let src_ptr = emu.regs().r8;
+            let src_len = emu.regs().r9 as i32;
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let src = if src_ptr != 0 {
+                emu.maps.read_wide_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let char_count = if src_len < 0 {
+                src.encode_utf16().count()
+            } else {
+                src_len as usize
+            };
+            if out_ptr != 0 {
+                for (i, ch) in src.chars().take(char_count).enumerate() {
+                    let ct: u16 = if info_type == 1 {
+                        let mut t: u16 = 0;
+                        if ch.is_uppercase() {
+                            t |= 0x0001;
+                        }
+                        if ch.is_lowercase() {
+                            t |= 0x0002;
+                        }
+                        if ch.is_ascii_digit() {
+                            t |= 0x0004;
+                        }
+                        if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+                            t |= 0x0008;
+                        }
+                        if ch.is_ascii_punctuation() {
+                            t |= 0x0010;
+                        }
+                        if ch.is_control() {
+                            t |= 0x0020;
+                        }
+                        if ch == ' ' {
+                            t |= 0x0048;
+                        }
+                        if ch.is_alphanumeric() {
+                            t |= 0x0100;
+                        }
+                        t
+                    } else {
+                        0
+                    };
+                    emu.maps.write_word(out_ptr + (i as u64) * 2, ct);
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetStringTypeExW type:0x{:x} '{}' len:{}",
+                info_type,
+                src,
+                char_count
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "GetStringTypeW" => {
+            let info_type = emu.regs().rcx as u32;
+            let src_ptr = emu.regs().rdx;
+            let src_len = emu.regs().r8 as i32;
+            let out_ptr = emu.regs().r9;
+            let src = if src_ptr != 0 {
+                emu.maps.read_wide_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let char_count = if src_len < 0 {
+                src.encode_utf16().count()
+            } else {
+                src_len as usize
+            };
+            if out_ptr != 0 {
+                for (i, ch) in src.chars().take(char_count).enumerate() {
+                    let ct: u16 = if info_type == 1 {
+                        let mut t: u16 = 0;
+                        if ch.is_uppercase() {
+                            t |= 0x0001;
+                        }
+                        if ch.is_lowercase() {
+                            t |= 0x0002;
+                        }
+                        if ch.is_ascii_digit() {
+                            t |= 0x0004;
+                        }
+                        if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+                            t |= 0x0008;
+                        }
+                        if ch.is_ascii_punctuation() {
+                            t |= 0x0010;
+                        }
+                        if ch.is_control() {
+                            t |= 0x0020;
+                        }
+                        if ch == ' ' {
+                            t |= 0x0048;
+                        }
+                        if ch.is_alphanumeric() {
+                            t |= 0x0100;
+                        }
+                        t
+                    } else {
+                        0
+                    };
+                    emu.maps.write_word(out_ptr + (i as u64) * 2, ct);
+                }
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetStringTypeW type:0x{:x} '{}' len:{}",
+                info_type,
+                src,
+                char_count
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemAppDataKey" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemAppDataKey h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemCpuSetInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemCpuSetInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemDefaultLCID" => {
+            log_red!(emu, "kernelbase!GetSystemDefaultLCID => 0x0409");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x0409; // English US
+        }
+        "GetSystemDefaultLangID" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemDefaultLangID h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemDefaultLocaleName" => {
+            let buf_ptr = emu.regs().rcx;
+            let cch_buf = emu.regs().rdx as usize;
+            let locale = "en-US";
+            if buf_ptr != 0 {
+                emu.maps.write_wide_string(buf_ptr, locale);
+            }
+            log_red!(emu, "kernelbase!GetSystemDefaultLocaleName => '{}'", locale);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (locale.len() + 1) as u64;
+        }
+        "GetSystemDefaultUILanguage" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemDefaultUILanguage h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemDirectoryA" => {
+            let buf_ptr = emu.regs().rcx;
+            let buf_size = emu.regs().rdx;
+            let dir = "C:\\Windows\\System32";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, dir);
+            }
+            log_red!(emu, "kernelbase!GetSystemDirectoryA => '{}'", dir);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = dir.len() as u64;
+        }
+        "GetSystemDirectoryW" => {
+            let buf_ptr = emu.regs().rcx;
+            let buf_size = emu.regs().rdx;
+            let dir = "C:\\Windows\\System32";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, dir);
+            }
+            log_red!(emu, "kernelbase!GetSystemDirectoryW => '{}'", dir);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = dir.len() as u64;
+        }
+        "GetSystemFileCacheSize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemFileCacheSize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemFirmwareTable" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemFirmwareTable h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemInfo" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetSystemInfo");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemPreferredUILanguages" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemTime" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetSystemTime");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemTimeAdjustment" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemTimeAdjustment h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemTimeAsFileTime" => {
+            let ft_ptr = emu.regs().rcx;
+            if ft_ptr != 0 {
+                emu.maps.write_dword(ft_ptr, 0xd53e8000);
+                emu.maps.write_dword(ft_ptr + 4, 0x019db1de);
+            }
+            log_red!(emu, "kernelbase!GetSystemTimeAsFileTime");
+        }
+        "GetSystemTimePreciseAsFileTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemTimePreciseAsFileTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemTimes" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetSystemTimes h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemWindowsDirectoryA" => {
+            let buf = emu.regs().rcx;
+            let buf_size = emu.regs().rdx as usize;
+            let windir = "C:\\Windows";
+            log_red!(emu, "kernelbase!GetSystemWindowsDirectoryA => '{}'", windir);
+            if buf != 0 && buf_size > 0 {
+                emu.maps.write_string(buf, windir);
+            }
+            emu.regs_mut().rax = windir.len() as u64;
+        }
+        "GetSystemWindowsDirectoryW" => {
+            let buf = emu.regs().rcx;
+            let buf_size = emu.regs().rdx as usize;
+            let windir = "C:\\Windows";
+            log_red!(emu, "kernelbase!GetSystemWindowsDirectoryW => '{}'", windir);
+            if buf != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf, windir);
+            }
+            emu.regs_mut().rax = windir.len() as u64;
+        }
+        "GetSystemWow64DirectoryA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetSystemWow64DirectoryA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetSystemWow64DirectoryW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetSystemWow64DirectoryW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTempFileNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetTempFileNameA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTempFileNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetTempFileNameW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTempPath2A" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetTempPath2A '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTempPath2W" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetTempPath2W '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTempPathA" => {
+            let buf_size = emu.regs().rcx;
+            let buf_ptr = emu.regs().rdx;
+            let tmp = "C:\\Windows\\Temp\\";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, tmp);
+            }
+            log_red!(emu, "kernelbase!GetTempPathA => '{}'", tmp);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = tmp.len() as u64;
+        }
+        "GetTempPathW" => {
+            let buf_size = emu.regs().rcx;
+            let buf_ptr = emu.regs().rdx;
+            let tmp = "C:\\Windows\\Temp\\";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, tmp);
+            }
+            log_red!(emu, "kernelbase!GetTempPathW => '{}'", tmp);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = tmp.len() as u64;
+        }
+        "GetThreadContext" => {
+            let handle = emu.regs().rcx;
+            let ctx_ptr = emu.regs().rdx;
+            if ctx_ptr != 0 {
+                // Write current register state to CONTEXT structure
+                // CONTEXT64: ContextFlags at offset 0x30
+                emu.maps.write_dword(ctx_ptr + 0x30, 0x10001F); // CONTEXT_ALL
+                // Rax at 0x78, Rcx at 0x80, Rdx at 0x88, Rbx at 0x90
+                emu.maps.write_qword(ctx_ptr + 0x78, emu.regs().rax);
+                emu.maps.write_qword(ctx_ptr + 0x80, emu.regs().rcx);
+                emu.maps.write_qword(ctx_ptr + 0x88, emu.regs().rdx);
+                emu.maps.write_qword(ctx_ptr + 0x90, emu.regs().rbx);
+                emu.maps.write_qword(ctx_ptr + 0x98, emu.regs().rsp);
+                emu.maps.write_qword(ctx_ptr + 0xA0, emu.regs().rbp);
+                emu.maps.write_qword(ctx_ptr + 0xA8, emu.regs().rsi);
+                emu.maps.write_qword(ctx_ptr + 0xB0, emu.regs().rdi);
+                emu.maps.write_qword(ctx_ptr + 0xF8, emu.regs().rip);
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetThreadContext h:0x{:x} ctx:0x{:x}",
+                handle,
+                ctx_ptr
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadDescription" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadDescription h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadEnabledXStateFeatures" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadEnabledXStateFeatures h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadErrorMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadErrorMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadGroupAffinity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadGroupAffinity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadIOPendingFlag" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadIOPendingFlag h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadId" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetThreadId");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x2345;
+        }
+        "GetThreadIdealProcessorEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadIdealProcessorEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadLocale" => {
+            // Returns LCID for current thread locale (English US = 0x0409)
+            log_red!(emu, "kernelbase!GetThreadLocale => 0x0409");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x0409;
+        }
+        "GetThreadPreferredUILanguages" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadPriority" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetThreadPriority");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 2;
+        }
+        "GetThreadPriorityBoost" => {
+            let handle = emu.regs().rcx;
+            let disable_ptr = emu.regs().rdx;
+            if disable_ptr != 0 {
+                emu.maps.write_dword(disable_ptr, 0); // boost not disabled
+            }
+            log_red!(
+                emu,
+                "kernelbase!GetThreadPriorityBoost h:0x{:x} => FALSE",
+                handle
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadSelectedCpuSetMasks" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadSelectedCpuSetMasks h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadSelectedCpuSets" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadSelectedCpuSets h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadTimes" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadTimes h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetThreadUILanguage" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetThreadUILanguage h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetTickCount" => {
+            helper::advance_tick(emu, 1);
+            let tick = emu.tick as u64;
+            log_red!(emu, "kernelbase!GetTickCount => {}", tick);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = tick;
+        }
+        "GetTickCount64" => {
+            helper::advance_tick(emu, 1);
+            let tick = emu.tick as u64;
+            log_red!(emu, "kernelbase!GetTickCount64 => {}", tick);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = tick;
+        }
+        "GetTimeFormatA" => {
+            let _locale = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let _time_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let time = "12:00:00";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, time);
+            }
+            log_red!(emu, "kernelbase!GetTimeFormatA => '{}'", time);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (time.len() + 1) as u64;
+        }
+        "GetTimeFormatEx" => {
+            let _locale_ptr = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let _time_ptr = emu.regs().r8;
+            let _format_ptr = emu.regs().r9;
+            let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let time = "12:00:00";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, time);
+            }
+            log_red!(emu, "kernelbase!GetTimeFormatEx => '{}'", time);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (time.len() + 1) as u64;
+        }
+        "GetTimeFormatW" => {
+            let buf = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let time = "12:00:00";
+            log_red!(emu, "kernelbase!GetTimeFormatW -> '{}'", time);
+            if buf != 0 && buf_size > 0 {
+                for (i, ch) in time.encode_utf16().enumerate() {
+                    emu.maps.write_word(buf + (i as u64) * 2, ch);
+                }
+                emu.maps.write_word(buf + (time.len() as u64) * 2, 0);
+            }
+            emu.regs_mut().rax = (time.len() + 1) as u64;
+        }
+        "GetTimeZoneInformation" => {
+            let tz_ptr = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetTimeZoneInformation ptr:0x{:x}", tz_ptr);
+            if tz_ptr != 0 {
+                emu.maps.write_dword(tz_ptr, 0i32 as u32); // Bias = 0 (UTC)
+                for i in 4..172u64 {
+                    emu.maps.write_byte(tz_ptr + i, 0);
+                }
+            }
+            emu.regs_mut().rax = 0; // TIME_ZONE_ID_UNKNOWN
+        }
+        "GetTimeZoneInformationForYear" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetTimeZoneInformationForYear h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUILanguageInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUILanguageInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserDefaultGeoName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserDefaultGeoName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserDefaultLCID" => {
+            let handle = emu.regs().rcx;
+            let out_buf = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserDefaultLCID {}:0x{:x} {}:0x{:x}",
+                "handle",
+                handle,
+                "out_buf",
+                out_buf
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "GetUserDefaultLangID" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserDefaultLangID h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserDefaultLocaleName" => {
+            let buf_ptr = emu.regs().rcx;
+            let buf_size = emu.regs().rdx;
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, "en-US");
+            }
+            log_red!(emu, "kernelbase!GetUserDefaultLocaleName => en-US");
+            emu.regs_mut().rax = 6;
+        }
+        "GetUserDefaultUILanguage" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserDefaultUILanguage h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetUserGeoID" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetUserGeoID");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 244;
+        }
+        "GetUserPreferredUILanguages" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetUserPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetVersion" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetVersion h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetVersionExA" => {
+            let info_ptr = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetVersionExA ptr:0x{:x}", info_ptr);
+            if info_ptr != 0 {
+                let size = emu.maps.read_dword(info_ptr).unwrap_or(148);
+                emu.maps.write_dword(info_ptr, size);
+                emu.maps.write_dword(info_ptr + 4, 10); // major
+                emu.maps.write_dword(info_ptr + 8, 0); // minor
+                emu.maps.write_dword(info_ptr + 12, 19045); // build
+                emu.maps.write_dword(info_ptr + 16, 2); // VER_PLATFORM_WIN32_NT
+            }
+            emu.regs_mut().rax = 1;
+        }
+        "GetVersionExW" => {
+            let info_ptr = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GetVersionExW ptr:0x{:x}", info_ptr);
+            if info_ptr != 0 {
+                let size = emu.maps.read_dword(info_ptr).unwrap_or(284);
+                emu.maps.write_dword(info_ptr, size);
+                emu.maps.write_dword(info_ptr + 4, 10);
+                emu.maps.write_dword(info_ptr + 8, 0);
+                emu.maps.write_dword(info_ptr + 12, 19045);
+                emu.maps.write_dword(info_ptr + 16, 2);
+            }
+            emu.regs_mut().rax = 1;
+        }
+        "GetVolumeInformationA" => {
+            let root_ptr = emu.regs().rcx;
+            let vol_name_ptr = emu.regs().rdx;
+            let vol_name_size = emu.regs().r8;
+            let serial_ptr = emu.regs().r9;
+            let max_comp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let fs_name_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let fs_name_size = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let root = if root_ptr != 0 {
+                emu.maps.read_string(root_ptr)
+            } else {
+                String::from("C:\\")
+            };
+            if vol_name_ptr != 0 && vol_name_size > 0 {
+                emu.maps.write_string(vol_name_ptr, "MWEMU");
+            }
+            if serial_ptr != 0 {
+                emu.maps.write_dword(serial_ptr, 0x12345678);
+            }
+            if max_comp_ptr != 0 {
+                emu.maps.write_dword(max_comp_ptr, 255);
+            }
+            if flags_ptr != 0 {
+                emu.maps.write_dword(flags_ptr, 0x700ff);
+            }
+            if fs_name_ptr != 0 && fs_name_size > 0 {
+                emu.maps.write_string(fs_name_ptr, "NTFS");
+            }
+            log_red!(emu, "kernelbase!GetVolumeInformationA '{}'", root);
+            emu.regs_mut().rax = 1;
+        }
+        "GetVolumeInformationByHandleW" => {
+            let root_ptr = emu.regs().rcx;
+            let vol_name_ptr = emu.regs().rdx;
+            let vol_name_size = emu.regs().r8;
+            let serial_ptr = emu.regs().r9;
+            let max_comp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let fs_name_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let fs_name_size = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let root = if root_ptr != 0 {
+                emu.maps.read_wide_string(root_ptr)
+            } else {
+                String::from("C:\\")
+            };
+            if vol_name_ptr != 0 && vol_name_size > 0 {
+                emu.maps.write_wide_string(vol_name_ptr, "MWEMU");
+            }
+            if serial_ptr != 0 {
+                emu.maps.write_dword(serial_ptr, 0x12345678);
+            }
+            if max_comp_ptr != 0 {
+                emu.maps.write_dword(max_comp_ptr, 255);
+            }
+            if flags_ptr != 0 {
+                emu.maps.write_dword(flags_ptr, 0x700ff);
+            }
+            if fs_name_ptr != 0 && fs_name_size > 0 {
+                emu.maps.write_wide_string(fs_name_ptr, "NTFS");
+            }
+            log_red!(emu, "kernelbase!GetVolumeInformationByHandleW '{}'", root);
+            emu.regs_mut().rax = 1;
+        }
+        "GetVolumeInformationW" => {
+            let root = emu.regs().rcx;
+            let vol_name_buf = emu.regs().rdx;
+            let vol_name_sz = emu.regs().r8 as u32;
+            let serial_ptr = emu.regs().r9;
+            let max_comp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let flags_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let fs_name_buf = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(emu, "kernelbase!GetVolumeInformationW");
+            let vol = "Windows";
+            if vol_name_buf != 0 && vol_name_sz > 0 {
+                for (i, ch) in vol.encode_utf16().enumerate() {
+                    emu.maps.write_word(vol_name_buf + (i as u64) * 2, ch);
+                }
+                emu.maps
+                    .write_word(vol_name_buf + (vol.len() as u64) * 2, 0);
+            }
+            if serial_ptr != 0 {
+                emu.maps.write_dword(serial_ptr, 0x12345678);
+            }
+            if max_comp_ptr != 0 {
+                emu.maps.write_dword(max_comp_ptr, 255);
+            }
+            if flags_ptr != 0 {
+                emu.maps.write_dword(flags_ptr, 0x000700FF);
+            }
+            let fs = "NTFS";
+            if fs_name_buf != 0 {
+                for (i, ch) in fs.encode_utf16().enumerate() {
+                    emu.maps.write_word(fs_name_buf + (i as u64) * 2, ch);
+                }
+                emu.maps.write_word(fs_name_buf + (fs.len() as u64) * 2, 0);
+            }
+            emu.regs_mut().rax = 1; // TRUE
+        }
+        "GetVolumeNameForVolumeMountPointW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetVolumeNameForVolumeMountPointW '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetVolumePathNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetVolumePathNameW '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetVolumePathNamesForVolumeNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!GetVolumePathNamesForVolumeNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetWindowsDirectoryA" => {
+            let buf_ptr = emu.regs().rcx;
+            let buf_size = emu.regs().rdx;
+            let dir = "C:\\Windows";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_string(buf_ptr, dir);
+            }
+            log_red!(emu, "kernelbase!GetWindowsDirectoryA => '{}'", dir);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = dir.len() as u64;
+        }
+        "GetWindowsDirectoryW" => {
+            let buf_ptr = emu.regs().rcx;
+            let buf_size = emu.regs().rdx;
+            let dir = "C:\\Windows";
+            if buf_ptr != 0 && buf_size > 0 {
+                emu.maps.write_wide_string(buf_ptr, dir);
+            }
+            log_red!(emu, "kernelbase!GetWindowsDirectoryW => '{}'", dir);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = dir.len() as u64;
+        }
+        "GetWriteWatch" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetWriteWatch h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GetXStateFeaturesMask" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GetXStateFeaturesMask h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GlobalAlloc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GlobalAlloc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            let handle = helper::handler_create("globalalloc");
+            emu.regs_mut().rax = handle;
+        }
+        "GlobalFlags" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GlobalFlags");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GlobalFree" => {
+            let handle = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GlobalFree 0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+        }
+        "GlobalHandle" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GlobalHandle");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x100000;
+        }
+        "GlobalLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GlobalLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "GlobalMemoryStatusEx" => {
+            let buf_ptr = emu.regs().rcx;
+            if buf_ptr != 0 {
+                emu.maps.write_dword(buf_ptr, 64); // dwLength
+                emu.maps.write_dword(buf_ptr + 4, 50); // dwMemoryLoad (50%)
+                emu.maps.write_qword(buf_ptr + 8, 8 * 1024 * 1024 * 1024); // ullTotalPhys (8GB)
+                emu.maps.write_qword(buf_ptr + 16, 4 * 1024 * 1024 * 1024); // ullAvailPhys (4GB)
+                emu.maps.write_qword(buf_ptr + 24, 16 * 1024 * 1024 * 1024); // ullTotalPageFile
+                emu.maps.write_qword(buf_ptr + 32, 8 * 1024 * 1024 * 1024); // ullAvailPageFile
+                emu.maps
+                    .write_qword(buf_ptr + 40, 128u64 * 1024 * 1024 * 1024); // ullTotalVirtual
+                emu.maps
+                    .write_qword(buf_ptr + 48, 128u64 * 1024 * 1024 * 1024); // ullAvailVirtual
+                emu.maps.write_qword(buf_ptr + 56, 0); // ullAvailExtendedVirtual
+            }
+            log_red!(emu, "kernelbase!GlobalMemoryStatusEx ptr:0x{:x}", buf_ptr);
+            emu.regs_mut().rax = 1;
+        }
+        "GlobalReAlloc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!GlobalReAlloc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            let handle = helper::handler_create("globalrealloc");
+            emu.regs_mut().rax = handle;
+        }
+        "GlobalSize" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GlobalSize");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4096;
+        }
+        "GlobalUnlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!GlobalUnlock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapAlloc" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(emu, "kernelbase!HeapAlloc p1:0x{:x} p2:0x{:x}", p1, p2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x100000;
+        }
+        "HeapCompact" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!HeapCompact p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4096;
+        }
+        "HeapCreate" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let hndl = helper::handler_create("heap");
+            log_red!(
+                emu,
+                "kernelbase!HeapCreate p1:0x{:x} p2:0x{:x} => 0x{:x}",
+                p1,
+                p2,
+                hndl
+            );
+            emu.regs_mut().rax = hndl;
+        }
+        "HeapDestroy" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!HeapDestroy");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapFree" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(emu, "kernelbase!HeapFree p1:0x{:x} p2:0x{:x}", p1, p2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!HeapLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapQueryInformation" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!HeapQueryInformation p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapReAlloc" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!HeapReAlloc p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x100000;
+        }
+        "HeapSetInformation" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!HeapSetInformation p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapSize" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(emu, "kernelbase!HeapSize p1:0x{:x} p2:0x{:x}", p1, p2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4096;
+        }
+        "HeapSummary" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!HeapSummary arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapUnlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!HeapUnlock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapValidate" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(emu, "kernelbase!HeapValidate p1:0x{:x} p2:0x{:x}", p1, p2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "HeapWalk" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!HeapWalk arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IdnToAscii" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!IdnToAscii arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IdnToNameprepUnicode" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!IdnToNameprepUnicode arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IdnToUnicode" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!IdnToUnicode arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitOnceBeginInitialize" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!InitOnceBeginInitialize p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitOnceComplete" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!InitOnceComplete p1:0x{:x} p2:0x{:x}",
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitOnceExecuteOnce" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!InitOnceExecuteOnce p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitOnceInitialize" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InitOnceInitialize");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeConditionVariable" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InitializeConditionVariable 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeContext" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeContext arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeContext2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeContext2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeCriticalSection" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InitializeCriticalSection 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeCriticalSectionAndSpinCount" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeCriticalSectionAndSpinCount 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeCriticalSectionEx" => {
+            let cs_ptr = emu.regs().rcx;
+            let spin_count = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            if cs_ptr != 0 {
+                emu.maps.write_qword(cs_ptr, 0);
+            }
+            log_red!(
+                emu,
+                "kernelbase!InitializeCriticalSectionEx ptr:0x{:x} spin:{} flags:0x{:x}",
+                cs_ptr,
+                spin_count,
+                flags
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeEnclave" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeEnclave arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeProcThreadAttributeList" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeProcThreadAttributeList h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeSListHead" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeSListHead arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeSRWLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InitializeSRWLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InitializeSynchronizationBarrier" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!InitializeSynchronizationBarrier 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InstallELAMCertificateInfo" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!InstallELAMCertificateInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedFlushSList" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedFlushSList 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedPopEntrySList" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedPopEntrySList 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedPushEntrySList" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedPushEntrySList 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedPushListSList" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedPushListSList 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedPushListSListEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedPushListSListEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsDBCSLeadByte" => {
+            let test_char = emu.regs().rcx;
+            let is_lead = (0x81..=0x9f).contains(&test_char) || (0xe0..=0xfc).contains(&test_char);
+            let result = if is_lead { 1u64 } else { 0u64 };
+            log_red!(
+                emu,
+                "kernelbase!IsDBCSLeadByte 0x{:x} => {}",
+                test_char,
+                result
+            );
+            emu.regs_mut().rax = result;
+        }
+        "IsDBCSLeadByteEx" => {
+            let _codepage = emu.regs().rcx;
+            let test_char = emu.regs().rdx;
+            let is_lead = (0x81..=0x9f).contains(&test_char) || (0xe0..=0xfc).contains(&test_char);
+            let result = if is_lead { 1u64 } else { 0u64 };
+            log_red!(
+                emu,
+                "kernelbase!IsDBCSLeadByteEx 0x{:x} => {}",
+                test_char,
+                result
+            );
+            emu.regs_mut().rax = result;
+        }
+        "IsDebuggerPresent" => {
+            log_red!(emu, "kernelbase!IsDebuggerPresent => 0");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "IsEnclaveTypeSupported" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsEnclaveTypeSupported 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsIoRingOpSupported" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsIoRingOpSupported 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsNLSDefinedString" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsNLSDefinedString 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsNormalizedString" => {
+            let norm_form = emu.regs().rcx;
+            let str_ptr = emu.regs().rdx;
+            let s = if str_ptr != 0 {
+                emu.maps.read_wide_string(str_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!IsNormalizedString form:{} '{}' => true",
+                norm_form,
+                s
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsProcessCritical" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsProcessCritical 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsProcessInJob" => {
+            let process = emu.regs().rcx;
+            let job = emu.regs().rdx;
+            let result_ptr = emu.regs().r8;
+            if result_ptr != 0 {
+                emu.maps.write_dword(result_ptr, 0);
+            }
+            log_red!(
+                emu,
+                "kernelbase!IsProcessInJob proc:0x{:x} job:0x{:x} => false",
+                process,
+                job
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsProcessorFeaturePresent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsProcessorFeaturePresent 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsThreadAFiber" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsThreadAFiber 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsThreadpoolTimerSet" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsThreadpoolTimerSet 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsUserCetAvailableInEnvironment" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsUserCetAvailableInEnvironment 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidCodePage" => {
+            let cp = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsValidCodePage cp:{}", cp);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidLanguageGroup" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsValidLanguageGroup 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidLocale" => {
+            let locale = emu.regs().rcx;
+            let flags = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!IsValidLocale locale:0x{:x} flags:0x{:x}",
+                locale,
+                flags
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidLocaleName" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsValidLocaleName 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsValidNLSVersion" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsValidNLSVersion 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsWow64GuestMachineSupported" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!IsWow64GuestMachineSupported 0x{:x} => TRUE",
+                arg1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsWow64Process" => {
+            let process = emu.regs().rcx;
+            let wow64_ptr = emu.regs().rdx;
+            if wow64_ptr != 0 {
+                emu.maps.write_dword(wow64_ptr, 0);
+            }
+            log_red!(
+                emu,
+                "kernelbase!IsWow64Process handle:0x{:x} => FALSE",
+                process
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "IsWow64Process2" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!IsWow64Process2 0x{:x} => TRUE", arg1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32EmptyWorkingSet" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32EmptyWorkingSet arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32EnumDeviceDrivers" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32EnumDeviceDrivers arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32EnumPageFilesA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!K32EnumPageFilesA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32EnumPageFilesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!K32EnumPageFilesW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32EnumProcessModules" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32EnumProcessModules h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32EnumProcessModulesEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32EnumProcessModulesEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32EnumProcesses" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32EnumProcesses h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetDeviceDriverBaseNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetDeviceDriverBaseNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetDeviceDriverBaseNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetDeviceDriverBaseNameW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetDeviceDriverFileNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetDeviceDriverFileNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetDeviceDriverFileNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetDeviceDriverFileNameW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetMappedFileNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetMappedFileNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetMappedFileNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetMappedFileNameW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetModuleBaseNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetModuleBaseNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetModuleBaseNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetModuleBaseNameW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetModuleFileNameExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetModuleFileNameExA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetModuleFileNameExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetModuleFileNameExW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetModuleInformation" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32GetModuleInformation arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetPerformanceInfo" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32GetPerformanceInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetProcessImageFileNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetProcessImageFileNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetProcessImageFileNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!K32GetProcessImageFileNameW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetProcessMemoryInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32GetProcessMemoryInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetWsChanges" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32GetWsChanges arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32GetWsChangesEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32GetWsChangesEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32InitializeProcessForWsWatch" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32InitializeProcessForWsWatch h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32QueryWorkingSet" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32QueryWorkingSet arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "K32QueryWorkingSetEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!K32QueryWorkingSetEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LCIDToLocaleName" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!LCIDToLocaleName p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LCMapStringA" => {
+            let _locale = emu.regs().rcx as u32;
+            let flags = emu.regs().rdx as u32;
+            let src_ptr = emu.regs().r8;
+            let _src_len = emu.regs().r9 as i32;
+            let dst_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let src = if src_ptr != 0 {
+                emu.maps.read_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let mapped = if flags & 0x00000100 != 0 {
+                src.to_uppercase()
+            } else if flags & 0x00000200 != 0 {
+                src.to_lowercase()
+            } else {
+                src.clone()
+            };
+            let result_len = mapped.len() + 1;
+            if dst_ptr != 0 && dst_len > 0 {
+                emu.maps.write_string(dst_ptr, &mapped);
+            }
+            log_red!(
+                emu,
+                "kernelbase!LCMapStringA flags:0x{:x} '{}' => '{}'",
+                flags,
+                src,
+                mapped
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result_len as u64;
+        }
+        "LCMapStringW" => {
+            let _locale = emu.regs().rcx as u32;
+            let flags = emu.regs().rdx as u32;
+            let src_ptr = emu.regs().r8;
+            let src_len = emu.regs().r9 as i32;
+            let dst_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let src = if src_ptr != 0 {
+                emu.maps.read_wide_string(src_ptr)
+            } else {
+                String::new()
+            };
+            let mapped = if flags & 0x00000100 != 0 {
+                src.to_uppercase()
+            } else if flags & 0x00000200 != 0 {
+                src.to_lowercase()
+            } else {
+                src.clone()
+            };
+            let result_len = mapped.encode_utf16().count() + 1;
+            if dst_ptr != 0 && dst_len > 0 {
+                emu.maps.write_wide_string(dst_ptr, &mapped);
+            }
+            log_red!(
+                emu,
+                "kernelbase!LCMapStringW flags:0x{:x} '{}' => '{}'",
+                flags,
+                src,
+                mapped
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result_len as u64;
+        }
+        "LeaveCriticalSection" => {
+            let cs_ptr = emu.regs().rcx;
+            helper::advance_tick(emu, 1);
+            log_red!(emu, "kernelbase!LeaveCriticalSection 0x{:x}", cs_ptr);
+        }
+        "LeaveCriticalSectionWhenCallbackReturns" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!LeaveCriticalSectionWhenCallbackReturns 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadAppInitDlls" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LoadAppInitDlls arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadEnclaveData" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LoadEnclaveData arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadLibraryA" => {
+            let name_ptr = emu.regs().rcx;
+            let name = emu.maps.read_string(name_ptr);
+            let hndl = helper::handler_create(&format!("module_{}", name));
+            log_red!(emu, "kernelbase!LoadLibraryA '{}' => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "LoadLibraryExA" => {
+            let name_ptr = emu.regs().rcx;
+            let name = emu.maps.read_string(name_ptr);
+            let hndl = helper::handler_create(&format!("module_{}", name));
+            log_red!(emu, "kernelbase!LoadLibraryExA '{}' => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "LoadLibraryExW" => {
+            let name_ptr = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(name_ptr);
+            let hndl = helper::handler_create(&format!("module_{}", name));
+            log_red!(emu, "kernelbase!LoadLibraryExW '{}' => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "LoadLibraryW" => {
+            let name_ptr = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(name_ptr);
+            let hndl = helper::handler_create(&format!("module_{}", name));
+            log_red!(emu, "kernelbase!LoadLibraryW '{}' => 0x{:x}", name, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "LoadPackagedLibrary" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LoadPackagedLibrary arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LoadResource" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let hndl = helper::handler_create("resource_data");
+            log_red!(emu, "kernelbase!LoadResource p1:0x{:x} => 0x{:x}", p1, hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "LoadStringBaseExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!LoadStringBaseExW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LocalFileTimeToFileTime" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!LocalFileTimeToFileTime p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LocalFileTimeToLocalSystemTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LocalFileTimeToLocalSystemTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LocalFlags" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LocalFlags");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LocalFree" => {
+            let handle = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LocalFree 0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+        }
+        "LocalLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LocalLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LocalReAlloc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LocalReAlloc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            let handle = helper::handler_create("localrealloc");
+            emu.regs_mut().rax = handle;
+        }
+        "LocalSize" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LocalSize");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4096;
+        }
+        "LocalSystemTimeToLocalFileTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LocalSystemTimeToLocalFileTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LocalUnlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LocalUnlock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LocaleNameToLCID" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!LocaleNameToLCID p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x0409;
+        }
+        "LocateXStateFeature" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!LocateXStateFeature arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LockFile" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LockFile 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LockFileEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LockFileEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "LockResource" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!LockResource 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapUserPhysicalPages" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapUserPhysicalPages arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapViewOfFile" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!MapViewOfFile p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x100000;
+        }
+        "MapViewOfFileEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!MapViewOfFileEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x100000;
+        }
+        "MapViewOfFileExNuma" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapViewOfFileExNuma h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MapViewOfFileFromApp" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!MapViewOfFileFromApp h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MoveFileExW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let dst = emu.maps.read_wide_string(dst_ptr);
+            log_red!(emu, "kernelbase!MoveFileExW '{}' -> '{}'", src, dst);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MoveFileWithProgressW" => {
+            let src_ptr = emu.regs().rcx;
+            let dst_ptr = emu.regs().rdx;
+            let flags = emu.regs().r8;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let dst = emu.maps.read_wide_string(dst_ptr);
+            log_red!(
+                emu,
+                "kernelbase!MoveFileWithProgressW '{}' -> '{}'",
+                src,
+                dst
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MulDiv" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!MulDiv arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "MultiByteToWideChar" => {
+            let code_page = emu.regs().rcx;
+            let flags = emu.regs().rdx;
+            let mb_str = emu.regs().r8;
+            let mb_len = emu.regs().r9 as i32;
+            let wc_str = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let wc_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let s = emu.maps.read_string(mb_str);
+            let slen = s.len();
+            if wc_str != 0 && wc_len > 0 {
+                emu.maps.write_wide_string(wc_str, &s);
+            }
+            log_red!(
+                emu,
+                "kernelbase!MultiByteToWideChar cp:{} '{}' => {}",
+                code_page,
+                s,
+                slen + 1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (slen + 1) as u64;
+        }
+        "NeedCurrentDirectoryForExePathA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!NeedCurrentDirectoryForExePathA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NeedCurrentDirectoryForExePathW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!NeedCurrentDirectoryForExePathW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsCheckPolicy" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsCheckPolicy arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsGetCacheUpdateCount" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsGetCacheUpdateCount arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsUpdateLocale" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsUpdateLocale arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NlsUpdateSystemLocale" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!NlsUpdateSystemLocale arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "NormalizeString" => {
+            let norm_form = emu.regs().rcx as u32;
+            let src_ptr = emu.regs().rdx;
+            let src_len = emu.regs().r8 as i32;
+            let dst_ptr = emu.regs().r9;
+            let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+            let src = emu.maps.read_wide_string(src_ptr);
+            let actual_len = (src.len() + 1) as i32;
+            if dst_len == 0 {
+                log_red!(
+                    emu,
+                    "kernelbase!NormalizeString form:{} '{}' => need {} chars",
+                    norm_form,
+                    src,
+                    actual_len
+                );
+                emu.regs_mut().rax = actual_len as u64;
+            } else {
+                if dst_ptr != 0 {
+                    emu.maps.write_wide_string(dst_ptr, &src);
+                }
+                log_red!(
+                    emu,
+                    "kernelbase!NormalizeString form:{} '{}' => {}",
+                    norm_form,
+                    src,
+                    actual_len
+                );
+                emu.set_last_error(0);
+                emu.regs_mut().rax = actual_len as u64;
+            }
+        }
+        "NotifyMountMgr" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!NotifyMountMgr 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "OfferVirtualMemory" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!OfferVirtualMemory arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "OpenEventA" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenEventA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("event://OpenEventA");
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenEventW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenEventW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("event://OpenEventW");
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenFileById" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenFileById");
+            log_red!(emu, "kernelbase!OpenFileById => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenFileMappingW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenFileMappingW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("filemap://OpenFileMappingW");
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenMutexW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenMutexW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("mutex://OpenMutexW");
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenPackageInfoByFullName" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenPackageInfoByFullName");
+            log_red!(emu, "kernelbase!OpenPackageInfoByFullName => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenPrivateNamespaceW" => {
+            let arg1 = emu.regs().rcx;
+            let name = emu.maps.read_wide_string(arg1);
+            let hndl = helper::handler_create(&format!("kb_{}", name));
+            log_red!(
+                emu,
+                "kernelbase!OpenPrivateNamespaceW '{}' => 0x{:x}",
+                name,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenProcess" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenProcess arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("process://OpenProcess");
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenProcessToken" => {
+            let process_handle = emu.regs().rcx;
+            let desired_access = emu.regs().rdx;
+            let token_handle_ptr = emu.regs().r8;
+            let hndl = helper::handler_create("token://process");
+            if token_handle_ptr != 0 {
+                emu.maps.write_qword(token_handle_ptr, hndl);
+            }
+            log_red!(
+                emu,
+                "kernelbase!OpenProcessToken proc:0x{:x} access:0x{:x} => 0x{:x}",
+                process_handle,
+                desired_access,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // TRUE
+        }
+        "OpenSemaphoreW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenSemaphoreW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("semaphore://OpenSemaphoreW");
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenState" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenState");
+            log_red!(emu, "kernelbase!OpenState => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenStateExplicit" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenStateExplicit");
+            log_red!(emu, "kernelbase!OpenStateExplicit => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenThread" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenThread arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("thread://OpenThread");
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenThreadToken" => {
+            let arg1 = emu.regs().rcx;
+            let hndl = helper::handler_create("OpenThreadToken");
+            log_red!(emu, "kernelbase!OpenThreadToken => 0x{:x}", hndl);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = hndl;
+        }
+        "OpenWaitableTimerW" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!OpenWaitableTimerW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let hndl = helper::handler_create("timer://OpenWaitableTimerW");
+            emu.regs_mut().rax = hndl;
+        }
+        "OutputDebugStringA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!OutputDebugStringA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "OutputDebugStringW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!OutputDebugStringW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFamilyNameFromFullName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageFamilyNameFromFullName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFamilyNameFromId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageFamilyNameFromId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageFullNameFromId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageFullNameFromId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageIdFromFullName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageIdFromFullName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PackageNameAndPublisherIdFromFamilyName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PackageNameAndPublisherIdFromFamilyName arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ParseApplicationUserModelId" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ParseApplicationUserModelId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PeekConsoleInputA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PeekConsoleInputA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PeekConsoleInputW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PeekConsoleInputW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PeekNamedPipe" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!PeekNamedPipe p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PopIoRingCompletion" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PopIoRingCompletion arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PostQueuedCompletionStatus" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PostQueuedCompletionStatus arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PrefetchVirtualMemory" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PrefetchVirtualMemory arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PrivCopyFileExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!PrivCopyFileExW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ProcessIdToSessionId" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ProcessIdToSessionId h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssCaptureSnapshot" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssCaptureSnapshot arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssDuplicateSnapshot" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssDuplicateSnapshot arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssFreeSnapshot" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssFreeSnapshot arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssQuerySnapshot" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssQuerySnapshot arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssWalkMarkerCreate" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssWalkMarkerCreate arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssWalkMarkerFree" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssWalkMarkerFree arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssWalkMarkerGetPosition" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssWalkMarkerGetPosition arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssWalkMarkerSeekToBeginning" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssWalkMarkerSeekToBeginning arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssWalkMarkerSetPosition" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssWalkMarkerSetPosition arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PssWalkSnapshot" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PssWalkSnapshot arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PulseEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!PulseEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "PurgeComm" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!PurgeComm arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryActCtxSettingsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!QueryActCtxSettingsW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryActCtxW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!QueryActCtxW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryDepthSList" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryDepthSList h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryDosDeviceW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!QueryDosDeviceW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryFullProcessImageNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!QueryFullProcessImageNameA '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryFullProcessImageNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!QueryFullProcessImageNameW '{}'  p1:0x{:x}",
+                s,
+                p1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryIdleProcessorCycleTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryIdleProcessorCycleTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryIdleProcessorCycleTimeEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryIdleProcessorCycleTimeEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryIoRingCapabilities" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryIoRingCapabilities h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryMemoryResourceNotification" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryMemoryResourceNotification h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryPerformanceCounter" => {
+            let counter_ptr = emu.regs().rcx;
+            helper::advance_tick(emu, 1);
+            if counter_ptr != 0 {
+                emu.maps.write_qword(counter_ptr, emu.tick as u64);
+            }
+            log_red!(emu, "kernelbase!QueryPerformanceCounter => {}", emu.tick);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryPerformanceFrequency" => {
+            let freq_ptr = emu.regs().rcx;
+            if freq_ptr != 0 {
+                emu.maps.write_qword(freq_ptr, 10000000);
+            }
+            log_red!(emu, "kernelbase!QueryPerformanceFrequency => 10000000");
+            emu.regs_mut().rax = 1;
+        }
+        "QueryProcessAffinityUpdateMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryProcessAffinityUpdateMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryProcessCycleTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryProcessCycleTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryProtectedPolicy" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryProtectedPolicy h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryThreadCycleTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryThreadCycleTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryThreadpoolStackInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryThreadpoolStackInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueryUnbiasedInterruptTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueryUnbiasedInterruptTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueueUserAPC" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueueUserAPC arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueueUserAPC2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueueUserAPC2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "QueueUserWorkItem" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!QueueUserWorkItem arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RaiseException" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RaiseException arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RaiseFailFastException" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RaiseFailFastException arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReOpenFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ReOpenFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleInputA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleInputA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleInputExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleInputExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleInputExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleInputExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleInputW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleInputW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleOutputA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleOutputA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleOutputAttribute" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleOutputAttribute h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleOutputCharacterA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleOutputCharacterA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleOutputCharacterW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleOutputCharacterW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleOutputW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleOutputW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadConsoleW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadConsoleW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadDirectoryChangesExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadDirectoryChangesExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadDirectoryChangesW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ReadDirectoryChangesW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadFile" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!ReadFile p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadFileEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!ReadFileEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadFileScatter" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ReadFileScatter h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReadProcessMemory" => {
+            let _process = emu.regs().rcx;
+            let base_addr = emu.regs().rdx;
+            let buf_ptr = emu.regs().r8;
+            let size = emu.regs().r9 as usize;
+            let bytes_read_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if buf_ptr != 0 && base_addr != 0 && size > 0 {
+                for i in 0..size {
+                    let b = emu.maps.read_byte(base_addr + i as u64).unwrap_or(0);
+                    emu.maps.write_byte(buf_ptr + i as u64, b);
+                }
+            }
+            if bytes_read_ptr != 0 {
+                emu.maps.write_qword(bytes_read_ptr, size as u64);
+            }
+            log_red!(
+                emu,
+                "kernelbase!ReadProcessMemory addr:0x{:x} buf:0x{:x} sz:{}",
+                base_addr,
+                buf_ptr,
+                size
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "ReclaimVirtualMemory" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ReclaimVirtualMemory arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegCloseKey" => {
+            let hkey = emu.regs().rcx;
+            helper::handler_close(hkey);
+            log_red!(emu, "kernelbase!RegCloseKey 0x{:x}", hkey);
+            emu.regs_mut().rax = 0;
+        }
+        "RegCopyTreeW" => {
+            let hkey_src = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let hkey_dst = emu.regs().r8;
+            let subkey = if subkey_ptr != 0 {
+                emu.maps.read_wide_string(subkey_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegCopyTreeW src:0x{:x} '{}' dst:0x{:x}",
+                hkey_src,
+                subkey,
+                hkey_dst
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegCreateKeyExA" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let _class = emu.regs().r9;
+            let _options = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let _sam = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let _security = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let disp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let subkey = emu.maps.read_string(subkey_ptr);
+            let hndl = helper::handler_create(&format!("regkey_{}", subkey));
+            if result_ptr != 0 {
+                emu.maps.write_qword(result_ptr, hndl);
+            }
+            if disp_ptr != 0 {
+                emu.maps.write_dword(disp_ptr, 2); // REG_CREATED_NEW_KEY
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegCreateKeyExA hkey:0x{:x} '{}' => 0x{:x}",
+                hkey,
+                subkey,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegCreateKeyExW" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let _class = emu.regs().r9;
+            let _options = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let _sam = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let _security = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let disp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let subkey = emu.maps.read_wide_string(subkey_ptr);
+            let hndl = helper::handler_create(&format!("regkey_{}", subkey));
+            if result_ptr != 0 {
+                emu.maps.write_qword(result_ptr, hndl);
+            }
+            if disp_ptr != 0 {
+                emu.maps.write_dword(disp_ptr, 2);
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegCreateKeyExW hkey:0x{:x} '{}' => 0x{:x}",
+                hkey,
+                subkey,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegDeleteKeyExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteKeyExA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegDeleteKeyExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteKeyExW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegDeleteTreeA" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let subkey = if subkey_ptr != 0 {
+                emu.maps.read_string(subkey_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteTreeA hkey:0x{:x} '{}'",
+                hkey,
+                subkey
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegDeleteTreeW" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let subkey = if subkey_ptr != 0 {
+                emu.maps.read_wide_string(subkey_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteTreeW hkey:0x{:x} '{}'",
+                hkey,
+                subkey
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegDeleteValueA" => {
+            let hkey = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let name = emu.maps.read_string(name_ptr);
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteValueA hkey:0x{:x} '{}'",
+                hkey,
+                name
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegDeleteValueW" => {
+            let hkey = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(name_ptr);
+            log_red!(
+                emu,
+                "kernelbase!RegDeleteValueW hkey:0x{:x} '{}'",
+                hkey,
+                name
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegDisablePredefinedCacheEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegDisablePredefinedCacheEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegEnumKeyExA" => {
+            let hkey = emu.regs().rcx;
+            let index = emu.regs().rdx;
+            let name_ptr = emu.regs().r8;
+            let name_len_ptr = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!RegEnumKeyExA hkey:0x{:x} index:{}",
+                hkey,
+                index
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 259;
+        }
+        "RegEnumKeyExW" => {
+            let hkey = emu.regs().rcx;
+            let index = emu.regs().rdx;
+            let name_ptr = emu.regs().r8;
+            let name_len_ptr = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!RegEnumKeyExW hkey:0x{:x} index:{}",
+                hkey,
+                index
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 259;
+        }
+        "RegEnumValueA" => {
+            let hkey = emu.regs().rcx;
+            let index = emu.regs().rdx;
+            let name_ptr = emu.regs().r8;
+            let name_len_ptr = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!RegEnumValueA hkey:0x{:x} index:{}",
+                hkey,
+                index
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 259;
+        }
+        "RegEnumValueW" => {
+            let hkey = emu.regs().rcx;
+            let index = emu.regs().rdx;
+            let name_ptr = emu.regs().r8;
+            let name_len_ptr = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!RegEnumValueW hkey:0x{:x} index:{}",
+                hkey,
+                index
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 259;
+        }
+        "RegFlushKey" => {
+            let hkey = emu.regs().rcx;
+            log_red!(emu, "kernelbase!RegFlushKey hkey:0x{:x}", hkey);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegGetKeySecurity" => {
+            let hkey = emu.regs().rcx;
+            let sec_info = emu.regs().rdx as u32;
+            let sec_desc = emu.regs().r8;
+            let cb_sec_desc = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!RegGetKeySecurity hkey:0x{:x} info:0x{:x}",
+                hkey,
+                sec_info
+            );
+            if cb_sec_desc != 0 {
+                emu.maps.write_dword(cb_sec_desc, 20);
+            }
+            emu.regs_mut().rax = 122; // ERROR_INSUFFICIENT_BUFFER
+        }
+        "RegGetValueA" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let value_ptr = emu.regs().r8;
+            let flags = emu.regs().r9;
+            let type_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let subkey = if subkey_ptr != 0 {
+                emu.maps.read_string(subkey_ptr)
+            } else {
+                String::new()
+            };
+            let value = if value_ptr != 0 {
+                emu.maps.read_string(value_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegGetValueA hkey:0x{:x} '{}\\{}' flags:0x{:x}",
+                hkey,
+                subkey,
+                value,
+                flags
+            );
+            if type_ptr != 0 {
+                emu.maps.write_dword(type_ptr, 1); // REG_SZ
+            }
+            if size_ptr != 0 {
+                emu.maps.write_dword(size_ptr, 0);
+            }
+            emu.regs_mut().rax = 2; // ERROR_FILE_NOT_FOUND
+        }
+        "RegGetValueW" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let value_ptr = emu.regs().r8;
+            let flags = emu.regs().r9;
+            let type_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let subkey = if subkey_ptr != 0 {
+                emu.maps.read_wide_string(subkey_ptr)
+            } else {
+                String::new()
+            };
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegGetValueW hkey:0x{:x} '{}\\{}' flags:0x{:x}",
+                hkey,
+                subkey,
+                value,
+                flags
+            );
+            if type_ptr != 0 {
+                emu.maps.write_dword(type_ptr, 1); // REG_SZ
+            }
+            if size_ptr != 0 {
+                emu.maps.write_dword(size_ptr, 0);
+            }
+            emu.regs_mut().rax = 2; // ERROR_FILE_NOT_FOUND
+        }
+        "RegLoadKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegLoadKeyA '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegLoadKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegLoadKeyW '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegLoadMUIStringA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegLoadMUIStringA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegLoadMUIStringW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegLoadMUIStringW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegNotifyChangeKeyValue" => {
+            let hkey = emu.regs().rcx;
+            let watch_subtree = emu.regs().rdx;
+            let notify_filter = emu.regs().r8;
+            let h_event = emu.regs().r9;
+            let async_notify = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!RegNotifyChangeKeyValue hkey:0x{:x} filter:0x{:x} async:{}",
+                hkey,
+                notify_filter,
+                async_notify
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegOpenCurrentUser" => {
+            let sam_desired = emu.regs().rcx;
+            let result_ptr = emu.regs().rdx;
+            let hndl = helper::handler_create("regkey_HKCU");
+            if result_ptr != 0 {
+                emu.maps.write_qword(result_ptr, hndl);
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegOpenCurrentUser sam:0x{:x} => 0x{:x}",
+                sam_desired,
+                hndl
+            );
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegOpenKeyExA" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let _sam = emu.regs().r9;
+            let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let subkey = emu.maps.read_string(subkey_ptr);
+            let hndl = helper::handler_create(&format!("regkey_{}", subkey));
+            if result_ptr != 0 {
+                emu.maps.write_qword(result_ptr, hndl);
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegOpenKeyExA hkey:0x{:x} '{}' => 0x{:x}",
+                hkey,
+                subkey,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegOpenKeyExW" => {
+            let hkey = emu.regs().rcx;
+            let subkey_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let _sam = emu.regs().r9;
+            let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let subkey = emu.maps.read_wide_string(subkey_ptr);
+            let hndl = helper::handler_create(&format!("regkey_{}", subkey));
+            if result_ptr != 0 {
+                emu.maps.write_qword(result_ptr, hndl);
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegOpenKeyExW hkey:0x{:x} '{}' => 0x{:x}",
+                hkey,
+                subkey,
+                hndl
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegOpenUserClassesRoot" => {
+            let token = emu.regs().rcx;
+            let _reserved = emu.regs().rdx;
+            let sam = emu.regs().r8;
+            let result_ptr = emu.regs().r9;
+            let hndl = helper::handler_create("regkey_HKCR_user");
+            if result_ptr != 0 {
+                emu.maps.write_qword(result_ptr, hndl);
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegOpenUserClassesRoot token:0x{:x} => 0x{:x}",
+                token,
+                hndl
+            );
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegQueryInfoKeyA" => {
+            let hkey = emu.regs().rcx;
+            let lp_class = emu.regs().rdx;
+            let lpcch_class = emu.regs().r8;
+            let _reserved = emu.regs().r9;
+            let lpc_sub_keys = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let lpcb_max_sub_key_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let lpcb_max_class_len = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let lpc_values = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let lpcb_max_value_name_len = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let lpcb_max_value_len = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let lpcb_security_desc = emu.maps.read_qword(emu.regs().rsp + 0x58).unwrap_or(0);
+            let lpft_last_write = emu.maps.read_qword(emu.regs().rsp + 0x60).unwrap_or(0);
+
+            log_red!(emu, "kernelbase!RegQueryInfoKeyA hkey:0x{:x}", hkey);
+
+            if lpcch_class != 0 {
+                emu.maps.write_dword(lpcch_class, 0);
+            }
+            if lpc_sub_keys != 0 {
+                emu.maps.write_dword(lpc_sub_keys, 0);
+            }
+            if lpcb_max_sub_key_len != 0 {
+                emu.maps.write_dword(lpcb_max_sub_key_len, 0);
+            }
+            if lpcb_max_class_len != 0 {
+                emu.maps.write_dword(lpcb_max_class_len, 0);
+            }
+            if lpc_values != 0 {
+                emu.maps.write_dword(lpc_values, 0);
+            }
+            if lpcb_max_value_name_len != 0 {
+                emu.maps.write_dword(lpcb_max_value_name_len, 0);
+            }
+            if lpcb_max_value_len != 0 {
+                emu.maps.write_dword(lpcb_max_value_len, 0);
+            }
+            if lpcb_security_desc != 0 {
+                emu.maps.write_dword(lpcb_security_desc, 0);
+            }
+            if lpft_last_write != 0 {
+                emu.maps.write_qword(lpft_last_write, 0);
+            }
+            emu.regs_mut().rax = 0;
+        }
+        "RegQueryInfoKeyW" => {
+            let hkey = emu.regs().rcx;
+            let lp_class = emu.regs().rdx;
+            let lpcch_class = emu.regs().r8;
+            let _reserved = emu.regs().r9;
+            let lpc_sub_keys = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let lpcb_max_sub_key_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let lpcb_max_class_len = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let lpc_values = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let lpcb_max_value_name_len = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            let lpcb_max_value_len = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+            let lpcb_security_desc = emu.maps.read_qword(emu.regs().rsp + 0x58).unwrap_or(0);
+            let lpft_last_write = emu.maps.read_qword(emu.regs().rsp + 0x60).unwrap_or(0);
+
+            log_red!(emu, "kernelbase!RegQueryInfoKeyW hkey:0x{:x}", hkey);
+
+            if lpcch_class != 0 {
+                emu.maps.write_dword(lpcch_class, 0);
+            }
+            if lpc_sub_keys != 0 {
+                emu.maps.write_dword(lpc_sub_keys, 0);
+            }
+            if lpcb_max_sub_key_len != 0 {
+                emu.maps.write_dword(lpcb_max_sub_key_len, 0);
+            }
+            if lpcb_max_class_len != 0 {
+                emu.maps.write_dword(lpcb_max_class_len, 0);
+            }
+            if lpc_values != 0 {
+                emu.maps.write_dword(lpc_values, 0);
+            }
+            if lpcb_max_value_name_len != 0 {
+                emu.maps.write_dword(lpcb_max_value_name_len, 0);
+            }
+            if lpcb_max_value_len != 0 {
+                emu.maps.write_dword(lpcb_max_value_len, 0);
+            }
+            if lpcb_security_desc != 0 {
+                emu.maps.write_dword(lpcb_security_desc, 0);
+            }
+            if lpft_last_write != 0 {
+                emu.maps.write_qword(lpft_last_write, 0);
+            }
+            emu.regs_mut().rax = 0;
+        }
+        "RegQueryValueExA" => {
+            let hkey = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let type_ptr = emu.regs().r9;
+            let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let name = emu.maps.read_string(name_ptr);
+            if type_ptr != 0 {
+                emu.maps.write_dword(type_ptr, 1); // REG_SZ
+            }
+            if size_ptr != 0 {
+                emu.maps.write_dword(size_ptr, 0);
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegQueryValueExA hkey:0x{:x} '{}'",
+                hkey,
+                name
+            );
+            emu.regs_mut().rax = 2;
+        }
+        "RegQueryValueExW" => {
+            let hkey = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let type_ptr = emu.regs().r9;
+            let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let name = emu.maps.read_wide_string(name_ptr);
+            if type_ptr != 0 {
+                emu.maps.write_dword(type_ptr, 1);
+            }
+            if size_ptr != 0 {
+                emu.maps.write_dword(size_ptr, 0);
+            }
+            log_red!(
+                emu,
+                "kernelbase!RegQueryValueExW hkey:0x{:x} '{}'",
+                hkey,
+                name
+            );
+            emu.regs_mut().rax = 2;
+        }
+        "RegRestoreKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegRestoreKeyA '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegRestoreKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegRestoreKeyW '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegSaveKeyExA" => {
+            let hkey = emu.regs().rcx;
+            let file_ptr = emu.regs().rdx;
+            let _security = emu.regs().r8;
+            let flags = emu.regs().r9;
+            let filename = if file_ptr != 0 {
+                emu.maps.read_string(file_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegSaveKeyExA hkey:0x{:x} '{}' flags:0x{:x}",
+                hkey,
+                filename,
+                flags
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegSaveKeyExW" => {
+            let hkey = emu.regs().rcx;
+            let file_ptr = emu.regs().rdx;
+            let _security = emu.regs().r8;
+            let flags = emu.regs().r9;
+            let filename = if file_ptr != 0 {
+                emu.maps.read_wide_string(file_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegSaveKeyExW hkey:0x{:x} '{}' flags:0x{:x}",
+                hkey,
+                filename,
+                flags
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // ERROR_SUCCESS
+        }
+        "RegSetKeySecurity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegSetKeySecurity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegSetValueExA" => {
+            let hkey = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let reg_type = emu.regs().r9;
+            let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let data_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let name = emu.maps.read_string(name_ptr);
+            let value = if reg_type == 1 || reg_type == 2 {
+                emu.maps.read_string(data_ptr)
+            } else {
+                format!("0x{:x}", data_ptr)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegSetValueExA hkey:0x{:x} '{}' type:{} value:'{}' len:{}",
+                hkey,
+                name,
+                reg_type,
+                value,
+                data_len
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegSetValueExW" => {
+            let hkey = emu.regs().rcx;
+            let name_ptr = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
+            let reg_type = emu.regs().r9;
+            let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let data_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let name = emu.maps.read_wide_string(name_ptr);
+            let value = if reg_type == 1 || reg_type == 2 {
+                emu.maps.read_wide_string(data_ptr)
+            } else {
+                format!("0x{:x}", data_ptr)
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegSetValueExW hkey:0x{:x} '{}' type:{} value:'{}' len:{}",
+                hkey,
+                name,
+                reg_type,
+                value,
+                data_len
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegUnLoadKeyA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!RegUnLoadKeyA '{}' p1:0x{:x}", s, p1);
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegUnLoadKeyW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!RegUnLoadKeyW '{}' p1:0x{:x}", s, p1);
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "RegisterApplicationRestart" => {
+            let cmdline_ptr = emu.regs().rcx;
+            let flags = emu.regs().rdx as u32;
+            let cmdline = if cmdline_ptr != 0 && cmdline_ptr > 0xffff {
+                emu.maps.read_wide_string(cmdline_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(
+                emu,
+                "kernelbase!RegisterApplicationRestart cmdline:'{}' flags:0x{:x}",
+                cmdline,
+                flags
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // S_OK
+        }
+        "RegisterBadMemoryNotification" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RegisterBadMemoryNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RegisterWaitForSingleObjectEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!RegisterWaitForSingleObjectEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseActCtx" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ReleaseActCtx handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseMutex" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ReleaseMutex handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseMutexWhenCallbackReturns" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!ReleaseMutexWhenCallbackReturns handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "ReleasePseudoConsole" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ReleasePseudoConsole handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseSRWLockExclusive" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!ReleaseSRWLockExclusive handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseSRWLockShared" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ReleaseSRWLockShared handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseSemaphore" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(emu, "kernelbase!ReleaseSemaphore handle:0x{:x}", handle);
+            emu.regs_mut().rax = 1;
+        }
+        "ReleaseSemaphoreWhenCallbackReturns" => {
+            let handle = emu.regs().rcx;
+            helper::handler_close(handle);
+            log_red!(
+                emu,
+                "kernelbase!ReleaseSemaphoreWhenCallbackReturns handle:0x{:x}",
+                handle
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveDirectory2A" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!RemoveDirectory2A '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveDirectory2W" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!RemoveDirectory2W '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveDirectoryA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!RemoveDirectoryA '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveDirectoryW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!RemoveDirectoryW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveDllDirectory" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemoveDllDirectory h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveVectoredContinueHandler" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemoveVectoredContinueHandler h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RemoveVectoredExceptionHandler" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RemoveVectoredExceptionHandler h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ReplaceFileW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!ReplaceFileW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResetEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!ResetEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResetWriteWatch" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ResetWriteWatch h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResizePseudoConsole" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ResizePseudoConsole arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResolveDelayLoadedAPI" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ResolveDelayLoadedAPI arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResolveDelayLoadsFromDll" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ResolveDelayLoadsFromDll arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResolveLocaleName" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernelbase!ResolveLocaleName p1:0x{:x} p2:0x{:x}",
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "RestoreLastError" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!RestoreLastError arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ResumeThread" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!ResumeThread");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ScrollConsoleScreenBufferA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ScrollConsoleScreenBufferA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "ScrollConsoleScreenBufferW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!ScrollConsoleScreenBufferW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SearchPathA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SearchPathA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "SearchPathW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SearchPathW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "SetCachedSigningLevel" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetCachedSigningLevel h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCalendarInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetCalendarInfoW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCommBreak" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetCommBreak h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCommConfig" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetCommConfig h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCommMask" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetCommMask h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCommState" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetCommState h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCommTimeouts" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetCommTimeouts h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetComputerNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetComputerNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetComputerNameEx2W" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetComputerNameEx2W '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetComputerNameExA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetComputerNameExA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetComputerNameExW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetComputerNameExW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetComputerNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetComputerNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleActiveScreenBuffer" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleActiveScreenBuffer h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleCP" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleCP h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleCtrlHandler" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetConsoleCtrlHandler p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleCursorInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleCursorInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleCursorPosition" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetConsoleCursorPosition p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleDisplayMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleDisplayMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleHistoryInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleHistoryInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleInputExeNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleInputExeNameA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleInputExeNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleInputExeNameW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleMode" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetConsoleMode p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleNumberOfCommandsA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleNumberOfCommandsA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleNumberOfCommandsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleNumberOfCommandsW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleOutputCP" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleOutputCP h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleScreenBufferInfoEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleScreenBufferInfoEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleScreenBufferSize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleScreenBufferSize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleTextAttribute" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetConsoleTextAttribute p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleTitleA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SetConsoleTitleA '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleTitleW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!SetConsoleTitleW '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetConsoleWindowInfo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetConsoleWindowInfo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCriticalSectionSpinCount" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetCriticalSectionSpinCount 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCurrentConsoleFontEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetCurrentConsoleFontEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCurrentDirectoryA" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(emu, "kernelbase!SetCurrentDirectoryA '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetCurrentDirectoryW" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(emu, "kernelbase!SetCurrentDirectoryW '{}'", path);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetDefaultDllDirectories" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetDefaultDllDirectories h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetDynamicTimeZoneInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetDynamicTimeZoneInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetEndOfFile" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetEndOfFile");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetEnvironmentStringsW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetEnvironmentStringsW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetEnvironmentVariableA" => {
+            let name_ptr = emu.regs().rcx;
+            let value_ptr = emu.regs().rdx;
+            let name = emu.maps.read_string(name_ptr);
+            let value = if value_ptr != 0 {
+                emu.maps.read_string(value_ptr)
+            } else {
+                String::from("(null)")
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetEnvironmentVariableA '{}' = '{}'",
+                name,
+                value
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetEnvironmentVariableW" => {
+            let name_ptr = emu.regs().rcx;
+            let value_ptr = emu.regs().rdx;
+            let name = emu.maps.read_wide_string(name_ptr);
+            let value = if value_ptr != 0 {
+                emu.maps.read_wide_string(value_ptr)
+            } else {
+                String::from("(null)")
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetEnvironmentVariableW '{}' = '{}'",
+                name,
+                value
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetErrorMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetErrorMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetEventWhenCallbackReturns" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetEventWhenCallbackReturns 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileApisToANSI" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetFileApisToANSI h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileApisToOEM" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetFileApisToOEM h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileAttributesA" => {
+            let path_ptr = emu.regs().rcx;
+            let attrs = emu.regs().rdx;
+            let path = emu.maps.read_string(path_ptr);
+            log_red!(
+                emu,
+                "kernelbase!SetFileAttributesA '{}' attrs:0x{:x}",
+                path,
+                attrs
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileAttributesW" => {
+            let path_ptr = emu.regs().rcx;
+            let attrs = emu.regs().rdx;
+            let path = emu.maps.read_wide_string(path_ptr);
+            log_red!(
+                emu,
+                "kernelbase!SetFileAttributesW '{}' attrs:0x{:x}",
+                path,
+                attrs
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileInformationByHandle" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!SetFileInformationByHandle p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileIoOverlappedRange" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetFileIoOverlappedRange h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFilePointer" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!SetFilePointer p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFilePointerEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!SetFilePointerEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileTime" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetFileTime h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetFileValidData" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetFileValidData p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetHandleCount" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetHandleCount h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetHandleInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetHandleInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetIoRingCompletionEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetIoRingCompletionEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetLastConsoleEventActive" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetLastConsoleEventActive 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetLastError" => {
+            let err = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetLastError err:{}", err);
+            emu.set_last_error(err);
+        }
+        "SetLocalTime" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetLocalTime");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetLocaleInfoW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SetLocaleInfoW '{}' p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetNamedPipeHandleState" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!SetNamedPipeHandleState p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetPriorityClass" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetPriorityClass p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessAffinityUpdateMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessAffinityUpdateMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessDefaultCpuSetMasks" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessDefaultCpuSetMasks h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessDefaultCpuSets" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessDefaultCpuSets h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessDynamicEHContinuationTargets" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessDynamicEHContinuationTargets h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessDynamicEnforcedCetCompatibleRanges" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessDynamicEnforcedCetCompatibleRanges h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessMitigationPolicy" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessMitigationPolicy h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessPreferredUILanguages" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessPriorityBoost" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessPriorityBoost h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessShutdownParameters" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessShutdownParameters h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessWorkingSetSize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessWorkingSetSize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProcessWorkingSetSizeEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProcessWorkingSetSizeEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetProtectedPolicy" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetProtectedPolicy h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetStdHandle" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetStdHandle p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetStdHandleEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetStdHandleEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSystemFileCacheSize" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetSystemFileCacheSize h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSystemTime" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetSystemTime");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetSystemTimeAdjustment" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetSystemTimeAdjustment h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadDescription" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadDescription h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadErrorMode" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadErrorMode h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadGroupAffinity" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadGroupAffinity h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadIdealProcessor" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadIdealProcessor h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadIdealProcessorEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadIdealProcessorEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadLocale" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadLocale h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadPreferredUILanguages" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadPriority" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SetThreadPriority p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadPriorityBoost" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadPriorityBoost h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadSelectedCpuSetMasks" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadSelectedCpuSetMasks h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadSelectedCpuSets" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadSelectedCpuSets h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadStackGuarantee" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadStackGuarantee h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadToken" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadToken h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadUILanguage" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadUILanguage h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadpoolStackInformation" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadpoolStackInformation h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadpoolThreadMaximum" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadpoolThreadMaximum h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadpoolThreadMinimum" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetThreadpoolThreadMinimum h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadpoolTimer" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetThreadpoolTimer 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadpoolTimerEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetThreadpoolTimerEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadpoolWait" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetThreadpoolWait 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetThreadpoolWaitEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetThreadpoolWaitEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetTimeZoneInformation" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetTimeZoneInformation");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetUserGeoID" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetUserGeoID h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetUserGeoName" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetUserGeoName h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetWaitableTimer" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetWaitableTimer 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetWaitableTimerEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SetWaitableTimerEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetXStateFeaturesMask" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetXStateFeaturesMask h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SetupComm" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SetupComm h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SignalObjectAndWait" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SignalObjectAndWait 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SizeofResource" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SizeofResource p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 4096;
+        }
+        "Sleep" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!Sleep 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SleepConditionVariableCS" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SleepConditionVariableCS 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SleepConditionVariableSRW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!SleepConditionVariableSRW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SleepEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SleepEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "StartThreadpoolIo" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!StartThreadpoolIo h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SubmitIoRing" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SubmitIoRing arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SubmitThreadpoolWork" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SubmitThreadpoolWork h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SuspendThread" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SuspendThread");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SwitchToFiber" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SwitchToFiber arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SwitchToThread" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!SwitchToThread 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SystemTimeToFileTime" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!SystemTimeToFileTime p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SystemTimeToTzSpecificLocalTime" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SystemTimeToTzSpecificLocalTime arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "SystemTimeToTzSpecificLocalTimeEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!SystemTimeToTzSpecificLocalTimeEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TerminateProcess" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!TerminateProcess p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TerminateThread" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            log_red!(emu, "kernelbase!TerminateThread p1:0x{:x}", p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TlsAlloc" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TlsAlloc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TlsFree" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TlsFree arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TlsGetValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TlsGetValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TlsGetValue2" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TlsGetValue2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TlsSetValue" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TlsSetValue arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TransactNamedPipe" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let p6 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!TransactNamedPipe p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TransmitCommChar" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TransmitCommChar arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TryAcquireSRWLockExclusive" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!TryAcquireSRWLockExclusive 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TryAcquireSRWLockShared" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!TryAcquireSRWLockShared 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TryEnterCriticalSection" => {
+            let cs_ptr = emu.regs().rcx;
+            helper::advance_tick(emu, 1);
+            log_red!(emu, "kernelbase!TryEnterCriticalSection 0x{:x}", cs_ptr);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TrySubmitThreadpoolCallback" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TrySubmitThreadpoolCallback h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TzSpecificLocalTimeToSystemTime" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TzSpecificLocalTimeToSystemTime arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "TzSpecificLocalTimeToSystemTimeEx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!TzSpecificLocalTimeToSystemTimeEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnhandledExceptionFilter" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnhandledExceptionFilter arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnlockFile" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!UnlockFile 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnlockFileEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!UnlockFileEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnmapViewOfFile" => {
+            let p0 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!UnmapViewOfFile");
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnmapViewOfFileEx" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnmapViewOfFileEx h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnregisterApplicationRestart" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnregisterApplicationRestart h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnregisterBadMemoryNotification" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UnregisterBadMemoryNotification h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UnregisterWaitEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!UnregisterWaitEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "UpdateProcThreadAttribute" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!UpdateProcThreadAttribute h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerLanguageNameA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!VerLanguageNameA '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerLanguageNameW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!VerLanguageNameW '{}'  p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerSetConditionMask" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerSetConditionMask arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VerifyScripts" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VerifyScripts arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualAlloc" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!VirtualAlloc p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x100000;
+        }
+        "VirtualAllocEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!VirtualAllocEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0x100000;
+        }
+        "VirtualAllocExNuma" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!VirtualAllocExNuma arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualFree" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            log_red!(emu, "kernelbase!VirtualFree p1:0x{:x} p2:0x{:x}", p1, p2);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualFreeEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!VirtualFreeEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualLock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!VirtualLock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualProtect" => {
+            let addr = emu.regs().rcx;
+            let size = emu.regs().rdx;
+            let new_protect = emu.regs().r8;
+            let old_protect_ptr = emu.regs().r9;
+            if old_protect_ptr != 0 {
+                emu.maps.write_dword(old_protect_ptr, 0x40); // PAGE_EXECUTE_READWRITE
+            }
+            log_red!(
+                emu,
+                "kernelbase!VirtualProtect addr:0x{:x} size:0x{:x} prot:0x{:x}",
+                addr,
+                size,
+                new_protect
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualProtectEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!VirtualProtectEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualQuery" => {
+            let addr = emu.regs().rcx;
+            let buf_ptr = emu.regs().rdx;
+            let buf_len = emu.regs().r8;
+            if buf_ptr != 0 && buf_len >= 48 {
+                emu.maps.write_qword(buf_ptr, addr); // BaseAddress
+                emu.maps.write_qword(buf_ptr + 8, addr); // AllocationBase
+                emu.maps.write_dword(buf_ptr + 16, 0x40); // AllocationProtect = PAGE_EXECUTE_READWRITE
+                emu.maps.write_qword(buf_ptr + 24, 0x1000); // RegionSize
+                emu.maps.write_dword(buf_ptr + 32, 0x1000); // State = MEM_COMMIT
+                emu.maps.write_dword(buf_ptr + 36, 0x40); // Protect = PAGE_EXECUTE_READWRITE
+                emu.maps.write_dword(buf_ptr + 40, 0x20000); // Type = MEM_PRIVATE
+            }
+            log_red!(emu, "kernelbase!VirtualQuery addr:0x{:x} => 48", addr);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 48;
+        }
+        "VirtualQueryEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            log_red!(
+                emu,
+                "kernelbase!VirtualQueryEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "VirtualUnlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!VirtualUnlock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitCommEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WaitCommEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForDebugEvent" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WaitForDebugEvent 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForDebugEventEx" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WaitForDebugEventEx 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForMultipleObjects" => {
+            let count = emu.regs().rcx;
+            let _handles = emu.regs().rdx;
+            let _wait_all = emu.regs().r8;
+            let ms = emu.regs().r9;
+            helper::advance_tick(emu, ms);
+            log_red!(
+                emu,
+                "kernelbase!WaitForMultipleObjects count:{} ms:{} => WAIT_OBJECT_0",
+                count,
+                ms
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // WAIT_OBJECT_0
+        }
+        "WaitForMultipleObjectsEx" => {
+            let count = emu.regs().rcx;
+            let _handles = emu.regs().rdx;
+            let _wait_all = emu.regs().r8;
+            let ms = emu.regs().r9;
+            helper::advance_tick(emu, ms);
+            log_red!(
+                emu,
+                "kernelbase!WaitForMultipleObjectsEx count:{} ms:{} => WAIT_OBJECT_0",
+                count,
+                ms
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // WAIT_OBJECT_0
+        }
+        "WaitForSingleObject" => {
+            let handle = emu.regs().rcx;
+            let ms = emu.regs().rdx;
+            helper::advance_tick(emu, ms);
+            log_red!(
+                emu,
+                "kernelbase!WaitForSingleObject handle:0x{:x} ms:{} => WAIT_OBJECT_0",
+                handle,
+                ms
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0; // WAIT_OBJECT_0
+        }
+        "WaitForSingleObjectEx" => {
+            let handle = emu.regs().rcx;
+            let ms = emu.regs().rdx;
+            let alertable = emu.regs().r8;
+            helper::advance_tick(emu, ms);
+            log_red!(
+                emu,
+                "kernelbase!WaitForSingleObjectEx handle:0x{:x} ms:{} alertable:{}",
+                handle,
+                ms,
+                alertable
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "WaitForThreadpoolIoCallbacks" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WaitForThreadpoolIoCallbacks 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForThreadpoolTimerCallbacks" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!WaitForThreadpoolTimerCallbacks 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForThreadpoolWaitCallbacks" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!WaitForThreadpoolWaitCallbacks 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitForThreadpoolWorkCallbacks" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!WaitForThreadpoolWorkCallbacks 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WaitNamedPipeW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(emu, "kernelbase!WaitNamedPipeW '{}' p1:0x{:x}", s, p1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WakeAllConditionVariable" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WakeAllConditionVariable 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WakeConditionVariable" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WakeConditionVariable 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerGetFlags" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerGetFlags arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerRegisterAdditionalProcess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerRegisterAdditionalProcess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerRegisterAppLocalDump" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerRegisterAppLocalDump arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerRegisterCustomMetadata" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerRegisterCustomMetadata arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerRegisterExcludedMemoryBlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!WerRegisterExcludedMemoryBlock 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerRegisterFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerRegisterFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerRegisterMemoryBlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WerRegisterMemoryBlock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerRegisterRuntimeExceptionModule" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerRegisterRuntimeExceptionModule arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerSetFlags" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerSetFlags arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerUnregisterAdditionalProcess" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerUnregisterAdditionalProcess h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerUnregisterAppLocalDump" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerUnregisterAppLocalDump arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerUnregisterCustomMetadata" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerUnregisterCustomMetadata arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerUnregisterExcludedMemoryBlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(
+                emu,
+                "kernelbase!WerUnregisterExcludedMemoryBlock 0x{:x}",
+                arg1
+            );
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerUnregisterFile" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerUnregisterFile h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerUnregisterMemoryBlock" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!WerUnregisterMemoryBlock 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WerUnregisterRuntimeExceptionModule" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WerUnregisterRuntimeExceptionModule arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WideCharToMultiByte" => {
+            let code_page = emu.regs().rcx;
+            let flags = emu.regs().rdx;
+            let wc_str = emu.regs().r8;
+            let wc_len = emu.regs().r9 as i32;
+            let mb_str = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let mb_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+            let s = emu.maps.read_wide_string(wc_str);
+            let slen = s.len();
+            if mb_str != 0 && mb_len > 0 {
+                emu.maps.write_string(mb_str, &s);
+            }
+            log_red!(
+                emu,
+                "kernelbase!WideCharToMultiByte cp:{} '{}' => {}",
+                code_page,
+                s,
+                slen + 1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = (slen + 1) as u64;
+        }
+        "Wow64DisableWow64FsRedirection" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64DisableWow64FsRedirection arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Wow64EnableWow64FsRedirection" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64EnableWow64FsRedirection arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Wow64GetThreadContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64GetThreadContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Wow64RevertWow64FsRedirection" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64RevertWow64FsRedirection arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Wow64SetThreadContext" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64SetThreadContext h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Wow64SuspendThread" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64SuspendThread h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleInputA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleInputA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleInputW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleInputW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleOutputA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleOutputA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleOutputAttribute" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleOutputAttribute h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleOutputCharacterA" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleOutputCharacterA '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleOutputCharacterW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleOutputCharacterW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleOutputW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleOutputW '{}'  p1:0x{:x} p2:0x{:x}",
+                s,
+                p1,
+                p2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteConsoleW" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                format!("0x{:x}", p0)
+            };
+            log_red!(
+                emu,
+                "kernelbase!WriteConsoleW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                s,
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteFile" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!WriteFile p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteFileEx" => {
+            let p0 = emu.regs().rcx;
+            let p1 = emu.regs().rdx;
+            let p2 = emu.regs().r8;
+            let p3 = emu.regs().r9;
+            let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "kernelbase!WriteFileEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+                p1,
+                p2,
+                p3
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteFileGather" => {
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!WriteFileGather h:0x{:x} arg2:0x{:x}",
+                handle,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "WriteProcessMemory" => {
+            let _process = emu.regs().rcx;
+            let base_addr = emu.regs().rdx;
+            let buf_ptr = emu.regs().r8;
+            let size = emu.regs().r9 as usize;
+            let bytes_written_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if buf_ptr != 0 && base_addr != 0 && size > 0 {
+                for i in 0..size {
+                    let b = emu.maps.read_byte(buf_ptr + i as u64).unwrap_or(0);
+                    emu.maps.write_byte(base_addr + i as u64, b);
+                }
+            }
+            if bytes_written_ptr != 0 {
+                emu.maps.write_qword(bytes_written_ptr, size as u64);
+            }
+            log_red!(
+                emu,
+                "kernelbase!WriteProcessMemory addr:0x{:x} buf:0x{:x} sz:{}",
+                base_addr,
+                buf_ptr,
+                size
+            );
+            emu.regs_mut().rax = 1;
+        }
+        "ZombifyActCtx" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!ZombifyActCtx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "__C_specific_handler" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__C_specific_handler {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__chkstk" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__chkstk {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "__misaligned_access" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!__misaligned_access {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "_local_unwind" => {
+            let param1 = emu.regs().rcx;
+            let param2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!_local_unwind {}:0x{:x} {}:0x{:x}",
+                "param1",
+                param1,
+                "param2",
+                param2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1; // success
+        }
+        "lstrcmp" => {
+            let str1_ptr = emu.regs().rcx;
+            let str2_ptr = emu.regs().rdx;
+            let s1 = emu.maps.read_string(str1_ptr);
+            let s2 = emu.maps.read_string(str2_ptr);
+            let result = s1.cmp(&s2) as i32;
+            log_red!(emu, "kernelbase!lstrcmp '{}' vs '{}' => {}", s1, s2, result);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u64;
+        }
+        "lstrcmpA" => {
+            let str1_ptr = emu.regs().rcx;
+            let str2_ptr = emu.regs().rdx;
+            let s1 = emu.maps.read_string(str1_ptr);
+            let s2 = emu.maps.read_string(str2_ptr);
+            let result = s1.cmp(&s2) as i32;
+            log_red!(
+                emu,
+                "kernelbase!lstrcmpA '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u64;
+        }
+        "lstrcmpW" => {
+            let str1_ptr = emu.regs().rcx;
+            let str2_ptr = emu.regs().rdx;
+            let s1 = emu.maps.read_wide_string(str1_ptr);
+            let s2 = emu.maps.read_wide_string(str2_ptr);
+            let result = s1.cmp(&s2) as i32;
+            log_red!(
+                emu,
+                "kernelbase!lstrcmpW '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u64;
+        }
+        "lstrcmpi" => {
+            let str1_ptr = emu.regs().rcx;
+            let str2_ptr = emu.regs().rdx;
+            let s1 = emu.maps.read_string(str1_ptr);
+            let s2 = emu.maps.read_string(str2_ptr);
+            let result = s1.to_lowercase().cmp(&s2.to_lowercase()) as i32;
+            log_red!(
+                emu,
+                "kernelbase!lstrcmpi '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u64;
+        }
+        "lstrcmpiA" => {
+            let str1_ptr = emu.regs().rcx;
+            let str2_ptr = emu.regs().rdx;
+            let s1 = emu.maps.read_string(str1_ptr);
+            let s2 = emu.maps.read_string(str2_ptr);
+            let result = s1.to_lowercase().cmp(&s2.to_lowercase()) as i32;
+            log_red!(
+                emu,
+                "kernelbase!lstrcmpiA '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u64;
+        }
+        "lstrcmpiW" => {
+            let str1_ptr = emu.regs().rcx;
+            let str2_ptr = emu.regs().rdx;
+            let s1 = emu.maps.read_wide_string(str1_ptr);
+            let s2 = emu.maps.read_wide_string(str2_ptr);
+            let result = s1.to_lowercase().cmp(&s2.to_lowercase()) as i32;
+            log_red!(
+                emu,
+                "kernelbase!lstrcmpiW '{}' vs '{}' => {}",
+                s1,
+                s2,
+                result
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result as u64;
+        }
+        "lstrcpyn" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let max_len = emu.regs().r8 as usize;
+            let s = emu.maps.read_string(src);
+            let truncated: String = s.chars().take(max_len.saturating_sub(1)).collect();
+            emu.maps.write_string(dst, &truncated);
+            log_red!(
+                emu,
+                "kernelbase!lstrcpyn dst:0x{:x} '{}' max:{}",
+                dst,
+                truncated,
+                max_len
+            );
+            emu.regs_mut().rax = dst;
+        }
+        "lstrcpynA" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let max_len = emu.regs().r8 as usize;
+            let s = emu.maps.read_string(src);
+            let truncated: String = s.chars().take(max_len.saturating_sub(1)).collect();
+            emu.maps.write_string(dst, &truncated);
+            log_red!(
+                emu,
+                "kernelbase!lstrcpynA dst:0x{:x} '{}' max:{}",
+                dst,
+                truncated,
+                max_len
+            );
+            emu.regs_mut().rax = dst;
+        }
+        "lstrcpynW" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let max_len = emu.regs().r8 as usize;
+            let s = emu.maps.read_wide_string(src);
+            let truncated: String = s.chars().take(max_len.saturating_sub(1)).collect();
+            emu.maps.write_wide_string(dst, &truncated);
+            log_red!(
+                emu,
+                "kernelbase!lstrcpynW dst:0x{:x} '{}' max:{}",
+                dst,
+                truncated,
+                max_len
+            );
+            emu.regs_mut().rax = dst;
+        }
+        "lstrlen" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernelbase!lstrlen '{}' => {}", s, s.len());
+            emu.set_last_error(0);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        "lstrlenA" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_string(p0)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernelbase!lstrlenA '{}' => {}", s, s.len());
+            emu.set_last_error(0);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        "lstrlenW" => {
+            let p0 = emu.regs().rcx;
+            let s = if p0 != 0 && p0 > 0xffff {
+                emu.maps.read_wide_string(p0)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "kernelbase!lstrlenW '{}' => {}", s, s.len());
+            emu.set_last_error(0);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        "InterlockedCompareExchange" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedCompareExchange 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedCompareExchange64" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedCompareExchange64 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedDecrement" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedDecrement 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedExchange" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedExchange 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedExchangeAdd" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedExchangeAdd 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "InterlockedIncrement" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "kernelbase!InterlockedIncrement 0x{:x}", arg1);
+            helper::advance_tick(emu, 1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "Wow64Transition" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "kernelbase!Wow64Transition arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
         }
 
         _ => {
@@ -322,12 +27112,26 @@ fn VerQueryValueA(emu: &mut emu::Emu) {
 }
 
 fn _initterm_e(emu: &mut emu::Emu) {
-    log_red!(emu, "kernelbase!_initterm_e");
+    let arg1 = emu.regs().rcx;
+    let arg2 = emu.regs().rdx;
+    log_red!(
+        emu,
+        "kernelbase!_initterm_e arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
+    );
     emu.regs_mut().rax = 0;
 }
 
 fn _initterm(emu: &mut emu::Emu) {
-    log_red!(emu, "kernelbase!_initterm");
+    let arg1 = emu.regs().rcx;
+    let arg2 = emu.regs().rdx;
+    log_red!(
+        emu,
+        "kernelbase!_initterm arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
+    );
     emu.regs_mut().rax = 0;
 }
 
@@ -350,6 +27154,7 @@ fn _exit(emu: &mut emu::Emu) {
 fn atexit(emu: &mut emu::Emu) {
     let fptr = emu.regs().rcx;
     log_red!(emu, "kernelbase!atexit fptr: 0x{:x}", fptr);
+    emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }
 
@@ -440,4 +27245,55 @@ fn LocalAlloc(emu: &mut emu::Emu) {
     emu.regs_mut().rdx = flags;
     emu.regs_mut().r8 = size;
     winapi64::kernel32::HeapAlloc(emu);
+}
+
+fn expand_env_vars(src: &str) -> String {
+    let mut result = String::with_capacity(src.len());
+    let mut chars = src.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '%' {
+            let mut var_name = String::new();
+            let mut found_end = false;
+            while let Some(&next) = chars.peek() {
+                if next == '%' {
+                    chars.next();
+                    found_end = true;
+                    break;
+                }
+                var_name.push(next);
+                chars.next();
+            }
+            if found_end && !var_name.is_empty() {
+                let val = match var_name.to_uppercase().as_str() {
+                    "SYSTEMROOT" | "WINDIR" => "C:\\Windows",
+                    "SYSTEMDRIVE" => "C:",
+                    "USERPROFILE" => "C:\\Users\\User",
+                    "TEMP" | "TMP" => "C:\\Users\\User\\AppData\\Local\\Temp",
+                    "APPDATA" => "C:\\Users\\User\\AppData\\Roaming",
+                    "LOCALAPPDATA" => "C:\\Users\\User\\AppData\\Local",
+                    "PROGRAMFILES" => "C:\\Program Files",
+                    "PROGRAMDATA" => "C:\\ProgramData",
+                    "HOMEDRIVE" => "C:",
+                    "HOMEPATH" => "\\Users\\User",
+                    "COMSPEC" => "C:\\Windows\\system32\\cmd.exe",
+                    "PATH" => "C:\\Windows\\system32;C:\\Windows",
+                    "USERNAME" => "User",
+                    "COMPUTERNAME" => "DESKTOP-MWEMU",
+                    _ => {
+                        result.push('%');
+                        result.push_str(&var_name);
+                        result.push('%');
+                        continue;
+                    }
+                };
+                result.push_str(val);
+            } else {
+                result.push('%');
+                result.push_str(&var_name);
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+    result
 }

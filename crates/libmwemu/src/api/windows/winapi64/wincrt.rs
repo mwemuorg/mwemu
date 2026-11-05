@@ -168,7 +168,11 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "rand" => crt_rand(emu),
         "srand" => crt_srand(emu),
         "_ftol" | "_ftol2" | "_ftol2_sse" => crt_ftol(emu),
-        "_except_handler3" | "_except_handler4" | "__CxxFrameHandler" | "__CxxFrameHandler3"
+        "_except_handler3"
+        | "_except_handler4"
+        | "_except_handler4_common"
+        | "__CxxFrameHandler"
+        | "__CxxFrameHandler3"
         | "__CxxFrameHandler4" => crt_except_handler(emu, api),
         "_CxxThrowException" => crt_cxx_throw(emu),
         "_XcptFilter" | "__CppXcptFilter" => crt_xcpt_filter(emu, api),
@@ -196,9 +200,13 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         | "__setlc_active"
         | "__unguarded_readlc_active"
         | "_set_new_handler"
+        | "_set_se_translator"
+        | "set_terminate"
         | "_set_thread_local_invalid_parameter_handler" => {
-            log_red!(emu, "wincrt!{}", api);
+            let handler = emu.regs().rcx;
+            log_red!(emu, "wincrt!{} handler:0x{:x}", api, handler);
             emu.regs_mut().rax = 0;
+            helper::advance_tick(emu, 1);
         }
         "_acmdln" | "__p__acmdln" | "_wcmdln" | "__p__wcmdln" => crt_acmdln(emu, api),
         "??2@YAPEAX_K@Z"
@@ -207,6 +215,430 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         | "??0exception@@QEAA@AEBV0@@Z"
         | "??1type_info@@UEAA@XZ" => {
             log_red!(emu, "wincrt!{}", api);
+            emu.regs_mut().rax = 0;
+        }
+        "_EH_prolog3" | "_EH_prolog3_catch" => {
+            let cookie = emu.regs().rcx;
+            log_red!(emu, "wincrt!{} cookie:0x{:x}", api, cookie);
+            helper::advance_tick(emu, 1);
+            emu.regs_mut().rax = 0;
+        }
+        "_fgetchar" | "fgetc" | "getc" => {
+            let stream = emu.regs().rcx;
+            log_red!(emu, "wincrt!{} stream:0x{:x}", api, stream);
+            helper::advance_tick(emu, 1);
+            emu.regs_mut().rax = 0x41;
+        }
+        "_open" | "freopen" => {
+            let path_ptr = emu.regs().rcx;
+            let path = emu.maps.read_string(path_ptr);
+            let hndl = helper::handler_create(&path);
+            log_red!(emu, "wincrt!{} '{}' => 0x{:x}", api, path, hndl);
+            emu.regs_mut().rax = hndl;
+        }
+        "_putenv" => {
+            let str_ptr = emu.regs().rcx;
+            let s = if str_ptr != 0 {
+                emu.maps.read_string(str_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "wincrt!_putenv '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "_wputenv" => {
+            let str_ptr = emu.regs().rcx;
+            let s = if str_ptr != 0 {
+                emu.maps.read_wide_string(str_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "wincrt!_wputenv '{}'", s);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "_snprintf_s" | "sprintf_s" => {
+            let buf = emu.regs().rcx;
+            let _size = emu.regs().rdx;
+            let fmt_ptr = emu.regs().r8;
+            let fmt = emu.maps.read_string(fmt_ptr);
+            log_red!(emu, "wincrt!{} buf:0x{:x} fmt:'{}'", api, buf, fmt);
+            if buf != 0 && !fmt.is_empty() {
+                emu.maps.write_string(buf, &fmt);
+            }
+            emu.regs_mut().rax = fmt.len() as u64;
+        }
+        "_sscanf_s_l" => {
+            let buf_ptr = emu.regs().rcx;
+            let fmt_ptr = emu.regs().rdx;
+            let s = emu.maps.read_string(buf_ptr);
+            let fmt = emu.maps.read_string(fmt_ptr);
+            log_red!(emu, "wincrt!_sscanf_s_l buf:'{}' fmt:'{}'", s, fmt);
+            emu.regs_mut().rax = 1;
+        }
+        "_wrename" => {
+            let old_ptr = emu.regs().rcx;
+            let new_ptr = emu.regs().rdx;
+            let old_name = emu.maps.read_wide_string(old_ptr);
+            let new_name = emu.maps.read_wide_string(new_ptr);
+            log_red!(emu, "wincrt!_wrename '{}' -> '{}'", old_name, new_name);
+            emu.regs_mut().rax = 0;
+        }
+        "putc" | "putchar" => {
+            let ch = emu.regs().rcx;
+            log_red!(
+                emu,
+                "wincrt!{} ch:'{}' (0x{:x})",
+                api,
+                (ch & 0xff) as u8 as char,
+                ch
+            );
+            helper::advance_tick(emu, 1);
+            emu.regs_mut().rax = ch & 0xff;
+        }
+        "mbstowcs" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let n = emu.regs().r8 as usize;
+            let s = emu.maps.read_string(src);
+            if dst != 0 {
+                emu.maps.write_wide_string(dst, &s);
+            }
+            log_red!(emu, "wincrt!mbstowcs '{}' n:{}", s, n);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        "wcstombs" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let n = emu.regs().r8 as usize;
+            let s = emu.maps.read_wide_string(src);
+            if dst != 0 {
+                emu.maps.write_string(dst, &s);
+            }
+            log_red!(emu, "wincrt!wcstombs '{}' n:{}", s, n);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        // --- Math stubs ---
+        "atan" | "atan2" | "cos" | "sin" | "tan" | "exp" | "log" | "log10" | "pow" | "sqrt"
+        | "ceil" | "floor" | "fabs" | "fmod" => {
+            let a = f64::from_bits(emu.regs().xmm0 as u64);
+            let result = match api {
+                "atan" => a.atan(),
+                "cos" => a.cos(),
+                "sin" => a.sin(),
+                "tan" => a.tan(),
+                "exp" => a.exp(),
+                "log" => a.ln(),
+                "log10" => a.log10(),
+                "sqrt" => a.sqrt(),
+                "ceil" => a.ceil(),
+                "floor" => a.floor(),
+                "fabs" => a.abs(),
+                _ => {
+                    let b = f64::from_bits(emu.regs().xmm1 as u64);
+                    match api {
+                        "atan2" => a.atan2(b),
+                        "pow" => a.powf(b),
+                        "fmod" => a % b,
+                        _ => 0.0,
+                    }
+                }
+            };
+            log_red!(emu, "wincrt!{} ({}) = {}", api, a, result);
+            emu.regs_mut().xmm0 = result.to_bits() as u128;
+            emu.regs_mut().rax = result.to_bits();
+        }
+        // --- String stubs ---
+        "strncat" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let n = emu.regs().r8 as usize;
+            let existing = emu.maps.read_string(dst);
+            let append = emu.maps.read_string(src);
+            let truncated: String = append.chars().take(n).collect();
+            let result = format!("{}{}", existing, truncated);
+            if dst != 0 {
+                emu.maps.write_string(dst, &result);
+            }
+            log_red!(emu, "wincrt!strncat => '{}' n:{}", result, n);
+            emu.regs_mut().rax = dst;
+        }
+        "wcsncat" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let n = emu.regs().r8 as usize;
+            let existing = emu.maps.read_wide_string(dst);
+            let append = emu.maps.read_wide_string(src);
+            let truncated: String = append.chars().take(n).collect();
+            let result = format!("{}{}", existing, truncated);
+            if dst != 0 {
+                emu.maps.write_wide_string(dst, &result);
+            }
+            log_red!(emu, "wincrt!wcsncat => '{}' n:{}", result, n);
+            emu.regs_mut().rax = dst;
+        }
+        "swprintf" => {
+            let buf = emu.regs().rcx;
+            let fmt_ptr = emu.regs().rdx;
+            let fmt = emu.maps.read_wide_string(fmt_ptr);
+            if buf != 0 {
+                emu.maps.write_wide_string(buf, &fmt);
+            }
+            log_red!(emu, "wincrt!swprintf fmt:'{}'", fmt);
+            emu.regs_mut().rax = fmt.len() as u64;
+        }
+        "_sprintf_p" => {
+            let buf = emu.regs().rcx;
+            let buf_size = emu.regs().rdx as usize;
+            let fmt_ptr = emu.regs().r8;
+            let fmt = emu.maps.read_string(fmt_ptr);
+            if buf != 0 {
+                emu.maps.write_string(buf, &fmt);
+            }
+            log_red!(emu, "wincrt!_sprintf_p buf:0x{:x} fmt:'{}'", buf, fmt);
+            emu.regs_mut().rax = fmt.len() as u64;
+        }
+        "sscanf_s" => {
+            let buf_ptr = emu.regs().rcx;
+            let fmt_ptr = emu.regs().rdx;
+            let s = emu.maps.read_string(buf_ptr);
+            let fmt = emu.maps.read_string(fmt_ptr);
+            log_red!(emu, "wincrt!sscanf_s buf:'{}' fmt:'{}'", s, fmt);
+            emu.regs_mut().rax = 1;
+        }
+        "StrCmpCA" => {
+            let s1_ptr = emu.regs().rcx;
+            let s2_ptr = emu.regs().rdx;
+            let s1 = emu.maps.read_string(s1_ptr);
+            let s2 = emu.maps.read_string(s2_ptr);
+            let result = s1.cmp(&s2) as i32;
+            log_red!(emu, "wincrt!StrCmpCA '{}' '{}' => {}", s1, s2, result);
+            emu.regs_mut().rax = result as u32 as u64;
+        }
+        "_wcsnicmp" => {
+            let s1_ptr = emu.regs().rcx;
+            let s2_ptr = emu.regs().rdx;
+            let n = emu.regs().r8 as usize;
+            let s1: String = emu
+                .maps
+                .read_wide_string(s1_ptr)
+                .to_lowercase()
+                .chars()
+                .take(n)
+                .collect();
+            let s2: String = emu
+                .maps
+                .read_wide_string(s2_ptr)
+                .to_lowercase()
+                .chars()
+                .take(n)
+                .collect();
+            let result = s1.cmp(&s2) as i32;
+            log_red!(
+                emu,
+                "wincrt!_wcsnicmp '{}' '{}' n:{} => {}",
+                s1,
+                s2,
+                n,
+                result
+            );
+            emu.regs_mut().rax = result as u32 as u64;
+        }
+        "_itow" => {
+            let value = emu.regs().rcx as i32;
+            let buf = emu.regs().rdx;
+            let radix = emu.regs().r8 as u32;
+            let s = if radix == 16 {
+                format!("{:x}", value)
+            } else {
+                format!("{}", value)
+            };
+            if buf != 0 {
+                emu.maps.write_wide_string(buf, &s);
+            }
+            log_red!(emu, "wincrt!_itow {} radix:{} => '{}'", value, radix, s);
+            emu.regs_mut().rax = buf;
+        }
+        "_wtol" => {
+            let str_ptr = emu.regs().rcx;
+            let s = if str_ptr != 0 {
+                emu.maps.read_wide_string(str_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "wincrt!_wtol '{}'", s);
+            let val: i64 = s.trim().parse().unwrap_or(0);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = val as u64;
+        }
+        "_mbstowcs_l" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let n = emu.regs().r8 as usize;
+            let locale = emu.regs().r9;
+            let s = emu.maps.read_string(src);
+            if dst != 0 {
+                emu.maps.write_wide_string(dst, &s);
+            }
+            log_red!(emu, "wincrt!_mbstowcs_l '{}' n:{}", s, n);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        "_wcstombs_l" => {
+            let dst = emu.regs().rcx;
+            let src = emu.regs().rdx;
+            let n = emu.regs().r8 as usize;
+            let locale = emu.regs().r9;
+            let s = emu.maps.read_wide_string(src);
+            if dst != 0 {
+                emu.maps.write_string(dst, &s);
+            }
+            log_red!(emu, "wincrt!_wcstombs_l '{}' n:{}", s, n);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        // --- I/O ---
+        "fgets" => {
+            let buf = emu.regs().rcx;
+            let max_count = emu.regs().rdx as i32;
+            let stream = emu.regs().r8;
+            log_red!(
+                emu,
+                "wincrt!fgets buf:0x{:x} max:{} stream:0x{:x}",
+                buf,
+                max_count,
+                stream
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "fputs" => {
+            let str_ptr = emu.regs().rcx;
+            let stream = emu.regs().rdx;
+            let s = if str_ptr != 0 {
+                emu.maps.read_string(str_ptr)
+            } else {
+                String::new()
+            };
+            log_red!(emu, "wincrt!fputs '{}' stream:0x{:x}", s, stream);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = s.len() as u64;
+        }
+        "getchar" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "wincrt!getchar arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.regs_mut().rax = 1;
+        }
+        "_close" => {
+            let fd = emu.regs().rcx as i32;
+            log_red!(emu, "wincrt!_close fd:{}", fd);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "_read" => {
+            let fd = emu.regs().rcx as i32;
+            let buf = emu.regs().rdx;
+            let count = emu.regs().r8 as u32;
+            log_red!(
+                emu,
+                "wincrt!_read fd:{} buf:0x{:x} count:{}",
+                fd,
+                buf,
+                count
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+        }
+        "_write" => {
+            let fd = emu.regs().rcx as i32;
+            let buf = emu.regs().rdx;
+            let count = emu.regs().r8 as u32;
+            let data = emu.maps.read_string(buf);
+            log_red!(
+                emu,
+                "wincrt!_write fd:{} count:{} data:'{}'",
+                fd,
+                count,
+                data
+            );
+            emu.regs_mut().rax = count as u64;
+        }
+        "_wopen" => {
+            let path_ptr = emu.regs().rcx;
+            let oflag = emu.regs().rdx as u32;
+            let path = emu.maps.read_wide_string(path_ptr);
+            let hndl = helper::handler_create(&path);
+            log_red!(
+                emu,
+                "wincrt!_wopen '{}' flags:0x{:x} => 0x{:x}",
+                path,
+                oflag,
+                hndl
+            );
+            emu.regs_mut().rax = hndl;
+        }
+        "_fileno" => {
+            let stream = emu.regs().rcx;
+            log_red!(emu, "wincrt!_fileno stream:0x{:x}", stream);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+        }
+        "_setmode" => {
+            let fd = emu.regs().rcx as i32;
+            let mode = emu.regs().rdx as i32;
+            log_red!(emu, "wincrt!_setmode fd:{} mode:{}", fd, mode);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = mode as u64;
+        }
+        "_putch" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "wincrt!_putch arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            emu.regs_mut().rax = 1;
+        }
+        // --- Char classification ---
+        "ispunct" => {
+            let ch = emu.regs().rcx as u8;
+            log_red!(emu, "wincrt!ispunct ch:{}", ch as char);
+            let result = if ch.is_ascii_punctuation() {
+                1u64
+            } else {
+                0u64
+            };
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        "isxdigit" => {
+            let ch = emu.regs().rcx as u8;
+            log_red!(emu, "wincrt!isxdigit ch:{}", ch as char);
+            let result = if ch.is_ascii_hexdigit() { 1u64 } else { 0u64 };
+            emu.set_last_error(0);
+            emu.regs_mut().rax = result;
+        }
+        // --- CRT setup / EH stubs ---
+        "_EH_prolog" | "_EH_prolog3_GS" | "_adjust_fdiv" | "set_unexpected" | "_c_exit" => {
+            let arg1 = emu.regs().rcx;
+            log_red!(emu, "wincrt!{} 0x{:x}", api, arg1);
+            helper::advance_tick(emu, 1);
+            emu.regs_mut().rax = 0;
+        }
+        // --- Environment / system ---
+        "_putenv_s" => {
+            let name_ptr = emu.regs().rcx;
+            let value_ptr = emu.regs().rdx;
+            let name = emu.maps.read_string(name_ptr);
+            let value = emu.maps.read_string(value_ptr);
+            log_red!(emu, "wincrt!_putenv_s '{}={}'", name, value);
+            emu.regs_mut().rax = 0;
+        }
+        "system" | "_wsystem" => {
+            let cmd_ptr = emu.regs().rcx;
+            let cmd = if api == "_wsystem" {
+                emu.maps.read_wide_string(cmd_ptr)
+            } else {
+                emu.maps.read_string(cmd_ptr)
+            };
+            log_red!(emu, "wincrt!{} cmd:'{}'", api, cmd);
             emu.regs_mut().rax = 0;
         }
         _ => {
@@ -440,24 +872,20 @@ fn signal(emu: &mut emu::Emu) {
     let sig = emu.regs().rcx;
     let handler = emu.regs().rdx;
     log_red!(emu, "wincrt!signal sig:{} handler:0x{:x}", sig, handler);
-    emu.regs_mut().rax = 0;
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 0; // SIG_DFL
 }
 
 fn _initialize_onexit_table(emu: &mut emu::Emu) {
     let table = emu.regs().rcx;
 
-    /*
-    http://sandbox.hlt.bme.hu/~gaebor/STLdoc/VS2017/corecrt__startup_8h_source.html
-    133 typedef struct _onexit_table_t
-    134 {
-    135     _PVFV* _first;
-    136     _PVFV* _last;
-    137     _PVFV* _end;
-    138 } _onexit_table_t;
-    139
-     */
+    log_red!(emu, "wincrt!_initialize_onexit_table 0x{:x}", table);
 
-    log_red!(emu, "wincrt!_initialize_onexit_table");
+    if table != 0 {
+        emu.maps.write_qword(table, 0); // _first
+        emu.maps.write_qword(table + 8, 0); // _last
+        emu.maps.write_qword(table + 16, 0); // _end
+    }
 
     emu.regs_mut().rax = 0;
 }
@@ -466,22 +894,21 @@ fn _register_onexit_function(emu: &mut emu::Emu) {
     let table = emu.regs().rcx;
     let callback = emu.regs().rdx;
 
-    /*
-    http://sandbox.hlt.bme.hu/~gaebor/STLdoc/VS2017/corecrt__startup_8h_source.html
-    133 typedef struct _onexit_table_t
-    134 {
-    135     _PVFV* _first;
-    136     _PVFV* _last;
-    137     _PVFV* _end;
-    138 } _onexit_table_t;
-    139
-     */
-
     log_red!(
         emu,
-        "wincrt!_initialize_onexit_function callback: 0x{:x}",
+        "wincrt!_register_onexit_function table:0x{:x} callback:0x{:x}",
+        table,
         callback
     );
+
+    if table != 0 {
+        let last = emu.maps.read_qword(table + 8).unwrap_or(0);
+        let end = emu.maps.read_qword(table + 16).unwrap_or(0);
+        if last < end && last != 0 {
+            emu.maps.write_qword(last, callback);
+            emu.maps.write_qword(table + 8, last + 8);
+        }
+    }
 
     emu.regs_mut().rax = 0;
 }
@@ -493,16 +920,20 @@ extern "C" char** __cdecl _get_initial_narrow_environment()
 }
 */
 fn _get_initial_narrow_environment(emu: &mut emu::Emu) {
-    let env = emu.regs().rcx;
-
+    let env_ptr = match allocate_memory(emu, 8) {
+        Some(a) => a,
+        None => {
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
+    emu.maps.write_qword(env_ptr, 0);
     log_red!(
         emu,
-        "wincrt!_get_initial_narrow_environment env: 0x{:x}",
-        env
+        "wincrt!_get_initial_narrow_environment => 0x{:x}",
+        env_ptr
     );
-
-    // TODO: Implement this
-    emu.regs_mut().rax = 0;
+    emu.regs_mut().rax = env_ptr;
 }
 
 // char*** CDECL __p___argv(void) { return &MSVCRT___argv; }
@@ -584,11 +1015,24 @@ FILE * CDECL __acrt_iob_func(int index)
 
 fn __acrt_iob_func(emu: &mut emu::Emu) {
     let index = emu.regs().rcx;
-
-    log_red!(emu, "wincrt!__acrt_iob_func index: 0x{:x}", index);
-
-    // TODO: Implement this
-    emu.regs_mut().rax = 0;
+    let iob_addr = allocate_memory(emu, 96).unwrap_or(0);
+    if iob_addr != 0 {
+        emu.maps.memset(iob_addr, 0, 96);
+        let fd = match index {
+            0 => 0u32, // stdin
+            1 => 1,    // stdout
+            2 => 2,    // stderr
+            _ => index as u32,
+        };
+        emu.maps.write_dword(iob_addr + 16, fd); // _file field offset
+    }
+    log_red!(
+        emu,
+        "wincrt!__acrt_iob_func index:{} => 0x{:x}",
+        index,
+        iob_addr
+    );
+    emu.regs_mut().rax = iob_addr;
 }
 
 /*
@@ -645,6 +1089,7 @@ fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
                 let arg = emu.maps.read_qword(current_ptr).unwrap_or(0);
                 current_ptr += 8; // Move to next arg
                 log::trace!("arg: {:016x}", arg);
+                emu.regs_mut().rax = 1;
             }
             "str" => {
                 let str_ptr = emu.maps.read_qword(current_ptr).unwrap_or(0);
@@ -927,9 +1372,32 @@ fn crt_itoa(emu: &mut emu::Emu) {
 }
 
 fn crt_strtok(emu: &mut emu::Emu) {
-    let s = emu.regs().rcx;
-    log_red!(emu, "wincrt!strtok 0x{:x}", s);
-    emu.regs_mut().rax = 0;
+    let s_ptr = emu.regs().rcx;
+    let delim_ptr = emu.regs().rdx;
+    let delims = emu.maps.read_string(delim_ptr);
+    if s_ptr != 0 {
+        let s = emu.maps.read_string(s_ptr);
+        if let Some(pos) = s.find(|c: char| delims.contains(c)) {
+            emu.maps.write_byte(s_ptr + pos as u64, 0);
+            log_red!(
+                emu,
+                "wincrt!strtok '{}' delim:'{}' => '{}'",
+                s,
+                delims,
+                &s[..pos]
+            );
+            emu.regs_mut().rax = s_ptr;
+        } else if !s.is_empty() {
+            log_red!(emu, "wincrt!strtok '{}' delim:'{}' => '{}'", s, delims, s);
+            emu.regs_mut().rax = s_ptr;
+        } else {
+            log_red!(emu, "wincrt!strtok empty");
+            emu.regs_mut().rax = 0;
+        }
+    } else {
+        log_red!(emu, "wincrt!strtok(NULL) => 0");
+        emu.regs_mut().rax = 0;
+    }
 }
 
 // --- Wide string functions ---
@@ -988,8 +1456,8 @@ fn crt_wcsncpy(emu: &mut emu::Emu) {
     let ws = emu.maps.read_wide_string(src);
     let chars: Vec<u16> = ws.encode_utf16().collect();
     let copy_len = chars.len().min(n as usize);
-    for i in 0..copy_len {
-        emu.maps.write_word(dst + (i as u64) * 2, chars[i]);
+    for (i, &ch) in chars.iter().enumerate().take(copy_len) {
+        emu.maps.write_word(dst + (i as u64) * 2, ch);
     }
     for i in copy_len..n as usize {
         emu.maps.write_word(dst + (i as u64) * 2, 0);
@@ -1173,7 +1641,9 @@ fn crt_fopen(emu: &mut emu::Emu) {
 
 fn crt_fclose(emu: &mut emu::Emu) {
     let fp = emu.regs().rcx;
-    log_red!(emu, "wincrt!fclose 0x{:x}", fp);
+    let name = helper::handler_get_uri(fp);
+    helper::handler_close(fp);
+    log_red!(emu, "wincrt!fclose 0x{:x} '{}'", fp, name);
     emu.regs_mut().rax = 0;
 }
 
@@ -1182,14 +1652,17 @@ fn crt_fread(emu: &mut emu::Emu) {
     let size = emu.regs().rdx;
     let count = emu.regs().r8;
     let fp = emu.regs().r9;
+    let name = helper::handler_get_uri(fp);
     log_red!(
         emu,
-        "wincrt!fread buf:0x{:x} size:{} count:{} fp:0x{:x}",
+        "wincrt!fread buf:0x{:x} size:{} count:{} fp:0x{:x} '{}'",
         buf,
         size,
         count,
-        fp
+        fp,
+        name
     );
+    helper::handler_set_eof(fp);
     emu.regs_mut().rax = 0;
 }
 
@@ -1198,13 +1671,17 @@ fn crt_fwrite(emu: &mut emu::Emu) {
     let size = emu.regs().rdx;
     let count = emu.regs().r8;
     let fp = emu.regs().r9;
+    let name = helper::handler_get_uri(fp);
+    let total = size * count;
     log_red!(
         emu,
-        "wincrt!fwrite buf:0x{:x} size:{} count:{} fp:0x{:x}",
+        "wincrt!fwrite buf:0x{:x} size:{} count:{} fp:0x{:x} '{}' total:{}",
         buf,
         size,
         count,
-        fp
+        fp,
+        name,
+        total
     );
     emu.regs_mut().rax = count;
 }
@@ -1218,39 +1695,90 @@ fn crt_fflush(emu: &mut emu::Emu) {
 fn crt_fseek(emu: &mut emu::Emu) {
     let fp = emu.regs().rcx;
     let offset = emu.regs().rdx as i64;
-    let origin = emu.regs().r8;
+    let origin = emu.regs().r8 as u32;
+    let new_pos = helper::handler_seek(fp, offset, origin);
     log_red!(
         emu,
-        "wincrt!fseek fp:0x{:x} offset:{} origin:{}",
+        "wincrt!fseek fp:0x{:x} offset:{} origin:{} => pos:{}",
         fp,
         offset,
-        origin
+        origin,
+        new_pos
     );
-    emu.regs_mut().rax = 0;
+    emu.regs_mut().rax = if new_pos >= 0 { 0 } else { u64::MAX };
 }
 
 fn crt_ftell(emu: &mut emu::Emu) {
     let fp = emu.regs().rcx;
-    log_red!(emu, "wincrt!ftell 0x{:x} => 0", fp);
-    emu.regs_mut().rax = 0;
+    let pos = helper::handler_tell(fp);
+    log_red!(emu, "wincrt!ftell 0x{:x} => {}", fp, pos);
+    emu.regs_mut().rax = pos as u64;
 }
 
 fn crt_feof(emu: &mut emu::Emu) {
     let fp = emu.regs().rcx;
-    log_red!(emu, "wincrt!feof 0x{:x} => 1", fp);
-    emu.regs_mut().rax = 1;
+    let is_eof = helper::handler_eof(fp);
+    log_red!(emu, "wincrt!feof 0x{:x} => {}", fp, is_eof as u32);
+    emu.regs_mut().rax = is_eof as u64;
 }
 
 fn crt_format_stub(emu: &mut emu::Emu, api: &str) {
-    log_red!(emu, "wincrt!{}", api);
-    emu.regs_mut().rax = 0;
+    match api {
+        "sprintf" | "snprintf" | "_snprintf" | "_sprintf_l" => {
+            let buf = emu.regs().rcx;
+            let fmt_ptr = emu.regs().rdx;
+            let fmt = emu.maps.read_string(fmt_ptr);
+            log_red!(emu, "wincrt!{} buf:0x{:x} fmt:'{}'", api, buf, fmt);
+            if buf != 0 && !fmt.is_empty() {
+                emu.maps.write_string(buf, &fmt);
+                emu.regs_mut().rax = fmt.len() as u64;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "fprintf" => {
+            let stream = emu.regs().rcx;
+            let fmt_ptr = emu.regs().rdx;
+            let fmt = emu.maps.read_string(fmt_ptr);
+            log_red!(emu, "wincrt!fprintf stream:0x{:x} fmt:'{}'", stream, fmt);
+            emu.regs_mut().rax = fmt.len() as u64;
+        }
+        "sscanf" | "__stdio_common_vsscanf" => {
+            let buf_ptr = emu.regs().rcx;
+            let fmt_ptr = emu.regs().rdx;
+            let buf = emu.maps.read_string(buf_ptr);
+            let fmt = emu.maps.read_string(fmt_ptr);
+            log_red!(emu, "wincrt!{} buf:'{}' fmt:'{}'", api, buf, fmt);
+            emu.regs_mut().rax = 1;
+        }
+        "__stdio_common_vsprintf" | "__stdio_common_vsprintf_s" => {
+            let _options = emu.regs().rcx;
+            let buf = emu.regs().rdx;
+            let _buf_count = emu.regs().r8;
+            let fmt_ptr = emu.regs().r9;
+            let fmt = emu.maps.read_string(fmt_ptr);
+            log_red!(emu, "wincrt!{} buf:0x{:x} fmt:'{}'", api, buf, fmt);
+            if buf != 0 && !fmt.is_empty() {
+                emu.maps.write_string(buf, &fmt);
+            }
+            emu.regs_mut().rax = fmt.len() as u64;
+        }
+        _ => {
+            log_red!(emu, "wincrt!{}", api);
+            emu.regs_mut().rax = 0;
+        }
+    }
 }
 
 fn crt_print_stub(emu: &mut emu::Emu, api: &str) {
-    let fmt = emu.regs().rcx;
-    let s = emu.maps.read_string(fmt);
-    log_red!(emu, "wincrt!{} '{}'", api, s);
-    emu.regs_mut().rax = 0;
+    let fmt_ptr = emu.regs().rcx;
+    let fmt = if api == "wprintf" || api == "vwprintf" {
+        emu.maps.read_wide_string(fmt_ptr)
+    } else {
+        emu.maps.read_string(fmt_ptr)
+    };
+    log_red!(emu, "wincrt!{} '{}'", api, fmt);
+    emu.regs_mut().rax = fmt.len() as u64;
 }
 
 // --- Process/Environment ---
@@ -1283,8 +1811,18 @@ fn crt_errno(emu: &mut emu::Emu) {
 }
 
 fn crt_errno_stub(emu: &mut emu::Emu, api: &str) {
-    log_red!(emu, "wincrt!{}", api);
-    emu.regs_mut().rax = 0;
+    if api == "_set_errno" {
+        let value = emu.regs().rcx as u32;
+        log_red!(emu, "wincrt!_set_errno {}", value);
+        emu.regs_mut().rax = 0;
+    } else {
+        let out_ptr = emu.regs().rcx;
+        if out_ptr != 0 {
+            emu.maps.write_dword(out_ptr, 0);
+        }
+        log_red!(emu, "wincrt!_get_errno => 0");
+        emu.regs_mut().rax = 0;
+    }
 }
 
 fn crt_getmainargs(emu: &mut emu::Emu) {
@@ -1307,14 +1845,48 @@ fn crt_getmainargs(emu: &mut emu::Emu) {
 fn crt_initterm(emu: &mut emu::Emu) {
     let start = emu.regs().rcx;
     let end = emu.regs().rdx;
-    log_red!(emu, "wincrt!_initterm 0x{:x} - 0x{:x}", start, end);
+    let mut count = 0u32;
+    if start != 0 && end > start {
+        let mut ptr = start;
+        while ptr < end {
+            let func = emu.maps.read_qword(ptr).unwrap_or(0);
+            if func != 0 {
+                count += 1;
+            }
+            ptr += 8;
+        }
+    }
+    log_red!(
+        emu,
+        "wincrt!_initterm 0x{:x} - 0x{:x} ({} entries)",
+        start,
+        end,
+        count
+    );
     emu.regs_mut().rax = 0;
 }
 
 fn crt_initterm_e(emu: &mut emu::Emu) {
     let start = emu.regs().rcx;
     let end = emu.regs().rdx;
-    log_red!(emu, "wincrt!_initterm_e 0x{:x} - 0x{:x}", start, end);
+    let mut count = 0u32;
+    if start != 0 && end > start {
+        let mut ptr = start;
+        while ptr < end {
+            let func = emu.maps.read_qword(ptr).unwrap_or(0);
+            if func != 0 {
+                count += 1;
+            }
+            ptr += 8;
+        }
+    }
+    log_red!(
+        emu,
+        "wincrt!_initterm_e 0x{:x} - 0x{:x} ({} entries)",
+        start,
+        end,
+        count
+    );
     emu.regs_mut().rax = 0;
 }
 
@@ -1326,12 +1898,20 @@ fn crt_abs(emu: &mut emu::Emu) {
 }
 
 fn crt_rand(emu: &mut emu::Emu) {
-    log_red!(emu, "wincrt!rand => 42");
-    emu.regs_mut().rax = 42;
+    let val = (emu
+        .pos
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
+        >> 33)
+        & 0x7fff;
+    log_red!(emu, "wincrt!rand => {}", val);
+    emu.regs_mut().rax = val;
 }
 
 fn crt_srand(emu: &mut emu::Emu) {
-    log_red!(emu, "wincrt!srand");
+    let seed = emu.regs().rcx;
+    log_red!(emu, "wincrt!srand seed:{}", seed);
+    emu.set_last_error(0);
 }
 
 fn crt_ftol(emu: &mut emu::Emu) {
@@ -1405,35 +1985,41 @@ fn crt_time(emu: &mut emu::Emu) {
 }
 
 fn crt_lock_noop(emu: &mut emu::Emu, api: &str) {
-    log_red!(emu, "wincrt!{}", api);
+    let lock_num = emu.regs().rcx;
+    log_red!(emu, "wincrt!{} lock:{}", api, lock_num);
+    emu.set_last_error(0);
 }
 
 fn crt_beginthread(emu: &mut emu::Emu) {
     let start = emu.regs().rcx;
     let stack_size = emu.regs().rdx;
     let arg = emu.regs().r8;
+    let hndl = helper::handler_create(&format!("thread://0x{:x}", start));
     log_red!(
         emu,
-        "wincrt!_beginthread start:0x{:x} stack:{} arg:0x{:x}",
+        "wincrt!_beginthread start:0x{:x} stack:{} arg:0x{:x} => 0x{:x}",
         start,
         stack_size,
-        arg
+        arg,
+        hndl
     );
-    emu.regs_mut().rax = 0x1337;
+    emu.regs_mut().rax = hndl;
 }
 
 fn crt_beginthreadex(emu: &mut emu::Emu) {
-    let security = emu.regs().rcx;
-    let stack_size = emu.regs().rdx;
+    let _security = emu.regs().rcx;
+    let _stack_size = emu.regs().rdx;
     let start = emu.regs().r8;
     let arg = emu.regs().r9;
+    let hndl = helper::handler_create(&format!("thread://0x{:x}", start));
     log_red!(
         emu,
-        "wincrt!_beginthreadex start:0x{:x} arg:0x{:x}",
+        "wincrt!_beginthreadex start:0x{:x} arg:0x{:x} => 0x{:x}",
         start,
-        arg
+        arg,
+        hndl
     );
-    emu.regs_mut().rax = 0x1337;
+    emu.regs_mut().rax = hndl;
 }
 
 fn crt_endthread(emu: &mut emu::Emu, api: &str) {

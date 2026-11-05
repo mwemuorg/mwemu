@@ -13,6 +13,7 @@ pub fn AddVectoredExceptionHandler(emu: &mut emu::Emu) {
 
     emu.add_veh(first != 0, fptr);
 
+    emu.set_last_error(0);
     emu.regs_mut().rax = 0x2c2878;
     emu.stack_pop32(false);
     emu.stack_pop32(false);

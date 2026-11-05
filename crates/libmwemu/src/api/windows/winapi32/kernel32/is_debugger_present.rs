@@ -1,6 +1,9 @@
 use crate::emu;
+use crate::winapi::helper;
 
 pub fn IsDebuggerPresent(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!IsDebuggerPresent");
-    emu.regs_mut().rax = 0; // of course :p
+    helper::advance_tick(emu, 1);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 0;
 }

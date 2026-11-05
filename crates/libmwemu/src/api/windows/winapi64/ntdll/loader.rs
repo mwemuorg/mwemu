@@ -5,7 +5,7 @@ use crate::windows::constants;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
-        "LdrLoadDll" => LdrLoadDll(emu),
+        "LdrLoadDll" | "LdrLoadDll_gul" => LdrLoadDll(emu),
         "LdrGetDllHandleEx" => LdrGetDllHandleEx(emu),
         _ => return false,
     }

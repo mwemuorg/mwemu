@@ -8,6 +8,7 @@ pub fn GetVersionExA(emu: &mut emu::Emu) {
     // Check if pointer is valid
     if version_info_ptr == 0 || !emu.maps.is_mapped(version_info_ptr) {
         log_red!(emu, "GetVersionExA: Invalid pointer");
+        emu.set_last_error(0);
         emu.regs_mut().rax = 0;
         return;
     }

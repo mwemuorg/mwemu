@@ -21,5 +21,6 @@ pub fn SetFilePointer(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
 
     // Stub: just return the distance as the new pointer if high isn't used much
+    emu.set_last_error(0);
     emu.regs_mut().rax = dist_low as u64;
 }

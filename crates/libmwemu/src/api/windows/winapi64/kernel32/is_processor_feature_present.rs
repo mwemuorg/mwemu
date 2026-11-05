@@ -53,5 +53,6 @@ pub fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
         feature,
         msg
     );
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

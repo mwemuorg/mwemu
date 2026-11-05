@@ -10,6 +10,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtQueryInformationFile" => NtQueryInformationFile(emu),
         "NtReadFile" => NtReadFile(emu),
         "NtClose" => NtClose(emu),
+        "NtWriteFile" => NtWriteFile(emu),
         "RtlDosPathNameToNtPathName_U" => RtlDosPathNameToNtPathName_U(emu),
         "NtSetInformationFile" => NtSetInformationFile(emu),
         _ => return false,
@@ -262,4 +263,64 @@ fn NtSetInformationFile(emu: &mut emu::Emu) {
     );
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 5);
+}
+
+fn NtWriteFile(emu: &mut emu::Emu) {
+    let file_hndl = arg(emu, 0) as u64;
+    let _ev_hndl = arg(emu, 1);
+    let _apc_rout = arg(emu, 2);
+    let _apc_ctx = arg(emu, 3);
+    let io_status = arg(emu, 4) as u64;
+    let buff = arg(emu, 5) as u64;
+    let len = arg(emu, 6) as usize;
+    let _off = arg(emu, 7);
+    let _key = arg(emu, 8);
+
+    log_red!(
+        emu,
+        "ntdll!NtWriteFile hndl: 0x{:x} buff: 0x{:x} sz: {}",
+        file_hndl,
+        buff,
+        len,
+    );
+
+    stdcall_ret(emu, 9);
+
+    if len == 0 {
+        if io_status != 0 {
+            emu.maps.write_dword(io_status, 0);
+            emu.maps.write_dword(io_status + 4, 0);
+        }
+        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        return;
+    }
+
+    let mut data = vec![0u8; len];
+    for (i, byte) in data.iter_mut().enumerate() {
+        *byte = emu.maps.read_byte(buff + i as u64).unwrap_or(0);
+    }
+
+    let handle_key = file_hndl as u32;
+    match emu.handle_management.get_mut_file_handle(handle_key) {
+        Some(fh) => match fh.write(&data) {
+            Ok(written) => {
+                if io_status != 0 {
+                    emu.maps.write_dword(io_status, 0);
+                    emu.maps.write_dword(io_status + 4, written as u32);
+                }
+                emu.regs_mut().rax = constants::STATUS_SUCCESS;
+            }
+            Err(e) => {
+                log::warn!("NtWriteFile: write error: {}", e);
+                if io_status != 0 {
+                    emu.maps.write_dword(io_status, 0xC0000001);
+                }
+                emu.regs_mut().rax = 0xC0000001;
+            }
+        },
+        None => {
+            log::warn!("NtWriteFile: invalid handle 0x{:x}", file_hndl);
+            emu.regs_mut().rax = constants::STATUS_INVALID_HANDLE;
+        }
+    }
 }

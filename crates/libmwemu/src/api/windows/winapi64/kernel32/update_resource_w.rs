@@ -1,0 +1,18 @@
+use crate::emu;
+use crate::windows::constants;
+
+pub fn UpdateResourceW(emu: &mut emu::Emu) {
+    let _hUpdate = emu.regs().rcx as u32;
+    let _lpType = emu.regs().rdx as u32;
+    let lpName = emu.regs().r8 as u32;
+    let _wLanguage = emu.regs().r9 as u32;
+    let _lpData = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _cb = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+
+    let lpName = emu.maps.read_wide_string(lpName as u64);
+
+    log_red!(emu, "kernel32!UpdateResourceW {}", lpName);
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+}

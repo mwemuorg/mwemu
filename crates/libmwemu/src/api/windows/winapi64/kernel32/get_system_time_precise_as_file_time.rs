@@ -1,10 +1,21 @@
 use crate::emu;
 
 pub fn GetSystemTimePreciseAsFileTime(emu: &mut emu::Emu) {
-    let file_time_ptr = emu.regs().rcx;
+    let ft_ptr = emu.regs().rcx;
 
-    log_red!(emu, "kernel32!GetSystemTimePreciseAsFileTime");
+    log_red!(
+        emu,
+        "kernel32!GetSystemTimePreciseAsFileTime ptr:0x{:x}",
+        ft_ptr
+    );
 
-    let ft: u64 = 132500000000000000;
-    emu.maps.write_qword(file_time_ptr, ft);
+    // Base: 2024-01-01 00:00:00 UTC + tick-based offset
+    let base_ft: u64 = 0x01DA_5E3E_A46C_0000;
+    let filetime = base_ft + (emu.tick as u64) * 10_000;
+
+    if ft_ptr != 0 {
+        emu.maps
+            .write_dword(ft_ptr, (filetime & 0xFFFF_FFFF) as u32);
+        emu.maps.write_dword(ft_ptr + 4, (filetime >> 32) as u32);
+    }
 }

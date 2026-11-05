@@ -8,6 +8,7 @@ pub fn HeapDestroy(emu: &mut emu::Emu) {
     let key = match emu.handle_management.resolve_heap_key(hndl) {
         Some(k) => k,
         None => {
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             return;
         }
