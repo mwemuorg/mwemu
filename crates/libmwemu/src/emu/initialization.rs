@@ -4,8 +4,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
-use csv::ReaderBuilder;
-
 use crate::emu::{Emu, InstructionState};
 use crate::maps::mem64::Permission;
 use crate::windows::peb::{peb32, peb64};
@@ -413,25 +411,8 @@ impl Emu {
 
         // Load banzai metadata only when 32-bit skip-unimplemented mode needs it.
         if !self.cfg.arch.is_64bits() && self.cfg.skip_unimplemented {
-            match ReaderBuilder::new().from_path(format!("{}/banzai.csv", self.cfg.maps_folder)) {
-                Ok(mut rdr) => {
-                    for result in rdr.records() {
-                        match result {
-                            Ok(record) => {
-                                let api = &record[0];
-                                let params: i32 = record[1].parse().unwrap_or(0);
-                                self.banzai.add(api, params);
-                            }
-                            Err(e) => {
-                                log::warn!("error parsing banzai.csv record: {}", e);
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::error!("banzai.csv not found in maps folder: {}", e);
-                }
-            }
+            self.banzai
+                .load(&format!("{}/banzai.csv", self.cfg.maps_folder));
         }
 
         //self.init_tests();

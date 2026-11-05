@@ -5,7 +5,7 @@ use crate::windows::{constants, structures};
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
-        "ZwQueueApcThread" => ZwQueueApcThread(emu),
+        "NtQueueApcThread" => NtQueueApcThread(emu),
         "NtGetContextThread" => NtGetContextThread(emu),
         "RtlExitUserThread" => RtlExitUserThread(emu),
         "NtGetTickCount" => NtGetTickCount(emu),
@@ -52,7 +52,7 @@ fn RtlExitUserThread(emu: &mut emu::Emu) {
     emu.stop();
 }
 
-fn ZwQueueApcThread(emu: &mut emu::Emu) {
+fn NtQueueApcThread(emu: &mut emu::Emu) {
     let thread_handle = emu.regs().rcx;
     let apc_routine = emu.regs().rdx;
     let apc_ctx = emu.regs().r8;
@@ -61,7 +61,7 @@ fn ZwQueueApcThread(emu: &mut emu::Emu) {
 
     log_red!(
         emu,
-        "ntdll!ZwQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {}",
+        "ntdll!NtQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {}",
         thread_handle,
         apc_routine,
         apc_ctx,

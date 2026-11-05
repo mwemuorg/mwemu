@@ -1,5 +1,7 @@
+use crate::api::windows::common::{fallback, nt_api};
 use crate::emu;
 use crate::winapi::winapi64::kernel32;
+use crate::windows::constants::STATUS_NOT_IMPLEMENTED;
 
 mod file;
 mod heap;
@@ -21,6 +23,8 @@ pub use string::{RtlInitAnsiString, RtlInitUnicodeString};
 pub use sync::NtDelayExecution;
 
 pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {
+    let normalized = nt_api::normalize(api);
+    let api = normalized.as_ref();
     file::dispatch(api, emu)
         || heap::dispatch(api, emu)
         || loader::dispatch(api, emu)
@@ -30,27 +34,25 @@ pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         || misc::dispatch(api, emu)
 }
 
+pub(crate) fn dispatch(addr: u64, api: &str, emu: &mut emu::Emu) -> bool {
+    if try_dispatch(api, emu) {
+        return true;
+    }
+    if let Some(words) = nt_api::signature(api) {
+        fallback::return_value(addr, api, words, STATUS_NOT_IMPLEMENTED, emu);
+        return true;
+    }
+    false
+}
+
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    if file::dispatch(api, emu)
-        || heap::dispatch(api, emu)
-        || loader::dispatch(api, emu)
-        || memory::dispatch(api, emu)
-        || string::dispatch(api, emu)
-        || sync::dispatch(api, emu)
-        || misc::dispatch(api, emu)
-    {
+    if dispatch(addr, api, emu) {
         return String::new();
     }
 
-    // Not an ntdll-native API. Windows forwards many kernel32/kernelbase
-    // functions to ntdll-resident implementations (e.g. EnterCriticalSection ->
-    // ntdll!RtlEnterCriticalSection), so an import can land in the ntdll map yet
-    // be owned by our kernel32 gateway. Delegate there before giving up — it
-    // mirrors kernelbase's fallback and only runs for APIs ntdll didn't handle,
-    // so it can't regress anything. (kernel32's gateway never calls back into
-    // ntdll, so there's no recursion; it also owns the unimplemented panic /
-    // skip-unimplemented handling.)
+    // Forwarded kernel32 APIs can reside in the ntdll map. Its native fallback
+    // calls dispatch(), not this gateway, so this delegation cannot recurse.
     kernel32::gateway(addr, emu)
 }

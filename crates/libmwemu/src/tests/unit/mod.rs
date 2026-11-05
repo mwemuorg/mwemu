@@ -1,3 +1,4 @@
+mod api_fallback;
 mod banzai_mode_tests;
 mod breakpoint_functionality;
 mod config_management;

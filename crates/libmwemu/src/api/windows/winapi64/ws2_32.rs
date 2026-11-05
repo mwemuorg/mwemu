@@ -1,5 +1,5 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::serialization;
 //use crate::endpoint;
 use crate::winapi::helper;
 use crate::winapi::winapi64;
@@ -37,33 +37,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WsaRecvFrom" => WsaRecvFrom(emu),
         "WsaConnect" => WsaConnect(emu),
         */
-        _ => {
-            if emu.cfg.skip_unimplemented {
-                log::warn!(
-                    "banzai: skipping unimplemented API 0x{:x} {} at 0x{:x}",
-                    addr,
-                    api,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                return String::new();
-            }
-
-            if emu.cfg.dump_on_exit
-                && let Some(ref fname) = emu.cfg.dump_filename
-            {
-                serialization::Serialization::dump(emu, fname);
-            }
-
-            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
-            log::warn!(
-                "calling unimplemented API 0x{:x} {} at 0x{:x}",
-                addr,
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
-        }
+        _ => return fallback::unimplemented(addr, api, emu),
     }
 
     String::new()
