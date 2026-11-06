@@ -1136,6 +1136,7 @@ dependencies = [
  "goblin",
  "hex",
  "iced-x86",
+ "itertools 0.14.0",
  "lazy_static",
  "log",
  "md5",

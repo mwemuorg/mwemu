@@ -18,10 +18,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     }
 
     if emu.cfg.is_x64() {
-        if !emu
-            .maps
-            .write_byte(emu.regs().rdi, emu.regs().get_al() as u8)
-        {
+        let addr = emu.regs().rdi;
+        let value = emu.regs().get_al() as u8;
+        let value = emu.call_memory_write_hook(addr, 8, value.into()) as u8;
+        if !emu.maps.write_byte(addr, value) {
             static FIRST_OOB: std::sync::atomic::AtomicBool =
                 std::sync::atomic::AtomicBool::new(false);
             let rdi = emu.regs().rdi;
@@ -47,10 +47,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     } else {
         // 32bits
-        if !emu
-            .maps
-            .write_byte(emu.regs().get_edi(), emu.regs().get_al() as u8)
-        {
+        let addr = emu.regs().get_edi();
+        let value = emu.regs().get_al() as u8;
+        let value = emu.call_memory_write_hook(addr, 8, value.into()) as u8;
+        if !emu.maps.write_byte(addr, value) {
             return false;
         }
         if emu.flag_df() {
