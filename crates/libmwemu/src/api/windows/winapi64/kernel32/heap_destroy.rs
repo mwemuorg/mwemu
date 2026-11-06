@@ -1,10 +1,12 @@
 use crate::emu;
-
+use crate::winapi::helper;
 pub fn HeapDestroy(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
-
     log_red!(emu, "kernel32!HeapDestroy hndl: 0x{:x}", hndl);
-
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        helper::handler_close(h);
+    }
     let key = match emu.handle_management.resolve_heap_key(hndl) {
         Some(k) => k,
         None => {

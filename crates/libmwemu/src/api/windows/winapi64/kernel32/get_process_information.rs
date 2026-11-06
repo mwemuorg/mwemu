@@ -13,10 +13,14 @@ pub fn GetProcessInformation(emu: &mut emu::Emu) {
         info_ptr,
         info_size
     );
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     if info_ptr != 0 && info_size > 0 {
         let clear_size = (info_size as usize).min(256);
         for i in 0..clear_size {
-            emu.maps.write_byte(info_ptr + i as u64, 0);
+    emu.maps.write_byte(info_ptr + i as u64, 0);
         }
     }
     emu.regs_mut().rax = 1;

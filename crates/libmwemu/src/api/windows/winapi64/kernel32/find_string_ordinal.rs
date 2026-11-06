@@ -12,6 +12,10 @@ pub fn FindStringOrdinal(emu: &mut emu::Emu) {
         source_ptr,
         value_ptr
     );
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = (-1i64) as u64;
 }

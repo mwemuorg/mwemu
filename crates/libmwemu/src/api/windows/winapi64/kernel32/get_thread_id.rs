@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper;
 
 pub fn GetThreadId(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
@@ -13,6 +14,7 @@ pub fn GetThreadId(emu: &mut emu::Emu) {
                 hndl,
                 emu.threads[i].id
             );
+            let _ = helper::handler_exist(emu.regs().rcx);
             return;
         }
     }

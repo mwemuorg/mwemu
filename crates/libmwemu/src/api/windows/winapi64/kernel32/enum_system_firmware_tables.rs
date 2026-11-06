@@ -11,6 +11,10 @@ pub fn EnumSystemFirmwareTables(emu: &mut emu::Emu) {
         buffer_ptr,
         buffer_size
     );
+    let out_ptr = emu.regs().r8;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

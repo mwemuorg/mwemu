@@ -10,6 +10,10 @@ pub fn GetTempPathA(emu: &mut emu::Emu) {
         n_buffer_length,
         lp_buffer
     );
+    let out_ptr = emu.regs().rdx;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
 
     let temp_path = format!("{}\\", emu.cfg.temp_path);
     let required_length = temp_path.len() as u32 + 1;

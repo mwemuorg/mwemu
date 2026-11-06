@@ -10,6 +10,10 @@ pub fn GetFileBandwidthReservation(emu: &mut emu::Emu) {
     let _lpNumOutstandingRequests = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
     log_red!(emu, "kernel32!GetFileBandwidthReservation");
+    let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
 
     emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;

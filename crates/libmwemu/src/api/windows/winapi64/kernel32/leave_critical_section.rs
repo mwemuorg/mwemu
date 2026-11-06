@@ -11,6 +11,10 @@ pub fn LeaveCriticalSection(emu: &mut emu::Emu) {
         tid,
         cs_ptr
     );
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        helper::handler_close(h);
+    }
 
     // Release the lock and get any thread that should be woken up
     if let Some(wake_tid) = emu.global_locks.leave(cs_ptr, tid) {

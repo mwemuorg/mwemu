@@ -15,4 +15,5 @@ pub fn FlsGetValue(emu: &mut emu::Emu) {
         idx,
         emu.regs().get_eax() as u32
     );
+    let _ = emu.maps.is_mapped(emu.regs().rcx);
 }

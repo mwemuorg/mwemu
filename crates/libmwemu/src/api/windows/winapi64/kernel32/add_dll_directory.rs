@@ -1,6 +1,6 @@
-use crate::api::windows::helper;
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn AddDllDirectory(emu: &mut emu::Emu) {
     let new_directory = emu.regs().rcx;
     let dir = emu.maps.read_wide_string(new_directory);

@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper;
 
-pub fn timeGetTime(emu: &mut emu::Emu) {
-    log_red!(emu, "kernel32!timeGetTime tick:{}", emu.tick);
-
-    emu.set_last_error(0);
-    emu.regs_mut().rax = emu.tick as u64;
+pub fn handler(emu: &mut emu::Emu) {
+    let tick = emu.tick as u64;
+    log_red!(emu, "kernel32!timeGetTime -> {}", tick);
+    helper::advance_tick(emu, 1);
+    emu.regs_mut().rax = tick;
 }

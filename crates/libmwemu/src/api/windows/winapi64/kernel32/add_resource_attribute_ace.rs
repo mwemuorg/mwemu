@@ -1,5 +1,6 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn AddResourceAttributeAce(emu: &mut emu::Emu) {
     let acl = emu.regs().rcx;
     let ace_revision = emu.regs().rdx as u32;
@@ -13,6 +14,11 @@ pub fn AddResourceAttributeAce(emu: &mut emu::Emu) {
         ace_flags,
         access_mask
     );
+    let handle = helper::handler_create("AddResourceAttributeAce");
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, handle);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

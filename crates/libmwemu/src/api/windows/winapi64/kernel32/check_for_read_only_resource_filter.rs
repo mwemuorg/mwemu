@@ -7,6 +7,7 @@ pub fn CheckForReadOnlyResourceFilter(emu: &mut emu::Emu) {
         "kernel32!CheckForReadOnlyResourceFilter pException:0x{:x}",
         p_exception
     );
+    let _ = emu.maps.is_mapped(emu.regs().rcx);
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

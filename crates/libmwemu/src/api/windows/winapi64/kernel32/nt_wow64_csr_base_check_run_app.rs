@@ -1,6 +1,7 @@
+
 use crate::emu;
 use crate::windows::constants;
-
+use crate::winapi::helper;
 pub fn NtWow64CsrBaseCheckRunApp(emu: &mut emu::Emu) {
     let _a1 = emu.regs().rcx as u32;
     let _a2 = emu.regs().rdx as u32;
@@ -12,9 +13,13 @@ pub fn NtWow64CsrBaseCheckRunApp(emu: &mut emu::Emu) {
     let _a8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
     let _a9 = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
     let _a10 = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
-
     log_red!(emu, "kernel32!NtWow64CsrBaseCheckRunApp");
-
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.regs_mut().rax = 0;
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }

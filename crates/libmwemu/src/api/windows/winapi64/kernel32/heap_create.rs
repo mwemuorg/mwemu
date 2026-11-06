@@ -1,11 +1,10 @@
 use crate::emu;
 use crate::emu::object_handle::HeapHandle;
-
+use crate::winapi::helper;
 pub fn HeapCreate(emu: &mut emu::Emu) {
     let opts = emu.regs().rcx as u32;
     let initSZ = emu.regs().rdx;
     let maxSZ = emu.regs().r8;
-
     log_red!(
         emu,
         "kernel32!HeapCreate opts: {} initSZ: {} maxSZ: {}",
@@ -13,7 +12,11 @@ pub fn HeapCreate(emu: &mut emu::Emu) {
         initSZ,
         maxSZ
     );
-
+    let handle = helper::handler_create("HeapCreate");
+    let out_ptr = emu.regs().r8;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, handle);
+    }
     let arena = match emu.create_heap_arena(initSZ as usize, maxSZ as usize, opts) {
         Some(a) => a,
         None => {

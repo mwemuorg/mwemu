@@ -1,5 +1,6 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn BasepNotifyLoadStringResource(emu: &mut emu::Emu) {
     let param1 = emu.regs().rcx;
     let param2 = emu.regs().rdx;
@@ -13,6 +14,11 @@ pub fn BasepNotifyLoadStringResource(emu: &mut emu::Emu) {
         param3,
         param4
     );
+    let handle = helper::handler_create("BasepNotifyLoadStringResource");
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, handle);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

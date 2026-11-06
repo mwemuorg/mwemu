@@ -15,13 +15,13 @@ pub fn ULongMult(emu: &mut emu::Emu) {
 
     match a.checked_mul(b) {
         Some(product) => {
-            if p_result != 0 {
-                emu.maps.write_dword(p_result, product as u64);
-            }
-            emu.regs_mut().rax = 0;
+    if p_result != 0 {
+        emu.maps.write_dword(p_result, product as u64);
+    }
+    emu.regs_mut().rax = 0;
         }
         None => {
-            emu.regs_mut().rax = 0x80070216;
+    emu.regs_mut().rax = 0x80070216;
         }
     }
 }

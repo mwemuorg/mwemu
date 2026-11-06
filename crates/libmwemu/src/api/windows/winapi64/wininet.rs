@@ -35,6 +35,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -47,6 +51,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -59,6 +67,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -71,6 +83,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -83,6 +99,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -95,6 +115,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -107,6 +131,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -119,6 +147,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -131,6 +163,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -143,6 +179,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -155,6 +195,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -167,6 +211,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -179,6 +227,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -191,6 +243,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -203,6 +259,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -215,6 +275,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -227,6 +291,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -239,12 +307,34 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CommitUrlCacheEntryA" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!CommitUrlCacheEntryA handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let arg9 = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!CommitUrlCacheEntryA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -257,12 +347,34 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CommitUrlCacheEntryW" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!CommitUrlCacheEntryW handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let arg9 = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!CommitUrlCacheEntryW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -312,8 +424,23 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CreateUrlCacheEntryA" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!CreateUrlCacheEntryA handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!CreateUrlCacheEntryA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("CreateUrlCacheEntryA");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -337,14 +464,40 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CreateUrlCacheEntryW" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!CreateUrlCacheEntryW handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!CreateUrlCacheEntryW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("CreateUrlCacheEntryW");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CreateUrlCacheGroup" => {
-            let flags = emu.regs().rcx as u32;
-            log_red!(emu, "wininet!CreateUrlCacheGroup flags:0x{:x}", flags);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!CreateUrlCacheGroup arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CreateUrlCacheGroup");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0x10001;
         }
@@ -397,18 +550,36 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "DeleteUrlCacheEntryA" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "wininet!DeleteUrlCacheEntryA handle:0x{:x}", handle);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "DeleteUrlCacheEntryW" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "wininet!DeleteUrlCacheEntryW handle:0x{:x}", handle);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "DeleteUrlCacheGroup" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!DeleteUrlCacheGroup handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!DeleteUrlCacheGroup arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -426,6 +597,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!DetectAutoProxyUrl arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -438,6 +613,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -451,7 +630,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg2
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "DllGetClassObject" => {
             let handle = emu.regs().rcx;
@@ -462,6 +646,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -474,6 +662,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -486,6 +678,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("DllRegisterServer");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -498,6 +695,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -597,6 +798,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!FindNextUrlCacheContainerA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -604,6 +809,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!FindNextUrlCacheContainerW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -611,6 +820,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!FindNextUrlCacheEntryA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -618,6 +831,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!FindNextUrlCacheEntryExA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -625,6 +842,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!FindNextUrlCacheEntryExW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -632,6 +853,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!FindNextUrlCacheEntryW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -639,6 +864,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!FindNextUrlCacheGroup arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -651,6 +880,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -891,12 +1124,26 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "FtpGetFileSize" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!FtpGetFileSize arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!FtpGetFileSize arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -997,6 +1244,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1149,6 +1400,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1199,6 +1454,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1206,6 +1465,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GetUrlCacheEntryInfoA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1213,6 +1476,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GetUrlCacheEntryInfoExA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1220,6 +1487,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GetUrlCacheEntryInfoExW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1227,6 +1498,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GetUrlCacheEntryInfoW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1234,6 +1509,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GetUrlCacheGroupAttributeA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1241,6 +1520,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GetUrlCacheGroupAttributeW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1253,6 +1536,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1260,6 +1547,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GopherCreateLocatorA arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("GopherCreateLocatorA");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1267,18 +1559,51 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GopherCreateLocatorW arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("GopherCreateLocatorW");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
         "GopherFindFirstFileA" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!GopherFindFirstFileA arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!GopherFindFirstFileA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
         }
         "GopherFindFirstFileW" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!GopherFindFirstFileW arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!GopherFindFirstFileW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
         }
@@ -1286,6 +1611,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GopherGetAttributeA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1293,6 +1622,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GopherGetAttributeW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1300,6 +1633,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GopherGetLocatorTypeA arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -1307,18 +1644,52 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!GopherGetLocatorTypeW arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
         "GopherOpenFileA" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!GopherOpenFileA arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!GopherOpenFileA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("GopherOpenFileA");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
         }
         "GopherOpenFileW" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!GopherOpenFileW arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "wininet!GopherOpenFileW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("GopherOpenFileW");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
         }
@@ -1372,7 +1743,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg2
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "HttpCloseDependencyHandle" => {
             let handle = emu.regs().rcx;
@@ -1389,18 +1765,47 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let handle = helper::handler_create("HttpDuplicateDependencyHandle");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HttpEndRequestA" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!HttpEndRequestA handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "wininet!HttpEndRequestA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            if arg1 != 0 && !helper::handler_exist(arg1) {
+                emu.set_last_error(12019);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HttpEndRequestW" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!HttpEndRequestW handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "wininet!HttpEndRequestW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            if arg1 != 0 && !helper::handler_exist(arg1) {
+                emu.set_last_error(12019);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1413,6 +1818,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1425,6 +1834,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1437,6 +1850,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("HttpIndicatePageLoadComplete");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1449,6 +1867,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("HttpIsHostHstsEnabled");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1461,6 +1884,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let handle = helper::handler_create("HttpOpenDependencyHandle");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1479,12 +1907,27 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("HttpPushEnable");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HttpPushWait" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!HttpPushWait 0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!HttpPushWait arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
@@ -1503,6 +1946,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 buffers_in,
                 flags
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1518,6 +1965,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 buffers_in,
                 flags
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1536,6 +1987,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1554,6 +2009,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1566,6 +2025,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1578,6 +2041,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1590,6 +2057,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1636,12 +2107,23 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "InternetAttemptConnect" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "wininet!InternetAttemptConnect arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("InternetAttemptConnect");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "InternetAutodial" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetAutodial handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!InternetAutodial arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1654,12 +2136,20 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetAutodialHangup" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "wininet!InternetAutodialHangup handle:0x{:x}", handle);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1746,12 +2236,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "InternetClearAllPerSiteCookieDecisions" => {
-            let handle = emu.regs().rcx;
-            log_red!(
-                emu,
-                "wininet!InternetClearAllPerSiteCookieDecisions handle:0x{:x}",
-                handle
-            );
+            log_red!(emu, "wininet!InternetClearAllPerSiteCookieDecisions");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1845,27 +2331,55 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "InternetConfirmZoneCrossing" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetConfirmZoneCrossing arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "wininet!InternetConfirmZoneCrossing arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "InternetConfirmZoneCrossingA" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "wininet!InternetConfirmZoneCrossingA arg1:0x{:x}",
-                arg1
+                "wininet!InternetConfirmZoneCrossingA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "InternetConfirmZoneCrossingW" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "wininet!InternetConfirmZoneCrossingW arg1:0x{:x}",
-                arg1
+                "wininet!InternetConfirmZoneCrossingW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1878,6 +2392,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1978,6 +2496,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 buf_ptr,
                 index_ptr
             );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(259);
             emu.regs_mut().rax = 0;
         }
@@ -1991,6 +2513,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 buf_ptr,
                 index_ptr
             );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(259);
             emu.regs_mut().rax = 0;
         }
@@ -2035,14 +2561,31 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "InternetFortezzaCommand" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetFortezzaCommand handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "wininet!InternetFortezzaCommand arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetFreeCookies" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "wininet!InternetFreeCookies handle:0x{:x}", handle);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2053,6 +2596,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetFreeProxyInfoList handle:0x{:x}",
                 handle
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2065,6 +2612,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2239,6 +2790,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetGetPerSiteCookieDecisionA arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -2250,12 +2805,29 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetGetPerSiteCookieDecisionW arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
         "InternetGetProxyForUrl" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetGetProxyForUrl handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "wininet!InternetGetProxyForUrl arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2268,6 +2840,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2320,18 +2896,46 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetGoOnlineA" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetGoOnlineA handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "wininet!InternetGoOnlineA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetGoOnlineW" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetGoOnlineW handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "wininet!InternetGoOnlineW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2344,22 +2948,44 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetInitializeAutoProxyDll" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "wininet!InternetInitializeAutoProxyDll handle:0x{:x}",
-                handle
+                "wininet!InternetInitializeAutoProxyDll arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let handle = helper::handler_create("InternetInitializeAutoProxyDll");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetLockRequestFile" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetLockRequestFile handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!InternetLockRequestFile arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            if arg1 != 0 && !helper::handler_exist(arg1) {
+                emu.set_last_error(12019);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2425,6 +3051,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2439,6 +3069,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetSecurityProtocolToStringA protocol:{}",
                 protocol
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             if buf_ptr != 0 {
                 emu.maps.write_string(buf_ptr, "TLS 1.2");
             }
@@ -2453,6 +3087,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetSecurityProtocolToStringW protocol:{}",
                 protocol
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             if buf_ptr != 0 {
                 emu.maps.write_string(buf_ptr, "TLS 1.2");
             }
@@ -2597,18 +3235,46 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetSetDialStateA" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetSetDialStateA handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "wininet!InternetSetDialStateA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetSetDialStateW" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetSetDialStateW handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "wininet!InternetSetDialStateW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2623,38 +3289,80 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 distance,
                 method
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "InternetSetOptionExA" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetSetOptionExA handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "wininet!InternetSetOptionExA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetSetOptionExW" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!InternetSetOptionExW handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "wininet!InternetSetOptionExW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetSetPerSiteCookieDecisionA" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "wininet!InternetSetPerSiteCookieDecisionA handle:0x{:x}",
-                handle
+                "wininet!InternetSetPerSiteCookieDecisionA arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "InternetSetPerSiteCookieDecisionW" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "wininet!InternetSetPerSiteCookieDecisionW handle:0x{:x}",
-                handle
+                "wininet!InternetSetPerSiteCookieDecisionW arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2667,6 +3375,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2694,6 +3406,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetShowSecurityInfoByURL arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -2705,6 +3421,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetShowSecurityInfoByURLA arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -2716,6 +3436,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetShowSecurityInfoByURLW arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -2728,6 +3452,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2736,6 +3464,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let format = emu.regs().rdx as u32;
             let buf_ptr = emu.regs().r8;
             log_red!(emu, "wininet!InternetTimeFromSystemTimeA format:{}", format);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buf_ptr != 0 {
                 emu.maps
                     .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
@@ -2748,6 +3480,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let format = emu.regs().rdx as u32;
             let buf_ptr = emu.regs().r8;
             log_red!(emu, "wininet!InternetTimeFromSystemTimeW format:{}", format);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buf_ptr != 0 {
                 emu.maps
                     .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
@@ -2764,6 +3500,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2772,6 +3512,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let format = emu.regs().rdx as u32;
             let buf_ptr = emu.regs().r8;
             log_red!(emu, "wininet!InternetTimeToSystemTimeA format:{}", format);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buf_ptr != 0 {
                 emu.maps
                     .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
@@ -2784,6 +3528,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let format = emu.regs().rdx as u32;
             let buf_ptr = emu.regs().r8;
             log_red!(emu, "wininet!InternetTimeToSystemTimeW format:{}", format);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buf_ptr != 0 {
                 emu.maps
                     .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
@@ -2798,6 +3546,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "wininet!InternetUnlockRequestFile handle:0x{:x}",
                 handle
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2868,6 +3620,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2908,6 +3664,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "LoadUrlCacheContent" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "wininet!LoadUrlCacheContent handle:0x{:x}", handle);
+            let handle = helper::handler_create("LoadUrlCacheContent");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2920,6 +3677,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2966,6 +3727,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2978,22 +3743,47 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "RegisterUrlCacheNotification" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
-                "wininet!RegisterUrlCacheNotification handle:0x{:x}",
-                handle
+                "wininet!RegisterUrlCacheNotification arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let handle = helper::handler_create("RegisterUrlCacheNotification");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "ResumeSuspendedDownload" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!ResumeSuspendedDownload handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!ResumeSuspendedDownload arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3074,6 +3864,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3124,6 +3918,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3166,34 +3964,70 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "SetUrlCacheEntryInfoA" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!SetUrlCacheEntryInfoA handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheEntryInfoA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SetUrlCacheEntryInfoW" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!SetUrlCacheEntryInfoW handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheEntryInfoW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SetUrlCacheGroupAttributeA" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "wininet!SetUrlCacheGroupAttributeA handle:0x{:x}",
-                handle
+                "wininet!SetUrlCacheGroupAttributeA arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SetUrlCacheGroupAttributeW" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "wininet!SetUrlCacheGroupAttributeW handle:0x{:x}",
-                handle
+                "wininet!SetUrlCacheGroupAttributeW arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3206,6 +4040,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3218,6 +4056,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3230,12 +4072,26 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "ShowSecurityInfo" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!ShowSecurityInfo arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!ShowSecurityInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -3248,39 +4104,75 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UnlockUrlCacheEntryFile" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!UnlockUrlCacheEntryFile 0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!UnlockUrlCacheEntryFile arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UnlockUrlCacheEntryFileA" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "wininet!UnlockUrlCacheEntryFileA handle:0x{:x}",
-                handle
+                "wininet!UnlockUrlCacheEntryFileA arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UnlockUrlCacheEntryFileW" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "wininet!UnlockUrlCacheEntryFileW handle:0x{:x}",
-                handle
+                "wininet!UnlockUrlCacheEntryFileW arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UnlockUrlCacheEntryStream" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "wininet!UnlockUrlCacheEntryStream 0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!UnlockUrlCacheEntryStream arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
@@ -3294,6 +4186,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3307,7 +4203,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg2
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "UrlCacheCloseEntryHandle" => {
             let handle = emu.regs().rcx;
@@ -3322,12 +4223,20 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "UrlCacheContainerSetEntryMaximumAge" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "wininet!UrlCacheContainerSetEntryMaximumAge handle:0x{:x}",
-                handle
+                "wininet!UrlCacheContainerSetEntryMaximumAge arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3340,6 +4249,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("UrlCacheCreateContainer");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3352,6 +4266,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3364,6 +4282,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3376,12 +4298,26 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UrlCacheFreeGlobalSpace" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "wininet!UrlCacheFreeGlobalSpace handle:0x{:x}", handle);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "wininet!UrlCacheFreeGlobalSpace arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3394,6 +4330,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3406,6 +4346,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3418,6 +4362,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3430,6 +4378,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3437,6 +4389,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!UrlCacheReadEntryStream arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -3449,6 +4405,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3461,6 +4421,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3468,6 +4432,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!UrlCacheRetrieveEntryStream arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -3480,6 +4448,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3492,16 +4464,28 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UrlCacheUpdateEntryExtraData" => {
-            let handle = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "wininet!UrlCacheUpdateEntryExtraData handle:0x{:x}",
-                handle
+                "wininet!UrlCacheUpdateEntryExtraData arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3509,6 +4493,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "wininet!UrlZonesDetach arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(2);
             emu.regs_mut().rax = 0;
         }
@@ -3521,6 +4509,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }

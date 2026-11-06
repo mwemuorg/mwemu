@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper;
 
 pub fn GetTickCount(emu: &mut emu::Emu) {
-    log_red!(emu, "kernel32!GetTickCount");
-    // TODO: increment the tick?
-    emu.set_last_error(0);
-    emu.regs_mut().rax = emu.tick as u64;
+    let tick = emu.tick as u64;
+    log_red!(emu, "kernel32!GetTickCount -> {}", tick);
+    helper::advance_tick(emu, 1);
+    emu.regs_mut().rax = tick;
 }

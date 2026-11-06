@@ -13,6 +13,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CoInitialize" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoInitialize arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoInitialize");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -24,14 +25,21 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CoResumeClassObjects" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoResumeClassObjects arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoAddRefServerProcess" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoAddRefServerProcess arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoAddRefServerProcess");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoReleaseServerProcess" => {
             let arg1 = emu.regs().rcx;
@@ -68,6 +76,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!BindMoniker h:0x{:x} arg2:0x{:x}", handle, arg2);
+            let handle = helper::handler_create("BindMoniker");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -80,6 +94,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -92,6 +111,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -104,6 +128,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -116,6 +145,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -128,6 +162,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -140,6 +179,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -152,6 +196,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -164,6 +213,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -176,6 +230,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -188,6 +247,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -200,6 +264,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -212,6 +281,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -224,6 +298,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -236,6 +315,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -248,6 +332,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -261,6 +350,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("CStdAsyncStubBuffer2_Connect");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -273,6 +368,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -285,6 +385,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -297,6 +402,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("CStdAsyncStubBuffer_AddRef");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -309,6 +420,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("CStdAsyncStubBuffer_Connect");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -321,6 +438,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -333,6 +455,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -345,6 +472,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -357,6 +489,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -369,6 +506,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("CStdStubBuffer2_Connect");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -381,6 +524,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -393,6 +541,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -405,6 +558,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -417,6 +575,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("CheckInitDde");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -429,6 +593,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -441,50 +610,107 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CoAicGetTokenForCOM" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoAicGetTokenForCOM arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoAicGetTokenForCOM arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoAllowSetForegroundWindow" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoAllowSetForegroundWindow arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoAllowSetForegroundWindow arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoAllowUnmarshalerCLSID" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!CoAllowUnmarshalerCLSID arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoBuildVersion" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoBuildVersion arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoCancelCall" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoCancelCall arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoCancelCall arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoCheckElevationEnabled" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoCheckElevationEnabled arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoCheckElevationEnabled");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoCopyProxy" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoCopyProxy arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "ole32!CoCopyProxy arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoCreateFreeThreadedMarshaler" => {
             let punk_outer = emu.regs().rcx;
@@ -560,63 +786,139 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoDeactivateObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoDeactivateObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoDeactivateObject arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoDecodeProxy" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoDecodeProxy arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!CoDecodeProxy arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoDecrementMTAUsage" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoDecrementMTAUsage arg1:0x{:x}", arg1);
+            if helper::handler_exist(emu.regs().rcx) {
+                helper::handler_close(emu.regs().rcx);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoDisableCallCancellation" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoDisableCallCancellation arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoDisconnectContext" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoDisconnectContext arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoDisconnectObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoDisconnectObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoDisconnectObject arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoDosDateTimeToFileTime" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoDosDateTimeToFileTime arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!CoDosDateTimeToFileTime arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoEnableCallCancellation" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoEnableCallCancellation arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoEnableCallCancellation");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoFileTimeNow" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoFileTimeNow arg1:0x{:x}", arg1);
+            if emu.regs().rcx != 0 {
+                emu.maps.write_qword(emu.regs().rcx, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoFileTimeToDosDateTime" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoFileTimeToDosDateTime arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!CoFileTimeToDosDateTime arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoFreeAllLibraries" => {
             let arg1 = emu.regs().rcx;
@@ -656,39 +958,101 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoGetActivationState" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetActivationState arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetActivationState arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetActivationState");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetApartmentID" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetApartmentID arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetApartmentID arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetApartmentID");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetApartmentType" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetApartmentType arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetApartmentType arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetApartmentType");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetCallContext" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetCallContext arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetCallContext arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetCallContext");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetCallState" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetCallState arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetCallState arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetCallState");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetCallerTID" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoGetCallerTID arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoGetCallerTID");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetCancelObject" => {
             let clsid_ptr = emu.regs().rcx;
@@ -731,39 +1095,84 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoGetClassVersion" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetClassVersion arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "ole32!CoGetClassVersion arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetClassVersion");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetComCatalog" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetComCatalog arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetComCatalog arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetComCatalog");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetContextToken" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoGetContextToken arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoGetContextToken");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetCurrentLogicalThreadId" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoGetCurrentLogicalThreadId arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoGetCurrentLogicalThreadId");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetCurrentProcess" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoGetCurrentProcess arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoGetCurrentProcess");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetDefaultContext" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetDefaultContext arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!CoGetDefaultContext arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetDefaultContext");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetInstanceFromFile" => {
             let clsid_ptr = emu.regs().rcx;
@@ -807,21 +1216,63 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoGetInterceptor" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetInterceptor arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "ole32!CoGetInterceptor arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetInterceptor");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetInterceptorForOle32" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetInterceptorForOle32 arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "ole32!CoGetInterceptorForOle32 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetInterceptorForOle32");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetInterceptorFromTypeInfo" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetInterceptorFromTypeInfo arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "ole32!CoGetInterceptorFromTypeInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetInterceptorFromTypeInfo");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetInterfaceAndReleaseStream" => {
             let arg1 = emu.regs().rcx;
@@ -849,15 +1300,43 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoGetMarshalSizeMax" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetMarshalSizeMax arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "ole32!CoGetMarshalSizeMax arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetMarshalSizeMax");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetModuleType" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetModuleType arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetModuleType arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetModuleType");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetObject" => {
             let clsid_ptr = emu.regs().rcx;
@@ -896,49 +1375,124 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoGetPSClsid" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetPSClsid arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetPSClsid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetPSClsid");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetProcessIdentifier" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoGetProcessIdentifier arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoGetProcessIdentifier");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetStandardMarshal" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetStandardMarshal arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "ole32!CoGetStandardMarshal arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetStandardMarshal");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetStdMarshalEx" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetStdMarshalEx arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!CoGetStdMarshalEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetStdMarshalEx");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetSystemSecurityPermissions" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "ole32!CoGetSystemSecurityPermissions arg1:0x{:x}",
-                arg1
+                "ole32!CoGetSystemSecurityPermissions arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let handle = helper::handler_create("CoGetSystemSecurityPermissions");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetSystemWow64DirectoryW" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetSystemWow64DirectoryW arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetSystemWow64DirectoryW arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetSystemWow64DirectoryW");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoGetTreatAsClass" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoGetTreatAsClass arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoGetTreatAsClass arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoGetTreatAsClass");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoHandlePriorityEventsFromMessagePump" => {
             let arg1 = emu.regs().rcx;
@@ -947,39 +1501,82 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ole32!CoHandlePriorityEventsFromMessagePump 0x{:x}",
                 arg1
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CoImpersonateClient" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoImpersonateClient arg1:0x{:x}", arg1);
+            log_red!(emu, "ole32!CoImpersonateClient");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoIncrementMTAUsage" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoIncrementMTAUsage arg1:0x{:x}", arg1);
+            let cookie_ptr = emu.regs().rcx;
+            log_red!(
+                emu,
+                "ole32!CoIncrementMTAUsage cookie_ptr:0x{:x}",
+                cookie_ptr
+            );
+            let handle = helper::handler_create("CoMTAUsage");
+            if cookie_ptr != 0 {
+                emu.maps.write_qword(cookie_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoInitializeSecurity" => {
-            let reserved = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let arg9 = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
             log_red!(emu, "ole32!CoInitializeSecurity");
+            let handle = helper::handler_create("CoInitializeSecurity");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoInitializeWOW" => {
-            let reserved = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!CoInitializeWOW");
+            let handle = helper::handler_create("CoInitializeWOW");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoInstall" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoInstall arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "ole32!CoInstall arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let handle = helper::handler_create("CoInstall");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoInvalidateRemoteMachineBindings" => {
             let arg1 = emu.regs().rcx;
@@ -988,18 +1585,28 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ole32!CoInvalidateRemoteMachineBindings arg1:0x{:x}",
                 arg1
             );
+            let handle = helper::handler_create("CoInvalidateRemoteMachineBindings");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoIsHandlerConnected" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoIsHandlerConnected arg1:0x{:x}", arg1);
+            let punk = emu.regs().rcx;
+            log_red!(emu, "ole32!CoIsHandlerConnected punk:0x{:x}", punk);
+            let connected = if helper::handler_exist(punk) {
+                1u64
+            } else {
+                0u64
+            };
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = connected;
         }
         "CoIsOle1Class" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoIsOle1Class arg1:0x{:x}", arg1);
+            let clsid_ptr = emu.regs().rcx;
+            log_red!(emu, "ole32!CoIsOle1Class clsid:0x{:x}", clsid_ptr);
+            if clsid_ptr != 0 && emu.maps.is_mapped(clsid_ptr) {
+                let _ = emu.maps.read_dword(clsid_ptr).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1018,62 +1625,147 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoLockObjectExternal" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "ole32!CoLockObjectExternal 0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CoMarshalHresult" => {
-            let stream = emu.regs().rcx;
-            log_red!(emu, "ole32!CoMarshalHresult stream:0x{:x}", stream);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "ole32!CoMarshalHresult stream:0x{:x}", arg1);
+            let handle = helper::handler_create("CoMarshalHresult");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoMarshalInterThreadInterfaceInStream" => {
-            let stream = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "ole32!CoMarshalInterThreadInterfaceInStream stream:0x{:x}",
-                stream
+                "ole32!CoMarshalInterThreadInterfaceInStream riid:0x{:x}",
+                arg1
             );
+            let handle = helper::handler_create("CoMarshalInterThreadInterfaceInStream");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoMarshalInterface" => {
-            let stream = emu.regs().rcx;
-            log_red!(emu, "ole32!CoMarshalInterface stream:0x{:x}", stream);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "ole32!CoMarshalInterface stream:0x{:x}", arg1);
+            let handle = helper::handler_create("CoMarshalInterface");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoPopServiceDomain" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoPopServiceDomain arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoPushServiceDomain" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoPushServiceDomain arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoQueryAuthenticationServices" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoQueryAuthenticationServices arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoQueryAuthenticationServices arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoQueryClientBlanket" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoQueryClientBlanket arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "ole32!CoQueryClientBlanket arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoQueryProxyBlanket" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoQueryProxyBlanket arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            log_red!(
+                emu,
+                "ole32!CoQueryProxyBlanket arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoQueryReleaseObject" => {
             let arg1 = emu.regs().rcx;
@@ -1086,21 +1778,46 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoReactivateObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoReactivateObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoReactivateObject arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterActivationFilter" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoRegisterActivationFilter arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoRegisterActivationFilter");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterChannelHook" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoRegisterChannelHook arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoRegisterChannelHook arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoRegisterChannelHook");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterClassObject" => {
             let rclsid = emu.regs().rcx;
@@ -1124,39 +1841,91 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoRegisterInitializeSpy" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoRegisterInitializeSpy arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoRegisterInitializeSpy arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoRegisterInitializeSpy");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterMallocSpy" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoRegisterMallocSpy arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoRegisterMallocSpy");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterMessageFilter" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoRegisterMessageFilter arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoRegisterMessageFilter arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoRegisterMessageFilter");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterPSClsid" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoRegisterPSClsid arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoRegisterPSClsid arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoRegisterPSClsid");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterSurrogate" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoRegisterSurrogate arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CoRegisterSurrogate");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRegisterSurrogateEx" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoRegisterSurrogateEx arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoRegisterSurrogateEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CoRegisterSurrogateEx");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoReleaseMarshalData" => {
             let arg1 = emu.regs().rcx;
@@ -1170,12 +1939,17 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CoRetireServer" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoRetireServer arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoRevertToSelf" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoRevertToSelf arg1:0x{:x}", arg1);
+            log_red!(emu, "ole32!CoRevertToSelf");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1207,16 +1981,25 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "CoSetCancelObject" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoSetCancelObject arg1:0x{:x}", arg1);
+            let punk = emu.regs().rcx;
+            log_red!(emu, "ole32!CoSetCancelObject punk:0x{:x}", punk);
+            if punk != 0 {
+                let _ = helper::handler_create("CoCancelObject");
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoSetMessageDispatcher" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoSetMessageDispatcher arg1:0x{:x}", arg1);
+            let dispatcher = emu.regs().rcx;
+            log_red!(
+                emu,
+                "ole32!CoSetMessageDispatcher dispatcher:0x{:x}",
+                dispatcher
+            );
+            if dispatcher != 0 {
+                let _ = helper::handler_create("CoMessageDispatcher");
+            }
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
         }
         "CoSetProxyBlanket" => {
             let proxy = emu.regs().rcx;
@@ -1230,26 +2013,45 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 authn_svc,
                 authz_svc
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..8 {}
         }
         "CoSetState" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoSetState arg1:0x{:x}", arg1);
+            let punk = emu.regs().rcx;
+            log_red!(emu, "ole32!CoSetState punk:0x{:x}", punk);
+            if punk != 0 {
+                let _ = helper::handler_create("CoState");
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoSuspendClassObjects" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoSuspendClassObjects arg1:0x{:x}", arg1);
+            log_red!(emu, "ole32!CoSuspendClassObjects");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoSwitchCallContext" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoSwitchCallContext arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoSwitchCallContext arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoTaskMemRealloc" => {
             let old_ptr = emu.regs().rcx;
@@ -1294,54 +2096,96 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
         }
         "CoTestCancel" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoTestCancel arg1:0x{:x}", arg1);
+            log_red!(emu, "ole32!CoTestCancel");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = 0x80010002u64;
         }
         "CoTreatAsClass" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoTreatAsClass arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!CoTreatAsClass arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoTryGetInterceptorForAppModelVirtualization" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "ole32!CoTryGetInterceptorForAppModelVirtualization arg1:0x{:x}",
-                arg1
+                "ole32!CoTryGetInterceptorForAppModelVirtualization arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoUnloadingWOW" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!CoUnloadingWOW arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoUnmarshalHresult" => {
-            let stream = emu.regs().rcx;
-            log_red!(emu, "ole32!CoUnmarshalHresult stream:0x{:x}", stream);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "ole32!CoUnmarshalHresult stream:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoUnmarshalInterface" => {
-            let stream = emu.regs().rcx;
-            log_red!(emu, "ole32!CoUnmarshalInterface stream:0x{:x}", stream);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(emu, "ole32!CoUnmarshalInterface stream:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CoVrfCheckThreadState" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoVrfCheckThreadState arg1:0x{:x}", arg1);
+            let flags = emu.regs().rcx;
+            log_red!(emu, "ole32!CoVrfCheckThreadState flags:0x{:x}", flags);
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "CoVrfGetThreadState" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!CoVrfGetThreadState arg1:0x{:x}", arg1);
+            let state_ptr = emu.regs().rcx;
+            log_red!(emu, "ole32!CoVrfGetThreadState state_ptr:0x{:x}", state_ptr);
+            if state_ptr != 0 {
+                emu.maps.write_dword(state_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1356,23 +2200,50 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CoWaitForMultipleHandles" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(emu, "ole32!CoWaitForMultipleHandles 0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CoWaitForMultipleObjects" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(emu, "ole32!CoWaitForMultipleObjects 0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "ComPs_NdrDllCanUnloadNow" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!ComPs_NdrDllCanUnloadNow arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!ComPs_NdrDllCanUnloadNow arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "ComPs_NdrDllGetClassObject" => {
             let clsid_ptr = emu.regs().rcx;
@@ -1396,15 +2267,40 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "ComPs_NdrDllRegisterProxy" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!ComPs_NdrDllRegisterProxy arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!ComPs_NdrDllRegisterProxy arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("ComPs_NdrDllRegisterProxy");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "ComPs_NdrDllUnregisterProxy" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!ComPs_NdrDllUnregisterProxy arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!ComPs_NdrDllUnregisterProxy arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "CreateAntiMoniker" => {
             let ppmk = emu.regs().rcx;
@@ -1584,6 +2480,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1596,6 +2497,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let handle = helper::handler_create("DdeBindToObject");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1626,6 +2533,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1638,6 +2550,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1662,6 +2579,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("DllRegisterServer");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1669,6 +2592,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!DoDragDrop arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1681,6 +2609,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1693,6 +2626,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let handle = helper::handler_create("EnableHookObject");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1700,6 +2639,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!FindExt arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1712,6 +2656,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1731,6 +2680,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1738,6 +2692,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!GetClassFile h:0x{:x} arg2:0x{:x}", handle, arg2);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1750,6 +2709,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1762,6 +2726,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1776,7 +2745,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "GetHGlobalFromILockBytes" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!GetHGlobalFromILockBytes 0x{:x}", arg1);
+            let handle = helper::handler_create("GetHGlobalFromILockBytes");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -1805,6 +2780,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1817,6 +2797,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1829,6 +2814,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1841,6 +2831,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1853,6 +2848,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1865,6 +2865,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1877,6 +2882,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1889,6 +2899,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1901,6 +2916,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1913,6 +2933,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1925,6 +2950,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1937,6 +2967,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1949,6 +2984,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1961,6 +3001,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1973,6 +3018,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1985,6 +3035,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1997,6 +3052,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2009,6 +3069,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2021,6 +3086,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2033,6 +3103,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2045,6 +3120,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2057,6 +3137,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2069,6 +3154,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2081,6 +3171,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2093,6 +3188,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2105,6 +3205,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2117,6 +3222,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2129,6 +3239,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2141,6 +3256,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2153,6 +3273,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2165,6 +3290,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2177,6 +3307,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2189,6 +3324,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2201,6 +3341,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2213,6 +3358,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2225,6 +3375,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2237,6 +3392,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2249,6 +3409,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2261,6 +3426,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2273,6 +3443,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2285,6 +3460,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2297,6 +3477,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2309,6 +3494,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2321,6 +3511,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2333,6 +3528,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2345,6 +3545,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2357,6 +3562,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2369,6 +3579,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2381,6 +3596,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2393,6 +3613,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2405,6 +3630,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2417,6 +3647,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2429,6 +3664,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2441,6 +3681,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2453,6 +3698,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2465,6 +3715,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2477,6 +3732,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2489,6 +3749,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2501,6 +3766,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2513,6 +3783,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2525,6 +3800,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2537,6 +3817,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2549,6 +3834,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2561,6 +3851,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2573,6 +3868,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2585,6 +3885,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2597,6 +3902,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2609,6 +3919,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2621,6 +3936,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2633,6 +3953,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2645,6 +3970,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2657,6 +3987,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2669,6 +4004,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2681,6 +4021,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -2693,6 +4038,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2705,6 +4055,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2717,6 +4072,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2729,6 +4089,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2741,6 +4106,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2753,6 +4123,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2765,6 +4140,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2777,6 +4157,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2789,6 +4174,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2801,6 +4191,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2813,6 +4208,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2825,6 +4225,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2837,6 +4242,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2849,6 +4259,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2861,6 +4276,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2873,6 +4293,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2885,6 +4310,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2897,6 +4327,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2909,6 +4344,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2921,6 +4361,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2933,6 +4378,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2945,6 +4395,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2957,6 +4412,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2969,6 +4429,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2981,6 +4446,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2993,6 +4463,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3005,6 +4480,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3017,6 +4497,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3029,6 +4514,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3041,6 +4531,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3053,6 +4548,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3065,6 +4565,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3077,6 +4582,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3089,6 +4599,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3101,6 +4616,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3113,6 +4633,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3125,6 +4650,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3137,6 +4667,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3149,6 +4684,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3161,6 +4701,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3173,6 +4718,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3185,6 +4735,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3197,6 +4752,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3209,6 +4769,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3221,6 +4786,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3233,6 +4803,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3245,6 +4820,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3257,6 +4837,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3269,6 +4854,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let handle = helper::handler_create("HkOleRegisterObject");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3313,8 +4904,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            for _ in 0..2 {}
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "IsEqualGUID" => {
             let guid1 = emu.regs().rcx;
@@ -3340,6 +4937,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 guid2,
                 equal
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
             emu.regs_mut().rax = equal as u64;
         }
         "IsRoInitializeASTAAllowedInDesktop" => {
@@ -3351,6 +4954,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("IsRoInitializeASTAAllowedInDesktop");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3358,8 +4967,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!IsValidIid arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            for _ in 0..2 {}
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "IsValidInterface" => {
             let arg1 = emu.regs().rcx;
@@ -3370,8 +4985,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            for _ in 0..2 {}
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "IsValidPtrIn" => {
             let arg1 = emu.regs().rcx;
@@ -3382,8 +5003,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            for _ in 0..2 {}
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "IsValidPtrOut" => {
             let arg1 = emu.regs().rcx;
@@ -3394,8 +5021,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            for _ in 0..2 {}
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "MkParseDisplayName" => {
             let arg1 = emu.regs().rcx;
@@ -3406,6 +5039,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3418,6 +5056,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3430,6 +5073,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("MonikerLoadTypeLib");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3442,6 +5091,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3454,6 +5108,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3466,6 +5125,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3478,6 +5142,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3490,6 +5159,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3502,6 +5176,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3514,6 +5193,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3526,6 +5210,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3538,6 +5227,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3550,6 +5244,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3562,6 +5261,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3574,6 +5278,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3586,6 +5295,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3598,6 +5312,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3610,6 +5329,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3622,6 +5346,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3634,6 +5363,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3646,6 +5380,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3658,6 +5397,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3670,6 +5414,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3682,6 +5431,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3694,6 +5448,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3706,6 +5465,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3718,6 +5482,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3730,6 +5499,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3742,6 +5516,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3754,6 +5533,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3766,6 +5550,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3778,6 +5567,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3790,6 +5584,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3802,6 +5601,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3814,6 +5618,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3826,6 +5635,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3838,6 +5652,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3850,6 +5669,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3862,6 +5686,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3874,6 +5703,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3886,6 +5720,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3898,6 +5737,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3910,6 +5754,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3922,6 +5771,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3934,6 +5788,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3946,6 +5805,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3958,6 +5822,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3970,6 +5839,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3982,6 +5856,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3994,6 +5873,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4006,6 +5890,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4018,6 +5907,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4030,6 +5924,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4042,6 +5941,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4054,6 +5958,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4066,6 +5975,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4078,6 +5992,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4090,6 +6009,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4102,6 +6026,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4114,6 +6043,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4126,6 +6060,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4138,6 +6077,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4150,6 +6094,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4162,6 +6111,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4174,72 +6128,155 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "Ole32DllGetClassObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!Ole32DllGetClassObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!Ole32DllGetClassObject arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleBuildVersion" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleBuildVersion arg1:0x{:x}", arg1);
+            log_red!(emu, "ole32!OleBuildVersion");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = (23u64 << 16) | 639;
         }
         "OleConvertIStorageToOLESTREAM" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleConvertIStorageToOLESTREAM arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleConvertIStorageToOLESTREAM arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleConvertIStorageToOLESTREAMEx" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(
                 emu,
-                "ole32!OleConvertIStorageToOLESTREAMEx arg1:0x{:x}",
-                arg1
+                "ole32!OleConvertIStorageToOLESTREAMEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleConvertOLESTREAMToIStorage" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleConvertOLESTREAMToIStorage arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleConvertOLESTREAMToIStorage arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleConvertOLESTREAMToIStorage2" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "ole32!OleConvertOLESTREAMToIStorage2 arg1:0x{:x}",
-                arg1
+                "ole32!OleConvertOLESTREAMToIStorage2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleConvertOLESTREAMToIStorageEx" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "ole32!OleConvertOLESTREAMToIStorageEx arg1:0x{:x}",
-                arg1
+                "ole32!OleConvertOLESTREAMToIStorageEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleConvertOLESTREAMToIStorageEx2" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "ole32!OleConvertOLESTREAMToIStorageEx2 arg1:0x{:x}",
-                arg1
+                "ole32!OleConvertOLESTREAMToIStorageEx2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleCreate" => {
             let arg1 = emu.regs().rcx;
@@ -4481,20 +6518,44 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "OleDestroyMenuDescriptor" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!OleDestroyMenuDescriptor arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleDoAutoConvert" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleDoAutoConvert arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleDoAutoConvert arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleDraw" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleDraw arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "ole32!OleDraw arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleDuplicateData" => {
             let arg1 = emu.regs().rcx;
@@ -4514,30 +6575,58 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "OleFlushClipboard" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!OleFlushClipboard arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleGetAutoConvert" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleGetAutoConvert arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleGetAutoConvert arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleGetClipboard" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleGetClipboard arg1:0x{:x}", arg1);
+            let ppdata_obj = emu.regs().rcx;
+            log_red!(emu, "ole32!OleGetClipboard ppDataObj:0x{:x}", ppdata_obj);
+            if ppdata_obj != 0 {
+                let handle = helper::handler_create("OleClipboardData");
+                emu.maps.write_qword(ppdata_obj, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleGetClipboardWithEnterpriseInfo" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "ole32!OleGetClipboardWithEnterpriseInfo arg1:0x{:x}",
-                arg1
+                "ole32!OleGetClipboardWithEnterpriseInfo arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleGetIconOfClass" => {
             let arg1 = emu.regs().rcx;
@@ -4568,68 +6657,179 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = hndl;
         }
         "OleGetPackageClipboardOwner" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleGetPackageClipboardOwner arg1:0x{:x}", arg1);
+            let ppunk = emu.regs().rcx;
+            log_red!(emu, "ole32!OleGetPackageClipboardOwner ppUnk:0x{:x}", ppunk);
+            if ppunk != 0 {
+                emu.maps.write_qword(ppunk, 0);
+            }
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = 1;
         }
         "OleIconToCursorExt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleIconToCursorExt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleIconToCursorExt arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleInitializeWOW" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleInitializeWOW arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleInitializeWOW arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("OleInitializeWOW");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleIsCurrentClipboard" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleIsCurrentClipboard arg1:0x{:x}", arg1);
+            let pdata_obj = emu.regs().rcx;
+            log_red!(
+                emu,
+                "ole32!OleIsCurrentClipboard pDataObj:0x{:x}",
+                pdata_obj
+            );
+            let result = if helper::handler_exist(pdata_obj) {
+                0u64
+            } else {
+                1u64
+            };
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = result;
         }
         "OleIsRunning" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleIsRunning arg1:0x{:x}", arg1);
+            let pole_obj = emu.regs().rcx;
+            log_red!(emu, "ole32!OleIsRunning pOleObj:0x{:x}", pole_obj);
+            let running = if helper::handler_exist(pole_obj) {
+                1u64
+            } else {
+                0u64
+            };
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = running;
         }
         "OleLoad" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleLoad arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "ole32!OleLoad arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let handle = helper::handler_create("OleLoad");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleLoadFromStream" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleLoadFromStream arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleLoadFromStream arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("OleLoadFromStream");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleLoadPictureExt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleLoadPictureExt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ole32!OleLoadPictureExt arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("OleLoadPictureExt");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleLoadPictureFileExt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleLoadPictureFileExt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleLoadPictureFileExt arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("OleLoadPictureFileExt");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleLoadPicturePathExt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleLoadPicturePathExt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleLoadPicturePathExt arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("OleLoadPicturePathExt");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleLockRunning" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "ole32!OleLockRunning 0x{:x}", arg1);
+            let handle = helper::handler_create("OleLockRunning");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -4653,9 +6853,20 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "OleNoteObjectVisible" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleNoteObjectVisible arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleNoteObjectVisible arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleQueryCreateFromData" => {
             let arg1 = emu.regs().rcx;
@@ -4671,34 +6882,88 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = handle;
         }
         "OleQueryLinkFromData" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleQueryLinkFromData arg1:0x{:x}", arg1);
+            let pdata_src = emu.regs().rcx;
+            log_red!(
+                emu,
+                "ole32!OleQueryLinkFromData pSrcDataObj:0x{:x}",
+                pdata_src
+            );
+            if pdata_src != 0 && emu.maps.is_mapped(pdata_src) {
+                let _ = emu.maps.read_qword(pdata_src).unwrap_or(0);
+            }
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = 1;
         }
         "OleRegEnumFormatEtc" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleRegEnumFormatEtc arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleRegEnumFormatEtc arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleRegEnumVerbs" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleRegEnumVerbs arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleRegEnumVerbs arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleRegGetMiscStatus" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleRegGetMiscStatus arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleRegGetMiscStatus arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleRegGetUserType" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleRegGetUserType arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleRegGetUserType arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleReleaseEnumVerbCache" => {
             let arg1 = emu.regs().rcx;
@@ -4712,68 +6977,164 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "OleRun" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!OleRun arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("OleRun");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleSave" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleSave arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(emu, "ole32!OleSave arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let handle = helper::handler_create("OleSave");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleSavePictureFileExt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleSavePictureFileExt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleSavePictureFileExt arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("OleSavePictureFileExt");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleSaveToStream" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleSaveToStream arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleSaveToStream arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("OleSaveToStream");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleSetAutoConvert" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleSetAutoConvert arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleSetAutoConvert arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleSetClipboard" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleSetClipboard arg1:0x{:x}", arg1);
+            let pdata_obj = emu.regs().rcx;
+            log_red!(emu, "ole32!OleSetClipboard pDataObj:0x{:x}", pdata_obj);
+            if pdata_obj != 0 {
+                let _ = helper::handler_create("OleClipboard");
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleSetContainedObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleSetContainedObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!OleSetContainedObject arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleSetMenuDescriptor" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleSetMenuDescriptor arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ole32!OleSetMenuDescriptor arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleTranslateAccelerator" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleTranslateAccelerator arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleTranslateAccelerator arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleTranslateColorExt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleTranslateColorExt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ole32!OleTranslateColorExt arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "OleUninitialize" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!OleUninitialize arg1:0x{:x}", arg1);
+            log_red!(emu, "ole32!OleUninitialize");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
         }
         "OpenOrCreateStream" => {
             let arg1 = emu.regs().rcx;
@@ -4805,15 +7166,28 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "PropStgNameToFmtId" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!PropStgNameToFmtId arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ole32!PropStgNameToFmtId arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "PropSysAllocString" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!PropSysAllocString arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("PropSysAllocString");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "PropSysFreeString" => {
             let arg1 = emu.regs().rcx;
@@ -4826,9 +7200,22 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "PropVariantChangeType" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ole32!PropVariantChangeType arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "ole32!PropVariantChangeType arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..1 {}
         }
         "PropVariantClear" => {
             let pvar = emu.regs().rcx;
@@ -4855,6 +7242,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!ReadClassStg h:0x{:x} arg2:0x{:x}", handle, arg2);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4862,6 +7254,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!ReadClassStm h:0x{:x} arg2:0x{:x}", handle, arg2);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4874,6 +7271,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4881,6 +7283,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!ReadOleStg h:0x{:x} arg2:0x{:x}", handle, arg2);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4893,6 +7300,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4905,6 +7317,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4917,6 +7334,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let handle = helper::handler_create("RegisterActiveObjectExt");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4929,6 +7352,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("RegisterDragDrop");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4948,6 +7377,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4960,6 +7394,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4972,6 +7411,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4984,6 +7428,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -4996,6 +7445,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5008,6 +7462,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5020,6 +7479,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5032,6 +7496,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5044,6 +7513,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5056,6 +7530,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5068,6 +7547,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5080,6 +7564,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5092,6 +7581,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5104,6 +7598,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5116,6 +7615,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5128,6 +7632,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5140,6 +7649,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5152,6 +7666,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5164,6 +7683,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5176,6 +7700,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5188,6 +7717,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5200,6 +7734,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5212,6 +7751,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5224,6 +7768,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5236,6 +7785,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5243,6 +7797,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let _reserved = emu.regs().rcx;
             let perrinfo = emu.regs().rdx;
             log_red!(emu, "ole32!SetErrorInfo errinfo:0x{:x}", perrinfo);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.regs_mut().rax = 0; // S_OK
         }
         "SetOleautModule" => {
@@ -5254,6 +7813,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5266,6 +7830,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5278,6 +7847,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5290,6 +7864,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StdTypesRegisterServer");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5302,6 +7882,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5314,6 +7899,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5326,12 +7916,26 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StgCreateDocfile");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "StgCreateDocfileOnILockBytes" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "ole32!StgCreateDocfileOnILockBytes 0x{:x}", arg1);
+            let handle = helper::handler_create("StgCreateDocfileOnILockBytes");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -5345,6 +7949,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StgCreatePropSetStg");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5357,6 +7967,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StgCreatePropStg");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5369,19 +7985,37 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StgCreateStorageEx");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "StgGetIFillLockBytesOnFile" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!StgGetIFillLockBytesOnFile 0x{:x}", arg1);
+            let handle = helper::handler_create("StgGetIFillLockBytesOnFile");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "StgGetIFillLockBytesOnILockBytes" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!StgGetIFillLockBytesOnILockBytes 0x{:x}", arg1);
+            let handle = helper::handler_create("StgGetIFillLockBytesOnILockBytes");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -5395,23 +8029,42 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            for _ in 0..2 {}
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "StgIsStorageILockBytes" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ole32!StgIsStorageILockBytes 0x{:x}", arg1);
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "StgOpenAsyncDocfileOnIFillLockBytes" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
                 "ole32!StgOpenAsyncDocfileOnIFillLockBytes 0x{:x}",
                 arg1
             );
+            let handle = helper::handler_create("StgOpenAsyncDocfileOnIFillLockBytes");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -5425,6 +8078,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StgOpenPropStg");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5437,6 +8096,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StgOpenStorage");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5449,6 +8114,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("StgOpenStorageEx");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5461,12 +8132,28 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let handle = helper::handler_create("StgOpenStorageOnHandle");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "StgOpenStorageOnILockBytes" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(emu, "ole32!StgOpenStorageOnILockBytes 0x{:x}", arg1);
+            let handle = helper::handler_create("StgOpenStorageOnILockBytes");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -5480,6 +8167,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5487,6 +8179,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let arg1 = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!StgSetTimes arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5523,6 +8220,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5535,6 +8237,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5547,6 +8254,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5559,6 +8271,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5571,6 +8288,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5583,6 +8305,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5595,6 +8322,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5607,6 +8339,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5619,6 +8356,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5631,6 +8373,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5643,6 +8390,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5655,6 +8407,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5667,6 +8424,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5679,6 +8441,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -5691,6 +8458,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5703,6 +8475,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5715,6 +8492,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5722,6 +8504,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
             log_red!(emu, "ole32!WriteOleStg h:0x{:x} arg2:0x{:x}", handle, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5734,6 +8521,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5746,6 +8538,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 handle,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
+            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5855,6 +8652,7 @@ pub fn CoTaskMemFree(emu: &mut emu::Emu) {
 
 pub fn CoUninitialize(emu: &mut emu::Emu) {
     log_red!(emu, "ole32!CoUninitialize");
+    helper::advance_tick(emu, 1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

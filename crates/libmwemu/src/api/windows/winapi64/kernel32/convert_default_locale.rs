@@ -4,6 +4,10 @@ pub fn ConvertDefaultLocale(emu: &mut emu::Emu) {
     let locale = emu.regs().rcx;
 
     log_red!(emu, "kernel32!ConvertDefaultLocale locale:0x{:x}", locale);
+    let src = emu.regs().rcx;
+    if src != 0 && emu.maps.is_mapped(src) {
+        let _input = emu.maps.read_string(src);
+    }
 
     let result = match locale {
         0x0800 => 0x0409,

@@ -11,6 +11,10 @@ pub fn GetAtomNameA(emu: &mut emu::Emu) {
         buf_ptr,
         buf_size
     );
+    let out_ptr = emu.regs().r8;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     if buf_ptr != 0 && buf_size > 0 {
         emu.maps.write_byte(buf_ptr, 0);
     }

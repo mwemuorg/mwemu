@@ -215,6 +215,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         | "??0exception@@QEAA@AEBV0@@Z"
         | "??1type_info@@UEAA@XZ" => {
             log_red!(emu, "wincrt!{}", api);
+            helper::advance_tick(emu, 1);
             emu.regs_mut().rax = 0;
         }
         "_EH_prolog3" | "_EH_prolog3_catch" => {
@@ -322,6 +323,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         // --- Math stubs ---
         "atan" | "atan2" | "cos" | "sin" | "tan" | "exp" | "log" | "log10" | "pow" | "sqrt"
         | "ceil" | "floor" | "fabs" | "fmod" => {
+            helper::advance_tick(emu, 1);
             let a = f64::from_bits(emu.regs().xmm0 as u64);
             let result = match api {
                 "atan" => a.atan(),
@@ -508,6 +510,9 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 max_count,
                 stream
             );
+            if buf != 0 && max_count > 0 {
+                emu.maps.write_byte(buf, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -524,14 +529,14 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = s.len() as u64;
         }
         "getchar" => {
-            let arg1 = emu.regs().rcx;
-            let arg2 = emu.regs().rdx;
-            log_red!(emu, "wincrt!getchar arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            emu.regs_mut().rax = 1;
+            log_red!(emu, "wincrt!getchar");
+            helper::advance_tick(emu, 1);
+            emu.regs_mut().rax = 0x0A;
         }
         "_close" => {
             let fd = emu.regs().rcx as i32;
             log_red!(emu, "wincrt!_close fd:{}", fd);
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -546,6 +551,9 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 buf,
                 count
             );
+            if buf != 0 && count > 0 {
+                emu.maps.write_byte(buf, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -580,6 +588,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "_fileno" => {
             let stream = emu.regs().rcx;
             log_red!(emu, "wincrt!_fileno stream:0x{:x}", stream);
+            let _ = emu.maps.is_mapped(stream);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -587,19 +596,21 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             let fd = emu.regs().rcx as i32;
             let mode = emu.regs().rdx as i32;
             log_red!(emu, "wincrt!_setmode fd:{} mode:{}", fd, mode);
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = mode as u64;
         }
         "_putch" => {
-            let arg1 = emu.regs().rcx;
-            let arg2 = emu.regs().rdx;
-            log_red!(emu, "wincrt!_putch arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            emu.regs_mut().rax = 1;
+            let ch = emu.regs().rcx as u8;
+            log_red!(emu, "wincrt!_putch ch:{}", ch as char);
+            helper::advance_tick(emu, 1);
+            emu.regs_mut().rax = ch as u64;
         }
         // --- Char classification ---
         "ispunct" => {
             let ch = emu.regs().rcx as u8;
             log_red!(emu, "wincrt!ispunct ch:{}", ch as char);
+            helper::advance_tick(emu, 1);
             let result = if ch.is_ascii_punctuation() {
                 1u64
             } else {
@@ -611,6 +622,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "isxdigit" => {
             let ch = emu.regs().rcx as u8;
             log_red!(emu, "wincrt!isxdigit ch:{}", ch as char);
+            helper::advance_tick(emu, 1);
             let result = if ch.is_ascii_hexdigit() { 1u64 } else { 0u64 };
             emu.set_last_error(0);
             emu.regs_mut().rax = result;

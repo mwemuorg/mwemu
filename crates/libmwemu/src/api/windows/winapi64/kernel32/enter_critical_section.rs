@@ -11,6 +11,7 @@ pub fn EnterCriticalSection(emu: &mut emu::Emu) {
         tid,
         cs_ptr
     );
+    let handle = helper::handler_create("EnterCriticalSection");
 
     let acquired = emu.global_locks.enter(cs_ptr, tid);
 

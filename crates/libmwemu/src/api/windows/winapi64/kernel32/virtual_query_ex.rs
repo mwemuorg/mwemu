@@ -14,6 +14,10 @@ pub fn VirtualQueryEx(emu: &mut emu::Emu) {
         out_buff,
         size
     );
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
 
     if size < 30 {
         log::trace!("buffer to short: {}", size);

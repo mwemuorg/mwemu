@@ -1,5 +1,6 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn IsNormalizedString(emu: &mut emu::Emu) {
     let norm_form = emu.regs().rcx;
     let lp_string = emu.regs().rdx;
@@ -12,5 +13,10 @@ pub fn IsNormalizedString(emu: &mut emu::Emu) {
         cw_length
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.regs_mut().rax = 0;
+    }
 }

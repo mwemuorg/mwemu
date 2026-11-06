@@ -10,6 +10,10 @@ pub fn GetWindowsDirectoryA(emu: &mut emu::Emu) {
         lp_buffer,
         u_size
     );
+    let out_ptr = emu.regs().rdx;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     let output = emu.cfg.windows_directory.clone();
     emu.maps.write_string(lp_buffer as u64, &output);
     emu.regs_mut().rax = output.len() as u64;

@@ -15,6 +15,10 @@ pub fn GetDateFormatEx(emu: &mut emu::Emu) {
         p2,
         p3
     );
+    let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

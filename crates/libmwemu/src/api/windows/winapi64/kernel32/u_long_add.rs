@@ -15,13 +15,13 @@ pub fn ULongAdd(emu: &mut emu::Emu) {
 
     match a.checked_add(b) {
         Some(sum) => {
-            if p_result != 0 {
-                emu.maps.write_dword(p_result, sum as u64);
-            }
-            emu.regs_mut().rax = 0;
+    if p_result != 0 {
+        emu.maps.write_dword(p_result, sum as u64);
+    }
+    emu.regs_mut().rax = 0;
         }
         None => {
-            emu.regs_mut().rax = 0x80070216;
+    emu.regs_mut().rax = 0x80070216;
         }
     }
 }

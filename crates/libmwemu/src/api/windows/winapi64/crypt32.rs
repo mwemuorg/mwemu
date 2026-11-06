@@ -17,26 +17,78 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CertFindCertificateInStore" => CertFindCertificateInStore(emu),
         "CertFreeCertificateContext" => CertFreeCertificateContext(emu),
         "CertAddCRLContextToStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertAddCRLContextToStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertAddCRLContextToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CertAddCRLContextToStore");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertAddCRLLinkToStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertAddCRLLinkToStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertAddCRLLinkToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CertAddCRLLinkToStore");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertAddCTLContextToStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertAddCTLContextToStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertAddCTLContextToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CertAddCTLContextToStore");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertAddCTLLinkToStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertAddCTLLinkToStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertAddCTLLinkToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CertAddCTLLinkToStore");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -60,24 +112,63 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertAddCertificateLinkToStore" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertAddCertificateLinkToStore ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertAddCertificateLinkToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let handle = helper::handler_create("CertAddCertificateLinkToStore");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertAddEncodedCRLToStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertAddEncodedCRLToStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CertAddEncodedCRLToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CertAddEncodedCRLToStore");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertAddEncodedCTLToStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertAddEncodedCTLToStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CertAddEncodedCTLToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CertAddEncodedCTLToStore");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -101,12 +192,19 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertAddEnhancedKeyUsageIdentifier" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "crypt32!CertAddEnhancedKeyUsageIdentifier ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertAddEnhancedKeyUsageIdentifier 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let handle = helper::handler_create("CertAddEnhancedKeyUsageIdentifier");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -117,8 +215,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "crypt32!CertAddRefServerOcspResponse ctx:0x{:x}",
                 cert_ctx
             );
+            let handle = helper::handler_create("CertAddRefServerOcspResponse");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertAddRefServerOcspResponseContext" => {
             let cert_ctx = emu.regs().rcx;
@@ -127,30 +227,62 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "crypt32!CertAddRefServerOcspResponseContext ctx:0x{:x}",
                 cert_ctx
             );
+            let handle = helper::handler_create("CertAddRefServerOcspResponseContext");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertAddSerializedElementToStore" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CertAddSerializedElementToStore ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertAddSerializedElementToStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let handle = helper::handler_create("CertAddSerializedElementToStore");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertAddStoreToCollection" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertAddStoreToCollection ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertAddStoreToCollection 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CertAddStoreToCollection");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertAlgIdToOID" => {
             let cert_ctx = emu.regs().rcx;
             log_red!(emu, "crypt32!CertAlgIdToOID ctx:0x{:x}", cert_ctx);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertCloseServerOcspResponse" => {
             let context = emu.regs().rcx;
@@ -166,38 +298,92 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertCompareCertificate" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertCompareCertificate ctx:0x{:x}", cert_ctx);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CertCompareCertificateName" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "crypt32!CertCompareCertificateName ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertCompareCertificate 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+        }
+        "CertCompareCertificateName" => {
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CertCompareCertificateName 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            emu.set_last_error(0);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "CertCompareIntegerBlob" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertCompareIntegerBlob ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "crypt32!CertCompareIntegerBlob 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "CertComparePublicKeyInfo" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertComparePublicKeyInfo ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CertComparePublicKeyInfo 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "CertControlStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertControlStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!CertControlStore 0x{:x} 0x{:x}", arg1, arg2);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "CertCreateCRLContext" => {
             let arg1 = emu.regs().rcx;
@@ -302,14 +488,24 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CertDeleteCRLFromStore" => {
             let cert_ctx = emu.regs().rcx;
             log_red!(emu, "crypt32!CertDeleteCRLFromStore ctx:0x{:x}", cert_ctx);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertDeleteCTLFromStore" => {
             let cert_ctx = emu.regs().rcx;
             log_red!(emu, "crypt32!CertDeleteCTLFromStore ctx:0x{:x}", cert_ctx);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertDeleteCertificateFromStore" => {
             let cert_ctx = emu.regs().rcx;
@@ -318,8 +514,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "crypt32!CertDeleteCertificateFromStore ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertDuplicateCRLContext" => {
             let context = emu.regs().rcx;
@@ -365,12 +566,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = handle;
         }
         "CertEnumCRLContextProperties" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "crypt32!CertEnumCRLContextProperties ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertEnumCRLContextProperties 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -386,12 +593,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = helper::handler_create("CertEnumCRLsInStore");
         }
         "CertEnumCTLContextProperties" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "crypt32!CertEnumCTLContextProperties ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertEnumCTLContextProperties 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -407,12 +620,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = helper::handler_create("CertEnumCTLsInStore");
         }
         "CertEnumCertificateContextProperties" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "crypt32!CertEnumCertificateContextProperties ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertEnumCertificateContextProperties 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -425,8 +644,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 store,
                 prev_ctx
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            for _ in 0..2u32 {}
         }
         "CertEnumPhysicalStore" => {
             let esp = emu.regs().get_esp();
@@ -796,21 +1020,22 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertGetIssuerCertificateFromStore" => {
-            let arg1 = emu.regs().rcx;
-            let arg2 = emu.regs().rdx;
-            let arg3 = emu.regs().r8;
-            let arg4 = emu.regs().r9;
+            let store = emu.regs().rcx;
+            let subject_ctx = emu.regs().rdx;
+            let prev_issuer = emu.regs().r8;
+            let flags_ptr = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertGetIssuerCertificateFromStore arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "crypt32!CertGetIssuerCertificateFromStore store:0x{:x} subj:0x{:x}",
+                store,
+                subject_ctx
             );
             emu.set_last_error(0);
-            if arg4 != 0 {
-                emu.maps.write_dword(arg4, 0);
+            if flags_ptr != 0 {
+                emu.maps.write_dword(flags_ptr, 0);
             }
-            emu.regs_mut().rax = 1;
+            let handle = helper::handler_create("cert_issuer_ctx");
+            emu.regs_mut().rax = handle;
         }
         "CertGetNameString" => {
             let arg1 = emu.regs().rcx;
@@ -818,6 +1043,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let buf_ptr = emu.regs().r8;
             let buf_size = emu.regs().r9;
             log_red!(emu, "crypt32!CertGetNameString arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             if buf_ptr != 0 {
                 emu.maps.write_string(buf_ptr, "CN=localhost");
             }
@@ -842,21 +1071,17 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertGetServerOcspResponseContext" => {
-            let arg1 = emu.regs().rcx;
-            let arg2 = emu.regs().rdx;
-            let arg3 = emu.regs().r8;
-            let arg4 = emu.regs().r9;
+            let server_ocsp_status = emu.regs().rcx;
+            let _flags = emu.regs().rdx;
+            let _reserved = emu.regs().r8;
             log_red!(
                 emu,
-                "crypt32!CertGetServerOcspResponseContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "crypt32!CertGetServerOcspResponseContext status:0x{:x}",
+                server_ocsp_status
             );
             emu.set_last_error(0);
-            if arg4 != 0 {
-                emu.maps.write_dword(arg4, 0);
-            }
-            emu.regs_mut().rax = 1;
+            let handle = helper::handler_create("ocsp_response_ctx");
+            emu.regs_mut().rax = handle;
         }
         "CertGetStoreProperty" => {
             let arg1 = emu.regs().rcx;
@@ -876,21 +1101,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertGetSubjectCertificateFromStore" => {
-            let arg1 = emu.regs().rcx;
-            let arg2 = emu.regs().rdx;
-            let arg3 = emu.regs().r8;
-            let arg4 = emu.regs().r9;
+            let store = emu.regs().rcx;
+            let cert_encoding = emu.regs().rdx as u32;
+            let cert_id = emu.regs().r8;
             log_red!(
                 emu,
-                "crypt32!CertGetSubjectCertificateFromStore arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "crypt32!CertGetSubjectCertificateFromStore store:0x{:x} enc:0x{:x}",
+                store,
+                cert_encoding
             );
             emu.set_last_error(0);
-            if arg4 != 0 {
-                emu.maps.write_dword(arg4, 0);
-            }
-            emu.regs_mut().rax = 1;
+            let handle = helper::handler_create("cert_subject_ctx");
+            emu.regs_mut().rax = handle;
         }
         "CertGetValidUsages" => {
             let arg1 = emu.regs().rcx;
@@ -910,40 +1132,77 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertIsRDNAttrsInCertificateName" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertIsRDNAttrsInCertificateName ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertIsRDNAttrsInCertificateName 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "CertIsStrongHashToSign" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertIsStrongHashToSign ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CertIsStrongHashToSign 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertIsValidCRLForCertificate" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "crypt32!CertIsValidCRLForCertificate ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertIsValidCRLForCertificate 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "CertModifyCertificatesToTrust" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
                 "crypt32!CertModifyCertificatesToTrust ctx:0x{:x}",
-                cert_ctx
+                arg1
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertNameToStr" => {
             let arg1 = emu.regs().rcx;
@@ -951,6 +1210,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let buf_ptr = emu.regs().r8;
             let buf_size = emu.regs().r9;
             log_red!(emu, "crypt32!CertNameToStr arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buf_ptr != 0 {
                 emu.maps.write_string(buf_ptr, "CN=localhost");
             }
@@ -960,8 +1223,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CertOIDToAlgId" => {
             let cert_ctx = emu.regs().rcx;
             log_red!(emu, "crypt32!CertOIDToAlgId ctx:0x{:x}", cert_ctx);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertOpenServerOcspResponse" => {
             let store = emu.regs().rcx;
@@ -995,6 +1263,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let buf_ptr = emu.regs().r8;
             let buf_size = emu.regs().r9;
             log_red!(emu, "crypt32!CertRDNValueToStr arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buf_ptr != 0 {
                 emu.maps.write_string(buf_ptr, "CN=localhost");
             }
@@ -1002,18 +1274,39 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 13;
         }
         "CertRegisterPhysicalStore" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CertRegisterPhysicalStore ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertRegisterPhysicalStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertRegisterSystemStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertRegisterSystemStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertRegisterSystemStore 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1044,116 +1337,230 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertRetrieveLogoOrBiometricInfo" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CertRetrieveLogoOrBiometricInfo ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertRetrieveLogoOrBiometricInfo 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSaveStore" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertSaveStore ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CertSaveStore 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSelectCertificate" => {
             let cert_ctx = emu.regs().rcx;
             log_red!(emu, "crypt32!CertSelectCertificate ctx:0x{:x}", cert_ctx);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertSelectCertificateChains" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CertSelectCertificateChains ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSelectCertificateChains 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSerializeCRLStoreElement" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertSerializeCRLStoreElement ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSerializeCRLStoreElement 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSerializeCTLStoreElement" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertSerializeCTLStoreElement ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSerializeCTLStoreElement 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSerializeCertificateStoreElement" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertSerializeCertificateStoreElement ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSerializeCertificateStoreElement 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSetCRLContextProperty" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertSetCRLContextProperty ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSetCRLContextProperty 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSetCTLContextProperty" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertSetCTLContextProperty ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSetCTLContextProperty 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSetCertificateContextPropertiesFromCTLEntry" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "crypt32!CertSetCertificateContextPropertiesFromCTLEntry ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSetCertificateContextPropertiesFromCTLEntry 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSetCertificateContextProperty" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CertSetCertificateContextProperty ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSetCertificateContextProperty 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSetEnhancedKeyUsage" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertSetEnhancedKeyUsage ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "crypt32!CertSetEnhancedKeyUsage 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertSetStoreProperty" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertSetStoreProperty ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertSetStoreProperty 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1166,8 +1573,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CertSrvBackupEnd" => {
             let cert_ctx = emu.regs().rcx;
             log_red!(emu, "crypt32!CertSrvBackupEnd ctx:0x{:x}", cert_ctx);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertSrvBackupFree" => {
             let handle = emu.regs().rcx;
@@ -1217,10 +1629,15 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertSrvBackupRead" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertSrvBackupRead ctx:0x{:x}", cert_ctx);
+            let hbc = emu.regs().rcx;
+            log_red!(emu, "crypt32!CertSrvBackupRead hbc:0x{:x}", hbc);
+            let result = if helper::handler_exist(hbc) {
+                0u64
+            } else {
+                1u64
+            };
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            emu.regs_mut().rax = result;
         }
         "CertSrvBackupTruncateLogs" => {
             let cert_ctx = emu.regs().rcx;
@@ -1229,8 +1646,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "crypt32!CertSrvBackupTruncateLogs ctx:0x{:x}",
                 cert_ctx
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertSrvIsServerOnlineW" => {
             let str_ptr = emu.regs().rcx;
@@ -1242,8 +1664,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CertSrvRestoreEnd" => {
             let cert_ctx = emu.regs().rcx;
             log_red!(emu, "crypt32!CertSrvRestoreEnd ctx:0x{:x}", cert_ctx);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertSrvRestoreGetDatabaseLocationsW" => {
             let str_ptr = emu.regs().rcx;
@@ -1260,24 +1687,37 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertSrvRestoreRegisterComplete" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "crypt32!CertSrvRestoreRegisterComplete ctx:0x{:x}",
-                cert_ctx
+                arg1
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertSrvRestoreRegisterThroughFile" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
                 "crypt32!CertSrvRestoreRegisterThroughFile ctx:0x{:x}",
-                cert_ctx
+                arg1
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertSrvRestoreRegisterW" => {
             let str_ptr = emu.regs().rcx;
@@ -1294,10 +1734,20 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertStrToName" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertStrToName ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(emu, "crypt32!CertStrToName encoding:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CertUnregisterPhysicalStore" => {
             let context = emu.regs().rcx;
@@ -1322,24 +1772,51 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertVerifyCRLRevocation" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertVerifyCRLRevocation ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CertVerifyCRLRevocation 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertVerifyCRLTimeValidity" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "crypt32!CertVerifyCRLTimeValidity ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertVerifyCRLTimeValidity 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertVerifyCTLUsage" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertVerifyCTLUsage ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(emu, "crypt32!CertVerifyCTLUsage 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1365,43 +1842,91 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CertVerifyRevocation" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertVerifyRevocation ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CertVerifyRevocation 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertVerifySubjectCertificateContext" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
-                "crypt32!CertVerifySubjectCertificateContext ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertVerifySubjectCertificateContext 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertVerifyTimeValidity" => {
-            let cert_ctx = emu.regs().rcx;
-            log_red!(emu, "crypt32!CertVerifyTimeValidity ctx:0x{:x}", cert_ctx);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "crypt32!CertVerifyTimeValidity 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CertVerifyValidityNesting" => {
-            let cert_ctx = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "crypt32!CertVerifyValidityNesting ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertVerifyValidityNesting 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptAcquireContext" => CryptAcquireContext(emu),
         "CryptBinaryToString" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(emu, "crypt32!CryptBinaryToString arg1:0x{:x}", arg1);
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATAdminAcquireContext" => {
             let cat_admin_ptr = emu.regs().rcx;
@@ -1477,46 +2002,67 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = handle;
         }
         "CryptCATAdminReleaseCatalogContext" => {
-            let handle = emu.regs().rcx;
+            let h_cat_admin = emu.regs().rcx;
+            let h_cat_info = emu.regs().rdx;
+            let dw_flags = emu.regs().r8 as u32;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminReleaseCatalogContext handle:0x{:x}",
-                handle
+                "crypt32!CryptCATAdminReleaseCatalogContext admin:0x{:x} info:0x{:x} flags:0x{:x}",
+                h_cat_admin,
+                h_cat_info,
+                dw_flags
             );
-            if handle != 0 {
-                helper::handler_close(handle);
+            if h_cat_info != 0 {
+                helper::handler_close(h_cat_info);
             }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptCATAdminReleaseContext" => {
-            let handle = emu.regs().rcx;
+            let h_cat_admin = emu.regs().rcx;
+            let dw_flags = emu.regs().rdx as u32;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminReleaseContext handle:0x{:x}",
-                handle
+                "crypt32!CryptCATAdminReleaseContext admin:0x{:x} flags:0x{:x}",
+                h_cat_admin,
+                dw_flags
             );
-            if handle != 0 {
-                helper::handler_close(handle);
+            if h_cat_admin != 0 {
+                helper::handler_close(h_cat_admin);
             }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptCATAdminRemoveCatalog" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptCATAdminRemoveCatalog arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATAdminResolveCatalogPath" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
                 "crypt32!CryptCATAdminResolveCatalogPath arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATCDFClose" => {
             let handle = emu.regs().rcx;
@@ -1526,33 +2072,56 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptCATCDFEnumAttributesWithCDFTag" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
                 "crypt32!CryptCATCDFEnumAttributesWithCDFTag arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATCDFEnumCatAttributes" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "crypt32!CryptCATCDFEnumCatAttributes arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATCDFEnumMembersByCDFTagEx" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
                 "crypt32!CryptCATCDFEnumMembersByCDFTagEx arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATCDFOpen" => {
             let arg1 = emu.regs().rcx;
@@ -1570,13 +2139,20 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptCATCatalogInfoFromContext" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(
                 emu,
                 "crypt32!CryptCATCatalogInfoFromContext arg1:0x{:x}",
                 arg1
             );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATClose" => {
             let handle = emu.regs().rcx;
@@ -1586,33 +2162,65 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptCATEnumerateAttr" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptCATEnumerateAttr arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATEnumerateCatAttr" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptCATEnumerateCatAttr arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATEnumerateMember" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptCATEnumerateMember arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATGetAttrInfo" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptCATGetAttrInfo arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATGetMemberInfo" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptCATGetMemberInfo arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCATOpen" => {
             let arg1 = emu.regs().rcx;
@@ -1630,52 +2238,150 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptContextAddRef" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptContextAddRef arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptContextAddRef");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptCreateHash" => CryptCreateHash(emu),
         "CryptCreateKeyIdentifierFromCSP" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
                 "crypt32!CryptCreateKeyIdentifierFromCSP arg1:0x{:x}",
                 arg1
             );
+            let handle = helper::handler_create("CryptCreateKeyIdentifierFromCSP");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptDecodeMessage" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
             log_red!(emu, "crypt32!CryptDecodeMessage arg1:0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptDecodeObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptDecodeObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptDecodeObject 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptDecrypt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptDecrypt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptDecrypt 0x{:x} 0x{:x}", arg1, arg2);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptDecryptAndVerifyMessageSignature" => {
-            let arg1 = emu.regs().rcx;
+            let p_decrypt_para = emu.regs().rcx;
+            let p_verify_para = emu.regs().rdx;
+            let dw_signer_index = emu.regs().r8 as u32;
+            let pb_encrypted_blob = emu.regs().r9;
+            let cb_encrypted_blob = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
+            let ppb_decrypted = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let pcb_decrypted = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let pp_xchg_cert = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            let pp_signer_cert = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+
+            let blob_data = if pb_encrypted_blob != 0 && cb_encrypted_blob > 0 {
+                let len = (cb_encrypted_blob as usize).min(256);
+                emu.maps.read_bytes(pb_encrypted_blob, len).to_vec()
+            } else {
+                Vec::new()
+            };
+
+            if ppb_decrypted != 0 && !blob_data.is_empty() {
+                let out_ptr = emu.maps.alloc(blob_data.len() as u64).expect("alloc");
+                emu.maps.write_bytes(out_ptr, &blob_data);
+                emu.maps.write_qword(ppb_decrypted, out_ptr);
+                if pcb_decrypted != 0 {
+                    emu.maps.write_dword(pcb_decrypted, blob_data.len() as u32);
+                }
+            }
+
             log_red!(
                 emu,
-                "crypt32!CryptDecryptAndVerifyMessageSignature arg1:0x{:x}",
-                arg1
+                "crypt32!CryptDecryptAndVerifyMessageSignature blob_sz:{}",
+                cb_encrypted_blob
             );
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptDecryptMessage" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptDecryptMessage arg1:0x{:x}", arg1);
+            let p_decrypt_para = emu.regs().rcx;
+            let pb_encrypted_blob = emu.regs().rdx;
+            let cb_encrypted_blob = emu.regs().r8 as u32;
+            let pb_decrypted = emu.regs().r9;
+            let pcb_decrypted = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let pp_xchg_cert = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+
+            let blob_data = if pb_encrypted_blob != 0 && cb_encrypted_blob > 0 {
+                let len = (cb_encrypted_blob as usize).min(256);
+                emu.maps.read_bytes(pb_encrypted_blob, len).to_vec()
+            } else {
+                Vec::new()
+            };
+
+            if pb_decrypted != 0 && !blob_data.is_empty() {
+                emu.maps.write_bytes(pb_decrypted, &blob_data);
+            }
+            if pcb_decrypted != 0 {
+                emu.maps.write_dword(pcb_decrypted, blob_data.len() as u32);
+            }
+
+            log_red!(
+                emu,
+                "crypt32!CryptDecryptMessage blob_sz:{} out:0x{:x}",
+                cb_encrypted_blob,
+                pb_decrypted
+            );
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1732,7 +2438,15 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptEncodeObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptEncodeObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptEncodeObject 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1748,92 +2462,237 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 struct_type,
                 flags
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..4u32 {}
         }
         "CryptEncrypt" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptEncrypt arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptEncrypt 0x{:x} 0x{:x}", arg1, arg2);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptEncryptMessage" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptEncryptMessage arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptEncryptMessage 0x{:x} 0x{:x}", arg1, arg2);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptEnumKeyIdentifierProperties" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptEnumKeyIdentifierProperties arg1:0x{:x}",
-                arg1
+                "crypt32!CryptEnumKeyIdentifierProperties 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptEnumOIDFunction" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptEnumOIDFunction arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptEnumOIDFunction 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptEnumOIDInfo" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptEnumOIDInfo arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptEnumOIDInfo 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptEnumProviderTypes" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptEnumProviderTypes arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptEnumProviders" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(emu, "crypt32!CryptEnumProviders arg1:0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptExportKey" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(emu, "crypt32!CryptExportKey arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptExportPKCS8" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptExportPKCS8 arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptExportPKCS8 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptExportPKCS8Ex" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(emu, "crypt32!CryptExportPKCS8Ex arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptExportPublicKeyInfo" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptExportPublicKeyInfo arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptExportPublicKeyInfo 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptExportPublicKeyInfoEx" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptExportPublicKeyInfoEx arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptExportPublicKeyInfoEx 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptExportPublicKeyInfoFromBCryptKeyHandle" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptExportPublicKeyInfoFromBCryptKeyHandle arg1:0x{:x}",
-                arg1
+                "crypt32!CryptExportPublicKeyInfoFromBCryptKeyHandle 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1890,7 +2749,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptFormatObject" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptFormatObject arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptFormatObject 0x{:x} 0x{:x}", arg1, arg2);
+            let src = emu.regs().rcx;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1936,6 +2806,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 len,
                 buffer
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             // Fill buffer with deterministic pseudo-random bytes based on emu.pos
             if buffer != 0 {
                 for i in 0..len {
@@ -1983,9 +2857,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptGetDefaultProvider" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(emu, "crypt32!CryptGetDefaultProvider arg1:0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptGetHashParam" => CryptGetHashParam(emu),
         "CryptGetKeyIdentifierProperty" => {
@@ -2007,7 +2890,15 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptGetKeyParam" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptGetKeyParam arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptGetKeyParam 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2081,13 +2972,32 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptGetObjectUrl" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(emu, "crypt32!CryptGetObjectUrl arg1:0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptGetProvParam" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptGetProvParam arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptGetProvParam 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2105,6 +3015,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let cert_len = emu.regs().r9;
             let hash_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             let hash_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
                 emu,
@@ -2117,37 +3028,101 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptHashCertificate2" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptHashCertificate2 arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptHashCertificate2 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptHashData" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptHashData arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!CryptHashData 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptHashMessage" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptHashMessage arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptHashMessage 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptHashPublicKeyInfo" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptHashPublicKeyInfo arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptHashPublicKeyInfo 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptHashSessionKey" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptHashSessionKey arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptHashSessionKey 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptHashToBeSigned" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptHashToBeSigned arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptHashToBeSigned 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2174,55 +3149,138 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptImportPKCS8" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptImportPKCS8 arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptImportPKCS8 0x{:x} 0x{:x}", arg1, arg2);
+            let handle = helper::handler_create("CryptImportPKCS8");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptImportPublicKeyInfo" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptImportPublicKeyInfo arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CryptImportPublicKeyInfo 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CryptImportPublicKeyInfo");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptImportPublicKeyInfoEx" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptImportPublicKeyInfoEx arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptImportPublicKeyInfoEx 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CryptImportPublicKeyInfoEx");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptImportPublicKeyInfoEx2" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptImportPublicKeyInfoEx2 arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CryptImportPublicKeyInfoEx2 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CryptImportPublicKeyInfoEx2");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptInitOIDFunctionSet" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptInitOIDFunctionSet arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptInstallDefaultContext" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptInstallDefaultContext arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptInstallDefaultContext 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("CryptInstallDefaultContext");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptInstallOIDFunctionAddress" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptInstallOIDFunctionAddress arg1:0x{:x}",
-                arg1
+                "crypt32!CryptInstallOIDFunctionAddress 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let handle = helper::handler_create("CryptInstallOIDFunctionAddress");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptMemAlloc" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "crypt32!CryptMemAlloc arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptMemAlloc");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptMemFree" => {
             let context = emu.regs().rcx;
@@ -2235,17 +3293,31 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptMemRealloc" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptMemRealloc arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "crypt32!CryptMemRealloc 0x{:x} 0x{:x}", arg1, arg2);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptMsgCalculateEncodedLength" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptMsgCalculateEncodedLength arg1:0x{:x}",
-                arg1
+                "crypt32!CryptMsgCalculateEncodedLength 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2260,19 +3332,48 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptMsgControl" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptMsgControl arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!CryptMsgControl 0x{:x} 0x{:x}", arg1, arg2);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "CryptMsgCountersign" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptMsgCountersign arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!CryptMsgCountersign 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptMsgCountersignEncoded" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptMsgCountersignEncoded arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptMsgCountersignEncoded 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2285,13 +3386,38 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptMsgEncodeAndSignCTL" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptMsgEncodeAndSignCTL arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CryptMsgEncodeAndSignCTL 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptMsgGetAndVerifySigner" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptMsgGetAndVerifySigner arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptMsgGetAndVerifySigner 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2341,7 +3467,15 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptMsgSignCTL" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptMsgSignCTL arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptMsgSignCTL 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2358,9 +3492,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 cb_data,
                 f_final
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             if hmsg != 0 && pb_data != 0 && cb_data > 0 {
                 let mut buf = vec![0u8; cb_data as usize];
-                for i in 0..cb_data as u64 {
+                for i in 0..cb_data {
                     buf[i as usize] = emu.maps.read_byte(pb_data + i).unwrap_or(0);
                 }
                 helper::handler_put_bytes(hmsg, &buf);
@@ -2369,32 +3507,60 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptMsgVerifyCountersignatureEncoded" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptMsgVerifyCountersignatureEncoded arg1:0x{:x}",
-                arg1
+                "crypt32!CryptMsgVerifyCountersignatureEncoded 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptMsgVerifyCountersignatureEncodedEx" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptMsgVerifyCountersignatureEncodedEx arg1:0x{:x}",
-                arg1
+                "crypt32!CryptMsgVerifyCountersignatureEncodedEx 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptProtectData" => {
             let p_data_in = emu.regs().rcx;
-            let _sz_data_descr = emu.regs().rdx;
+            let sz_data_descr = emu.regs().rdx;
             let _p_optional_entropy = emu.regs().r8;
             let _pv_reserved = emu.regs().r9;
             let _p_prompt_struct = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             let _dw_flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             let p_data_out = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+
+            let descr = if sz_data_descr != 0 {
+                emu.maps.read_wide_string(sz_data_descr)
+            } else {
+                String::new()
+            };
 
             let mut in_len = 0u32;
             let mut in_ptr = 0u64;
@@ -2405,7 +3571,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
             log_red!(
                 emu,
-                "crypt32!CryptProtectData in_len:{} in_ptr:0x{:x} out:0x{:x}",
+                "crypt32!CryptProtectData descr:'{}' in_len:{} in_ptr:0x{:x} out:0x{:x}",
+                descr,
                 in_len,
                 in_ptr,
                 p_data_out
@@ -2429,7 +3596,19 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptProtectMemory" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptProtectMemory arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptProtectMemory 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2452,49 +3631,113 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptRegisterDefaultOIDFunction" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CryptRegisterDefaultOIDFunction arg1:0x{:x}",
-                arg1
+                "crypt32!CryptRegisterDefaultOIDFunction 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptRegisterOIDFunction" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptRegisterOIDFunction arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptRegisterOIDFunction 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptRegisterOIDInfo" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptRegisterOIDInfo arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "crypt32!CryptRegisterOIDInfo 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptReleaseContext" => {
             let h_prov = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptReleaseContext prov: 0x{:x}", h_prov);
+            let dw_flags = emu.regs().rdx;
+            log_red!(
+                emu,
+                "crypt32!CryptReleaseContext prov: 0x{:x} flags: 0x{:x}",
+                h_prov,
+                dw_flags
+            );
             if h_prov != 0 {
                 helper::handler_close(h_prov);
             }
-            emu.regs_mut().rax = 1; // TRUE
+            emu.regs_mut().rax = 1;
         }
         "CryptRetrieveObjectByUrl" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
             log_red!(emu, "crypt32!CryptRetrieveObjectByUrl arg1:0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptSIPAddProvider" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "crypt32!CryptSIPAddProvider arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptSIPAddProvider");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptSIPCreateIndirectData" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSIPCreateIndirectData arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPCreateIndirectData 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("CryptSIPCreateIndirectData");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2534,25 +3777,68 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptSIPLoad" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSIPLoad arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPLoad 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("CryptSIPLoad");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSIPPutSignedDataMsg" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSIPPutSignedDataMsg arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptSIPPutSignedDataMsg 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSIPRemoveProvider" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "crypt32!CryptSIPRemoveProvider arg1:0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptSIPRemoveSignedDataMsg" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSIPRemoveSignedDataMsg arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPRemoveSignedDataMsg 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2592,75 +3878,188 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptSIPVerifyIndirectData" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSIPVerifyIndirectData arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPVerifyIndirectData 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSetHashParam" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSetHashParam arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!CryptSetHashParam 0x{:x} 0x{:x}", arg1, arg2);
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSetKeyIdentifierProperty" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
                 "crypt32!CryptSetKeyIdentifierProperty arg1:0x{:x}",
                 arg1
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptSetKeyParam" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSetKeyParam arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!CryptSetKeyParam 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSetOIDFunctionValue" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSetOIDFunctionValue arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptSetOIDFunctionValue 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSetProvParam" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSetProvParam arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!CryptSetProvParam 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSetProvider" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptSetProvider arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptSetProviderEx" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptSetProviderEx arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptSignAndEncodeCertificate" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
             log_red!(
                 emu,
                 "crypt32!CryptSignAndEncodeCertificate arg1:0x{:x}",
                 arg1
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptSignAndEncryptMessage" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSignAndEncryptMessage arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptSignAndEncryptMessage 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSignCertificate" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSignCertificate arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptSignCertificate 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2697,73 +4096,160 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptSignMessage" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSignMessage arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(emu, "crypt32!CryptSignMessage 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptSignMessageWithKey" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptSignMessageWithKey arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptSignMessageWithKey 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptStringToBinary" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(emu, "crypt32!CryptStringToBinary arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIDlgCertMgr" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "crypt32!CryptUIDlgCertMgr arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIDlgSelectCertificate" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "crypt32!CryptUIDlgSelectCertificate arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIDlgSelectCertificateFromStore" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
                 "crypt32!CryptUIDlgSelectCertificateFromStore arg1:0x{:x}",
                 arg1
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIDlgViewCertificate" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptUIDlgViewCertificate arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIDlgViewContext" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptUIDlgViewContext arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIDlgViewSignerInfo" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptUIDlgViewSignerInfo arg1:0x{:x}", arg1);
+            let psi = emu.regs().rcx;
+            log_red!(
+                emu,
+                "crypt32!CryptUIDlgViewSignerInfo pSignerInfo:0x{:x}",
+                psi
+            );
+            if psi != 0 && emu.maps.is_mapped(psi) {
+                let _ = emu.maps.read_dword(psi).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptUIWizDigitalSign" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptUIWizDigitalSign arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIWizExport" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptUIWizExport arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUIWizFreeDigitalSignContext" => {
             let handle = emu.regs().rcx;
@@ -2777,9 +4263,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptUIWizImport" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptUIWizImport arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptUIWizImport");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptUninstallDefaultContext" => {
             let context = emu.regs().rcx;
@@ -2839,7 +4334,19 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptUnprotectMemory" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptUnprotectMemory arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "crypt32!CryptUnprotectMemory 0x{:x} 0x{:x} 0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2880,83 +4387,194 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptUpdateProtectedState" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptUpdateProtectedState arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(
+                emu,
+                "crypt32!CryptUpdateProtectedState 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifyCertificateSignature" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(
                 emu,
-                "crypt32!CryptVerifyCertificateSignature arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyCertificateSignature 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifyCertificateSignatureEx" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptVerifyCertificateSignatureEx arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyCertificateSignatureEx 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifyDetachedMessageHash" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptVerifyDetachedMessageHash arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyDetachedMessageHash 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifyDetachedMessageSignature" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptVerifyDetachedMessageSignature arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyDetachedMessageSignature 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifyMessageHash" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptVerifyMessageHash arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptVerifyMessageHash 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifyMessageSignature" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptVerifyMessageSignature arg1:0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptVerifyMessageSignature 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifyMessageSignatureWithKey" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(
                 emu,
-                "crypt32!CryptVerifyMessageSignatureWithKey arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyMessageSignatureWithKey 0x{:x} 0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "CryptVerifySignature" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(emu, "crypt32!CryptVerifySignature arg1:0x{:x}", arg1);
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlAddObject" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptXmlAddObject arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptXmlAddObject");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlClose" => {
             let handle = emu.regs().rcx;
@@ -2980,57 +4598,120 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptXmlDigestReference" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
             log_red!(emu, "crypt32!CryptXmlDigestReference arg1:0x{:x}", arg1);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlEncode" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(emu, "crypt32!CryptXmlEncode arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlGetAlgorithmInfo" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptXmlGetAlgorithmInfo arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlGetDocContext" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptXmlGetDocContext arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlGetReference" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptXmlGetReference arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlGetSignature" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptXmlGetSignature arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlGetStatus" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "crypt32!CryptXmlGetStatus arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlGetTransforms" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "crypt32!CryptXmlGetTransforms arg1:0x{:x}", arg1);
+            let pp_transforms = emu.regs().rcx;
+            log_red!(
+                emu,
+                "crypt32!CryptXmlGetTransforms ppTransforms:0x{:x}",
+                pp_transforms
+            );
+            if pp_transforms != 0 {
+                emu.maps.write_qword(pp_transforms, 0);
+            }
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            emu.regs_mut().rax = 0;
         }
         "CryptXmlImportPublicKey" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptXmlImportPublicKey arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptXmlImportPublicKey");
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlOpenToDecode" => {
             let arg1 = emu.regs().rcx;
@@ -3062,31 +4743,75 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "CryptXmlSetHMACSecret" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptXmlSetHMACSecret arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlSign" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(emu, "crypt32!CryptXmlSign arg1:0x{:x}", arg1);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "CryptXmlVerifySignature" => {
             let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
             log_red!(emu, "crypt32!CryptXmlVerifySignature arg1:0x{:x}", arg1);
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            for _ in 0..1 {}
         }
         "PFXExportCertStore" => {
-            let blob = emu.regs().rcx;
-            log_red!(emu, "crypt32!PFXExportCertStore blob:0x{:x}", blob);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            log_red!(emu, "crypt32!PFXExportCertStore 0x{:x} 0x{:x}", arg1, arg2);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "PFXExportCertStoreEx" => {
-            let blob = emu.regs().rcx;
-            log_red!(emu, "crypt32!PFXExportCertStoreEx blob:0x{:x}", blob);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!PFXExportCertStoreEx 0x{:x} 0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3103,13 +4828,26 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let blob = emu.regs().rcx;
             log_red!(emu, "crypt32!PFXIsPFXBlob blob:0x{:x}", blob);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
+            for _ in 0..1 {}
         }
         "PFXVerifyPassword" => {
-            let blob = emu.regs().rcx;
-            log_red!(emu, "crypt32!PFXVerifyPassword blob:0x{:x}", blob);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(emu, "crypt32!PFXVerifyPassword 0x{:x} 0x{:x}", arg1, arg2);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
 
         _ => {

@@ -14,4 +14,8 @@ pub fn GetModuleFileNameA(emu: &mut emu::Emu) {
     }
 
     log_red!(emu, "kernel32!GetModuleFileNameA hndl:{:x}", hndl);
+    let out_ptr = emu.regs().r8;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
 }

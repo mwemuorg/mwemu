@@ -1,7 +1,9 @@
 use crate::emu;
+use crate::winapi::helper;
 
-pub fn GetCurrentProcessorNumber(emu: &mut emu::Emu) {
-    log_red!(emu, "kernel32!GetCurrentProcessorNumber => 0");
+pub fn handler(emu: &mut emu::Emu) {
+    log_red!(emu, "kernel32!GetCurrentProcessorNumber");
+    helper::advance_tick(emu, 1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

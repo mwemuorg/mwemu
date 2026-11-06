@@ -1,8 +1,7 @@
+use crate::winapi::helper;
 use crate::{emu, windows::constants};
-
 pub fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
     let feature = emu.regs().rcx as u32;
-
     let msg = match feature {
         constants::PF_ARM_64BIT_LOADSTORE_ATOMIC => "PF_ARM_64BIT_LOADSTORE_ATOMIC",
         constants::PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE => "PF_ARM_DIVIDE_INSTRUCTION_AVAILABLE",
@@ -46,7 +45,6 @@ pub fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
         }
         _ => "unknown feature",
     };
-
     log_red!(
         emu,
         "kernel32!IsProcessorFeaturePresent feature: {} {}",
@@ -54,5 +52,10 @@ pub fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
         msg
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.regs_mut().rax = 0;
+    }
 }

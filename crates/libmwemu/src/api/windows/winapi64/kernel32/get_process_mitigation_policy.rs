@@ -13,10 +13,14 @@ pub fn GetProcessMitigationPolicy(emu: &mut emu::Emu) {
         buf_ptr,
         buf_len
     );
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     if buf_ptr != 0 && buf_len > 0 {
         let clear_size = (buf_len as usize).min(64);
         for i in 0..clear_size {
-            emu.maps.write_byte(buf_ptr + i as u64, 0);
+    emu.maps.write_byte(buf_ptr + i as u64, 0);
         }
     }
     emu.regs_mut().rax = 1;

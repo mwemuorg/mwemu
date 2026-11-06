@@ -12,6 +12,10 @@ pub fn ConvertSystemTimeToCalDateTime(emu: &mut emu::Emu) {
         cal_id,
         p_cal
     );
+    let src = emu.regs().rcx;
+    if src != 0 && emu.maps.is_mapped(src) {
+        let _input = emu.maps.read_string(src);
+    }
 
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;

@@ -1,11 +1,11 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn OpenStateExplicit(emu: &mut emu::Emu) {
     let param1 = emu.regs().rcx;
     let param2 = emu.regs().rdx;
     let param3 = emu.regs().r8;
     let param4 = emu.regs().r9;
-
     log_red!(
         emu,
         "kernel32!OpenStateExplicit param1:0x{:x} param2:0x{:x} param3:0x{:x} param4:0x{:x}",
@@ -14,7 +14,11 @@ pub fn OpenStateExplicit(emu: &mut emu::Emu) {
         param3,
         param4
     );
-
+    let handle = helper::handler_create("OpenStateExplicit");
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, handle);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

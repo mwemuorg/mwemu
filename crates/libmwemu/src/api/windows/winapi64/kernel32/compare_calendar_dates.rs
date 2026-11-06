@@ -1,10 +1,10 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn CompareCalendarDates(emu: &mut emu::Emu) {
     let p_date1 = emu.regs().rcx;
     let p_date2 = emu.regs().rdx;
     let cal_id = emu.regs().r8;
-
     log_red!(
         emu,
         "kernel32!CompareCalendarDates date1:0x{:x} date2:0x{:x} calId:{}",
@@ -13,5 +13,10 @@ pub fn CompareCalendarDates(emu: &mut emu::Emu) {
         cal_id
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 2;
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.regs_mut().rax = 0;
+    }
 }

@@ -1,10 +1,9 @@
 use crate::emu;
+use crate::winapi::helper;
 
-pub fn clear_last_error(emu: &mut emu::Emu) {
-    emu.clear_last_error();
-}
-
-pub fn set_last_error(emu: &mut emu::Emu, err_code: u64) {
-    emu.set_last_error(err_code);
-    emu.regs_mut().rax = 1;
+pub fn handler(emu: &mut emu::Emu) {
+    log_red!(emu, "kernel32!State");
+    helper::advance_tick(emu, 1);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 0;
 }

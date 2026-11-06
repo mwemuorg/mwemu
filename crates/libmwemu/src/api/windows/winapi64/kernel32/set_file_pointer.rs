@@ -1,6 +1,5 @@
-use crate::api::windows::helper;
 use crate::emu;
-
+use crate::winapi::helper;
 pub fn SetFilePointer(emu: &mut emu::Emu) {
     let h_file = emu.regs().rcx;
     let distance = emu.regs().rdx as i32;

@@ -109,6 +109,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 start_ptr,
                 end_ptr
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             let mut ptr = start_ptr;
             while ptr < end_ptr {
                 let func = emu.maps.read_qword(ptr).unwrap_or(0);
@@ -124,6 +128,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             let start_ptr = emu.regs().rcx;
             let end_ptr = emu.regs().rdx;
             log_red!(emu, "msvcrt!_initterm 0x{:x} - 0x{:x}", start_ptr, end_ptr);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             let mut ptr = start_ptr;
             while ptr < end_ptr {
                 let func = emu.maps.read_qword(ptr).unwrap_or(0);
@@ -178,6 +186,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 buff_ptr,
                 size
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = size as u64;
         }
@@ -185,6 +197,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             let file = emu.regs().rcx;
             let filename = helper::handler_get_uri(file);
             log_red!(emu, "msvcrt!fflush `{}`", filename);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -296,6 +312,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "free" => {
             let addr = emu.regs().rcx;
             log_red!(emu, "msvcrt!free 0x{:x}", addr);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if emu.cfg.memory_guard {
                 emu.kernel_free(addr, "free");
             } else {
@@ -503,6 +523,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                     exc_record,
                     ctx_record
                 );
+                let first_param = emu.regs().rcx;
+                if first_param != 0 && emu.maps.is_mapped(first_param) {
+                    let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+                }
             } else {
                 log_red!(emu, "msvcrt!_XcptFilter code:0x{:x} ptrs:NULL", exc_code);
             }
@@ -529,6 +553,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                     p_end,
                     end
                 );
+                let first_param = emu.regs().rcx;
+                if first_param != 0 && emu.maps.is_mapped(first_param) {
+                    let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+                }
             } else {
                 log_red!(
                     emu,
@@ -555,6 +583,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 exception_record,
                 exc_code
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -582,6 +614,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 vtable,
                 throw_info
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -634,6 +670,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 emu.maps.write_string(dst, s);
             }
             log_red!(emu, "msvcrt!strftime => '{}'", s);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = s.len() as u64;
         }
@@ -682,6 +722,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 emu.maps.write_string(buf, &s);
             }
             log_red!(emu, "msvcrt!{} {} => '{}'", api, val, s);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = buf;
         }
@@ -842,6 +886,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 this_ptr,
                 vtable
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
         }
         "??0exception@@QAE@ABV0@@Z" => {
             let this_ptr = emu.regs().rcx;
@@ -865,12 +913,20 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             let size = emu.regs().rcx;
             let base = allocate_memory(emu, size).unwrap_or(0);
             log_red!(emu, "msvcrt!operator_new size:{} => 0x{:x}", size, base);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = base;
         }
         "??3@YAXPAX@Z" => {
             let ptr = emu.regs().rcx;
             log_red!(emu, "msvcrt!operator_delete ptr:0x{:x}", ptr);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             release(emu, ptr);
         }
 
@@ -1214,6 +1270,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 emu.maps.write_string(addr, msg);
             }
             log_red!(emu, "msvcrt!strerror {} => '{}'", errnum, msg);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = addr;
         }
@@ -1495,6 +1555,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                     emu.maps.memset(base, 0, total as usize);
                 }
                 log_red!(emu, "msvcrt!calloc {}*{} =0x{:x}", nmemb, size, base);
+                let first_param = emu.regs().rcx;
+                if first_param != 0 && emu.maps.is_mapped(first_param) {
+                    let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+                }
                 emu.regs_mut().rax = base;
             }
         }
@@ -1508,6 +1572,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 }
             }
             log_red!(emu, "msvcrt!memset dst:0x{:x} val:0x{:x} n:{}", dst, val, n);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.regs_mut().rax = dst;
         }
         "memcpy" => {
@@ -1524,6 +1592,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 }
             }
             log_red!(emu, "msvcrt!memcpy dst:0x{:x} src:0x{:x} n:{}", dst, src, n);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.regs_mut().rax = dst;
         }
         "memmove" => {
@@ -1546,6 +1618,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 src,
                 n
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.regs_mut().rax = dst;
         }
         "memcmp" => {
@@ -1569,6 +1645,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 n,
                 result
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = result as u32 as u64;
         }
@@ -1591,6 +1671,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 n,
                 found
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = found;
         }
@@ -1601,6 +1685,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 AllocKind::Invalid => u64::MAX,
             };
             log_red!(emu, "msvcrt!_msize 0x{:x} => {}", ptr, size);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = size;
         }
@@ -1609,12 +1697,20 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             let _alignment = emu.regs().rdx;
             let base = allocate_memory(emu, size).unwrap_or(0);
             log_red!(emu, "msvcrt!_aligned_malloc {} =0x{:x}", size, base);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = base;
         }
         "_aligned_free" => {
             let addr = emu.regs().rcx;
             log_red!(emu, "msvcrt!_aligned_free 0x{:x}", addr);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             release(emu, addr);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
@@ -1636,6 +1732,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 fp,
                 name
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::handler_set_eof(fp);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -1653,6 +1753,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 origin,
                 new_pos
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = if new_pos >= 0 { 0 } else { u64::MAX };
         }
@@ -1660,6 +1764,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             let fp = emu.regs().rcx;
             let pos = helper::handler_tell(fp);
             log_red!(emu, "msvcrt!ftell fp:0x{:x} => {}", fp, pos);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = pos as u64;
         }
@@ -1667,6 +1775,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             let fp = emu.regs().rcx;
             let is_eof = helper::handler_eof(fp);
             log_red!(emu, "msvcrt!feof fp:0x{:x} => {}", fp, is_eof as u32);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = is_eof as u64;
         }
@@ -1683,6 +1795,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 stream,
                 name
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buf != 0 && n > 0 {
                 emu.maps.write_byte(buf, b'\n');
                 if n > 1 {
@@ -1743,6 +1859,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 emu.maps.write_byte(slot, c as u8);
             }
             log_red!(emu, "msvcrt!{} '{}'", api, ch_str);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = c as u64;
         }
@@ -1756,6 +1876,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 stream,
                 name
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0xffff_ffff;
         }
@@ -1783,6 +1907,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 mode,
                 prev_mode
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = prev_mode;
         }
@@ -1812,6 +1940,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 buf,
                 count
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1828,6 +1960,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 buf,
                 count
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = count as u64;
         }
@@ -1921,6 +2057,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 exc_code,
                 frame_ptr
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2171,6 +2311,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                     exc_ptrs,
                     exc_record
                 );
+                let first_param = emu.regs().rcx;
+                if first_param != 0 && emu.maps.is_mapped(first_param) {
+                    let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+                }
             } else {
                 log_red!(emu, "msvcrt!__CppXcptFilter exc:0x{:x} ptrs:NULL", exc_num);
             }
@@ -2406,6 +2550,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 0
             };
             log_red!(emu, "msvcrt!ptr 0x{:x} => [0x{:x}]", p, val);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = p;
         }
@@ -2423,6 +2571,10 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
                 mode,
                 size
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }

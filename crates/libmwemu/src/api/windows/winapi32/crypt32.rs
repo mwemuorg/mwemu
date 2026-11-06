@@ -1,3 +1,4 @@
+use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::serialization;
 use crate::winapi::helper;
@@ -17,17 +18,27 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertFindCertificateInStore" => CertFindCertificateInStore(emu),
         "CertFreeCertificateContext" => CertFreeCertificateContext(emu),
         "CertAddCRLContextToStore" => {
-            let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CertAddCRLContextToStore ctx:0x{:x}", cert_ctx);
+            let h_cert_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_crl_ctx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_add_disposition =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pp_store_ctx = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CertAddCRLContextToStore 0x{:x}", h_cert_store);
+            let handle = helper::handler_create("CertAddCRLContextToStore");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CertAddCRLLinkToStore" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertAddCRLLinkToStore ctx:0x{:x}", cert_ctx);
+            let handle = helper::handler_create("CertAddCRLLinkToStore");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -35,17 +46,27 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CertAddCTLContextToStore" => {
-            let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CertAddCTLContextToStore ctx:0x{:x}", cert_ctx);
+            let h_cert_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_ctl_ctx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_add_disposition =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pp_store_ctx = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CertAddCTLContextToStore 0x{:x}", h_cert_store);
+            let handle = helper::handler_create("CertAddCTLContextToStore");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CertAddCTLLinkToStore" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertAddCTLLinkToStore ctx:0x{:x}", cert_ctx);
+            let handle = helper::handler_create("CertAddCTLLinkToStore");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -80,6 +101,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertAddCertificateLinkToStore ctx:0x{:x}",
                 cert_ctx
             );
+            let handle = helper::handler_create("CertAddCertificateLinkToStore");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -89,6 +111,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertAddEncodedCRLToStore" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertAddEncodedCRLToStore ctx:0x{:x}", cert_ctx);
+            let handle = helper::handler_create("CertAddEncodedCRLToStore");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -98,6 +121,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertAddEncodedCTLToStore" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertAddEncodedCTLToStore ctx:0x{:x}", cert_ctx);
+            let handle = helper::handler_create("CertAddEncodedCTLToStore");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -133,6 +157,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertAddEnhancedKeyUsageIdentifier ctx:0x{:x}",
                 cert_ctx
             );
+            let handle = helper::handler_create("CertAddEnhancedKeyUsageIdentifier");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -146,6 +171,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertAddRefServerOcspResponse ctx:0x{:x}",
                 cert_ctx
             );
+            let handle = helper::handler_create("CertAddRefServerOcspResponse");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -159,6 +185,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertAddRefServerOcspResponseContext ctx:0x{:x}",
                 cert_ctx
             );
+            let handle = helper::handler_create("CertAddRefServerOcspResponseContext");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -172,6 +199,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertAddSerializedElementToStore ctx:0x{:x}",
                 cert_ctx
             );
+            let handle = helper::handler_create("CertAddSerializedElementToStore");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -181,6 +209,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertAddStoreToCollection" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertAddStoreToCollection ctx:0x{:x}", cert_ctx);
+            let handle = helper::handler_create("CertAddStoreToCollection");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -190,6 +219,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertAlgIdToOID" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertAlgIdToOID ctx:0x{:x}", cert_ctx);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -203,6 +236,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertCloseServerOcspResponse ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -210,24 +247,48 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CertCompareCertificate" => {
-            let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CertCompareCertificate ctx:0x{:x}", cert_ctx);
+            let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cert_id1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_cert_id2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CertCompareCertificate dw_cert_encoding:0x{:x} p_cert_id1:0x{:x} p_cert_id2:0x{:x}",
+                dw_cert_encoding,
+                p_cert_id1,
+                p_cert_id2
+            );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CertCompareCertificateName" => {
-            let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_name1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_name2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CertCompareCertificateName ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertCompareCertificateName dw_cert_encoding:0x{:x} p_name1:0x{:x} p_name2:0x{:x}",
+                dw_cert_encoding,
+                p_name1,
+                p_name2
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
@@ -235,7 +296,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertCompareIntegerBlob ctx:0x{:x}", cert_ctx);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -244,7 +311,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertComparePublicKeyInfo ctx:0x{:x}", cert_ctx);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -253,7 +326,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertControlStore ctx:0x{:x}", cert_ctx);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -319,21 +398,21 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = helper::handler_create("CertCreateCertificateChainEngine");
         }
         "CertCreateCertificateContext" => {
-            let esp = emu.regs().get_esp();
-            let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-            let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_cert_encoded = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let cb_cert_encoded = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CertCreateCertificateContext arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
-                arg1,
-                arg2,
-                arg3
+                "crypt32!CertCreateCertificateContext dw_cert_encoding:0x{:x} pb_cert_encoded:0x{:x} cb_cert_encoded:0x{:x}",
+                dw_cert_encoding,
+                pb_cert_encoded,
+                cb_cert_encoded
             );
-            emu.regs_mut().rax = helper::handler_create("CertCreateCertificateContext");
+            let hndl = helper::handler_create("CertCreateCertificateContext");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..3 {
+                emu.stack_pop32(false);
+            }
         }
         "CertCreateContext" => {
             let esp = emu.regs().get_esp();
@@ -382,6 +461,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertDeleteCRLFromStore" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertDeleteCRLFromStore ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -391,6 +474,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertDeleteCTLFromStore" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertDeleteCTLFromStore ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -404,6 +491,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertDeleteCertificateFromStore ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -541,6 +632,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 store,
                 prev_ctx
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -639,50 +734,42 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = helper::handler_create("CertFindAttribute");
         }
         "CertFindCRLInStore" => {
-            let esp = emu.regs().get_esp();
-            let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-            let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-            let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
-            let arg5 = emu.maps.read_dword(esp + 20).unwrap_or(0) as u64;
-            let arg6 = emu.maps.read_dword(esp + 24).unwrap_or(0) as u64;
-            for _ in 0..6u32 {
+            let h_cert_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_find_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_find_type = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pv_find_para = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let p_prev_crl_ctx = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CertFindCRLInStore 0x{:x}", h_cert_store);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
-            log_red!(
-                emu,
-                "crypt32!CertFindCRLInStore arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
-                arg1,
-                arg2,
-                arg3,
-                arg4,
-                arg5,
-                arg6
-            );
-            emu.regs_mut().rax = helper::handler_create("CertFindCRLInStore");
         }
         "CertFindCTLInStore" => {
-            let esp = emu.regs().get_esp();
-            let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-            let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-            let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
-            let arg5 = emu.maps.read_dword(esp + 20).unwrap_or(0) as u64;
-            let arg6 = emu.maps.read_dword(esp + 24).unwrap_or(0) as u64;
-            for _ in 0..6u32 {
+            let h_cert_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_msg_and_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_find_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_find_type = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pv_find_para = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let p_prev_ctl_ctx = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CertFindCTLInStore 0x{:x}", h_cert_store);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
-            log_red!(
-                emu,
-                "crypt32!CertFindCTLInStore arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",
-                arg1,
-                arg2,
-                arg3,
-                arg4,
-                arg5,
-                arg6
-            );
-            emu.regs_mut().rax = helper::handler_create("CertFindCTLInStore");
         }
         "CertFindCertificateInCRL" => {
             let esp = emu.regs().get_esp();
@@ -799,6 +886,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertFreeCRLContext" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertFreeCRLContext ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -808,6 +899,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertFreeCTLContext" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertFreeCTLContext ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -826,6 +921,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertFreeCertificateChainEngine ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -839,6 +938,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertFreeCertificateChainList ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -897,7 +1000,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let add_store = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             let chain_para = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
             let flags = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let chain_ctx_ptr = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            let _reserved = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            let chain_ctx_ptr = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
             let hndl = helper::handler_create("cert_chain");
             if chain_ctx_ptr != 0 {
                 emu.maps.write_dword(chain_ctx_ptr, hndl as u32);
@@ -914,24 +1018,38 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CertGetCertificateContextProperty" => {
-            let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_prop_id = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pv_data = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pcb_data = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CertGetCertificateContextProperty ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertGetCertificateContextProperty 0x{:x}",
+                p_cert_ctx
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CertGetEnhancedKeyUsage" => {
-            let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CertGetEnhancedKeyUsage ctx:0x{:x}", cert_ctx);
+            let p_cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_usage = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pcb_usage = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CertGetEnhancedKeyUsage 0x{:x}", p_cert_ctx);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
@@ -945,23 +1063,21 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CertGetIssuerCertificateFromStore" => {
-            let esp = emu.regs().get_esp();
-            let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-            let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-            let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            let h_cert_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_subject_ctx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_prev_issuer_ctx =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pdw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CertGetIssuerCertificateFromStore arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
-                arg1,
-                arg2,
-                arg3,
-                arg4
+                "crypt32!CertGetIssuerCertificateFromStore 0x{:x}",
+                h_cert_store
             );
-            emu.regs_mut().rax = helper::handler_create("CertGetIssuerCertificateFromStore");
+            let hndl = helper::handler_create("CertGetIssuerCertificateFromStore");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..4 {
+                emu.stack_pop32(false);
+            }
         }
         "CertGetNameString" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -1039,7 +1155,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 cert_ctx
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -1061,7 +1183,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 cert_ctx
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -1082,6 +1210,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertNameToStr" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertNameToStr ctx:0x{:x}", cert_ctx);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1091,6 +1223,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertOIDToAlgId" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertOIDToAlgId ctx:0x{:x}", cert_ctx);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1132,6 +1268,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertRDNValueToStr" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertRDNValueToStr ctx:0x{:x}", cert_ctx);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1167,6 +1307,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertRemoveEnhancedKeyUsageIdentifier ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1180,6 +1324,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertRemoveStoreFromCollection ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1211,6 +1359,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSelectCertificate" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSelectCertificate ctx:0x{:x}", cert_ctx);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1224,6 +1376,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertSelectCertificateChains ctx:0x{:x}",
                 cert_ctx
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1309,15 +1465,22 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CertSetCertificateContextProperty" => {
-            let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_prop_id = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pv_data = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CertSetCertificateContextProperty ctx:0x{:x}",
-                cert_ctx
+                "crypt32!CertSetCertificateContextProperty 0x{:x}",
+                p_cert_ctx
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
@@ -1342,6 +1505,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSrvBackupClose" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvBackupClose ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1351,6 +1518,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSrvBackupEnd" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvBackupEnd ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1360,6 +1531,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSrvBackupFree" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvBackupFree ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1408,6 +1583,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSrvBackupOpenFileW" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvBackupOpenFileW ctx:0x{:x}", cert_ctx);
+            let handle = helper::handler_create("CertSrvBackupOpenFileW");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1417,6 +1593,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSrvBackupPrepareW" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvBackupPrepareW ctx:0x{:x}", cert_ctx);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1439,6 +1619,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertSrvBackupTruncateLogs ctx:0x{:x}",
                 cert_ctx
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1449,7 +1633,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvIsServerOnlineW ctx:0x{:x}", cert_ctx);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -1457,6 +1647,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSrvRestoreEnd" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvRestoreEnd ctx:0x{:x}", cert_ctx);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1524,7 +1718,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertSrvServerControlW ctx:0x{:x}", cert_ctx);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -1532,6 +1732,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertStrToName" => {
             let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CertStrToName ctx:0x{:x}", cert_ctx);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1545,6 +1749,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertUnregisterPhysicalStore ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1558,6 +1766,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CertUnregisterSystemStore ctx:0x{:x}",
                 cert_ctx
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1688,6 +1900,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptBinaryToString" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptBinaryToString arg1:0x{:x}", arg1);
+            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1695,100 +1911,164 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptCATAdminAcquireContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATAdminAcquireContext arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
+            let ph_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pg_subsystem = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATAdminAcquireContext ph_cat_admin:0x{:x} pg_subsystem:0x{:x} dw_flags:0x{:x}",
+                ph_cat_admin,
+                pg_subsystem,
+                dw_flags
+            );
+            let hndl = helper::handler_create("CryptCATAdminAcquireContext");
+            if ph_cat_admin != 0 {
+                emu.maps.write_dword(ph_cat_admin, hndl as u32);
+            }
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminAcquireContext2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let ph_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pg_subsystem = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pwsz_hash_alg = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let p_strong_hash_policy =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminAcquireContext2 arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATAdminAcquireContext2 0x{:x}",
+                ph_cat_admin
             );
-            emu.set_last_error(0);
+            let hndl = helper::handler_create("CryptCATAdminAcquireContext2");
+            if ph_cat_admin != 0 {
+                emu.maps.write_dword(ph_cat_admin, hndl as u32);
+            }
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminAddCatalog" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATAdminAddCatalog arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pwsz_catalog_file =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pwsz_select_base_name =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptCATAdminAddCatalog 0x{:x}", h_cat_admin);
+            let hndl = helper::handler_create("CryptCATAdminAddCatalog");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminCalcHashFromFileHandle" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_file = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pcb_hash = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pb_hash = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminCalcHashFromFileHandle arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATAdminCalcHashFromFileHandle 0x{:x}",
+                h_file
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminCalcHashFromFileHandle2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_file = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pcb_hash = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pb_hash = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminCalcHashFromFileHandle2 arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATAdminCalcHashFromFileHandle2 0x{:x}",
+                h_cat_admin
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminEnumCatalogFromHash" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_hash = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let cb_hash = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminEnumCatalogFromHash arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATAdminEnumCatalogFromHash 0x{:x}",
+                h_cat_admin
             );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let hndl = helper::handler_create("CryptCATAdminEnumCatalogFromHash");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminReleaseCatalogContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_cat_info = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminReleaseCatalogContext arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATAdminReleaseCatalogContext h_cat_admin:0x{:x} h_cat_info:0x{:x} dw_flags:0x{:x}",
+                h_cat_admin,
+                h_cat_info,
+                dw_flags
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminReleaseContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATAdminReleaseContext arg1:0x{:x}", arg1);
+            let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATAdminReleaseContext h_cat_admin:0x{:x} dw_flags:0x{:x}",
+                h_cat_admin,
+                dw_flags
+            );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..2 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATAdminRemoveCatalog" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptCATAdminRemoveCatalog arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1796,21 +2076,34 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptCATAdminResolveCatalogPath" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pwsz_catalog_file =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_resolve_info = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATAdminResolveCatalogPath arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATAdminResolveCatalogPath h_cat_admin:0x{:x} pwsz_catalog_file:0x{:x} p_resolve_info:0x{:x}",
+                h_cat_admin,
+                pwsz_catalog_file,
+                p_resolve_info
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATCDFClose" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptCATCDFClose arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1818,69 +2111,113 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptCATCDFEnumAttributesWithCDFTag" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cdf = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pwsz_member_tag = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_member = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let p_prev_attr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pfn_parse_error =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATCDFEnumAttributesWithCDFTag arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATCDFEnumAttributesWithCDFTag 0x{:x}",
+                p_cdf
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATCDFEnumCatAttributes" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cdf = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_prev_attr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pfn_parse_error = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATCDFEnumCatAttributes arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATCDFEnumCatAttributes p_cdf:0x{:x} p_prev_attr:0x{:x} pfn_parse_error:0x{:x}",
+                p_cdf,
+                p_prev_attr,
+                pfn_parse_error
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATCDFEnumMembersByCDFTagEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cdf = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pwsz_prev_tag = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pfn_parse_error = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pp_member = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let f_continue_on_error =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATCDFEnumMembersByCDFTagEx arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATCDFEnumMembersByCDFTagEx 0x{:x}",
+                p_cdf
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATCDFOpen" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATCDFOpen arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let pwsz_file_path = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pfn_parse_error = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATCDFOpen pwsz_file_path:0x{:x} pfn_parse_error:0x{:x}",
+                pwsz_file_path,
+                pfn_parse_error
+            );
+            let hndl = helper::handler_create("CryptCATCDFOpen");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..2 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATCatalogInfoFromContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_cat_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cat_info = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptCATCatalogInfoFromContext arg1:0x{:x}",
-                arg1
+                "crypt32!CryptCATCatalogInfoFromContext h_cat_info:0x{:x} p_cat_info:0x{:x} dw_flags:0x{:x}",
+                h_cat_info,
+                p_cat_info,
+                dw_flags
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATClose" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptCATClose arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1888,62 +2225,125 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptCATEnumerateAttr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATEnumerateAttr arg1:0x{:x}", arg1);
+            let h_catalog = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cat_member = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_prev_attr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATEnumerateAttr h_catalog:0x{:x} p_cat_member:0x{:x} p_prev_attr:0x{:x}",
+                h_catalog,
+                p_cat_member,
+                p_prev_attr
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATEnumerateCatAttr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATEnumerateCatAttr arg1:0x{:x}", arg1);
+            let h_catalog = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_prev_attr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATEnumerateCatAttr h_catalog:0x{:x} p_prev_attr:0x{:x}",
+                h_catalog,
+                p_prev_attr
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..2 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATEnumerateMember" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATEnumerateMember arg1:0x{:x}", arg1);
+            let h_catalog = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_prev_member = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATEnumerateMember h_catalog:0x{:x} p_prev_member:0x{:x}",
+                h_catalog,
+                p_prev_member
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..2 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATGetAttrInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATGetAttrInfo arg1:0x{:x}", arg1);
+            let h_catalog = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_cat_member = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pwsz_ref_tag = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATGetAttrInfo h_catalog:0x{:x} p_cat_member:0x{:x} pwsz_ref_tag:0x{:x}",
+                h_catalog,
+                p_cat_member,
+                pwsz_ref_tag
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATGetMemberInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATGetMemberInfo arg1:0x{:x}", arg1);
+            let h_catalog = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pwsz_ref_tag = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_cat_member = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptCATGetMemberInfo h_catalog:0x{:x} pwsz_ref_tag:0x{:x} p_cat_member:0x{:x}",
+                h_catalog,
+                pwsz_ref_tag,
+                p_cat_member
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptCATOpen" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptCATOpen arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let pwsz_file_name = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let fdw_open_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let h_prov = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_public_version =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let dw_encoded_msg_type =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptCATOpen 0x{:x}", pwsz_file_name);
+            let hndl = helper::handler_create("CryptCATOpen");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptContextAddRef" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptContextAddRef arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptContextAddRef");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -1978,6 +2378,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 h_key
             );
             let h_hash = helper::handler_create(&format!("hash:{}", alg_name));
+            crypto_state::create_hash(h_hash, algid);
             if h_hash_ptr != 0 {
                 emu.maps.write_dword(h_hash_ptr, h_hash as u32);
             }
@@ -1990,6 +2391,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CryptCreateKeyIdentifierFromCSP arg1:0x{:x}",
                 arg1
             );
+            let handle = helper::handler_create("CryptCreateKeyIdentifierFromCSP");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2006,42 +2408,101 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptDecodeObject" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptDecodeObject arg1:0x{:x}", arg1);
+            let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let lpsz_struct_type =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let cb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pv_struct_info = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let pcb_struct_info =
+                emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptDecodeObject 0x{:x}", dw_cert_encoding);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..7 {
                 emu.stack_pop32(false);
             }
         }
         "CryptDecrypt" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptDecrypt arg1:0x{:x}", arg1);
+            let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_hash = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let is_final = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+            let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pdw_data_len = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptDecrypt key:0x{:x} hash:0x{:x} final:{} flags:0x{:x} data:0x{:x}",
+                h_key,
+                h_hash,
+                is_final,
+                dw_flags,
+                pb_data
+            );
+            if pb_data != 0 && pdw_data_len != 0 {
+                let data_len = emu.maps.read_dword(pdw_data_len).unwrap_or(0) as usize;
+                let len = data_len.min(0x100_0000);
+                if len > 0 {
+                    let mut data = emu.maps.read_bytes(pb_data, len).to_vec();
+                    crypto_state::decrypt_data(h_key, &mut data);
+                    emu.maps.write_bytes(pb_data, &data);
+                }
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6u32 {
                 emu.stack_pop32(false);
             }
         }
         "CryptDecryptAndVerifyMessageSignature" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_decrypt_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_verify_para = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_signer_index = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pb_encrypted_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let cb_encrypted_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let ppb_decrypted = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptDecryptAndVerifyMessageSignature arg1:0x{:x}",
-                arg1
+                "crypt32!CryptDecryptAndVerifyMessageSignature 0x{:x}",
+                p_decrypt_para
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
         }
         "CryptDecryptMessage" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptDecryptMessage arg1:0x{:x}", arg1);
+            let p_decrypt_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_encrypted_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let cb_encrypted_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptDecryptMessage p_decrypt_para:0x{:x} pb_encrypted_blob:0x{:x} cb_encrypted_blob:0x{:x}",
+                p_decrypt_para,
+                pb_encrypted_blob,
+                cb_encrypted_blob
+            );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
@@ -2062,6 +2523,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 h_hash
             );
             let h_key = helper::handler_create(&format!("derivedkey:0x{:x}", algid));
+            crypto_state::derive_key_from_hash(h_key, h_hash, algid);
             if h_key_ptr != 0 {
                 emu.maps.write_dword(h_key_ptr, h_key as u32);
             }
@@ -2074,6 +2536,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
             log_red!(emu, "crypt32!CryptDestroyHash hash: 0x{:x}", h_hash);
             if h_hash != 0 {
+                crypto_state::destroy_hash(h_hash);
                 helper::handler_close(h_hash);
             }
             emu.regs_mut().rax = 1; // TRUE
@@ -2085,6 +2548,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
             log_red!(emu, "crypt32!CryptDestroyKey key: 0x{:x}", h_key);
             if h_key != 0 {
+                crypto_state::destroy_key(h_key);
                 helper::handler_close(h_key);
             }
             emu.regs_mut().rax = 1; // TRUE
@@ -2101,6 +2565,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptDuplicateKey" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptDuplicateKey arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptDuplicateKey");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2108,11 +2573,21 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptEncodeObject" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptEncodeObject arg1:0x{:x}", arg1);
+            let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let lpsz_struct_type =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pv_struct_info = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pcb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptEncodeObject 0x{:x}", dw_cert_encoding);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
         }
@@ -2121,6 +2596,9 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let struct_type = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             let struct_info = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             let flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let p_encode_para = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pv_encoded = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let pcb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
             log_red!(
                 emu,
                 "crypt32!CryptEncodeObjectEx enc:0x{:x} type:0x{:x} flags:0x{:x}",
@@ -2128,24 +2606,56 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 struct_type,
                 flags
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..4u32 {
+            for _ in 0..7u32 {
                 emu.stack_pop32(false);
             }
         }
         "CryptEncrypt" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptEncrypt arg1:0x{:x}", arg1);
+            let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_hash = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let is_final = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+            let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pdw_data_len = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let dw_buf_len = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptEncrypt key:0x{:x} hash:0x{:x} final:{} flags:0x{:x} data:0x{:x} buf:{}",
+                h_key,
+                h_hash,
+                is_final,
+                dw_flags,
+                pb_data,
+                dw_buf_len
+            );
+            if pb_data != 0 && pdw_data_len != 0 {
+                let data_len = emu.maps.read_dword(pdw_data_len).unwrap_or(0) as usize;
+                let len = data_len.min(0x100_0000);
+                if len > 0 {
+                    let mut data = emu.maps.read_bytes(pb_data, len).to_vec();
+                    crypto_state::encrypt_data(h_key, &mut data);
+                    emu.maps.write_bytes(pb_data, &data);
+                }
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..7u32 {
                 emu.stack_pop32(false);
             }
         }
         "CryptEncryptMessage" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptEncryptMessage arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2202,11 +2712,27 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptExportKey" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptExportKey arg1:0x{:x}", arg1);
+            let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_exp_key = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_blob_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+            let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pdw_data_len = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptExportKey key:0x{:x} exp:0x{:x} type:{} flags:0x{:x}",
+                h_key,
+                h_exp_key,
+                dw_blob_type,
+                dw_flags
+            );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6u32 {
                 emu.stack_pop32(false);
             }
         }
@@ -2229,20 +2755,45 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptExportPublicKeyInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptExportPublicKeyInfo arg1:0x{:x}", arg1);
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_key_spec = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let p_info = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pcb_info = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptExportPublicKeyInfo 0x{:x}", h_crypt_prov);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptExportPublicKeyInfoEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptExportPublicKeyInfoEx arg1:0x{:x}", arg1);
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_key_spec = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let psz_public_key_obj_id =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pv_aux_info = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let p_info = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptExportPublicKeyInfoEx 0x{:x}",
+                h_crypt_prov
+            );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..7 {
                 emu.stack_pop32(false);
             }
         }
@@ -2282,17 +2833,33 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptFindOIDInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptFindOIDInfo arg1:0x{:x}", arg1);
+            let dw_key_type = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pv_key = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_group_id = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptFindOIDInfo dw_key_type:0x{:x} pv_key:0x{:x} dw_group_id:0x{:x}",
+                dw_key_type,
+                pv_key,
+                dw_group_id
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptFormatObject" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptFormatObject arg1:0x{:x}", arg1);
+            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if src != 0 && emu.maps.is_mapped(src) {
+                let _input = emu.maps.read_string(src);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2302,6 +2869,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptFreeOIDFunctionAddress" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptFreeOIDFunctionAddress arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptFreeOIDFunctionAddress");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2324,6 +2892,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 flags
             );
             let h_key = helper::handler_create(&format!("cryptkey:0x{:x}", algid));
+            let key_bits = flags >> 16;
+            crypto_state::create_key(h_key, algid, key_bits);
             if h_key_ptr != 0 {
                 emu.maps.write_dword(h_key_ptr, h_key as u32);
             }
@@ -2343,6 +2913,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 len,
                 buffer
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if buffer != 0 {
                 for i in 0..len {
                     let byte = ((emu.pos as u32)
@@ -2369,6 +2943,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CryptGetDefaultOIDFunctionAddress arg1:0x{:x}",
                 arg1
             );
+            let handle = helper::handler_create("CryptGetDefaultOIDFunctionAddress");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2399,44 +2974,16 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 param,
                 data_ptr
             );
-            match param {
-                1 => {
-                    // HP_ALGID
-                    if data_ptr != 0 {
-                        emu.maps.write_dword(data_ptr, 0x8004);
-                    }
-                    if data_len_ptr != 0 {
-                        emu.maps.write_dword(data_len_ptr, 4);
-                    }
-                    emu.regs_mut().rax = 1;
+            if let Some(result) = crypto_state::get_hash_param(h_hash, param) {
+                if data_ptr != 0 {
+                    emu.maps.write_bytes(data_ptr, &result);
                 }
-                2 => {
-                    // HP_HASHSIZE
-                    if data_ptr != 0 {
-                        emu.maps.write_dword(data_ptr, 20);
-                    }
-                    if data_len_ptr != 0 {
-                        emu.maps.write_dword(data_len_ptr, 4);
-                    }
-                    emu.regs_mut().rax = 1;
+                if data_len_ptr != 0 {
+                    emu.maps.write_dword(data_len_ptr, result.len() as u32);
                 }
-                3 => {
-                    // HP_HASHVAL
-                    let hash_size: u32 = 20;
-                    if data_ptr != 0 {
-                        for i in 0..hash_size {
-                            let byte = ((h_hash as u32).wrapping_mul(31).wrapping_add(i)) as u8;
-                            emu.maps.write_byte(data_ptr + i as u64, byte);
-                        }
-                    }
-                    if data_len_ptr != 0 {
-                        emu.maps.write_dword(data_len_ptr, hash_size);
-                    }
-                    emu.regs_mut().rax = 1;
-                }
-                _ => {
-                    emu.regs_mut().rax = 0;
-                }
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
             }
         }
         "CryptGetKeyIdentifierProperty" => {
@@ -2453,11 +3000,30 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptGetKeyParam" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptGetKeyParam arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let param = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let data_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptGetKeyParam key:0x{:x} param:{} data:0x{:x}",
+                h_key,
+                param,
+                data_ptr
+            );
+            if let Some(result) = crypto_state::get_key_param(h_key, param) {
+                if data_ptr != 0 {
+                    emu.maps.write_bytes(data_ptr, &result);
+                }
+                if data_len_ptr != 0 {
+                    emu.maps.write_dword(data_len_ptr, result.len() as u32);
+                }
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+            for _ in 0..5u32 {
                 emu.stack_pop32(false);
             }
         }
@@ -2482,6 +3048,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptGetOIDFunctionAddress" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptGetOIDFunctionAddress arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptGetOIDFunctionAddress");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2498,11 +3065,22 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptGetObjectUrl" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptGetObjectUrl arg1:0x{:x}", arg1);
+            let psz_url_oid = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pv_para = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let p_url_array = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pcb_url_array = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let p_url_info = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let pcb_url_info = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            let pv_reserved = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptGetObjectUrl 0x{:x}", psz_url_oid);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..8 {
                 emu.stack_pop32(false);
             }
         }
@@ -2544,38 +3122,83 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             );
         }
         "CryptHashCertificate2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptHashCertificate2 arg1:0x{:x}", arg1);
+            let pwsz_hash_alg = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pv_reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let cb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pb_computed_hash =
+                emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptHashCertificate2 0x{:x}", pwsz_hash_alg);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
         }
         "CryptHashData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptHashData arg1:0x{:x}", arg1);
+            let h_hash = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_data_len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptHashData hash:0x{:x} data:0x{:x} len:{} flags:0x{:x}",
+                h_hash,
+                pb_data,
+                dw_data_len,
+                dw_flags
+            );
+            if pb_data != 0 && dw_data_len > 0 && dw_data_len < 0x100000 {
+                let data = emu.maps.read_bytes(pb_data, dw_data_len as usize).to_vec();
+                crypto_state::hash_data(h_hash, &data);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4u32 {
                 emu.stack_pop32(false);
             }
         }
         "CryptHashMessage" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptHashMessage arg1:0x{:x}", arg1);
+            let p_hash_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let f_detached_hash = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let c_to_be_hashed = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let rgb_pb_to_be_hashed =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let rgcb_to_be_hashed =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptHashMessage 0x{:x}", p_hash_para);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptHashPublicKeyInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptHashPublicKeyInfo arg1:0x{:x}", arg1);
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let algid = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let p_info = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pb_computed_hash =
+                emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptHashPublicKeyInfo 0x{:x}", h_crypt_prov);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
         }
@@ -2589,11 +3212,21 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptHashToBeSigned" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptHashToBeSigned arg1:0x{:x}", arg1);
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let cb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pb_computed_hash =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptHashToBeSigned 0x{:x}", h_crypt_prov);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
@@ -2616,6 +3249,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 h_pub_key
             );
             let h_key = helper::handler_create("importedkey");
+            crypto_state::create_key(h_key, 0x6801, data_len * 8);
             if h_key_ptr != 0 {
                 emu.maps.write_dword(h_key_ptr, h_key as u32);
             }
@@ -2624,6 +3258,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptImportPKCS8" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptImportPKCS8 arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptImportPKCS8");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2631,29 +3266,64 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptImportPublicKeyInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptImportPublicKeyInfo arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_info = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let ph_key = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptImportPublicKeyInfo 0x{:x}", h_crypt_prov);
+            let hndl = helper::handler_create("CryptImportPublicKeyInfo");
+            if ph_key != 0 {
+                emu.maps.write_dword(ph_key, hndl as u32);
+            }
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CryptImportPublicKeyInfoEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptImportPublicKeyInfoEx arg1:0x{:x}", arg1);
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_info = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let ai_key_alg = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pv_aux_info = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptImportPublicKeyInfoEx 0x{:x}",
+                h_crypt_prov
+            );
+            let handle = helper::handler_create("CryptImportPublicKeyInfoEx");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
         }
         "CryptImportPublicKeyInfoEx2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptImportPublicKeyInfoEx2 arg1:0x{:x}", arg1);
+            let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_info = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pv_aux_info = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let ph_key = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptImportPublicKeyInfoEx2 0x{:x}",
+                dw_cert_encoding
+            );
+            let handle = helper::handler_create("CryptImportPublicKeyInfoEx2");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
@@ -2669,6 +3339,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptInstallDefaultContext" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptInstallDefaultContext arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptInstallDefaultContext");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2682,6 +3353,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CryptInstallOIDFunctionAddress arg1:0x{:x}",
                 arg1
             );
+            let handle = helper::handler_create("CryptInstallOIDFunctionAddress");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2691,6 +3363,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptMemAlloc" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptMemAlloc arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptMemAlloc");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2700,6 +3373,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptMemFree" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptMemFree arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2709,6 +3386,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptMemRealloc" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptMemRealloc arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2738,11 +3419,20 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptMsgControl" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptMsgControl arg1:0x{:x}", arg1);
+            let h_crypt_msg = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_ctrl_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pv_ctrl_para = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptMsgControl 0x{:x}", h_crypt_msg);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
@@ -2767,6 +3457,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptMsgDuplicate" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptMsgDuplicate arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptMsgDuplicate");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -2774,11 +3465,22 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptMsgEncodeAndSignCTL" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptMsgEncodeAndSignCTL arg1:0x{:x}", arg1);
+            let dw_msg_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_ctl_info = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_sign_info = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptMsgEncodeAndSignCTL 0x{:x}",
+                dw_msg_encoding
+            );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
@@ -2813,49 +3515,47 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CryptMsgOpenToDecode" => {
-            let esp = emu.regs().get_esp();
-            let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-            let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-            let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
-            for _ in 0..4u32 {
+            let dw_msg_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_msg_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let p_recipient_info =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptMsgOpenToDecode 0x{:x}", dw_msg_encoding);
+            let hndl = helper::handler_create("CryptMsgOpenToDecode");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
-            log_red!(
-                emu,
-                "crypt32!CryptMsgOpenToDecode arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
-                arg1,
-                arg2,
-                arg3,
-                arg4
-            );
-            emu.regs_mut().rax = helper::handler_create("CryptMsgOpenToDecode");
         }
         "CryptMsgOpenToEncode" => {
-            let esp = emu.regs().get_esp();
-            let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-            let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-            let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
-            for _ in 0..4u32 {
+            let dw_msg_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_msg_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pv_msg_encode_info =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let psz_inner_content_obj_id =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptMsgOpenToEncode 0x{:x}", dw_msg_encoding);
+            let hndl = helper::handler_create("CryptMsgOpenToEncode");
+            emu.regs_mut().rax = hndl;
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
-            log_red!(
-                emu,
-                "crypt32!CryptMsgOpenToEncode arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
-                arg1,
-                arg2,
-                arg3,
-                arg4
-            );
-            emu.regs_mut().rax = helper::handler_create("CryptMsgOpenToEncode");
         }
         "CryptMsgSignCTL" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptMsgSignCTL arg1:0x{:x}", arg1);
+            let dw_msg_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_ctl_content = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let cb_ctl_content = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let p_sign_info = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptMsgSignCTL 0x{:x}", dw_msg_encoding);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
@@ -2872,6 +3572,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 cb_data,
                 f_final
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             if hmsg != 0 && pb_data != 0 && cb_data > 0 {
                 let mut buf = vec![0u8; cb_data as usize];
                 for i in 0..cb_data as u64 {
@@ -3000,27 +3704,46 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
         "CryptReleaseContext" => {
             let h_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "crypt32!CryptReleaseContext prov: 0x{:x}", h_prov);
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptReleaseContext prov: 0x{:x} flags: 0x{:x}",
+                h_prov,
+                dw_flags
+            );
             if h_prov != 0 {
                 helper::handler_close(h_prov);
             }
-            emu.regs_mut().rax = 1; // TRUE
+            emu.regs_mut().rax = 1;
+            for _ in 0..2u32 {
+                emu.stack_pop32(false);
+            }
         }
         "CryptRetrieveObjectByUrl" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptRetrieveObjectByUrl arg1:0x{:x}", arg1);
+            let psz_url = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let psz_object_oid = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_retrieve_flags =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_timeout = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let ppv_object = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let h_async_retrieve =
+                emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let p_credentials = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptRetrieveObjectByUrl 0x{:x}", psz_url);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..7 {
                 emu.stack_pop32(false);
             }
         }
         "CryptSIPAddProvider" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptSIPAddProvider arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptSIPAddProvider");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3028,53 +3751,124 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptSIPCreateIndirectData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSIPCreateIndirectData arg1:0x{:x}", arg1);
+            let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pcb_indirect_data =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_indirect_data = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPCreateIndirectData p_subject_info:0x{:x} pcb_indirect_data:0x{:x} p_indirect_data:0x{:x}",
+                p_subject_info,
+                pcb_indirect_data,
+                p_indirect_data
+            );
+            let handle = helper::handler_create("CryptSIPCreateIndirectData");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptSIPGetCaps" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSIPGetCaps arg1:0x{:x}", arg1);
+            let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_caps = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPGetCaps p_subject_info:0x{:x} p_caps:0x{:x}",
+                p_subject_info,
+                p_caps
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..2 {
                 emu.stack_pop32(false);
             }
         }
         "CryptSIPGetSignedDataMsg" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSIPGetSignedDataMsg arg1:0x{:x}", arg1);
+            let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pdw_encoding_type =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_index = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pcb_signed_data_msg =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pb_signed_data_msg =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPGetSignedDataMsg 0x{:x}",
+                p_subject_info
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptSIPLoad" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSIPLoad arg1:0x{:x}", arg1);
+            let pg_subject = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let p_sip_dispatch = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPLoad pg_subject:0x{:x} dw_flags:0x{:x} p_sip_dispatch:0x{:x}",
+                pg_subject,
+                dw_flags,
+                p_sip_dispatch
+            );
+            let handle = helper::handler_create("CryptSIPLoad");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
         "CryptSIPPutSignedDataMsg" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSIPPutSignedDataMsg arg1:0x{:x}", arg1);
+            let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_encoding_type =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pdw_index = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let cb_signed_data_msg =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pb_signed_data_msg =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPPutSignedDataMsg 0x{:x}",
+                p_subject_info
+            );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptSIPRemoveProvider" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptSIPRemoveProvider arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3082,11 +3876,23 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptSIPRemoveSignedDataMsg" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSIPRemoveSignedDataMsg arg1:0x{:x}", arg1);
+            let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_index = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPRemoveSignedDataMsg p_subject_info:0x{:x} dw_index:0x{:x} dw_reserved:0x{:x}",
+                p_subject_info,
+                dw_index,
+                dw_reserved
+            );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
@@ -3113,11 +3919,23 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptSIPVerifyIndirectData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSIPVerifyIndirectData arg1:0x{:x}", arg1);
+            let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_indirect_data = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptSIPVerifyIndirectData p_subject_info:0x{:x} p_indirect_data:0x{:x} dw_reserved:0x{:x}",
+                p_subject_info,
+                p_indirect_data,
+                dw_reserved
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..3 {
                 emu.stack_pop32(false);
             }
         }
@@ -3144,11 +3962,34 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptSetKeyParam" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSetKeyParam arg1:0x{:x}", arg1);
+            let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let param = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+            log_red!(
+                emu,
+                "crypt32!CryptSetKeyParam key:0x{:x} param:{} data:0x{:x}",
+                h_key,
+                param,
+                pb_data
+            );
+            if param == crypto_state::KP_ALGID
+                && pb_data != 0
+                && let Some(key_len_data) =
+                    crypto_state::get_key_param(h_key, crypto_state::KP_KEYLEN)
+            {
+                let key_len = u32::from_le_bytes([
+                    key_len_data[0],
+                    key_len_data[1],
+                    key_len_data[2],
+                    key_len_data[3],
+                ]) / 8;
+                let data = emu.maps.read_bytes(pb_data, key_len as usize).to_vec();
+                crypto_state::set_key_data(h_key, &data);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4u32 {
                 emu.stack_pop32(false);
             }
         }
@@ -3211,11 +4052,27 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptSignCertificate" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSignCertificate arg1:0x{:x}", arg1);
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_key_spec = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pb_encoded_to_be_signed =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let cb_encoded_to_be_signed =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let p_sign_algorithm =
+                emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let pv_hash_aux_info =
+                emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            let pb_signature = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptSignCertificate 0x{:x}", h_crypt_prov);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..8 {
                 emu.stack_pop32(false);
             }
         }
@@ -3250,26 +4107,49 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1; // TRUE
         }
         "CryptSignMessage" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSignMessage arg1:0x{:x}", arg1);
+            let p_sign_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let f_detached_signature =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let c_to_be_signed = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let rgb_pb_to_be_signed =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let rgcb_to_be_signed =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptSignMessage 0x{:x}", p_sign_para);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptSignMessageWithKey" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptSignMessageWithKey arg1:0x{:x}", arg1);
+            let p_sign_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_to_be_signed = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let cb_to_be_signed = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let ppb_signed_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptSignMessageWithKey 0x{:x}", p_sign_para);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CryptStringToBinary" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptStringToBinary arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3279,6 +4159,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUIDlgCertMgr" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUIDlgCertMgr arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3288,6 +4172,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUIDlgSelectCertificate" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUIDlgSelectCertificate arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3310,6 +4198,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUIDlgViewCertificate" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUIDlgViewCertificate arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3319,6 +4211,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUIDlgViewContext" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUIDlgViewContext arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3359,6 +4255,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CryptUIWizFreeDigitalSignContext arg1:0x{:x}",
                 arg1
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3368,6 +4268,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUIWizImport" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUIWizImport arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptUIWizImport");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3381,6 +4282,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CryptUninstallDefaultContext arg1:0x{:x}",
                 arg1
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3410,6 +4315,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUnprotectMemory" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUnprotectMemory arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3423,6 +4332,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "crypt32!CryptUnregisterDefaultOIDFunction arg1:0x{:x}",
                 arg1
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3432,6 +4345,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUnregisterOIDFunction" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUnregisterOIDFunction arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3441,6 +4358,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptUnregisterOIDInfo" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptUnregisterOIDInfo arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3457,72 +4378,138 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptVerifyCertificateSignature" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let cb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptVerifyCertificateSignature arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyCertificateSignature 0x{:x}",
+                h_crypt_prov
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
         "CryptVerifyCertificateSignatureEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_cert_encoding =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let dw_subject_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pv_subject = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let dw_issuer_type = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pv_issuer = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptVerifyCertificateSignatureEx arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyCertificateSignatureEx 0x{:x}",
+                h_crypt_prov
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..7 {
                 emu.stack_pop32(false);
             }
         }
         "CryptVerifyDetachedMessageHash" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_hash_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_detached_hash_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let cb_detached_hash_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let c_to_be_hashed = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let rgb_pb_to_be_hashed =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptVerifyDetachedMessageHash arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyDetachedMessageHash 0x{:x}",
+                p_hash_para
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptVerifyDetachedMessageSignature" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_verify_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_signer_index = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pb_detached_sign_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let cb_detached_sign_blob =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let c_to_be_signed = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let rgb_pb_to_be_signed =
+                emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
             log_red!(
                 emu,
-                "crypt32!CryptVerifyDetachedMessageSignature arg1:0x{:x}",
-                arg1
+                "crypt32!CryptVerifyDetachedMessageSignature 0x{:x}",
+                p_verify_para
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..6 {
                 emu.stack_pop32(false);
             }
         }
         "CryptVerifyMessageHash" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptVerifyMessageHash arg1:0x{:x}", arg1);
+            let p_hash_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let pb_hashed_blob = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let cb_hashed_blob = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let pb_to_be_hashed =
+                emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let pcb_to_be_hashed =
+                emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!CryptVerifyMessageHash 0x{:x}", p_hash_para);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..5 {
                 emu.stack_pop32(false);
             }
         }
         "CryptVerifyMessageSignature" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!CryptVerifyMessageSignature arg1:0x{:x}", arg1);
+            let p_verify_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let dw_signer_index = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let pb_signed_blob = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let cb_signed_blob = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let ppb_decoded = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+            let pcb_decoded = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+            let pp_signer_cert = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            log_red!(
+                emu,
+                "crypt32!CryptVerifyMessageSignature 0x{:x}",
+                p_verify_para
+            );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..7 {
                 emu.stack_pop32(false);
             }
         }
@@ -3551,6 +4538,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptXmlAddObject" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptXmlAddObject arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptXmlAddObject");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3560,6 +4548,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptXmlClose" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptXmlClose arg1:0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3569,6 +4561,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptXmlCreateReference" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptXmlCreateReference arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptXmlCreateReference");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3578,6 +4571,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptXmlDigestReference" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptXmlDigestReference arg1:0x{:x}", arg1);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3650,6 +4647,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptXmlImportPublicKey" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptXmlImportPublicKey arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptXmlImportPublicKey");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3659,6 +4657,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptXmlOpenToDecode" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptXmlOpenToDecode arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptXmlOpenToDecode");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3668,6 +4667,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptXmlOpenToEncode" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!CryptXmlOpenToEncode arg1:0x{:x}", arg1);
+            let handle = helper::handler_create("CryptXmlOpenToEncode");
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1 {
@@ -3702,11 +4702,18 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "PFXExportCertStore" => {
-            let blob = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "crypt32!PFXExportCertStore blob:0x{:x}", blob);
+            let h_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let p_pfx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let sz_password = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            log_red!(emu, "crypt32!PFXExportCertStore 0x{:x}", h_store);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1 {
+            for _ in 0..4 {
                 emu.stack_pop32(false);
             }
         }
@@ -3738,7 +4745,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let blob = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!PFXIsPFXBlob blob:0x{:x}", blob);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }
@@ -3747,7 +4760,13 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let blob = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "crypt32!PFXVerifyPassword blob:0x{:x}", blob);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
+
             for _ in 0..1 {
                 emu.stack_pop32(false);
             }

@@ -1,5 +1,6 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn IsCalendarLeapMonth(emu: &mut emu::Emu) {
     let locale = emu.regs().rcx;
     let calendar = emu.regs().rdx;
@@ -14,5 +15,10 @@ pub fn IsCalendarLeapMonth(emu: &mut emu::Emu) {
         month
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.regs_mut().rax = 0;
+    }
 }

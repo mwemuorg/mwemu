@@ -12,6 +12,10 @@ pub fn ParseApplicationUserModelId(emu: &mut emu::Emu) {
         param2,
         param3
     );
+    let src = emu.regs().rcx;
+    if src != 0 && emu.maps.is_mapped(src) {
+        let _input = emu.maps.read_string(src);
+    }
 
     emu.set_last_error(0);
     emu.regs_mut().rax = 15700;

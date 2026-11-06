@@ -3,19 +3,31 @@ use crate::winapi::helper;
 use crate::windows::constants;
 
 pub fn CryptCreateHash(emu: &mut emu::Emu) {
-    let hprov = emu.maps.read_dword(emu.regs().rsp).unwrap_or(0);
-    let algid = emu.maps.read_dword(emu.regs().rsp + 4).unwrap_or(0);
-    let hkey = emu.maps.read_dword(emu.regs().rsp + 8).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().rsp + 12).unwrap_or(0);
-    let ptr_hash = emu.maps.read_dword(emu.regs().rsp + 16).unwrap_or(0) as u64;
+    let hprov = emu.regs().rcx;
+    let algid = emu.regs().rdx as u32;
+    let hkey = emu.regs().r8;
+    let flags = emu.regs().r9 as u32;
+    let ptr_hash = emu
+        .maps
+        .read_qword(emu.regs().rsp + 0x28)
+        .unwrap_or(0);
 
     let alg_name = constants::get_cryptoalgorithm_name(algid);
 
-    log_red!(emu, "kernel32!CryptCreateHash alg:{}", alg_name);
-
-    emu.maps.write_dword(
-        ptr_hash,
-        helper::handler_create(&format!("alg://{}", alg_name)) as u32,
+    log_red!(
+        emu,
+        "kernel32!CryptCreateHash prov: 0x{:x} alg:{} key: 0x{:x} flags: 0x{:x}",
+        hprov,
+        alg_name,
+        hkey,
+        flags
     );
+
+    if ptr_hash != 0 {
+        emu.maps.write_qword(
+    ptr_hash,
+    helper::handler_create(&format!("alg://{}", alg_name)),
+        );
+    }
     emu.regs_mut().rax = 1;
 }

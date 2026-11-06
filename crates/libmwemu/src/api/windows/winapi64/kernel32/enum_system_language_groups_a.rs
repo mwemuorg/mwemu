@@ -7,6 +7,7 @@ pub fn EnumSystemLanguageGroupsA(emu: &mut emu::Emu) {
         "kernel32!EnumSystemLanguageGroupsA callback:0x{:x}",
         callback
     );
+    let _ = emu.maps.is_mapped(emu.regs().rcx);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

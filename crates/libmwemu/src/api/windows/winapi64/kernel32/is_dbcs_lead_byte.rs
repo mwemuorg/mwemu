@@ -1,5 +1,6 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn IsDBCSLeadByte(emu: &mut emu::Emu) {
     let test_char = emu.regs().rcx as u8;
     let is_lead = (0x81..=0x9f).contains(&test_char) || (0xe0..=0xfc).contains(&test_char);
@@ -9,6 +10,12 @@ pub fn IsDBCSLeadByte(emu: &mut emu::Emu) {
         test_char,
         is_lead
     );
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.regs_mut().rax = 0;
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = if is_lead { 1 } else { 0 };
 }

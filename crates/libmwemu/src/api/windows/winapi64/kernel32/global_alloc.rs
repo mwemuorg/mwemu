@@ -1,12 +1,10 @@
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
-
+use crate::winapi::helper;
 pub fn GlobalAlloc(emu: &mut emu::Emu) {
     let flags = emu.regs().rcx as u32;
     let size = emu.regs().rdx;
-
     let zeroinit = flags & 0x0040 != 0; // GMEM_ZEROINIT
-
     match heap_engine::heap_allocate(emu, 0, size) {
         Some(addr) => {
             if zeroinit {
@@ -19,6 +17,11 @@ pub fn GlobalAlloc(emu: &mut emu::Emu) {
                 size,
                 addr
             );
+            let handle = helper::handler_create("GlobalAlloc");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.regs_mut().rax = addr;
         }
         None => {

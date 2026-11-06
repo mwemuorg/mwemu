@@ -7,6 +7,9 @@ pub fn GetConsoleKeyboardLayoutNameA(emu: &mut emu::Emu) {
         "kernel32!GetConsoleKeyboardLayoutNameA ptr:0x{:x}",
         buf_ptr
     );
+    if emu.regs().rcx != 0 {
+        emu.maps.write_string(emu.regs().rcx, "00000409");
+    }
     if buf_ptr != 0 {
         emu.maps.write_string(buf_ptr, "00000409");
     }

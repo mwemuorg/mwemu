@@ -49,6 +49,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "FreeAddrInfoW" => {
             let info_ptr = emu.regs().rcx;
             log_red!(emu, "ws2_32!FreeAddrInfoW ptr:0x{:x}", info_ptr);
+            let handle = helper::handler_create("FreeAddrInfoW");
             if info_ptr != 0 {
                 let map_name = format!("addrinfo_{:x}", info_ptr);
                 emu.maps.free(&map_name);
@@ -84,6 +85,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetAddrInfoExCancel" => {
             let cancel_ptr = emu.regs().rcx;
             log_red!(emu, "ws2_32!GetAddrInfoExCancel ptr:0x{:x}", cancel_ptr);
+            let handle = helper::handler_create("GetAddrInfoExCancel");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -94,6 +96,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ws2_32!GetAddrInfoExOverlappedResult overlapped:0x{:x}",
                 overlapped_ptr
             );
+            let handle = helper::handler_create("GetAddrInfoExOverlappedResult");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -155,6 +158,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 name_ptr,
                 namelen
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             if name_ptr != 0 && namelen > 8 {
                 emu.maps.write_wide_string(name_ptr, "DESKTOP");
             }
@@ -172,6 +179,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 host_ptr,
                 hostlen
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             if host_ptr != 0 && hostlen > 10 {
                 emu.maps.write_wide_string(host_ptr, "localhost");
             }
@@ -189,6 +200,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 addr_ptr,
                 str_buf
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if family == 2 && addr_ptr != 0 && str_buf != 0 {
                 let ip = emu.maps.read_dword(addr_ptr).unwrap_or(0);
                 let a = ip & 0xFF;
@@ -246,6 +261,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 completion_port,
                 count
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -276,6 +295,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WEP" => {
             let reason = emu.regs().rcx;
             log_red!(emu, "ws2_32!WEP reason:{}", reason);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -291,6 +314,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 error,
                 bytes
             );
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -300,6 +327,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let path_len_ptr = emu.regs().r8;
             let flags = emu.regs().r9;
             log_red!(emu, "ws2_32!WPUGetProviderPathEx flags:{}", flags);
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -330,6 +361,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let proto_info_ptr = emu.regs().r8;
             let str_ptr = emu.regs().r9;
             log_red!(emu, "ws2_32!WSAAddressToStringA addr:0x{:x}", addr_ptr);
+            let handle = helper::handler_create("WSAAddressToStringA");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             if addr_ptr != 0 && str_ptr != 0 {
                 let ip = emu.maps.read_dword(addr_ptr + 4).unwrap_or(0x0100007f);
                 let port = emu.maps.read_word(addr_ptr + 2).unwrap_or(0).to_be();
@@ -351,6 +387,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let proto_info_ptr = emu.regs().r8;
             let str_ptr = emu.regs().r9;
             log_red!(emu, "ws2_32!WSAAddressToStringW addr:0x{:x}", addr_ptr);
+            let handle = helper::handler_create("WSAAddressToStringW");
+            let out_ptr = emu.regs().r9;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             if addr_ptr != 0 && str_ptr != 0 {
                 let ip = emu.maps.read_dword(addr_ptr + 4).unwrap_or(0x0100007f);
                 let port = emu.maps.read_word(addr_ptr + 2).unwrap_or(0).to_be();
@@ -375,6 +416,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 provider_id_ptr,
                 routine_ptr
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -515,12 +560,17 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WSACancelBlockingCall" => {
             let arg1 = emu.regs().rcx;
             log_red!(emu, "ws2_32!WSACancelBlockingCall 0x{:x}", arg1);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "WSACleanup" => {
             log_red!(emu, "ws2_32!WSACleanup");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -535,23 +585,66 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WSAConnect" => {
             let sock = emu.regs().rcx;
             let name_ptr = emu.regs().rdx;
-            let namelen = emu.regs().r8;
-            log_red!(emu, "ws2_32!WSAConnect sock:0x{:x}", sock);
+            let namelen = emu.regs().r8 as u32;
+            let caller_data_ptr = emu.regs().r9;
+            let callee_data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let sqos_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let gqos_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSAConnect sock:0x{:x} name:0x{:x} namelen:{} callerdata:0x{:x} calleedata:0x{:x} sqos:0x{:x} gqos:0x{:x}",
+                sock,
+                name_ptr,
+                namelen,
+                caller_data_ptr,
+                callee_data_ptr,
+                sqos_ptr,
+                gqos_ptr
+            );
             if !helper::socket_exist(sock) {
-                emu.set_last_error(0);
-                emu.regs_mut().rax = 0xFFFFFFFF;
+                emu.set_last_error(10038);
+                emu.regs_mut().rax = 0xFFFFFFFF_u64;
             } else {
+                if callee_data_ptr != 0 {
+                    emu.maps.write_qword(callee_data_ptr, 0);
+                    emu.maps.write_qword(callee_data_ptr + 8, 0);
+                }
                 emu.regs_mut().rax = 0;
             }
         }
         "WSAConnectByList" => {
             let sock = emu.regs().rcx;
             let addr_list_ptr = emu.regs().rdx;
-            log_red!(emu, "ws2_32!WSAConnectByList sock:0x{:x}", sock);
+            let local_addr_len_ptr = emu.regs().r8;
+            let local_addr_ptr = emu.regs().r9;
+            let remote_addr_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let remote_addr_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let timeout_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            let _reserved = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSAConnectByList sock:0x{:x} addrlist:0x{:x} localaddr:0x{:x} remoteaddr:0x{:x}",
+                sock,
+                addr_list_ptr,
+                local_addr_ptr,
+                remote_addr_ptr
+            );
             if !helper::socket_exist(sock) {
                 emu.set_last_error(10038);
                 emu.regs_mut().rax = 0;
             } else {
+                if local_addr_len_ptr != 0 {
+                    emu.maps.write_dword(local_addr_len_ptr, 16);
+                }
+                if local_addr_ptr != 0 {
+                    emu.maps.write_dword(local_addr_ptr, 2);
+                }
+                if remote_addr_len_ptr != 0 {
+                    emu.maps.write_dword(remote_addr_len_ptr, 16);
+                }
+                if remote_addr_ptr != 0 {
+                    emu.maps.write_dword(remote_addr_ptr, 2);
+                }
                 emu.regs_mut().rax = 1;
             }
         }
@@ -654,6 +747,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.regs().rcx;
             let buf_ptr = emu.regs().rdx;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersA");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -661,6 +758,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.regs().rcx;
             let buf_ptr = emu.regs().rdx;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersExA");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -668,6 +769,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.regs().rcx;
             let buf_ptr = emu.regs().rdx;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersExW");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -675,6 +780,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.regs().rcx;
             let buf_ptr = emu.regs().rdx;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersW");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -720,7 +829,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "WSAEventSelect" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSAEventSelect 0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSAEventSelect arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            if !helper::socket_exist(arg1) {
+                emu.set_last_error(10038);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
@@ -728,6 +848,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WSAGetLastError" => {
             let err = emu.get_last_error();
             log_red!(emu, "ws2_32!WSAGetLastError = {}", err);
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = err;
         }
@@ -752,6 +873,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let name_ptr = emu.regs().rdx;
             let qos_ptr = emu.regs().r8;
             log_red!(emu, "ws2_32!WSAGetQOSByName sock:0x{:x}", sock);
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -759,6 +884,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let provider_id = emu.regs().rcx;
             let class_id = emu.regs().rdx;
             log_red!(emu, "ws2_32!WSAGetServiceClassInfoA");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10109);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -766,18 +895,46 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let provider_id = emu.regs().rcx;
             let class_id = emu.regs().rdx;
             log_red!(emu, "ws2_32!WSAGetServiceClassInfoW");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10109);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
         "WSAGetServiceClassNameByClassIdA" => {
-            let class_id_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSAGetServiceClassNameByClassIdA");
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSAGetServiceClassNameByClassIdA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10109);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
         "WSAGetServiceClassNameByClassIdW" => {
-            let class_id_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSAGetServiceClassNameByClassIdW");
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSAGetServiceClassNameByClassIdW arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10109);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -818,6 +975,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSAInstallServiceClassA ptr:0x{:x}",
                 class_info_ptr
             );
+            let handle = helper::handler_create("WSAInstallServiceClassA");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -828,6 +986,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSAInstallServiceClassW ptr:0x{:x}",
                 class_info_ptr
             );
+            let handle = helper::handler_create("WSAInstallServiceClassW");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -851,6 +1010,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "WSAIsBlocking" => {
             log_red!(emu, "ws2_32!WSAIsBlocking");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -911,6 +1071,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSALookupServiceNextA handle:0x{:x}",
                 lookup_handle
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10110);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -922,6 +1086,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSALookupServiceNextW handle:0x{:x}",
                 lookup_handle
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(10110);
             emu.regs_mut().rax = 0xFFFFFFFF;
         }
@@ -934,6 +1102,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 lookup_handle,
                 control_code
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -977,6 +1149,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let nfds = emu.regs().rdx as u32;
             let timeout = emu.regs().r8 as i32;
             log_red!(emu, "ws2_32!WSAPoll nfds:{} timeout:{}", nfds, timeout);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -990,6 +1166,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 id,
                 result
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1071,15 +1251,23 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WSARemoveServiceClass" => {
             let class_id_ptr = emu.regs().rcx;
             log_red!(emu, "ws2_32!WSARemoveServiceClass ptr:0x{:x}", class_id_ptr);
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSAResetEvent" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSAResetEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let hEvent = emu.regs().rcx;
+            log_red!(emu, "ws2_32!WSAResetEvent 0x{:x}", hEvent);
+            if helper::handler_exist(hEvent) {
+                emu.set_last_error(0);
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.set_last_error(6);
+                emu.regs_mut().rax = 0;
+            }
         }
         "WSASend" => {
             let sock = emu.regs().rcx;
@@ -1163,18 +1351,24 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WSASetBlockingHook" => {
             let hook_fn = emu.regs().rcx;
             log_red!(emu, "ws2_32!WSASetBlockingHook hook:0x{:x}", hook_fn);
+            let handle = helper::handler_create("WSABlockingHook");
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            emu.regs_mut().rax = handle;
         }
         "WSASetEvent" => {
-            let arg1 = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSASetEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let hEvent = emu.regs().rcx;
+            log_red!(emu, "ws2_32!WSASetEvent 0x{:x}", hEvent);
+            if helper::handler_exist(hEvent) {
+                emu.set_last_error(0);
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.set_last_error(6);
+                emu.regs_mut().rax = 0;
+            }
         }
         "WSASetLastError" => {
             let error_code = emu.regs().rcx as u32;
+            helper::advance_tick(emu, 1);
             emu.set_last_error(error_code as u64);
             log_red!(emu, "ws2_32!WSASetLastError error: {}", error_code);
         }
@@ -1188,6 +1382,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 operation,
                 flags
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1201,6 +1399,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 operation,
                 flags
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1272,6 +1474,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSAUnadvertiseProvider id:0x{:x}",
                 provider_id_ptr
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1280,7 +1486,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             log_red!(emu, "ws2_32!WSAUnhookBlockingHook 0x{:x}", arg1);
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                emu.regs_mut().rax = 1;
+            } else {
+                emu.regs_mut().rax = 0;
+            }
         }
         "WSAWaitForMultipleEvents" => {
             let count = emu.regs().rcx as u32;
@@ -1294,6 +1505,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 wait_all,
                 timeout
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -1301,266 +1516,731 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WSApSetPostRoutine" => {
             let routine_ptr = emu.regs().rcx;
             log_red!(emu, "ws2_32!WSApSetPostRoutine routine:0x{:x}", routine_ptr);
+            if routine_ptr != 0 {
+                let _ = helper::handler_create("WSAPostRoutine");
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCDeinstallProvider" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCDeinstallProvider ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCDeinstallProvider arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCDeinstallProvider32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCDeinstallProvider32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCDeinstallProvider32 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCDeinstallProviderEx" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCDeinstallProviderEx ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCDeinstallProviderEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCEnableNSProvider" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCEnableNSProvider ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCEnableNSProvider arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("WSCEnableNSProvider");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCEnableNSProvider32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCEnableNSProvider32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCEnableNSProvider32 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("WSCEnableNSProvider32");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCEnumNameSpaceProviders32" => {
-            let err_ptr = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "ws2_32!WSCEnumNameSpaceProviders32 ptr:0x{:x}",
-                err_ptr
+                "ws2_32!WSCEnumNameSpaceProviders32 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCEnumNameSpaceProvidersEx32" => {
-            let err_ptr = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "ws2_32!WSCEnumNameSpaceProvidersEx32 ptr:0x{:x}",
-                err_ptr
+                "ws2_32!WSCEnumNameSpaceProvidersEx32 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCEnumProtocols" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCEnumProtocols ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSCEnumProtocols arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCEnumProtocols32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCEnumProtocols32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSCEnumProtocols32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCEnumProtocolsEx" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCEnumProtocolsEx ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSCEnumProtocolsEx arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCGetApplicationCategory" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCGetApplicationCategory ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCGetApplicationCategory arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCGetApplicationCategoryEx" => {
-            let err_ptr = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             log_red!(
                 emu,
-                "ws2_32!WSCGetApplicationCategoryEx ptr:0x{:x}",
-                err_ptr
+                "ws2_32!WSCGetApplicationCategoryEx arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCGetProviderInfo" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCGetProviderInfo ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCGetProviderInfo arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCGetProviderInfo32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCGetProviderInfo32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCGetProviderInfo32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCGetProviderPath" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCGetProviderPath ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSCGetProviderPath arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCGetProviderPath32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCGetProviderPath32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            log_red!(
+                emu,
+                "ws2_32!WSCGetProviderPath32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.regs().r8;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallNameSpace" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallNameSpace ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallNameSpace arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("WSCInstallNameSpace");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallNameSpace32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallNameSpace32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallNameSpace32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("WSCInstallNameSpace32");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallNameSpaceEx" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallNameSpaceEx ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallNameSpaceEx arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("WSCInstallNameSpaceEx");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallNameSpaceEx2" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallNameSpaceEx2 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallNameSpaceEx2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("WSCInstallNameSpaceEx2");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallNameSpaceEx32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallNameSpaceEx32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallNameSpaceEx32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("WSCInstallNameSpaceEx32");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallProvider" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallProvider ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallProvider arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("WSCInstallProvider");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallProvider64_32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallProvider64_32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallProvider64_32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("WSCInstallProvider64_32");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallProviderAndChains64_32" => {
-            let err_ptr = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
             log_red!(
                 emu,
-                "ws2_32!WSCInstallProviderAndChains64_32 ptr:0x{:x}",
-                err_ptr
+                "ws2_32!WSCInstallProviderAndChains64_32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let handle = helper::handler_create("WSCInstallProviderAndChains64_32");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCInstallProviderEx" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCInstallProviderEx ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCInstallProviderEx arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let handle = helper::handler_create("WSCInstallProviderEx");
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCSetApplicationCategory" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCSetApplicationCategory ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCSetApplicationCategory arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCSetApplicationCategoryEx" => {
-            let err_ptr = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
             log_red!(
                 emu,
-                "ws2_32!WSCSetApplicationCategoryEx ptr:0x{:x}",
-                err_ptr
+                "ws2_32!WSCSetApplicationCategoryEx arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCSetProviderInfo" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCSetProviderInfo ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCSetProviderInfo arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCSetProviderInfo32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCSetProviderInfo32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCSetProviderInfo32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCUnInstallNameSpace" => {
             let err_ptr = emu.regs().rcx;
             log_red!(emu, "ws2_32!WSCUnInstallNameSpace ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCUnInstallNameSpace");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCUnInstallNameSpace32" => {
             let err_ptr = emu.regs().rcx;
             log_red!(emu, "ws2_32!WSCUnInstallNameSpace32 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCUnInstallNameSpace32");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCUnInstallNameSpaceEx2" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCUnInstallNameSpaceEx2 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCUnInstallNameSpaceEx2 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let handle = helper::handler_create("WSCUnInstallNameSpaceEx2");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCUpdateProvider" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCUpdateProvider ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCUpdateProvider arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCUpdateProvider32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCUpdateProvider32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            let arg3 = emu.regs().r8;
+            let arg4 = emu.regs().r9;
+            let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+            log_red!(
+                emu,
+                "ws2_32!WSCUpdateProvider32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
+                arg1,
+                arg2,
+                arg3
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCUpdateProviderEx" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCUpdateProviderEx ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCUpdateProviderEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCWriteNameSpaceOrder" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCWriteNameSpaceOrder ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCWriteNameSpaceOrder arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCWriteNameSpaceOrder32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCWriteNameSpaceOrder32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCWriteNameSpaceOrder32 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCWriteProviderOrder" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCWriteProviderOrder ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCWriteProviderOrder arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCWriteProviderOrder32" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCWriteProviderOrder32 ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCWriteProviderOrder32 arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WSCWriteProviderOrderEx" => {
-            let err_ptr = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WSCWriteProviderOrderEx ptr:0x{:x}", err_ptr);
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WSCWriteProviderOrderEx arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1607,6 +2287,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1654,6 +2338,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1666,6 +2354,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1678,6 +2370,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1690,6 +2386,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1702,6 +2402,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1714,6 +2418,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1766,6 +2474,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("WahQueueUserApc");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1778,6 +2491,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1790,19 +2507,43 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.regs().rcx;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "WahWaitForNotification" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WahWaitForNotification 0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WahWaitForNotification arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "WahWriteLSPEvent" => {
             let arg1 = emu.regs().rcx;
-            log_red!(emu, "ws2_32!WahWriteLSPEvent 0x{:x}", arg1);
+            let arg2 = emu.regs().rdx;
+            log_red!(
+                emu,
+                "ws2_32!WahWriteLSPEvent arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
+            );
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
@@ -1811,12 +2552,20 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             let sock = emu.regs().rcx;
             let fd_set_ptr = emu.regs().rdx;
             log_red!(emu, "ws2_32!__WSAFDIsSet sock:0x{:x}", sock);
+            let val_ptr = emu.regs().rdx;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "freeaddrinfo" => {
             let pai = emu.regs().rcx;
             log_red!(emu, "ws2_32!freeaddrinfo ptr:0x{:x}", pai);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if pai != 0 {
                 let map_name = format!("addrinfo_{:x}", pai);
                 emu.maps.free(&map_name);
@@ -1835,6 +2584,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 len,
                 typ
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1847,6 +2600,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 name_ptr,
                 namelen
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if name_ptr != 0 && namelen > 7 {
                 emu.maps.write_string(name_ptr, "DESKTOP");
             }
@@ -1864,6 +2621,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 host,
                 hostlen
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if host != 0 && hostlen > 9 {
                 emu.maps.write_string(host, "localhost");
             }
@@ -1912,6 +2673,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "getprotobynumber" => {
             let proto = emu.regs().rcx as u32;
             log_red!(emu, "ws2_32!getprotobynumber proto:{}", proto);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -1970,6 +2735,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "htonl" => {
             let val = emu.regs().rcx as u32;
             log_red!(emu, "ws2_32!htonl val:0x{:x}", val);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = val.to_be() as u64;
         }
@@ -2010,6 +2779,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 addr_ptr,
                 str_buf
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if family == 2 && addr_ptr != 0 && str_buf != 0 {
                 // AF_INET
                 let ip = emu.maps.read_dword(addr_ptr).unwrap_or(0);
@@ -2083,12 +2856,20 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "ntohl" => {
             let val = emu.regs().rcx as u32;
             log_red!(emu, "ws2_32!ntohl val:0x{:x}", val);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = u32::from_be(val) as u64;
         }
         "ntohs" => {
             let val = emu.regs().rcx as u16;
             log_red!(emu, "ws2_32!ntohs val:0x{:x}", val);
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = u16::from_be(val) as u64;
         }
@@ -2104,6 +2885,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 readfds,
                 writefds
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
@@ -2120,12 +2905,19 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
         }
         "WSCInstallProviderAndChains" => {
-            let err_ptr = emu.regs().rcx;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
-                "ws2_32!WSCInstallProviderAndChains ptr:0x{:x}",
-                err_ptr
+                "ws2_32!WSCInstallProviderAndChains arg1:0x{:x} arg2:0x{:x}",
+                arg1,
+                arg2
             );
+            let handle = helper::handler_create("WSCInstallProviderAndChains");
+            let out_ptr = emu.regs().rdx;
+            if out_ptr != 0 {
+                emu.maps.write_qword(out_ptr, handle);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }

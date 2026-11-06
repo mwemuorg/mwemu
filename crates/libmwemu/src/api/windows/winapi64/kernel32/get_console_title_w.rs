@@ -5,6 +5,10 @@ pub fn GetConsoleTitleW(emu: &mut emu::Emu) {
     let size = emu.regs().rdx as u32;
 
     log_red!(emu, "kernel32!GetConsoleTitleW size:{}", size);
+    let out_ptr = emu.regs().rdx;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
 
     let title = "Windows Console";
     if buff_ptr != 0 && size > 0 {

@@ -10,6 +10,10 @@ pub fn GetCurrentDirectoryA(emu: &mut emu::Emu) {
         buff_len,
         buff_ptr
     );
+    let out_ptr = emu.regs().rdx;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
 
     let current_dir = emu.cfg.cwd_path.clone();
     let dir_byte_count = current_dir.len(); // Use len() for byte count in ANSI strings

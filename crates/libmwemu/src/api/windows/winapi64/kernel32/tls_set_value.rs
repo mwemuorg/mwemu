@@ -5,6 +5,10 @@ pub fn TlsSetValue(emu: &mut emu::Emu) {
     let val = emu.regs().rdx; // Second parameter in RDX
 
     log_red!(emu, "kernel32!TlsSetValue idx: {} val: 0x{:x}", idx, val);
+    let val_ptr = emu.regs().rdx;
+    if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+        let _val = emu.maps.read_string(val_ptr);
+    }
 
     if idx < emu.tls64().len() {
         emu.tls64_mut()[idx] = val;

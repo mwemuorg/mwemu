@@ -24,9 +24,9 @@ pub fn GetStringTypeW(emu: &mut emu::Emu) {
 
     if char_type_ptr != 0 {
         for i in 0..len {
-            let ch = ustr.chars().nth(i).unwrap_or('\0');
-            let ct: u16 = match info_type {
-                1 => {
+    let ch = ustr.chars().nth(i).unwrap_or('\0');
+    let ct: u16 = match info_type {
+        1 => {
                     // CT_CTYPE1
                     let mut flags = 0u16;
                     if ch.is_uppercase() {
@@ -54,11 +54,11 @@ pub fn GetStringTypeW(emu: &mut emu::Emu) {
                         flags = 0x0100; // default: alpha
                     }
                     flags
-                }
-                _ => 0,
-            };
-            emu.maps
-                .write_word(char_type_ptr + (i as u64) * 2, ct);
+        }
+        _ => 0,
+    };
+    emu.maps
+        .write_word(char_type_ptr + (i as u64) * 2, ct);
         }
     }
 

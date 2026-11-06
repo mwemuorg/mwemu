@@ -16,6 +16,10 @@ pub fn GetTempPathW(emu: &mut emu::Emu) {
         n_buffer_length,
         lp_buffer
     );
+    let out_ptr = emu.regs().rdx;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
 
     let temp_path = emu.cfg.temp_path.clone();
     let required_length = temp_path.len() as u32 + 1; // +1 for null terminator

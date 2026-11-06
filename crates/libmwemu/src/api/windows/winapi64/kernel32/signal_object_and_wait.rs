@@ -15,6 +15,10 @@ pub fn SignalObjectAndWait(emu: &mut emu::Emu) {
         millis,
         alertable
     );
+    let val_ptr = emu.regs().rdx;
+    if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+        let _val = emu.maps.read_string(val_ptr);
+    }
 
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);

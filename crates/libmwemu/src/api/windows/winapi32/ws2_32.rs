@@ -69,6 +69,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "FreeAddrInfoW" => {
             let info_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!FreeAddrInfoW ptr:0x{:x}", info_ptr);
+            let handle = helper::handler_create("FreeAddrInfoW");
             if info_ptr != 0 {
                 let map_name = format!("addrinfo_{:x}", info_ptr);
                 emu.maps.free(&map_name);
@@ -109,6 +110,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "GetAddrInfoExCancel" => {
             let cancel_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!GetAddrInfoExCancel ptr:0x{:x}", cancel_ptr);
+            let handle = helper::handler_create("GetAddrInfoExCancel");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -122,6 +124,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!GetAddrInfoExOverlappedResult overlapped:0x{:x}",
                 overlapped_ptr
             );
+            let handle = helper::handler_create("GetAddrInfoExOverlappedResult");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -191,6 +194,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 name_ptr,
                 namelen
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             if name_ptr != 0 && namelen > 8 {
                 emu.maps.write_wide_string(name_ptr, "DESKTOP");
             }
@@ -211,6 +218,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 host_ptr,
                 hostlen
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             if host_ptr != 0 && hostlen > 10 {
                 emu.maps.write_wide_string(host_ptr, "localhost");
             }
@@ -231,6 +242,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 addr_ptr,
                 str_buf
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             if family == 2 && addr_ptr != 0 && str_buf != 0 {
                 let ip = emu.maps.read_dword(addr_ptr).unwrap_or(0);
                 let a = ip & 0xFF;
@@ -298,6 +313,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 completion_port,
                 count
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -335,6 +354,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WEP" => {
             let reason = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
             log_red!(emu, "ws2_32!WEP reason:{}", reason);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
             for _ in 0..1u32 {
@@ -353,6 +376,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 error,
                 bytes
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..4u32 {
@@ -365,6 +392,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let path_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             let flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
             log_red!(emu, "ws2_32!WPUGetProviderPathEx flags:{}", flags);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..4u32 {
@@ -401,6 +432,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let proto_info_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             let str_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAAddressToStringA addr:0x{:x}", addr_ptr);
+            let handle = helper::handler_create("WSAAddressToStringA");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             if addr_ptr != 0 && str_ptr != 0 {
                 let ip = emu.maps.read_dword(addr_ptr + 4).unwrap_or(0x0100007f);
                 let port = emu.maps.read_word(addr_ptr + 2).unwrap_or(0).to_be();
@@ -425,6 +461,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let proto_info_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             let str_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAAddressToStringW addr:0x{:x}", addr_ptr);
+            let handle = helper::handler_create("WSAAddressToStringW");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             if addr_ptr != 0 && str_ptr != 0 {
                 let ip = emu.maps.read_dword(addr_ptr + 4).unwrap_or(0x0100007f);
                 let port = emu.maps.read_word(addr_ptr + 2).unwrap_or(0).to_be();
@@ -452,6 +493,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 provider_id_ptr,
                 routine_ptr
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -619,6 +664,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSACancelBlockingCall" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
             log_red!(emu, "ws2_32!WSACancelBlockingCall 0x{:x}", arg1);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
@@ -644,31 +693,74 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "WSAConnect" => {
-            let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let namelen = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            log_red!(emu, "ws2_32!WSAConnect sock:0x{:x}", sock);
+            let sock = arg(emu, 0) as u64;
+            let name_ptr = arg(emu, 1) as u64;
+            let namelen = arg(emu, 2);
+            let caller_data_ptr = arg(emu, 3) as u64;
+            let callee_data_ptr = arg(emu, 4) as u64;
+            let sqos_ptr = arg(emu, 5) as u64;
+            let gqos_ptr = arg(emu, 6) as u64;
+            log_red!(
+                emu,
+                "ws2_32!WSAConnect sock:0x{:x} name:0x{:x} namelen:{} callerdata:0x{:x} calleedata:0x{:x} sqos:0x{:x} gqos:0x{:x}",
+                sock,
+                name_ptr,
+                namelen,
+                caller_data_ptr,
+                callee_data_ptr,
+                sqos_ptr,
+                gqos_ptr
+            );
             if !helper::socket_exist(sock) {
-                emu.set_last_error(0);
+                emu.set_last_error(10038);
                 emu.regs_mut().rax = 0xFFFFFFFF;
             } else {
+                if callee_data_ptr != 0 {
+                    emu.maps.write_dword(callee_data_ptr, 0);
+                    emu.maps.write_dword(callee_data_ptr + 4, 0);
+                }
                 emu.regs_mut().rax = 0;
             }
-            for _ in 0..3u32 {
+            for _ in 0..7u32 {
                 emu.stack_pop32(false);
             }
         }
         "WSAConnectByList" => {
-            let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let addr_list_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "ws2_32!WSAConnectByList sock:0x{:x}", sock);
+            let sock = arg(emu, 0) as u64;
+            let addr_list_ptr = arg(emu, 1) as u64;
+            let local_addr_len_ptr = arg(emu, 2) as u64;
+            let local_addr_ptr = arg(emu, 3) as u64;
+            let remote_addr_len_ptr = arg(emu, 4) as u64;
+            let remote_addr_ptr = arg(emu, 5) as u64;
+            let timeout_ptr = arg(emu, 6) as u64;
+            let _reserved = arg(emu, 7) as u64;
+            log_red!(
+                emu,
+                "ws2_32!WSAConnectByList sock:0x{:x} addrlist:0x{:x} localaddr:0x{:x} remoteaddr:0x{:x}",
+                sock,
+                addr_list_ptr,
+                local_addr_ptr,
+                remote_addr_ptr
+            );
             if !helper::socket_exist(sock) {
                 emu.set_last_error(10038);
                 emu.regs_mut().rax = 0;
             } else {
+                if local_addr_len_ptr != 0 {
+                    emu.maps.write_dword(local_addr_len_ptr, 16);
+                }
+                if local_addr_ptr != 0 {
+                    emu.maps.write_dword(local_addr_ptr, 2);
+                }
+                if remote_addr_len_ptr != 0 {
+                    emu.maps.write_dword(remote_addr_len_ptr, 16);
+                }
+                if remote_addr_ptr != 0 {
+                    emu.maps.write_dword(remote_addr_ptr, 2);
+                }
                 emu.regs_mut().rax = 1;
             }
-            for _ in 0..2u32 {
+            for _ in 0..8u32 {
                 emu.stack_pop32(false);
             }
         }
@@ -783,6 +875,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersA");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -793,6 +889,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersExA");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -803,6 +903,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersExW");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -813,6 +917,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAEnumNameSpaceProvidersW");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10014);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -911,6 +1019,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             let qos_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAGetQOSByName sock:0x{:x}", sock);
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..3u32 {
@@ -921,6 +1033,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let provider_id = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let class_id = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAGetServiceClassInfoA");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10109);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -931,6 +1047,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let provider_id = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let class_id = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAGetServiceClassInfoW");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10109);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -998,6 +1118,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSAInstallServiceClassA ptr:0x{:x}",
                 class_info_ptr
             );
+            let handle = helper::handler_create("WSAInstallServiceClassA");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1011,6 +1132,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSAInstallServiceClassW ptr:0x{:x}",
                 class_info_ptr
             );
+            let handle = helper::handler_create("WSAInstallServiceClassW");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1113,6 +1235,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSALookupServiceNextA handle:0x{:x}",
                 lookup_handle
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10110);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -1127,6 +1253,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSALookupServiceNextW handle:0x{:x}",
                 lookup_handle
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(10110);
             emu.regs_mut().rax = 0xFFFFFFFF;
             for _ in 0..2u32 {
@@ -1142,6 +1272,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 lookup_handle,
                 control_code
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -1194,6 +1328,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let nfds = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
             let timeout = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as i32;
             log_red!(emu, "ws2_32!WSAPoll nfds:{} timeout:{}", nfds, timeout);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -1210,6 +1348,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 id,
                 result
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -1233,6 +1375,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSARecv arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -1281,6 +1427,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSARemoveServiceClass" => {
             let class_id_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSARemoveServiceClass ptr:0x{:x}", class_id_ptr);
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1304,6 +1454,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSASend arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -1407,6 +1561,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 operation,
                 flags
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..3u32 {
@@ -1423,6 +1581,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 operation,
                 flags
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..3u32 {
@@ -1465,6 +1627,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSAStartup arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let handle = helper::handler_create("WSAStartup");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -1530,6 +1697,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSAUnadvertiseProvider id:0x{:x}",
                 provider_id_ptr
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1554,6 +1725,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 wait_all,
                 timeout
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -1573,6 +1748,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCDeinstallProvider" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCDeinstallProvider ptr:0x{:x}", err_ptr);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1582,6 +1761,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCDeinstallProvider32" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCDeinstallProvider32 ptr:0x{:x}", err_ptr);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1591,6 +1774,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCDeinstallProviderEx" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCDeinstallProviderEx ptr:0x{:x}", err_ptr);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1600,6 +1787,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCEnableNSProvider" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCEnableNSProvider ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCEnableNSProvider");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1609,6 +1797,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCEnableNSProvider32" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCEnableNSProvider32 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCEnableNSProvider32");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1729,6 +1918,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallNameSpace" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallNameSpace ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallNameSpace");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1738,6 +1928,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallNameSpace32" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallNameSpace32 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallNameSpace32");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1747,6 +1938,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallNameSpaceEx" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallNameSpaceEx ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallNameSpaceEx");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1756,6 +1948,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallNameSpaceEx2" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallNameSpaceEx2 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallNameSpaceEx2");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1765,6 +1958,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallNameSpaceEx32" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallNameSpaceEx32 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallNameSpaceEx32");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1774,6 +1968,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallProvider" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallProvider ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallProvider");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1783,6 +1978,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallProvider64_32" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallProvider64_32 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallProvider64_32");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1796,6 +1992,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSCInstallProviderAndChains ptr:0x{:x}",
                 err_ptr
             );
+            let handle = helper::handler_create("WSCInstallProviderAndChains");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1809,6 +2006,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 "ws2_32!WSCInstallProviderAndChains64_32 ptr:0x{:x}",
                 err_ptr
             );
+            let handle = helper::handler_create("WSCInstallProviderAndChains64_32");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1818,6 +2016,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCInstallProviderEx" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCInstallProviderEx ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCInstallProviderEx");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1867,6 +2066,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCUnInstallNameSpace" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCUnInstallNameSpace ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCUnInstallNameSpace");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1876,6 +2076,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCUnInstallNameSpace32" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCUnInstallNameSpace32 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCUnInstallNameSpace32");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -1885,6 +2086,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WSCUnInstallNameSpaceEx2" => {
             let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WSCUnInstallNameSpaceEx2 ptr:0x{:x}", err_ptr);
+            let handle = helper::handler_create("WSCUnInstallNameSpaceEx2");
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -2021,6 +2223,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2080,6 +2286,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2095,6 +2305,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2110,6 +2324,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2125,6 +2343,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, 0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2140,6 +2362,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2155,6 +2381,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2222,6 +2452,11 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let handle = helper::handler_create("WahQueueUserApc");
+            let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if out_ptr != 0 {
+                emu.maps.write_dword(out_ptr, handle as u32);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2237,6 +2472,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2252,6 +2491,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if helper::handler_exist(h) {
+                helper::handler_close(h);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2261,6 +2504,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WahWaitForNotification" => {
             let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!WahWaitForNotification handle:0x{:x}", handle);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
@@ -2281,6 +2528,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let fd = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let set_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!__WSAFDIsSet fd:0x{:x} set:0x{:x}", fd, set_ptr);
+            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+                let _val = emu.maps.read_string(val_ptr);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..2u32 {
@@ -2307,6 +2558,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 len,
                 addr_type
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..3u32 {
@@ -2322,6 +2577,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -2337,6 +2596,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -2360,6 +2623,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "getprotobynumber" => {
             let number = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
             log_red!(emu, "ws2_32!getprotobynumber number:{}", number);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             for _ in 0..1u32 {
@@ -2415,6 +2682,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 arg1,
                 arg2
             );
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -2425,6 +2696,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!inet_ntoa arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -2435,6 +2710,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!inet_ntop arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }
@@ -2445,6 +2724,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
             log_red!(emu, "ws2_32!inet_pton arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for _ in 0..2 {
                 emu.stack_pop32(false);
             }

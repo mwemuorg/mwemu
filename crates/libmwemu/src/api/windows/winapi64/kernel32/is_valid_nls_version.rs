@@ -1,5 +1,6 @@
-use crate::emu;
 
+use crate::emu;
+use crate::winapi::helper;
 pub fn IsValidNLSVersion(emu: &mut emu::Emu) {
     let func = emu.regs().rcx;
     let lp_locale_name = emu.regs().rdx;
@@ -12,5 +13,10 @@ pub fn IsValidNLSVersion(emu: &mut emu::Emu) {
         lp_version_info
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    let h = emu.regs().rcx;
+    if helper::handler_exist(h) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.regs_mut().rax = 0;
+    }
 }

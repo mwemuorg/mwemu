@@ -13,6 +13,10 @@ pub fn GetNamedPipeAttribute(emu: &mut emu::Emu) {
         attr_name_ptr,
         attr_value_ptr
     );
+    let out_ptr = emu.regs().r9;
+    if out_ptr != 0 {
+        emu.maps.write_qword(out_ptr, 0);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

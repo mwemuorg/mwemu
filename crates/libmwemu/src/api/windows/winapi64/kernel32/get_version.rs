@@ -1,7 +1,9 @@
-use crate::{emu, windows::constants};
+use crate::emu;
+use crate::winapi::helper;
 
 pub fn GetVersion(emu: &mut emu::Emu) {
+    log_red!(emu, "kernel32!GetVersion");
+    helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = constants::VERSION;
-    log_red!(emu, "kernel32!GetVersion   =0x{:x}", emu.regs().rax);
+    emu.regs_mut().rax = 0x4A61000A;
 }

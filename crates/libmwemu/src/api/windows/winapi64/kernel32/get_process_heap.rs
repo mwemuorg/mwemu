@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper;
 
 pub fn GetProcessHeap(emu: &mut emu::Emu) {
     let key = emu.handle_management.get_or_insert_process_heap();
@@ -13,4 +14,5 @@ pub fn GetProcessHeap(emu: &mut emu::Emu) {
     emu.set_last_error(0);
     emu.regs_mut().rax = addr;
     log_red!(emu, "kernel32!GetProcessHeap =0x{:x}", addr);
+    let _h = helper::handler_create("process_heap");
 }

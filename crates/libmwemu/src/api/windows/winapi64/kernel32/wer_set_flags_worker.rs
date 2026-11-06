@@ -10,6 +10,10 @@ pub fn WerSetFlagsWorker(emu: &mut emu::Emu) {
         param1,
         param2
     );
+    let val_ptr = emu.regs().rdx;
+    if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
+        let _val = emu.maps.read_string(val_ptr);
+    }
 
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;

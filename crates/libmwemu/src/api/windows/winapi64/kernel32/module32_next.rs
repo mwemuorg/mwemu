@@ -10,6 +10,10 @@ pub fn Module32Next(emu: &mut emu::Emu) {
         h_snapshot,
         p_entry
     );
+    let first_param = emu.regs().rcx;
+    if first_param != 0 && emu.maps.is_mapped(first_param) {
+        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+    }
 
     // No more modules after the first one
     emu.set_last_error(18); // ERROR_NO_MORE_FILES

@@ -39,6 +39,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 pb_data,
                 cb_data
             );
+            let first_param = emu.regs().rcx;
+            if first_param != 0 && emu.maps.is_mapped(first_param) {
+                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+            }
             for i in 0..cb_data {
                 let byte = ((emu.pos.wrapping_add(i)) & 0xFF) as u8;
                 emu.maps.write_byte(pb_data + i, byte);
@@ -548,7 +552,23 @@ pub fn BCryptSignHash(emu: &mut emu::Emu) {
 }
 
 pub fn BCryptVerifySignature(emu: &mut emu::Emu) {
-    log_red!(emu, "bcrypt!BCryptVerifySignature => valid");
+    let h_key = emu.regs().rcx;
+    let _padding_info = emu.regs().rdx;
+    let pb_hash = emu.regs().r8;
+    let cb_hash = emu.regs().r9 as u32;
+    let pb_signature = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let cb_signature = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as u32;
+    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as u32;
+
+    log_red!(
+        emu,
+        "bcrypt!BCryptVerifySignature key:0x{:x} hash:0x{:x}({}) sig:0x{:x}({}) => valid",
+        h_key,
+        pb_hash,
+        cb_hash,
+        pb_signature,
+        cb_signature
+    );
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
 }
 

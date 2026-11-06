@@ -675,6 +675,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
         "GetOEMCP" => {
             log_red!(emu, "kernel32!GetOEMCP => 437");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 437;
         }
@@ -1111,14 +1112,16 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             } else {
                 String::new()
             };
+            let hndl = helper::handler_create(&format!("mutex://{}", name_s));
             log_red!(
                 emu,
-                "kernel32!OpenMutexW access:0x{:x} name:'{}' => 0",
+                "kernel32!OpenMutexW access:0x{:x} name:'{}' => 0x{:x}",
                 access,
-                name_s
+                name_s,
+                hndl
             );
-            emu.regs_mut().rax = 0;
-            emu.set_last_error(2);
+            emu.regs_mut().rax = hndl;
+            emu.set_last_error(0);
         }
         "InterlockedIncrement" => {
             let addr = emu.regs().rcx;
@@ -1335,7 +1338,16 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "SetProcessWorkingSetSize" => {
-            log_red!(emu, "kernel32!SetProcessWorkingSetSize => TRUE");
+            let hprocess = emu.regs().rcx;
+            let min_size = emu.regs().rdx;
+            let max_size = emu.regs().r8;
+            log_red!(
+                emu,
+                "kernel32!SetProcessWorkingSetSize proc:0x{:x} min:0x{:x} max:0x{:x}",
+                hprocess,
+                min_size,
+                max_size
+            );
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1397,6 +1409,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         // --- Locale/NLS ---
         "GetUserDefaultUILanguage" => {
             log_red!(emu, "kernel32!GetUserDefaultUILanguage => 0x0409");
+            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0x0409;
         }

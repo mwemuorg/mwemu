@@ -55,7 +55,7 @@ fn error_message(code: u32) -> String {
         15 => "The system cannot find the drive specified.\r\n".to_string(),
         18 => "There are no more files.\r\n".to_string(),
         32 => "The process cannot access the file because it is being used by another process.\r\n"
-            .to_string(),
+    .to_string(),
         87 => "The parameter is incorrect.\r\n".to_string(),
         109 => "The pipe has been ended.\r\n".to_string(),
         111 => "All pipe instances are busy.\r\n".to_string(),

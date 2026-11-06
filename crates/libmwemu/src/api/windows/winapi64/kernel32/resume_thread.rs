@@ -5,6 +5,10 @@ pub fn ResumeThread(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
 
     log_red!(emu, "kernel32!ResumeThread hndl: 0x{:x}", hndl);
+    let first_param = emu.regs().rcx;
+    if first_param != 0 && emu.maps.is_mapped(first_param) {
+        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+    }
 
     // Get the URI from the handle to extract thread ID
     let uri = helper::handler_get_uri(hndl);
