@@ -11,7 +11,7 @@
 
 */
 
-use super::types;
+use super::{seh32, types};
 use crate::context::context32::Context32;
 use crate::context::context64::Context64;
 use crate::emu;
@@ -61,6 +61,10 @@ pub fn exit(emu: &mut emu::Emu) {
 }
 
 pub fn enter32(emu: &mut emu::Emu, ex_type: types::ExceptionType, handler_kind: HandlerKind) {
+    if matches!(handler_kind, HandlerKind::Seh) {
+        seh32::enter(emu, ex_type);
+        return;
+    }
     let ctx_addr = match emu.maps.alloc(0x1000) {
         Some(a) => a,
         None => {
@@ -93,6 +97,10 @@ pub fn enter32(emu: &mut emu::Emu, ex_type: types::ExceptionType, handler_kind: 
 }
 
 pub fn exit32(emu: &mut emu::Emu) {
+    if seh32::is_active(emu) {
+        seh32::exit(emu);
+        return;
+    }
     let disposition = emu.regs().get_eax() as u32;
     let ctx_ptr = emu.eh_ctx();
     let ex_code = emu.maps.read_dword(ctx_ptr).unwrap_or(0);

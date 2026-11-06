@@ -188,7 +188,6 @@ impl Emu {
         self.fault_count += 1;
 
         let addr: u64;
-        let next: u64;
 
         // hook
         let handle_exception: bool = if let Some(mut hook_fn) = self.hooks.hook_on_exception.take()
@@ -285,22 +284,6 @@ impl Emu {
 
         // x86 stack-chain SEH
         } else if self.seh() > 0 {
-            next = match self.maps.read_dword(self.seh()) {
-                Some(value) => value.into(),
-                None => {
-                    log::error!(
-                        "SEH record at 0x{:x} unreadable (Next field). \
-                         pos = {} rip = 0x{:x} — stopping emulation",
-                        self.seh(),
-                        self.pos,
-                        self.pc(),
-                    );
-                    self.process_terminated = true;
-                    self.is_running.store(0, Ordering::Relaxed);
-                    return;
-                }
-            };
-
             addr = match self.maps.read_dword(self.seh() + 4) {
                 Some(value) => value.into(),
                 None => {
@@ -317,20 +300,31 @@ impl Emu {
                 }
             };
 
+            if self.maps.read_dword(self.seh()).is_none() || !self.maps.is_mapped(addr) {
+                log::error!(
+                    "invalid x86 SEH registration or handler at 0x{:x}",
+                    self.seh()
+                );
+                self.stop();
+                return;
+            }
+
             let con = Console::new();
             if self.running_script {
-                self.set_seh(next);
                 handlers::enter_for_handler(self, ex_type, HandlerKind::Seh);
-                self.set_eip(addr, false);
+                if !self.process_terminated {
+                    self.set_eip(addr, false);
+                }
                 return;
             }
             con.print("jump the exception pointer (y/n)?");
 
             let cmd = con.cmd();
             if cmd == "y" {
-                self.set_seh(next);
                 handlers::enter_for_handler(self, ex_type, HandlerKind::Seh);
-                self.set_eip(addr, false);
+                if !self.process_terminated {
+                    self.set_eip(addr, false);
+                }
             }
         } else if self.uef() > 0 {
             // UEF
