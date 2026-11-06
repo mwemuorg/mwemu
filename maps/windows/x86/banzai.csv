@@ -8839,7 +8839,7 @@ NtEnumerateValueKey,6
 NtExtendSection,2
 NtFindAtom,3
 NtFlushBuffersFile,2
-NtFlushBuffersFileEx,3
+NtFlushBuffersFileEx,5
 NtFlushInstructionCache,3
 NtFlushKey,1
 NtFlushVirtualMemory,4
@@ -9049,7 +9049,7 @@ NtSetLowWaitHighThread,0
 NtSetQuotaInformationFile,4
 NtSetSecurityObject,3
 NtSetSystemEnvironmentValue,2
-NtSetSystemEnvironmentValueEx,2
+NtSetSystemEnvironmentValueEx,5
 NtSetSystemInformation,3
 NtSetSystemPowerState,3
 NtSetSystemTime,2

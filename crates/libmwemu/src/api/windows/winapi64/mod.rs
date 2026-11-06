@@ -181,7 +181,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         }
     };
 
-    if !unimplemented.is_empty() && emu.cfg.stop_on_unimplemented {
+    if !unimplemented.is_empty() && emu.cfg.stop_on_unimplemented && !emu.process_terminated {
         stop_on_unimplemented(emu, &unimplemented);
     }
 

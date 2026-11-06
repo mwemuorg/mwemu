@@ -3,9 +3,9 @@
 // stay — they're deliberate coverage markers.
 #![deny(clippy::unwrap_used, clippy::expect_used)]
 
+use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::serialization;
 use crate::winapi::winapi64::kernel32;
 use crate::windows::constants;
 //use crate::winapi::helper;
@@ -19,33 +19,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SysFreeString" => SysFreeString(emu),
         "VariantClear" => VariantClear(emu),
 
-        _ => {
-            if emu.cfg.skip_unimplemented {
-                log::warn!(
-                    "banzai: skipping unimplemented API 0x{:x} {} at 0x{:x}",
-                    addr,
-                    api,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                return String::new();
-            }
-
-            if emu.cfg.dump_on_exit
-                && let Some(dump_file) = emu.cfg.dump_filename.as_ref()
-            {
-                serialization::Serialization::dump(emu, dump_file);
-            }
-
-            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
-            log::warn!(
-                "calling unimplemented API 0x{:x} {} at 0x{:x}",
-                addr,
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
-        }
+        _ => return fallback::unimplemented(addr, api, emu),
     }
 
     String::new()

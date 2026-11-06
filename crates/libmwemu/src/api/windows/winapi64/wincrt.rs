@@ -1,6 +1,6 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::serialization;
 use crate::winapi::winapi64;
 
 const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
@@ -201,32 +201,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             log_red!(emu, "wincrt!{}", api);
             emu.regs_mut().rax = 0;
         }
-        _ => {
-            if emu.cfg.skip_unimplemented {
-                log::warn!(
-                    "banzai: skipping unimplemented CRT API {} at 0x{:x}",
-                    api,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                return String::new();
-            }
-
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
-                    emu,
-                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                );
-            }
-
-            log::error!("attempt to call unimplemented CRT API {}", api);
-            log::warn!(
-                "calling unimplemented CRT API {} at 0x{:x}",
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
-        }
+        _ => return fallback::unimplemented(0u64, api, emu),
     }
 
     String::new()

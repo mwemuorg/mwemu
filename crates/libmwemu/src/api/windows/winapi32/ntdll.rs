@@ -1,6 +1,7 @@
+use crate::api::windows::common::{fallback, nt_api};
 use crate::emu;
-use crate::serialization;
 use crate::winapi::winapi32::kernel32;
+use crate::windows::constants::STATUS_NOT_IMPLEMENTED;
 
 mod file;
 mod heap;
@@ -16,32 +17,23 @@ pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    if file::dispatch(api, emu)
-        || heap::dispatch(api, emu)
-        || loader::dispatch(api, emu)
-        || memory::dispatch(api, emu)
-        || string::dispatch(api, emu)
-        || sync::dispatch(api, emu)
-        || misc::dispatch(api, emu)
+    // Normalize all Zw aliases, then give real implementations priority.
+    let normalized = nt_api::normalize(api);
+    let dispatch_name = normalized.as_ref();
+    if file::dispatch(dispatch_name, emu)
+        || heap::dispatch(dispatch_name, emu)
+        || loader::dispatch(dispatch_name, emu)
+        || memory::dispatch(dispatch_name, emu)
+        || string::dispatch(dispatch_name, emu)
+        || sync::dispatch(dispatch_name, emu)
+        || misc::dispatch(dispatch_name, emu)
     {
         return String::new();
     }
 
-    if !emu.cfg.skip_unimplemented {
-        if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-            serialization::Serialization::dump(
-                emu,
-                emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-            );
-        }
-
-        log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
+    // A known NT signature has a defined failure result even in strict mode.
+    if let Some(words) = nt_api::signature(dispatch_name) {
+        return fallback::return_value(addr, api, words, STATUS_NOT_IMPLEMENTED, emu);
     }
-    log::warn!(
-        "calling unimplemented API 0x{:x} {} at 0x{:x}",
-        addr,
-        api,
-        emu.regs().rip
-    );
-    api.to_ascii_lowercase()
+    fallback::unimplemented(addr, api, emu)
 }

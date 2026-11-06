@@ -65,7 +65,7 @@ USAGE:
 
 FLAGS:
     -6, --64bits         enable 64bits architecture emulation
-        --banzai         skip unimplemented instructions, and keep up emulating what can be emulated
+        --banzai         allow skipping APIs without full or partial handlers
     -F, --fpu            trace the fpu states.
     -h, --handle         handle Ctrl+C to spawn console
         --help           Prints help information
