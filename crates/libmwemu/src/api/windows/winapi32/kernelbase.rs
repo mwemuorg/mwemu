@@ -1,7 +1,13 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
+use crate::winapi::winapi32::{arg, stdcall_ret};
+//use crate::debug::console;
+//use crate::windows::constants;
+//use crate::context32;
+//use crate::peb32;
+//use crate::windows::structures;
 use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
@@ -36536,9 +36542,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
 
-        _ => {
-            kernel32::gateway(addr, emu);
-        }
+        _ => return fallback::unimplemented(addr, api, emu),
     }
 
     String::new()

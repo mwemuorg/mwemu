@@ -2,6 +2,8 @@ use crate::api::windows::common::ntdll;
 use crate::emu;
 use crate::emu::object_handle::SectionHandle;
 use crate::maps::mem64::Permission;
+use crate::winapi::common::virtual_alloc::round_up;
+use crate::winapi::common::virtual_protect;
 use crate::winapi::helper;
 use crate::windows::{constants, structures};
 
@@ -16,6 +18,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlCopyMemory" => RtlCopyMemory(emu),
         "NtFlushInstructionCache" => NtFlushInstructionCache(emu),
         "RtlAddFunctionTable" => RtlAddFunctionTable(emu),
+        "RtlDeleteFunctionTable" => RtlDeleteFunctionTable(emu),
+        "RtlInstallFunctionTableCallback" => RtlInstallFunctionTableCallback(emu),
         "RtlCaptureContext" => RtlCaptureContext(emu),
         "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
         "RtlVirtualUnwind" => RtlVirtualUnwind(emu),
@@ -164,15 +168,43 @@ fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
 }
 
+/*
+NTSTATUS NtProtectVirtualMemory(
+  [in]      HANDLE  ProcessHandle,
+  [in, out] PVOID   *BaseAddress,
+  [in, out] PSIZE_T RegionSize,
+  [in]      ULONG   NewProtect,
+  [out]     PULONG  OldProtect
+);
+*/
 fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
-    let sz = emu.regs().rcx;
-    let status = emu.regs().rdx;
-    let page_number = emu.regs().r8;
-    let page = emu.regs().r9;
-    let prot = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let base_ptr = emu.regs().rdx;
+    let size_ptr = emu.regs().r8;
+    let new_prot = emu.regs().r9 as u32;
+    let old_prot_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let base = emu.maps.read_qword(base_ptr).unwrap_or(0);
+    let size = emu.maps.read_qword(size_ptr).unwrap_or(0);
 
-    log_red!(emu, "ntdll!NtProtectVirtualMemory sz: {} {}", sz, prot);
+    log_red!(
+        emu,
+        "ntdll!NtProtectVirtualMemory base: 0x{:x} sz: {} prot: 0x{:x}",
+        base,
+        size,
+        new_prot
+    );
 
+    let Some(old) = virtual_protect::protect(&mut emu.maps, base, size, new_prot) else {
+        emu.regs_mut().rax = constants::STATUS_CONFLICTING_ADDRESSES;
+        return;
+    };
+    // report the page-aligned range that was changed
+    let page_base = base & !0xfff;
+    emu.maps.write_qword(base_ptr, page_base);
+    emu.maps
+        .write_qword(size_ptr, round_up(base + size.max(1)) - page_base);
+    if old_prot_ptr != 0 {
+        emu.maps.write_dword(old_prot_ptr, old);
+    }
     emu.regs_mut().rax = constants::STATUS_SUCCESS
 }
 
@@ -228,6 +260,47 @@ fn RtlAddFunctionTable(emu: &mut emu::Emu) {
     let base_address = emu.regs().r8;
 
     log_red!(emu, "ntdll!RtlAddFunctionTable");
+
+    emu.regs_mut().rax = 1;
+}
+
+/*
+BOOLEAN RtlInstallFunctionTableCallback(
+  [in] DWORD64                        TableIdentifier,
+  [in] DWORD64                        BaseAddress,
+  [in] DWORD                          Length,
+  [in] PGET_RUNTIME_FUNCTION_CALLBACK Callback,
+  [in] PVOID                          Context,
+  [in] PCWSTR                         OutOfProcessCallbackDll
+);
+*/
+fn RtlInstallFunctionTableCallback(emu: &mut emu::Emu) {
+    let table_id = emu.regs().rcx;
+    let base = emu.regs().rdx;
+    let length = emu.regs().r8 & 0xffff_ffff;
+    let callback = emu.regs().r9;
+
+    log_red!(
+        emu,
+        "ntdll!RtlInstallFunctionTableCallback id: 0x{:x} base: 0x{:x} len: 0x{:x} callback: 0x{:x}",
+        table_id,
+        base,
+        length,
+        callback
+    );
+
+    // like RtlAddFunctionTable: accepted, not consulted by exception dispatch
+    emu.regs_mut().rax = 1;
+}
+
+fn RtlDeleteFunctionTable(emu: &mut emu::Emu) {
+    let function_table = emu.regs().rcx;
+
+    log_red!(
+        emu,
+        "ntdll!RtlDeleteFunctionTable table: 0x{:x}",
+        function_table
+    );
 
     emu.regs_mut().rax = 1;
 }

@@ -1,7 +1,7 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
-use crate::serialization;
 use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
 //use crate::endpoint;
@@ -784,10 +784,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
         "strtol" => {
             let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let endptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let base = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(10) as i32;
+            let _endptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let base = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(10);
             let s = emu.maps.read_string(str_ptr);
-            let val = i64::from_str_radix(s.trim(), base as u32).unwrap_or(0) as u32;
+            let val = i64::from_str_radix(s.trim(), base).unwrap_or(0);
             log_red!(emu, "msvcrt!strtol '{}' base:{} => {}", s, base, val);
             for _ in 0..3 {
                 emu.stack_pop32(false);
@@ -796,10 +796,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
         "strtoul" => {
             let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let endptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let _endptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
             let base = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(10);
             let s = emu.maps.read_string(str_ptr);
-            let val = u64::from_str_radix(s.trim(), base).unwrap_or(0) as u32;
+            let val = u64::from_str_radix(s.trim(), base).unwrap_or(0);
             log_red!(emu, "msvcrt!strtoul '{}' base:{} => {}", s, base, val);
             for _ in 0..3 {
                 emu.stack_pop32(false);
@@ -2376,41 +2376,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = fmt.len() as u64;
         }
 
-        _ => {
-            if emu.cfg.skip_unimplemented {
-                let nparams = emu.banzai.get_params(api);
-                if nparams >= 0 {
-                    for _ in 0..nparams {
-                        emu.stack_pop32(false);
-                    }
-                }
-                log::warn!(
-                    "banzai: skipping unimplemented API 0x{:x} {} (nparams={}) at 0x{:x}",
-                    addr,
-                    api,
-                    nparams,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                return String::new();
-            }
-
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
-                    emu,
-                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                );
-            }
-
-            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
-            log::warn!(
-                "calling unimplemented API 0x{:x} {} at 0x{:x}",
-                addr,
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
-        }
+        _ => return fallback::unimplemented(addr, api, emu),
     }
 
     String::new()

@@ -16,15 +16,10 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
         return 0;
     };
 
-    // API set DLL names are virtual contracts that map to host DLLs.
+    // API set names are virtual contracts: loading one loads (and returns)
+    // the contract's host DLL, like the Windows loader.
     if kernel32_common::is_api_set_contract(&dll) {
-        if peb64::get_module_base("kernelbase.dll", emu).is_some() {
-            return peb64::get_module_base("kernelbase.dll", emu).unwrap_or(0);
-        }
-        if peb64::get_module_base("kernel32.dll", emu).is_some() {
-            return peb64::get_module_base("kernel32.dll", emu).unwrap_or(0);
-        }
-        dll = "kernelbase.dll".to_string();
+        dll = kernel32_common::api_set_hosts(&dll)[0].to_string();
     }
 
     let mut dll_path = emu.cfg.maps_folder.clone();

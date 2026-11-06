@@ -749,14 +749,7 @@ impl Emu {
                     self.kernel_guard_access(rip, mem_addr, sz / 8, true);
                 }
 
-                let value2 = if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
-                    let rip = self.regs().rip;
-                    let result = hook_fn(self, rip, mem_addr, sz, value as u128) as u64;
-                    self.hooks.hook_on_memory_write = Some(hook_fn);
-                    result
-                } else {
-                    value
-                };
+                let value2 = self.call_memory_write_hook(mem_addr, sz, value as u128) as u64;
 
                 // Stores into executable memory are logged by `Maps` and applied
                 // to the instruction cache by the run loop (self-modifying code).
@@ -1100,14 +1093,7 @@ impl Emu {
                     self.kernel_guard_access(rip, mem_addr, 16, true);
                 }
 
-                let value2 = if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
-                    let rip = self.regs().rip;
-                    let result = hook_fn(self, rip, mem_addr, 128, value);
-                    self.hooks.hook_on_memory_write = Some(hook_fn);
-                    result
-                } else {
-                    value
-                };
+                let value2 = self.call_memory_write_hook(mem_addr, 128, value);
 
                 for (i, b) in value2.to_le_bytes().iter().enumerate() {
                     self.maps.write_byte(mem_addr + i as u64, *b);
@@ -1203,14 +1189,7 @@ impl Emu {
                     self.kernel_guard_access(rip, mem_addr, 32, true);
                 }
 
-                let value2 = if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
-                    let rip = self.regs().rip;
-                    let result = hook_fn(self, rip, mem_addr, 256, value_u128);
-                    self.hooks.hook_on_memory_write = Some(hook_fn);
-                    result
-                } else {
-                    value_u128
-                };
+                let value2 = self.call_memory_write_hook(mem_addr, 256, value_u128);
 
                 let bytes = value.to_little_endian();
                 self.maps.write_bytes(mem_addr, &bytes);

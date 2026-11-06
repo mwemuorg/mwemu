@@ -1,6 +1,7 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::serialization;
 use crate::winapi::helper;
+use crate::winapi::winapi64::ntdll;
 use crate::windows::structures;
 
 mod appcompat;
@@ -35,6 +36,9 @@ pub use system::*;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
+    if super::registry::gateway(api, emu) {
+        return String::new();
+    }
     match api {
         "AcquireSRWLockExclusive" => AcquireSRWLockExclusive(emu),
         "AcquireSRWLockShared" => AcquireSRWLockShared(emu),
@@ -209,10 +213,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetEnvironmentStringsW" => GetEnvironmentStringsW(emu),
         "FreeEnvironmentStringsA" => FreeEnvironmentStrings(emu),
         "FreeEnvironmentStringsW" => FreeEnvironmentStrings(emu),
+        "GetEnvironmentVariableA" => GetEnvironmentVariableA(emu),
         "GetEnvironmentVariableW" => GetEnvironmentVariableW(emu),
         "GetFileAttributesA" => GetFileAttributesA(emu),
         "GetFileAttributesW" => GetFileAttributesW(emu),
         "GetFileSize" => GetFileSize(emu),
+        "GetFileTime" => GetFileTime(emu),
+        "SetFileTime" => SetFileTime(emu),
         "GetFileSizeEx" => GetFileSizeEx(emu),
         "GetFileType" => GetFileType(emu),
         "GetFullPathNameA" => GetFullPathNameA(emu),
@@ -352,7 +359,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "InitializeSRWLock" => InitializeSRWLock(emu),
         "InitOnceBeginInitialize" => InitOnceBeginInitialize(emu),
         "IsBadReadPtr" => IsBadReadPtr(emu),
+        "CheckRemoteDebuggerPresent" => CheckRemoteDebuggerPresent(emu),
         "IsDebuggerPresent" => IsDebuggerPresent(emu),
+        "QueryDosDeviceW" => QueryDosDeviceW(emu),
         "IsValidCodePage" => {
             let cp = emu.regs().rcx;
             log_red!(emu, "kernel32!IsValidCodePage cp: {}", cp);
@@ -434,12 +443,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "RaiseException" => RaiseException(emu),
         "ReadFile" => ReadFile(emu),
         "ReadProcessMemory" => ReadProcessMemory(emu),
-        "RegCloseKey" => RegCloseKey(emu),
-        "RegCreateKeyExA" => RegCreateKeyExA(emu),
-        "RegCreateKeyExW" => RegCreateKeyExW(emu),
-        "RegOpenKeyA" => RegOpenKeyA(emu),
-        "RegSetValueExA" => RegSetValueExA(emu),
-        "RegSetValueExW" => RegSetValueExW(emu),
         "ResetEvent" => ResetEvent(emu),
         "SetEvent" => {
             let handle = emu.regs().rcx;
@@ -527,6 +530,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WriteProcessMemory" => WriteProcessMemory(emu),
         "GetVolumeInformationA" => GetVolumeInformationA(emu),
         "GetVolumeInformationW" => GetVolumeInformationW(emu),
+        "GetVolumePathNameA" => GetVolumePathNameA(emu),
+        "GetVolumePathNameW" => GetVolumePathNameW(emu),
         "RemoveDirectoryA" => RemoveDirectoryA(emu),
         "RemoveDirectoryW" => RemoveDirectoryW(emu),
         "SetFileAttributesA" => SetFileAttributesA(emu),
@@ -820,29 +825,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             log_red!(emu, "kernel32!MoveFileExW '{}' -> '{}'", src_s, dst_s);
             emu.regs_mut().rax = 1;
         }
-        "SetFilePointerEx" => {
-            let handle = emu.regs().rcx;
-            let distance = emu.regs().rdx as i64;
-            let new_pos_ptr = emu.regs().r8;
-            let method = emu.regs().r9 as u32;
-            log_red!(
-                emu,
-                "kernel32!SetFilePointerEx h:0x{:x} dist:{} method:{}",
-                handle,
-                distance,
-                method
-            );
-            if helper::handler_exist(handle) {
-                helper::handler_seek(handle, distance, method);
-                let pos = helper::handler_tell(handle);
-                if new_pos_ptr != 0 {
-                    emu.maps.write_qword(new_pos_ptr, pos as u64);
-                }
-            } else if new_pos_ptr != 0 {
-                emu.maps.write_qword(new_pos_ptr, distance as u64);
-            }
-            emu.regs_mut().rax = 1;
-        }
+        "SetFilePointerEx" => SetFilePointerEx(emu),
         "FlushFileBuffers" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "kernel32!FlushFileBuffers h:0x{:x}", handle);
@@ -883,138 +866,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
             emu.regs_mut().rax = 1;
         }
-        "GetPrivateProfileStringA" => {
-            let section = emu.regs().rcx;
-            let key = emu.regs().rdx;
-            let default = emu.regs().r8;
-            let out_buf = emu.regs().r9;
-            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let sec_s = if section != 0 {
-                emu.maps.read_string(section)
-            } else {
-                String::new()
-            };
-            let key_s = if key != 0 {
-                emu.maps.read_string(key)
-            } else {
-                String::new()
-            };
-            let def_s = if default != 0 {
-                emu.maps.read_string(default)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!GetPrivateProfileStringA [{}] {} def:'{}' => '{}'",
-                sec_s,
-                key_s,
-                def_s,
-                def_s
-            );
-            if out_buf != 0 && buf_size > 0 {
-                let write_len = std::cmp::min(def_s.len(), (buf_size - 1) as usize);
-                emu.maps.write_string(out_buf, &def_s[..write_len]);
-            }
-            emu.regs_mut().rax = def_s.len() as u64;
-        }
-        "GetPrivateProfileStringW" => {
-            let section = emu.regs().rcx;
-            let key = emu.regs().rdx;
-            let default = emu.regs().r8;
-            let out_buf = emu.regs().r9;
-            let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let sec_s = if section != 0 {
-                emu.maps.read_wide_string(section)
-            } else {
-                String::new()
-            };
-            let key_s = if key != 0 {
-                emu.maps.read_wide_string(key)
-            } else {
-                String::new()
-            };
-            let def_s = if default != 0 {
-                emu.maps.read_wide_string(default)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!GetPrivateProfileStringW [{}] {} => '{}'",
-                sec_s,
-                key_s,
-                def_s
-            );
-            if out_buf != 0 && buf_size > 0 {
-                emu.maps.write_wide_string(out_buf, &def_s);
-            }
-            emu.regs_mut().rax = def_s.len() as u64;
-        }
-        "WritePrivateProfileStringA" => {
-            let section = emu.regs().rcx;
-            let key = emu.regs().rdx;
-            let value = emu.regs().r8;
-            let sec_s = if section != 0 {
-                emu.maps.read_string(section)
-            } else {
-                String::new()
-            };
-            let key_s = if key != 0 {
-                emu.maps.read_string(key)
-            } else {
-                String::new()
-            };
-            let val_s = if value != 0 {
-                emu.maps.read_string(value)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!WritePrivateProfileStringA [{}] {}='{}'",
-                sec_s,
-                key_s,
-                val_s
-            );
-            emu.regs_mut().rax = 1;
-        }
-        "WritePrivateProfileStringW" => {
-            let section = emu.regs().rcx;
-            let key = emu.regs().rdx;
-            let value = emu.regs().r8;
-            let sec_s = if section != 0 {
-                emu.maps.read_wide_string(section)
-            } else {
-                String::new()
-            };
-            let key_s = if key != 0 {
-                emu.maps.read_wide_string(key)
-            } else {
-                String::new()
-            };
-            let val_s = if value != 0 {
-                emu.maps.read_wide_string(value)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!WritePrivateProfileStringW [{}] {}='{}'",
-                sec_s,
-                key_s,
-                val_s
-            );
-            emu.regs_mut().rax = 1;
-        }
-        "GetPrivateProfileIntA" | "GetPrivateProfileIntW" => {
-            let _section = emu.regs().rcx;
-            let _key = emu.regs().rdx;
-            let default = emu.regs().r8;
-            log_red!(emu, "kernel32!{} => default {}", api, default);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = default;
-        }
+        "GetPrivateProfileStringA" => GetPrivateProfileStringA(emu),
+        "GetPrivateProfileStringW" => GetPrivateProfileStringW(emu),
+        "GetProfileStringA" => GetProfileStringA(emu),
+        "GetProfileStringW" => GetProfileStringW(emu),
+        "WritePrivateProfileStringA" => WritePrivateProfileStringA(emu),
+        "WritePrivateProfileStringW" => WritePrivateProfileStringW(emu),
+        "WriteProfileStringA" => WriteProfileStringA(emu),
+        "WriteProfileStringW" => WriteProfileStringW(emu),
+        "GetPrivateProfileIntA" => GetPrivateProfileIntA(emu),
+        "GetPrivateProfileIntW" => GetPrivateProfileIntW(emu),
+        "GetProfileIntA" => GetProfileIntA(emu),
+        "GetProfileIntW" => GetProfileIntW(emu),
 
         // --- Synchronization ---
         "CreateSemaphoreA" | "CreateSemaphoreW" => {
@@ -1608,21 +1471,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
 
         // --- Environment ---
-        "GetEnvironmentStrings" | "GetEnvironmentStringsA" => {
-            log_red!(emu, "kernel32!GetEnvironmentStrings");
-            let block = emu.maps.alloc(0x100).unwrap_or(0);
-            if block != 0 {
-                let _ = emu.maps.create_map(
-                    "env_block",
-                    block,
-                    0x100,
-                    crate::maps::mem64::Permission::READ_WRITE,
-                );
-                emu.maps.write_byte(block, 0);
-                emu.maps.write_byte(block + 1, 0);
-            }
-            emu.regs_mut().rax = block;
-        }
+        "GetEnvironmentStrings" | "GetEnvironmentStringsA" => GetEnvironmentStringsA(emu),
 
         // --- Misc ---
         "Beep" => {
@@ -1655,36 +1504,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         _ => {
             // Windows forwards many Rtl*/Nt* functions through kernel32 →
             // ntdll. Try ntdll sub-dispatchers before giving up.
-            if super::ntdll::try_dispatch(api, emu) {
+            if ntdll::dispatch(addr, api, emu) {
                 return String::new();
             }
 
-            if emu.cfg.skip_unimplemented {
-                log::warn!(
-                    "banzai: skipping unimplemented API 0x{:x} {} at 0x{:x}",
-                    addr,
-                    api,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                return String::new();
-            }
-
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
-                    emu,
-                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                );
-            }
-
-            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
-            log::warn!(
-                "calling unimplemented API 0x{:x} {} at 0x{:x}",
-                addr,
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
+            return fallback::unimplemented(addr, api, emu);
         }
     }
 

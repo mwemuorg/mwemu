@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::exception::raise;
 
 pub fn RaiseException(emu: &mut emu::Emu) {
     let code = emu.regs().rcx as u32;
@@ -14,9 +15,15 @@ pub fn RaiseException(emu: &mut emu::Emu) {
         num_args,
         args_ptr
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+
+    let count = (num_args as usize).min(raise::EXCEPTION_MAXIMUM_PARAMETERS);
+    let params: Vec<u64> = (0..count as u64)
+        .map(|i| emu.maps.read_qword(args_ptr + i * 8).unwrap_or(0))
+        .collect();
+
+    if raise::raise64(emu, code, flags, &params) {
+        return;
     }
-    emu.set_last_error(0);
+
+    emu.regs_mut().rax = 0;
 }

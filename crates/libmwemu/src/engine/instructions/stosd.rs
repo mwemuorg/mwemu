@@ -20,10 +20,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     }
 
     if emu.cfg.is_x64() {
-        if !emu
-            .maps
-            .write_dword(emu.regs().rdi, emu.regs().get_eax() as u32)
-        {
+        let addr = emu.regs().rdi;
+        let value = emu.regs().get_eax() as u32;
+        let value = emu.call_memory_write_hook(addr, 32, value.into()) as u32;
+        if !emu.maps.write_dword(addr, value) {
             return false;
         }
         if emu.flag_df() {
@@ -35,10 +35,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     } else {
         // 32bits
-        if !emu
-            .maps
-            .write_dword(emu.regs().get_edi(), emu.regs().get_eax() as u32)
-        {
+        let addr = emu.regs().get_edi();
+        let value = emu.regs().get_eax() as u32;
+        let value = emu.call_memory_write_hook(addr, 32, value.into()) as u32;
+        if !emu.maps.write_dword(addr, value) {
             return false;
         }
 

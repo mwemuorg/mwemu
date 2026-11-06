@@ -4,6 +4,7 @@ mod cpu_vector_tests;
 mod cpu_vectors;
 mod exception_handler64;
 mod exception_pdata64;
+mod exception_raise64;
 mod exception_veh_list;
 mod linux_call64;
 mod mem64_test;

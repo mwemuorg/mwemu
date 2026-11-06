@@ -196,14 +196,14 @@ enable_test_mode()
     # disable the test mode.
 disable_test_mode()
 
-    # Enable banzai mode. This mode keep emulating after finding unimplemented instructions or apis.
+    # Enable banzai fallback for APIs without full or partial handlers.
 enable_banzai_mode()
 
     # disable banzai mode.
 disable_banzai_mode()
 
-    # add unimplemented API to banzai.
-banzai_add(apiname:str, nparams:int) {
+    # Add or replace x86 callee cleanup size in DWORDs, excluding the return address.
+banzai_add(apiname:str, nparams:int)
 
     # enable the Control-C handling for spawning console.
 enable_ctrlc()

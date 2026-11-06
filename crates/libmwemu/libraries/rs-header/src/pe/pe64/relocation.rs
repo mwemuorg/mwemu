@@ -22,6 +22,15 @@ macro_rules! read_u64_le {
 }
 
 impl PE64 {
+    /// True when the image carries a base relocation directory, i.e. it can be
+    /// loaded away from its preferred `ImageBase`.
+    pub fn has_relocations(&self) -> bool {
+        self.opt
+            .data_directory
+            .get(crate::pe::pe32::IMAGE_DIRECTORY_ENTRY_BASERELOC)
+            .is_some_and(|dir| dir.virtual_address != 0 && dir.size != 0)
+    }
+
     /// Apply ADDR64 base relocations: read the un-relocated value from the file
     /// image `raw`, add the load delta, and patch the result into guest memory
     /// via `loader` (the section was mapped verbatim from `raw`, so the original

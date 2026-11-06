@@ -1,6 +1,6 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::serialization;
 use crate::winapi::helper;
 use crate::winapi::winapi64;
 
@@ -8,7 +8,7 @@ const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 
 /// Allocates from the O1Heap arena for small sizes, maps a dedicated
 /// region otherwise (same threshold as kernel32!HeapAlloc).
-fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
+pub(super) fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
     if size < LARGE_ALLOC_THRESHOLD {
         let heap_manage = emu.heap_mut();
         return heap_manage.allocate(size as usize);
@@ -52,7 +52,7 @@ fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
 }
 
 /// Releases a pointer allocated by `allocate_memory` (or any alloc_ map).
-fn release(emu: &mut emu::Emu, addr: u64) {
+pub(super) fn release(emu: &mut emu::Emu, addr: u64) {
     match classify(emu, addr) {
         AllocKind::Arena { .. } => {
             if let Some(heap) = emu.heap_arenas.first_mut() {
@@ -71,6 +71,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
+    if super::crt_stdio::gateway(api, emu) {
+        return String::new();
+    }
     match api {
         "_initialize_onexit_table" => _initialize_onexit_table(emu),
         "_register_onexit_function" => _register_onexit_function(emu),
@@ -137,14 +140,6 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         "_msize" => crt_msize(emu),
         "_aligned_malloc" => crt_aligned_malloc(emu),
         "_aligned_free" => crt_aligned_free(emu),
-        "fopen" | "_wfopen" => crt_fopen(emu),
-        "fclose" => crt_fclose(emu),
-        "fread" => crt_fread(emu),
-        "fwrite" => crt_fwrite(emu),
-        "fflush" => crt_fflush(emu),
-        "fseek" => crt_fseek(emu),
-        "ftell" => crt_ftell(emu),
-        "feof" => crt_feof(emu),
         "fprintf"
         | "sprintf"
         | "snprintf"
@@ -158,8 +153,6 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         | "vwprintf" => crt_print_stub(emu, api),
         "exit" | "_exit" | "_cexit" => crt_exit(emu, api),
         "getenv" | "_wgetenv" => crt_getenv(emu, api),
-        "_errno" => crt_errno(emu),
-        "_set_errno" | "_get_errno" => crt_errno_stub(emu, api),
         "__getmainargs" => crt_getmainargs(emu),
         "__wgetmainargs" => crt_getmainargs(emu),
         "_initterm" => crt_initterm(emu),
@@ -653,32 +646,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
             log_red!(emu, "wincrt!{} cmd:'{}'", api, cmd);
             emu.regs_mut().rax = 0;
         }
-        _ => {
-            if emu.cfg.skip_unimplemented {
-                log::warn!(
-                    "banzai: skipping unimplemented CRT API {} at 0x{:x}",
-                    api,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                return String::new();
-            }
-
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
-                    emu,
-                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                );
-            }
-
-            log::error!("attempt to call unimplemented CRT API {}", api);
-            log::warn!(
-                "calling unimplemented CRT API {} at 0x{:x}",
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
-        }
+        _ => return fallback::unimplemented(0u64, api, emu),
     }
 
     String::new()
@@ -1468,8 +1436,8 @@ fn crt_wcsncpy(emu: &mut emu::Emu) {
     let ws = emu.maps.read_wide_string(src);
     let chars: Vec<u16> = ws.encode_utf16().collect();
     let copy_len = chars.len().min(n as usize);
-    for (i, &ch) in chars.iter().enumerate().take(copy_len) {
-        emu.maps.write_word(dst + (i as u64) * 2, ch);
+    for (i, c) in chars.iter().take(copy_len).enumerate() {
+        emu.maps.write_word(dst + (i as u64) * 2, *c);
     }
     for i in copy_len..n as usize {
         emu.maps.write_word(dst + (i as u64) * 2, 0);

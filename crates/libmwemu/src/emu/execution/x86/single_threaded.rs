@@ -549,6 +549,13 @@ impl Emu {
                     // --- Failure handling ---
                     if !emulation_ok {
                         self.fault_count += 1;
+                        if self.force_reload && self.eh_ctx() != 0 && self.pc() != addr {
+                            // The instruction failed, but exception delivery moved PC
+                            // to a handler. Re-fetch there instead of stopping or
+                            // advancing past its first instruction.
+                            self.force_reload = false;
+                            break;
+                        }
                         if self.cfg.soft_exception_recovery
                             && !self.process_terminated
                             && self.is_running.load(atomic::Ordering::Relaxed) == 1

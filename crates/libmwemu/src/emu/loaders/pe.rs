@@ -61,15 +61,19 @@ impl Emu {
         self.export_indexes.register(index);
     }
 
-    /// Prefer PE `ImageBase` when it is in canonical user space and does not overlap existing maps;
-    /// otherwise fall back to `lib64_alloc` in `LIBS64_*`.
+    /// Relocatable DLLs go to `lib64_alloc` in `LIBS64_*`, like Windows ASLR does
+    /// for system DLLs: otherwise ntdll squats on 0x180000000, the default
+    /// `ImageBase` of every MSVC x64 DLL, and a relocation-less target DLL can
+    /// no longer load where its absolute addresses expect it.
+    /// Non-relocatable DLLs keep their PE `ImageBase` when it is in canonical
+    /// user space and does not overlap existing maps.
     /// `raw_len` is the on-disk image size (rs-header's borrow-based PE no longer
     /// owns the bytes, so the caller supplies it).
     fn pick_pe64_dll_base(&mut self, pe64: &PE64, raw_len: u64) -> u64 {
         const USER_MAX: u64 = 0x7FFF_FFFF_FFFF;
         let ib = pe64.opt.image_base;
         let span = (pe64.opt.size_of_image as u64).max(raw_len);
-        if ib < 0x10000 {
+        if ib < 0x10000 || pe64.has_relocations() {
             return self.maps.lib64_alloc(raw_len).unwrap_or_else(|| {
                 log::error!("pe loader: out of memory allocating {} bytes", raw_len);
                 0

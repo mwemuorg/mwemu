@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 pub fn AddVectoredExceptionHandler(emu: &mut emu::Emu) {
     let first = emu.regs().rcx as u32;
     let handler = emu.regs().rdx;
@@ -9,12 +8,8 @@ pub fn AddVectoredExceptionHandler(emu: &mut emu::Emu) {
         first,
         handler
     );
-    let handle = helper::handler_create("AddVectoredExceptionHandler");
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
     emu.add_veh(first != 0, handler);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0x2c2878;
+
+    // the handler address doubles as the handle RemoveVectoredExceptionHandler gets
+    emu.regs_mut().rax = handler;
 }

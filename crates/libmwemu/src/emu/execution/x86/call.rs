@@ -14,6 +14,25 @@ use crate::err::MwemuError;
 const MAX_CALL_DEPTH: u32 = 32;
 
 impl Emu {
+    /// Emulate a host-initiated call until `ret_addr` is reached.
+    /// The caller may sit inside an instruction that already flagged a PC
+    /// change (API gateways run from `set_rip_with_check`, which sets
+    /// `force_reload` first). The nested run must not inherit those flags, or
+    /// it skips the PC advance and executes the callee's first instruction twice.
+    fn run_host_call(&mut self, ret_addr: u64) -> Result<(), MwemuError> {
+        if self.call_depth >= MAX_CALL_DEPTH {
+            return Err(MwemuError::new("call depth limit reached"));
+        }
+        let force_reload = std::mem::take(&mut self.force_reload);
+        let force_break = std::mem::take(&mut self.force_break);
+        self.call_depth += 1;
+        let result = self.run(Some(ret_addr));
+        self.call_depth -= 1;
+        self.force_reload = force_reload;
+        self.force_break = force_break;
+        result.map(|_| ())
+    }
+
     /// Call a 32bits function at addr, passing argument in an array of u64 but will cast to u32.
     /// The calling convention is stack, like winapi32.
     pub fn call32(&mut self, addr: u64, args: &[u32]) -> Result<u32, MwemuError> {
@@ -33,13 +52,7 @@ impl Emu {
         let ret_addr = self.regs().get_eip();
         self.stack_push32(ret_addr as u32);
         self.regs_mut().set_eip(addr);
-        if self.call_depth >= MAX_CALL_DEPTH {
-            return Err(MwemuError::new("call depth limit reached"));
-        }
-        self.call_depth += 1;
-        let result = self.run(Some(ret_addr));
-        self.call_depth -= 1;
-        result?;
+        self.run_host_call(ret_addr)?;
         self.regs_mut().set_esp(orig_stack);
         Ok(self.regs().get_eax() as u32)
     }
@@ -101,13 +114,7 @@ impl Emu {
         self.regs_mut().rip = addr;
 
         // emulate the function until return address is reached
-        if self.call_depth >= MAX_CALL_DEPTH {
-            return Err(MwemuError::new("call depth limit reached"));
-        }
-        self.call_depth += 1;
-        let result = self.run(Some(ret_addr));
-        self.call_depth -= 1;
-        result?;
+        self.run_host_call(ret_addr)?;
 
         // recover stack and  return rax
         self.regs_mut().rsp = orig_stack;
@@ -171,13 +178,7 @@ impl Emu {
         self.regs_mut().rip = addr;
 
         // emulate the function until return address is reached
-        if self.call_depth >= MAX_CALL_DEPTH {
-            return Err(MwemuError::new("call depth limit reached"));
-        }
-        self.call_depth += 1;
-        let result = self.run(Some(ret_addr));
-        self.call_depth -= 1;
-        result?;
+        self.run_host_call(ret_addr)?;
 
         // recover stack and  return rax
         self.regs_mut().rsp = orig_stack;

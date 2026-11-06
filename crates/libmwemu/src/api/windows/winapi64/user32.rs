@@ -1,7 +1,9 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::serialization;
 use crate::winapi::helper;
 use crate::winapi::winapi64;
+use crate::winapi::window_table;
+use crate::windows::constants;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
@@ -16,6 +18,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "LoadCursorA" => LoadCursorA(emu),
         "RegisterClassA" => RegisterClassA(emu),
         "RegisterClassW" => RegisterClassW(emu),
+        "RegisterClassExA" => RegisterClassExA(emu),
+        "RegisterClassExW" => RegisterClassExW(emu),
+        "UnregisterClassA" => UnregisterClassA(emu),
+        "UnregisterClassW" => UnregisterClassW(emu),
+        "EnumWindows" => EnumWindows(emu),
+        "GetProcessWindowStation" => GetProcessWindowStation(emu),
+        "GetUserObjectInformationW" => GetUserObjectInformationW(emu),
         "GetDC" => GetDC(emu),
         "ReleaseDC" => ReleaseDC(emu),
         "CharLowerBuffW" => CharLowerBuffW(emu),
@@ -24,6 +33,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CharUpperBuffA" => CharUpperBuffA(emu),
         "FindWindowA" => FindWindowA(emu),
         "FindWindowW" => FindWindowW(emu),
+        "FindWindowExA" => FindWindowExA(emu),
+        "FindWindowExW" => FindWindowExW(emu),
         "GetKeyState" => GetKeyState(emu),
         "GetAsyncKeyState" => GetAsyncKeyState(emu),
         "SetWindowsHookExA" => SetWindowsHookExA(emu),
@@ -73,6 +84,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetForegroundWindow" => GetForegroundWindow(emu),
         "SetForegroundWindow" => SetForegroundWindow(emu),
         "GetCursorPos" => GetCursorPos(emu),
+        "GetPhysicalCursorPos" => GetPhysicalCursorPos(emu),
         "SetCursorPos" => SetCursorPos(emu),
         "SetCursor" => SetCursor(emu),
         "ShowCursor" => ShowCursor(emu),
@@ -3922,22 +3934,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
-        "EnumWindows" => {
-            let callback = emu.regs().rcx;
-            let lparam = emu.regs().rdx;
-            log_red!(
-                emu,
-                "user32!EnumWindows callback:0x{:x} lparam:0x{:x}",
-                callback,
-                lparam
-            );
-            let out_ptr = emu.regs().rdx;
-            if out_ptr != 0 {
-                emu.maps.write_qword(out_ptr, 0);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
         "EqualRect" => {
             let rect1 = emu.regs().rcx;
             let rect2 = emu.regs().rdx;
@@ -4028,54 +4024,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-        }
-        "FindWindowExA" => {
-            let class_ptr = emu.regs().rcx;
-            let title_ptr = emu.regs().rdx;
-            let class_name = if class_ptr != 0 && class_ptr > 0xffff {
-                emu.maps.read_string(class_ptr)
-            } else {
-                String::new()
-            };
-            let title = if title_ptr != 0 {
-                emu.maps.read_string(title_ptr)
-            } else {
-                String::new()
-            };
-            let hndl = helper::handler_create(&format!("window_{}", class_name));
-            log_red!(
-                emu,
-                "user32!FindWindowExA class:'{}' title:'{}' => 0x{:x}",
-                class_name,
-                title,
-                hndl
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = hndl;
-        }
-        "FindWindowExW" => {
-            let class_ptr = emu.regs().rcx;
-            let title_ptr = emu.regs().rdx;
-            let class_name = if class_ptr != 0 && class_ptr > 0xffff {
-                emu.maps.read_wide_string(class_ptr)
-            } else {
-                String::new()
-            };
-            let title = if title_ptr != 0 {
-                emu.maps.read_wide_string(title_ptr)
-            } else {
-                String::new()
-            };
-            let hndl = helper::handler_create(&format!("window_{}", class_name));
-            log_red!(
-                emu,
-                "user32!FindWindowExW class:'{}' title:'{}' => 0x{:x}",
-                class_name,
-                title,
-                hndl
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = hndl;
         }
         "FlashWindow" => {
             let p0 = emu.regs().rcx;
@@ -5732,22 +5680,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.set_last_error(0);
             emu.regs_mut().rax = parent;
         }
-        "GetPhysicalCursorPos" => {
-            let handle = emu.regs().rcx;
-            let arg2 = emu.regs().rdx;
-            log_red!(
-                emu,
-                "user32!GetPhysicalCursorPos h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            let out_ptr = emu.regs().rdx;
-            if out_ptr != 0 {
-                emu.maps.write_qword(out_ptr, 0);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
         "GetPointerCursorId" => {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
@@ -6259,11 +6191,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             }
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-        }
-        "GetProcessWindowStation" => {
-            let hndl = helper::handler_create("user32://winsta");
-            log_red!(emu, "user32!GetProcessWindowStation => 0x{:x}", hndl);
-            emu.regs_mut().rax = hndl;
         }
         "GetProgmanWindow" => {
             let handle = emu.regs().rcx;
@@ -6852,28 +6779,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 p2
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetUserObjectInformationW" => {
-            let hobj = emu.regs().rcx;
-            let nindex = emu.regs().rdx as u32;
-            let pvinfo = emu.regs().r8;
-            let nlen = emu.regs().r9 as u32;
-            let lpnlen = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            log_red!(
-                emu,
-                "user32!GetUserObjectInformationW obj:0x{:x} idx:{} buf:0x{:x} len:{}",
-                hobj,
-                nindex,
-                pvinfo,
-                nlen
-            );
-            if pvinfo != 0 && nlen >= 14 {
-                emu.maps.write_wide_string(pvinfo, "WinSta0");
-            }
-            if lpnlen != 0 {
-                emu.maps.write_dword(lpnlen, 16);
-            }
             emu.regs_mut().rax = 1;
         }
         "GetUserObjectSecurity" => {
@@ -10528,38 +10433,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
-        "RegisterClassExA" => {
-            let wndclassex_ptr = emu.regs().rcx;
-            let classname_ptr = if wndclassex_ptr != 0 {
-                emu.maps.read_qword(wndclassex_ptr + 0x38).unwrap_or(0)
-            } else {
-                0
-            };
-            let name = if classname_ptr != 0 {
-                emu.maps.read_string(classname_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "user32!RegisterClassExA '{}'", name);
-            let atom = helper::handler_create(&format!("wndclass://{}", name));
-            emu.regs_mut().rax = atom;
-        }
-        "RegisterClassExW" => {
-            let wndclassex_ptr = emu.regs().rcx;
-            let classname_ptr = if wndclassex_ptr != 0 {
-                emu.maps.read_qword(wndclassex_ptr + 0x38).unwrap_or(0)
-            } else {
-                0
-            };
-            let name = if classname_ptr != 0 {
-                emu.maps.read_wide_string(classname_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "user32!RegisterClassExW '{}'", name);
-            let atom = helper::handler_create(&format!("wndclass://{}", name));
-            emu.regs_mut().rax = atom;
-        }
         "RegisterClipboardFormatA" => {
             let p0 = emu.regs().rcx;
             let s = if p0 != 0 && p0 > 0xffff {
@@ -14071,30 +13944,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
-        "UnregisterClassA" => {
-            let p0 = emu.regs().rcx;
-            let p1 = emu.regs().rdx;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "user32!UnregisterClassA '{}' p1:0x{:x}", s, p1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UnregisterClassW" => {
-            let p0 = emu.regs().rcx;
-            let p1 = emu.regs().rdx;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "user32!UnregisterClassW '{}' p1:0x{:x}", s, p1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
         "UnregisterDeviceNotification" => {
             let handle = emu.regs().rcx;
             let arg2 = emu.regs().rdx;
@@ -14853,34 +14702,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
 
-        _ => {
-            if emu.cfg.skip_unimplemented {
-                log::warn!(
-                    "banzai: skipping unimplemented API 0x{:x} {} at 0x{:x}",
-                    addr,
-                    api,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                return String::new();
-            }
-
-            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
-                    emu,
-                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-                );
-            }
-
-            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
-            log::warn!(
-                "calling unimplemented API 0x{:x} {} at 0x{:x}",
-                addr,
-                api,
-                emu.regs().rip
-            );
-            return api.to_ascii_lowercase();
-        }
+        _ => return fallback::unimplemented(addr, api, emu),
     }
     String::new()
 }
@@ -15105,6 +14927,8 @@ fn RegisterClassA(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = atom;
+    log_red!(emu, "** {} user32!RegisterClassA {}", emu.pos, lpwndclass);
+    register_class(emu, lpwndclass, false);
 }
 
 fn RegisterClassW(emu: &mut emu::Emu) {
@@ -15118,6 +14942,233 @@ fn RegisterClassW(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = atom;
+    log_red!(emu, "** {} user32!RegisterClassW {}", emu.pos, lpwndclass);
+    register_class(emu, lpwndclass, true);
+}
+
+/*
+ATOM RegisterClassExA(
+  [in] const WNDCLASSEXA *unnamedParam1
+);
+*/
+fn RegisterClassExA(emu: &mut emu::Emu) {
+    let lpwndclass = emu.regs().rcx;
+    log_red!(emu, "user32!RegisterClassExA 0x{:x}", lpwndclass);
+    register_class(emu, lpwndclass, false);
+}
+
+/*
+ATOM RegisterClassExW(
+  [in] const WNDCLASSEXW *unnamedParam1
+);
+*/
+fn RegisterClassExW(emu: &mut emu::Emu) {
+    let lpwndclass = emu.regs().rcx;
+    log_red!(emu, "user32!RegisterClassExW 0x{:x}", lpwndclass);
+    register_class(emu, lpwndclass, true);
+}
+
+/*
+BOOL UnregisterClassW(
+  [in]           LPCWSTR   lpClassName,
+  [in, optional] HINSTANCE hInstance
+);
+*/
+fn UnregisterClassA(emu: &mut emu::Emu) {
+    unregister_class(emu, "UnregisterClassA", false);
+}
+
+fn UnregisterClassW(emu: &mut emu::Emu) {
+    unregister_class(emu, "UnregisterClassW", true);
+}
+
+/// Shared body of UnregisterClass{A,W}: TRUE in rax when the class was removed.
+fn unregister_class(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let class_ptr = emu.regs().rcx;
+    let name = class_arg(emu, class_ptr, wide).unwrap_or_default();
+    log_red!(emu, "user32!{} class:'{}'", api, name);
+    let error = match window_table::unregister_class(&name) {
+        Ok(()) => {
+            emu.regs_mut().rax = 1;
+            return;
+        }
+        Err(window_table::UnregisterError::NotRegistered) => constants::ERROR_CLASS_DOES_NOT_EXIST,
+        Err(window_table::UnregisterError::HasWindows) => constants::ERROR_CLASS_HAS_WINDOWS,
+    };
+    emu.set_last_error(error);
+    emu.regs_mut().rax = 0;
+}
+
+/// WNDCLASS and WNDCLASSEX both keep lpszClassName at +0x40 on x64.
+const WNDCLASS_CLASS_NAME_OFF: u64 = 0x40;
+
+/// Shared body of RegisterClass[Ex]{A,W}: returns the class ATOM in rax.
+fn register_class(emu: &mut emu::Emu, lpwndclass: u64, wide: bool) {
+    let name_ptr = match emu.maps.read_qword(lpwndclass + WNDCLASS_CLASS_NAME_OFF) {
+        Some(ptr) if lpwndclass != 0 => ptr,
+        _ => {
+            emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
+    match class_arg(emu, name_ptr, wide) {
+        Some(name) => emu.regs_mut().rax = window_table::register_class(&name) as u64,
+        None => {
+            emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+            emu.regs_mut().rax = 0;
+        }
+    }
+}
+
+/// lpClassName as CreateWindowEx/FindWindow take it: NULL, an ATOM
+/// (MAKEINTATOM, below 0x10000) or a string.
+fn class_arg(emu: &mut emu::Emu, ptr: u64, wide: bool) -> Option<String> {
+    if ptr == 0 {
+        return None;
+    }
+    if ptr < 0x10000 {
+        return Some(window_table::class_name(ptr as u16).unwrap_or_else(|| format!("#{}", ptr)));
+    }
+    Some(read_text(emu, ptr, wide))
+}
+
+/// Optional window title argument (NULL = no filter).
+fn title_arg(emu: &mut emu::Emu, ptr: u64, wide: bool) -> Option<String> {
+    if ptr == 0 {
+        None
+    } else {
+        Some(read_text(emu, ptr, wide))
+    }
+}
+
+fn read_text(emu: &mut emu::Emu, ptr: u64, wide: bool) -> String {
+    if wide {
+        emu.maps.read_wide_string(ptr)
+    } else {
+        emu.maps.read_string(ptr)
+    }
+}
+
+/*
+BOOL EnumWindows(
+  [in] WNDENUMPROC lpEnumFunc,
+  [in] LPARAM      lParam
+);
+*/
+fn EnumWindows(emu: &mut emu::Emu) {
+    let enum_func = emu.regs().rcx;
+    let lparam = emu.regs().rdx;
+    log_red!(
+        emu,
+        "user32!EnumWindows lpEnumFunc: 0x{:x} lParam: 0x{:x}",
+        enum_func,
+        lparam
+    );
+
+    // BOOL CALLBACK EnumWindowsProc(HWND, LPARAM); FALSE stops the walk and
+    // makes EnumWindows return FALSE too.
+    for hwnd in window_table::top_level_windows() {
+        match emu.call64(enum_func, &[hwnd, lparam]) {
+            Ok(keep_going) if keep_going as u32 != 0 => {}
+            Ok(_) => {
+                emu.regs_mut().rax = 0;
+                return;
+            }
+            Err(e) => {
+                log::warn!(
+                    "EnumWindows callback 0x{:x} failed: {}",
+                    enum_func,
+                    e.message
+                );
+                emu.regs_mut().rax = 0;
+                return;
+            }
+        }
+    }
+    emu.regs_mut().rax = 1;
+}
+
+/*
+HWINSTA GetProcessWindowStation();
+*/
+fn GetProcessWindowStation(emu: &mut emu::Emu) {
+    log_red!(emu, "user32!GetProcessWindowStation");
+    emu.regs_mut().rax = helper::handler_create("WinSta0");
+}
+
+const UOI_FLAGS: u64 = 1;
+const UOI_NAME: u64 = 2;
+const UOI_TYPE: u64 = 3;
+const WSF_VISIBLE: u32 = 1;
+
+/*
+BOOL GetUserObjectInformationW(
+  [in]            HANDLE  hObj,
+  [in]            int     nIndex,
+  [out, optional] PVOID   pvInfo,
+  [in]            DWORD   nLength,
+  [out, optional] LPDWORD lpnLengthNeeded
+);
+*/
+fn GetUserObjectInformationW(emu: &mut emu::Emu) {
+    let hobj = emu.regs().rcx;
+    let index = emu.regs().rdx & 0xffff_ffff;
+    let info = emu.regs().r8;
+    let length = emu.regs().r9 & 0xffff_ffff;
+    let needed_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+
+    log_red!(
+        emu,
+        "user32!GetUserObjectInformationW hObj: 0x{:x} nIndex: {} pvInfo: 0x{:x} nLength: {}",
+        hobj,
+        index,
+        info,
+        length
+    );
+
+    let data = match index {
+        // USEROBJECTFLAGS { fInherit, fReserved, dwFlags }: an interactive, visible station
+        UOI_FLAGS => [0u32, 0, WSF_VISIBLE]
+            .iter()
+            .flat_map(|v| v.to_le_bytes())
+            .collect::<Vec<u8>>(),
+        UOI_NAME => {
+            let name = helper::handler_get_uri(hobj);
+            let name = if name.is_empty() {
+                "WinSta0".to_string()
+            } else {
+                name
+            };
+            wide_z(&name)
+        }
+        UOI_TYPE => wide_z("WindowStation"),
+        _ => {
+            emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+            emu.regs_mut().rax = 0;
+            return;
+        }
+    };
+
+    if needed_ptr != 0 {
+        emu.maps.write_dword(needed_ptr, data.len() as u32);
+    }
+    if info == 0 || length < data.len() as u64 {
+        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+        emu.regs_mut().rax = 0;
+        return;
+    }
+
+    emu.maps.write_bytes(info, &data);
+    emu.regs_mut().rax = 1;
+}
+
+/// UTF-16LE bytes of `s` including the terminating NUL.
+fn wide_z(s: &str) -> Vec<u8> {
+    s.encode_utf16()
+        .chain(std::iter::once(0))
+        .flat_map(|c| c.to_le_bytes())
+        .collect()
 }
 
 /*
@@ -15204,51 +15255,78 @@ fn CharUpperBuffA(emu: &mut emu::Emu) {
 pub fn FindWindowA(emu: &mut emu::Emu) {
     let class_ptr = emu.regs().rcx;
     let window_ptr = emu.regs().rdx;
-
-    let class_name = if class_ptr != 0 {
-        emu.maps.read_string(class_ptr)
-    } else {
-        String::new()
-    };
-    let window_name = if window_ptr != 0 {
-        emu.maps.read_string(window_ptr)
-    } else {
-        String::new()
-    };
-
-    log_red!(
-        emu,
-        "user32!FindWindowA class='{}' window='{}'",
-        class_name,
-        window_name
-    );
-
-    emu.regs_mut().rax = 0; // not found
+    find_window(emu, "FindWindowA", 0, 0, class_ptr, window_ptr, false);
 }
 
 pub fn FindWindowW(emu: &mut emu::Emu) {
     let class_ptr = emu.regs().rcx;
     let window_ptr = emu.regs().rdx;
+    find_window(emu, "FindWindowW", 0, 0, class_ptr, window_ptr, true);
+}
 
-    let class_name = if class_ptr != 0 {
-        emu.maps.read_wide_string(class_ptr)
-    } else {
-        String::new()
-    };
-    let window_name = if window_ptr != 0 {
-        emu.maps.read_wide_string(window_ptr)
-    } else {
-        String::new()
-    };
+/*
+HWND FindWindowExA(
+  [in, optional] HWND   hWndParent,
+  [in, optional] HWND   hWndChildAfter,
+  [in, optional] LPCSTR lpszClass,
+  [in, optional] LPCSTR lpszWindow
+);
+*/
+pub fn FindWindowExA(emu: &mut emu::Emu) {
+    let (parent, after) = (emu.regs().rcx, emu.regs().rdx);
+    let (class_ptr, window_ptr) = (emu.regs().r8, emu.regs().r9);
+    find_window(
+        emu,
+        "FindWindowExA",
+        parent,
+        after,
+        class_ptr,
+        window_ptr,
+        false,
+    );
+}
+
+pub fn FindWindowExW(emu: &mut emu::Emu) {
+    let (parent, after) = (emu.regs().rcx, emu.regs().rdx);
+    let (class_ptr, window_ptr) = (emu.regs().r8, emu.regs().r9);
+    find_window(
+        emu,
+        "FindWindowExW",
+        parent,
+        after,
+        class_ptr,
+        window_ptr,
+        true,
+    );
+}
+
+/// Shared body of FindWindow[Ex]{A,W}: the HWND in rax, 0 when not found.
+fn find_window(
+    emu: &mut emu::Emu,
+    api: &str,
+    parent: u64,
+    after: u64,
+    class_ptr: u64,
+    window_ptr: u64,
+    wide: bool,
+) {
+    let class_name = class_arg(emu, class_ptr, wide);
+    let window_name = title_arg(emu, window_ptr, wide);
+    let hwnd =
+        window_table::find_window(parent, after, class_name.as_deref(), window_name.as_deref());
 
     log_red!(
         emu,
-        "user32!FindWindowW class='{}' window='{}'",
+        "user32!{} parent=0x{:x} after=0x{:x} class={:?} window={:?} = 0x{:x}",
+        api,
+        parent,
+        after,
         class_name,
-        window_name
+        window_name,
+        hwnd
     );
 
-    emu.regs_mut().rax = 0; // not found
+    emu.regs_mut().rax = hwnd;
 }
 
 pub fn GetKeyState(emu: &mut emu::Emu) {
@@ -15455,32 +15533,33 @@ fn AdjustWindowRectEx(emu: &mut emu::Emu) {
 }
 
 fn CreateWindowExA(emu: &mut emu::Emu) {
-    let _ex_style = emu.regs().rcx;
-    let class = emu.maps.read_string(emu.regs().rdx);
-    let title = emu.maps.read_string(emu.regs().r8);
-    let _style = emu.regs().r9;
-    let hwnd = helper::handler_create(&format!("hwnd://{}", title));
-    log_red!(
-        emu,
-        "user32!CreateWindowExA class:'{}' title:'{}' => 0x{:x}",
-        class,
-        title,
-        hwnd
-    );
-    emu.regs_mut().rax = hwnd;
+    create_window(emu, "CreateWindowExA", false);
 }
 
 fn CreateWindowExW(emu: &mut emu::Emu) {
-    let _ex_style = emu.regs().rcx;
-    let class = emu.maps.read_wide_string(emu.regs().rdx);
-    let title = emu.maps.read_wide_string(emu.regs().r8);
-    let _style = emu.regs().r9;
-    let hwnd = helper::handler_create(&format!("hwnd://{}", title));
+    create_window(emu, "CreateWindowExW", true);
+}
+
+/// hWndParent is CreateWindowEx's 9th argument.
+const CREATE_WINDOW_PARENT_OFF: u64 = 0x40;
+
+/// Shared body of CreateWindowEx{A,W}: records the window, HWND in rax.
+fn create_window(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let (class_ptr, title_ptr) = (emu.regs().rdx, emu.regs().r8);
+    let parent = emu
+        .maps
+        .read_qword(emu.regs().rsp + CREATE_WINDOW_PARENT_OFF)
+        .unwrap_or(0);
+    let class = class_arg(emu, class_ptr, wide).unwrap_or_default();
+    let title = title_arg(emu, title_ptr, wide).unwrap_or_default();
+    let hwnd = window_table::create_window(parent, &class, &title);
     log_red!(
         emu,
-        "user32!CreateWindowExW class:'{}' title:'{}' => 0x{:x}",
+        "user32!{} class:'{}' title:'{}' parent:0x{:x} = 0x{:x}",
+        api,
         class,
         title,
+        parent,
         hwnd
     );
     emu.regs_mut().rax = hwnd;
@@ -15503,6 +15582,12 @@ fn DestroyWindow(emu: &mut emu::Emu) {
         helper::handler_close(hwnd);
     }
     emu.regs_mut().rax = 1;
+    if window_table::destroy_window(hwnd) {
+        emu.regs_mut().rax = 1;
+    } else {
+        emu.set_last_error(constants::ERROR_INVALID_WINDOW_HANDLE);
+        emu.regs_mut().rax = 0;
+    }
 }
 
 fn PostMessageA(emu: &mut emu::Emu) {
@@ -15907,12 +15992,23 @@ fn SetForegroundWindow(emu: &mut emu::Emu) {
 }
 
 fn GetCursorPos(emu: &mut emu::Emu) {
+    log_red!(emu, "user32!GetCursorPos");
+    write_cursor_pos(emu);
+}
+
+/// Same point as GetCursorPos: the emulated desktop has no DPI scaling.
+fn GetPhysicalCursorPos(emu: &mut emu::Emu) {
+    log_red!(emu, "user32!GetPhysicalCursorPos");
+    write_cursor_pos(emu);
+}
+
+/// POINT at rcx = the centre of the 1920x1080 desktop; TRUE in rax.
+fn write_cursor_pos(emu: &mut emu::Emu) {
     let pt = emu.regs().rcx;
     if pt != 0 {
         emu.maps.write_dword(pt, 960);
         emu.maps.write_dword(pt + 4, 540);
     }
-    log_red!(emu, "user32!GetCursorPos");
     emu.regs_mut().rax = 1;
 }
 

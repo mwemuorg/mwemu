@@ -8,7 +8,7 @@ pub type TypeHookOnInterrupt = Box<dyn FnMut(&mut emu::Emu, u64, u64) -> bool>;
 pub type TypeHookOnException = Box<dyn FnMut(&mut emu::Emu, u64, types::ExceptionType) -> bool>;
 /// Pre-read hook: `(emu, ip, addr, size)`. Fires before every memory read.
 pub type TypeHookOnMemoryRead = Box<dyn FnMut(&mut emu::Emu, u64, u64, u32)>;
-/// Pre-write hook: `(emu, ip, addr, size, value)`. Return the value to actually write.
+/// Pre-write hook: `(emu, ip, addr, size_bits, value)`. Return the value to actually write.
 pub type TypeHookOnMemoryWrite = Box<dyn FnMut(&mut emu::Emu, u64, u64, u32, u128) -> u128>;
 
 // [BREAKING API CHANGE] returning false will skip the handling of the instruction
@@ -165,6 +165,18 @@ impl emu::Emu {
             proceed
         } else {
             true
+        }
+    }
+
+    /// Apply the pre-write hook to an attempted store. Size is in bits.
+    pub(crate) fn call_memory_write_hook(&mut self, addr: u64, size: u32, value: u128) -> u128 {
+        if let Some(mut hook_fn) = self.hooks.hook_on_memory_write.take() {
+            let ip = self.pc();
+            let value = hook_fn(self, ip, addr, size, value);
+            self.hooks.hook_on_memory_write = Some(hook_fn);
+            value
+        } else {
+            value
         }
     }
 
