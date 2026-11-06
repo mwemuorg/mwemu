@@ -804,7 +804,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             for _ in 0..3 {
                 emu.stack_pop32(false);
             }
-            emu.regs_mut().rax = val as u64;
+            emu.regs_mut().rax = val;
         }
         "atol" => {
             let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
