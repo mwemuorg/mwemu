@@ -263,6 +263,50 @@ fn test_get_tick_count64() {
     emu.tick = 12345;
     let ret = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetTickCount64, &[]);
     assert_eq!(ret, 12345, "GetTickCount64 should return emu.tick");
+    let again = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetTickCount64, &[]);
+    assert_eq!(
+        again, 12346,
+        "by default every read advances the clock by 1 ms"
+    );
+}
+
+#[test]
+fn test_get_tick_count64_realistic() {
+    helpers::setup();
+    let mut emu = emu64();
+    emu.cfg.realistic_tick = true;
+
+    emu.tick = 12345;
+    let ret = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetTickCount64, &[]);
+    // 64 Hz timer: 12345 ms is 790 interrupts of 15.625 ms = 12343 ms
+    assert_eq!(
+        ret, 12343,
+        "GetTickCount64 should round down to a timer interrupt"
+    );
+    let again = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetTickCount64, &[]);
+    assert_eq!(again, ret, "back-to-back reads must not advance the clock");
+}
+
+#[test]
+fn test_get_tick_count_realistic_back_to_back() {
+    helpers::setup();
+    let mut emu = emu64();
+    emu.cfg.realistic_tick = true;
+
+    emu.tick = 1000;
+    let reads: Vec<u64> = (0..6)
+        .map(|_| helpers::call_winapi64(&mut emu, winapi64::kernel32::GetTickCount, &[]))
+        .collect();
+    assert!(
+        reads.iter().all(|&t| t == 1000),
+        "reads without elapsed time must be equal: {reads:?}"
+    );
+    emu.tick = 1016;
+    let later = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetTickCount, &[]);
+    assert_eq!(
+        later, 1015,
+        "the clock moves in 15.625 ms steps once time passes"
+    );
 }
 
 // ─── kernel32: QueryPerformanceFrequency ───

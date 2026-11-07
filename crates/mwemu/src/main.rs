@@ -162,6 +162,7 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("test_mode", "t", "test", "test mode"))
         .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
         .arg(clap_arg!("strict_api", "", "strict-api", "stop at the first unimplemented 64bits API instead of continuing with an unset return value"))
+        .arg(clap_arg!("realistic_tick", "", "realistic-tick", "GetTickCount/GetTickCount64 tick at 64 Hz (15.625 ms) and reading them does not advance time, like real Windows; by default every read advances the clock by 1 ms"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
         .arg(Arg::with_name("args")
             .short("A")
@@ -421,6 +422,10 @@ fn main() -> process::ExitCode {
 
     if matches.is_present("strict_api") {
         emu.cfg.stop_on_unimplemented = true;
+    }
+
+    if matches.is_present("realistic_tick") {
+        emu.cfg.realistic_tick = true;
     }
 
     // banzai
