@@ -257,6 +257,23 @@ pub fn socket_exist(sock: u64) -> bool {
     sockets.iter().position(|s| *s == sock).is_some()
 }
 
+/// Milliseconds returned by GetTickCount[64].
+///
+/// Default: the current tick, then the clock advances 1 ms, so every read sees
+/// time moving. With `cfg.realistic_tick` it behaves like Windows: the value only
+/// changes on the timer interrupt (64 Hz, 15.625 ms) and reading never advances
+/// time, so back-to-back reads are equal (protectors treat a counter that moves
+/// on every call as an emulator).
+pub fn read_tick_count(emu: &mut emu::Emu) -> u64 {
+    if emu.cfg.realistic_tick {
+        let interrupts = emu.tick as u64 * 64 / 1000;
+        return interrupts * 1000 / 64;
+    }
+    let tick = emu.tick as u64;
+    advance_tick(emu, 1);
+    tick
+}
+
 pub fn advance_tick(emu: &mut emu::Emu, millis: u64) {
     let time_advance = if millis == 0 {
         // Sleep(0) just yields CPU - advance by small amount (microseconds)

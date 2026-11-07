@@ -67,6 +67,8 @@ pub struct Config {
     #[serde(default)]
     pub stop_on_unimplemented: bool, // stop at the first unimplemented winapi64 call
     pub short_circuit_sleep: bool, // Sleep/Wait calls advance tick but return immediately
+    #[serde(default)]
+    pub realistic_tick: bool, // GetTickCount[64] move at 64 Hz and reading does not advance time
 
     // --- Threading ---
     pub enable_threading: bool,
@@ -161,6 +163,7 @@ impl Config {
             console_enabled: false,
             skip_unimplemented: false,
             stop_on_unimplemented: false,
+            realistic_tick: false,
             stack_addr: 0,
             arguments: "".to_string(),
             enable_threading: false, // Default to single-threaded for backward compatibility

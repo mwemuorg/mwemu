@@ -283,7 +283,15 @@ impl Prologue {
 fn is_immediate(kind: OpKind) -> bool {
     matches!(
         kind,
-        OpKind::Immediate8 | OpKind::Immediate8to64 | OpKind::Immediate32to64 | OpKind::Immediate32
+        OpKind::Immediate8
+            | OpKind::Immediate8_2nd
+            | OpKind::Immediate16
+            | OpKind::Immediate32
+            | OpKind::Immediate64
+            | OpKind::Immediate8to16
+            | OpKind::Immediate8to32
+            | OpKind::Immediate8to64
+            | OpKind::Immediate32to64
     )
 }
 
@@ -304,4 +312,41 @@ fn is_callee_saved(reg: Register) -> bool {
             | Register::R14
             | Register::R15
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// kernelbase!CloseHandle (Windows 11 26100): push rbx; sub rsp,20h;
+    /// mov rbx,rcx; cmp ecx,-0Ch. Obsidium's trampoline runs these and jumps
+    /// to CloseHandle+0xc. The cmp's sign-extended imm8 is an Immediate8to32.
+    #[test]
+    fn close_handle_prologue_with_cmp_imm8() {
+        let code = [
+            0x40, 0x53, 0x48, 0x83, 0xec, 0x20, 0x48, 0x8b, 0xd9, 0x83, 0xf9, 0xf4,
+        ];
+        let prologue = decode_prologue(&code, 0x1800459c0, 4).expect("prologue should unwind");
+        assert_eq!(prologue.rsp_delta, 0x28);
+        assert_eq!(prologue.clobbered, vec![Register::RBX]);
+        assert_eq!(prologue.slot(Register::RBX), Some(-8));
+    }
+
+    #[test]
+    fn immediate_kinds() {
+        for kind in [
+            OpKind::Immediate8,
+            OpKind::Immediate16,
+            OpKind::Immediate32,
+            OpKind::Immediate64,
+            OpKind::Immediate8to16,
+            OpKind::Immediate8to32,
+            OpKind::Immediate8to64,
+            OpKind::Immediate32to64,
+        ] {
+            assert!(is_immediate(kind), "{kind:?}");
+        }
+        assert!(!is_immediate(OpKind::Register));
+        assert!(!is_immediate(OpKind::Memory));
+    }
 }

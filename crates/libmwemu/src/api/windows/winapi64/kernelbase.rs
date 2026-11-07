@@ -23223,15 +23223,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "GetTickCount" => {
-            helper::advance_tick(emu, 1);
-            let tick = emu.tick as u64;
+            let tick = helper::read_tick_count(emu) as u32 as u64;
             log_red!(emu, "kernelbase!GetTickCount => {}", tick);
             emu.set_last_error(0);
             emu.regs_mut().rax = tick;
         }
         "GetTickCount64" => {
-            helper::advance_tick(emu, 1);
-            let tick = emu.tick as u64;
+            let tick = helper::read_tick_count(emu);
             log_red!(emu, "kernelbase!GetTickCount64 => {}", tick);
             emu.set_last_error(0);
             emu.regs_mut().rax = tick;
