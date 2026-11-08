@@ -15,14 +15,14 @@ pub fn GetComputerNameExA(emu: &mut emu::Emu) {
     );
 
     let name = match name_type {
-        0 => hostname.clone(),                          // ComputerNameNetBIOS
-        1 => format!("{}.localdomain", hostname),       // ComputerNameDnsHostname
-        2 => "localdomain".to_string(),                 // ComputerNameDnsDomain
-        3 => format!("{}.localdomain", hostname),       // ComputerNameDnsFullyQualified
-        4 => hostname.clone(),                          // ComputerNamePhysicalNetBIOS
-        5 => format!("{}.localdomain", hostname),       // ComputerNamePhysicalDnsHostname
-        6 => "localdomain".to_string(),                 // ComputerNamePhysicalDnsDomain
-        7 => format!("{}.localdomain", hostname),       // ComputerNamePhysicalDnsFullyQualified
+        0 => hostname.clone(),                    // ComputerNameNetBIOS
+        1 => format!("{}.localdomain", hostname), // ComputerNameDnsHostname
+        2 => "localdomain".to_string(),           // ComputerNameDnsDomain
+        3 => format!("{}.localdomain", hostname), // ComputerNameDnsFullyQualified
+        4 => hostname.clone(),                    // ComputerNamePhysicalNetBIOS
+        5 => format!("{}.localdomain", hostname), // ComputerNamePhysicalDnsHostname
+        6 => "localdomain".to_string(),           // ComputerNamePhysicalDnsDomain
+        7 => format!("{}.localdomain", hostname), // ComputerNamePhysicalDnsFullyQualified
         _ => hostname.clone(),
     };
 

@@ -1,5 +1,4 @@
-use crate::api::windows::common::crypto_state;
-use crate::api::windows::common::fallback;
+use crate::api::windows::common::{crypto_state, fallback};
 use crate::emu;
 use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
@@ -31,10 +30,36 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "BCryptGenerateKeyPair" => BCryptGenerateKeyPair(emu),
         "BCryptFinalizeKeyPair" => BCryptFinalizeKeyPair(emu),
         "BCryptHash" => BCryptHash(emu),
-        "ProcessPrng" => ProcessPrng(emu),
-        _ => return fallback::unimplemented(addr, api, emu),
+        "ProcessPrng" => {
+            let pb_data = arg(emu, 0) as u64;
+            let cb_data = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "bcrypt!ProcessPrng buf:0x{:x} len:{}",
+                pb_data,
+                cb_data
+            );
+            for i in 0..cb_data {
+                emu.maps
+                    .write_byte(pb_data + i, (emu.pos.wrapping_add(i) & 0xff) as u8);
+            }
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        _ => {
+            return fallback::unimplemented(addr, api, emu);
+        }
     }
     String::new()
+}
+
+fn bcrypt_algo_to_calg(name: &str) -> u32 {
+    match name.to_uppercase().as_str() {
+        "SHA256" => 0x0000800c,
+        "SHA1" => 0x00008004,
+        "MD5" => 0x00008003,
+        _ => 0,
+    }
 }
 
 fn BCryptOpenAlgorithmProvider(emu: &mut emu::Emu) {
@@ -58,7 +83,6 @@ fn BCryptGenRandom(emu: &mut emu::Emu) {
         emu.maps
             .write_byte(buf + i, (emu.pos.wrapping_add(i) & 0xff) as u8);
     }
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 4);
 }
@@ -75,23 +99,14 @@ fn BCryptCloseAlgorithmProvider(emu: &mut emu::Emu) {
     stdcall_ret(emu, 2);
 }
 
-fn bcrypt_algo_to_calg(name: &str) -> u32 {
-    match name.to_uppercase().as_str() {
-        "SHA256" => 0x0000800c,
-        "SHA1" => 0x00008004,
-        "MD5" => 0x00008003,
-        _ => 0,
-    }
-}
-
 fn BCryptCreateHash(emu: &mut emu::Emu) {
     let h_algorithm = arg(emu, 0) as u64;
     let ph_hash = arg(emu, 1) as u64;
     let _pb_hash_object = arg(emu, 2) as u64;
-    let _cb_hash_object = arg(emu, 3) as u64;
+    let _cb_hash_object = arg(emu, 3);
     let _pb_secret = arg(emu, 4) as u64;
-    let _cb_secret = arg(emu, 5) as u64;
-    let _flags = arg(emu, 6) as u64;
+    let _cb_secret = arg(emu, 5);
+    let _flags = arg(emu, 6);
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
@@ -171,9 +186,7 @@ fn BCryptFinishHash(emu: &mut emu::Emu) {
 
 fn BCryptDestroyHash(emu: &mut emu::Emu) {
     let h_hash = arg(emu, 0) as u64;
-
     log_red!(emu, "bcrypt!BCryptDestroyHash hash=0x{:x}", h_hash);
-
     crypto_state::destroy_hash(h_hash);
     helper::handler_close(h_hash);
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
@@ -222,7 +235,7 @@ fn BCryptGetProperty(emu: &mut emu::Emu) {
 
     log_red!(
         emu,
-        "bcrypt!BCryptGetProperty obj=0x{:x} prop={} val={}",
+        "bcrypt!BCryptGetProperty obj=0x{:x} prop={} => {}",
         h_object,
         prop_name,
         value
@@ -239,43 +252,44 @@ fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
     let pb_salt = arg(emu, 3) as u64;
     let cb_salt = arg(emu, 4) as usize;
     let iterations_lo = arg(emu, 5) as u64;
-    let _iterations_hi = arg(emu, 6) as u64;
+    let iterations_hi = arg(emu, 6) as u64;
+    let iterations = iterations_lo | (iterations_hi << 32);
     let pb_derived_key = arg(emu, 7) as u64;
     let cb_derived_key = arg(emu, 8) as usize;
     let _flags = arg(emu, 9);
 
-    log_red!(
-        emu,
-        "bcrypt!BCryptDeriveKeyPBKDF2 prf=0x{:x} passlen={} saltlen={} iters={} outlen={}",
-        h_prf,
-        cb_password,
-        cb_salt,
-        iterations_lo,
-        cb_derived_key
-    );
-
     if pb_derived_key != 0 && cb_derived_key > 0 {
-        let password = if pb_password != 0 && cb_password > 0 {
+        let pwd = if pb_password != 0 && cb_password > 0 {
             emu.maps
-                .read_bytes(pb_password, cb_password.min(256))
+                .read_bytes(pb_password, cb_password.min(4096))
                 .to_vec()
         } else {
             vec![]
         };
         let salt = if pb_salt != 0 && cb_salt > 0 {
-            emu.maps.read_bytes(pb_salt, cb_salt.min(256)).to_vec()
+            emu.maps.read_bytes(pb_salt, cb_salt.min(4096)).to_vec()
         } else {
             vec![]
         };
-        let mut derived = vec![0u8; cb_derived_key];
-        for (i, byte) in derived.iter_mut().enumerate() {
-            let idx = i as u8;
-            let p = *password.get(i % password.len().max(1)).unwrap_or(&0);
-            let s = *salt.get(i % salt.len().max(1)).unwrap_or(&0);
-            *byte = idx ^ p ^ s;
-        }
-        emu.maps.write_bytes(pb_derived_key, &derived);
+        let uri = helper::handler_get_uri(h_prf);
+        let alg_id = if uri.contains("SHA1") || uri.contains("sha1") {
+            0x00008004u32
+        } else {
+            0x0000800cu32
+        };
+        let mut key = vec![0u8; cb_derived_key];
+        crypto_state::pbkdf2_derive(alg_id, &pwd, &salt, iterations as u32, &mut key);
+        emu.maps.write_bytes(pb_derived_key, &key);
     }
+
+    log_red!(
+        emu,
+        "bcrypt!BCryptDeriveKeyPBKDF2 pwd_len={} salt_len={} iters={} key_len={}",
+        cb_password,
+        cb_salt,
+        iterations,
+        cb_derived_key
+    );
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 10);
@@ -285,13 +299,14 @@ fn BCryptGenerateSymmetricKey(emu: &mut emu::Emu) {
     let h_algorithm = arg(emu, 0) as u64;
     let ph_key = arg(emu, 1) as u64;
     let _pb_key_object = arg(emu, 2) as u64;
-    let _cb_key_object = arg(emu, 3) as u64;
+    let _cb_key_object = arg(emu, 3);
     let pb_secret = arg(emu, 4) as u64;
     let cb_secret = arg(emu, 5) as usize;
     let _flags = arg(emu, 6);
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
+
     let hndl = helper::handler_create(&format!("bcryptkey://{}", algo_name));
 
     let calg = match algo_name.to_uppercase().as_str() {
@@ -413,14 +428,36 @@ fn BCryptDecrypt(emu: &mut emu::Emu) {
 fn BCryptSetProperty(emu: &mut emu::Emu) {
     let h_object = arg(emu, 0) as u64;
     let psz_property = arg(emu, 1) as u64;
+    let pb_input = arg(emu, 2) as u64;
+    let cb_input = arg(emu, 3) as usize;
+
     let prop = emu.maps.read_wide_string(psz_property);
+    let value = if pb_input != 0 && cb_input > 0 {
+        let val_bytes = emu.maps.read_bytes(pb_input, cb_input.min(256)).to_vec();
+        String::from_utf16_lossy(
+            &val_bytes
+                .chunks(2)
+                .filter_map(|c| {
+                    if c.len() == 2 {
+                        let w = u16::from_le_bytes([c[0], c[1]]);
+                        if w != 0 { Some(w) } else { None }
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<u16>>(),
+        )
+    } else {
+        String::new()
+    };
     log_red!(
         emu,
-        "bcrypt!BCryptSetProperty obj=0x{:x} prop={}",
+        "bcrypt!BCryptSetProperty obj=0x{:x} prop={} value={}",
         h_object,
-        prop
+        prop,
+        value
     );
-    emu.set_last_error(0);
+
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 4);
 }
@@ -430,6 +467,8 @@ fn BCryptImportKeyPair(emu: &mut emu::Emu) {
     let _h_import_key = arg(emu, 1) as u64;
     let _psz_blob_type = arg(emu, 2) as u64;
     let ph_key = arg(emu, 3) as u64;
+    let _pb_input = arg(emu, 4) as u64;
+    let _cb_input = arg(emu, 5);
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
@@ -474,48 +513,65 @@ fn BCryptExportKey(emu: &mut emu::Emu) {
 
 fn BCryptSignHash(emu: &mut emu::Emu) {
     let _h_key = arg(emu, 0) as u64;
-    let _padding_info = arg(emu, 1) as u64;
-    let _pb_input = arg(emu, 2) as u64;
-    let _cb_input = arg(emu, 3) as usize;
+    let _pb_padding = arg(emu, 1) as u64;
+    let pb_input = arg(emu, 2) as u64;
+    let cb_input = arg(emu, 3) as usize;
     let pb_output = arg(emu, 4) as u64;
     let cb_output = arg(emu, 5) as usize;
     let pcb_result = arg(emu, 6) as u64;
+    let _flags = arg(emu, 7);
 
     log_red!(emu, "bcrypt!BCryptSignHash out=0x{:x}", pb_output);
 
-    if pb_output != 0 && cb_output > 0 {
-        for i in 0..cb_output.min(256) {
-            emu.maps
-                .write_byte(pb_output + i as u64, (i as u8).wrapping_add(0xAA));
+    let hash_bytes = if pb_input != 0 && cb_input > 0 {
+        emu.maps.read_bytes(pb_input, cb_input.min(64)).to_vec()
+    } else {
+        vec![0u8; 32]
+    };
+    let out_len = cb_output.min(256);
+    if pb_output != 0 && out_len > 0 {
+        let mut sig = vec![0u8; out_len];
+        if out_len >= hash_bytes.len() + 11 {
+            sig[0] = 0x00;
+            sig[1] = 0x01;
+            let ps_len = out_len - hash_bytes.len() - 3;
+            for b in &mut sig[2..2 + ps_len] {
+                *b = 0xff;
+            }
+            sig[2 + ps_len] = 0x00;
+            sig[3 + ps_len..].copy_from_slice(&hash_bytes);
+        } else {
+            let copy_len = hash_bytes.len().min(out_len);
+            sig[..copy_len].copy_from_slice(&hash_bytes[..copy_len]);
         }
+        emu.maps.write_bytes(pb_output, &sig);
     }
     if pcb_result != 0 {
-        emu.maps.write_dword(pcb_result, cb_output.min(256) as u32);
+        emu.maps.write_dword(pcb_result, out_len as u32);
     }
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
-    stdcall_ret(emu, 7);
+    stdcall_ret(emu, 8);
 }
 
 fn BCryptVerifySignature(emu: &mut emu::Emu) {
     let h_key = arg(emu, 0) as u64;
-    let padding_info = arg(emu, 1) as u64;
+    let _padding_info = arg(emu, 1) as u64;
     let pb_hash = arg(emu, 2) as u64;
     let cb_hash = arg(emu, 3);
     let pb_signature = arg(emu, 4) as u64;
     let cb_signature = arg(emu, 5);
-    let flags = arg(emu, 6);
+    let _flags = arg(emu, 6);
+
     log_red!(
         emu,
-        "bcrypt!BCryptVerifySignature key:0x{:x} hash:0x{:x}({}) sig:0x{:x}({}) flags:0x{:x}",
+        "bcrypt!BCryptVerifySignature key:0x{:x} hash:0x{:x}({}) sig:0x{:x}({}) => valid",
         h_key,
         pb_hash,
         cb_hash,
         pb_signature,
-        cb_signature,
-        flags
+        cb_signature
     );
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 7);
 }
@@ -524,6 +580,7 @@ fn BCryptGenerateKeyPair(emu: &mut emu::Emu) {
     let h_algorithm = arg(emu, 0) as u64;
     let ph_key = arg(emu, 1) as u64;
     let length = arg(emu, 2);
+    let _flags = arg(emu, 3);
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
@@ -547,8 +604,10 @@ fn BCryptGenerateKeyPair(emu: &mut emu::Emu) {
 
 fn BCryptFinalizeKeyPair(emu: &mut emu::Emu) {
     let h_key = arg(emu, 0) as u64;
+    let _flags = arg(emu, 1);
+
     log_red!(emu, "bcrypt!BCryptFinalizeKeyPair key=0x{:x}", h_key);
-    emu.set_last_error(0);
+
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 2);
 }
@@ -589,20 +648,4 @@ fn BCryptHash(emu: &mut emu::Emu) {
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
     stdcall_ret(emu, 7);
-}
-
-fn ProcessPrng(emu: &mut emu::Emu) {
-    let buf = arg(emu, 0) as u64;
-    let len = arg(emu, 1) as u64;
-
-    log_red!(emu, "bcrypt!ProcessPrng buf=0x{:x} len={}", buf, len);
-
-    for i in 0..len {
-        emu.maps
-            .write_byte(buf + i, (emu.pos.wrapping_add(i) & 0xff) as u8);
-    }
-
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

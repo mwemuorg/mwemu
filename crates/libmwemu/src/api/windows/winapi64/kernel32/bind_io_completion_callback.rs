@@ -1,7 +1,6 @@
-
 use crate::emu;
-use crate::windows::constants;
 use crate::winapi::helper;
+use crate::windows::constants;
 pub fn BindIoCompletionCallback(emu: &mut emu::Emu) {
     let _FileHandle = emu.regs().rcx as u32;
     let _Function = emu.regs().rdx as u32;

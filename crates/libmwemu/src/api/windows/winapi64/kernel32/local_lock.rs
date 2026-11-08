@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn LocalLock(emu: &mut emu::Emu) {

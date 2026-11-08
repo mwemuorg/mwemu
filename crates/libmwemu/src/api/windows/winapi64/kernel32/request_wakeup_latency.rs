@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::windows::constants;
 
 pub fn RequestWakeupLatency(emu: &mut emu::Emu) {
     let param1 = emu.regs().rcx;

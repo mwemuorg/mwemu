@@ -6,8 +6,8 @@ pub fn RegisterWaitForSingleObject(emu: &mut emu::Emu) {
     let object = emu.regs().rdx;
     let callback = emu.regs().r8;
     let _context = emu.regs().r9;
-    let millis = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let millis = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     log_red!(
         emu,

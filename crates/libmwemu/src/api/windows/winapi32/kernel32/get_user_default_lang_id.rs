@@ -1,9 +1,10 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn GetUserDefaultLangID(emu: &mut emu::Emu) {
-    log_red!(emu, "kernel32!GetUserDefaultLangID");
-    helper::advance_tick(emu, 1);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0x0409;
+    emu.regs_mut().rax = 0x000000000000ffff;
+    log_red!(
+        emu,
+        "kernel32!GetUserDefaultLangID =0x{:x}",
+        emu.regs().rax as u16
+    );
 }

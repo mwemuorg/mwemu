@@ -6,7 +6,7 @@ pub fn CheckNameLegalDOS8Dot3W(emu: &mut emu::Emu) {
     let lpOemName = emu.regs().rdx as u32;
     let OemNameSize = emu.regs().r8 as u32;
     let pbNameContainsSpaces = emu.regs().r9 as u32;
-    let pbNameLegal = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let pbNameLegal = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let lpName = emu.maps.read_wide_string(lpName as u64);
     let lpOemName = emu.maps.read_wide_string(lpOemName as u64);

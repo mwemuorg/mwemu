@@ -2,6 +2,7 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
+use crate::winapi::winapi32::{arg, stdcall_ret};
 
 mod request;
 mod session;
@@ -31,2643 +32,3417 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "InternetCrackUrlA" => url::internet_crack_url_a(emu),
         "InternetCrackUrlW" => url::internet_crack_url_w(emu),
         "AppCacheCheckManifest" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheCheckManifest arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheCheckManifest arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheCloseHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheCloseHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
+                "wininet!AppCacheCloseHandle arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheCreateAndCommitFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheCreateAndCommitFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
+                "wininet!AppCacheCreateAndCommitFile arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheDeleteGroup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheDeleteGroup arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheDeleteGroup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheDeleteIEGroup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheDeleteIEGroup arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheDeleteIEGroup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheDuplicateHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheDuplicateHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
+                "wininet!AppCacheDuplicateHandle arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheFinalize" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheFinalize arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheFinalize arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheFreeDownloadList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheFreeDownloadList arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheFreeDownloadList arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheFreeGroupList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheFreeGroupList arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheFreeGroupList arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheFreeIESpace" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheFreeIESpace arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheFreeIESpace arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheFreeSpace" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheFreeSpace arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheFreeSpace arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheGetDownloadList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheGetDownloadList arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheGetDownloadList arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheGetFallbackUrl" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheGetFallbackUrl arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheGetFallbackUrl arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheGetGroupList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheGetGroupList arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheGetGroupList arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheGetIEGroupList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheGetIEGroupList arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheGetIEGroupList arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheGetInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheGetInfo arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheGetInfo arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheGetManifestUrl" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheGetManifestUrl arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheGetManifestUrl arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "AppCacheLookup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!AppCacheLookup arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!AppCacheLookup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "CommitUrlCacheEntryA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!CommitUrlCacheEntryA handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!CommitUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 10);
         }
         "CommitUrlCacheEntryBinaryBlob" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!CommitUrlCacheEntryBinaryBlob arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!CommitUrlCacheEntryBinaryBlob arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
         }
         "CommitUrlCacheEntryW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!CommitUrlCacheEntryW handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!CommitUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 10);
         }
         "CreateMD5SSOHash" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            let hndl = helper::handler_create("CreateMD5SSOHash");
-            log_red!(emu, "wininet!CreateMD5SSOHash => 0x{:x}", hndl);
-            emu.regs_mut().rax = hndl;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!CreateMD5SSOHash arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("createmd5ssohash");
+            stdcall_ret(emu, 1);
         }
         "CreateUrlCacheContainerA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!CreateUrlCacheContainerA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!CreateUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "CreateUrlCacheContainerW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!CreateUrlCacheContainerW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!CreateUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "CreateUrlCacheEntryA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!CreateUrlCacheEntryA handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!CreateUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("createurlcacheentrya");
+            stdcall_ret(emu, 6);
         }
         "CreateUrlCacheEntryExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!CreateUrlCacheEntryExW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!CreateUrlCacheEntryExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "CreateUrlCacheEntryW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!CreateUrlCacheEntryW handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!CreateUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("createurlcacheentryw");
+            stdcall_ret(emu, 6);
         }
         "CreateUrlCacheGroup" => {
-            let flags = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "wininet!CreateUrlCacheGroup flags:0x{:x}", flags);
-            emu.regs_mut().rax = 0x10001;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!CreateUrlCacheGroup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("createurlcachegroup");
+            stdcall_ret(emu, 2);
         }
         "DeleteIE3Cache" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
+            let handle = arg(emu, 0) as u64;
             log_red!(emu, "wininet!DeleteIE3Cache handle:0x{:x}", handle);
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "DeleteUrlCacheContainerA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!DeleteUrlCacheContainerA '{}'  p1:0x{:x}",
-                s,
-                p1
+                "wininet!DeleteUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "DeleteUrlCacheContainerW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!DeleteUrlCacheContainerW '{}'  p1:0x{:x}",
-                s,
-                p1
+                "wininet!DeleteUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "DeleteUrlCacheEntry" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
+            let handle = arg(emu, 0) as u64;
             log_red!(emu, "wininet!DeleteUrlCacheEntry handle:0x{:x}", handle);
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "DeleteUrlCacheEntryA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let handle = arg(emu, 0) as u64;
             log_red!(emu, "wininet!DeleteUrlCacheEntryA handle:0x{:x}", handle);
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "DeleteUrlCacheEntryW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let handle = arg(emu, 0) as u64;
             log_red!(emu, "wininet!DeleteUrlCacheEntryW handle:0x{:x}", handle);
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "DeleteUrlCacheGroup" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let handle = arg(emu, 0) as u64;
             log_red!(emu, "wininet!DeleteUrlCacheGroup handle:0x{:x}", handle);
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "DeleteWpadCacheForNetworks" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
+            let handle = arg(emu, 0) as u64;
             log_red!(
                 emu,
                 "wininet!DeleteWpadCacheForNetworks handle:0x{:x}",
                 handle
             );
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "DetectAutoProxyUrl" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!DetectAutoProxyUrl arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!DetectAutoProxyUrl arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "DispatchAPICall" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!DispatchAPICall arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!DispatchAPICall arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "DllCanUnloadNow" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!DllCanUnloadNow arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!DllCanUnloadNow arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "DllGetClassObject" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!DllGetClassObject h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
+                "wininet!DllGetClassObject arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "DllInstall" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!DllInstall arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!DllInstall arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "DllRegisterServer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!DllRegisterServer arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!DllRegisterServer arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
+            emu.regs_mut().rax = helper::handler_create("dllregisterserver");
+            stdcall_ret(emu, 2);
         }
         "DllUnregisterServer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!DllUnregisterServer arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            let handle = arg(emu, 0) as u64;
+            log_red!(emu, "wininet!DllUnregisterServer handle:0x{:x}", handle);
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FindCloseUrlCache" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let handle = arg(emu, 0) as u64;
             log_red!(emu, "wininet!FindCloseUrlCache handle:0x{:x}", handle);
-            if handle != 0 {
-                helper::handler_close(handle);
-            }
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "FindFirstUrlCacheContainerA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!FindFirstUrlCacheContainerA arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!FindFirstUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            let handle = helper::handler_create("findfirsturlcachecontainera");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("findfirsturlcachecontainera");
+            stdcall_ret(emu, 2);
         }
         "FindFirstUrlCacheContainerW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!FindFirstUrlCacheContainerW arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!FindFirstUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            let handle = helper::handler_create("findfirsturlcachecontainerw");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("findfirsturlcachecontainerw");
+            stdcall_ret(emu, 2);
         }
         "FindFirstUrlCacheEntryA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!FindFirstUrlCacheEntryA arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!FindFirstUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            let handle = helper::handler_create("findfirsturlcacheentrya");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentrya");
+            stdcall_ret(emu, 2);
         }
         "FindFirstUrlCacheEntryExA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!FindFirstUrlCacheEntryExA arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!FindFirstUrlCacheEntryExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            let handle = helper::handler_create("findfirsturlcacheentryexa");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentryexa");
+            stdcall_ret(emu, 2);
         }
         "FindFirstUrlCacheEntryExW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!FindFirstUrlCacheEntryExW arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!FindFirstUrlCacheEntryExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            let handle = helper::handler_create("findfirsturlcacheentryexw");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentryexw");
+            stdcall_ret(emu, 2);
         }
         "FindFirstUrlCacheEntryW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!FindFirstUrlCacheEntryW arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!FindFirstUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            let handle = helper::handler_create("findfirsturlcacheentryw");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentryw");
+            stdcall_ret(emu, 2);
         }
         "FindFirstUrlCacheGroup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!FindFirstUrlCacheGroup arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!FindFirstUrlCacheGroup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            let handle = helper::handler_create("findfirsturlcachegroup");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("findfirsturlcachegroup");
+            stdcall_ret(emu, 2);
         }
         "FindNextUrlCacheContainerA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FindNextUrlCacheContainerA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FindNextUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "FindNextUrlCacheContainerW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FindNextUrlCacheContainerW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FindNextUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "FindNextUrlCacheEntryA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FindNextUrlCacheEntryA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FindNextUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "FindNextUrlCacheEntryExA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FindNextUrlCacheEntryExA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FindNextUrlCacheEntryExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "FindNextUrlCacheEntryExW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FindNextUrlCacheEntryExW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FindNextUrlCacheEntryExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "FindNextUrlCacheEntryW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FindNextUrlCacheEntryW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FindNextUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "FindNextUrlCacheGroup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FindNextUrlCacheGroup arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FindNextUrlCacheGroup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "ForceNexusLookup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!ForceNexusLookup arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!ForceNexusLookup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "ForceNexusLookupExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "wininet!ForceNexusLookupExW '{}'  p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ForceNexusLookupExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FreeUrlCacheSpaceA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "wininet!FreeUrlCacheSpaceA '{}'", s);
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FreeUrlCacheSpaceA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
         }
         "FreeUrlCacheSpaceW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "wininet!FreeUrlCacheSpaceW '{}'", s);
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FreeUrlCacheSpaceW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
         }
         "FtpCommandA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpCommandA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpCommandA arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "FtpCommandW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpCommandW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpCommandW arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "FtpCreateDirectoryA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpCreateDirectoryA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpCreateDirectoryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpCreateDirectoryW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpCreateDirectoryW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpCreateDirectoryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpDeleteFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpDeleteFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpDeleteFileA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpDeleteFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpDeleteFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpDeleteFileW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpFindFirstFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpFindFirstFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpFindFirstFileA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
+            stdcall_ret(emu, 4);
         }
         "FtpFindFirstFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpFindFirstFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpFindFirstFileW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
+            stdcall_ret(emu, 4);
         }
         "FtpGetCurrentDirectoryA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dir_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let dir_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpGetCurrentDirectoryA handle:0x{:x}", handle);
-            if dir_ptr != 0 {
-                emu.maps.write_string(dir_ptr, "/");
-            }
-            if dir_len_ptr != 0 {
-                emu.maps.write_dword(dir_len_ptr, 1);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpGetCurrentDirectoryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "FtpGetCurrentDirectoryW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dir_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let dir_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpGetCurrentDirectoryW handle:0x{:x}", handle);
-            if dir_ptr != 0 {
-                emu.maps.write_string(dir_ptr, "/");
-            }
-            if dir_len_ptr != 0 {
-                emu.maps.write_dword(dir_len_ptr, 1);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpGetCurrentDirectoryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "FtpGetFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpGetFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpGetFileA arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "FtpGetFileEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpGetFileEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpGetFileEx arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpGetFileSize" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "wininet!FtpGetFileSize arg1:0x{:x}", arg1);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpGetFileSize arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "FtpGetFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpGetFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpGetFileW arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "FtpOpenFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpOpenFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpOpenFileA arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.regs_mut().rax = helper::handler_create("ftpopenfilea");
+            stdcall_ret(emu, 4);
         }
         "FtpOpenFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpOpenFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpOpenFileW arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.regs_mut().rax = helper::handler_create("ftpopenfilew");
+            stdcall_ret(emu, 4);
         }
         "FtpPutFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpPutFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpPutFileA arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "FtpPutFileEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpPutFileEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpPutFileEx arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpPutFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpPutFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!FtpPutFileW arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "FtpRemoveDirectoryA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpRemoveDirectoryA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpRemoveDirectoryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpRemoveDirectoryW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpRemoveDirectoryW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpRemoveDirectoryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpRenameFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpRenameFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpRenameFileA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "FtpRenameFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpRenameFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpRenameFileW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "FtpSetCurrentDirectoryA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpSetCurrentDirectoryA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpSetCurrentDirectoryA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "FtpSetCurrentDirectoryW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!FtpSetCurrentDirectoryW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!FtpSetCurrentDirectoryW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "GetProxyDllInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!GetProxyDllInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
+                "wininet!GetProxyDllInfo arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheConfigInfoA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!GetUrlCacheConfigInfoA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!GetUrlCacheConfigInfoA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "GetUrlCacheConfigInfoW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!GetUrlCacheConfigInfoW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!GetUrlCacheConfigInfoW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
         }
         "GetUrlCacheEntryBinaryBlob" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!GetUrlCacheEntryBinaryBlob h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
+                "wininet!GetUrlCacheEntryBinaryBlob arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheEntryInfoA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GetUrlCacheEntryInfoA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GetUrlCacheEntryInfoA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheEntryInfoExA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GetUrlCacheEntryInfoExA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GetUrlCacheEntryInfoExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheEntryInfoExW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GetUrlCacheEntryInfoExW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GetUrlCacheEntryInfoExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheEntryInfoW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GetUrlCacheEntryInfoW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GetUrlCacheEntryInfoW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheGroupAttributeA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GetUrlCacheGroupAttributeA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GetUrlCacheGroupAttributeA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheGroupAttributeW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GetUrlCacheGroupAttributeW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GetUrlCacheGroupAttributeW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GetUrlCacheHeaderData" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!GetUrlCacheHeaderData h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
+                "wininet!GetUrlCacheHeaderData arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "GopherCreateLocatorA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherCreateLocatorA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherCreateLocatorA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("gophercreatelocatora");
+            stdcall_ret(emu, 2);
         }
         "GopherCreateLocatorW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherCreateLocatorW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherCreateLocatorW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("gophercreatelocatorw");
+            stdcall_ret(emu, 2);
         }
         "GopherFindFirstFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherFindFirstFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherFindFirstFileA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
+            stdcall_ret(emu, 6);
         }
         "GopherFindFirstFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherFindFirstFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherFindFirstFileW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
+            stdcall_ret(emu, 6);
         }
         "GopherGetAttributeA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherGetAttributeA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherGetAttributeA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GopherGetAttributeW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherGetAttributeW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherGetAttributeW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GopherGetLocatorTypeA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherGetLocatorTypeA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherGetLocatorTypeA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GopherGetLocatorTypeW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherGetLocatorTypeW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherGetLocatorTypeW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "GopherOpenFileA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherOpenFileA arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherOpenFileA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("gopheropenfilea");
+            stdcall_ret(emu, 6);
         }
         "GopherOpenFileW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!GopherOpenFileW arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0xFFFFFFFF;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!GopherOpenFileW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("gopheropenfilew");
+            stdcall_ret(emu, 6);
         }
         "HttpAddRequestHeadersA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let hdrs_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let _hdrs_len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let _modifiers = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let hdrs = read_ansi_string_if_present(emu, hdrs_ptr);
-            log_red!(emu, "wininet!HttpAddRequestHeadersA hdrs:'{}'", hdrs);
-            pop_stack32(emu, 4);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpAddRequestHeadersA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "HttpAddRequestHeadersW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let hdrs_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let _hdrs_len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let _modifiers = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let hdrs = read_wide_string_if_present(emu, hdrs_ptr);
-            log_red!(emu, "wininet!HttpAddRequestHeadersW hdrs:'{}'", hdrs);
-            pop_stack32(emu, 4);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpAddRequestHeadersW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "HttpCheckDavCompliance" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!HttpCheckDavCompliance arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!HttpCheckDavCompliance arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "HttpCloseDependencyHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
-            log_red!(emu, "wininet!HttpCloseDependencyHandle 0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpDuplicateDependencyHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = arg(emu, 0) as u64;
             log_red!(
                 emu,
-                "wininet!HttpDuplicateDependencyHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpEndRequestA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!HttpEndRequestA handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpEndRequestW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!HttpEndRequestW handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpGetServerCredentials" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpGetServerCredentials arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpGetTunnelSocket" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpGetTunnelSocket h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpIndicatePageLoadComplete" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpIndicatePageLoadComplete arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpIsHostHstsEnabled" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpIsHostHstsEnabled arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpOpenDependencyHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpOpenDependencyHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpPushClose" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
-            log_red!(emu, "wininet!HttpPushClose 0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpPushEnable" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpPushEnable arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpPushWait" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "wininet!HttpPushWait 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpQueryInfoW" => request::http_query_info_w(emu),
-        "HttpSendRequestExA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let _buffers_in = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let _buffers_out = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let _ctx = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-            log_red!(emu, "wininet!HttpSendRequestExA handle:0x{:x}", handle);
-            pop_stack32(emu, 5);
-            emu.regs_mut().rax = 1;
-            for _ in 0..5u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpSendRequestExW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let _buffers_in = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let _buffers_out = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let _ctx = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-            log_red!(emu, "wininet!HttpSendRequestExW handle:0x{:x}", handle);
-            pop_stack32(emu, 5);
-            emu.regs_mut().rax = 1;
-            for _ in 0..5u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpWebSocketClose" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
-            log_red!(emu, "wininet!HttpWebSocketClose 0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpWebSocketCompleteUpgrade" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketCompleteUpgrade h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpWebSocketQueryCloseStatus" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
-            log_red!(emu, "wininet!HttpWebSocketQueryCloseStatus 0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HttpWebSocketReceive" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketReceive h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpWebSocketSend" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketSend h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "HttpWebSocketShutdown" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketShutdown h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "IncrementUrlCacheHeaderData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!IncrementUrlCacheHeaderData arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "InternetAlgIdToStringA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!InternetAlgIdToStringA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "InternetAlgIdToStringW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!InternetAlgIdToStringW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "InternetAttemptConnect" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "wininet!InternetAttemptConnect arg1:0x{:x}", arg1);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetAutodial" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetAutodial handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetAutodialCallback" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetAutodialCallback arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "InternetAutodialHangup" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetAutodialHangup handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetCanonicalizeUrlA" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetCanonicalizeUrlA url:'{}'", url);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetCanonicalizeUrlW" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetCanonicalizeUrlW url:'{}'", url);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetCheckConnectionA" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let _reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let url = read_ansi_string_if_present(emu, url_ptr);
-            log_red!(
-                emu,
-                "wininet!InternetCheckConnectionA url:'{}' => offline",
-                url
-            );
-            pop_stack32(emu, 3);
-            emu.set_last_error(12029); // ERROR_INTERNET_CANNOT_CONNECT
-            emu.regs_mut().rax = 0;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetCheckConnectionW" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let _reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let url = read_wide_string_if_present(emu, url_ptr);
-            log_red!(
-                emu,
-                "wininet!InternetCheckConnectionW url:'{}' => offline",
-                url
-            );
-            pop_stack32(emu, 3);
-            emu.set_last_error(12029); // ERROR_INTERNET_CANNOT_CONNECT
-            emu.regs_mut().rax = 0;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetClearAllPerSiteCookieDecisions" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetClearAllPerSiteCookieDecisions handle:0x{:x}",
+                "wininet!HttpCloseDependencyHandle handle:0x{:x}",
                 handle
             );
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
+        }
+        "HttpDuplicateDependencyHandle" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpDuplicateDependencyHandle arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("httpduplicatedependencyhandle");
+            stdcall_ret(emu, 2);
+        }
+        "HttpEndRequestA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpEndRequestA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "HttpEndRequestW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpEndRequestW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "HttpGetServerCredentials" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpGetServerCredentials arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "HttpGetTunnelSocket" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpGetTunnelSocket arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "HttpIndicatePageLoadComplete" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpIndicatePageLoadComplete arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("httpindicatepageloadcomplete");
+            stdcall_ret(emu, 2);
+        }
+        "HttpIsHostHstsEnabled" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpIsHostHstsEnabled arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("httpishosthstsenabled");
+            stdcall_ret(emu, 2);
+        }
+        "HttpOpenDependencyHandle" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpOpenDependencyHandle arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("httpopendependencyhandle");
+            stdcall_ret(emu, 2);
+        }
+        "HttpPushClose" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(emu, "wininet!HttpPushClose handle:0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
+        }
+        "HttpPushEnable" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpPushEnable arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("httppushenable");
+            stdcall_ret(emu, 2);
+        }
+        "HttpPushWait" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!HttpPushWait arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "HttpSendRequestExA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpSendRequestExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "HttpSendRequestExW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpSendRequestExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "HttpWebSocketClose" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(emu, "wininet!HttpWebSocketClose handle:0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
+        }
+        "HttpWebSocketCompleteUpgrade" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpWebSocketCompleteUpgrade arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "HttpWebSocketQueryCloseStatus" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpWebSocketQueryCloseStatus handle:0x{:x}",
+                handle
+            );
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
+        }
+        "HttpWebSocketReceive" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpWebSocketReceive arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "HttpWebSocketSend" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpWebSocketSend arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "HttpWebSocketShutdown" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpWebSocketShutdown arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "IncrementUrlCacheHeaderData" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!IncrementUrlCacheHeaderData arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetAlgIdToStringA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetAlgIdToStringA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetAlgIdToStringW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetAlgIdToStringW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetAttemptConnect" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetAttemptConnect arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("internetattemptconnect");
+            stdcall_ret(emu, 1);
+        }
+        "InternetAutodial" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetAutodial arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetAutodialCallback" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetAutodialCallback arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetAutodialHangup" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetAutodialHangup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
+        }
+        "InternetCanonicalizeUrlA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCanonicalizeUrlA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetCanonicalizeUrlW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCanonicalizeUrlW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetCheckConnectionA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCheckConnectionA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetCheckConnectionW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCheckConnectionW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetClearAllPerSiteCookieDecisions" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetClearAllPerSiteCookieDecisions arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "InternetCombineUrlA" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetCombineUrlA url:'{}'", url);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCombineUrlA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetCombineUrlW" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetCombineUrlW url:'{}'", url);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCombineUrlW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetConfirmZoneCrossing" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "wininet!InternetConfirmZoneCrossing arg1:0x{:x}", arg1);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetConfirmZoneCrossing arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetConfirmZoneCrossingA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetConfirmZoneCrossingA arg1:0x{:x}",
-                arg1
+                "wininet!InternetConfirmZoneCrossingA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetConfirmZoneCrossingW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetConfirmZoneCrossingW arg1:0x{:x}",
-                arg1
+                "wininet!InternetConfirmZoneCrossingW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetConvertUrlFromWireToWideChar" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetConvertUrlFromWireToWideChar arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetConvertUrlFromWireToWideChar arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "InternetCreateUrlA" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetCreateUrlA url:'{}'", url);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCreateUrlA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetCreateUrlW" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetCreateUrlW url:'{}'", url);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetCreateUrlW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetDial" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            log_red!(
-                emu,
-                "wininet!InternetDial arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            let handle = helper::handler_create("internetdial");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!InternetDial arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 4);
         }
         "InternetDialA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            log_red!(
-                emu,
-                "wininet!InternetDialA arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            let handle = helper::handler_create("internetdiala");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!InternetDialA arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 4);
         }
         "InternetDialW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            log_red!(
-                emu,
-                "wininet!InternetDialW arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            let handle = helper::handler_create("internetdialw");
-            emu.regs_mut().rax = handle;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(emu, "wininet!InternetDialW arg0:0x{:x} arg1:0x{:x}", a0, a1);
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 4);
         }
         "InternetEnumPerSiteCookieDecisionA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetEnumPerSiteCookieDecisionA arg1:0x{:x}",
-                arg1
+                "wininet!InternetEnumPerSiteCookieDecisionA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            emu.set_last_error(2);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetEnumPerSiteCookieDecisionW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetEnumPerSiteCookieDecisionW arg1:0x{:x}",
-                arg1
+                "wininet!InternetEnumPerSiteCookieDecisionW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            emu.set_last_error(2);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetFindNextFileA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetFindNextFileA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!InternetFindNextFileA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "InternetFindNextFileW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetFindNextFileW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!InternetFindNextFileW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "InternetFortezzaCommand" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetFortezzaCommand handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetFortezzaCommand arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetFreeCookies" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let handle = arg(emu, 0) as u64;
             log_red!(emu, "wininet!InternetFreeCookies handle:0x{:x}", handle);
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetFreeProxyInfoList" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let handle = arg(emu, 0) as u64;
             log_red!(
                 emu,
                 "wininet!InternetFreeProxyInfoList handle:0x{:x}",
                 handle
             );
+            helper::handler_close(handle);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetGetCertByURL" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGetCertByURL arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetGetCertByURL arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "InternetGetCertByURLA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGetCertByURLA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!InternetGetCertByURLA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "InternetGetConnectedState" => {
-            let flags_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGetConnectedState");
-            if flags_ptr != 0 {
-                emu.maps.write_dword(flags_ptr, 0x20);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetConnectedState arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetGetConnectedStateEx" => {
-            let flags_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGetConnectedStateEx");
-            if flags_ptr != 0 {
-                emu.maps.write_dword(flags_ptr, 0x20);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetConnectedStateEx arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetGetConnectedStateExA" => {
-            let flags_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGetConnectedStateExA");
-            if flags_ptr != 0 {
-                emu.maps.write_dword(flags_ptr, 0x20);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetConnectedStateExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetGetConnectedStateExW" => {
-            let flags_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGetConnectedStateExW");
-            if flags_ptr != 0 {
-                emu.maps.write_dword(flags_ptr, 0x20);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetConnectedStateExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 1);
         }
         "InternetGetCookieA" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetGetCookieA url:'{}'", url);
-            if size_ptr != 0 {
-                emu.maps.write_dword(size_ptr, 0);
-            }
-            emu.set_last_error(259);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetCookieA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetGetCookieEx2" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetGetCookieEx2 url:'{}'", url);
-            if size_ptr != 0 {
-                emu.maps.write_dword(size_ptr, 0);
-            }
-            emu.set_last_error(259);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetCookieEx2 arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetGetCookieExA" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetGetCookieExA url:'{}'", url);
-            if size_ptr != 0 {
-                emu.maps.write_dword(size_ptr, 0);
-            }
-            emu.set_last_error(259);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetCookieExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetGetCookieExW" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetGetCookieExW url:'{}'", url);
-            if size_ptr != 0 {
-                emu.maps.write_dword(size_ptr, 0);
-            }
-            emu.set_last_error(259);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetCookieExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetGetCookieW" => {
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let url = if url_ptr != 0 {
-                emu.maps.read_string(url_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "wininet!InternetGetCookieW url:'{}'", url);
-            if size_ptr != 0 {
-                emu.maps.write_dword(size_ptr, 0);
-            }
-            emu.set_last_error(259);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetCookieW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetGetLastResponseInfoA" => {
-            let error_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGetLastResponseInfoA");
-            if error_ptr != 0 {
-                emu.maps.write_dword(error_ptr, 0);
-            }
-            if buf_len_ptr != 0 {
-                emu.maps.write_dword(buf_len_ptr, 0);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetLastResponseInfoA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetGetLastResponseInfoW" => {
-            let error_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGetLastResponseInfoW");
-            if error_ptr != 0 {
-                emu.maps.write_dword(error_ptr, 0);
-            }
-            if buf_len_ptr != 0 {
-                emu.maps.write_dword(buf_len_ptr, 0);
-            }
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetLastResponseInfoW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetGetPerSiteCookieDecisionA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGetPerSiteCookieDecisionA arg1:0x{:x}",
-                arg1
+                "wininet!InternetGetPerSiteCookieDecisionA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            emu.set_last_error(2);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "InternetGetPerSiteCookieDecisionW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGetPerSiteCookieDecisionW arg1:0x{:x}",
-                arg1
+                "wininet!InternetGetPerSiteCookieDecisionW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            emu.set_last_error(2);
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "InternetGetProxyForUrl" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGetProxyForUrl handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGetProxyForUrl arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetGetSecurityInfoByURL" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGetSecurityInfoByURL arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetGetSecurityInfoByURL arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "InternetGetSecurityInfoByURLA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGetSecurityInfoByURLA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!InternetGetSecurityInfoByURLA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "InternetGetSecurityInfoByURLW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGetSecurityInfoByURLW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
+                "wininet!InternetGetSecurityInfoByURLW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "InternetGoOnline" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetGoOnline arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetGoOnline arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "InternetGoOnlineA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGoOnlineA handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGoOnlineA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetGoOnlineW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetGoOnlineW handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetGoOnlineW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetHangUp" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetHangUp arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetHangUp arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "InternetInitializeAutoProxyDll" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetInitializeAutoProxyDll handle:0x{:x}",
-                handle
+                "wininet!InternetInitializeAutoProxyDll arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("internetinitializeautoproxydll");
+            stdcall_ret(emu, 3);
         }
         "InternetLockRequestFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetLockRequestFile handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetLockRequestFile arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "InternetOpenUrlA" => {
-            let inet_hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let hdrs_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let _hdrs_len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-            let _ctx = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
-            let url = read_ansi_string_if_present(emu, url_ptr);
-            let hdrs = read_ansi_string_if_present(emu, hdrs_ptr);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetOpenUrlA url:'{}' hdrs:'{}'",
-                url,
-                hdrs
+                "wininet!InternetOpenUrlA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            pop_stack32(emu, 6);
-            let uri = format!("InternetOpenUrlA://{}", url);
-            emu.regs_mut().rax = helper::handler_create(&uri);
-            for _ in 0..6u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("internetopenurla");
+            stdcall_ret(emu, 4);
         }
         "InternetOpenUrlW" => {
-            let inet_hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let url_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let hdrs_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let _hdrs_len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-            let _ctx = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
-            let url = read_wide_string_if_present(emu, url_ptr);
-            let hdrs = read_wide_string_if_present(emu, hdrs_ptr);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetOpenUrlW url:'{}' hdrs:'{}'",
-                url,
-                hdrs
+                "wininet!InternetOpenUrlW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            pop_stack32(emu, 6);
-            let uri = format!("InternetOpenUrlW://{}", url);
-            emu.regs_mut().rax = helper::handler_create(&uri);
-            for _ in 0..6u32 {
-                emu.stack_pop32(false);
-            }
+            emu.regs_mut().rax = helper::handler_create("internetopenurlw");
+            stdcall_ret(emu, 4);
         }
         "InternetQueryDataAvailable" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let bytes_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetQueryDataAvailable handle:0x{:x}",
-                handle
+                "wininet!InternetQueryDataAvailable arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            if bytes_ptr != 0 {
-                emu.maps.write_dword(bytes_ptr, 0);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "InternetQueryFortezzaStatus" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetQueryFortezzaStatus arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetQueryFortezzaStatus arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-        }
-        "InternetQueryOptionA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let option = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetQueryOptionA handle:0x{:x} option:{}",
-                handle,
-                option
-            );
-            if buf_len_ptr != 0 {
-                emu.maps.write_dword(buf_len_ptr, 4);
-            }
-            if buf_ptr != 0 {
-                emu.maps.write_dword(buf_ptr, 0);
-            }
-            emu.regs_mut().rax = 1;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetQueryOptionW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let option = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetQueryOptionW handle:0x{:x} option:{}",
-                handle,
-                option
-            );
-            if buf_len_ptr != 0 {
-                emu.maps.write_dword(buf_len_ptr, 4);
-            }
-            if buf_ptr != 0 {
-                emu.maps.write_dword(buf_ptr, 0);
-            }
-            emu.regs_mut().rax = 1;
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "InternetSecurityProtocolToStringA" => {
-            let protocol = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSecurityProtocolToStringA protocol:{}",
-                protocol
+                "wininet!InternetSecurityProtocolToStringA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            if buf_ptr != 0 {
-                emu.maps.write_string(buf_ptr, "TLS 1.2");
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetSecurityProtocolToStringW" => {
-            let protocol = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let buf_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSecurityProtocolToStringW protocol:{}",
-                protocol
+                "wininet!InternetSecurityProtocolToStringW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            if buf_ptr != 0 {
-                emu.maps.write_string(buf_ptr, "TLS 1.2");
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetSetCookieA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetCookieA handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetCookieA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetSetCookieEx2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSetCookieEx2 arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetSetCookieEx2 arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
         }
         "InternetSetCookieExA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetCookieExA handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetCookieExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetSetCookieExW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetCookieExW handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetCookieExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetSetCookieW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetCookieW handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetCookieW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetSetDialState" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSetDialState arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetSetDialState arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
         }
         "InternetSetDialStateA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetDialStateA handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetDialStateA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetSetDialStateW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetDialStateW handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetDialStateW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetSetFilePointer" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let distance = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as i32;
-            let method = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSetFilePointer handle:0x{:x} dist:{} method:{}",
-                handle,
-                distance,
-                method
+                "wininet!InternetSetFilePointer arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 3);
         }
         "InternetSetOptionExA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetOptionExA handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetOptionExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetSetOptionExW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetSetOptionExW handle:0x{:x}", handle);
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetSetOptionExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 4);
         }
         "InternetSetPerSiteCookieDecisionA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSetPerSiteCookieDecisionA handle:0x{:x}",
-                handle
+                "wininet!InternetSetPerSiteCookieDecisionA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "InternetSetPerSiteCookieDecisionW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSetPerSiteCookieDecisionW handle:0x{:x}",
-                handle
+                "wininet!InternetSetPerSiteCookieDecisionW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
         "InternetSetSecureLegacyServersAppCompat" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
             log_red!(
                 emu,
-                "wininet!InternetSetSecureLegacyServersAppCompat arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
+                "wininet!InternetSetSecureLegacyServersAppCompat arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
             );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
+            emu.set_last_error(0);
             emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetShowSecurityInfoByURL" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetShowSecurityInfoByURL arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
+        }
+        "InternetShowSecurityInfoByURLA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetShowSecurityInfoByURLA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
+        }
+        "InternetShowSecurityInfoByURLW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetShowSecurityInfoByURLW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
+        }
+        "InternetTimeFromSystemTime" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetTimeFromSystemTime arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetTimeFromSystemTimeA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetTimeFromSystemTimeA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "InternetTimeFromSystemTimeW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetTimeFromSystemTimeW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "InternetTimeToSystemTime" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetTimeToSystemTime arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "InternetTimeToSystemTimeA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetTimeToSystemTimeA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "InternetTimeToSystemTimeW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetTimeToSystemTimeW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "_GetFileExtensionFromUrl" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!_GetFileExtensionFromUrl arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
+        }
+        "InternetUnlockRequestFile" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetUnlockRequestFile handle:0x{:x}",
+                handle
+            );
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
+        }
+        "InternetWriteFile" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetWriteFile arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetWriteFileExA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetWriteFileExA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetWriteFileExW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetWriteFileExW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "IsHostInProxyBypassList" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!IsHostInProxyBypassList arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "IsUrlCacheEntryExpiredA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!IsUrlCacheEntryExpiredA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "IsUrlCacheEntryExpiredW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!IsUrlCacheEntryExpiredW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "LoadUrlCacheContent" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!LoadUrlCacheContent arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("loadurlcachecontent");
+            stdcall_ret(emu, 1);
+        }
+        "ParseX509EncodedCertificateForListBoxEntry" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ParseX509EncodedCertificateForListBoxEntry arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "PrivacyGetZonePreferenceW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!PrivacyGetZonePreferenceW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "PrivacySetZonePreferenceW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!PrivacySetZonePreferenceW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "ReadUrlCacheEntryStream" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ReadUrlCacheEntryStream arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "ReadUrlCacheEntryStreamEx" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ReadUrlCacheEntryStreamEx arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "RegisterUrlCacheNotification" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!RegisterUrlCacheNotification arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("registerurlcachenotification");
+            stdcall_ret(emu, 6);
+        }
+        "ResumeSuspendedDownload" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ResumeSuspendedDownload arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "RetrieveUrlCacheEntryFileA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!RetrieveUrlCacheEntryFileA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "RetrieveUrlCacheEntryFileW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!RetrieveUrlCacheEntryFileW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "RetrieveUrlCacheEntryStreamA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!RetrieveUrlCacheEntryStreamA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "RetrieveUrlCacheEntryStreamW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!RetrieveUrlCacheEntryStreamW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "RunOnceUrlCache" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!RunOnceUrlCache arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "SetUrlCacheConfigInfoA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheConfigInfoA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "SetUrlCacheConfigInfoW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheConfigInfoW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "SetUrlCacheEntryGroup" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheEntryGroup arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "SetUrlCacheEntryGroupA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheEntryGroupA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "SetUrlCacheEntryGroupW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheEntryGroupW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "SetUrlCacheEntryInfoA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheEntryInfoA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "SetUrlCacheEntryInfoW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheEntryInfoW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "SetUrlCacheGroupAttributeA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheGroupAttributeA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "SetUrlCacheGroupAttributeW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheGroupAttributeW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "SetUrlCacheHeaderData" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!SetUrlCacheHeaderData arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "ShowCertificate" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ShowCertificate arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "ShowClientAuthCerts" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ShowClientAuthCerts arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "ShowSecurityInfo" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ShowSecurityInfo arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
+        }
+        "ShowX509EncodedCertificate" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!ShowX509EncodedCertificate arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UnlockUrlCacheEntryFile" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(emu, "wininet!UnlockUrlCacheEntryFile handle:0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UnlockUrlCacheEntryFileA" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(
+                emu,
+                "wininet!UnlockUrlCacheEntryFileA handle:0x{:x}",
+                handle
+            );
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UnlockUrlCacheEntryFileW" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(
+                emu,
+                "wininet!UnlockUrlCacheEntryFileW handle:0x{:x}",
+                handle
+            );
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UnlockUrlCacheEntryStream" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(
+                emu,
+                "wininet!UnlockUrlCacheEntryStream handle:0x{:x}",
+                handle
+            );
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UpdateUrlCacheContentPath" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UpdateUrlCacheContentPath arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheCheckEntriesExist" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheCheckEntriesExist arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheCloseEntryHandle" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheCloseEntryHandle handle:0x{:x}",
+                handle
+            );
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
+        }
+        "UrlCacheContainerSetEntryMaximumAge" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheContainerSetEntryMaximumAge arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "UrlCacheCreateContainer" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheCreateContainer arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.regs_mut().rax = helper::handler_create("urlcachecreatecontainer");
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheFindFirstEntry" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheFindFirstEntry arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheFindNextEntry" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheFindNextEntry arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheFreeEntryInfo" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(emu, "wininet!UrlCacheFreeEntryInfo handle:0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheFreeGlobalSpace" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(emu, "wininet!UrlCacheFreeGlobalSpace handle:0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheGetContentPaths" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheGetContentPaths arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheGetEntryInfo" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheGetEntryInfo arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheGetGlobalCacheSize" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheGetGlobalCacheSize arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheGetGlobalLimit" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheGetGlobalLimit arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheReadEntryStream" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheReadEntryStream arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheReloadSettings" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheReloadSettings arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheRetrieveEntryFile" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheRetrieveEntryFile arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheRetrieveEntryStream" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheRetrieveEntryStream arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheServer" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheServer arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheSetGlobalLimit" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheSetGlobalLimit arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "UrlCacheUpdateEntryExtraData" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!UrlCacheUpdateEntryExtraData arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 3);
+        }
+        "UrlZonesDetach" => {
+            let handle = arg(emu, 0) as u64;
+            log_red!(emu, "wininet!UrlZonesDetach handle:0x{:x}", handle);
+            helper::handler_close(handle);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "HttpQueryInfoW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!HttpQueryInfoW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetQueryOptionA" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetQueryOptionA arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
+        }
+        "InternetQueryOptionW" => {
+            let a0 = arg(emu, 0) as u64;
+            let a1 = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "wininet!InternetQueryOptionW arg0:0x{:x} arg1:0x{:x}",
+                a0,
+                a1
+            );
+            emu.set_last_error(0);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 4);
         }
         "InternetSetStatusCallback"
         | "InternetSetStatusCallbackA"
         | "InternetSetStatusCallbackW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let callback = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
+            let handle = arg(emu, 0) as u64;
+            let callback = arg(emu, 1) as u64;
             let valid = helper::handler_exist(handle);
             log_red!(
                 emu,
@@ -2676,971 +3451,14 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 callback,
                 valid
             );
-            emu.regs_mut().rax = 0;
-        }
-        "InternetShowSecurityInfoByURL" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetShowSecurityInfoByURL arg1:0x{:x}",
-                arg1
-            );
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetShowSecurityInfoByURLA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetShowSecurityInfoByURLA arg1:0x{:x}",
-                arg1
-            );
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetShowSecurityInfoByURLW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetShowSecurityInfoByURLW arg1:0x{:x}",
-                arg1
-            );
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetTimeFromSystemTime" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeFromSystemTime arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "InternetTimeFromSystemTimeA" => {
-            let time_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let format = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetTimeFromSystemTimeA format:{}", format);
-            if buf_ptr != 0 {
-                emu.maps
-                    .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
-            }
-            emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetTimeFromSystemTimeW" => {
-            let time_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let format = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetTimeFromSystemTimeW format:{}", format);
-            if buf_ptr != 0 {
-                emu.maps
-                    .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
-            }
-            emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetTimeToSystemTime" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeToSystemTime arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "InternetTimeToSystemTimeA" => {
-            let time_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let format = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetTimeToSystemTimeA format:{}", format);
-            if buf_ptr != 0 {
-                emu.maps
-                    .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
-            }
-            emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetTimeToSystemTimeW" => {
-            let time_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let format = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetTimeToSystemTimeW format:{}", format);
-            if buf_ptr != 0 {
-                emu.maps
-                    .write_string(buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT");
-            }
-            emu.regs_mut().rax = 1;
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetUnlockRequestFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetUnlockRequestFile handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetWriteFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!InternetWriteFile handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InternetWriteFileExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!InternetWriteFileExA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "InternetWriteFileExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!InternetWriteFileExW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "IsHostInProxyBypassList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!IsHostInProxyBypassList arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "IsUrlCacheEntryExpiredA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!IsUrlCacheEntryExpiredA '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "IsUrlCacheEntryExpiredW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!IsUrlCacheEntryExpiredW '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "LoadUrlCacheContent" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!LoadUrlCacheContent handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "ParseX509EncodedCertificateForListBoxEntry" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!ParseX509EncodedCertificateForListBoxEntry arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "PrivacyGetZonePreferenceW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!PrivacyGetZonePreferenceW '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "PrivacySetZonePreferenceW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!PrivacySetZonePreferenceW '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadUrlCacheEntryStream" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!ReadUrlCacheEntryStream h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadUrlCacheEntryStreamEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!ReadUrlCacheEntryStreamEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegisterUrlCacheNotification" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!RegisterUrlCacheNotification handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "ResumeSuspendedDownload" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!ResumeSuspendedDownload handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RetrieveUrlCacheEntryFileA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryFileA '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RetrieveUrlCacheEntryFileW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryFileW '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RetrieveUrlCacheEntryStreamA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryStreamA '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RetrieveUrlCacheEntryStreamW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryStreamW '{}'  p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RunOnceUrlCache" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!RunOnceUrlCache arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetUrlCacheConfigInfoA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheConfigInfoA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetUrlCacheConfigInfoW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheConfigInfoW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetUrlCacheEntryGroup" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryGroup h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetUrlCacheEntryGroupA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryGroupA '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetUrlCacheEntryGroupW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryGroupW '{}'  p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetUrlCacheEntryInfoA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!SetUrlCacheEntryInfoA handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetUrlCacheEntryInfoW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!SetUrlCacheEntryInfoW handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetUrlCacheGroupAttributeA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheGroupAttributeA handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetUrlCacheGroupAttributeW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheGroupAttributeW handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetUrlCacheHeaderData" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheHeaderData h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ShowCertificate" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!ShowCertificate arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ShowClientAuthCerts" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!ShowClientAuthCerts arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ShowSecurityInfo" => {
-            log_red!(emu, "wininet!ShowSecurityInfo");
-            helper::advance_tick(emu, 1);
             emu.set_last_error(0);
-        }
-        "ShowX509EncodedCertificate" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!ShowX509EncodedCertificate arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UnlockUrlCacheEntryFile" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "wininet!UnlockUrlCacheEntryFile 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UnlockUrlCacheEntryFileA" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UnlockUrlCacheEntryFileA handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UnlockUrlCacheEntryFileW" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UnlockUrlCacheEntryFileW handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UnlockUrlCacheEntryStream" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "wininet!UnlockUrlCacheEntryStream 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UpdateUrlCacheContentPath" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UpdateUrlCacheContentPath arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheCheckEntriesExist" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheCheckEntriesExist arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheCloseEntryHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheCloseEntryHandle handle:0x{:x}",
-                handle
-            );
-            if handle != 0 {
-                helper::handler_close(handle);
-            }
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UrlCacheContainerSetEntryMaximumAge" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheContainerSetEntryMaximumAge handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UrlCacheCreateContainer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheCreateContainer arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheFindFirstEntry" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheFindFirstEntry arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheFindNextEntry" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheFindNextEntry arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheFreeEntryInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheFreeEntryInfo arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheFreeGlobalSpace" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!UrlCacheFreeGlobalSpace handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UrlCacheGetContentPaths" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetContentPaths arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheGetEntryInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetEntryInfo arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheGetGlobalCacheSize" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetGlobalCacheSize arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheGetGlobalLimit" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetGlobalLimit arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheReadEntryStream" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!UrlCacheReadEntryStream arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            stdcall_ret(emu, 2);
         }
-        "UrlCacheReloadSettings" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheReloadSettings arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
+
+        _ => {
+            return fallback::unimplemented(addr, api, emu);
         }
-        "UrlCacheRetrieveEntryFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheRetrieveEntryFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheRetrieveEntryStream" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!UrlCacheRetrieveEntryStream arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UrlCacheServer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheServer arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheSetGlobalLimit" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheSetGlobalLimit arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "UrlCacheUpdateEntryExtraData" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheUpdateEntryExtraData handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UrlZonesDetach" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "wininet!UrlZonesDetach arg1:0x{:x}", arg1);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "_GetFileExtensionFromUrl" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "wininet!_GetFileExtensionFromUrl h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        _ => return fallback::unimplemented(addr, api, emu),
     }
 
     String::new()

@@ -42,6 +42,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "WsaConnect" => WsaConnect(emu),
         "WsaRecv" => WsaRecv(emu),
         "WsaRecvFrom" => WsaRecvFrom(emu),
+        "WsaSend" | "WSASend" => WsaSend(emu),
         "GetSockName" => GetSockName(emu),
         "htonl" => htonl(emu),
         "ntohl" => ntohl(emu),
@@ -1450,20 +1451,6 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 emu.stack_pop32(false);
             }
         }
-        "WSASend" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "ws2_32!WSASend arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
-                let _val = emu.maps.read_string(val_ptr);
-            }
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
         "WSASendDisconnect" => {
             let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
@@ -2693,18 +2680,31 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "inet_ntoa" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "ws2_32!inet_ntoa arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            if first_param != 0 && emu.maps.is_mapped(first_param) {
-                let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-            }
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            let addr_val = arg(emu, 0) as u32;
+            let a = addr_val & 0xFF;
+            let b = (addr_val >> 8) & 0xFF;
+            let c = (addr_val >> 16) & 0xFF;
+            let d = (addr_val >> 24) & 0xFF;
+            let ip_str = format!("{}.{}.{}.{}", a, b, c, d);
+            log_red!(emu, "ws2_32!inet_ntoa -> {}", ip_str);
+            let alloc_sz = 32u64;
+            let buf = match emu.maps.alloc(alloc_sz) {
+                Some(a) => a,
+                None => {
+                    emu.regs_mut().rax = 0;
+                    stdcall_ret(emu, 1);
+                    return String::new();
+                }
+            };
+            emu.maps.create_map(
+                "inet_ntoa_buf",
+                buf,
+                alloc_sz,
+                crate::maps::mem64::Permission::READ_WRITE,
+            );
+            emu.maps.write_string(buf, &ip_str);
+            emu.regs_mut().rax = buf;
+            stdcall_ret(emu, 1);
         }
         "inet_ntop" => {
             let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -3526,4 +3526,31 @@ fn WsaSetLastError(emu: &mut emu::Emu) {
     log_red!(emu, "ws2_32!WSASetLastError err: {}", err);
     emu.set_last_error(err as u64);
     stdcall_ret(emu, 1);
+}
+
+fn WsaSend(emu: &mut emu::Emu) {
+    let sock = arg(emu, 0) as u64;
+    let buffers = arg(emu, 1) as u64;
+    let count = arg(emu, 2) as u32;
+    let bytes_sent_ptr = arg(emu, 3) as u64;
+
+    log_red!(emu, "ws2_32!WSASend sock:0x{:x} bufs:{}", sock, count);
+
+    let total: u32 = if buffers != 0 && count > 0 {
+        let mut sum = 0u32;
+        for i in 0..count as u64 {
+            let len = emu.maps.read_dword(buffers + i * 8).unwrap_or(0);
+            sum += len;
+        }
+        sum
+    } else {
+        0
+    };
+
+    if bytes_sent_ptr != 0 {
+        emu.maps.write_dword(bytes_sent_ptr, total);
+    }
+
+    emu.regs_mut().rax = 0;
+    stdcall_ret(emu, 7);
 }

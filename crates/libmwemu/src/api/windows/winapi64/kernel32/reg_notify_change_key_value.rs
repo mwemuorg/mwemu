@@ -5,7 +5,7 @@ pub fn RegNotifyChangeKeyValue(emu: &mut emu::Emu) {
     let p1 = emu.regs().rdx;
     let p2 = emu.regs().r8;
     let p3 = emu.regs().r9;
-    let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let p4 = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
     log_red!(
         emu,
         "kernel32!RegNotifyChangeKeyValue p1:0x{:x} p2:0x{:x} p3:0x{:x}",

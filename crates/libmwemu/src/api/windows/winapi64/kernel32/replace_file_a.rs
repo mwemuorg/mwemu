@@ -6,8 +6,8 @@ pub fn ReplaceFileA(emu: &mut emu::Emu) {
     let lpReplacementFileName = emu.regs().rdx as u32;
     let lpBackupFileName = emu.regs().r8 as u32;
     let _dwReplaceFlags = emu.regs().r9 as u32;
-    let _lpExclude = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _lpReserved = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _lpExclude = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _lpReserved = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let lpReplacedFileName = emu.maps.read_string(lpReplacedFileName as u64);
     let lpReplacementFileName = emu.maps.read_string(lpReplacementFileName as u64);

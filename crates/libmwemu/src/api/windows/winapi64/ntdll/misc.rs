@@ -211,8 +211,8 @@ pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
     let uncompressed_buffer = emu.regs().rdx;
     let uncompressed_buffer_size = emu.regs().r8;
     let compressed_buffer = emu.regs().r9;
-    let compressed_buffer_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let final_uncompressed_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let compressed_buffer_size = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let final_uncompressed_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     emu.regs_mut().rax = crate::api::windows::common::ntdll::rtl_decompress_buffer(
         emu,

@@ -14,16 +14,16 @@ pub fn uaw_wcschr(emu: &mut emu::Emu) {
     loop {
         let wc = emu.maps.read_word(ptr).unwrap_or(0);
         if wc == ch {
-    emu.set_last_error(0);
-    emu.regs_mut().rax = ptr;
-    return;
+            emu.set_last_error(0);
+            emu.regs_mut().rax = ptr;
+            return;
         }
         if wc == 0 {
-    break;
+            break;
         }
         ptr += 2;
         if ptr - wstr > 0x10000 {
-    break;
+            break;
         }
     }
     emu.regs_mut().rax = 0;

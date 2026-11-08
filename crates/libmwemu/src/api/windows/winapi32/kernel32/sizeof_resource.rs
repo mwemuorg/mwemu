@@ -14,7 +14,6 @@ pub fn SizeofResource(emu: &mut emu::Emu) {
             Some(v) => v,
             None => {
                 log::warn!("SizeofResource: bad handler uri `{}`", uri);
-                emu.set_last_error(0);
                 emu.regs_mut().rax = 0;
                 return;
             }

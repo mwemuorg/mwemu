@@ -1,7 +1,5 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
-//use crate::windows::constants::*;
-//use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
@@ -10,7 +8,9 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     match api {
         "_set_invalid_parameter_handler" => set_invalid_parameter_handler(emu),
 
-        _ => return fallback::unimplemented(addr, api, emu),
+        _ => {
+            return fallback::unimplemented(addr, api, emu);
+        }
     }
 
     String::new()
@@ -18,5 +18,6 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 
 fn set_invalid_parameter_handler(emu: &mut emu::Emu) {
     log_red!(emu, "wincrt!_set_invalid_parameter_handler");
+    emu.stack_pop32(false);
     emu.regs_mut().rax = 0;
 }

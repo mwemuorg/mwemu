@@ -1,9 +1,9 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::virtual_alloc::{permissions, round_up};
-use crate::windows::constants;
 
 use super::virtual_alloc_common::{fail, fail_oom};
+use crate::windows::constants;
 
 pub fn VirtualAllocExNuma(emu: &mut emu::Emu) {
     let proc_hndl = emu.regs().rcx;

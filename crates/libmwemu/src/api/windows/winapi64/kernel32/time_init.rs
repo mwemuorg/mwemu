@@ -1,7 +1,6 @@
-
 use crate::emu;
-use crate::windows::constants;
 use crate::winapi::helper;
+use crate::windows::constants;
 pub fn handler(emu: &mut emu::Emu) {
     let _InitOnce = emu.regs().rcx;
     let _Parameter = emu.regs().rdx;
@@ -14,6 +13,5 @@ pub fn handler(emu: &mut emu::Emu) {
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
-    for _ in 0..3 {
-    }
+    for _ in 0..3 {}
 }

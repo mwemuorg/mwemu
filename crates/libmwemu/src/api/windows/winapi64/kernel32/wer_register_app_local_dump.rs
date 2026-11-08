@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn WerRegisterAppLocalDump(emu: &mut emu::Emu) {

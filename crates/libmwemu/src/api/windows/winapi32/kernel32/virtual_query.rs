@@ -16,12 +16,10 @@ pub fn VirtualQuery(emu: &mut emu::Emu) {
 
     if size < 30 {
         log::trace!("buffer to short: {}", size);
-        emu.set_last_error(0);
         emu.regs_mut().rax = 0;
     } else {
         let mbi = structures::MemoryBasicInformation::guess(addr, &mut emu.maps);
         mbi.save(out_buff, &mut emu.maps);
-        emu.set_last_error(0);
         emu.regs_mut().rax = 1;
     }
 

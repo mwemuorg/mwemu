@@ -13,7 +13,7 @@ pub fn timeGetSystemTime(emu: &mut emu::Emu) {
 
     if pmm_time != 0 {
         emu.maps.write_dword(pmm_time, 1);
-        emu.maps.write_dword(pmm_time + 4, emu.tick as u64);
+        emu.maps.write_dword(pmm_time + 4, emu.tick as u32);
     }
     emu.regs_mut().rax = 0;
 }

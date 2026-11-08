@@ -5,7 +5,7 @@ pub fn NormalizeString(emu: &mut emu::Emu) {
     let src_ptr = emu.regs().rdx;
     let _src_len = emu.regs().r8 as i64;
     let dest_ptr = emu.regs().r9;
-    let dest_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i64;
+    let dest_len = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as i64;
 
     let src = emu.maps.read_wide_string(src_ptr);
 

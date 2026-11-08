@@ -10,7 +10,7 @@ pub fn QueryThreadCycleTime(emu: &mut emu::Emu) {
         p_cycle_time
     );
     if p_cycle_time != 0 {
-        emu.maps.write_qword(p_cycle_time, emu.tick);
+        emu.maps.write_qword(p_cycle_time, emu.tick as u64);
     }
     emu.regs_mut().rax = 1;
 }

@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn IsEnclaveTypeSupported(emu: &mut emu::Emu) {

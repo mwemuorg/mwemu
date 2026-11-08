@@ -6,7 +6,7 @@ pub fn NotifyUILanguageChange(emu: &mut emu::Emu) {
     let _pcwstrNewLanguage = emu.regs().rdx as u32;
     let _pcwstrPreviousLanguage = emu.regs().r8 as u32;
     let _dwReserved = emu.regs().r9 as u32;
-    let _pdwStatusRtrn = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _pdwStatusRtrn = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(emu, "kernel32!NotifyUILanguageChange");
     let val_ptr = emu.regs().rdx;

@@ -8,7 +8,7 @@ pub fn QueryUnbiasedInterruptTime(emu: &mut emu::Emu) {
         p_unbiased_time
     );
     if p_unbiased_time != 0 {
-        emu.maps.write_qword(p_unbiased_time, emu.tick);
+        emu.maps.write_qword(p_unbiased_time, emu.tick as u64);
     }
     emu.regs_mut().rax = 1;
 }

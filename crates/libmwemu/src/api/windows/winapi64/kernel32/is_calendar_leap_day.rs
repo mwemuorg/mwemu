@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn IsCalendarLeapDay(emu: &mut emu::Emu) {
@@ -6,7 +5,7 @@ pub fn IsCalendarLeapDay(emu: &mut emu::Emu) {
     let _a2 = emu.regs().rdx as u32;
     let _a3 = emu.regs().r8 as u32;
     let _a4 = emu.regs().r9 as u32;
-    let _a5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _a5 = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
     log_red!(emu, "kernel32!IsCalendarLeapDay");
     emu.set_last_error(0);
     let h = emu.regs().rcx;

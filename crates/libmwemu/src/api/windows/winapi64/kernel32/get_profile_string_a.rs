@@ -6,7 +6,7 @@ pub fn GetProfileStringA(emu: &mut emu::Emu) {
     let lpKeyName = emu.regs().rdx as u32;
     let _lpDefault = emu.regs().r8 as u32;
     let lpReturnedString = emu.regs().r9 as u32;
-    let _nSize = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _nSize = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let lpAppName = emu.maps.read_string(lpAppName as u64);
     let lpKeyName = emu.maps.read_string(lpKeyName as u64);

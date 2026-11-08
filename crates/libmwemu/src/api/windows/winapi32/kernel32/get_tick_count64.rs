@@ -5,7 +5,6 @@ pub fn GetTickCount64(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GetTickCount64");
     // ULONGLONG comes back in edx:eax
     let tick = emu.tick as u64;
-    emu.set_last_error(0);
     emu.regs_mut().rax = tick & 0xffff_ffff;
     emu.regs_mut().rdx = tick >> 32;
     stdcall_ret(emu, 0);

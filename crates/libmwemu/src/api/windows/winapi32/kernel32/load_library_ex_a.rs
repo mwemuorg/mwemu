@@ -7,7 +7,6 @@ pub fn LoadLibraryExA(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!LoadLibraryExA '{}'", libname);
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = load_library(emu, &libname);
 
     emu.stack_pop32(false);

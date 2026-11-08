@@ -5,7 +5,7 @@ pub fn GetThreadTimes(emu: &mut emu::Emu) {
     let creation_ptr = emu.regs().rdx;
     let exit_ptr = emu.regs().r8;
     let kernel_ptr = emu.regs().r9;
-    let user_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let user_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
     log_red!(emu, "kernel32!GetThreadTimes h:0x{:x}", h_thread);
     let filetime: u64 = 132514560000000000;
     if creation_ptr != 0 {

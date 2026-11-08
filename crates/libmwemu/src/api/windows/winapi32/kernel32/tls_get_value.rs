@@ -3,7 +3,6 @@ use crate::emu;
 pub fn TlsGetValue(emu: &mut emu::Emu) {
     let idx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
-    emu.set_last_error(0);
     emu.stack_pop32(false);
 
     if idx as usize >= emu.tls32().len() {

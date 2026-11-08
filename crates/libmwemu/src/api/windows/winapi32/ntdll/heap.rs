@@ -6,11 +6,26 @@ use crate::windows::constants;
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
         "RtlGetProcessHeaps" => RtlGetProcessHeaps(emu),
-        "RtlFreeHeap" | "HeapFree" => RtlFreeHeap(emu),
-        "RtlAllocateHeap" | "HeapAlloc" => RtlAllocateHeap(emu),
-        "RtlReAllocateHeap" | "HeapReAlloc" => RtlReAllocateHeap(emu),
-        "HeapSize" => RtlSizeHeap(emu),
+        "RtlFreeHeap" => RtlFreeHeap(emu),
+        "RtlAllocateHeap" => RtlAllocateHeap(emu),
+        "RtlReAllocateHeap" => RtlReAllocateHeap(emu),
         "RtlFreeAnsiString" => RtlFreeAnsiString(emu),
+        "HeapAlloc" => RtlAllocateHeap(emu),
+        "HeapFree" => RtlFreeHeap(emu),
+        "HeapReAlloc" => RtlReAllocateHeap(emu),
+        "HeapSize" => {
+            let _heap = arg(emu, 0);
+            let _flags = arg(emu, 1);
+            let ptr = arg(emu, 2) as u64;
+            let sz = if ptr != 0 {
+                emu.maps.get_mem_size(ptr).unwrap_or(0) as u64
+            } else {
+                0
+            };
+            log_red!(emu, "ntdll!HeapSize ptr:0x{:x} = {}", ptr, sz);
+            emu.regs_mut().rax = sz;
+            stdcall_ret(emu, 3);
+        }
         _ => return false,
     }
     true
@@ -159,14 +174,6 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
     }
 
     emu.regs_mut().rax = new_addr;
-}
-
-fn RtlSizeHeap(emu: &mut emu::Emu) {
-    let mem = arg(emu, 2) as u64;
-    let size = heap_engine::heap_allocation_size(emu, mem);
-    log_red!(emu, "ntdll!HeapSize mem: 0x{:x} ={:?}", mem, size);
-    emu.regs_mut().rax = size.map(|s| s as u64).unwrap_or(0xffff_ffff);
-    stdcall_ret(emu, 3);
 }
 
 fn RtlFreeAnsiString(emu: &mut emu::Emu) {

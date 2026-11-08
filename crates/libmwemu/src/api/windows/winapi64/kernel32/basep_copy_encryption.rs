@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn BasepCopyEncryption(emu: &mut emu::Emu) {

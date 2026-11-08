@@ -6,9 +6,9 @@ pub fn CreateFileMappingNumaA(emu: &mut emu::Emu) {
     let _lpFileMappingAttributes = emu.regs().rdx as u32;
     let _flProtect = emu.regs().r8 as u32;
     let _dwMaximumSizeHigh = emu.regs().r9 as u32;
-    let _dwMaximumSizeLow = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let lpName = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let _nndPreferred = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let _dwMaximumSizeLow = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let lpName = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _nndPreferred = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
     let lpName = emu.maps.read_string(lpName);
 

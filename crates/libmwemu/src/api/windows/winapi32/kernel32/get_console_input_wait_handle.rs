@@ -1,8 +1,8 @@
-use crate::api::windows::helper;
 use crate::emu;
+use crate::windows::constants;
 
 pub fn GetConsoleInputWaitHandle(emu: &mut emu::Emu) {
-    let handle = helper::handler_create("console_wait://");
-    log_red!(emu, "kernel32!GetConsoleInputWaitHandle = 0x{:x}", handle);
-    emu.regs_mut().rax = handle;
+    log_red!(emu, "kernel32!GetConsoleInputWaitHandle");
+
+    emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }

@@ -11,11 +11,7 @@ pub fn LocalSize(emu: &mut emu::Emu) {
             emu.regs_mut().rax = size as u64;
         }
         None => {
-            log_red!(
-                emu,
-                "kernel32!LocalSize hMem:0x{:x} not found",
-                h_mem
-            );
+            log_red!(emu, "kernel32!LocalSize hMem:0x{:x} not found", h_mem);
             emu.set_last_error(6); // ERROR_INVALID_HANDLE
             emu.regs_mut().rax = 0;
         }

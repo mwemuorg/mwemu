@@ -18,17 +18,17 @@ pub fn HeapQueryInformation(emu: &mut emu::Emu) {
 
     match info_class {
         0 => {
-    // HeapCompatibilityInformation — returns ULONG
-    if info_ptr != 0 && info_len >= 4 {
-        emu.maps.write_dword(info_ptr, 0); // standard heap
-    }
-    if return_len_ptr != 0 {
-        emu.maps.write_qword(return_len_ptr, 4);
-    }
-    emu.regs_mut().rax = 1;
+            // HeapCompatibilityInformation — returns ULONG
+            if info_ptr != 0 && info_len >= 4 {
+                emu.maps.write_dword(info_ptr, 0); // standard heap
+            }
+            if return_len_ptr != 0 {
+                emu.maps.write_qword(return_len_ptr, 4);
+            }
+            emu.regs_mut().rax = 1;
         }
         _ => {
-    emu.regs_mut().rax = 1;
+            emu.regs_mut().rax = 1;
         }
     }
 }

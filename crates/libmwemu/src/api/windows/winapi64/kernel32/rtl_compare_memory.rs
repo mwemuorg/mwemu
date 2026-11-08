@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn RtlCompareMemory(emu: &mut emu::Emu) {
@@ -24,7 +23,7 @@ pub fn RtlCompareMemory(emu: &mut emu::Emu) {
         let b1 = emu.maps.read_byte(source1 + i as u64).unwrap_or(0);
         let b2 = emu.maps.read_byte(source2 + i as u64).unwrap_or(0);
         if b1 != b2 {
-    break;
+            break;
         }
         matching += 1;
     }

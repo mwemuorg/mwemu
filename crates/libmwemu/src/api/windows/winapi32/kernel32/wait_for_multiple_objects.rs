@@ -18,7 +18,6 @@ pub fn WaitForMultipleObjects(emu: &mut emu::Emu) {
     if !emu.cfg.short_circuit_sleep && millis > 0 && millis != 0xFFFF_FFFF {
         emu.tick += millis as usize;
     }
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::WAIT_OBJECT_0;
     stdcall_ret(emu, 4);
 }

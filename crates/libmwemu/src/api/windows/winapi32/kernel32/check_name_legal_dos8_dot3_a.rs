@@ -24,7 +24,6 @@ pub fn CheckNameLegalDOS8Dot3A(emu: &mut emu::Emu) {
         pbNameLegal
     );
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..5 {

@@ -6,6 +6,5 @@ pub fn GetEnvironmentStringsW(emu: &mut emu::Emu) {
     let addr = emu.alloc("environment", 1024, Permission::READ_WRITE);
     emu.maps
         .write_wide_string(addr, "PATH=c:\\Windows\\System32");
-    emu.set_last_error(0);
     emu.regs_mut().rax = addr;
 }

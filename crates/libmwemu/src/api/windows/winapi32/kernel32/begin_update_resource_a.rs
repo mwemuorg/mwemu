@@ -9,7 +9,6 @@ pub fn BeginUpdateResourceA(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!BeginUpdateResourceA {}", pFileName);
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..2 {

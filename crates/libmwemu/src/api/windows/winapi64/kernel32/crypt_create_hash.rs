@@ -7,10 +7,7 @@ pub fn CryptCreateHash(emu: &mut emu::Emu) {
     let algid = emu.regs().rdx as u32;
     let hkey = emu.regs().r8;
     let flags = emu.regs().r9 as u32;
-    let ptr_hash = emu
-        .maps
-        .read_qword(emu.regs().rsp + 0x28)
-        .unwrap_or(0);
+    let ptr_hash = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let alg_name = constants::get_cryptoalgorithm_name(algid);
 
@@ -25,8 +22,8 @@ pub fn CryptCreateHash(emu: &mut emu::Emu) {
 
     if ptr_hash != 0 {
         emu.maps.write_qword(
-    ptr_hash,
-    helper::handler_create(&format!("alg://{}", alg_name)),
+            ptr_hash,
+            helper::handler_create(&format!("alg://{}", alg_name)),
         );
     }
     emu.regs_mut().rax = 1;

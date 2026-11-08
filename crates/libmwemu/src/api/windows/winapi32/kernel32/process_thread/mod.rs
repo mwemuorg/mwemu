@@ -249,3 +249,9 @@ pub use create_process_w::*;
 #[path = "../process32_first.rs"]
 mod process32_first;
 pub use process32_first::*;
+
+#[path = "../check_remote_debugger_present.rs"]
+mod check_remote_debugger_present;
+
+#[path = "../set_thread_stack_guarantee.rs"]
+mod set_thread_stack_guarantee;

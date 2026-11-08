@@ -1,0 +1,46 @@
+use crate::emu;
+use crate::winapi::winapi32::{arg, stdcall_ret};
+
+pub fn GetComputerNameExA(emu: &mut emu::Emu) {
+    let name_type = arg(emu, 0);
+    let buff_ptr = arg(emu, 1) as u64;
+    let size_ptr = arg(emu, 2) as u64;
+
+    let hostname = &emu.cfg.host_name;
+
+    log_red!(
+        emu,
+        "kernel32!GetComputerNameExA type:{} => '{}'",
+        name_type,
+        hostname
+    );
+
+    let name = match name_type {
+        0 => hostname.clone(),                    // ComputerNameNetBIOS
+        1 => format!("{}.localdomain", hostname), // ComputerNameDnsHostname
+        2 => "localdomain".to_string(),           // ComputerNameDnsDomain
+        3 => format!("{}.localdomain", hostname), // ComputerNameDnsFullyQualified
+        4 => hostname.clone(),                    // ComputerNamePhysicalNetBIOS
+        5 => format!("{}.localdomain", hostname), // ComputerNamePhysicalDnsHostname
+        6 => "localdomain".to_string(),           // ComputerNamePhysicalDnsDomain
+        7 => format!("{}.localdomain", hostname), // ComputerNamePhysicalDnsFullyQualified
+        _ => hostname.clone(),
+    };
+
+    let needed = name.len() as u32 + 1;
+
+    if buff_ptr != 0 && size_ptr != 0 {
+        let buf_size = emu.maps.read_dword(size_ptr).unwrap_or(0);
+        if buf_size < needed {
+            emu.maps.write_dword(size_ptr, needed);
+            emu.set_last_error(122); // ERROR_INSUFFICIENT_BUFFER
+            emu.regs_mut().rax = 0;
+            return;
+        }
+        emu.maps.write_string(buff_ptr, &name);
+        emu.maps.write_dword(size_ptr, name.len() as u32);
+    }
+
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 3);
+}

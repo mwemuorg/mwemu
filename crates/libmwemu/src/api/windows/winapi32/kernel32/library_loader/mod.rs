@@ -133,3 +133,6 @@ pub use update_resource_w::*;
 #[path = "../zombify_act_ctx_worker.rs"]
 mod zombify_act_ctx_worker;
 pub use zombify_act_ctx_worker::*;
+
+#[path = "../activate_act_ctx.rs"]
+mod activate_act_ctx;

@@ -17,14 +17,59 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "VerSetConditionMask" => VerSetConditionMask(emu),
         "NtQueryInformationProcess" => NtQueryInformationProcess(emu),
         "NtQuerySystemInformation" => NtQuerySystemInformation(emu),
+        "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
         "NtSetInformationThread" => NtSetInformationThread(emu),
         "NtTerminateThread" => NtTerminateThread(emu),
         "RtlEncodePointer" => RtlEncodePointer(emu),
         "RtlDecodePointer" => RtlDecodePointer(emu),
         "RtlSizeHeap" => RtlSizeHeap(emu),
-        "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
-        "RtlRestoreLastWin32Error" | "RestoreLastError" => RestoreLastError(emu),
-        "ZwQueueApcThread" => ZwQueueApcThread(emu),
+        "RtlTlsAlloc" => {
+            log_red!(emu, "ntdll!RtlTlsAlloc");
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 0);
+        }
+        "RtlTlsFree" => {
+            let idx = arg(emu, 0);
+            log_red!(emu, "ntdll!RtlTlsFree idx:{}", idx);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 1);
+        }
+        "RtlTlsGetValue" => {
+            let idx = arg(emu, 0);
+            log_red!(emu, "ntdll!RtlTlsGetValue idx:{}", idx);
+            emu.regs_mut().rax = 0;
+            stdcall_ret(emu, 1);
+        }
+        "RtlTlsSetValue" => {
+            let idx = arg(emu, 0);
+            let val = arg(emu, 1);
+            log_red!(emu, "ntdll!RtlTlsSetValue idx:{} val:0x{:x}", idx, val);
+            emu.regs_mut().rax = 1;
+            stdcall_ret(emu, 2);
+        }
+        "RtlCaptureContext" => {
+            let ctx_ptr = arg(emu, 0) as u64;
+            log_red!(emu, "ntdll!RtlCaptureContext ptr:0x{:x}", ctx_ptr);
+            stdcall_ret(emu, 1);
+        }
+        "RestoreLastError" | "RtlRestoreLastWin32Error" => {
+            let err = arg(emu, 0);
+            log_red!(emu, "ntdll!RtlRestoreLastWin32Error err:{}", err);
+            emu.set_last_error(err as u64);
+            stdcall_ret(emu, 1);
+        }
+        "NtQueueApcThread" => {
+            let handle = arg(emu, 0);
+            let apc_routine = arg(emu, 1) as u64;
+            log_red!(
+                emu,
+                "ntdll!NtQueueApcThread handle:0x{:x} routine:0x{:x}",
+                handle,
+                apc_routine
+            );
+            emu.regs_mut().rax = constants::STATUS_SUCCESS;
+            stdcall_ret(emu, 5);
+        }
         _ => return false,
     }
     true
@@ -197,13 +242,6 @@ fn RtlDecodePointer(emu: &mut emu::Emu) {
     emu.regs_mut().rax = ptr as u64;
     stdcall_ret(emu, 1);
 }
-fn RtlSizeHeap(emu: &mut emu::Emu) {
-    let mem = arg(emu, 2) as u64;
-    let size = crate::api::windows::common::heap::heap_allocation_size(emu, mem);
-    log_red!(emu, "ntdll!RtlSizeHeap mem: 0x{:x} ={:?}", mem, size);
-    emu.regs_mut().rax = size.map(|s| s as u64).unwrap_or(0xffff_ffff);
-    stdcall_ret(emu, 3);
-}
 pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
     let compression_format = arg(emu, 0) as u16;
     let uncompressed_buffer = arg(emu, 1) as u64;
@@ -224,30 +262,10 @@ pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
     stdcall_ret(emu, 6);
 }
 
-fn RestoreLastError(emu: &mut emu::Emu) {
-    let err_code = arg(emu, 0) as u64;
-    log_red!(emu, "ntdll!RtlRestoreLastWin32Error err: {}", err_code);
-    emu.set_last_error(err_code);
-    stdcall_ret(emu, 1);
-}
-
-fn ZwQueueApcThread(emu: &mut emu::Emu) {
-    let thread_handle = arg(emu, 0);
-    let apc_routine = arg(emu, 1);
-    let apc_ctx = arg(emu, 2);
-    let a1 = arg(emu, 3);
-    let a2 = arg(emu, 4);
-
-    log_red!(
-        emu,
-        "ntdll!ZwQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {}",
-        thread_handle,
-        apc_routine,
-        apc_ctx,
-        a1,
-        a2
-    );
-
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
-    stdcall_ret(emu, 5);
+fn RtlSizeHeap(emu: &mut emu::Emu) {
+    let mem = arg(emu, 2) as u64;
+    let size = crate::api::windows::common::heap::heap_allocation_size(emu, mem);
+    log_red!(emu, "ntdll!RtlSizeHeap mem: 0x{:x} ={:?}", mem, size);
+    emu.regs_mut().rax = size.map(|s| s as u64).unwrap_or(0xffff_ffff);
+    stdcall_ret(emu, 3);
 }

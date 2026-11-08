@@ -6,6 +6,5 @@ pub fn SetHandleCount(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!SetHandleCount {}", num);
 
     emu.stack_pop32(false);
-    emu.set_last_error(0);
     emu.regs_mut().rax = num as u64;
 }

@@ -6,10 +6,10 @@ pub fn DeviceIoControlImplementation(emu: &mut emu::Emu) {
     let _dwIoControlCode = emu.regs().rdx as u32;
     let _lpInBuffer = emu.regs().r8 as u32;
     let _nInBufferSize = emu.regs().r9 as u32;
-    let _lpOutBuffer = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _nOutBufferSize = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let _lpBytesReturned = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let _lpOverlapped = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let _lpOutBuffer = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _nOutBufferSize = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _lpBytesReturned = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _lpOverlapped = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     log_red!(emu, "kernel32!DeviceIoControlImplementation");
     let first_param = emu.regs().rcx;

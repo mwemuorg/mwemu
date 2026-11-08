@@ -19,13 +19,11 @@ pub fn GetVersionExA(emu: &mut emu::Emu) {
                 "GetVersionExA: unexpected dwOSVersionInfoSize {}",
                 struct_size
             );
-            emu.set_last_error(0);
             emu.regs_mut().rax = 0;
             stdcall_ret(emu, 1);
             return;
         }
     }
-    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 1);
 }

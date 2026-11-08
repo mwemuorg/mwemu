@@ -125,9 +125,9 @@ pub fn BCryptCreateHash(emu: &mut emu::Emu) {
     let ph_hash = emu.regs().rdx;
     let pb_hash_object = emu.regs().r8;
     let cb_hash_object = emu.regs().r9;
-    let pb_secret = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let cb_secret = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let pb_secret = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let cb_secret = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
@@ -217,8 +217,8 @@ pub fn BCryptGetProperty(emu: &mut emu::Emu) {
     let psz_property = emu.regs().rdx;
     let pb_output = emu.regs().r8;
     let cb_output = emu.regs().r9 as usize;
-    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let flags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let prop_name = emu.maps.read_wide_string(psz_property);
 
@@ -268,38 +268,32 @@ pub fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
     let pb_password = emu.regs().rdx;
     let cb_password = emu.regs().r8 as usize;
     let pb_salt = emu.regs().r9;
-    let cb_salt = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
-    let iterations = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(1);
-    let pb_derived_key = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let cb_derived_key = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0) as usize;
+    let cb_salt = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as usize;
+    let iterations = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(1);
+    let pb_derived_key = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let cb_derived_key = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as usize;
 
     if pb_derived_key != 0 && cb_derived_key > 0 {
         let pwd = if pb_password != 0 && cb_password > 0 {
             emu.maps
-                .read_bytes(pb_password, cb_password.min(256))
+                .read_bytes(pb_password, cb_password.min(4096))
                 .to_vec()
         } else {
             vec![]
         };
         let salt = if pb_salt != 0 && cb_salt > 0 {
-            emu.maps.read_bytes(pb_salt, cb_salt.min(256)).to_vec()
+            emu.maps.read_bytes(pb_salt, cb_salt.min(4096)).to_vec()
         } else {
             vec![]
         };
+        let uri = helper::handler_get_uri(h_prf);
+        let alg_id = if uri.contains("SHA1") || uri.contains("sha1") {
+            0x00008004u32
+        } else {
+            0x0000800cu32
+        };
         let mut key = vec![0u8; cb_derived_key];
-        for (i, b) in key.iter_mut().enumerate() {
-            let pi = if !pwd.is_empty() {
-                pwd[i % pwd.len()]
-            } else {
-                0x42
-            };
-            let si = if !salt.is_empty() {
-                salt[i % salt.len()]
-            } else {
-                0x37
-            };
-            *b = pi ^ si ^ (i as u8);
-        }
+        crypto_state::pbkdf2_derive(alg_id, &pwd, &salt, iterations as u32, &mut key);
         emu.maps.write_bytes(pb_derived_key, &key);
     }
 
@@ -320,9 +314,9 @@ pub fn BCryptGenerateSymmetricKey(emu: &mut emu::Emu) {
     let ph_key = emu.regs().rdx;
     let _pb_key_object = emu.regs().r8;
     let _cb_key_object = emu.regs().r9;
-    let pb_secret = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let cb_secret = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let pb_secret = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let cb_secret = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
+    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
@@ -374,12 +368,12 @@ pub fn BCryptEncrypt(emu: &mut emu::Emu) {
     let pb_input = emu.regs().rdx;
     let cb_input = emu.regs().r8 as usize;
     let _pb_padding = emu.regs().r9;
-    let _pb_iv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _cb_iv = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
-    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0) as usize;
-    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+    let _pb_iv = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _cb_iv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
+    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as usize;
+    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
 
     log_red!(
         emu,
@@ -411,12 +405,12 @@ pub fn BCryptDecrypt(emu: &mut emu::Emu) {
     let pb_input = emu.regs().rdx;
     let cb_input = emu.regs().r8 as usize;
     let _pb_padding = emu.regs().r9;
-    let _pb_iv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _cb_iv = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
-    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0) as usize;
-    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+    let _pb_iv = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _cb_iv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
+    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as usize;
+    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
 
     log_red!(
         emu,
@@ -446,13 +440,34 @@ pub fn BCryptDecrypt(emu: &mut emu::Emu) {
 pub fn BCryptSetProperty(emu: &mut emu::Emu) {
     let h_object = emu.regs().rcx;
     let psz_property = emu.regs().rdx;
+    let pb_input = emu.regs().r8;
+    let cb_input = emu.regs().r9 as usize;
 
     let prop = emu.maps.read_wide_string(psz_property);
+    let value = if pb_input != 0 && cb_input > 0 {
+        let val_bytes = emu.maps.read_bytes(pb_input, cb_input.min(256)).to_vec();
+        String::from_utf16_lossy(
+            &val_bytes
+                .chunks(2)
+                .filter_map(|c| {
+                    if c.len() == 2 {
+                        let w = u16::from_le_bytes([c[0], c[1]]);
+                        if w != 0 { Some(w) } else { None }
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<u16>>(),
+        )
+    } else {
+        String::new()
+    };
     log_red!(
         emu,
-        "bcrypt!BCryptSetProperty obj=0x{:x} prop={}",
+        "bcrypt!BCryptSetProperty obj=0x{:x} prop={} value={}",
         h_object,
-        prop
+        prop,
+        value
     );
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
@@ -487,8 +502,8 @@ pub fn BCryptExportKey(emu: &mut emu::Emu) {
     let _h_export_key = emu.regs().rdx;
     let psz_blob_type = emu.regs().r8;
     let pb_output = emu.regs().r9;
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
-    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as usize;
+    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let blob_type = emu.maps.read_wide_string(psz_blob_type);
     log_red!(emu, "bcrypt!BCryptExportKey type={}", blob_type);
@@ -505,20 +520,41 @@ pub fn BCryptExportKey(emu: &mut emu::Emu) {
 
 pub fn BCryptSignHash(emu: &mut emu::Emu) {
     let _h_key = emu.regs().rcx;
-    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
-    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let _pb_padding = emu.regs().rdx;
+    let pb_input = emu.regs().r8;
+    let cb_input = emu.regs().r9 as usize;
+    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
+    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
 
     log_red!(emu, "bcrypt!BCryptSignHash out=0x{:x}", pb_output);
 
-    if pb_output != 0 && cb_output > 0 {
-        for i in 0..cb_output.min(256) {
-            emu.maps
-                .write_byte(pb_output + i as u64, (i as u8).wrapping_add(0xAA));
+    let hash_bytes = if pb_input != 0 && cb_input > 0 {
+        emu.maps.read_bytes(pb_input, cb_input.min(64)).to_vec()
+    } else {
+        vec![0u8; 32]
+    };
+    let out_len = cb_output.min(256);
+    if pb_output != 0 && out_len > 0 {
+        let mut sig = vec![0u8; out_len];
+        if out_len >= hash_bytes.len() + 11 {
+            sig[0] = 0x00;
+            sig[1] = 0x01;
+            let ps_len = out_len - hash_bytes.len() - 3;
+            for b in &mut sig[2..2 + ps_len] {
+                *b = 0xff;
+            }
+            sig[2 + ps_len] = 0x00;
+            sig[3 + ps_len..].copy_from_slice(&hash_bytes);
+        } else {
+            let copy_len = hash_bytes.len().min(out_len);
+            sig[..copy_len].copy_from_slice(&hash_bytes[..copy_len]);
         }
+        emu.maps.write_bytes(pb_output, &sig);
     }
     if pcb_result != 0 {
-        emu.maps.write_dword(pcb_result, cb_output.min(256) as u32);
+        emu.maps.write_dword(pcb_result, out_len as u32);
     }
 
     emu.regs_mut().rax = constants::STATUS_SUCCESS;
@@ -529,9 +565,9 @@ pub fn BCryptVerifySignature(emu: &mut emu::Emu) {
     let _padding_info = emu.regs().rdx;
     let pb_hash = emu.regs().r8;
     let cb_hash = emu.regs().r9 as u32;
-    let pb_signature = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let cb_signature = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as u32;
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as u32;
+    let pb_signature = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let cb_signature = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
+    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as u32;
 
     log_red!(
         emu,
@@ -582,9 +618,9 @@ pub fn BCryptHash(emu: &mut emu::Emu) {
     let _pb_secret = emu.regs().rdx;
     let _cb_secret = emu.regs().r8 as usize;
     let pb_input = emu.regs().r9;
-    let cb_input = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
-    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as usize;
+    let cb_input = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as usize;
+    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);

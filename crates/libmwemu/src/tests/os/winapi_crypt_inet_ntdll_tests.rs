@@ -20,7 +20,7 @@ fn call_winapi64_stack(emu: &mut emu::Emu, func: fn(&mut emu::Emu), args: &[u64]
     }
     let rsp = emu.regs().rsp;
     for (i, &a) in args.iter().enumerate().skip(4) {
-        emu.maps.write_qword(rsp + 0x28 + ((i - 4) as u64) * 8, a);
+        emu.maps.write_qword(rsp + 0x20 + ((i - 4) as u64) * 8, a);
     }
     func(emu);
     emu.regs().rax
@@ -1213,8 +1213,8 @@ fn test_crypt_hash_certificate_sha256_64() {
             let alg_id = emu.regs().rdx as u32;
             let cert_ptr = emu.regs().r8;
             let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );
@@ -1260,8 +1260,8 @@ fn test_crypt_hash_certificate_sha1_64() {
             let alg_id = emu.regs().rdx as u32;
             let cert_ptr = emu.regs().r8;
             let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );
@@ -1296,8 +1296,8 @@ fn test_crypt_hash_certificate_size_query_64() {
             let alg_id = emu.regs().rdx as u32;
             let cert_ptr = emu.regs().r8;
             let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );
@@ -1337,8 +1337,8 @@ fn test_crypt_hash_certificate_md5_64() {
             let alg_id = emu.regs().rdx as u32;
             let cert_ptr = emu.regs().r8;
             let cert_len = emu.regs().r9;
-            let hp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+            let hp = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+            let hlp = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
             emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_hash_certificate(
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );

@@ -10,6 +10,5 @@ pub fn GlobalAddAtomA(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
 
     // TODO: implement real atom table
-    emu.set_last_error(0);
     emu.regs_mut().rax = 0xC001; // Return a dummy atom
 }

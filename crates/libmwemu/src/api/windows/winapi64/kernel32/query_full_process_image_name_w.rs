@@ -15,10 +15,6 @@ pub fn QueryFullProcessImageNameW(emu: &mut emu::Emu) {
         emu.maps.write_dword(size_ptr, name.len() as u32);
     }
 
-    log_red!(
-        emu,
-        "kernel32!QueryFullProcessImageNameW => '{}'",
-        name
-    );
+    log_red!(emu, "kernel32!QueryFullProcessImageNameW => '{}'", name);
     emu.regs_mut().rax = 1;
 }

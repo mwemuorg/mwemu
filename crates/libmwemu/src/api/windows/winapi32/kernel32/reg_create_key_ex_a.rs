@@ -16,7 +16,6 @@ pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
     }
 
     log_red!(emu, "kernel32!RegCreateKeyExA {} {}", subkey, class_name);
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..9 {

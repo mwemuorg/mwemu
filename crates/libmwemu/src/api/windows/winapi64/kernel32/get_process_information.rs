@@ -20,7 +20,7 @@ pub fn GetProcessInformation(emu: &mut emu::Emu) {
     if info_ptr != 0 && info_size > 0 {
         let clear_size = (info_size as usize).min(256);
         for i in 0..clear_size {
-    emu.maps.write_byte(info_ptr + i as u64, 0);
+            emu.maps.write_byte(info_ptr + i as u64, 0);
         }
     }
     emu.regs_mut().rax = 1;

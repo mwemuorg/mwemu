@@ -19,9 +19,11 @@ impl WinApiAbi {
                 2 => emu.regs().r8,
                 3 => emu.regs().r9,
                 _ => {
-                    // Stack args: shadow space (32 bytes) + return addr (8 bytes) + 8 bytes per extra arg
+                    // Stack args: shadow space (32 bytes) + 8 bytes per extra arg.
+                    // The engine pops the return address before calling the gateway,
+                    // so rsp already points past it.
                     let rsp = emu.regs().rsp;
-                    let addr = rsp + 0x28 + ((idx as u64 - 4) * 8);
+                    let addr = rsp + 0x20 + ((idx as u64 - 4) * 8);
                     emu.maps.read_qword(addr).unwrap_or(0)
                 }
             }

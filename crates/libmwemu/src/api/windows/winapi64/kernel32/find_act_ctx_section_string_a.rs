@@ -6,7 +6,7 @@ pub fn FindActCtxSectionStringA(emu: &mut emu::Emu) {
     let _lpExtensionGuid = emu.regs().rdx as u32;
     let _ulSectionId = emu.regs().r8 as u32;
     let lpStringToFind = emu.regs().r9 as u32;
-    let _ReturnedData = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _ReturnedData = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let lpStringToFind = emu.maps.read_string(lpStringToFind as u64);
 

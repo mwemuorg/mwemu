@@ -10,7 +10,6 @@ pub fn GetProcessHeap(emu: &mut emu::Emu) {
             emu.handle_management.set_heap_base_addr(key, base);
             base
         });
-    emu.set_last_error(0);
     emu.regs_mut().rax = addr;
     log_red!(emu, "kernel32!GetProcessHeap =0x{:x}", addr as u32);
 }

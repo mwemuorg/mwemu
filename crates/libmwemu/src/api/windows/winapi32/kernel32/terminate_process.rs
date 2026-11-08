@@ -19,6 +19,5 @@ pub fn TerminateProcess(emu: &mut emu::Emu) {
         emu.stop();
         return;
     }
-    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

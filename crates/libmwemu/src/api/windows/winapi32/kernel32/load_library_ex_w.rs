@@ -10,7 +10,6 @@ pub fn LoadLibraryExW(emu: &mut emu::Emu) {
 
     log_red!(emu, "LoadLibraryExW '{}'", libname);
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = load_library(emu, &libname);
 
     /*

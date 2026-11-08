@@ -35,7 +35,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "WsaRecv" => WsaRecv(emu),
         "WsaRecvFrom" => WsaRecvFrom(emu),
         "WsaConnect" => WsaConnect(emu),
-        "WsaSend" => WsaSend(emu),
+        "WsaSend" | "WSASend" => WsaSend(emu),
         "FreeAddrInfoEx" => {
             let handle = emu.regs().rcx;
             log_red!(emu, "ws2_32!FreeAddrInfoEx handle:0x{:x}", handle);
@@ -1266,29 +1266,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
                 emu.regs_mut().rax = 1;
             } else {
                 emu.set_last_error(6);
-                emu.regs_mut().rax = 0;
-            }
-        }
-        "WSASend" => {
-            let sock = emu.regs().rcx;
-            let buffers_ptr = emu.regs().rdx;
-            let buffer_count = emu.regs().r8 as u32;
-            let bytes_sent_ptr = emu.regs().r9;
-            log_red!(
-                emu,
-                "ws2_32!WSASend sock: 0x{:x} buffers: {}",
-                sock,
-                buffer_count
-            );
-            if !helper::socket_exist(sock) {
-                emu.regs_mut().rax = 0xFFFFFFFF;
-            } else {
-                if buffers_ptr != 0 && buffer_count > 0 {
-                    let buf_len = emu.maps.read_dword(buffers_ptr).unwrap_or(0);
-                    if bytes_sent_ptr != 0 {
-                        emu.maps.write_dword(bytes_sent_ptr, buf_len);
-                    }
-                }
                 emu.regs_mut().rax = 0;
             }
         }

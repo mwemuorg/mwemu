@@ -6,8 +6,8 @@ pub fn UpdateResourceA(emu: &mut emu::Emu) {
     let _lpType = emu.regs().rdx as u32;
     let lpName = emu.regs().r8 as u32;
     let _wLanguage = emu.regs().r9 as u32;
-    let _lpData = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _cb = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _lpData = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _cb = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let lpName = emu.maps.read_string(lpName as u64);
 

@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn PssWalkMarkerSeekToBeginning(emu: &mut emu::Emu) {

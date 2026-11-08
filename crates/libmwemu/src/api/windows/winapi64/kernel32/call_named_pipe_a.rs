@@ -6,9 +6,9 @@ pub fn CallNamedPipeA(emu: &mut emu::Emu) {
     let _lpInBuffer = emu.regs().rdx as u32;
     let _nInBufferSize = emu.regs().r8 as u32;
     let _lpOutBuffer = emu.regs().r9 as u32;
-    let _nOutBufferSize = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _lpBytesRead = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let _nTimeOut = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let _nOutBufferSize = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _lpBytesRead = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _nTimeOut = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
 
     let lpNamedPipeName = emu.maps.read_string(lpNamedPipeName as u64);
 

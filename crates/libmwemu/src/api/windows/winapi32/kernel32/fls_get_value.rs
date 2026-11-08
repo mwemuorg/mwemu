@@ -6,7 +6,6 @@ pub fn FlsGetValue(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
 
     if idx as usize > emu.fls().len() {
-        emu.set_last_error(0);
         emu.regs_mut().rax = 0;
     } else {
         emu.regs_mut().rax = emu.fls_mut()[idx as usize];

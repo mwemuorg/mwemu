@@ -6,7 +6,7 @@ pub fn StringVPrintfWorkerW_0(emu: &mut emu::Emu) {
     let _cchDest = emu.regs().rdx as u32;
     let _pcchNewDestLength = emu.regs().r8 as u32;
     let _pszFormat = emu.regs().r9 as u32;
-    let _argList = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _argList = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     log_red!(emu, "kernel32!StringVPrintfWorkerW_0");
     let first_param = emu.regs().rcx;

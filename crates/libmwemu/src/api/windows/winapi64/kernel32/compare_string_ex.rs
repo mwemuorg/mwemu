@@ -5,7 +5,7 @@ pub fn CompareStringEx(emu: &mut emu::Emu) {
     let flags = emu.regs().rdx;
     let s1_ptr = emu.regs().r8;
     let s1_len = emu.regs().r9 as i64;
-    let s2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let s2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let s1 = emu.maps.read_wide_string(s1_ptr);
     let s2 = emu.maps.read_wide_string(s2_ptr);

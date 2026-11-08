@@ -256,3 +256,6 @@ pub use get_user_default_lcid::*;
 #[path = "../get_thread_locale.rs"]
 mod get_thread_locale;
 pub use get_thread_locale::*;
+
+#[path = "../find_act_ctx_section_string_w.rs"]
+mod find_act_ctx_section_string_w;

@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn QueueUserAPC2(emu: &mut emu::Emu) {

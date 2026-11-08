@@ -1,7 +1,6 @@
-
 use crate::emu;
-use crate::windows::constants;
 use crate::winapi::helper;
+use crate::windows::constants;
 pub fn ActivateActCtxWorker(emu: &mut emu::Emu) {
     let _Handle = emu.regs().rcx as u32;
     let _Cookie = emu.regs().rdx as u32;

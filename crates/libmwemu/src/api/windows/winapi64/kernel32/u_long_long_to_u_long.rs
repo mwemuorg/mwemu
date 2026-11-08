@@ -15,7 +15,7 @@ pub fn ULongLongToULong(emu: &mut emu::Emu) {
         emu.regs_mut().rax = 0x80070216;
     } else {
         if p_result != 0 {
-            emu.maps.write_dword(p_result, val);
+            emu.maps.write_dword(p_result, val as u32);
         }
         emu.regs_mut().rax = 0;
     }

@@ -10,7 +10,6 @@ pub fn SortGetHashCode(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!SortGetHashCode");
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..5 {

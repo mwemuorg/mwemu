@@ -1,0 +1,32 @@
+use crate::emu;
+use crate::winapi::winapi32::{arg, stdcall_ret};
+
+pub fn LStrCmpI(emu: &mut emu::Emu) {
+    let sptr1 = arg(emu, 0) as u64;
+    let sptr2 = arg(emu, 1) as u64;
+
+    let s1 = emu.maps.read_string(sptr1);
+    let s2 = emu.maps.read_string(sptr2);
+
+    let s1_lower = s1.to_lowercase();
+    let s2_lower = s2.to_lowercase();
+
+    let result = match s1_lower.cmp(&s2_lower) {
+        std::cmp::Ordering::Less => {
+            log_red!(emu, "kernel32!lstrcmpi `{}` < `{}`", s1, s2);
+            -1i64 as u64
+        }
+        std::cmp::Ordering::Equal => {
+            log_red!(emu, "kernel32!lstrcmpi `{}` == `{}`", s1, s2);
+            0
+        }
+        std::cmp::Ordering::Greater => {
+            log_red!(emu, "kernel32!lstrcmpi `{}` > `{}`", s1, s2);
+            1
+        }
+    };
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = result;
+    stdcall_ret(emu, 2);
+}

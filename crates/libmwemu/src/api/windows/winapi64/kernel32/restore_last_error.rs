@@ -5,5 +5,5 @@ pub fn RestoreLastError(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!RestoreLastError error:0x{:x}", error);
 
-    emu.set_last_error(error);
+    emu.set_last_error(error as u64);
 }

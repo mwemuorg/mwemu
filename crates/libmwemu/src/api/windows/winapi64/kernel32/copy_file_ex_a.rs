@@ -5,8 +5,8 @@ pub fn CopyFileExA(emu: &mut emu::Emu) {
     let lpNewFileName = emu.regs().rdx as u32;
     let _lpProgressRoutine = emu.regs().r8 as u32;
     let _lpData = emu.regs().r9 as u32;
-    let _pbCancel = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _dwCopyFlags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _pbCancel = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _dwCopyFlags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     let lpExistingFileName = emu.maps.read_string(lpExistingFileName as u64);
     let lpNewFileName = emu.maps.read_string(lpNewFileName as u64);

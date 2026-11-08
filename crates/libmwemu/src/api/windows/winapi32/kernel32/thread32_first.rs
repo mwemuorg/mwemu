@@ -9,6 +9,5 @@ pub fn Thread32First(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

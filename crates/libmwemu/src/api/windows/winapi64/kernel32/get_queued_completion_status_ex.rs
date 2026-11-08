@@ -5,7 +5,7 @@ pub fn GetQueuedCompletionStatusEx(emu: &mut emu::Emu) {
     let entries_ptr = emu.regs().rdx;
     let count = emu.regs().r8 as u32;
     let removed_ptr = emu.regs().r9;
-    let timeout = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let timeout = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
     log_red!(
         emu,
         "kernel32!GetQueuedCompletionStatusEx port:0x{:x} count:{} timeout:{}",

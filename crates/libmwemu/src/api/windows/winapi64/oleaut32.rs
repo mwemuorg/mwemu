@@ -19,132 +19,122 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SysFreeString" => SysFreeString(emu),
         "VariantClear" => VariantClear(emu),
         "BSTR_UserFree" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserFree arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BSTR_UserFree64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserFree64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BSTR_UserMarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserMarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BSTR_UserMarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserMarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BSTR_UserSize" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserSize arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BSTR_UserSize64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserSize64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BSTR_UserUnmarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserUnmarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BSTR_UserUnmarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BSTR_UserUnmarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "BstrFromVector" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!BstrFromVector arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "ClearCustData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!ClearCustData arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -208,96 +198,87 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0; // S_OK
         }
         "DispCallFunc" => {
-            let punk = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let punk = emu.regs().rcx;
             log_red!(emu, "oleaut32!DispCallFunc 0x{:x}", punk);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "DispGetIDsOfNames" => {
-            let punk = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let punk = emu.regs().rcx;
             log_red!(emu, "oleaut32!DispGetIDsOfNames 0x{:x}", punk);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "DispGetParam" => {
-            let punk = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let punk = emu.regs().rcx;
             log_red!(emu, "oleaut32!DispGetParam 0x{:x}", punk);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "DispInvoke" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let arg1 = emu.regs().rcx as u32;
             log_red!(emu, "oleaut32!DispInvoke 0x{:x}", arg1);
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {}
         }
         "DllCanUnloadNow" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!DllCanUnloadNow arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "DllGetClassObject" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!DllGetClassObject h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "DllRegisterServer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!DllRegisterServer arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "DllUnregisterServer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!DllUnregisterServer arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "DosDateTimeToVariantTime" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!DosDateTimeToVariantTime arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -314,15 +295,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0; // S_OK
         }
         "GetAltMonthNames" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!GetAltMonthNames h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -342,158 +322,146 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1; // S_FALSE (no error info available)
         }
         "GetRecordInfoFromGuids" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!GetRecordInfoFromGuids h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "GetRecordInfoFromTypeInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!GetRecordInfoFromTypeInfo h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "GetVarConversionLocaleSetting" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!GetVarConversionLocaleSetting h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserFree" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserFree arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserFree64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserFree64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserMarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserMarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserMarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserMarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserSize" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserSize arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserSize64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserSize64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserUnmarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserUnmarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "HWND_UserUnmarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!HWND_UserUnmarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "LHashValOfNameSys" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LHashValOfNameSys arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -510,145 +478,134 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "LPSAFEARRAY_Marshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_Marshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_Size" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_Size arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_Unmarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_Unmarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserFree" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserFree arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserFree64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserFree64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserMarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserMarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserMarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserMarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserSize" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserSize arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserSize64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserSize64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserUnmarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserUnmarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "LPSAFEARRAY_UserUnmarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!LPSAFEARRAY_UserUnmarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
@@ -692,15 +649,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0; // S_OK
         }
         "OACleanup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OACleanup arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -717,210 +673,194 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0; // S_OK
         }
         "OaBuildVersion" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OaBuildVersion arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "OaEnablePerUserTLibRegistration" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OaEnablePerUserTLibRegistration arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "OleCreateFontIndirect" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleCreateFontIndirect arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleCreatePictureIndirect" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleCreatePictureIndirect arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleCreatePropertyFrame" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleCreatePropertyFrame arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleCreatePropertyFrameIndirect" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleCreatePropertyFrameIndirect arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleIconToCursor" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleIconToCursor arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleLoadPicture" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleLoadPicture arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleLoadPictureEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleLoadPictureEx arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleLoadPictureFile" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleLoadPictureFile arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleLoadPictureFileEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleLoadPictureFileEx arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleLoadPicturePath" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleLoadPicturePath arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleSavePictureFile" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleSavePictureFile arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "OleTranslateColor" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!OleTranslateColor arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
         }
         "QueryPathOfRegTypeLib" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!QueryPathOfRegTypeLib h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "RegisterActiveObject" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!RegisterActiveObject h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -946,15 +886,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "RevokeActiveObject" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!RevokeActiveObject h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -969,11 +908,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "SafeArrayAddRef" => {
-            let sa = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let sa = emu.regs().rcx;
             log_red!(emu, "oleaut32!SafeArrayAddRef 0x{:x}", sa);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "SafeArrayAllocData" => {
             let arg1 = emu.regs().rcx;
@@ -1324,12 +1262,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "SafeArrayLock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let arg1 = emu.regs().rcx as u32;
             log_red!(emu, "oleaut32!SafeArrayLock 0x{:x}", arg1);
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {}
         }
         "SafeArrayPtrOfIndex" => {
             let sa_ptr = emu.regs().rcx;
@@ -1373,104 +1310,93 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "SafeArrayRedim" => {
-            let sa = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let sa = emu.regs().rcx;
             log_red!(emu, "oleaut32!SafeArrayRedim 0x{:x}", sa);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "SafeArrayReleaseData" => {
-            let sa = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let sa = emu.regs().rcx;
             log_red!(emu, "oleaut32!SafeArrayReleaseData 0x{:x}", sa);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "SafeArrayReleaseDescriptor" => {
-            let sa = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let sa = emu.regs().rcx;
             log_red!(emu, "oleaut32!SafeArrayReleaseDescriptor 0x{:x}", sa);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "SafeArraySetIID" => {
-            let sa = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let sa = emu.regs().rcx;
             log_red!(emu, "oleaut32!SafeArraySetIID 0x{:x}", sa);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "SafeArraySetRecordInfo" => {
-            let sa = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let sa = emu.regs().rcx;
             log_red!(emu, "oleaut32!SafeArraySetRecordInfo 0x{:x}", sa);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1 {}
         }
         "SafeArrayUnaccessData" => {
-            let sa = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let sa = emu.regs().rcx;
             log_red!(emu, "oleaut32!SafeArrayUnaccessData 0x{:x}", sa);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {}
         }
         "SafeArrayUnlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let arg1 = emu.regs().rcx as u32;
             log_red!(emu, "oleaut32!SafeArrayUnlock 0x{:x}", arg1);
             helper::advance_tick(emu, 1);
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {}
         }
         "SetErrorInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!SetErrorInfo h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SetOaNoCache" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!SetOaNoCache h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SetVarConversionLocaleSetting" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!SetVarConversionLocaleSetting h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SysAddRefString" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!SysAddRefString arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1489,184 +1415,169 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "SysReleaseString" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!SysReleaseString arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "SysStringByteLen" => SysStringByteLen(emu),
         "SysStringLen" => SysStringLen(emu),
         "SystemTimeToVariantTime" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!SystemTimeToVariantTime arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UnRegisterTypeLib" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!UnRegisterTypeLib arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "UnRegisterTypeLibForUser" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!UnRegisterTypeLibForUser arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserFree" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserFree arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserFree64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserFree64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserMarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserMarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserMarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserMarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserSize" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserSize arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserSize64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserSize64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserUnmarshal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserUnmarshal arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VARIANT_UserUnmarshal64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VARIANT_UserUnmarshal64 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarAbs" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarAbs arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarAdd" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarAdd arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarAnd" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarAnd arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -1896,20 +1807,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "VarBstrCat" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarBstrCat src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarBstrCmp" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarBstrCmp src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarBstrFromBool" => {
             let val = emu.regs().rcx as i16;
@@ -2182,448 +2091,396 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "VarCat" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCat arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarCmp" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCmp arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarCyAbs" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyAbs src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyAdd" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyAdd src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyCmp" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyCmp src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyCmpR8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyCmpR8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFix" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFix src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromBool" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromBool src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromDate" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromDate src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromDec" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromDec src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromDisp" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromDisp src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromI1" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromI1 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromI2" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromI2 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromI4" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromI4 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromI8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromI8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromR4" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromR4 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromR8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromR8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromStr" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromStr src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromUI1" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromUI1 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromUI2" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromUI2 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromUI4" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromUI4 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyFromUI8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyFromUI8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyInt" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyInt src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyMul" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyMul src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyMulI4" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyMulI4 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyMulI8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyMulI8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyNeg" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyNeg src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCyRound" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCyRound src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarCySub" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarCySub src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromBool" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromBool src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromCy" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromCy src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromDec" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromDec src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromDisp" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromDisp src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromI1" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromI1 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromI2" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromI2 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromI4" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromI4 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromI8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromI8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromR4" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromR4 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromR8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromR8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromStr" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromStr src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromUI1" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromUI1 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromUI2" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromUI2 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromUI4" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromUI4 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromUI8" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromUI8 src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromUdate" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromUdate src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDateFromUdateEx" => {
-            let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let dst = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let src = emu.regs().rcx;
+            let dst = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDateFromUdateEx src:0x{:x}", src);
             emu.set_last_error(0);
             emu.regs_mut().rax = 0;
-            for _ in 0..2 {}
         }
         "VarDecAbs" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecAbs arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecAdd" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecAdd arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecCmp" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecCmp arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecCmpR8" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecCmpR8 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecDiv" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecDiv arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecFix" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecFix arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -2853,169 +2710,155 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "VarDecInt" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecInt arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecMul" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecMul arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecNeg" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecNeg arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecRound" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecRound arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDecSub" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarDecSub arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarDiv" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarDiv arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarEqv" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarEqv arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarFix" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarFix arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarFormat" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarFormat arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarFormatCurrency" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarFormatCurrency arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarFormatDateTime" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarFormatDateTime arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarFormatFromTokens" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarFormatFromTokens h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarFormatNumber" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarFormatNumber arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarFormatPercent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarFormatPercent arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -3914,126 +3757,113 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "VarIdiv" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarIdiv arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarImp" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarImp arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarInt" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarInt arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarMod" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarMod arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarMonthName" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarMonthName arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarMul" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarMul arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarNeg" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarNeg arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarNot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarNot arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarNumFromParseNum" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarNumFromParseNum arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarOr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarOr arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarParseNumFromStr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarParseNumFromStr arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarPow" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarPow arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarR4CmpR8" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarR4CmpR8 arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -4497,52 +4327,47 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "VarR8Pow" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarR8Pow arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarR8Round" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarR8Round arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarRound" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarRound arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarSub" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarSub arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarTokenizeFormatString" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let handle = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarTokenizeFormatString h:0x{:x} arg2:0x{:x}",
                 handle,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5432,36 +5257,33 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "VarUdateFromDate" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarUdateFromDate arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarWeekdayName" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VarWeekdayName arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
         "VarXor" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(emu, "oleaut32!VarXor arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }
@@ -5562,15 +5384,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 0;
         }
         "VectorFromBstr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+            let arg1 = emu.regs().rcx;
+            let arg2 = emu.regs().rdx;
             log_red!(
                 emu,
                 "oleaut32!VectorFromBstr arg1:0x{:x} arg2:0x{:x}",
                 arg1,
                 arg2
             );
-            for _ in 0..2 {}
             emu.set_last_error(0);
             emu.regs_mut().rax = 1;
         }

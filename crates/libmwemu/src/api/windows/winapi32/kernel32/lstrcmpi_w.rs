@@ -10,7 +10,6 @@ pub fn lstrcmpiW(emu: &mut emu::Emu) {
         std::cmp::Ordering::Greater => 1,
     };
     log_red!(emu, "kernel32!lstrcmpiW '{}' '{}' ={}", s1, s2, result);
-    emu.set_last_error(0);
     emu.regs_mut().rax = result as u32 as u64;
     stdcall_ret(emu, 2);
 }

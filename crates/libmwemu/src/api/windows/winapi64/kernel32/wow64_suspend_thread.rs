@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::windows::constants;
 
 pub fn Wow64SuspendThread(emu: &mut emu::Emu) {
     let param1 = emu.regs().rcx;

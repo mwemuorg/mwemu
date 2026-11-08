@@ -5,8 +5,8 @@ pub fn FormatMessageA(emu: &mut emu::Emu) {
     let _source = emu.regs().rdx;
     let msg_id = emu.regs().r8 as u32;
     let _lang_id = emu.regs().r9;
-    let lp_buffer = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let n_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let lp_buffer = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let n_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
 
     log_red!(
         emu,

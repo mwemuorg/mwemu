@@ -5,7 +5,6 @@ pub fn FreeLibrary(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!FreeLibrary   {:x}", hmod);
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     emu.stack_pop32(false);
 }

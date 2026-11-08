@@ -1,9 +1,8 @@
 use crate::emu;
-use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetThreadLocale(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GetThreadLocale");
-    helper::advance_tick(emu, 1);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0x0409;
+    emu.regs_mut().rax = 0x409; // English (United States)
+    stdcall_ret(emu, 0);
 }

@@ -3,7 +3,11 @@ use crate::emu;
 pub fn GetDynamicTimeZoneInformation(emu: &mut emu::Emu) {
     let ptr = emu.regs().rcx;
 
-    log_red!(emu, "kernel32!GetDynamicTimeZoneInformation ptr:0x{:x}", ptr);
+    log_red!(
+        emu,
+        "kernel32!GetDynamicTimeZoneInformation ptr:0x{:x}",
+        ptr
+    );
 
     if ptr != 0 {
         // DYNAMIC_TIME_ZONE_INFORMATION

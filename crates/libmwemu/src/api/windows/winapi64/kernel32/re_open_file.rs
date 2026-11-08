@@ -15,7 +15,7 @@ pub fn ReOpenFile(emu: &mut emu::Emu) {
         flags
     );
     if helper::handler_exist(orig_handle) {
-        let uri = helper::handler_get_uri(orig_handle).unwrap_or_default();
+        let uri = helper::handler_get_uri(orig_handle);
         emu.regs_mut().rax = helper::handler_create(&uri);
     } else {
         emu.regs_mut().rax = u64::MAX; // INVALID_HANDLE_VALUE

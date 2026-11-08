@@ -15,6 +15,5 @@ pub fn InitializeCriticalSectionEx(emu: &mut emu::Emu) {
         ptr_crit_sect
     );
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

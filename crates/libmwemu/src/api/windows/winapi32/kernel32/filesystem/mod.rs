@@ -615,3 +615,21 @@ pub use set_file_attributes_a::*;
 #[path = "../set_file_attributes_w.rs"]
 mod set_file_attributes_w;
 pub use set_file_attributes_w::*;
+
+#[path = "../are_file_api_is_ansi.rs"]
+mod are_file_api_is_ansi;
+
+#[path = "../create_named_pipe_w.rs"]
+mod create_named_pipe_w;
+
+#[path = "../device_io_control.rs"]
+mod device_io_control;
+
+#[path = "../file_time.rs"]
+mod file_time;
+
+#[path = "../find_first_file_ex_w.rs"]
+mod find_first_file_ex_w;
+
+#[path = "../query_dos_device_w.rs"]
+mod query_dos_device_w;

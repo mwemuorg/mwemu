@@ -185,3 +185,12 @@ pub use reset_event::*;
 #[path = "../wait_for_multiple_objects.rs"]
 mod wait_for_multiple_objects;
 pub use wait_for_multiple_objects::*;
+
+#[path = "../create_event_w.rs"]
+mod create_event_w;
+
+#[path = "../fls_get_value2.rs"]
+mod fls_get_value2;
+
+#[path = "../tls_get_value2.rs"]
+mod tls_get_value2;

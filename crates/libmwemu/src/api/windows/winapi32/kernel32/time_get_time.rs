@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::windows::constants;
 
 pub fn timeGetTime(emu: &mut emu::Emu) {
-    log_red!(emu, "kernel32!timeGetTime = {}", emu.tick);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = emu.tick as u64;
+    log_red!(emu, "kernel32!timeGetTime");
+
+    emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }

@@ -24,9 +24,9 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlCopyMemory" => RtlCopyMemory(emu),
         "NtFlushInstructionCache" => NtFlushInstructionCache(emu),
         "RtlAddFunctionTable" => RtlAddFunctionTable(emu),
-        "RtlCaptureContext" => RtlCaptureContext(emu),
+        "RtlDeleteFunctionTable" => RtlDeleteFunctionTable(emu),
+        "RtlInstallFunctionTableCallback" => RtlInstallFunctionTableCallback(emu),
         "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
-        "RtlVirtualUnwind" => RtlVirtualUnwind(emu),
         _ => return false,
     }
     true
@@ -342,55 +342,49 @@ fn NtFlushInstructionCache(emu: &mut emu::Emu) {
 }
 
 fn RtlAddFunctionTable(emu: &mut emu::Emu) {
-    let _function_table = arg(emu, 0);
-    let _entry_count = arg(emu, 1);
-    let _base_address = arg(emu, 2);
+    let _table = arg(emu, 0);
+    let _count = arg(emu, 1);
+    let _base = arg(emu, 2);
     log_red!(emu, "ntdll!RtlAddFunctionTable");
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 3);
 }
 
-fn RtlCaptureContext(emu: &mut emu::Emu) {
-    let context_record = arg(emu, 0);
+fn RtlDeleteFunctionTable(emu: &mut emu::Emu) {
+    let table = arg(emu, 0);
+    log_red!(emu, "ntdll!RtlDeleteFunctionTable table:0x{:x}", table);
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 1);
+}
+
+fn RtlInstallFunctionTableCallback(emu: &mut emu::Emu) {
+    let table_id = arg(emu, 0);
+    let base = arg(emu, 1);
+    let length = arg(emu, 2);
+    let callback = arg(emu, 3);
     log_red!(
         emu,
-        "** {} ntdll!RtlCaptureContext {:x}",
-        emu.pos,
-        context_record
+        "ntdll!RtlInstallFunctionTableCallback id:0x{:x} base:0x{:x} len:0x{:x} cb:0x{:x}",
+        table_id,
+        base,
+        length,
+        callback
     );
-    stdcall_ret(emu, 1);
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 6);
 }
 
 fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {
     let control_pc = arg(emu, 0);
     let image_base = arg(emu, 1);
-    let history_table = arg(emu, 2);
+    let history = arg(emu, 2);
     log_red!(
         emu,
-        "** {} ntdll!RtlLookupFunctionEntry {:x} {:x} {:x}",
-        emu.pos,
+        "ntdll!RtlLookupFunctionEntry pc:0x{:x} base:0x{:x} hist:0x{:x}",
         control_pc,
         image_base,
-        history_table
+        history
     );
     emu.regs_mut().rax = 0;
     stdcall_ret(emu, 3);
-}
-
-fn RtlVirtualUnwind(emu: &mut emu::Emu) {
-    let handler_type = arg(emu, 0);
-    let image_base = arg(emu, 1);
-    let control_pc = arg(emu, 2);
-    let function_entry = arg(emu, 3);
-    log_red!(
-        emu,
-        "** {} ntdll!RtlVirtualUnwind type:{} base:0x{:x} pc:0x{:x} entry:0x{:x}",
-        emu.pos,
-        handler_type,
-        image_base,
-        control_pc,
-        function_entry
-    );
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 4);
 }

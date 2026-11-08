@@ -1,4 +1,3 @@
-
 use crate::emu;
 use crate::winapi::helper;
 pub fn OpenState(emu: &mut emu::Emu) {

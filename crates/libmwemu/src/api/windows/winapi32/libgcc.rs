@@ -1,8 +1,8 @@
-use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::mem64::Permission;
 //use crate::windows::constants::*;
 //use crate::winapi::helper;
+use crate::serialization;
 use crate::winapi::winapi32::kernel32;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
@@ -12,7 +12,41 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "__register_frame_info" => __register_frame_info(emu),
         "__deregister_frame_info" => __deregister_frame_info(emu),
 
-        _ => return fallback::unimplemented(addr, api, emu),
+        _ => {
+            if emu.cfg.skip_unimplemented {
+                let nparams = emu.banzai.get_params(api);
+                if nparams >= 0 {
+                    for _ in 0..nparams {
+                        emu.stack_pop32(false);
+                    }
+                }
+                log::warn!(
+                    "banzai: skipping unimplemented API 0x{:x} {} (nparams={}) at 0x{:x}",
+                    addr,
+                    api,
+                    nparams,
+                    emu.regs().rip
+                );
+                emu.regs_mut().rax = 0;
+                return String::new();
+            }
+
+            if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
+                serialization::Serialization::dump(
+                    emu,
+                    emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
+                );
+            }
+
+            log::error!("attempt to call unimplemented API 0x{:x} {}", addr, api);
+            log::warn!(
+                "calling unimplemented API 0x{:x} {} at 0x{:x}",
+                addr,
+                api,
+                emu.regs().rip
+            );
+            return api.to_ascii_lowercase();
+        }
     }
 
     String::new()

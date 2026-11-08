@@ -1,6 +1,6 @@
-
 use crate::emu;
 use crate::winapi::helper;
+use crate::windows::constants;
 pub fn StringExValidateDestW(emu: &mut emu::Emu) {
     let param1 = emu.regs().rcx;
     let param2 = emu.regs().rdx;

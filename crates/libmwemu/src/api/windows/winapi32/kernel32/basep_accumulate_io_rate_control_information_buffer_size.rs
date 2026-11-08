@@ -10,7 +10,6 @@ pub fn BasepAccumulateIoRateControlInformationBufferSize(emu: &mut emu::Emu) {
         "kernel32!BasepAccumulateIoRateControlInformationBufferSize"
     );
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 
     for _ in 0..2 {

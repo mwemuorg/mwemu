@@ -5,10 +5,10 @@ pub fn RegEnumValueW(emu: &mut emu::Emu) {
     let p1 = emu.regs().rdx;
     let p2 = emu.regs().r8;
     let p3 = emu.regs().r9;
-    let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let p6 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let p7 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let p4 = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let p5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let p6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let p7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {

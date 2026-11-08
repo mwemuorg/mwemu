@@ -16,7 +16,7 @@ pub fn GetLogicalDriveStringsA(emu: &mut emu::Emu) {
 
     if buff_ptr != 0 && buf_len >= drives.len() as u32 {
         for (i, &b) in drives.iter().enumerate() {
-    emu.maps.write_byte(buff_ptr + i as u64, b);
+            emu.maps.write_byte(buff_ptr + i as u64, b);
         }
     }
 

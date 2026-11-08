@@ -22,7 +22,12 @@ pub fn MapViewOfFileFromApp(emu: &mut emu::Emu) {
         };
         let addr = emu.maps.alloc(sz as u64).expect("mapview alloc");
         emu.maps
-            .create_map(&format!("mapview_{:x}", addr), addr, sz as u64)
+            .create_map(
+                &format!("mapview_{:x}", addr),
+                addr,
+                sz as u64,
+                crate::maps::mem64::Permission::READ_WRITE,
+            )
             .expect("mapview map");
         emu.regs_mut().rax = addr;
     } else {

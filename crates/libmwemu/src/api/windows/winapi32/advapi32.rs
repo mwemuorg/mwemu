@@ -4053,7 +4053,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
         }
         "CryptExportKey" => {
-            let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+            let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
             let _hexp_key = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
             let blob_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
             let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
@@ -4065,20 +4065,30 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 hkey,
                 blob_type
             );
+            let key_data = crypto_state::export_key(hkey);
+            let blob_len = match &key_data {
+                Some(d) => 12 + d.len() as u32,
+                None => 12 + 16,
+            };
             if data_ptr == 0 && data_len_ptr != 0 {
-                emu.maps.write_dword(data_len_ptr, 256);
+                emu.maps.write_dword(data_len_ptr, blob_len);
             } else if data_len_ptr != 0 {
-                let len = emu.maps.read_dword(data_len_ptr).unwrap_or(256);
-                let write_len = std::cmp::min(len, 256) as u64;
-                for i in 0..write_len {
-                    emu.maps.write_byte(data_ptr + i, 0xAA);
+                emu.maps.write_byte(data_ptr, blob_type as u8);
+                emu.maps.write_byte(data_ptr + 1, 2);
+                emu.maps.write_word(data_ptr + 2, 0);
+                emu.maps.write_dword(data_ptr + 4, 0x00006801);
+                emu.maps.write_dword(data_ptr + 8, 0);
+                if let Some(ref kd) = key_data {
+                    for (i, b) in kd.iter().enumerate() {
+                        emu.maps.write_byte(data_ptr + 12 + i as u64, *b);
+                    }
                 }
-                emu.maps.write_dword(data_len_ptr, write_len as u32);
+                emu.maps.write_dword(data_len_ptr, blob_len);
             }
             for _ in 0..6u32 {
                 emu.stack_pop32(false);
             }
-            emu.regs_mut().rax = 1; // TRUE
+            emu.regs_mut().rax = 1;
         }
         "CryptGetDefaultProviderA" => {
             let _prov_type = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -4220,21 +4230,28 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             emu.regs_mut().rax = 1;
         }
         "CryptSetKeyParam" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+            let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+            let param = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+            let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+            let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
             log_red!(
                 emu,
-                "advapi32!CryptSetKeyParam p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
+                "advapi32!CryptSetKeyParam key:0x{:x} param:0x{:x} data:0x{:x}",
+                hkey,
+                param,
+                data_ptr
             );
-            let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
-                let _val = emu.maps.read_string(val_ptr);
+            let mut data = Vec::new();
+            if data_ptr != 0 && emu.maps.is_mapped(data_ptr) {
+                for i in 0..16u64 {
+                    if let Some(b) = emu.maps.read_byte(data_ptr + i) {
+                        data.push(b);
+                    } else {
+                        break;
+                    }
+                }
             }
+            crypto_state::set_key_param(hkey, param, &data);
             for _ in 0..4 {
                 emu.stack_pop32(false);
             }
@@ -16395,19 +16412,20 @@ fn CryptSignHashA(emu: &mut emu::Emu) {
         String::new()
     };
 
-    if let Some(hash_val) = crypto_state::get_hash_param(hhash, 2) {
+    let sig_size = 128usize;
+    if let Some(signature) = crypto_state::sign_hash(hhash, sig_size) {
         if sig_ptr == 0 {
             if sig_len_ptr != 0 {
-                emu.maps.write_dword(sig_len_ptr, hash_val.len() as u32);
+                emu.maps.write_dword(sig_len_ptr, signature.len() as u32);
             }
         } else {
             let write_len = if sig_len_ptr != 0 {
                 let buf_sz = emu.maps.read_dword(sig_len_ptr).unwrap_or(0) as usize;
-                hash_val.len().min(buf_sz)
+                signature.len().min(buf_sz)
             } else {
-                hash_val.len()
+                signature.len()
             };
-            emu.maps.write_bytes(sig_ptr, &hash_val[..write_len]);
+            emu.maps.write_bytes(sig_ptr, &signature[..write_len]);
             if sig_len_ptr != 0 {
                 emu.maps.write_dword(sig_len_ptr, write_len as u32);
             }
@@ -16417,7 +16435,7 @@ fn CryptSignHashA(emu: &mut emu::Emu) {
             "advapi32!CryptSignHashA hash:0x{:x} desc:'{}' siglen:{}",
             hhash,
             desc,
-            hash_val.len()
+            signature.len()
         );
     } else {
         log_red!(
@@ -16447,19 +16465,20 @@ fn CryptSignHashW(emu: &mut emu::Emu) {
         String::new()
     };
 
-    if let Some(hash_val) = crypto_state::get_hash_param(hhash, 2) {
+    let sig_size = 128usize;
+    if let Some(signature) = crypto_state::sign_hash(hhash, sig_size) {
         if sig_ptr == 0 {
             if sig_len_ptr != 0 {
-                emu.maps.write_dword(sig_len_ptr, hash_val.len() as u32);
+                emu.maps.write_dword(sig_len_ptr, signature.len() as u32);
             }
         } else {
             let write_len = if sig_len_ptr != 0 {
                 let buf_sz = emu.maps.read_dword(sig_len_ptr).unwrap_or(0) as usize;
-                hash_val.len().min(buf_sz)
+                signature.len().min(buf_sz)
             } else {
-                hash_val.len()
+                signature.len()
             };
-            emu.maps.write_bytes(sig_ptr, &hash_val[..write_len]);
+            emu.maps.write_bytes(sig_ptr, &signature[..write_len]);
             if sig_len_ptr != 0 {
                 emu.maps.write_dword(sig_len_ptr, write_len as u32);
             }
@@ -16469,7 +16488,7 @@ fn CryptSignHashW(emu: &mut emu::Emu) {
             "advapi32!CryptSignHashW hash:0x{:x} desc:'{}' siglen:{}",
             hhash,
             desc,
-            hash_val.len()
+            signature.len()
         );
     } else {
         log_red!(

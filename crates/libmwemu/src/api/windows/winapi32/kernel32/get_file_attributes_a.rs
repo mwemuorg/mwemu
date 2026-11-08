@@ -6,7 +6,6 @@ pub fn GetFileAttributesA(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!GetFileAttributesA file: {}", filename);
 
-    emu.set_last_error(0);
     emu.regs_mut().rax = 0x123; // file attributes
 
     emu.stack_pop32(false);

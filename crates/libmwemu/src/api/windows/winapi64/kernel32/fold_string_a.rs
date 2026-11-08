@@ -6,7 +6,7 @@ pub fn FoldStringA(emu: &mut emu::Emu) {
     let lpSrcStr = emu.regs().rdx as u32;
     let _cchSrc = emu.regs().r8 as u32;
     let lpDestStr = emu.regs().r9 as u32;
-    let _cchDest = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _cchDest = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
     let lpSrcStr = emu.maps.read_string(lpSrcStr as u64);
     let lpDestStr = emu.maps.read_string(lpDestStr as u64);

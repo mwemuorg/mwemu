@@ -8,5 +8,4 @@ pub fn SetLastError(emu: &mut emu::Emu) {
     emu.set_last_error(err_code as u64);
 
     emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
 }

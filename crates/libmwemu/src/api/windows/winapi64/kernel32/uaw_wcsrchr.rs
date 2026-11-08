@@ -15,14 +15,14 @@ pub fn uaw_wcsrchr(emu: &mut emu::Emu) {
     loop {
         let wc = emu.maps.read_word(ptr).unwrap_or(0);
         if wc == ch {
-    last_found = ptr;
+            last_found = ptr;
         }
         if wc == 0 {
-    break;
+            break;
         }
         ptr += 2;
         if ptr - wstr > 0x10000 {
-    break;
+            break;
         }
     }
     emu.set_last_error(0);
