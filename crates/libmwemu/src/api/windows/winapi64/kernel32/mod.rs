@@ -1,8 +1,6 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::winapi::helper;
 use crate::winapi::winapi64::ntdll;
-use crate::windows::structures;
 
 mod appcompat;
 mod console;
@@ -32,6 +30,175 @@ pub use resolver::*;
 pub use strings_nls::*;
 pub use sync::*;
 pub use system::*;
+
+mod etw_event_enabled;
+pub use etw_event_enabled::EtwEventEnabled;
+mod etw_event_register;
+pub use etw_event_register::EtwEventRegister;
+mod etw_event_set_information;
+pub use etw_event_set_information::EtwEventSetInformation;
+mod etw_event_write_transfer;
+pub use etw_event_write_transfer::EtwEventWriteTransfer;
+mod rtl_exit_user_process;
+pub use rtl_exit_user_process::RtlExitUserProcess;
+mod fls_free;
+pub use fls_free::FlsFree;
+mod get_current_package_path;
+pub use get_current_package_path::GetCurrentPackagePath;
+mod get_string_type_w_api;
+pub use get_string_type_w_api::GetStringTypeW_api;
+mod is_valid_code_page_api;
+pub use is_valid_code_page_api::IsValidCodePage_api;
+mod lc_map_string_w_api;
+pub use lc_map_string_w_api::LCMapStringW_api;
+mod set_event;
+pub use set_event::SetEvent;
+mod set_handle_count_api;
+pub use set_handle_count_api::SetHandleCount_api;
+mod verify_version_info_a_api;
+pub use verify_version_info_a_api::VerifyVersionInfoA_api;
+mod ver_set_condition_mask;
+pub use ver_set_condition_mask::VerSetConditionMask;
+mod lstrcmp_a_api;
+pub use lstrcmp_a_api::lstrcmpA_api;
+mod lstrcmp_w_api;
+pub use lstrcmp_w_api::lstrcmpW_api;
+mod compare_string_a;
+pub use compare_string_a::CompareStringA;
+mod compare_string_ordinal;
+pub use compare_string_ordinal::CompareStringOrdinal;
+mod get_string_type_a;
+pub use get_string_type_a::GetStringTypeA;
+mod get_oemcp_2;
+pub use get_oemcp_2::GetOEMCP;
+mod virtual_query_api;
+pub use virtual_query_api::VirtualQuery_api;
+mod virtual_query_ex_api;
+pub use virtual_query_ex_api::VirtualQueryEx_api;
+mod get_long_path_name_a_api;
+pub use get_long_path_name_a_api::GetLongPathNameA_api;
+mod get_long_path_name_w_api;
+pub use get_long_path_name_w_api::GetLongPathNameW_api;
+mod get_short_path_name_a_api;
+pub use get_short_path_name_a_api::GetShortPathNameA_api;
+mod get_short_path_name_w_api;
+pub use get_short_path_name_w_api::GetShortPathNameW_api;
+mod search_path_a;
+pub use search_path_a::SearchPathA;
+mod search_path_w;
+pub use search_path_w::SearchPathW;
+mod copy_file_ex_w;
+pub use copy_file_ex_w::CopyFileExW;
+mod move_file_ex_a_api;
+pub use move_file_ex_a_api::MoveFileExA_api;
+mod move_file_ex_w;
+pub use move_file_ex_w::MoveFileExW;
+mod flush_file_buffers;
+pub use flush_file_buffers::FlushFileBuffers;
+mod set_end_of_file;
+pub use set_end_of_file::SetEndOfFile;
+mod lock_file;
+pub use lock_file::LockFile;
+mod unlock_file;
+pub use unlock_file::UnlockFile;
+mod create_pipe;
+pub use create_pipe::CreatePipe;
+mod create_semaphore_a_api;
+pub use create_semaphore_a_api::CreateSemaphoreA_api;
+mod create_semaphore_ex_w;
+pub use create_semaphore_ex_w::CreateSemaphoreExW;
+mod create_waitable_timer_a_api;
+pub use create_waitable_timer_a_api::CreateWaitableTimerA_api;
+mod create_waitable_timer_ex_w;
+pub use create_waitable_timer_ex_w::CreateWaitableTimerExW;
+mod open_mutex_a_api;
+pub use open_mutex_a_api::OpenMutexA_api;
+mod open_mutex_w;
+pub use open_mutex_w::OpenMutexW;
+mod interlocked_increment_api;
+pub use interlocked_increment_api::InterlockedIncrement_api;
+mod interlocked_decrement_api;
+pub use interlocked_decrement_api::InterlockedDecrement_api;
+mod interlocked_exchange_api;
+pub use interlocked_exchange_api::InterlockedExchange_api;
+mod interlocked_compare_exchange_api;
+pub use interlocked_compare_exchange_api::InterlockedCompareExchange_api;
+mod delete_critical_section;
+pub use delete_critical_section::DeleteCriticalSection;
+mod initialize_condition_variable;
+pub use initialize_condition_variable::InitializeConditionVariable;
+mod wake_condition_variable;
+pub use wake_condition_variable::WakeConditionVariable;
+mod sleep_condition_variable_srw;
+pub use sleep_condition_variable_srw::SleepConditionVariableSRW;
+mod sleep_condition_variable_cs;
+pub use sleep_condition_variable_cs::SleepConditionVariableCS;
+mod sleep_ex;
+pub use sleep_ex::SleepEx;
+mod wait_for_single_object_ex;
+pub use wait_for_single_object_ex::WaitForSingleObjectEx;
+mod wait_for_multiple_objects_ex;
+pub use wait_for_multiple_objects_ex::WaitForMultipleObjectsEx;
+mod get_exit_code_process;
+pub use get_exit_code_process::GetExitCodeProcess;
+mod get_exit_code_thread;
+pub use get_exit_code_thread::GetExitCodeThread;
+mod get_process_id;
+pub use get_process_id::GetProcessId;
+mod set_thread_affinity_mask_api;
+pub use set_thread_affinity_mask_api::SetThreadAffinityMask_api;
+mod set_process_affinity_mask_api;
+pub use set_process_affinity_mask_api::SetProcessAffinityMask_api;
+mod get_active_processor_count_api;
+pub use get_active_processor_count_api::GetActiveProcessorCount_api;
+mod get_maximum_processor_count_api;
+pub use get_maximum_processor_count_api::GetMaximumProcessorCount_api;
+mod get_process_working_set_size_api;
+pub use get_process_working_set_size_api::GetProcessWorkingSetSize_api;
+mod set_process_working_set_size_api;
+pub use set_process_working_set_size_api::SetProcessWorkingSetSize_api;
+mod set_thread_context_api;
+pub use set_thread_context_api::SetThreadContext_api;
+mod suspend_thread;
+pub use suspend_thread::SuspendThread;
+mod process32_first_w_api;
+pub use process32_first_w_api::Process32FirstW_api;
+mod process32_next_w_api;
+pub use process32_next_w_api::Process32NextW_api;
+mod get_user_default_ui_language_2;
+pub use get_user_default_ui_language_2::GetUserDefaultUILanguage;
+mod set_locale_info_a_api;
+pub use set_locale_info_a_api::SetLocaleInfoA_api;
+mod get_locale_info_ex;
+pub use get_locale_info_ex::GetLocaleInfoEx;
+mod get_date_format_w;
+pub use get_date_format_w::GetDateFormatW;
+mod get_time_format_w;
+pub use get_time_format_w::GetTimeFormatW;
+mod global_add_atom_w_api;
+pub use global_add_atom_w_api::GlobalAddAtomW_api;
+mod global_delete_atom_api;
+pub use global_delete_atom_api::GlobalDeleteAtom_api;
+mod global_find_atom_a_api;
+pub use global_find_atom_a_api::GlobalFindAtomA_api;
+mod global_find_atom_w_api;
+pub use global_find_atom_w_api::GlobalFindAtomW_api;
+mod global_get_atom_name_a_api;
+pub use global_get_atom_name_a_api::GlobalGetAtomNameA_api;
+mod global_get_atom_name_w_api;
+pub use global_get_atom_name_w_api::GlobalGetAtomNameW_api;
+mod global_flags_api;
+pub use global_flags_api::GlobalFlags_api;
+mod global_size_api;
+pub use global_size_api::GlobalSize_api;
+mod global_re_alloc_api;
+pub use global_re_alloc_api::GlobalReAlloc_api;
+mod beep;
+pub use beep::Beep;
+mod get_system_windows_directory_a_api;
+pub use get_system_windows_directory_a_api::GetSystemWindowsDirectoryA_api;
+mod get_system_windows_directory_w_api;
+pub use get_system_windows_directory_w_api::GetSystemWindowsDirectoryW_api;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
@@ -76,88 +243,13 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "DisconnectNamedPipe" => DisconnectNamedPipe(emu),
         "EncodePointer" => EncodePointer(emu),
         "EnterCriticalSection" => EnterCriticalSection(emu),
-        "EtwEventEnabled" | "EventEnabled" => {
-            let reg_handle = emu.regs().rcx;
-            let event_descriptor = emu.regs().rdx;
-            let level = if event_descriptor != 0 {
-                emu.maps.read_byte(event_descriptor).unwrap_or(0)
-            } else {
-                0
-            };
-            log_red!(
-                emu,
-                "kernel32!EventEnabled handle:0x{:x} level:{}",
-                reg_handle,
-                level
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EtwEventRegister" | "EventRegister" => {
-            let provider_guid = emu.regs().rcx;
-            let callback = emu.regs().rdx;
-            let _callback_ctx = emu.regs().r8;
-            let reg_handle_ptr = emu.regs().r9;
-            let guid_str = emu.maps.read_string(provider_guid);
-            let hndl = helper::handler_create(&guid_str);
-            if reg_handle_ptr != 0 {
-                emu.maps.write_qword(reg_handle_ptr, hndl);
-            }
-            log_red!(
-                emu,
-                "kernel32!EventRegister guid:'{}' cb:0x{:x} => handle:0x{:x}",
-                guid_str,
-                callback,
-                hndl
-            );
-            emu.regs_mut().rax = 0;
-        }
-        "EtwEventSetInformation" | "EventSetInformation" => {
-            let reg_handle = emu.regs().rcx;
-            let info_class = emu.regs().rdx;
-            let info_ptr = emu.regs().r8;
-            let info_len = emu.regs().r9;
-            let info_data = if info_ptr != 0 {
-                emu.maps.read_string(info_ptr)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!EventSetInformation handle:0x{:x} class:{} data:'{}' len:{}",
-                reg_handle,
-                info_class,
-                info_data,
-                info_len
-            );
-            emu.regs_mut().rax = 0;
-        }
-        "EtwEventWriteTransfer" | "EventWriteTransfer" => {
-            let reg_handle = emu.regs().rcx;
-            let event_descriptor = emu.regs().rdx;
-            let activity_id = emu.regs().r8;
-            let _related_id = emu.regs().r9;
-            let desc_str = if event_descriptor != 0 {
-                emu.maps.read_string(event_descriptor)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!EventWriteTransfer handle:0x{:x} desc:'{}' activity:0x{:x}",
-                reg_handle,
-                desc_str,
-                activity_id
-            );
-            emu.regs_mut().rax = 0;
-        }
+        "EtwEventEnabled" | "EventEnabled" => EtwEventEnabled(emu),
+        "EtwEventRegister" | "EventRegister" => EtwEventRegister(emu),
+        "EtwEventSetInformation" | "EventSetInformation" => EtwEventSetInformation(emu),
+        "EtwEventWriteTransfer" | "EventWriteTransfer" => EtwEventWriteTransfer(emu),
         "ExitProcess" => ExitProcess(emu),
         "ExitThread" => ExitThread(emu),
-        "RtlExitUserProcess" => {
-            let exit_code = emu.regs().rcx;
-            log_red!(emu, "ntdll!RtlExitUserProcess code:{}", exit_code);
-            emu.stop();
-        }
+        "RtlExitUserProcess" => RtlExitUserProcess(emu),
         "ExpandEnvironmentStringsA" => ExpandEnvironmentStringsA(emu),
         "ExpandEnvironmentStringsW" => ExpandEnvironmentStringsW(emu),
         "FileTimeToSystemTime" => FileTimeToSystemTime(emu),
@@ -174,18 +266,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "FormatMessageW" => FormatMessageW(emu),
         "FreeLibrary" => FreeLibrary(emu),
         "FlsAlloc" => FlsAlloc(emu),
-        "FlsFree" => {
-            let idx = emu.regs().rcx;
-            log_red!(emu, "kernel32!FlsFree idx: {}", idx);
-            if (idx as usize) < emu.fls().len() {
-                emu.fls_mut()[idx as usize] = 0;
-                emu.set_last_error(0);
-                emu.regs_mut().rax = 1;
-            } else {
-                emu.set_last_error(0);
-                emu.regs_mut().rax = 0;
-            }
-        }
+        "FlsFree" => FlsFree(emu),
         "FlsGetValue" => FlsGetValue(emu),
         "FlsGetValue2" => FlsGetValue2(emu),
         "FlsSetValue" => FlsSetValue(emu),
@@ -224,20 +305,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetFileType" => GetFileType(emu),
         "GetFullPathNameA" => GetFullPathNameA(emu),
         "GetFullPathNameW" => GetFullPathNameW(emu),
-        "GetCurrentPackagePath" => {
-            let path_length_ptr = emu.regs().rcx;
-            let path_ptr = emu.regs().rdx;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentPackagePath length_ptr:0x{:x} path_ptr:0x{:x}",
-                path_length_ptr,
-                path_ptr
-            );
-            if path_length_ptr != 0 {
-                emu.maps.write_dword(path_length_ptr, 0);
-            }
-            emu.regs_mut().rax = 0x80073D54; // APPMODEL_ERROR_NO_PACKAGE
-        }
+        "GetCurrentPackagePath" => GetCurrentPackagePath(emu),
         "GetLastError" => GetLastError(emu),
         "GetLocaleInfoA" => GetLocaleInfoA(emu),
         "GetLocaleInfoW" => GetLocaleInfoW(emu),
@@ -255,69 +323,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetStartupInfoA" => GetStartupInfoA(emu),
         "GetStartupInfoW" => GetStartupInfoW(emu),
         "GetStdHandle" => GetStdHandle(emu),
-        "GetStringTypeW" => {
-            let dw_info_type = emu.regs().rcx as u32;
-            let lp_src_str = emu.regs().rdx;
-            let cch_src = emu.regs().r8 as i32;
-            let lp_char_type = emu.regs().r9;
-
-            let actual_len = if cch_src == -1 {
-                let s = emu.maps.read_wide_string(lp_src_str);
-                s.len() + 1
-            } else {
-                cch_src as usize
-            };
-
-            if lp_char_type != 0 && actual_len > 0 {
-                for i in 0..actual_len {
-                    let ch = emu.maps.read_word(lp_src_str + (i as u64) * 2).unwrap_or(0);
-                    let ct = match dw_info_type {
-                        1 => {
-                            // CT_CTYPE1
-                            let mut t: u16 = 0;
-                            if (ch as u8 as char).is_ascii_uppercase() {
-                                t |= 0x0001; // C1_UPPER
-                            }
-                            if (ch as u8 as char).is_ascii_lowercase() {
-                                t |= 0x0002; // C1_LOWER
-                            }
-                            if (ch as u8 as char).is_ascii_digit() {
-                                t |= 0x0004; // C1_DIGIT
-                            }
-                            if ch == b' ' as u16 || ch == b'\t' as u16 {
-                                t |= 0x0008; // C1_SPACE
-                            }
-                            if (ch as u8 as char).is_ascii_punctuation() {
-                                t |= 0x0010; // C1_PUNCT
-                            }
-                            if ch < 0x20 || ch == 0x7f {
-                                t |= 0x0020; // C1_CNTRL
-                            }
-                            if (ch as u8 as char).is_ascii_alphanumeric() {
-                                t |= 0x0100; // C1_ALPHA
-                            }
-                            t
-                        }
-                        2 if (ch as u8 as char).is_ascii_alphanumeric() => {
-                            2 // CT_CTYPE2 — C2_LEFTTORIGHT
-                        }
-                        2 => {
-                            0 // CT_CTYPE2 — C2_NOTAPPLICABLE
-                        }
-                        _ => 0,
-                    };
-                    emu.maps.write_word(lp_char_type + (i as u64) * 2, ct);
-                }
-            }
-
-            log_red!(
-                emu,
-                "kernel32!GetStringTypeW type:{} len:{} => TRUE",
-                dw_info_type,
-                actual_len
-            );
-            emu.regs_mut().rax = 1;
-        }
+        "GetStringTypeW" => GetStringTypeW_api(emu),
         "GetThreadId" => GetThreadId(emu),
         "GetSystemDirectoryA" => GetSystemDirectoryA(emu),
         "GetSystemDirectoryW" => GetSystemDirectoryW(emu),
@@ -362,12 +368,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "CheckRemoteDebuggerPresent" => CheckRemoteDebuggerPresent(emu),
         "IsDebuggerPresent" => IsDebuggerPresent(emu),
         "QueryDosDeviceW" => QueryDosDeviceW(emu),
-        "IsValidCodePage" => {
-            let cp = emu.regs().rcx;
-            log_red!(emu, "kernel32!IsValidCodePage cp: {}", cp);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+        "IsValidCodePage" => IsValidCodePage_api(emu),
         "IsWow64Process" => IsWow64Process(emu),
         "IsProcessorFeaturePresent" => IsProcessorFeaturePresent(emu),
         "LeaveCriticalSection" => LeaveCriticalSection(emu),
@@ -383,38 +384,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "LocalAlloc" => LocalAlloc(emu),
         "LocalFree" => LocalFree(emu),
         "LockResource" => LockResource(emu),
-        "LCMapStringW" => {
-            let locale = emu.regs().rcx;
-            let flags = emu.regs().rdx;
-            let src = emu.regs().r8;
-            let src_len = emu.regs().r9 as i64;
-            let dst = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i64;
-            let real_src_len = if src_len < 0 {
-                let s = emu.maps.read_wide_string(src);
-                (s.len() + 1) as i64
-            } else {
-                src_len
-            };
-            log_red!(
-                emu,
-                "kernel32!LCMapStringW locale: 0x{:x} flags: 0x{:x} src_len: {} dst_len: {}",
-                locale,
-                flags,
-                real_src_len,
-                dst_len
-            );
-            if dst == 0 || dst_len == 0 {
-                emu.regs_mut().rax = real_src_len as u64;
-            } else {
-                let copy_len = std::cmp::min(real_src_len, dst_len) as u64;
-                for i in 0..copy_len * 2 {
-                    let b = emu.maps.read_byte(src + i).unwrap_or(0);
-                    emu.maps.write_byte(dst + i, b);
-                }
-                emu.regs_mut().rax = copy_len;
-            }
-        }
+        "LCMapStringW" => LCMapStringW_api(emu),
         "lstrcatA" => lstrcatA(emu),
         "lstrcatW" => lstrcatW(emu),
         "LStrCmpI" => LStrCmpI(emu),
@@ -444,13 +414,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "ReadFile" => ReadFile(emu),
         "ReadProcessMemory" => ReadProcessMemory(emu),
         "ResetEvent" => ResetEvent(emu),
-        "SetEvent" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!SetEvent handle: 0x{:x}", handle);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+        "SetEvent" => SetEvent(emu),
 
         "ReleaseSRWLockExclusive" => ReleaseSRWLockExclusive(emu),
         "ReleaseSRWLockShared" => ReleaseSRWLockShared(emu),
@@ -459,12 +423,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SetEnvironmentVariableA" => SetEnvironmentVariableA(emu),
         "SetEnvironmentVariableW" => SetEnvironmentVariableW(emu),
         "SetErrorMode" => SetErrorMode(emu),
-        "SetHandleCount" => {
-            let count = emu.regs().rcx;
-            log_red!(emu, "kernel32!SetHandleCount count: {}", count);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = count;
-        }
+        "SetHandleCount" => SetHandleCount_api(emu),
         "SetFilePointer" => SetFilePointer(emu),
         "SetLastError" => SetLastError(emu),
         "SetThreadLocale" => SetThreadLocale(emu),
@@ -494,35 +453,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "VirtualProtectEx" => VirtualProtectEx(emu),
         "WaitForMultipleObjects" => WaitForMultipleObjects(emu),
         "WaitForSingleObject" => WaitForSingleObject(emu),
-        "VerifyVersionInfoA" | "VerifyVersionInfoW" => {
-            let version_info = emu.regs().rcx;
-            let type_mask = emu.regs().rdx;
-            let condition_mask = emu.regs().r8;
-            log_red!(
-                emu,
-                "kernel32!{} info:0x{:x} type_mask:0x{:x} cond_mask:0x{:x} -> TRUE",
-                api,
-                version_info,
-                type_mask,
-                condition_mask
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "VerSetConditionMask" => {
-            let mask = emu.regs().rcx;
-            let type_bit = emu.regs().rdx;
-            let condition = emu.regs().r8;
-            log_red!(
-                emu,
-                "kernel32!VerSetConditionMask mask: 0x{:x} type: {} cond: {}",
-                mask,
-                type_bit,
-                condition
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = mask | (condition << (type_bit & 0x1f));
-        }
+        "VerifyVersionInfoA" | "VerifyVersionInfoW" => VerifyVersionInfoA_api(emu, api),
+        "VerSetConditionMask" => VerSetConditionMask(emu),
         "WideCharToMultiByte" => WideCharToMultiByte(emu),
         "WinExec" => WinExec(emu),
         "WriteConsoleW" => WriteConsoleW(emu),
@@ -539,333 +471,33 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "DeviceIoControl" => api_DeviceIoControl(emu),
 
         // --- String/Comparison ---
-        "lstrcmpA" => {
-            let s1 = emu.regs().rcx;
-            let s2 = emu.regs().rdx;
-            let str1 = emu.maps.read_string(s1);
-            let str2 = emu.maps.read_string(s2);
-            let r = str1.cmp(&str2) as i32;
-            log_red!(emu, "kernel32!lstrcmpA '{}' '{}' => {}", str1, str2, r);
-            emu.regs_mut().rax = r as u64;
-        }
-        "lstrcmpW" => {
-            let s1 = emu.regs().rcx;
-            let s2 = emu.regs().rdx;
-            let str1 = emu.maps.read_wide_string(s1);
-            let str2 = emu.maps.read_wide_string(s2);
-            let r = str1.cmp(&str2) as i32;
-            log_red!(emu, "kernel32!lstrcmpW '{}' '{}' => {}", str1, str2, r);
-            emu.regs_mut().rax = r as u64;
-        }
-        "CompareStringA" => {
-            let locale = emu.regs().rcx;
-            let flags = emu.regs().rdx;
-            let s1_ptr = emu.regs().r8;
-            let _len1 = emu.regs().r9 as i32;
-            let s2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-            let _len2 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
-            let str1 = emu.maps.read_string(s1_ptr);
-            let str2 = if s2_ptr != 0 {
-                emu.maps.read_string(s2_ptr)
-            } else {
-                String::new()
-            };
-            let ignore_case = flags & 1 != 0;
-            let result = if ignore_case {
-                str1.to_lowercase().cmp(&str2.to_lowercase())
-            } else {
-                str1.cmp(&str2)
-            };
-            let ret = match result {
-                std::cmp::Ordering::Less => 1u64,
-                std::cmp::Ordering::Equal => 2,
-                std::cmp::Ordering::Greater => 3,
-            };
-            log_red!(
-                emu,
-                "kernel32!CompareStringA locale:{} flags:0x{:x} '{}' '{}' => {}",
-                locale,
-                flags,
-                str1,
-                str2,
-                ret
-            );
-            emu.regs_mut().rax = ret;
-        }
-        "CompareStringOrdinal" => {
-            let s1 = emu.regs().rcx;
-            let len1 = emu.regs().rdx as i64;
-            let s2 = emu.regs().r8;
-            let _len2 = emu.regs().r9 as i64;
-            let ignore_case = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let str1 = emu.maps.read_wide_string(s1);
-            let str2 = emu.maps.read_wide_string(s2);
-            let r = if ignore_case != 0 {
-                str1.to_lowercase().cmp(&str2.to_lowercase()) as i32
-            } else {
-                str1.cmp(&str2) as i32
-            };
-            let result = match r.cmp(&0) {
-                std::cmp::Ordering::Less => 1u64,
-                std::cmp::Ordering::Equal => 2,
-                std::cmp::Ordering::Greater => 3,
-            };
-            log_red!(
-                emu,
-                "kernel32!CompareStringOrdinal '{}' '{}' ic:{} => {}",
-                str1,
-                str2,
-                ignore_case,
-                result
-            );
-            emu.regs_mut().rax = result;
-        }
-        "GetStringTypeA" => {
-            let locale = emu.regs().rcx;
-            let dw_info_type = emu.regs().rdx as u32;
-            let lp_src_str = emu.regs().r8;
-            let cch_src = emu.regs().r9 as i32;
-            let lp_char_type = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-
-            let actual_len = if cch_src == -1 {
-                let s = emu.maps.read_string(lp_src_str);
-                s.len() + 1
-            } else {
-                cch_src as usize
-            };
-
-            if lp_char_type != 0 && actual_len > 0 {
-                for i in 0..actual_len {
-                    let ch = emu.maps.read_byte(lp_src_str + i as u64).unwrap_or(0) as char;
-                    let ct: u16 = match dw_info_type {
-                        1 => {
-                            let mut t: u16 = 0;
-                            if ch.is_ascii_uppercase() {
-                                t |= 0x0001;
-                            }
-                            if ch.is_ascii_lowercase() {
-                                t |= 0x0002;
-                            }
-                            if ch.is_ascii_digit() {
-                                t |= 0x0004;
-                            }
-                            if ch == ' ' || ch == '\t' {
-                                t |= 0x0008;
-                            }
-                            if ch.is_ascii_punctuation() {
-                                t |= 0x0010;
-                            }
-                            if (ch as u32) < 0x20 || ch as u32 == 0x7f {
-                                t |= 0x0020;
-                            }
-                            if ch.is_ascii_alphanumeric() {
-                                t |= 0x0100;
-                            }
-                            t
-                        }
-                        _ => 0,
-                    };
-                    emu.maps.write_word(lp_char_type + (i as u64) * 2, ct);
-                }
-            }
-
-            log_red!(
-                emu,
-                "kernel32!GetStringTypeA locale:{} type:{} len:{} => TRUE",
-                locale,
-                dw_info_type,
-                actual_len
-            );
-            emu.regs_mut().rax = 1;
-        }
-        "GetOEMCP" => {
-            log_red!(emu, "kernel32!GetOEMCP => 437");
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 437;
-        }
+        "lstrcmpA" => lstrcmpA_api(emu),
+        "lstrcmpW" => lstrcmpW_api(emu),
+        "CompareStringA" => CompareStringA(emu),
+        "CompareStringOrdinal" => CompareStringOrdinal(emu),
+        "GetStringTypeA" => GetStringTypeA(emu),
+        "GetOEMCP" => GetOEMCP(emu),
 
         // --- Virtual Memory ---
-        "VirtualQuery" => {
-            let addr = emu.regs().rcx;
-            let out_buff = emu.regs().rdx;
-            let size = emu.regs().r8;
-            log_red!(
-                emu,
-                "kernel32!VirtualQuery 0x{:x} 0x{:x} {}",
-                addr,
-                out_buff,
-                size
-            );
-            if size < structures::MemoryBasicInformation64::SIZE {
-                emu.set_last_error(0);
-                emu.regs_mut().rax = 0;
-            } else {
-                let mbi = structures::MemoryBasicInformation64::guess(addr, &mut emu.maps);
-                mbi.save(out_buff, &mut emu.maps);
-                emu.set_last_error(0);
-                emu.regs_mut().rax = structures::MemoryBasicInformation64::SIZE;
-            }
-        }
-        "VirtualQueryEx" => {
-            let _process = emu.regs().rcx;
-            let addr = emu.regs().rdx;
-            let out_buff = emu.regs().r8;
-            let size = emu.regs().r9;
-            log_red!(
-                emu,
-                "kernel32!VirtualQueryEx 0x{:x} 0x{:x} {}",
-                addr,
-                out_buff,
-                size
-            );
-            if size < structures::MemoryBasicInformation64::SIZE {
-                emu.set_last_error(0);
-                emu.regs_mut().rax = 0;
-            } else {
-                let mbi = structures::MemoryBasicInformation64::guess(addr, &mut emu.maps);
-                mbi.save(out_buff, &mut emu.maps);
-                emu.set_last_error(0);
-                emu.regs_mut().rax = structures::MemoryBasicInformation64::SIZE;
-            }
-        }
+        "VirtualQuery" => VirtualQuery_api(emu, addr),
+        "VirtualQueryEx" => VirtualQueryEx_api(emu, addr),
 
         // --- Path/File ---
-        "GetLongPathNameA" => {
-            let short = emu.regs().rcx;
-            let long = emu.regs().rdx;
-            let buf_len = emu.regs().r8 as u32;
-            let path = emu.maps.read_string(short);
-            log_red!(emu, "kernel32!GetLongPathNameA '{}'", path);
-            if long != 0 && buf_len > path.len() as u32 {
-                emu.maps.write_string(long, &path);
-            }
-            emu.regs_mut().rax = path.len() as u64;
-        }
-        "GetLongPathNameW" => {
-            let short = emu.regs().rcx;
-            let long = emu.regs().rdx;
-            let buf_len = emu.regs().r8 as u32;
-            let path = emu.maps.read_wide_string(short);
-            log_red!(emu, "kernel32!GetLongPathNameW '{}'", path);
-            if long != 0 && buf_len > path.len() as u32 {
-                emu.maps.write_wide_string(long, &path);
-            }
-            emu.regs_mut().rax = path.len() as u64;
-        }
-        "GetShortPathNameA" => {
-            let long = emu.regs().rcx;
-            let short = emu.regs().rdx;
-            let buf_len = emu.regs().r8 as u32;
-            let path = emu.maps.read_string(long);
-            log_red!(emu, "kernel32!GetShortPathNameA '{}'", path);
-            if short != 0 && buf_len > path.len() as u32 {
-                emu.maps.write_string(short, &path);
-            }
-            emu.regs_mut().rax = path.len() as u64;
-        }
-        "GetShortPathNameW" => {
-            let long = emu.regs().rcx;
-            let short = emu.regs().rdx;
-            let buf_len = emu.regs().r8 as u32;
-            let path = emu.maps.read_wide_string(long);
-            log_red!(emu, "kernel32!GetShortPathNameW '{}'", path);
-            if short != 0 && buf_len > path.len() as u32 {
-                emu.maps.write_wide_string(short, &path);
-            }
-            emu.regs_mut().rax = path.len() as u64;
-        }
-        "SearchPathA" => {
-            let _path = emu.regs().rcx;
-            let filename = emu.regs().rdx;
-            let _ext = emu.regs().r8;
-            let name_s = if filename != 0 {
-                emu.maps.read_string(filename)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "kernel32!SearchPathA '{}' => 0 (not found)", name_s);
-            emu.set_last_error(2); // ERROR_FILE_NOT_FOUND
-            emu.regs_mut().rax = 0;
-        }
-        "SearchPathW" => {
-            let _path = emu.regs().rcx;
-            let filename = emu.regs().rdx;
-            let _ext = emu.regs().r8;
-            let name_s = if filename != 0 {
-                emu.maps.read_wide_string(filename)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "kernel32!SearchPathW '{}' => 0 (not found)", name_s);
-            emu.set_last_error(2);
-            emu.regs_mut().rax = 0;
-        }
-        "CopyFileExW" => {
-            let src = emu.regs().rcx;
-            let dst = emu.regs().rdx;
-            let src_s = emu.maps.read_wide_string(src);
-            let dst_s = emu.maps.read_wide_string(dst);
-            log_red!(emu, "kernel32!CopyFileExW '{}' -> '{}'", src_s, dst_s);
-            emu.regs_mut().rax = 1;
-        }
-        "MoveFileExA" => {
-            let src = emu.regs().rcx;
-            let dst = emu.regs().rdx;
-            let src_s = emu.maps.read_string(src);
-            let dst_s = emu.maps.read_string(dst);
-            log_red!(emu, "kernel32!MoveFileExA '{}' -> '{}'", src_s, dst_s);
-            emu.regs_mut().rax = 1;
-        }
-        "MoveFileExW" => {
-            let src = emu.regs().rcx;
-            let dst = emu.regs().rdx;
-            let src_s = emu.maps.read_wide_string(src);
-            let dst_s = emu.maps.read_wide_string(dst);
-            log_red!(emu, "kernel32!MoveFileExW '{}' -> '{}'", src_s, dst_s);
-            emu.regs_mut().rax = 1;
-        }
+        "GetLongPathNameA" => GetLongPathNameA_api(emu),
+        "GetLongPathNameW" => GetLongPathNameW_api(emu),
+        "GetShortPathNameA" => GetShortPathNameA_api(emu),
+        "GetShortPathNameW" => GetShortPathNameW_api(emu),
+        "SearchPathA" => SearchPathA(emu),
+        "SearchPathW" => SearchPathW(emu),
+        "CopyFileExW" => CopyFileExW(emu),
+        "MoveFileExA" => MoveFileExA_api(emu),
+        "MoveFileExW" => MoveFileExW(emu),
         "SetFilePointerEx" => SetFilePointerEx(emu),
-        "FlushFileBuffers" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!FlushFileBuffers h:0x{:x}", handle);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetEndOfFile" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!SetEndOfFile h:0x{:x}", handle);
-            if helper::handler_exist(handle) {
-                helper::handler_set_eof(handle);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "LockFile" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!LockFile h:0x{:x}", handle);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UnlockFile" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!UnlockFile h:0x{:x}", handle);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CreatePipe" => {
-            let read_pipe = emu.regs().rcx;
-            let write_pipe = emu.regs().rdx;
-            log_red!(emu, "kernel32!CreatePipe");
-            if read_pipe != 0 {
-                emu.maps
-                    .write_qword(read_pipe, helper::handler_create("pipe_read"));
-            }
-            if write_pipe != 0 {
-                emu.maps
-                    .write_qword(write_pipe, helper::handler_create("pipe_write"));
-            }
-            emu.regs_mut().rax = 1;
-        }
+        "FlushFileBuffers" => FlushFileBuffers(emu),
+        "SetEndOfFile" => SetEndOfFile(emu),
+        "LockFile" => LockFile(emu),
+        "UnlockFile" => UnlockFile(emu),
+        "CreatePipe" => CreatePipe(emu),
         "GetPrivateProfileStringA" => GetPrivateProfileStringA(emu),
         "GetPrivateProfileStringW" => GetPrivateProfileStringW(emu),
         "GetProfileStringA" => GetProfileStringA(emu),
@@ -880,627 +512,65 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetProfileIntW" => GetProfileIntW(emu),
 
         // --- Synchronization ---
-        "CreateSemaphoreA" | "CreateSemaphoreW" => {
-            let _security = emu.regs().rcx;
-            let initial = emu.regs().rdx;
-            let maximum = emu.regs().r8;
-            let name = emu.regs().r9;
-            let name_s = if name != 0 {
-                emu.maps.read_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!{} init:{} max:{} name:'{}'",
-                api,
-                initial,
-                maximum,
-                name_s
-            );
-            emu.regs_mut().rax = helper::handler_create(&name_s);
-        }
-        "CreateSemaphoreExW" => {
-            let _security = emu.regs().rcx;
-            let initial = emu.regs().rdx;
-            let maximum = emu.regs().r8;
-            let name = emu.regs().r9;
-            let name_s = if name != 0 {
-                emu.maps.read_wide_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!CreateSemaphoreExW init:{} max:{} name:'{}'",
-                initial,
-                maximum,
-                name_s
-            );
-            emu.regs_mut().rax = helper::handler_create(&name_s);
-        }
-        "CreateWaitableTimerA" | "CreateWaitableTimerW" => {
-            let _security = emu.regs().rcx;
-            let manual_reset = emu.regs().rdx;
-            let name = emu.regs().r8;
-            let name_s = if name != 0 {
-                emu.maps.read_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!{} manual:{} name:'{}'",
-                api,
-                manual_reset,
-                name_s
-            );
-            emu.regs_mut().rax = helper::handler_create("waitable_timer");
-        }
-        "CreateWaitableTimerExW" => {
-            let _security = emu.regs().rcx;
-            let name = emu.regs().rdx;
-            let name_s = if name != 0 {
-                emu.maps.read_wide_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "kernel32!CreateWaitableTimerExW name:'{}'", name_s);
-            emu.regs_mut().rax = helper::handler_create("waitable_timer");
-        }
-        "OpenMutexA" => {
-            let access = emu.regs().rcx;
-            let inherit = emu.regs().rdx;
-            let name = emu.regs().r8;
-            let name_s = if name != 0 {
-                emu.maps.read_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!OpenMutexA access:0x{:x} name:'{}' => 0",
-                access,
-                name_s
-            );
-            emu.regs_mut().rax = 0;
-            emu.set_last_error(2); // ERROR_FILE_NOT_FOUND
-        }
-        "OpenMutexW" => {
-            let access = emu.regs().rcx;
-            let inherit = emu.regs().rdx;
-            let name = emu.regs().r8;
-            let name_s = if name != 0 {
-                emu.maps.read_wide_string(name)
-            } else {
-                String::new()
-            };
-            let hndl = helper::handler_create(&format!("mutex://{}", name_s));
-            log_red!(
-                emu,
-                "kernel32!OpenMutexW access:0x{:x} name:'{}' => 0x{:x}",
-                access,
-                name_s,
-                hndl
-            );
-            emu.regs_mut().rax = hndl;
-            emu.set_last_error(0);
-        }
-        "InterlockedIncrement" => {
-            let addr = emu.regs().rcx;
-            let val = emu.maps.read_dword(addr).unwrap_or(0).wrapping_add(1);
-            emu.maps.write_dword(addr, val);
-            log_red!(emu, "kernel32!InterlockedIncrement 0x{:x} => {}", addr, val);
-            emu.regs_mut().rax = val as u64;
-        }
-        "InterlockedDecrement" => {
-            let addr = emu.regs().rcx;
-            let val = emu.maps.read_dword(addr).unwrap_or(0).wrapping_sub(1);
-            emu.maps.write_dword(addr, val);
-            log_red!(emu, "kernel32!InterlockedDecrement 0x{:x} => {}", addr, val);
-            emu.regs_mut().rax = val as u64;
-        }
-        "InterlockedExchange" => {
-            let addr = emu.regs().rcx;
-            let new_val = emu.regs().rdx as u32;
-            let old = emu.maps.read_dword(addr).unwrap_or(0);
-            emu.maps.write_dword(addr, new_val);
-            log_red!(
-                emu,
-                "kernel32!InterlockedExchange 0x{:x} {} => {}",
-                addr,
-                new_val,
-                old
-            );
-            emu.regs_mut().rax = old as u64;
-        }
-        "InterlockedCompareExchange" => {
-            let addr = emu.regs().rcx;
-            let exchange = emu.regs().rdx as u32;
-            let comparand = emu.regs().r8 as u32;
-            let current = emu.maps.read_dword(addr).unwrap_or(0);
-            if current == comparand {
-                emu.maps.write_dword(addr, exchange);
-            }
-            log_red!(
-                emu,
-                "kernel32!InterlockedCompareExchange 0x{:x} exch:{} cmp:{} cur:{}",
-                addr,
-                exchange,
-                comparand,
-                current
-            );
-            emu.regs_mut().rax = current as u64;
-        }
-        "DeleteCriticalSection" => {
-            let cs = emu.regs().rcx;
-            log_red!(emu, "kernel32!DeleteCriticalSection 0x{:x}", cs);
-        }
-        "InitializeConditionVariable" => {
-            let cv = emu.regs().rcx;
-            log_red!(emu, "kernel32!InitializeConditionVariable 0x{:x}", cv);
-            if cv != 0 {
-                emu.maps.write_qword(cv, 0);
-            }
-        }
-        "WakeConditionVariable" | "WakeAllConditionVariable" => {
-            let cv = emu.regs().rcx;
-            log_red!(emu, "kernel32!{} cv:0x{:x}", api, cv);
-        }
-        "SleepConditionVariableSRW" => {
-            let cv = emu.regs().rcx;
-            let lock = emu.regs().rdx;
-            let ms = emu.regs().r8;
-            let flags = emu.regs().r9;
-            log_red!(
-                emu,
-                "kernel32!SleepConditionVariableSRW cv:0x{:x} lock:0x{:x} ms:{} flags:{}",
-                cv,
-                lock,
-                ms,
-                flags
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SleepConditionVariableCS" => {
-            let cv = emu.regs().rcx;
-            let cs = emu.regs().rdx;
-            let ms = emu.regs().r8;
-            log_red!(
-                emu,
-                "kernel32!SleepConditionVariableCS cv:0x{:x} cs:0x{:x} ms:{}",
-                cv,
-                cs,
-                ms
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SleepEx" => {
-            let ms = emu.regs().rcx;
-            let alertable = emu.regs().rdx;
-            log_red!(emu, "kernel32!SleepEx ms:{} alertable:{}", ms, alertable);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "WaitForSingleObjectEx" => {
-            let handle = emu.regs().rcx;
-            let ms = emu.regs().rdx;
-            let alertable = emu.regs().r8;
-            log_red!(
-                emu,
-                "kernel32!WaitForSingleObjectEx h:0x{:x} ms:{} alert:{}",
-                handle,
-                ms,
-                alertable
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0; // WAIT_OBJECT_0
-        }
-        "WaitForMultipleObjectsEx" => {
-            let count = emu.regs().rcx;
-            let handles = emu.regs().rdx;
-            let wait_all = emu.regs().r8;
-            let ms = emu.regs().r9;
-            log_red!(
-                emu,
-                "kernel32!WaitForMultipleObjectsEx count:{} wait_all:{} ms:{}",
-                count,
-                wait_all,
-                ms
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0; // WAIT_OBJECT_0
-        }
+        "CreateSemaphoreA" | "CreateSemaphoreW" => CreateSemaphoreA_api(emu, api),
+        "CreateSemaphoreExW" => CreateSemaphoreExW(emu),
+        "CreateWaitableTimerA" | "CreateWaitableTimerW" => CreateWaitableTimerA_api(emu, api),
+        "CreateWaitableTimerExW" => CreateWaitableTimerExW(emu),
+        "OpenMutexA" => OpenMutexA_api(emu),
+        "OpenMutexW" => OpenMutexW(emu),
+        "InterlockedIncrement" => InterlockedIncrement_api(emu, addr),
+        "InterlockedDecrement" => InterlockedDecrement_api(emu, addr),
+        "InterlockedExchange" => InterlockedExchange_api(emu, addr),
+        "InterlockedCompareExchange" => InterlockedCompareExchange_api(emu, addr),
+        "DeleteCriticalSection" => DeleteCriticalSection(emu),
+        "InitializeConditionVariable" => InitializeConditionVariable(emu),
+        "WakeConditionVariable" | "WakeAllConditionVariable" => WakeConditionVariable(emu, api),
+        "SleepConditionVariableSRW" => SleepConditionVariableSRW(emu),
+        "SleepConditionVariableCS" => SleepConditionVariableCS(emu),
+        "SleepEx" => SleepEx(emu),
+        "WaitForSingleObjectEx" => WaitForSingleObjectEx(emu),
+        "WaitForMultipleObjectsEx" => WaitForMultipleObjectsEx(emu),
 
         // --- Process/Thread ---
-        "GetExitCodeProcess" => {
-            let handle = emu.regs().rcx;
-            let exit_code_ptr = emu.regs().rdx;
-            log_red!(emu, "kernel32!GetExitCodeProcess h:0x{:x}", handle);
-            if exit_code_ptr != 0 {
-                emu.maps.write_dword(exit_code_ptr, 259); // STILL_ACTIVE
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetExitCodeThread" => {
-            let handle = emu.regs().rcx;
-            let exit_code_ptr = emu.regs().rdx;
-            log_red!(emu, "kernel32!GetExitCodeThread h:0x{:x}", handle);
-            if exit_code_ptr != 0 {
-                emu.maps.write_dword(exit_code_ptr, 259); // STILL_ACTIVE
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessId" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!GetProcessId h:0x{:x} => 1337", handle);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1337;
-        }
-        "SetThreadAffinityMask" => {
-            let handle = emu.regs().rcx;
-            let mask = emu.regs().rdx;
-            log_red!(
-                emu,
-                "kernel32!SetThreadAffinityMask h:0x{:x} mask:0x{:x}",
-                handle,
-                mask
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1; // previous mask
-        }
-        "SetProcessAffinityMask" => {
-            let handle = emu.regs().rcx;
-            let mask = emu.regs().rdx;
-            log_red!(
-                emu,
-                "kernel32!SetProcessAffinityMask h:0x{:x} mask:0x{:x}",
-                handle,
-                mask
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetActiveProcessorCount" => {
-            let group = emu.regs().rcx;
-            let count: u64 = 4;
-            log_red!(
-                emu,
-                "kernel32!GetActiveProcessorCount group:{} => {}",
-                group,
-                count
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = count;
-        }
-        "GetMaximumProcessorCount" => {
-            let group = emu.regs().rcx;
-            let count: u64 = 4;
-            log_red!(
-                emu,
-                "kernel32!GetMaximumProcessorCount group:{} => {}",
-                group,
-                count
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = count;
-        }
-        "GetProcessWorkingSetSize" => {
-            let handle = emu.regs().rcx;
-            let min_ptr = emu.regs().rdx;
-            let max_ptr = emu.regs().r8;
-            log_red!(emu, "kernel32!GetProcessWorkingSetSize h:0x{:x}", handle);
-            if min_ptr != 0 {
-                emu.maps.write_qword(min_ptr, 0x20000);
-            }
-            if max_ptr != 0 {
-                emu.maps.write_qword(max_ptr, 0x1400000);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessWorkingSetSize" => {
-            let hprocess = emu.regs().rcx;
-            let min_size = emu.regs().rdx;
-            let max_size = emu.regs().r8;
-            log_red!(
-                emu,
-                "kernel32!SetProcessWorkingSetSize proc:0x{:x} min:0x{:x} max:0x{:x}",
-                hprocess,
-                min_size,
-                max_size
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadContext" => {
-            let handle = emu.regs().rcx;
-            let context = emu.regs().rdx;
-            log_red!(
-                emu,
-                "kernel32!SetThreadContext h:0x{:x} ctx:0x{:x}",
-                handle,
-                context
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SuspendThread" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!SuspendThread h:0x{:x}", handle);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0; // previous suspend count
-        }
-        "Process32FirstW" => {
-            let snap = emu.regs().rcx;
-            let entry = emu.regs().rdx;
-            log_red!(
-                emu,
-                "kernel32!Process32FirstW snap:0x{:x} entry:0x{:x}",
-                snap,
-                entry
-            );
-            if entry != 0 {
-                // PROCESSENTRY32W.dwSize at offset 0
-                emu.maps.write_dword(entry, 556); // sizeof(PROCESSENTRY32W)
-                // th32ProcessID at offset 8
-                emu.maps.write_dword(entry + 8, 4); // System process
-                // cntThreads at offset 20
-                emu.maps.write_dword(entry + 20, 1);
-                // th32ParentProcessID at offset 24
-                emu.maps.write_dword(entry + 24, 0);
-                // szExeFile at offset 44 (wide string)
-                emu.maps.write_wide_string(entry + 44, "System");
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Process32NextW" => {
-            let snap = emu.regs().rcx;
-            let entry = emu.regs().rdx;
-            log_red!(
-                emu,
-                "kernel32!Process32NextW snap:0x{:x} entry:0x{:x} => no more",
-                snap,
-                entry
-            );
-            emu.set_last_error(18); // ERROR_NO_MORE_FILES
-            emu.regs_mut().rax = 0;
-        }
+        "GetExitCodeProcess" => GetExitCodeProcess(emu),
+        "GetExitCodeThread" => GetExitCodeThread(emu),
+        "GetProcessId" => GetProcessId(emu),
+        "SetThreadAffinityMask" => SetThreadAffinityMask_api(emu),
+        "SetProcessAffinityMask" => SetProcessAffinityMask_api(emu),
+        "GetActiveProcessorCount" => GetActiveProcessorCount_api(emu),
+        "GetMaximumProcessorCount" => GetMaximumProcessorCount_api(emu),
+        "GetProcessWorkingSetSize" => GetProcessWorkingSetSize_api(emu),
+        "SetProcessWorkingSetSize" => SetProcessWorkingSetSize_api(emu),
+        "SetThreadContext" => SetThreadContext_api(emu),
+        "SuspendThread" => SuspendThread(emu),
+        "Process32FirstW" => Process32FirstW_api(emu),
+        "Process32NextW" => Process32NextW_api(emu),
 
         // --- Locale/NLS ---
-        "GetUserDefaultUILanguage" => {
-            log_red!(emu, "kernel32!GetUserDefaultUILanguage => 0x0409");
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0x0409;
-        }
-        "SetLocaleInfoA" | "SetLocaleInfoW" => {
-            log_red!(emu, "kernel32!{} => TRUE", api);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetLocaleInfoEx" => {
-            let locale_name = emu.regs().rcx;
-            let lc_type = emu.regs().rdx;
-            let buf = emu.regs().r8;
-            let buf_len = emu.regs().r9;
-            let name_s = if locale_name != 0 {
-                emu.maps.read_wide_string(locale_name)
-            } else {
-                String::new()
-            };
-            log_red!(
-                emu,
-                "kernel32!GetLocaleInfoEx '{}' type:0x{:x} buf_len:{}",
-                name_s,
-                lc_type,
-                buf_len
-            );
-            if buf != 0 && buf_len > 0 {
-                emu.maps.write_wide_string(buf, "en-US");
-                emu.regs_mut().rax = 6; // length of "en-US" + null
-            } else {
-                emu.regs_mut().rax = 6;
-            }
-        }
-        "GetDateFormatW" => {
-            let locale = emu.regs().rcx;
-            let flags = emu.regs().rdx;
-            let _date = emu.regs().r8;
-            let _fmt = emu.regs().r9;
-            let buf = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let buf_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-            let date_str = "01/01/2024";
-            log_red!(
-                emu,
-                "kernel32!GetDateFormatW locale:{} flags:0x{:x}",
-                locale,
-                flags
-            );
-            if buf != 0 && buf_len > 0 {
-                emu.maps.write_wide_string(buf, date_str);
-            }
-            emu.regs_mut().rax = (date_str.len() + 1) as u64;
-        }
-        "GetTimeFormatW" => {
-            let locale = emu.regs().rcx;
-            let flags = emu.regs().rdx;
-            let _time = emu.regs().r8;
-            let _fmt = emu.regs().r9;
-            let buf = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-            let buf_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-            let time_str = "00:00:00";
-            log_red!(
-                emu,
-                "kernel32!GetTimeFormatW locale:{} flags:0x{:x}",
-                locale,
-                flags
-            );
-            if buf != 0 && buf_len > 0 {
-                emu.maps.write_wide_string(buf, time_str);
-            }
-            emu.regs_mut().rax = (time_str.len() + 1) as u64;
-        }
+        "GetUserDefaultUILanguage" => GetUserDefaultUILanguage(emu),
+        "SetLocaleInfoA" | "SetLocaleInfoW" => SetLocaleInfoA_api(emu, api),
+        "GetLocaleInfoEx" => GetLocaleInfoEx(emu),
+        "GetDateFormatW" => GetDateFormatW(emu),
+        "GetTimeFormatW" => GetTimeFormatW(emu),
 
         // --- Atom table ---
-        "GlobalAddAtomW" => {
-            let name = emu.regs().rcx;
-            let name_s = if name != 0 {
-                emu.maps.read_wide_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "kernel32!GlobalAddAtomW '{}' => 0xC001", name_s);
-            emu.regs_mut().rax = 0xC001;
-        }
-        "GlobalDeleteAtom" => {
-            let atom = emu.regs().rcx;
-            log_red!(emu, "kernel32!GlobalDeleteAtom atom:0x{:x}", atom);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "GlobalFindAtomA" => {
-            let name = emu.regs().rcx;
-            let name_s = if name != 0 {
-                emu.maps.read_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "kernel32!GlobalFindAtomA '{}' => 0", name_s);
-            emu.regs_mut().rax = 0;
-            emu.set_last_error(2);
-        }
-        "GlobalFindAtomW" => {
-            let name = emu.regs().rcx;
-            let name_s = if name != 0 {
-                emu.maps.read_wide_string(name)
-            } else {
-                String::new()
-            };
-            log_red!(emu, "kernel32!GlobalFindAtomW '{}' => 0", name_s);
-            emu.regs_mut().rax = 0;
-            emu.set_last_error(2);
-        }
-        "GlobalGetAtomNameA" => {
-            let atom = emu.regs().rcx;
-            let buf = emu.regs().rdx;
-            let buf_size = emu.regs().r8;
-            let name = format!("Atom#{:04X}", atom);
-            log_red!(
-                emu,
-                "kernel32!GlobalGetAtomNameA atom:0x{:x} => '{}'",
-                atom,
-                name
-            );
-            if buf != 0 && buf_size > 0 {
-                emu.maps.write_string(buf, &name);
-                emu.regs_mut().rax = name.len() as u64;
-            } else {
-                emu.regs_mut().rax = 0;
-            }
-            emu.set_last_error(0);
-        }
-        "GlobalGetAtomNameW" => {
-            let atom = emu.regs().rcx;
-            let buf = emu.regs().rdx;
-            let buf_size = emu.regs().r8;
-            let name = format!("Atom#{:04X}", atom);
-            log_red!(
-                emu,
-                "kernel32!GlobalGetAtomNameW atom:0x{:x} => '{}'",
-                atom,
-                name
-            );
-            if buf != 0 && buf_size > 0 {
-                emu.maps.write_wide_string(buf, &name);
-                emu.regs_mut().rax = name.len() as u64;
-            } else {
-                emu.regs_mut().rax = 0;
-            }
-            emu.set_last_error(0);
-        }
-        "GlobalFlags" => {
-            let handle = emu.regs().rcx;
-            log_red!(emu, "kernel32!GlobalFlags h:0x{:x} => 0", handle);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "GlobalSize" => {
-            let handle = emu.regs().rcx;
-            let sz = match emu.maps.get_mem_by_addr(handle) {
-                Some(mem) => mem.size() as u64,
-                None => 0,
-            };
-            log_red!(emu, "kernel32!GlobalSize h:0x{:x} => {}", handle, sz);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = sz;
-        }
-        "GlobalReAlloc" => {
-            let handle = emu.regs().rcx;
-            let size = emu.regs().rdx;
-            let flags = emu.regs().r8;
-            let new_ptr = if size > 0 {
-                if let Some(addr) = emu.maps.alloc(size) {
-                    // Copy old data if we had it
-                    if let Some(old_mem) = emu.maps.get_mem_by_addr(handle) {
-                        let copy_size = old_mem.size().min(size as usize);
-                        for i in 0..copy_size {
-                            let b = emu.maps.read_byte(handle + i as u64).unwrap_or(0);
-                            emu.maps.write_byte(addr + i as u64, b);
-                        }
-                    }
-                    addr
-                } else {
-                    0
-                }
-            } else {
-                handle
-            };
-            log_red!(
-                emu,
-                "kernel32!GlobalReAlloc h:0x{:x} sz:{} flags:0x{:x} => 0x{:x}",
-                handle,
-                size,
-                flags,
-                new_ptr
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = new_ptr;
-        }
+        "GlobalAddAtomW" => GlobalAddAtomW_api(emu),
+        "GlobalDeleteAtom" => GlobalDeleteAtom_api(emu),
+        "GlobalFindAtomA" => GlobalFindAtomA_api(emu),
+        "GlobalFindAtomW" => GlobalFindAtomW_api(emu),
+        "GlobalGetAtomNameA" => GlobalGetAtomNameA_api(emu),
+        "GlobalGetAtomNameW" => GlobalGetAtomNameW_api(emu),
+        "GlobalFlags" => GlobalFlags_api(emu),
+        "GlobalSize" => GlobalSize_api(emu),
+        "GlobalReAlloc" => GlobalReAlloc_api(emu, addr),
 
         // --- Environment ---
         "GetEnvironmentStrings" | "GetEnvironmentStringsA" => GetEnvironmentStringsA(emu),
 
         // --- Misc ---
-        "Beep" => {
-            let freq = emu.regs().rcx;
-            let duration = emu.regs().rdx;
-            log_red!(emu, "kernel32!Beep freq:{} dur:{}", freq, duration);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemWindowsDirectoryA" => {
-            let buf = emu.regs().rcx;
-            let size = emu.regs().rdx;
-            let path = "C:\\Windows";
-            log_red!(emu, "kernel32!GetSystemWindowsDirectoryA => '{}'", path);
-            if buf != 0 && size > path.len() as u64 {
-                emu.maps.write_string(buf, path);
-            }
-            emu.regs_mut().rax = path.len() as u64;
-        }
-        "GetSystemWindowsDirectoryW" => {
-            let buf = emu.regs().rcx;
-            let size = emu.regs().rdx;
-            let path = "C:\\Windows";
-            log_red!(emu, "kernel32!GetSystemWindowsDirectoryW => '{}'", path);
-            if buf != 0 && size > path.len() as u64 {
-                emu.maps.write_wide_string(buf, path);
-            }
-            emu.regs_mut().rax = path.len() as u64;
-        }
+        "Beep" => Beep(emu),
+        "GetSystemWindowsDirectoryA" => GetSystemWindowsDirectoryA_api(emu),
+        "GetSystemWindowsDirectoryW" => GetSystemWindowsDirectoryW_api(emu),
         _ => {
             // Windows forwards many Rtl*/Nt* functions through kernel32 →
             // ntdll. Try ntdll sub-dispatchers before giving up.

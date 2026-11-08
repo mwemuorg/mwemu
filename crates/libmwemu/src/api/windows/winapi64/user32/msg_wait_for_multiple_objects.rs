@@ -1,0 +1,25 @@
+use crate::emu;
+use crate::winapi::helper;
+
+pub fn MsgWaitForMultipleObjects(emu: &mut emu::Emu) {
+    let count = emu.regs().rcx as u32;
+    let handles = emu.regs().rdx;
+    let wait_all = emu.regs().r8 != 0;
+    let ms = emu.regs().r9 as u32;
+    let wake_mask = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
+    helper::advance_tick(emu, ms as u64);
+    log_red!(
+        emu,
+        "user32!MsgWaitForMultipleObjects count:{} all:{} ms:{} mask:0x{:x}",
+        count,
+        wait_all,
+        ms,
+        wake_mask
+    );
+    let first_param = emu.regs().rcx;
+    if first_param != 0 && emu.maps.is_mapped(first_param) {
+        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+    }
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 0;
+}

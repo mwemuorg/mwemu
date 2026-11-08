@@ -1,0 +1,13 @@
+use crate::emu;
+
+pub fn GetDlgItemTextW(emu: &mut emu::Emu) {
+    let _hdlg = emu.regs().rcx;
+    let _id = emu.regs().rdx as u32;
+    let buf = emu.regs().r8;
+    let max_count = emu.regs().r9 as u32;
+    log_red!(emu, "user32!GetDlgItemTextW id:{} buf:0x{:x}", _id, buf);
+    if buf != 0 && max_count > 0 {
+        emu.maps.write_word(buf, 0);
+    }
+    emu.regs_mut().rax = 0;
+}
