@@ -7,6 +7,9 @@
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::unusual_byte_groupings)]
 
+pub mod fixtures;
+
+use fixtures::LOADER64;
 use std::collections::HashMap;
 
 use rs_header::pe::PeLoader;
@@ -89,8 +92,6 @@ impl PeLoader for Mock {
         )
     }
 }
-
-static LOADER64: &[u8] = include_bytes!("fixtures/loader64.exe");
 
 /// Build a minimal synthetic PE32 image with a single HIGHLOW relocation
 /// entry at RVA 0x2030 pointing into a single mapped section at RVA 0x2000.
