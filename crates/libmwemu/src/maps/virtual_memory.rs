@@ -81,13 +81,12 @@ impl Allocation {
                 .is_some_and(|end| end <= self.end())
     }
 
+    /// Missing page metadata is treated as reserved, without access permissions.
     pub fn state(&self, address: u64) -> PageState {
-        *self
-            .states
+        self.states
             .range(..=address)
             .next_back()
-            .expect("allocation has initial state")
-            .1
+            .map_or_else(PageState::reserved, |(_, state)| *state)
     }
 
     pub fn runs(&self, address: u64, size: u64) -> Vec<(u64, u64, PageState)> {
@@ -264,7 +263,9 @@ impl Maps {
         }
         cursor = address;
         while cursor < end {
-            let mem = self.get_mem_by_addr_mut(cursor).unwrap();
+            let mem = self
+                .get_mem_by_addr_mut(cursor)
+                .ok_or(MemoryError::Unmapped)?;
             let len = end.min(mem.get_bottom()) - cursor;
             if zero {
                 mem.zero_backing(cursor, len as usize);

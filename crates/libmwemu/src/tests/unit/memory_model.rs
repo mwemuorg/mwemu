@@ -1,11 +1,12 @@
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::maps::virtual_memory::{MemoryError, PAGE_SIZE};
+use crate::maps::virtual_memory::{MemoryError, PAGE_SIZE, PageState};
 use crate::serialization::Serialization;
 use crate::tests::helpers::{call_winapi32, call_winapi64};
 use crate::winapi::common::memory::{self, Call};
 use crate::{emu32, emu64};
 use itertools::iproduct;
+use serde_json::{from_value, to_value};
 use std::{env, fs};
 
 const BASE: u64 = 0x3000_0000;
@@ -335,4 +336,32 @@ fn minidump_restores_reservation_boundaries_and_page_state() {
     assert_eq!(restored.maps.read_byte(BASE + 2 * PAGE_SIZE), Some(0));
     restored.maps.release_memory(BASE).unwrap();
     assert!(!restored.maps.is_mapped(BASE + PAGE_SIZE));
+}
+
+#[test]
+fn missing_allocation_page_state_remains_reserved() {
+    let mut emu = prepare(false);
+    emu.maps
+        .reserve_private(BASE, PAGE_SIZE, RW, Permission::READ_WRITE, false)
+        .unwrap();
+    let mut saved = to_value(emu.maps.allocation_at(BASE).unwrap()).unwrap();
+    saved["states"].as_object_mut().unwrap().clear();
+    emu.maps.register_allocation(from_value(saved).unwrap());
+
+    assert_eq!(
+        emu.maps.query_memory(BASE).state,
+        Some(PageState::reserved())
+    );
+    assert_eq!(
+        emu.maps
+            .protect_memory(BASE, PAGE_SIZE, RW, Permission::READ_WRITE),
+        Err(MemoryError::NotCommitted)
+    );
+    assert!(!emu.maps.write_byte(BASE, 1));
+    assert_eq!(emu.maps.read_byte(BASE), None);
+
+    emu.maps
+        .commit_memory(BASE, PAGE_SIZE, RW, Permission::READ_WRITE)
+        .unwrap();
+    assert_eq!(emu.maps.read_byte(BASE), Some(0));
 }

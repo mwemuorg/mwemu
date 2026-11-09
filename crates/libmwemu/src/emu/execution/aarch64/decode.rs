@@ -24,10 +24,10 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
         emu.aarch64_instruction_cache().invalidate_all();
     }
 
-    if !emu
+    if emu
         .maps
         .get_mem_by_addr(pc)
-        .is_some_and(|mem| !mem.read_code(pc, 1).is_empty())
+        .is_none_or(|mem| mem.read_code(pc, 1).is_empty())
     {
         return Err(MwemuError::new(
             "instruction fetch from inaccessible memory",

@@ -25,10 +25,10 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
         emu.drain_code_writes_x86(&mut scratch);
     }
 
-    if !emu
+    if emu
         .maps
         .get_mem_by_addr(pc)
-        .is_some_and(|mem| !mem.read_code(pc, 1).is_empty())
+        .is_none_or(|mem| mem.read_code(pc, 1).is_empty())
     {
         return Err(MwemuError::new(
             "instruction fetch from inaccessible memory",

@@ -454,7 +454,9 @@ impl Maps {
         let mut offset = 0;
         while offset < data.len() {
             let cursor = addr + offset as u64;
-            let mem = self.get_mem_by_addr_mut(cursor).unwrap();
+            let Some(mem) = self.get_mem_by_addr_mut(cursor) else {
+                return false;
+            };
             let len = (mem.get_bottom() - cursor).min((data.len() - offset) as u64) as usize;
             let executable = mem.has_permission(Permission::EXECUTE);
             mem.write_bytes(cursor, &data[offset..offset + len]);

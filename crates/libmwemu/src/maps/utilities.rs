@@ -53,7 +53,9 @@ impl Maps {
         }
         let mut cursor = from;
         while bytes.len() < size {
-            let mem = self.get_mem_by_addr(cursor).unwrap();
+            let Some(mem) = self.get_mem_by_addr(cursor) else {
+                return false;
+            };
             let count = (size - bytes.len()).min((mem.get_bottom() - cursor) as usize);
             bytes.extend_from_slice(&mem.read_bytes(cursor, count));
             cursor += count as u64;
@@ -68,7 +70,9 @@ impl Maps {
         let mut done = 0;
         while done < size {
             let at = address + done as u64;
-            let mem = self.get_mem_by_addr_mut(at).unwrap();
+            let Some(mem) = self.get_mem_by_addr_mut(at) else {
+                return false;
+            };
             let count = (size - done).min((mem.get_bottom() - at) as usize);
             mem.fill_backing(at, value, count);
             done += count;
