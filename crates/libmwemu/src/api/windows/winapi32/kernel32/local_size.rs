@@ -1,14 +1,6 @@
-use crate::emu;
-use crate::windows::constants;
+use crate::emu::Emu;
+use crate::winapi::common::heap;
 
-pub fn LocalSize(emu: &mut emu::Emu) {
-    let _hMem = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-
-    log_red!(emu, "kernel32!LocalSize");
-
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
-
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+pub fn LocalSize(emu: &mut Emu) {
+    heap::local_size_api(emu);
 }

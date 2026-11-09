@@ -116,7 +116,7 @@ impl Emu {
                 let writable = self
                     .maps
                     .get_mem_by_addr(di)
-                    .map(|mm| mm.inside(end) && mm.can_write())
+                    .map(|mm| mm.inside(end) && mm.can_write_range(di, total))
                     .unwrap_or(false);
                 if !writable {
                     return false;
@@ -141,12 +141,12 @@ impl Emu {
                 let readable = self
                     .maps
                     .get_mem_by_addr(si)
-                    .map(|mm| mm.inside(send) && mm.can_read())
+                    .map(|mm| mm.inside(send) && mm.can_read_range(si, total))
                     .unwrap_or(false);
                 let writable = self
                     .maps
                     .get_mem_by_addr(di)
-                    .map(|mm| mm.inside(dend) && mm.can_write())
+                    .map(|mm| mm.inside(dend) && mm.can_write_range(di, total))
                     .unwrap_or(false);
                 if !readable || !writable {
                     return false;
@@ -163,7 +163,7 @@ impl Emu {
                 let readable = self
                     .maps
                     .get_mem_by_addr(di)
-                    .map(|mm| mm.inside(end) && mm.can_read())
+                    .map(|mm| mm.inside(end) && mm.can_read_range(di, total))
                     .unwrap_or(false);
                 if !readable {
                     return false;
@@ -192,7 +192,7 @@ impl Emu {
                 let readable = self
                     .maps
                     .get_mem_by_addr(si)
-                    .map(|mm| mm.inside(send) && mm.can_read())
+                    .map(|mm| mm.inside(send) && mm.can_read_range(si, total))
                     .unwrap_or(false);
                 if !readable {
                     return false;

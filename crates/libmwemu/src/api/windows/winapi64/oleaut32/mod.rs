@@ -6,6 +6,7 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::winapi::common::bstr;
 use crate::winapi::winapi64::kernel32;
 
 mod bstr_user_free;
@@ -862,6 +863,9 @@ pub use variant_init::VariantInit;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
+    if bstr::dispatch(api, emu) {
+        return String::new();
+    }
     match api {
         "SysAllocStringLen" => SysAllocStringLen(emu),
         "SysReAllocStringLen" => SysReAllocStringLen(emu),

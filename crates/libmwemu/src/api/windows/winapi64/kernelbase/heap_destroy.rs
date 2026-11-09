@@ -1,13 +1,6 @@
-use crate::emu;
-use crate::winapi::helper;
+use crate::emu::Emu;
+use crate::winapi::common::heap;
 
-pub fn HeapDestroy(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    log_red!(emu, "kernelbase!HeapDestroy");
-    let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        helper::handler_close(h);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+pub fn HeapDestroy(emu: &mut Emu) {
+    heap::destroy_api(emu, false);
 }

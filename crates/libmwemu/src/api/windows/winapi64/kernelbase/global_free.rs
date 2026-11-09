@@ -1,9 +1,6 @@
-use crate::emu;
-use crate::winapi::helper;
+use crate::emu::Emu;
+use crate::winapi::common::heap;
 
-pub fn GlobalFree(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    log_red!(emu, "kernelbase!GlobalFree 0x{:x}", handle);
-    helper::handler_close(handle);
-    emu.regs_mut().rax = 1;
+pub fn GlobalFree(emu: &mut Emu) {
+    heap::local_free_api(emu);
 }

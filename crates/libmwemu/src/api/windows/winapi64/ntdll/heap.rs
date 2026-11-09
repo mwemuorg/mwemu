@@ -1,8 +1,10 @@
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
-use crate::windows::constants;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
+    if heap_engine::dispatch(api, emu) {
+        return true;
+    }
     match api {
         // kernel32 Heap* are forwarders to these Rtl workers (same arg layout:
         // rcx=heap, rdx=flags, r8=ptr/size), so GetProcAddress-resolved callers
@@ -19,118 +21,15 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let flags = emu.regs().rdx;
-    let mut size = emu.regs().r8;
-
-    // ntdll!RtlAllocateHeap bumps tiny requests up to 1024 bytes (kernel32!HeapAlloc
-    // pads to cfg.heap_alloc_min_size instead).
-    if size < 1024 {
-        size = 1024;
-    }
-
-    match heap_engine::heap_allocate(emu, handle, size) {
-        Some(addr) => {
-            log_red!(
-                emu,
-                "ntdll!RtlAllocateHeap hndl: 0x{:x} sz: {} addr: 0x{:x}",
-                handle,
-                size,
-                addr
-            );
-            emu.regs_mut().rax = addr;
-        }
-        None => {
-            log_red!(
-                emu,
-                "ntdll!RtlAllocateHeap FAILED hndl: 0x{:x} sz: {}",
-                handle,
-                size
-            );
-            heap_engine::fail_allocation(emu, flags);
-            emu.regs_mut().rax = 0;
-        }
-    }
+    heap_engine::alloc_api(emu);
 }
 
 fn RtlFreeHeap(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
-    let base_addr = emu.regs().r8;
-
-    log_red!(
-        emu,
-        "ntdll!RtlFreeHeap hndl=0x{:x} base=0x{:x}",
-        hndl,
-        base_addr
-    );
-
-    if base_addr != 0 && heap_engine::heap_allocation_size(emu, base_addr).is_some() {
-        heap_engine::heap_free(emu, hndl, base_addr);
-        emu.regs_mut().rax = 1;
-    } else {
-        if emu.cfg.verbose >= 1 {
-            log::trace!("trying to free a systems map {}", base_addr);
-        }
-        emu.regs_mut().rax = 0;
-    }
+    heap_engine::free_api(emu);
 }
 
 pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let flags = emu.regs().rdx;
-    let old_ptr = emu.regs().r8;
-    let new_size = emu.regs().r9;
-
-    log_red!(
-        emu,
-        "ntdll!RtlReAllocateHeap hndl: 0x{:x} flags: 0x{:x} old_ptr: 0x{:x} new_sz: {}",
-        handle,
-        flags,
-        old_ptr,
-        new_size,
-    );
-
-    if old_ptr == 0 || new_size == 0 {
-        heap_engine::fail_allocation(emu, flags);
-        emu.regs_mut().rax = 0;
-        return;
-    }
-
-    let old_size = match heap_engine::heap_allocation_size(emu, old_ptr) {
-        Some(s) => s,
-        None => {
-            emu.regs_mut().rax = 0;
-            return;
-        }
-    };
-
-    if (flags & constants::HEAP_REALLOC_IN_PLACE_ONLY) != 0 {
-        if new_size <= old_size as u64 {
-            emu.regs_mut().rax = old_ptr;
-            return;
-        }
-        heap_engine::fail_allocation(emu, flags);
-        emu.regs_mut().rax = 0;
-        return;
-    }
-    let new_addr = match heap_engine::heap_reallocate(emu, handle, old_ptr, new_size) {
-        Some(a) => a,
-        None => {
-            heap_engine::fail_allocation(emu, flags);
-            emu.regs_mut().rax = 0;
-            return;
-        }
-    };
-
-    if (flags & constants::HEAP_ZERO_MEMORY) != 0 && (new_size as usize) > old_size {
-        emu.maps.memset(
-            new_addr + old_size as u64,
-            0,
-            (new_size as usize) - old_size,
-        );
-    }
-
-    emu.regs_mut().rax = new_addr;
+    heap_engine::realloc_api(emu);
 }
 
 pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
@@ -169,18 +68,7 @@ pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
 }
 
 fn RtlSizeHeap(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
-    let ptr = emu.regs().r8;
-
-    let size = heap_engine::heap_allocation_size(emu, ptr).unwrap_or(0) as u64;
-    log_red!(
-        emu,
-        "ntdll!RtlSizeHeap hndl=0x{:x} ptr=0x{:x} => {}",
-        hndl,
-        ptr,
-        size
-    );
-    emu.regs_mut().rax = size;
+    heap_engine::size_api(emu);
 }
 
 fn RtlFreeAnsiString(emu: &mut emu::Emu) {

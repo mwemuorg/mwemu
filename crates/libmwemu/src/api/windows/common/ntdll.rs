@@ -474,7 +474,7 @@ pub(crate) fn rtl_decompress_buffer(
                 uncompressed_buffer,
                 uncompressed_buffer_size
             );
-            lznt1_decompress(compressed_data, uncompressed_buffer_size as usize)
+            lznt1_decompress(&compressed_data, uncompressed_buffer_size as usize)
         }
         COMPRESSION_FORMAT_XPRESS => {
             log_red!(
@@ -485,7 +485,7 @@ pub(crate) fn rtl_decompress_buffer(
                 uncompressed_buffer,
                 uncompressed_buffer_size
             );
-            xpress_decompress(compressed_data, uncompressed_buffer_size as usize)
+            xpress_decompress(&compressed_data, uncompressed_buffer_size as usize)
         }
         COMPRESSION_FORMAT_XPRESS_HUFF => {
             log_red!(
@@ -496,7 +496,7 @@ pub(crate) fn rtl_decompress_buffer(
                 uncompressed_buffer,
                 uncompressed_buffer_size
             );
-            xpress_huff_decompress(compressed_data, uncompressed_buffer_size as usize)
+            xpress_huff_decompress(&compressed_data, uncompressed_buffer_size as usize)
         }
         _ => {
             log_red!(

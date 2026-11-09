@@ -1,6 +1,8 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::maps::mem64::Permission;
+use crate::maps::buffers::BufferKind;
+use crate::winapi::common::buffers;
+use crate::winapi::common::crt;
 use crate::winapi::winapi32::kernel32;
 //use crate::endpoint;
 
@@ -363,64 +365,15 @@ use realloc::realloc;
 mod strtok;
 use strtok::strtok;
 
-const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
-
 /// Allocates from the O1Heap arena for small sizes, maps a dedicated
 /// region otherwise (same threshold as kernel32!HeapAlloc).
 fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
-    if size < LARGE_ALLOC_THRESHOLD {
-        let heap_manage = emu.heap_mut();
-        return heap_manage.allocate(size as usize);
-    }
-
-    let allocation = emu.maps.alloc(size)?;
-    emu.maps
-        .create_map(
-            &format!("alloc_{:x}", allocation),
-            allocation,
-            size,
-            Permission::READ_WRITE,
-        )
-        .ok()?;
-    Some(allocation)
-}
-
-/// Classification of a pointer allocated by `allocate_memory`.
-enum AllocKind {
-    Arena { size: usize },
-    Map { base: u64, size: usize },
-    Invalid,
-}
-
-fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
-    if let Some(heap) = emu.heap_arenas.first()
-        && let Some(size) = heap.allocation_size(addr)
-    {
-        return AllocKind::Arena { size };
-    }
-
-    match emu.maps.get_mem_by_addr(addr) {
-        Some(mem) if mem.get_base() == addr && mem.get_name().starts_with("alloc_") => {
-            AllocKind::Map {
-                base: addr,
-                size: mem.size(),
-            }
-        }
-        _ => AllocKind::Invalid,
-    }
+    buffers::allocate(emu, size, 16, 0, BufferKind::Crt)
 }
 
 /// Releases a pointer allocated by `allocate_memory` (or any alloc_ map).
 fn release(emu: &mut emu::Emu, addr: u64) {
-    match classify(emu, addr) {
-        AllocKind::Arena { .. } => {
-            if let Some(heap) = emu.heap_arenas.first_mut() {
-                heap.free(addr);
-            }
-        }
-        AllocKind::Map { base, .. } => emu.maps.dealloc(base),
-        AllocKind::Invalid => {}
-    }
+    buffers::free(emu, addr, BufferKind::Crt);
 }
 
 // msvcrt is an exception and these functions dont have to compensate the stack.
@@ -428,6 +381,9 @@ fn release(emu: &mut emu::Emu, addr: u64) {
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
+    if crt::dispatch(api, emu) {
+        return String::new();
+    }
     match api {
         "_initterm_e" => _initterm_e(emu),
         "_initterm" => _initterm(emu),

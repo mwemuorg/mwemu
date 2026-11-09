@@ -1,16 +1,6 @@
-use crate::emu;
-use crate::winapi::helper;
+use crate::emu::Emu;
+use crate::winapi::common::heap;
 
-pub fn HeapAlloc(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let p2 = emu.regs().r8;
-    log_red!(emu, "kernelbase!HeapAlloc p1:0x{:x} p2:0x{:x}", p1, p2);
-    let handle = helper::handler_create("HeapAlloc");
-    let out_ptr = emu.regs().r8;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0x100000;
+pub fn HeapAlloc(emu: &mut Emu) {
+    heap::alloc_api(emu);
 }

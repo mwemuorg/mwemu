@@ -354,6 +354,10 @@ impl Emu {
         };
         let mut env = KernelEnv::new(os);
         env.ledger_only = true;
+        if !self.cfg.arch.is_64bits() {
+            // User-mode guarded allocations must fit in guest pointers.
+            env.heap = KernelHeap::new(0x6000_0000, 0x1000_0000, 0x7000_0000, 0x0800_0000);
+        }
         self.kernel = Some(Box::new(env));
         self.kernel_guard = true;
     }

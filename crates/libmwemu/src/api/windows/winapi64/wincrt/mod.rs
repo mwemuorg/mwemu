@@ -1,6 +1,8 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::maps::mem64::Permission;
+use crate::maps::buffers::BufferKind;
+use crate::winapi::common::buffers;
+use crate::winapi::common::crt;
 use crate::winapi::helper;
 use crate::winapi::winapi64;
 
@@ -276,21 +278,7 @@ const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 /// Allocates from the O1Heap arena for small sizes, maps a dedicated
 /// region otherwise (same threshold as kernel32!HeapAlloc).
 pub(super) fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
-    if size < LARGE_ALLOC_THRESHOLD {
-        let heap_manage = emu.heap_mut();
-        return heap_manage.allocate(size as usize);
-    }
-
-    let allocation = emu.maps.alloc(size)?;
-    emu.maps
-        .create_map(
-            &format!("alloc_{:x}", allocation),
-            allocation,
-            size,
-            Permission::READ_WRITE,
-        )
-        .ok()?;
-    Some(allocation)
+    buffers::allocate(emu, size, 16, 0, BufferKind::Crt)
 }
 
 /// Classification of a pointer allocated by `allocate_memory`.
@@ -320,15 +308,7 @@ fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
 
 /// Releases a pointer allocated by `allocate_memory` (or any alloc_ map).
 pub(super) fn release(emu: &mut emu::Emu, addr: u64) {
-    match classify(emu, addr) {
-        AllocKind::Arena { .. } => {
-            if let Some(heap) = emu.heap_arenas.first_mut() {
-                heap.free(addr);
-            }
-        }
-        AllocKind::Map { base, .. } => emu.maps.dealloc(base),
-        AllocKind::Invalid => {}
-    }
+    buffers::free(emu, addr, BufferKind::Crt);
 }
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
@@ -339,6 +319,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
 pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
     if super::crt_stdio::gateway(api, emu) {
+        return String::new();
+    }
+    if crt::dispatch(api, emu) {
         return String::new();
     }
     match api {

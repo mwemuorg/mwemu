@@ -1,9 +1,11 @@
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
 use crate::winapi::winapi32::{arg, stdcall_ret};
-use crate::windows::constants;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
+    if heap_engine::dispatch(api, emu) {
+        return true;
+    }
     match api {
         "RtlGetProcessHeaps" => RtlGetProcessHeaps(emu),
         "RtlFreeHeap" => RtlFreeHeap(emu),
@@ -71,109 +73,15 @@ pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
 }
 
 pub fn RtlAllocateHeap(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let size = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-
-    let addr = match heap_engine::heap_allocate(emu, handle, size) {
-        Some(a) => a,
-        None => {
-            heap_engine::fail_allocation(emu, flags);
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 0;
-            return;
-        }
-    };
-
-    log_red!(
-        emu,
-        "ntdll!RtlAllocateHeap hndl: 0x{:x} sz: {} addr: 0x{:x}",
-        handle,
-        size,
-        addr
-    );
-
-    emu.regs_mut().rax = addr;
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    heap_engine::alloc_api(emu);
 }
 
 pub fn RtlFreeHeap(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let base_addr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-
-    log_red!(
-        emu,
-        "ntdll!RtlFreeHeap hndl=0x{:x} base=0x{}",
-        handle,
-        base_addr
-    );
-
-    heap_engine::heap_free(emu, handle, base_addr);
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-
-    emu.regs_mut().rax = 1;
+    heap_engine::free_api(emu);
 }
 
 pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let old_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let new_size = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-
-    // stdcall: caller expects us to pop all 4 args regardless of outcome.
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-
-    if old_ptr == 0 || new_size == 0 {
-        heap_engine::fail_allocation(emu, flags);
-        emu.regs_mut().rax = 0;
-        return;
-    }
-
-    let old_size = match heap_engine::heap_allocation_size(emu, old_ptr) {
-        Some(s) => s,
-        None => {
-            emu.regs_mut().rax = 0;
-            return;
-        }
-    };
-
-    if (flags & constants::HEAP_REALLOC_IN_PLACE_ONLY) != 0 {
-        if new_size <= old_size as u64 {
-            emu.regs_mut().rax = old_ptr;
-            return;
-        }
-        heap_engine::fail_allocation(emu, flags);
-        emu.regs_mut().rax = 0;
-        return;
-    }
-    let new_addr = match heap_engine::heap_reallocate(emu, handle, old_ptr, new_size) {
-        Some(a) => a,
-        None => {
-            heap_engine::fail_allocation(emu, flags);
-            emu.regs_mut().rax = 0;
-            return;
-        }
-    };
-
-    if (flags & constants::HEAP_ZERO_MEMORY) != 0 && (new_size as usize) > old_size {
-        emu.maps.memset(
-            new_addr + old_size as u64,
-            0,
-            (new_size as usize) - old_size,
-        );
-    }
-
-    emu.regs_mut().rax = new_addr;
+    heap_engine::realloc_api(emu);
 }
 
 fn RtlFreeAnsiString(emu: &mut emu::Emu) {

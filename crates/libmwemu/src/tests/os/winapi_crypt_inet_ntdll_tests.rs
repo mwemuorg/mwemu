@@ -401,7 +401,7 @@ fn test_rtl_decompress_buffer_uncompressed_chunk_64() {
     assert_eq!(final_sz, 5, "decompressed size should be 5");
 
     let out = emu.maps.read_bytes(decomp_addr, 5);
-    assert_eq!(&out, b"Hello", "decompressed data mismatch");
+    assert_eq!(out.as_ref(), b"Hello", "decompressed data mismatch");
 }
 
 // ─── ntdll 64-bit: RtlDecompressBuffer — compressed LZNT1 chunk with all literals ───
@@ -456,7 +456,7 @@ fn test_rtl_decompress_buffer_compressed_literals_64() {
     assert_eq!(final_sz, 8, "8 literal bytes");
 
     let out = emu.maps.read_bytes(decomp_addr, 8);
-    assert_eq!(&out, b"ABCDEFGH");
+    assert_eq!(out.as_ref(), b"ABCDEFGH");
 }
 
 // ─── ntdll 64-bit: RtlDecompressBuffer — unknown format ───
@@ -540,7 +540,7 @@ fn test_rtl_decompress_buffer_uncompressed_chunk_32() {
     assert_eq!(final_sz, 4, "decompressed 4 bytes");
 
     let out = emu.maps.read_bytes(decomp_addr, 4);
-    assert_eq!(&out, b"ABCD");
+    assert_eq!(out.as_ref(), b"ABCD");
 }
 
 // ─── ntdll 32-bit: RtlDecompressBuffer — XPRESS fails ───
@@ -588,7 +588,7 @@ fn test_rtl_decompress_buffer_xpress_literals_32() {
     assert_eq!(final_sz, 3, "decompressed 3 bytes");
 
     let out = emu.maps.read_bytes(decomp_addr, 3);
-    assert_eq!(&out, b"Hi!");
+    assert_eq!(out.as_ref(), b"Hi!");
 }
 
 // ─── ws2_32 64-bit: socket lifecycle ───
@@ -915,7 +915,7 @@ fn test_rtl_decompress_buffer_lznt1_backreference_64() {
     assert_eq!(final_sz, 4, "1 literal + 3 backreference = 4 bytes");
 
     let out = emu.maps.read_bytes(decomp_addr, 4);
-    assert_eq!(&out, b"AAAA", "back-reference should repeat 'A'");
+    assert_eq!(out.as_ref(), b"AAAA", "back-reference should repeat 'A'");
 }
 
 // ─── ntdll 64-bit: LZNT1 with ENGINE flag in format (should be masked) ───
@@ -966,7 +966,7 @@ fn test_rtl_decompress_buffer_lznt1_engine_flag_masked_64() {
     assert_eq!(final_sz, 3);
 
     let out = emu.maps.read_bytes(decomp_addr, 3);
-    assert_eq!(&out, b"XYZ");
+    assert_eq!(out.as_ref(), b"XYZ");
 }
 
 // ─── Xpress plain: all-literals decompression (64-bit) ───
@@ -1014,7 +1014,7 @@ fn test_rtl_decompress_buffer_xpress_literals_64() {
     assert_eq!(final_sz, 4, "decompressed 4 literal bytes");
 
     let out = emu.maps.read_bytes(decomp_addr, 4);
-    assert_eq!(&out, b"ABCD");
+    assert_eq!(out.as_ref(), b"ABCD");
 }
 
 // ─── Xpress plain: back-reference decompression (64-bit) ───
@@ -1066,7 +1066,7 @@ fn test_rtl_decompress_buffer_xpress_backref_64() {
     assert_eq!(final_sz, 4, "1 literal + 3 copy = 4 bytes");
 
     let out = emu.maps.read_bytes(decomp_addr, 4);
-    assert_eq!(&out, b"AAAA");
+    assert_eq!(out.as_ref(), b"AAAA");
 }
 
 // ─── Xpress plain: short input returns error (64-bit) ───
@@ -1142,7 +1142,11 @@ fn test_crypt_string_to_binary_a_base64_real_decode_64() {
     assert_eq!(decoded_len, 5, "decoded length should be 5");
 
     let decoded = emu.maps.read_bytes(out_addr, 5);
-    assert_eq!(&decoded, b"Hello", "decoded content should be 'Hello'");
+    assert_eq!(
+        decoded.as_ref(),
+        b"Hello",
+        "decoded content should be 'Hello'"
+    );
 }
 
 #[test]
@@ -1180,7 +1184,7 @@ fn test_crypt_string_to_binary_a_hex_decode_64() {
     assert_eq!(decoded_len, 2);
 
     let decoded = emu.maps.read_bytes(out_addr, 2);
-    assert_eq!(&decoded, b"AB");
+    assert_eq!(decoded.as_ref(), b"AB");
 }
 
 // ─── CryptHashCertificate: real SHA-256 hash (64-bit) ───

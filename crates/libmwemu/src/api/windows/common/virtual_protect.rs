@@ -1,77 +1,94 @@
-//! Shared body of `VirtualProtect`, `VirtualProtectEx` and
-//! `NtProtectVirtualMemory`: change the permissions of the mapped regions that
-//! cover a range and report the previous page protection.
-//!
-//! Permissions live on whole mapped regions (a PE section, an allocation), so a
-//! range that covers only part of a region changes the whole region.
-
-use super::virtual_alloc::{permissions, round_up};
+//! Page protection shared by kernel32, kernelbase, NT API and syscalls.
+use crate::emu::Emu;
 use crate::maps::Maps;
-use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::{MemoryError, page_range as checked_page_range};
+use crate::winapi::common::memory::permissions;
+use crate::windows::constants;
 
-const PAGE_NOACCESS: u32 = 0x01;
-const PAGE_READONLY: u32 = 0x02;
-const PAGE_READWRITE: u32 = 0x04;
-const PAGE_EXECUTE: u32 = 0x10;
-const PAGE_EXECUTE_READ: u32 = 0x20;
-const PAGE_EXECUTE_READWRITE: u32 = 0x40;
-
-/// Apply `prot` to every region in `[addr, addr + size)`. Returns the page
-/// protection the first page had, or None (nothing changed) when part of the
-/// range is not mapped.
-pub(crate) fn protect(maps: &mut Maps, addr: u64, size: u64, prot: u32) -> Option<u32> {
-    let start = addr & !0xfff;
-    let end = round_up(addr + size.max(1));
-
-    let mut bases = Vec::new();
-    let mut cur = start;
-    while cur < end {
-        let mem = maps.get_mem_by_addr(cur)?;
-        if mem.get_base() < start || mem.get_bottom() > end {
-            log::trace!(
-                "protect 0x{:x}..0x{:x} changes the whole region {} 0x{:x}..0x{:x}",
-                start,
-                end,
-                mem.get_name(),
-                mem.get_base(),
-                mem.get_bottom()
-            );
-        }
-        bases.push(mem.get_base());
-        cur = mem.get_bottom();
-    }
-
-    let old = page_protection(maps.get_mem_by_addr(start)?.permission());
-    let (read, write, execute) = permissions(prot);
-    let permission = Permission::from_flags(read, write, execute);
-    for base in bases {
-        let Some(mem) = maps.get_mem_by_addr_mut(base) else {
-            continue;
-        };
-        let was_executable = mem.can_execute();
-        let size = mem.get_bottom() - base;
-        mem.set_permission(permission);
-        // writes to a non-executable region skip the instruction cache, so
-        // once it is executable again its cached decodes may be stale
-        if execute && !was_executable {
-            maps.note_code_write(base, size);
-        }
-    }
-    Some(old)
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum ProtectError {
+    InvalidParameter,
+    InvalidProtection,
+    Unmapped,
 }
 
-/// PAGE_* value describing a region permission.
-fn page_protection(permission: Permission) -> u32 {
-    match (
-        permission.can_read(),
-        permission.can_write(),
-        permission.can_execute(),
-    ) {
-        (_, true, true) => PAGE_EXECUTE_READWRITE,
-        (true, false, true) => PAGE_EXECUTE_READ,
-        (false, false, true) => PAGE_EXECUTE,
-        (_, true, false) => PAGE_READWRITE,
-        (true, false, false) => PAGE_READONLY,
-        (false, false, false) => PAGE_NOACCESS,
+impl ProtectError {
+    pub(crate) fn win32_error(&self) -> u64 {
+        match self {
+            Self::InvalidParameter | Self::InvalidProtection => constants::ERROR_INVALID_PARAMETER,
+            Self::Unmapped => constants::ERROR_INVALID_ADDRESS,
+        }
+    }
+
+    pub(crate) fn nt_status(&self) -> u64 {
+        match self {
+            Self::InvalidParameter => constants::STATUS_INVALID_PARAMETER,
+            Self::InvalidProtection => 0xc0000045,
+            Self::Unmapped => constants::STATUS_CONFLICTING_ADDRESSES,
+        }
+    }
+}
+
+fn memory_error(error: MemoryError) -> ProtectError {
+    match error {
+        MemoryError::InvalidParameter => ProtectError::InvalidParameter,
+        _ => ProtectError::Unmapped,
+    }
+}
+
+pub(crate) fn page_range(address: u64, size: u64) -> Result<(u64, u64), ProtectError> {
+    let (base, length) = checked_page_range(address, size).map_err(memory_error)?;
+    Ok((base, base + length))
+}
+
+pub(crate) fn validate(
+    maps: &Maps,
+    address: u64,
+    size: u64,
+    protection: u32,
+) -> Result<u32, ProtectError> {
+    let permission = permissions(protection).ok_or(ProtectError::InvalidProtection)?;
+    let (base, end) = page_range(address, size)?;
+    maps.validate_protection(base, end - base, permission)
+        .map_err(memory_error)
+}
+
+pub(crate) fn protect(
+    maps: &mut Maps,
+    address: u64,
+    size: u64,
+    protection: u32,
+) -> Result<u32, ProtectError> {
+    let permission = permissions(protection).ok_or(ProtectError::InvalidProtection)?;
+    let (base, end) = page_range(address, size)?;
+    maps.protect_memory(base, end - base, protection, permission)
+        .map_err(memory_error)
+}
+
+pub(crate) fn protect_winapi(
+    emu: &mut Emu,
+    address: u64,
+    size: u64,
+    protection: u32,
+    old_pointer: u64,
+) -> bool {
+    if !emu.maps.validate_write_range(old_pointer, 4) {
+        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.regs_mut().rax = 0;
+        return false;
+    }
+    match validate(&emu.maps, address, size, protection) {
+        Ok(old) => {
+            // All output/range checks precede mutation, including when OldProtect aliases the range.
+            emu.maps.write_dword(old_pointer, old);
+            protect(&mut emu.maps, address, size, protection).expect("validated protection range");
+            emu.regs_mut().rax = 1;
+            true
+        }
+        Err(error) => {
+            emu.set_last_error(error.win32_error());
+            emu.regs_mut().rax = 0;
+            false
+        }
     }
 }

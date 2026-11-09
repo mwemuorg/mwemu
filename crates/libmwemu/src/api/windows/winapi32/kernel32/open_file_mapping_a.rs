@@ -1,18 +1,6 @@
-use crate::emu;
-use crate::windows::constants;
+use crate::emu::Emu;
+use crate::winapi::common::sections;
 
-pub fn OpenFileMappingA(emu: &mut emu::Emu) {
-    let _dwDesiredAccess = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let _bInheritHandle = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let lpName = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-
-    let lpName = emu.maps.read_string(lpName as u64);
-
-    log_red!(emu, "kernel32!OpenFileMappingA {}", lpName);
-
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+pub fn OpenFileMappingA(emu: &mut Emu) {
+    sections::open_file_mapping(emu, false);
 }

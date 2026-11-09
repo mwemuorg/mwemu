@@ -1,13 +1,6 @@
-use crate::api::windows::common::heap as heap_engine;
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::crt;
 
-pub fn CoTaskMemFree(emu: &mut emu::Emu) {
-    let pv = emu.regs().rcx;
-    log_red!(emu, "ole32!CoTaskMemFree pv: 0x{:x}", pv);
-
-    if pv != 0 {
-        heap_engine::heap_free(emu, 0, pv);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+pub fn CoTaskMemFree(emu: &mut Emu) {
+    crt::task_free(emu);
 }

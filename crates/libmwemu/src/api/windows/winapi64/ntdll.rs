@@ -1,4 +1,4 @@
-use crate::api::windows::common::{fallback, nt_api};
+use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
 use crate::emu;
 use crate::winapi::winapi64::kernel32;
 use crate::windows::constants::STATUS_NOT_IMPLEMENTED;
@@ -23,6 +23,9 @@ pub use string::{RtlInitAnsiString, RtlInitUnicodeString};
 pub use sync::NtDelayExecution;
 
 pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {
+    if memory_api::dispatch_nt(api, emu, Call::Api) {
+        return true;
+    }
     let normalized = nt_api::normalize(api);
     let api = normalized.as_ref();
     file::dispatch(api, emu)

@@ -1,4 +1,6 @@
 use super::Maps;
+use crate::maps::mem64::Permission;
+use std::borrow::Cow;
 use std::sync::LazyLock;
 
 // Shared zero buffer for failed reads in [`Maps::read_bytes`]. The previous
@@ -28,51 +30,50 @@ fn zero_slice(sz: usize) -> &'static [u8] {
 
 impl Maps {
     #[inline(always)]
-    pub fn memset(&mut self, addr: u64, b: u8, amount: usize) {
-        // Bulk-write when the whole range fits in one writable map. Falls back
-        // to byte-by-byte only for boundary-crossing cases, and stops on the
-        // first failed byte instead of spamming the log with one warning per
-        // out-of-range byte.
-        if amount == 0 {
-            return;
-        }
-        let end_addr = addr + amount as u64 - 1;
-        if let Some(mem) = self.get_mem_by_addr_mut(addr)
-            && mem.inside(end_addr)
-            && mem.can_write()
-        {
-            let buf = vec![b; amount];
-            mem.write_bytes(addr, &buf);
-            let exec = mem.can_execute();
-            if exec {
-                self.note_code_write(addr, amount as u64);
-            }
-            return;
-        }
-        for i in 0..amount {
-            if !self.write_byte(addr + i as u64, b) {
-                log::warn!(
-                    "memset truncated at 0x{:x} ({} of {} bytes written; destination not fully writable). caller request was addr=0x{:x} amount={}",
-                    addr + i as u64,
-                    i,
-                    amount,
-                    addr,
-                    amount,
-                );
-                // Print a small Rust backtrace so we can identify the caller cheaply.
-                let bt = std::backtrace::Backtrace::force_capture();
-                log::warn!("backtrace:\n{}", bt);
-                return;
-            }
+    pub fn memset(&mut self, addr: u64, byte: u8, amount: usize) {
+        if !self.fill_range(addr, byte, amount) {
+            log::warn!("memset: inaccessible range at 0x{addr:x}, length 0x{amount:x}");
         }
     }
 
     pub fn memcpy(&mut self, to: u64, from: u64, size: usize) -> bool {
-        let b = match self.read_bytes_option(from, size) {
-            None => return false,
-            Some(b) => b.to_vec(),
-        };
-        self.write_bytes(to, &b);
+        self.copy_range(to, from, size)
+    }
+
+    /// Copy a complete range, including adjacent maps, without partial writes on failure.
+    pub fn copy_range(&mut self, to: u64, from: u64, size: usize) -> bool {
+        if !self.can_access_range(from, size, Permission::READ)
+            || !self.can_access_range(to, size, Permission::WRITE)
+        {
+            return false;
+        }
+        let mut bytes = Vec::new();
+        if bytes.try_reserve_exact(size).is_err() {
+            return false;
+        }
+        let mut cursor = from;
+        while bytes.len() < size {
+            let mem = self.get_mem_by_addr(cursor).unwrap();
+            let count = (size - bytes.len()).min((mem.get_bottom() - cursor) as usize);
+            bytes.extend_from_slice(&mem.read_bytes(cursor, count));
+            cursor += count as u64;
+        }
+        self.write_bytes(to, &bytes)
+    }
+
+    pub fn fill_range(&mut self, address: u64, value: u8, size: usize) -> bool {
+        if !self.can_access_range(address, size, Permission::WRITE) {
+            return false;
+        }
+        let mut done = 0;
+        while done < size {
+            let at = address + done as u64;
+            let mem = self.get_mem_by_addr_mut(at).unwrap();
+            let count = (size - done).min((mem.get_bottom() - at) as usize);
+            mem.fill_backing(at, value, count);
+            done += count;
+        }
+        self.note_code_write(address, size as u64);
         true
     }
 
@@ -104,12 +105,12 @@ impl Maps {
             log::warn!("Cannot write wide string: no map at 0x{:x}", to);
             return;
         };
-        if !mem.can_write() {
+        if !mem.can_write_range(to, (from.encode_utf16().count() + 1) * 2) {
             log::warn!("Cannot write wide string: non-writable at 0x{:x}", to);
             return;
         }
         mem.write_wide_string(to, from);
-        let exec = mem.can_execute();
+        let exec = mem.has_permission(Permission::EXECUTE);
         if exec {
             self.note_code_write(to, (from.len() * 2 + 2) as u64);
         }
@@ -122,7 +123,7 @@ impl Maps {
 
     pub fn read_bytes_buff(&self, buff: &mut [u8], addr: u64) {
         let len = buff.len();
-        buff.copy_from_slice(self.read_bytes(addr, len));
+        buff.copy_from_slice(&self.read_bytes(addr, len));
     }
 
     #[inline(always)]
@@ -131,13 +132,13 @@ impl Maps {
     }
 
     /// Returns `None` if the range is not fully mapped or not readable.
-    pub fn try_read_bytes(&self, addr: u64, sz: usize) -> Option<&[u8]> {
+    pub fn try_read_bytes(&self, addr: u64, sz: usize) -> Option<Cow<'_, [u8]>> {
         if sz == 0 {
-            return Some(&[]);
+            return Some(Cow::Borrowed(&[]));
         }
-        let end_addr = addr + sz as u64 - 1;
+        let end_addr = addr.checked_add(sz as u64 - 1)?;
         let mem = self.get_mem_by_addr(addr)?;
-        if !mem.inside(end_addr) || !mem.can_read() {
+        if !mem.inside(end_addr) || !mem.can_read_range(addr, sz) {
             log::warn!(
                 "Reading {} bytes from unmapped or non-readable region at 0x{:x}",
                 sz,
@@ -157,15 +158,15 @@ impl Maps {
     /// that panic rather than leak. This used to `Box::leak` a fresh allocation on every
     /// failed read, which turned unmapped-but-targeted AArch64 PLT walks into an
     /// unbounded allocator pressure that stalled the test suite for 60s+.
-    pub fn read_bytes(&self, addr: u64, sz: usize) -> &[u8] {
+    pub fn read_bytes(&self, addr: u64, sz: usize) -> Cow<'_, [u8]> {
         match self.try_read_bytes(addr, sz) {
             Some(s) => s,
-            None => zero_slice(sz),
+            None => Cow::Borrowed(zero_slice(sz)),
         }
     }
 
     #[inline(always)]
-    pub fn read_bytes_option(&self, addr: u64, sz: usize) -> Option<&[u8]> {
+    pub fn read_bytes_option(&self, addr: u64, sz: usize) -> Option<Cow<'_, [u8]>> {
         self.try_read_bytes(addr, sz)
     }
 
@@ -174,7 +175,7 @@ impl Maps {
         match self.try_read_bytes(addr, N) {
             Some(slice) if slice.len() == N => {
                 let mut out = [0u8; N];
-                out.copy_from_slice(slice);
+                out.copy_from_slice(&slice);
                 out
             }
             _ => [0u8; N],
@@ -202,7 +203,7 @@ impl Maps {
         // the old per-char `read_byte` (a full `get_mem_by_addr` TLB lookup
         // each). This is a top CPU hot path (export/registry name reads).
         match self.get_mem_by_addr(addr) {
-            Some(mem) if mem.can_read() => mem.read_string(addr),
+            Some(mem) if mem.can_read_range(addr, 1) => mem.read_string(addr),
             _ => String::new(),
         }
     }
@@ -228,7 +229,7 @@ impl Maps {
             log::warn!("read_wide_string: no map at 0x{:x}", addr);
             return String::new();
         };
-        if !mem.can_read() {
+        if !mem.can_read_range(addr, 2) {
             log::warn!("read_wide_string: non-readable map at 0x{:x}", addr);
             return String::new();
         }
@@ -244,7 +245,7 @@ impl Maps {
             log::warn!("read_wide_string_n: no map at 0x{:x}", addr);
             return String::new();
         };
-        if !mem.can_read() {
+        if !mem.can_read_range(addr, 2) {
             log::warn!("read_wide_string_n: non-readable map at 0x{:x}", addr);
             return String::new();
         }

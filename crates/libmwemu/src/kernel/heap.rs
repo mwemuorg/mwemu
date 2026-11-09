@@ -12,10 +12,11 @@
 //! a stale dereference into a report instead of silent corruption.
 
 use crate::kernel::layout::HEAP_REDZONE;
+use serde::{Deserialize, Serialize};
 
 /// Which allocator handed a chunk out. Determines the poison pattern and how
 /// the chunk is described in a report.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Region {
     /// kmalloc / kmem_cache_alloc / ExAllocatePool.
     Slab,
@@ -35,16 +36,17 @@ impl Region {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChunkState {
     Live,
     Freed,
 }
 
 /// One allocation, alive or in quarantine.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelChunk {
     pub addr: u64,
+    pub heap_owner: Option<usize>,
     /// Usable bytes (the requested size rounded up to the slab bucket).
     pub size: u64,
     /// Bytes the driver actually asked for; anything past this is a redzone.
@@ -78,7 +80,7 @@ impl KernelChunk {
 }
 
 /// The allocation ledger for one emulated kernel.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelHeap {
     slab_cursor: u64,
     slab_end: u64,
@@ -146,6 +148,7 @@ impl KernelHeap {
         self.serial += 1;
         self.chunks.push(KernelChunk {
             addr,
+            heap_owner: None,
             size,
             req_size,
             region,
@@ -181,6 +184,12 @@ impl KernelHeap {
     /// The chunk exactly starting at `addr` — what a `free(ptr)` must find.
     pub fn index_of_base(&self, addr: u64) -> Option<usize> {
         self.chunks.iter().position(|c| c.addr == addr)
+    }
+
+    pub fn set_heap_owner(&mut self, addr: u64, owner: usize) {
+        if let Some(index) = self.index_of_base(addr) {
+            self.chunks[index].heap_owner = Some(owner);
+        }
     }
 
     pub fn get(&self, idx: usize) -> &KernelChunk {

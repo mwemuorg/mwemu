@@ -24,6 +24,16 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
         emu.aarch64_instruction_cache().invalidate_all();
     }
 
+    if !emu
+        .maps
+        .get_mem_by_addr(pc)
+        .is_some_and(|mem| !mem.read_code(pc, 1).is_empty())
+    {
+        return Err(MwemuError::new(
+            "instruction fetch from inaccessible memory",
+        ));
+    }
+
     let cache_hit = emu.aarch64_instruction_cache().lookup_entry(pc, 0);
     if cache_hit {
         return Ok(());
@@ -42,11 +52,11 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
         }
     };
 
-    let block_slice = code.read_bytes(pc, constants::BLOCK_LEN);
+    let block_slice = code.read_code(pc, constants::BLOCK_LEN);
     if block_slice.len() != block.len() {
         block.resize(block_slice.len(), 0);
     }
-    block.clone_from_slice(block_slice);
+    block.clone_from_slice(&block_slice);
 
     emu.aarch64_instruction_cache()
         .insert_aarch64_from_block(block, pc);
@@ -72,14 +82,14 @@ pub(crate) fn decode_and_execute_aarch64(emu: &mut Emu) -> (usize, bool) {
 
     emu.memory_operations.clear();
 
-    let block = code.read_bytes(pc, 4);
+    let block = code.read_code(pc, 4);
     if block.len() < 4 {
         log::warn!("aarch64: cannot read 4 bytes at 0x{:x}", pc);
         return (0, false);
     }
 
     let decoder = yaxpeax_arm::armv8::a64::InstDecoder::default();
-    let mut reader = yaxpeax_arch::U8Reader::new(block);
+    let mut reader = yaxpeax_arch::U8Reader::new(&block);
     let ins = match yaxpeax_arch::Decoder::decode(&decoder, &mut reader) {
         Ok(ins) => ins,
         Err(e) => {

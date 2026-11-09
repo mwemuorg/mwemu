@@ -1,8 +1,6 @@
-use super::release;
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::crt;
 
-pub(super) fn crt_aligned_free(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rcx;
-    log_red!(emu, "wincrt!_aligned_free 0x{:x}", ptr);
-    release(emu, ptr);
+pub(super) fn crt_aligned_free(emu: &mut Emu) {
+    crt::aligned_free(emu);
 }

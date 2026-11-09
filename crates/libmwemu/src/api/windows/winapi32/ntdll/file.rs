@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::winapi::common::sections;
 use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants;
@@ -251,8 +252,12 @@ fn NtClose(emu: &mut emu::Emu) {
     let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
 
     let uri = helper::handler_get_uri(hndl);
-
     log_red!(emu, "ntdll!NtClose hndl: 0x{:x} uri: {}", hndl, uri);
+    if sections::close(emu, hndl) {
+        emu.stack_pop32(false);
+        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        return;
+    }
 
     emu.stack_pop32(false);
 
