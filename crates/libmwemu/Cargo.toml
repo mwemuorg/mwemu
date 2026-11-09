@@ -12,13 +12,13 @@ repository = "https://github.com/mwemuorg/mwemu"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mwemu-core = { path = "../mwemu-core", version = "1.0.0" }
-mwemu-winapi32 = { path = "../mwemu-winapi32", version = "1.0.0" }
-mwemu-winapi64 = { path = "../mwemu-winapi64", version = "1.0.0" }
+mwemu-core = { path = "../mwemu-core" }
+mwemu-winapi32 = { path = "../mwemu-winapi32" }
+mwemu-winapi64 = { path = "../mwemu-winapi64" }
 
 [dev-dependencies]
 # The tests must never download DLLs; see the feature in mwemu-core.
-mwemu-core = { path = "../mwemu-core", version = "1.0.0", features = ["offline"] }
+mwemu-core = { path = "../mwemu-core", features = ["offline"] }
 rs-header = { path = "./libraries/rs-header", version = "0.1.3" }
 iced-x86 = { version = "1.21.0", features = ["serde"] }
 csv = "1.3.0"
