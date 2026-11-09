@@ -29,8 +29,14 @@ pub(crate) fn api_set_hosts(contract: &str) -> &'static [&'static str] {
 }
 
 pub(crate) fn normalize_library_name(libname: &str, allow_exe_suffix: bool) -> Option<String> {
-    let mut dll = libname.trim().to_ascii_lowercase();
-    if dll.is_empty() {
+    // Guest paths use Windows separators even when the host is Unix.
+    // Only the basename is looked up inside the host maps folder.
+    let mut dll = libname
+        .trim()
+        .rsplit(['\\', '/'])
+        .next()?
+        .to_ascii_lowercase();
+    if dll.is_empty() || dll.contains(':') {
         return None;
     }
 

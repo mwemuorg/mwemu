@@ -22,8 +22,7 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
         dll = kernel32_common::api_set_hosts(&dll)[0].to_string();
     }
 
-    let mut dll_path = emu.cfg.maps_folder.clone();
-    dll_path.push_str(&dll);
+    let dll_path = emu.cfg.get_maps_folder(&dll);
 
     // Check if this DLL is already linked with a valid PE header.
     // During SSDT emulation, LdrInitializeThunk may have mapped placeholder

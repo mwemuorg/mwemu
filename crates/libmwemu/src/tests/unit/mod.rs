@@ -11,6 +11,7 @@ mod exception_run;
 mod hooks_system;
 mod instruction_pointer_tests;
 mod lazy_flags_bench;
+mod maps_file_paths;
 mod maps_memory_operations;
 mod maps_operations_tests;
 mod maps_unmap_range;
