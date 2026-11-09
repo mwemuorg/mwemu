@@ -25,7 +25,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     };
 
-    if !emu.maps.write_128bits_le(addr, value) {
+    if !emu.write_instruction_bytes(addr, &mut value.to_le_bytes()) {
         log::trace!("{} error writing movntpd 128 bits at 0x{:x}", emu.pos, addr);
         return false;
     }

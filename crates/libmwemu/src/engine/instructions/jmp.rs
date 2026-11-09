@@ -23,5 +23,4 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     } else {
         emu.set_eip(addr, false)
     }
-    //true
 }

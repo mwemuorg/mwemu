@@ -10,9 +10,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     let val: u16 = (emu.flags().dump() & 0xffff) as u16;
 
-    emu.regs_mut().rsp -= 2;
-
-    if !emu.maps.write_word(emu.regs().rsp, val) {
+    if !emu.push_instruction(val as u64, u16::BITS) {
         log::trace!("/!\\ exception writing word at rsp 0x{:x}", emu.regs().rsp);
         emu.exception(types::ExceptionType::WritingWord);
         return false;

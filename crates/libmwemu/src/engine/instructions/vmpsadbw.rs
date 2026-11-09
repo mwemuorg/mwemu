@@ -1,14 +1,11 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::engine::instructions::avx;
 use iced_x86::Instruction;
 
-// VMPSADBW: VEX op.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
     avx::binop_imm(emu, ins, |a, b, imm| {
         let so = (((imm >> 2) & 1) as u32) * 4;
         let dof = ((imm & 3) as u32) * 4;

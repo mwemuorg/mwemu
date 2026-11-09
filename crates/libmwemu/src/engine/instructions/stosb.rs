@@ -46,7 +46,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rdi = v;
         }
     } else {
-        // 32bits
         let addr = emu.regs().get_edi();
         let value = emu.regs().get_al() as u8;
         let value = emu.call_memory_write_hook(addr, 8, value.into()) as u8;

@@ -118,7 +118,11 @@ impl Emu {
             }
         }
         // emulate
-        let result_ok = engine::emulate_instruction(self, &ins, sz, true);
+        let result_ok = if Self::is_rep_string_instruction(&ins) {
+            self.execute_x86_rep_fully(&ins, sz)
+        } else {
+            engine::emulate_instruction(self, &ins, sz, true)
+        };
         //tracing::trace_instruction(self, self.pos);
         self.last_instruction_size = sz;
 
@@ -135,7 +139,9 @@ impl Emu {
         }
 
         // update eip/rip
-        self.advance_pc_x86(sz);
+        if result_ok || self.force_reload {
+            self.advance_pc_x86(sz);
+        }
 
         result_ok
     }
@@ -487,9 +493,9 @@ impl Emu {
                         let skip = !hook_fn(self, hook_pc, &decoded, sz);
                         self.hooks.hook_on_pre_instruction = Some(hook_fn);
                         if skip {
-                            // Check can_decode for next iteration
-                            inner_running = self.instruction_cache_can_decode();
-                            continue;
+                            self.rep = None;
+                            self.advance_pc_x86(sz);
+                            break;
                         }
                     }
 
@@ -524,7 +530,11 @@ impl Emu {
                     }
 
                     // --- x86 REP post-execution state machine ---
-                    self.update_x86_rep_state_after_execution(x86_ins);
+                    if emulation_ok {
+                        self.update_x86_rep_state_after_execution(x86_ins);
+                    } else {
+                        self.rep = None;
+                    }
 
                     // --- Post-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_post_instruction.take() {

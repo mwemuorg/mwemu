@@ -21,37 +21,14 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         let val = match emu.maps.read_byte(emu.regs().rsi) {
             Some(v) => v,
             None => {
-                if emu.rep.is_some() {
-                    log::trace!(
-                        "rep movsb: unmapped read at rsi=0x{:x}, filling with zeros",
-                        emu.regs().rsi
-                    );
-                    0u8
-                } else {
-                    log::trace!("cannot read memory on rsi");
-                    return false;
-                }
+                log::trace!("cannot read movsb source");
+                return false;
             }
         };
         let addr = emu.regs().rdi;
         let value = emu.call_memory_write_hook(addr, 8, val.into()) as u8;
         if !emu.maps.write_byte(addr, value) {
-            static FIRST_OOB: std::sync::atomic::AtomicBool =
-                std::sync::atomic::AtomicBool::new(false);
-            let rdi = emu.regs().rdi;
-            if (0x412000..=0x420000).contains(&rdi)
-                && !FIRST_OOB.swap(true, std::sync::atomic::Ordering::Relaxed)
-            {
-                log::trace!(
-                    "DEBUG first movsb OOB rdi=0x{:x} rsi=0x{:x} rcx=0x{:x} rip=0x{:x} pos={}",
-                    rdi,
-                    emu.regs().rsi,
-                    emu.regs().rcx,
-                    emu.regs().rip,
-                    emu.pos,
-                );
-            }
-            log::trace!("cannot write memoryh on rdi");
+            log::trace!("cannot write memory on rdi");
             return false;
         }
 
@@ -70,16 +47,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         let val = match emu.maps.read_byte(emu.regs().get_esi()) {
             Some(v) => v,
             None => {
-                if emu.rep.is_some() {
-                    log::trace!(
-                        "rep movsb: unmapped read at esi=0x{:x}, filling with zeros",
-                        emu.regs().get_esi()
-                    );
-                    0u8
-                } else {
-                    log::trace!("cannot read memory on esi");
-                    return false;
-                }
+                log::trace!("cannot read movsb source");
+                return false;
             }
         };
         let addr = emu.regs().get_edi();

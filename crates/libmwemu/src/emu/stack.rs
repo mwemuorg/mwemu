@@ -1,6 +1,29 @@
+use crate::utils::bits::low_bits_u64;
 use crate::{emu::Emu, windows::structures::MemoryOperation};
 
 impl Emu {
+    /// CPU pushes observe write hooks; API/bootstrap stack helpers remain host operations.
+    pub(crate) fn push_instruction(&mut self, value: u64, bits: u32) -> bool {
+        let sp = self.sp();
+        let addr = sp.wrapping_sub((bits / u8::BITS) as u64);
+        let addr = if self.cfg.is_x64() {
+            addr
+        } else {
+            low_bits_u64(addr, u32::BITS)
+        };
+        let value = self.call_memory_write_hook(addr, bits, value as u128) as u64;
+        let ok = match bits {
+            16 => self.stack_push16(value as u16),
+            32 => self.stack_push32(value as u32),
+            64 => self.stack_push64(value),
+            _ => false,
+        };
+        if !ok {
+            self.set_sp(sp);
+        }
+        ok
+    }
+
     /// Push a 16-bit value onto the stack. Returns false if SP points to unmapped memory.
     pub fn stack_push16(&mut self, value: u16) -> bool {
         let sp = self.sp();

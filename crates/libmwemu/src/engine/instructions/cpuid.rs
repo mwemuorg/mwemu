@@ -67,46 +67,44 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rcx = 9;
             emu.regs_mut().rdx = 0;
         }
-        0x0d => {
-            match emu.regs().rcx {
-                1 => {
-                    emu.regs_mut().rax = 0xf;
-                    emu.regs_mut().rbx = 0x3c0;
-                    emu.regs_mut().rcx = 0x100;
-                    emu.regs_mut().rdx = 0;
-                }
-                0 => {
-                    emu.regs_mut().rax = 0x1f;
-                    emu.regs_mut().rbx = 0x440;
-                    emu.regs_mut().rcx = 0x440;
-                    emu.regs_mut().rdx = 0;
-                }
-                2 => {
-                    emu.regs_mut().rax = 0x100;
-                    emu.regs_mut().rbx = 0x240;
-                    emu.regs_mut().rcx = 0;
-                    emu.regs_mut().rdx = 0;
-                }
-                3 => {
-                    emu.regs_mut().rax = 0x40;
-                    emu.regs_mut().rbx = 0x3c0;
-                    emu.regs_mut().rcx = 0;
-                    emu.regs_mut().rdx = 0;
-                }
-                5..=7 => {
-                    emu.regs_mut().rax = 0;
-                    emu.regs_mut().rbx = 0;
-                    emu.regs_mut().rcx = 0;
-                    emu.regs_mut().rdx = 0;
-                }
-                _ => {
-                    emu.regs_mut().rax = 0x1f; //0x1f
-                    emu.regs_mut().rbx = 0x440; //0x3c0; // 0x440
-                    emu.regs_mut().rcx = 0x440; //0x100; // 0x440
-                    emu.regs_mut().rdx = 0;
-                }
+        0x0d => match emu.regs().rcx {
+            1 => {
+                emu.regs_mut().rax = 0xf;
+                emu.regs_mut().rbx = 0x3c0;
+                emu.regs_mut().rcx = 0x100;
+                emu.regs_mut().rdx = 0;
             }
-        }
+            0 => {
+                emu.regs_mut().rax = 0x1f;
+                emu.regs_mut().rbx = 0x440;
+                emu.regs_mut().rcx = 0x440;
+                emu.regs_mut().rdx = 0;
+            }
+            2 => {
+                emu.regs_mut().rax = 0x100;
+                emu.regs_mut().rbx = 0x240;
+                emu.regs_mut().rcx = 0;
+                emu.regs_mut().rdx = 0;
+            }
+            3 => {
+                emu.regs_mut().rax = 0x40;
+                emu.regs_mut().rbx = 0x3c0;
+                emu.regs_mut().rcx = 0;
+                emu.regs_mut().rdx = 0;
+            }
+            5..=7 => {
+                emu.regs_mut().rax = 0;
+                emu.regs_mut().rbx = 0;
+                emu.regs_mut().rcx = 0;
+                emu.regs_mut().rdx = 0;
+            }
+            _ => {
+                emu.regs_mut().rax = 0x1f;
+                emu.regs_mut().rbx = 0x440;
+                emu.regs_mut().rcx = 0x440;
+                emu.regs_mut().rdx = 0;
+            }
+        },
         0x07..=0x6d => {
             emu.regs_mut().rax = 0;
             emu.regs_mut().rbx = 0x29c67af;
@@ -176,7 +174,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rax = 0x3027;
             emu.regs_mut().rbx = 0;
             emu.regs_mut().rcx = 0;
-            emu.regs_mut().rdx = 0; //0x100;
+            emu.regs_mut().rdx = 0;
         }
         _ => {
             log::trace!("unimplemented cpuid call 0x{:x}", emu.regs().rax);

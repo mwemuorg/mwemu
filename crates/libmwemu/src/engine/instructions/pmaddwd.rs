@@ -1,15 +1,13 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
-    let src0 = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-    let src1 = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    let src0 = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+    let src1 = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
 
     // Each output dword is the sum of two signed 16x16 products of adjacent
     // word lanes. The sum wraps (only 0x8000*0x8000 pairs overflow int32).
@@ -29,6 +27,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         result |= ((dword as u32) as u128) << base;
     }
 
-    emu.set_operand_xmm_value_128(ins, 0, result);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, result)
 }

@@ -1,31 +1,51 @@
-use crate::color;
-use crate::emu::Emu;
 use iced_x86::Instruction;
 
-pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+use crate::color;
+use crate::emu::{Emu, decoded_instruction::DecodedInstruction};
 
-    let addr = match emu.get_operand_value(ins, 0, false) {
-        Some(v) => v,
-        None => return false,
+const ENV_FIELDS: usize = 7;
+const SHORT_ENV_SIZE: usize = ENV_FIELDS * size_of::<u16>();
+const OPCODE_MASK: u16 = (1 << 11) - 1;
+const EXCEPTION_MASKS: u16 = (1 << 6) - 1;
+
+pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
+    let Some(addr) = emu.get_operand_value(ins, 0, false) else {
+        return false;
     };
-
-    if emu.cfg.is_x64() {
-        let env = emu.fpu_mut().get_env64();
-
-        for i in 0..4 {
-            emu.maps.write_qword(addr + (i * 4), env[i as usize]);
-        }
+    let fpu = emu.fpu();
+    let control = fpu.get_ctrl();
+    // FNSTENV uses the 14/28-byte protected-mode format even in 64-bit mode.
+    let mut bytes: Vec<u8> = if ins.memory_size().size() == SHORT_ENV_SIZE {
+        [
+            control,
+            fpu.status,
+            fpu.tag,
+            fpu.ip as u16,
+            fpu.code_segment,
+            fpu.operand_ptr as u16,
+            fpu.data_segment,
+        ]
+        .into_iter()
+        .flat_map(u16::to_le_bytes)
+        .collect()
     } else {
-        let env = emu.fpu_mut().get_env32();
-        for i in 0..4 {
-            emu.maps.write_dword(addr + (i * 4), env[i as usize]);
-        }
+        [
+            control as u32,
+            fpu.status as u32,
+            fpu.tag as u32,
+            fpu.ip as u32,
+            fpu.code_segment as u32 | (((fpu.opcode & OPCODE_MASK) as u32) << u16::BITS),
+            fpu.operand_ptr as u32,
+            fpu.data_segment as u32,
+        ]
+        .into_iter()
+        .flat_map(u32::to_le_bytes)
+        .collect()
+    };
+    if !emu.write_instruction_bytes(addr, &mut bytes) {
+        return false;
     }
-
-    emu.sync_fpu_ip();
+    emu.fpu_mut().set_ctrl(control | EXCEPTION_MASKS);
     true
 }

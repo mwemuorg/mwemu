@@ -67,7 +67,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             }
 
             emu.regs_mut().rsp += arg;
-            //emu.stack_lvl[emu.stack_lvl_idx] -= arg as i32 / 8;
         } else {
             if !arg.is_multiple_of(4) {
                 log::trace!("weird ret argument!");
@@ -76,7 +75,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
             let esp = emu.regs().get_esp() + arg;
             emu.regs_mut().set_esp(esp);
-            //emu.stack_lvl[emu.stack_lvl_idx] -= arg as i32 / 4;
         }
     }
 
@@ -109,5 +107,4 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     } else {
         emu.set_eip(ret_addr, false)
     }
-    //true
 }
