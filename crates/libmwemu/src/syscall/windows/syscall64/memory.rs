@@ -450,8 +450,12 @@ pub fn nt_open_section(emu: &mut Emu) {
     // Returning OBJECT_NAME_NOT_FOUND here lets the loader fall through to
     // the disk-file path, which fails cleanly with STATUS_DLL_NOT_FOUND.
     if let Some(ref name) = dll_name {
-        let path = format!("{}{}", emu.cfg.maps_folder, name);
-        if !std::path::Path::new(&path).exists() {
+        let path = emu.cfg.get_maps_folder(name);
+        // KnownDlls contains filenames, not guest paths or host drive prefixes.
+        if name.contains(['\\', '/', ':'])
+            || matches!(name.as_str(), "." | "..")
+            || !std::path::Path::new(&path).exists()
+        {
             log::trace!(
                 "NtOpenSection: KnownDll {} not in maps_folder → OBJECT_NAME_NOT_FOUND",
                 name

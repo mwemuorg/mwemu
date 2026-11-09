@@ -411,8 +411,7 @@ impl Emu {
 
         // Load banzai metadata only when 32-bit skip-unimplemented mode needs it.
         if !self.cfg.arch.is_64bits() && self.cfg.skip_unimplemented {
-            self.banzai
-                .load(&format!("{}/banzai.csv", self.cfg.maps_folder));
+            self.banzai.load(&self.cfg.get_maps_folder("banzai.csv"));
         }
 
         //self.init_tests();

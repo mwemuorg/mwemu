@@ -17,9 +17,7 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
         return load_library(emu, "kernel32.dll");
     }
 
-    let mut dll_path = emu.cfg.maps_folder.clone();
-    dll_path.push('/');
-    dll_path.push_str(&dll);
+    let dll_path = emu.cfg.get_maps_folder(&dll);
 
     match peb32::get_module_base(&dll, emu) {
         Some(base) => base,
