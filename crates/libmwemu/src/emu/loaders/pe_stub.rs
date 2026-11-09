@@ -1,12 +1,15 @@
 use crate::api::windows::export_index::{self, ModuleExportIndex};
 use crate::emu::Emu;
+use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
+use crate::windows::constants;
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
 const PAGE: u32 = 0x1000;
 const HEADERS_RVA: u32 = 0;
 const TEXT_RVA: u32 = PAGE;
 const FUNC_SLOT: u32 = 4;
+const RET_OPCODE: u8 = 0xc3;
 
 fn align_page(sz: u32) -> u32 {
     (sz + PAGE - 1) & !(PAGE - 1)
@@ -47,7 +50,11 @@ impl Emu {
         let edata_size = align_page(edata_raw);
 
         let size_of_image = PAGE + text_size + edata_size; // headers + .text + .edata
-        let base = match self.maps.lib32_alloc(size_of_image as u64) {
+        let base = match self.alloc_pe_image(
+            size_of_image as u64,
+            constants::LIBS32_MIN,
+            constants::LIBS32_MAX,
+        ) {
             Some(b) => b as u32,
             None => {
                 log::error!("create_stub_pe32: out of lib32 space for {}", dll_name);
@@ -56,18 +63,6 @@ impl Emu {
         };
 
         // --- 1. PE headers (.pe map) ---
-        let pe_map = match self.maps.create_map(
-            &format!("{}.pe", map_name),
-            base as u64,
-            PAGE as u64,
-            Permission::READ_WRITE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create stub pe map: {}", e);
-                return 0;
-            }
-        };
 
         let mut hdr = vec![0u8; PAGE as usize];
         // DOS header
@@ -119,39 +114,13 @@ impl Emu {
         w32(&mut hdr, s1 + 20, edata_rva); // PointerToRawData
         w32(&mut hdr, s1 + 36, 0x4000_0040); // INIT_DATA|READ
 
-        pe_map.memcpy(&hdr, hdr.len());
-
         // --- 2. .text map: RET stub at each function slot ---
-        let text_map = match self.maps.create_map(
-            &format!("{}.text", map_name),
-            base as u64 + TEXT_RVA as u64,
-            text_size as u64,
-            Permission::READ_WRITE_EXECUTE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create stub text map: {}", e);
-                return 0;
-            }
-        };
+        let mut text = vec![0u8; text_size as usize];
         for i in 0..n {
-            text_map.write_byte(base as u64 + TEXT_RVA as u64 + (i * FUNC_SLOT) as u64, 0xc3);
+            text[(i * FUNC_SLOT) as usize] = RET_OPCODE;
         }
 
         // --- 3. .edata map: export directory ---
-        let edata_base = base as u64 + edata_rva as u64;
-        let edata_map = match self.maps.create_map(
-            &format!("{}.edata", map_name),
-            edata_base,
-            edata_size as u64,
-            Permission::READ_WRITE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create stub edata map: {}", e);
-                return 0;
-            }
-        };
 
         let mut ed = vec![0u8; edata_size as usize];
 
@@ -209,7 +178,36 @@ impl Emu {
             w16(&mut ed, oo + i * 2, i as u16);
         }
 
-        edata_map.memcpy(&ed, ed.len());
+        let regions = [
+            ImageRegion {
+                name: format!("{map_name}.pe"),
+                offset: 0,
+                size: PAGE as u64,
+                permission: Permission::READ_WRITE,
+                data: &hdr,
+            },
+            ImageRegion {
+                name: format!("{map_name}.text"),
+                offset: TEXT_RVA as u64,
+                size: text_size as u64,
+                permission: Permission::READ_WRITE_EXECUTE,
+                data: &text,
+            },
+            ImageRegion {
+                name: format!("{map_name}.edata"),
+                offset: edata_rva as u64,
+                size: edata_size as u64,
+                permission: Permission::READ_WRITE,
+                data: &ed,
+            },
+        ];
+        if let Err(error) = self
+            .maps
+            .map_image(base as u64, size_of_image as u64, &regions)
+        {
+            log::error!("cannot map stub image {}: {}", dll_name, error);
+            return 0;
+        }
 
         // --- 4. Host-side export index for gateway dispatch ---
         let mut ordinal_targets = Vec::with_capacity(exports.len());
@@ -271,23 +269,14 @@ impl Emu {
         let edata_size = align_page(edata_raw);
 
         let size_of_image = PAGE + text_size + edata_size;
-        let base = match self.maps.lib64_alloc(size_of_image as u64) {
+        let base = match self.alloc_pe_image(
+            size_of_image as u64,
+            constants::LIBS64_MIN,
+            constants::LIBS64_MAX,
+        ) {
             Some(b) => b,
             None => {
                 log::error!("create_stub_pe64: out of lib64 space for {}", dll_name);
-                return 0;
-            }
-        };
-
-        let pe_map = match self.maps.create_map(
-            &format!("{}.pe", map_name),
-            base,
-            PAGE as u64,
-            Permission::READ_WRITE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create stub pe64 map: {}", e);
                 return 0;
             }
         };
@@ -335,37 +324,10 @@ impl Emu {
         w32(&mut hdr, s1 + 20, edata_rva);
         w32(&mut hdr, s1 + 36, 0x4000_0040);
 
-        pe_map.memcpy(&hdr, hdr.len());
-
-        let text_map = match self.maps.create_map(
-            &format!("{}.text", map_name),
-            base + TEXT_RVA as u64,
-            text_size as u64,
-            Permission::READ_WRITE_EXECUTE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create stub text64 map: {}", e);
-                return 0;
-            }
-        };
+        let mut text = vec![0u8; text_size as usize];
         for i in 0..n {
-            text_map.write_byte(base + TEXT_RVA as u64 + (i * FUNC_SLOT) as u64, 0xc3);
+            text[(i * FUNC_SLOT) as usize] = RET_OPCODE;
         }
-
-        let edata_base = base + edata_rva as u64;
-        let edata_map = match self.maps.create_map(
-            &format!("{}.edata", map_name),
-            edata_base,
-            edata_size as u64,
-            Permission::READ_WRITE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create stub edata64 map: {}", e);
-                return 0;
-            }
-        };
 
         let mut ed = vec![0u8; edata_size as usize];
 
@@ -417,7 +379,33 @@ impl Emu {
             w16(&mut ed, oo + i * 2, i as u16);
         }
 
-        edata_map.memcpy(&ed, ed.len());
+        let regions = [
+            ImageRegion {
+                name: format!("{map_name}.pe"),
+                offset: 0,
+                size: PAGE as u64,
+                permission: Permission::READ_WRITE,
+                data: &hdr,
+            },
+            ImageRegion {
+                name: format!("{map_name}.text"),
+                offset: TEXT_RVA as u64,
+                size: text_size as u64,
+                permission: Permission::READ_WRITE_EXECUTE,
+                data: &text,
+            },
+            ImageRegion {
+                name: format!("{map_name}.edata"),
+                offset: edata_rva as u64,
+                size: edata_size as u64,
+                permission: Permission::READ_WRITE,
+                data: &ed,
+            },
+        ];
+        if let Err(error) = self.maps.map_image(base, size_of_image as u64, &regions) {
+            log::error!("cannot map stub image {}: {}", dll_name, error);
+            return 0;
+        }
 
         let mut ordinal_targets = Vec::with_capacity(exports.len());
         let mut named_exports_vec = Vec::with_capacity(exports.len());

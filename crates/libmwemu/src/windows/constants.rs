@@ -19,6 +19,10 @@ pub const CURRENT_PROCESS_HANDLE: u64 = 1975;
 
 pub const CFG_DEFAULT_BASE: u64 = 0x3c0000;
 
+// Exclusive upper bounds of the emulated user address spaces.
+pub const USER32_ADDRESS_LIMIT: u64 = 0x1_0000_0000;
+pub const USER64_ADDRESS_LIMIT: u64 = 0x8000_0000_0000;
+
 pub const BLOCK_LEN: usize = 0x300;
 pub const ALLOC32_MIN: u64 = 0x6_000_000;
 pub const ALLOC32_MAX: u64 = 0x6F_FFF_FFF;

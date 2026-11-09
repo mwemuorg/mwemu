@@ -159,9 +159,9 @@ pub(crate) fn map(
         address
     };
     let limit = if emu.cfg.arch.is_64bits() {
-        0x8000_0000_0000
+        constants::USER64_ADDRESS_LIMIT
     } else {
-        0x1_0000_0000
+        constants::USER32_ADDRESS_LIMIT
     };
     if base.checked_add(size).is_none_or(|end| end > limit) {
         return Err(STATUS_INVALID_PARAMETER);
@@ -207,10 +207,16 @@ pub(crate) fn unmap(emu: &mut Emu, address: u64) -> Result<(), u64> {
     let allocation = emu
         .maps
         .allocation_at(address)
-        .filter(|a| a.kind == MemoryKind::Mapped)
+        .filter(|a| matches!(a.kind, MemoryKind::Mapped | MemoryKind::Image))
         .cloned()
         .ok_or(STATUS_NOT_MAPPED_VIEW)?;
     emu.maps.unmap_range(allocation.base, allocation.size);
+    if allocation.kind == MemoryKind::Image
+        && let Some(index) = emu.export_indexes.get_by_base(allocation.base)
+    {
+        let name = index.normalized_name.clone();
+        emu.export_indexes.remove(&name);
+    }
     collect_unused(emu);
     Ok(())
 }

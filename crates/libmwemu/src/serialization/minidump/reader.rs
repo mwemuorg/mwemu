@@ -100,7 +100,10 @@ impl MinidumpReader {
         if let Ok(memory_info) = dump.get_stream::<MinidumpMemoryInfoList>() {
             for info in memory_info.iter() {
                 let base_addr = info.raw.base_address;
-                if info.raw.region_size == 0 {
+                if info.raw.region_size == 0
+                    || (info.raw.state != MemoryState::MEM_COMMIT.bits()
+                        && info.raw.state != MemoryState::MEM_RESERVE.bits())
+                {
                     continue;
                 }
 
@@ -122,23 +125,6 @@ impl MinidumpReader {
                     }
                     _ => Permission::NONE,
                 };
-
-                let Some(mem_region) = memory.memory_at_address(base_addr) else {
-                    continue;
-                };
-
-                let offset = usize::try_from(base_addr - mem_region.base_address())?;
-                let length = usize::try_from(info.raw.region_size)?;
-                let Some(bytes) = mem_region
-                    .bytes()
-                    .get(offset..offset.saturating_add(length))
-                else {
-                    continue;
-                };
-                let mem_data = bytes.to_vec();
-                if mem_data.is_empty() {
-                    continue;
-                }
 
                 let committed = info.raw.state == MemoryState::MEM_COMMIT.bits();
                 let state = if committed {
@@ -169,6 +155,23 @@ impl MinidumpReader {
                     allocation.size = allocation.size.max(end - allocation_base);
                     allocation.set_state(base_addr, info.raw.region_size, state);
                 }
+                let Some(mem_region) = memory.memory_at_address(base_addr) else {
+                    continue;
+                };
+
+                let offset = usize::try_from(base_addr - mem_region.base_address())?;
+                let length = usize::try_from(info.raw.region_size)?;
+                let Some(bytes) = mem_region
+                    .bytes()
+                    .get(offset..offset.saturating_add(length))
+                else {
+                    continue;
+                };
+                let mem_data = bytes.to_vec();
+                if mem_data.is_empty() {
+                    continue;
+                }
+
                 let mem_entry = Mem64::new(
                     format!("mem_0x{:016x}", base_addr), // name
                     base_addr,                           // base_addr

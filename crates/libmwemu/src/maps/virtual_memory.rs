@@ -1,6 +1,7 @@
 //! Allocation identity and page state shared by virtual-memory APIs.
 use crate::maps::Maps;
 use crate::maps::mem64::Permission;
+use crate::windows::constants;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -405,11 +406,21 @@ impl Maps {
                 kind,
             };
         }
-        let end = self.next_mapped_addr(base).unwrap_or(if self.is_64bits {
-            0x8000_0000_0000
-        } else {
-            0x1_0000_0000
-        });
+        let next_allocation = self
+            .allocations
+            .range(base.saturating_add(1)..)
+            .next()
+            .map(|(&base, _)| base);
+        let end = self
+            .next_mapped_addr(base)
+            .into_iter()
+            .chain(next_allocation)
+            .min()
+            .unwrap_or(if self.is_64bits {
+                constants::USER64_ADDRESS_LIMIT
+            } else {
+                constants::USER32_ADDRESS_LIMIT
+            });
         MemoryInfo {
             base,
             size: end.saturating_sub(base),
@@ -420,22 +431,61 @@ impl Maps {
         }
     }
 
+    /// Find an occupied span intersecting [start, end). Both indexes contain
+    /// non-overlapping entries; only the last entry before end can block it.
+    pub(super) fn overlapping_range(&self, start: u64, end: u64) -> Option<(u64, u64)> {
+        let mapped = self
+            .maps
+            .range(..end)
+            .next_back()
+            .and_then(|(&base, &id)| self.mem_slab.get(id).map(|mem| (base, mem.get_bottom())))
+            .filter(|&(_, bottom)| bottom > start);
+        let owned = self
+            .allocations
+            .range(..end)
+            .next_back()
+            .map(|(&base, allocation)| (base, allocation.end()))
+            .filter(|&(_, bottom)| bottom > start);
+        match (mapped, owned) {
+            (Some((a, b)), Some((c, d))) => Some((a.min(c), b.max(d))),
+            (Some(range), None) | (None, Some(range)) => Some(range),
+            (None, None) => None,
+        }
+    }
+
+    /// Removing image backing leaves a reserved hole until the whole image is unmapped.
+    pub(super) fn forget_memory_range(&mut self, start: u64, end: u64) {
+        self.allocations.retain(|_, allocation| {
+            if allocation.end() <= start || allocation.base >= end {
+                return true;
+            }
+            if allocation.kind != MemoryKind::Image
+                || (start <= allocation.base && end >= allocation.end())
+            {
+                return false;
+            }
+            let first = start.max(allocation.base);
+            let last = end.min(allocation.end());
+            allocation.set_state(first, last - first, PageState::reserved());
+            true
+        });
+    }
+
     pub fn find_free_range(&self, size: u64, alignment: u64, bottom: u64, top: u64) -> Option<u64> {
         if size == 0 || !alignment.is_power_of_two() {
             return None;
         }
         let mut cursor = align_up(bottom, alignment)?;
-        for (&base, &id) in self.maps.range(..top) {
-            let mem = self.mem_slab.get(id)?;
-            if mem.get_bottom() <= cursor {
-                continue;
+        loop {
+            let end = cursor.checked_add(size)?;
+            if end > top {
+                return None;
             }
-            if cursor.checked_add(size)? <= base {
-                return Some(cursor);
+            match self.overlapping_range(cursor, end) {
+                Some((_, occupied_end)) => cursor = align_up(occupied_end, alignment)?,
+                None => return Some(cursor),
             }
-            cursor = align_up(mem.get_bottom(), alignment)?;
         }
-        (cursor.checked_add(size)? <= top).then_some(cursor)
     }
 
     pub fn find_free_range_top_down(
@@ -449,18 +499,15 @@ impl Maps {
             return None;
         }
         let mut end = top;
-        for (&base, &id) in self.maps.range(..top).rev() {
-            let mem = self.mem_slab.get(id)?;
-            if mem.get_bottom() <= bottom {
-                break;
-            }
+        loop {
             let candidate = end.checked_sub(size)? & !(alignment - 1);
-            if candidate >= mem.get_bottom().max(bottom) {
-                return Some(candidate);
+            if candidate < bottom {
+                return None;
             }
-            end = base;
+            match self.overlapping_range(candidate, candidate.checked_add(size)?) {
+                Some((occupied_start, _)) => end = occupied_start,
+                None => return Some(candidate),
+            }
         }
-        let candidate = end.checked_sub(size)? & !(alignment - 1);
-        (candidate >= bottom).then_some(candidate)
     }
 }

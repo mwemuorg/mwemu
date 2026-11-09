@@ -20,6 +20,7 @@ mod memory_api_logging;
 mod memory_map_operations;
 mod memory_model;
 mod memory_protection;
+mod pe_image_alignment;
 mod pure_rust_check;
 mod register_state_tests;
 mod regression_58433ebf;
