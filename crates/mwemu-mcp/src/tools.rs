@@ -258,7 +258,8 @@ fn t_set_winver(s: &mut Server, a: &Value) -> Result<Value, String> {
 
 fn t_init_win32(s: &mut Server, _a: &Value) -> Result<Value, String> {
     let e = s.emu_mut()?;
-    e.init_win32(false, false);
+    e.init_win32(false, false)
+        .map_err(|error| error.to_string())?;
     Ok(json!({ "ok": true }))
 }
 

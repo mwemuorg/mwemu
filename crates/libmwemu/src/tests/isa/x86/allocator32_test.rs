@@ -11,7 +11,7 @@ pub fn allocator32_test() {
     let mut emu = emu32();
     emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
 
     // "peb" is always created by init_peb — no DLL download needed.
     assert!(emu.maps.exists_mapname("peb"));
@@ -62,7 +62,7 @@ fn virtual_alloc_zero_size_32() {
     let mut emu = emu32();
     emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
 
     let r = helpers::call_winapi32(
         &mut emu,
@@ -104,7 +104,7 @@ fn virtual_alloc_commit_unmapped_32() {
     let mut emu = emu32();
     emu.cfg.maps_folder = win_maps!(32);
     emu.maps.clear();
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
 
     // MEM_COMMIT at a fresh, never-mapped fixed address must fail.
     let r = helpers::call_winapi32(

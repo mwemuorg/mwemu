@@ -187,6 +187,6 @@ fn maps_file_paths_load_banzai_from_canonical_folder() {
         .to_str()
         .unwrap()
         .to_string();
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
     assert_eq!(emu.banzai.get_params("MapsPathProbe"), 3);
 }

@@ -619,11 +619,14 @@ pub extern "C" fn mwemu_load_maps_from_winver(emu: *mut MwemuEmu, version: *cons
     }
 }
 
-/// Initialize the Windows environment (PEB/TEB/LDR/DLLs) for 32-bit.
+/// Initialize the Windows environment (PEB/TEB/LDR/DLLs).
+/// Initialization failures are available through `mwemu_last_error`.
 #[unsafe(no_mangle)]
 pub extern "C" fn mwemu_init_win32(emu: *mut MwemuEmu) {
     let e = emu!(emu, ());
-    e.init_win32(false, false);
+    if let Err(error) = e.init_win32(false, false) {
+        set_error(error.to_string());
+    }
 }
 
 /// Initialize the Linux environment (optionally with dynamic linking).

@@ -1,9 +1,10 @@
 use super::{
-    DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
-    IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS, IMAGE_FILE_DLL, ImageDosHeader,
-    ImageExportDirectory, ImageFileHeader, ImageImportDescriptor, ImageNtHeaders,
-    ImageOptionalHeader, ImageSectionHeader, PE32, SECTION_HEADER_SZ, TlsDirectory32,
+    DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_IMPORT,
+    IMAGE_DIRECTORY_ENTRY_TLS, IMAGE_FILE_DLL, ImageDosHeader, ImageFileHeader,
+    ImageImportDescriptor, ImageNtHeaders, ImageOptionalHeader, ImageSectionHeader, PE32,
+    SECTION_HEADER_SZ, TlsDirectory32,
 };
+use crate::pe::image::{ImageLayout, raw_section_data};
 use crate::pe::readers::{
     read_c_string, read_c_string_with_max, read_u32_le as read_u32_le_shared,
 };
@@ -44,56 +45,51 @@ impl PE32 {
         }
 
         let import_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_IMPORT].virtual_address;
-        let export_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
         let delay_load_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_DELAY_LOAD].virtual_address;
 
         let mut image_import_descriptor: Vec<ImageImportDescriptor> = Vec::new();
         let mut delay_load_dir: Vec<DelayLoadDirectory> = Vec::new();
 
-        if delay_load_va > 0 {
-            let mut delay_load_off = PE32::vaddr_to_off(&sect, delay_load_va) as usize;
-            if delay_load_off > 0 {
-                loop {
-                    let mut delay_load = DelayLoadDirectory::load(raw, delay_load_off);
-                    if delay_load.handle == 0 || delay_load.name_ptr == 0 {
-                        break;
-                    }
-                    let off = PE32::vaddr_to_off(&sect, delay_load.name_ptr) as usize;
-                    delay_load.name = read_c_string(raw, off);
-                    delay_load_dir.push(delay_load);
-                    delay_load_off += DelayLoadDirectory::size();
+        let layout = ImageLayout::new(
+            opt.size_of_headers,
+            opt.size_of_image,
+            &sect,
+            opt.section_alignment,
+        );
+        if delay_load_va != 0
+            && let Some(data) = layout.data_at(raw, delay_load_va)
+        {
+            for descriptor in data.chunks_exact(DelayLoadDirectory::size()) {
+                let mut delay = DelayLoadDirectory::load(descriptor, 0);
+                if delay.name_ptr == 0 {
+                    break;
+                }
+                let Some(name) = layout.data_at(raw, delay.name_ptr) else {
+                    continue;
+                };
+                delay.name = read_c_string(name, 0);
+                if !delay.name.is_empty() {
+                    delay_load_dir.push(delay);
                 }
             }
         }
-
-        if import_va > 0 {
-            let mut import_off = PE32::vaddr_to_off(&sect, import_va) as usize;
-            if import_off > 0 {
-                loop {
-                    let mut iid = ImageImportDescriptor::load(raw, import_off);
-                    if iid.name_ptr == 0 {
-                        break;
-                    }
-                    let off = PE32::vaddr_to_off(&sect, iid.name_ptr) as usize;
-                    if off > raw.len() {
-                        {
-                            log::warn!("pe32: iid name out of buffer, skipping");
-                            break;
-                        }
-                    }
-                    let libname = read_c_string(raw, off);
-                    if libname.is_empty() {
-                        import_off += ImageImportDescriptor::size();
-                        continue;
-                    }
-                    iid.name = libname;
-                    image_import_descriptor.push(iid);
-                    import_off += ImageImportDescriptor::size();
+        if import_va != 0
+            && let Some(data) = layout.data_at(raw, import_va)
+        {
+            for descriptor in data.chunks_exact(ImageImportDescriptor::size()) {
+                let mut import = ImageImportDescriptor::load(descriptor, 0);
+                if import.name_ptr == 0 {
+                    break;
+                }
+                let Some(name) = layout.data_at(raw, import.name_ptr) else {
+                    continue;
+                };
+                import.name = read_c_string(name, 0);
+                if !import.name.is_empty() {
+                    image_import_descriptor.push(import);
                 }
             }
         }
-
-        let _exportd: Option<ImageExportDirectory> = if export_va > 0 { None } else { None };
 
         PE32 {
             filename: filename.to_string(),
@@ -138,13 +134,25 @@ impl PE32 {
         self.fh.characteristics & IMAGE_FILE_DLL != 0
     }
 
+    /// Section-only raw-file lookup. Image metadata should use image_layout().
     pub fn vaddr_to_off(sections: &Vec<ImageSectionHeader>, vaddr: u32) -> u32 {
-        for sect in sections {
-            if vaddr >= sect.virtual_address && vaddr < sect.virtual_address + sect.virtual_size {
-                return vaddr - sect.virtual_address + sect.pointer_to_raw_data;
+        for section in sections {
+            if let Some(offset) = vaddr.checked_sub(section.virtual_address)
+                && offset < section.virtual_size
+            {
+                return section.pointer_to_raw_data.checked_add(offset).unwrap_or(0);
             }
         }
         0
+    }
+
+    pub fn image_layout(&self) -> ImageLayout<'_> {
+        ImageLayout::new(
+            self.opt.size_of_headers,
+            self.opt.size_of_image,
+            &self.sect_hdr,
+            self.opt.section_alignment,
+        )
     }
 
     pub fn num_of_sections(&self) -> usize {
@@ -152,14 +160,10 @@ impl PE32 {
     }
 
     pub fn get_section_ptr_by_name<'a>(&self, raw: &'a [u8], name: &str) -> Option<&'a [u8]> {
-        for sect in &self.sect_hdr {
-            if sect.get_name() == name {
-                let off = sect.pointer_to_raw_data as usize;
-                let sz = sect.virtual_size as usize;
-                return Some(&raw[off..off + sz]);
-            }
-        }
-        None
+        self.sect_hdr
+            .iter()
+            .find(|section| section.get_name() == name)
+            .map(|section| raw_section_data(raw, section))
     }
 
     pub fn get_section(&self, id: usize) -> &ImageSectionHeader {
@@ -167,16 +171,10 @@ impl PE32 {
     }
 
     pub fn get_section_ptr<'a>(&self, raw: &'a [u8], id: usize) -> &'a [u8] {
-        let off = self.sect_hdr[id].pointer_to_raw_data as usize;
-        // A section whose raw-data pointer sits at or past the end of the file
-        // has no backing bytes. Guard this before subtracting the offset.
-        if off >= raw.len() {
-            return &[];
-        }
-        // Clamp to the available bytes, including the last byte at EOF. Bounding
-        // the size before adding the offset also prevents overflow.
-        let sz = (self.sect_hdr[id].size_of_raw_data as usize).min(raw.len() - off);
-        &raw[off..off + sz]
+        self.sect_hdr
+            .get(id)
+            .map(|section| raw_section_data(raw, section))
+            .unwrap_or_default()
     }
 
     pub fn get_section_vaddr(&self, id: usize) -> u32 {
@@ -184,61 +182,33 @@ impl PE32 {
     }
 
     pub fn get_tls_callbacks(&self, raw: &[u8], _vaddr: u32) -> Vec<u64> {
-        let mut callbacks: Vec<u64> = Vec::new();
-
-        if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {
-            log::trace!("/!\\ alert there is .tls section but not tls directory entry");
-            return callbacks;
-        }
-
-        let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
-
-        if entry_tls == 0 {
-            return callbacks;
-        }
-
-        let tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
-        let tls = TlsDirectory32::load(raw, tls_off);
+        let Some(tls) = self.get_tls_directory(raw) else {
+            return Vec::new();
+        };
         tls.print();
-
         if tls.tls_callbacks == 0 {
-            return callbacks;
+            return Vec::new();
         }
-
-        let cb_rva = tls.tls_callbacks.wrapping_sub(self.opt.image_base);
-        let mut cb_off = PE32::vaddr_to_off(&self.sect_hdr, cb_rva) as usize;
-
-        for _ in 0..64 {
-            if cb_off + 4 > raw.len() {
-                break;
-            }
-            let callback: u64 = read_u32_le!(raw, cb_off) as u64;
-            if callback == 0 {
-                break;
-            }
-            if callback < self.opt.image_base as u64 {
-                break;
-            }
-            log::trace!("TLS Callback: 0x{:x}", callback);
-            callbacks.push(callback);
-            cb_off += 4;
-        }
-
-        callbacks
+        let Some(rva) = tls.tls_callbacks.checked_sub(self.opt.image_base) else {
+            return Vec::new();
+        };
+        let Some(data) = self.image_layout().data_at(raw, rva) else {
+            return Vec::new();
+        };
+        data.chunks_exact(4)
+            .take(64)
+            .map(|entry| read_u32_le!(entry, 0) as u64)
+            .take_while(|&callback| callback != 0 && callback >= self.opt.image_base as u64)
+            .collect()
     }
 
     pub fn get_tls_directory(&self, raw: &[u8]) -> Option<TlsDirectory32> {
-        if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {
+        let entry = self.opt.data_directory.get(IMAGE_DIRECTORY_ENTRY_TLS)?;
+        if entry.virtual_address == 0 {
             return None;
         }
-        let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
-        if entry_tls == 0 {
-            return None;
-        }
-        let tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
-        if tls_off + 24 > raw.len() {
-            return None;
-        }
-        Some(TlsDirectory32::load(raw, tls_off))
+        let data = self.image_layout().data_at(raw, entry.virtual_address)?;
+        let data = data.get(..24)?;
+        Some(TlsDirectory32::load(data, 0))
     }
 }

@@ -2,7 +2,7 @@ use env_logger::Env;
 use std::io::Write as _;
 
 use pyo3::exceptions::PyException;
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 
 use pyo3_stub_gen::define_stub_info_gatherer;
@@ -413,8 +413,10 @@ impl Emu {
     /// load_binary() already calls init_win32() if its PE or shellcode.
     /// if you dont use load_binary and need the windows simulation
     /// then call this to have peb/teb/ldr/dlls loaded.
-    fn init_win32(&mut self) {
-        self.emu.init_win32(false, false);
+    fn init_win32(&mut self) -> PyResult<()> {
+        self.emu
+            .init_win32(false, false)
+            .map_err(|error| PyRuntimeError::new_err(error.message))
     }
 
     /// load_binary() already calls init_linux64() if its ELF

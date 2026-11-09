@@ -1,5 +1,6 @@
 use crate::api::windows::common::kernel32 as kernel32_common;
 use crate::emu;
+use crate::emu::loaders::pe_stub_exports::get_stub_exports;
 use crate::windows::peb::peb64;
 
 pub fn is_library_loaded(emu: &mut emu::Emu, libname: &str) -> bool {
@@ -66,13 +67,17 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
 
             let path = std::path::Path::new(&dll_path);
             if path.try_exists().unwrap_or(false) {
-                let (base, pe_off) = emu.load_pe64(&dll_path, false, 0);
-                peb64::dynamic_link_module(base, pe_off, &dll, emu);
+                let image = match emu.load_pe64(&dll_path, false, 0) {
+                    Ok(image) => image,
+                    Err(error) => {
+                        log::error!("cannot load library {dll}: {error}");
+                        return 0;
+                    }
+                };
+                peb64::dynamic_link_module(image.base, image.header_offset, &dll, emu);
                 emu.library_loaded = true; // Signal to GDB that library list changed
-                base
-            } else if let Some(exports) =
-                crate::emu::loaders::pe_stub_exports::get_stub_exports(&dll)
-            {
+                image.base
+            } else if let Some(exports) = get_stub_exports(&dll) {
                 let base = emu.create_stub_pe64(&dll, exports);
                 if base != 0 {
                     peb64::dynamic_link_module(base, 0, &dll, emu);

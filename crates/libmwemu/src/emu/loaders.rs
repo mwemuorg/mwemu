@@ -19,6 +19,7 @@ mod kext;
 mod ko;
 mod macho;
 mod pe;
+pub use pe::{MappedPe64, PeLoadInfo};
 mod pe_stub;
 pub(crate) mod pe_stub_exports;
 
@@ -285,8 +286,8 @@ impl Emu {
                 }
             }
 
-            self.init_win32(clear_registers, clear_flags);
-            let (base, _pe_off) = self.load_pe32(filename, true, 0);
+            self.init_win32(clear_registers, clear_flags)?;
+            let base = self.load_pe32(filename, true, 0)?.base as u32;
             let ep = self.regs().rip;
             // TLS callbacks (stdcall): push Reserved, Reason, hModule, ret-addr
             if !self.tls_callbacks.is_empty() {
@@ -390,8 +391,8 @@ impl Emu {
 
             let clear_registers = false;
             let clear_flags = false;
-            self.init_win32(clear_registers, clear_flags);
-            let (base, _pe_off) = self.load_pe64(filename, true, 0);
+            self.init_win32(clear_registers, clear_flags)?;
+            let base = self.load_pe64(filename, true, 0)?.base;
             let ep = self.pc();
 
             match self.pe64 {
@@ -430,8 +431,8 @@ impl Emu {
                 }
             }
 
-            self.init_win32(clear_registers, clear_flags);
-            let (base, _pe_off) = self.load_pe64(filename, true, 0);
+            self.init_win32(clear_registers, clear_flags)?;
+            let base = self.load_pe64(filename, true, 0)?.base;
             let ep = self.regs().rip;
 
             match self.pe64 {
@@ -690,15 +691,19 @@ impl Emu {
             log::trace!("shellcode detected.");
             let clear_registers = false; // TODO: this needs to be more dynamic, like if we have a register set via args or not
             let clear_flags = false; // TODO: this needs to be more dynamic, like if we have a flag set via args or not
-            self.init_win32(clear_registers, clear_flags);
+            self.init_win32(clear_registers, clear_flags)?;
             let exe_name = self.cfg.exe_name.clone();
             let exe_path = self.cfg.get_maps_folder(&exe_name);
             if self.cfg.is_x64() {
-                let (base, _pe_off) = self.load_pe64(&exe_path, false, 0);
-                peb64::update_ldr_entry_base(&exe_name, base, self);
+                match self.load_pe64(&exe_path, false, 0) {
+                    Ok(image) => peb64::update_ldr_entry_base(&exe_name, image.base, self),
+                    Err(error) => log::warn!("cannot load shellcode process image: {error}"),
+                }
             } else {
-                let (base, _pe_off) = self.load_pe32(&exe_path, false, 0);
-                peb32::update_ldr_entry_base(&exe_name, base as u64, self);
+                match self.load_pe32(&exe_path, false, 0) {
+                    Ok(image) => peb32::update_ldr_entry_base(&exe_name, image.base, self),
+                    Err(error) => log::warn!("cannot load shellcode process image: {error}"),
+                }
             }
 
             let code_map = match self.maps.create_map(

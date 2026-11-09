@@ -7,6 +7,8 @@ use std::{
 
 use iced_x86::Formatter as _;
 
+pub use crate::emu::loaders::{MappedPe64, PeLoadInfo};
+
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::object_handle::HandleManagement;

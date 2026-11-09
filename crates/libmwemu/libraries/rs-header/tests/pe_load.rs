@@ -13,7 +13,7 @@ use fixtures::LOADER64;
 use std::collections::HashMap;
 
 use rs_header::pe::PeLoader;
-use rs_header::pe::pe32::PE32;
+use rs_header::pe::pe32::{DelayLoadDirectory, PE32};
 use rs_header::pe::pe64::PE64;
 
 /// Minimal in-memory PeLoader: records writes and hands out fake, stable
@@ -1055,4 +1055,116 @@ fn pe32_delay_load_binding_uses_address_table_for_unbound_descriptor() {
         stored7, THUNK7_PE32,
         "raw name table was mutated by delay binding"
     );
+}
+
+#[test]
+fn pe64_delay_imports_use_qword_thunks_and_stop_at_null() {
+    let (mut pe, raw, first_thunk) = build_synthetic_pe64_with_ordinal_iat(0);
+    let mut delay = DelayLoadDirectory::load(&[0; 32], 0);
+    delay.name = pe.image_import_descriptor[0].name.clone();
+    delay.name_table = first_thunk;
+    delay.address_table = first_thunk;
+    pe.delay_load_dir.push(delay);
+    let mut mock = Mock::new();
+    let module = pe.image_import_descriptor[0].name.to_ascii_lowercase();
+    mock.resolved_ordinals
+        .insert((module.clone(), 7), 0x7000_7000);
+    mock.resolved_ordinals
+        .insert((module.clone(), 11), 0x7000_b000);
+    pe.delay_load_binding(&raw, &mut mock, 0x180000000);
+    assert_eq!(
+        mock.ordinal_calls,
+        [(module.clone(), 7), (module.clone(), 9), (module, 11)]
+    );
+    assert_eq!(
+        mock.writes,
+        [
+            0x180000000 + first_thunk as u64,
+            0x180000000 + first_thunk as u64 + 16
+        ]
+    );
+}
+
+#[test]
+fn pe32_relocation_block_cannot_escape_directory() {
+    let mut raw = build_synthetic_pe32_with_reloc(0x401234);
+    let mut pe = PE32::parse("reloc.exe", &raw);
+    pe.opt.data_directory[5].size = 8;
+    let mut mock = Mock::new();
+    pe.apply_relocations(&raw, &mut mock, 0x600000);
+    assert!(
+        mock.writes.is_empty(),
+        "entries beyond the directory must not be processed"
+    );
+    pe.opt.data_directory[5].size = 12;
+    raw[0x200..0x204].copy_from_slice(&0xfffffff0u32.to_le_bytes());
+    pe.apply_relocations(&raw, &mut mock, 0x600000);
+    assert!(
+        mock.writes.is_empty(),
+        "overflowing target RVAs must be skipped"
+    );
+}
+
+#[test]
+fn named_imports_in_headers_bind_with_aligned_image_offsets() {
+    const NAME_RVA: u32 = 0x1d0;
+    const NAME: &[u8] = b"Probe\0";
+    for pointer_delta in [0, 1] {
+        let (mut pe32, mut raw32, slot32) = build_synthetic_pe32_with_ordinal_iat(0);
+        let (mut pe64, mut raw64, slot64) = build_synthetic_pe64_with_ordinal_iat(0);
+        let off32 = PE32::vaddr_to_off(&pe32.sect_hdr, slot32) as usize;
+        let off64 = PE64::vaddr_to_off(&pe64.sect_hdr, slot64) as usize;
+        raw32[off32..off32 + 4].copy_from_slice(&NAME_RVA.to_le_bytes());
+        raw32[off32 + 4..off32 + 8].fill(0);
+        raw64[off64..off64 + 8].copy_from_slice(&(NAME_RVA as u64).to_le_bytes());
+        raw64[off64 + 8..off64 + 16].fill(0);
+        for raw in [&mut raw32, &mut raw64] {
+            raw[NAME_RVA as usize..NAME_RVA as usize + 2].fill(0);
+            raw[NAME_RVA as usize + 2..NAME_RVA as usize + 2 + NAME.len()].copy_from_slice(NAME);
+        }
+        pe32.sect_hdr[0].pointer_to_raw_data += pointer_delta;
+        pe64.sect_hdr[0].pointer_to_raw_data += pointer_delta;
+        let mut mock32 = Mock::new();
+        let mut mock64 = Mock::new();
+        pe32.iat_binding(&raw32, &mut mock32, 0x400000);
+        pe64.iat_binding(&raw64, &mut mock64, 0x180000000);
+        assert_eq!(mock32.writes, [0x400000 + slot32 as u64]);
+        assert_eq!(mock64.writes, [0x180000000 + slot64 as u64]);
+        assert_eq!(pe32.import_addr_to_name(0x70000000), "Probe");
+        assert_eq!(pe64.import_addr_to_name(0x70000000), "Probe");
+    }
+}
+
+#[test]
+fn pe64_relocations_follow_image_layout_and_directory_bounds() {
+    const ORIGINAL: u64 = 0x180001234;
+    const TARGET: u32 = 0x300;
+    const DIR64: u16 = 10 << 12;
+    for pointer_delta in [0, 1] {
+        let (mut pe, mut raw, _) = build_synthetic_pe64_with_ordinal_iat(0);
+        let directory = &mut pe.opt.data_directory[5];
+        directory.virtual_address = pe.sect_hdr[0].virtual_address;
+        directory.size = 12;
+        let offset = pe.sect_hdr[0].pointer_to_raw_data as usize;
+        pe.sect_hdr[0].pointer_to_raw_data += pointer_delta;
+        raw[offset..offset + 12].fill(0);
+        raw[offset + 4..offset + 8].copy_from_slice(&12u32.to_le_bytes());
+        raw[offset + 8..offset + 10].copy_from_slice(&(DIR64 | TARGET as u16).to_le_bytes());
+        raw[TARGET as usize..TARGET as usize + 8].copy_from_slice(&ORIGINAL.to_le_bytes());
+        let base = pe.opt.image_base + 0x10000;
+        let mut mock = Mock::new();
+        pe.apply_relocations(&raw, &mut mock, base);
+        assert_eq!(
+            read_qword_le(&mock, base + TARGET as u64),
+            ORIGINAL + 0x10000
+        );
+        pe.opt.data_directory[5].size = 8;
+        mock.writes.clear();
+        pe.apply_relocations(&raw, &mut mock, base);
+        assert!(mock.writes.is_empty());
+        pe.opt.data_directory[5].size = 12;
+        raw[offset..offset + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        pe.apply_relocations(&raw, &mut mock, base);
+        assert!(mock.writes.is_empty());
+    }
 }

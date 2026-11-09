@@ -7,7 +7,7 @@ pub fn stack32_test() {
 
     let mut emu = emu32();
     emu.cfg.maps_folder = win_maps!(32);
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
 
     let stack_check = emu.maps.get_map_by_name("stack");
     assert!(stack_check.is_some());
