@@ -25,11 +25,13 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 7. don't break any test, unless the test is bad implemented.
 
-8. Please, use that format: cargo fmt --all -- --check
+8. Please, use that format: make fmt  and make clippy
 
 9. Don't do commits unless the user ask for it.
 
 10. check TEST.md before pushing to git or when changes are ready.
+
+11. CI cannot do tests that needs dll's that would spam the symbol server.
 
 
 ## Testing

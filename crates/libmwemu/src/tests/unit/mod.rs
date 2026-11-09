@@ -25,3 +25,4 @@ mod should_serialize;
 mod string_memory_hooks;
 mod test_unified_step_and_run_methods;
 mod utility_functions_tests;
+mod winapi_property;
