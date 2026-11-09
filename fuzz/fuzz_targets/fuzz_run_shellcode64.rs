@@ -9,6 +9,7 @@ static INIT: Once = Once::new();
 fuzz_target!(|data: &[u8]| {
     INIT.call_once(|| {
         panic::set_hook(Box::new(|_| {}));
+        libmwemu::register_api_handlers();
     });
 
     if data.len() < 4 || data.len() > 4096 {

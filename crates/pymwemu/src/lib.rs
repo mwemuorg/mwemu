@@ -1795,6 +1795,9 @@ fn _pymwemu(_py: Python, m: &Bound<PyModule>) -> PyResult<()> {
         .init();
     log::info!("Initialized logging");
 
+    // deserialize()/load*() build the emulator without emu32()/emu64().
+    libmwemu::register_api_handlers();
+
     // we register Emu inside the _pymwemu module, which would re-export as pymwemu.Emu
     m.add_class::<Emu>()?;
     m.add_function(wrap_pyfunction!(init32, m)?)?;

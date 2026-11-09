@@ -213,6 +213,8 @@ pub extern "C" fn mwemu_version() -> *mut c_char {
 // ---------------------------------------------------------------------------
 
 fn catch_load<F: FnOnce() -> InnerEmu>(what: &str, f: F) -> *mut MwemuEmu {
+    // A loaded emulator did not come from emu32()/emu64().
+    libmwemu::register_api_handlers();
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
         Ok(inner) => {
             clear_error();

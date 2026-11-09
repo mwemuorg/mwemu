@@ -4,6 +4,9 @@ members = [
     "crates/mwemu",
     "crates/libmwemu",
     "crates/libmwemu/libraries/rs-header",
+    "crates/mwemu-core",
+    "crates/mwemu-winapi32",
+    "crates/mwemu-winapi64",
     "crates/pymwemu",
     "crates/cmwemu",
     "crates/mwemu-mcp",
@@ -20,6 +23,9 @@ default-members = [
     "crates/mwemu",
     "crates/libmwemu",
     "crates/libmwemu/libraries/rs-header",
+    "crates/mwemu-core",
+    "crates/mwemu-winapi32",
+    "crates/mwemu-winapi64",
     "crates/cmwemu",
 ]
 

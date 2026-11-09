@@ -122,24 +122,31 @@ rustup target add x86_64-apple-darwin
 
 ```
 crates/
-  libmwemu/     Core emulation library
-  mwemu/        CLI binary
+  libmwemu/         The library people depend on: re-exports mwemu-core, registers the WinAPI handlers, holds the test suite
+  mwemu-core/       Emulator core (everything in the module layout below)
+  mwemu-winapi32/   32-bit Windows API handlers, one module per DLL, one file per API
+  mwemu-winapi64/   64-bit Windows API handlers, same layout
+  mwemu/            CLI binary
   pymwemu/      Python bindings (PyO3)
   mwemu-test/   Integration tests
 ```
 
-### libmwemu/src/ module layout
+The handler crates depend on mwemu-core, never the other way round: the core
+reaches them through `api::dispatch`, which `libmwemu::register_api_handlers()`
+fills (`emu32()`, `emu64()` and `emu_aarch64()` call it). Keep it that way — a
+handler edit then recompiles one handler crate instead of the whole library.
+
+### mwemu-core/src/ module layout
 
 ```
 arch/           Arch enum, x86/ (regs, flags, FPU, eflags, context), aarch64/ (regs)
-loaders/        Binary format parsers: elf/, macho/, pe/
 threading/      Thread scheduler, thread context, crit_state, global_locks
 exception/      Exception handlers (SEH/VEH/UEF), exception types
-windows/        Windows internals: peb/, structures/, kuser_shared, constants
+windows/        Windows internals: peb/, structures/, kuser_shared, constants, loader32/ + loader64/ (LoadLibrary, export resolution), emulated state (registry, environment, profile, window table, export index)
 debug/          Console, script interpreter, GDB server, breakpoints, tracing, definitions
 utils/          Macros, ANSI colors, helper utilities
-api/            Platform API interception: windows/, linux/, macos/, banzai (unimplemented API stubs)
-emu/            Core emulator state machine, execution, memory, registers, emu_context
+api/            Platform API interception: dispatch (entry points into the WinAPI handler crates), windows/ (helpers shared by the handlers), linux/, macos/, banzai (unimplemented API stubs)
+emu/            Core emulator state machine, execution, memory, registers, emu_context, loaders/ (PE, ELF, Mach-O, .ko/.kext)
 engine/         x86 instruction dispatch (mnemonic -> handler)
 maps/           Memory regions, heap allocation, TLB, permissions
 syscall/        Syscall dispatch per platform (windows/, linux/, macos/)

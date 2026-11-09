@@ -319,7 +319,7 @@ pub fn register_export_module(
     base: u64,
     parsed: &rs_header::pe::export_index::ExportIndexData,
 ) {
-    use crate::api::windows::export_index::{ModuleExportIndex, normalize_module_name};
+    use crate::windows::export_index::{ModuleExportIndex, normalize_module_name};
     let index = ModuleExportIndex::from_parsed(
         module.to_string(),
         normalize_module_name(module),

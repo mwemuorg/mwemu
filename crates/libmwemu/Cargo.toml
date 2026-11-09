@@ -8,65 +8,35 @@ rust-version = "1.95"
 description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
 documentation = "https://docs.rs/libmwemu"
 homepage = "https://mwemu.github.io/"
-repository = "https://github.com/mwemuorg/libmwemu"
+repository = "https://github.com/mwemuorg/mwemu"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rs-header = { path = "./libraries/rs-header", version = "0.1.3" }
-iced-x86 = { version = "1.21.0", features = ["serde"] }
-yaxpeax-arm = "0.4.0"
-yaxpeax-arch = "0.3.2"
-goblin = "0.9"
-uint = "0.10"
-md5 = "0.7.0"
-lazy_static = "1.4.0"
-rand = "0.9.1"
-ctrlc = "3.2.2"
-scan_fmt = "0.2.6"
-csv = "1.3.0"
-chrono = { version = "0.4", features = ["serde"] }
-log = "0.4.22"
-serde = { version = "1.0.217", features = ["derive"] }
-bitcode = { version = "0.6.3", features = ["std", "serde"] }
-ahash = { version = "0.8.12", features = ["serde"] }
-bitfield = "0.19.1"
-ureq = { version = "2.10", default-features = false, features = ["tls"] }
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
-serde_arrays = "0.2.0"
-serde_json = "1"
-slab = { version = "0.4.10", features = ["serde"] }
-bytemuck = { version = "1.23.1", features = ["extern_crate_alloc"] }
-minidump = "0.26.0"
-fast_log = "1.7"
-nohash-hasher = "0.2.0"
-memmap2 = "0.9.7"
-byteorder = "1.5.0"
-thiserror = "2.0.12"
-tempfile = "3.23.0"
-tempdir = "0.3.7"
-gdbstub = "0.7.10"
-gdbstub_arch = "0.3.3"
-serial_test = "3.4.0"
-dunce = "1.0.5"
-soft-canonicalize = { version = "0.5", features = ["dunce"] }
-flate2 = "1"
-sha1 = "0.10.7"
-sha2 = "0.10.8"
-aes = "0.8.4"
-des = "0.8.1"
-hmac = "0.12.1"
-pbkdf2 = "0.12.2"
-
+mwemu-core = { path = "../mwemu-core", version = "1.0.0" }
+mwemu-winapi32 = { path = "../mwemu-winapi32", version = "1.0.0" }
+mwemu-winapi64 = { path = "../mwemu-winapi64", version = "1.0.0" }
 
 [dev-dependencies]
+# The tests must never download DLLs; see the feature in mwemu-core.
+mwemu-core = { path = "../mwemu-core", version = "1.0.0", features = ["offline"] }
+rs-header = { path = "./libraries/rs-header", version = "0.1.3" }
+iced-x86 = { version = "1.21.0", features = ["serde"] }
+csv = "1.3.0"
+goblin = "0.9"
+log = "0.4.22"
+serde_json = "1"
+minidump = "0.26.0"
+tempfile = "3.23.0"
+tempdir = "0.3.7"
+dunce = "1.0.5"
 env_logger = "0.11.8"
 hex = "0.4.3"
 itertools = "0.14"
 
 [features]
 default = []
-log_mem_read = []
-log_mem_write = []
+log_mem_read = ["mwemu-core/log_mem_read"]
+log_mem_write = ["mwemu-core/log_mem_write"]
 # Gates the examples/ programs. Off by default so a plain `cargo build` or
 # `cargo test` doesn't pay for compiling them; turn it on to run them:
 #   cargo run -p libmwemu --features examples --example 01_shellcode

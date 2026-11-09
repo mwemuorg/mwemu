@@ -25,7 +25,7 @@ mapped and poisoned turns it into a report.
 ## Layout
 
 ```
-crates/libmwemu/src/kernel/
+crates/mwemu-core/src/kernel/
     mod.rs        KernelOs, KernelEnv, stub allocation, call interception
     layout.rs     address-space plan per OS
     heap.rs       allocation ledger (pure bookkeeping)
@@ -33,7 +33,7 @@ crates/libmwemu/src/kernel/
     linux/        mm, string, sync, printk, module, misc
     windows/      ntoskrnl surface (pool allocators implemented)
     macos/        XNU / IOKit surface (allocators implemented)
-crates/libmwemu/src/emu/loaders/ko.rs   the ET_REL load path
+crates/mwemu-core/src/emu/loaders/ko.rs   the ET_REL load path
 crates/libmwemu/libraries/rs-header/src/elf/relocatable.rs   ET_REL parsing
 ```
 

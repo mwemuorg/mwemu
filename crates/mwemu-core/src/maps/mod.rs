@@ -1,0 +1,1125 @@
+pub mod buffers;
+pub mod heap_allocation;
+pub mod image;
+mod inspection;
+pub mod mem64;
+pub mod scalar;
+mod search;
+pub mod shared;
+pub mod tlb;
+mod utilities;
+pub mod virtual_memory;
+
+use crate::maps::buffers::BufferAllocation;
+use crate::maps::mem64::Permission;
+use crate::maps::scalar::{LittleEndianScalar, ScalarKind};
+use crate::maps::shared::SharedStorage;
+use crate::maps::tlb::LPF_OF;
+use crate::maps::virtual_memory::{Allocation, MemoryKind};
+use crate::windows::constants::memory::*;
+
+use ahash::AHashMap;
+use mem64::Mem64;
+use serde::{Deserialize, Serialize};
+use slab::Slab;
+use std::cell::RefCell;
+use std::collections::BTreeMap;
+use std::convert::TryInto;
+use tlb::TLB;
+
+/// Memory map manager: owns all memory regions, handles allocation, read/write, and address lookup.
+#[derive(Serialize, Deserialize)]
+pub struct Maps {
+    #[serde(default)]
+    pub shared_stores: BTreeMap<u64, SharedStorage>,
+    #[serde(default)]
+    pub buffers: BTreeMap<u64, BufferAllocation>,
+    #[serde(default)]
+    pub allocations: BTreeMap<u64, Allocation>,
+    pub banzai: bool,
+    // adding slab so that it is easier to manage memory, now every other place contain the
+    // key to the memory slab
+    pub mem_slab: Slab<Mem64>,
+    pub maps: BTreeMap<u64, usize>, // the Btree consist of memory base as key and the value is the key to the mem_slab
+    pub name_map: AHashMap<String, usize>,
+    pub is_64bits: bool,
+    tlb: RefCell<TLB>,
+    /// Maximum allocation size (default 0xffffff / ~16MB). Larger allocations fail without truncating the requested size.
+    pub max_alloc_size: u64,
+    /// Writes that landed in executable memory since the run loop last drained
+    /// them, as `(addr, len)`. The decoded-instruction cache uses it to stay
+    /// coherent with self-modifying code (packers decrypting into RWX memory
+    /// with `rep movs`, vector stores or API calls). Not serialized: a restored
+    /// emulator starts with an empty instruction cache anyway.
+    #[serde(skip)]
+    code_writes: RefCell<Vec<(u64, u64)>>,
+}
+
+impl Default for Maps {
+    fn default() -> Self {
+        Maps {
+            shared_stores: BTreeMap::new(),
+            buffers: BTreeMap::new(),
+            allocations: BTreeMap::new(),
+            mem_slab: Slab::with_capacity(200),
+            maps: BTreeMap::<u64, usize>::default(),
+            name_map: AHashMap::<String, usize>::with_capacity(200),
+            is_64bits: false,
+            banzai: false,
+            tlb: RefCell::new(TLB::new()),
+            max_alloc_size: 0xffffff,
+            code_writes: RefCell::new(Vec::new()),
+        }
+    }
+}
+
+impl Maps {
+    const DEFAULT_ALIGNMENT: u64 = 0x1000; //16;
+
+    /// Create a Maps instance from pre-built storage. Typically called internally by `Emu::new`.
+    pub fn new(
+        mem_slab: Slab<Mem64>,
+        maps: BTreeMap<u64, usize>,
+        name_map: AHashMap<String, usize>,
+        is_64bits: bool,
+        banzai: bool,
+        tlb: RefCell<TLB>,
+    ) -> Maps {
+        Maps {
+            shared_stores: BTreeMap::new(),
+            buffers: BTreeMap::new(),
+            allocations: BTreeMap::new(),
+            banzai,
+            mem_slab,
+            maps,
+            name_map,
+            is_64bits,
+            tlb,
+            max_alloc_size: 0xffffff,
+            code_writes: RefCell::new(Vec::new()),
+        }
+    }
+
+    /// Past this many undrained writes the log collapses to "everything"; the
+    /// drain then flushes the whole instruction cache instead of page by page.
+    const CODE_WRITES_CAP: usize = 64;
+    const CODE_WRITES_ALL: (u64, u64) = (0, u64::MAX);
+
+    /// Record a write of `len` bytes at `addr` that hit an executable map.
+    #[inline]
+    pub fn note_code_write(&self, addr: u64, len: u64) {
+        let mut log = self.code_writes.borrow_mut();
+        if log.first() == Some(&Self::CODE_WRITES_ALL) {
+            return;
+        }
+        if log.len() >= Self::CODE_WRITES_CAP {
+            log.clear();
+            log.push(Self::CODE_WRITES_ALL);
+        } else {
+            log.push((addr, len));
+        }
+    }
+
+    /// Whether a write to executable memory is waiting to be applied to the
+    /// instruction cache. Cheap: checked once per emulated instruction.
+    #[inline(always)]
+    pub fn has_code_writes(&self) -> bool {
+        !self.code_writes.borrow().is_empty() || self.shared_stores.values().any(|s| s.dirty.get())
+    }
+
+    /// Move the pending executable-memory writes into `out` (cleared first).
+    /// A `(0, u64::MAX)` entry means "unknown range, flush everything".
+    pub fn drain_code_writes(&self, out: &mut Vec<(u64, u64)>) {
+        out.clear();
+        out.append(&mut self.code_writes.borrow_mut());
+        let mut shared_dirty = false;
+        for storage in self.shared_stores.values() {
+            shared_dirty |= storage.dirty.replace(false);
+        }
+        if shared_dirty {
+            out.clear();
+            out.push(Self::CODE_WRITES_ALL);
+        }
+    }
+
+    pub fn set_banzai(&mut self, banzai: bool) {
+        self.banzai = banzai;
+    }
+
+    pub fn clear(&mut self) {
+        self.shared_stores.clear();
+        self.buffers.clear();
+        self.allocations.clear();
+        self.tlb.get_mut().flush();
+        self.note_code_write(0, u64::MAX);
+        self.mem_slab.clear();
+        self.maps.clear();
+        self.name_map.clear();
+    }
+
+    pub fn get_base(&self) -> Option<u64> {
+        self.mem_slab
+            .iter()
+            .find(|map| map.1.get_name().ends_with(".pe"))
+            .map(|map| map.1.get_base())
+    }
+
+    pub fn overflow_predicted(&self, addr: u64, amount: u64) -> bool {
+        self.maps
+            .range(..=addr)
+            .next_back()
+            .and_then(|(start, region_key)| {
+                let region = self.mem_slab.get(*region_key)?;
+                let start = *start;
+                let size = region.size() as u64;
+
+                if addr >= start && addr < start + size {
+                    if addr + amount < start + size {
+                        Some(false)
+                    } else {
+                        Some(true)
+                    }
+                } else {
+                    Some(true)
+                }
+            })
+            .unwrap_or(true)
+    }
+
+    #[inline(always)]
+    /// `prefix`, or `prefix_N` for the first N that is not a map name yet.
+    /// Needed where bases are reused: a map trimmed by `unmap_range` keeps
+    /// its name while a fresh map may later land on its old base.
+    pub fn unique_map_name(&self, prefix: &str) -> String {
+        if !self.exists_mapname(prefix) {
+            return prefix.to_string();
+        }
+        (1..)
+            .map(|n| format!("{prefix}_{n}"))
+            .find(|name| !self.exists_mapname(name))
+            .expect("unbounded range")
+    }
+
+    pub fn exists_mapname(&self, name: &str) -> bool {
+        self.name_map.contains_key(name)
+    }
+
+    /// Look up a memory region by name. Prefer caching the result over repeated calls.
+    pub fn get_map_by_name(&self, name: &str) -> Option<&Mem64> {
+        self.name_map.get(name).and_then(|v| self.mem_slab.get(*v))
+    }
+
+    pub fn get_map_by_name_mut(&mut self, name: &str) -> Option<&mut Mem64> {
+        let name_key = self.name_map.get(name)?;
+        self.mem_slab.get_mut(*name_key)
+    }
+
+    pub fn get_mem_size(&self, addr: u64) -> Option<usize> {
+        self.maps
+            .range(..=addr)
+            .next_back()
+            .and_then(|(start, region_key)| {
+                let region = self.mem_slab.get(*region_key)?;
+                let start = *start;
+                let size = region.size() as u64;
+                if addr >= start && addr < start + size {
+                    Some(region.size())
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// Create a new memory region with the given name, base address, size, and permissions.
+    pub fn create_map(
+        &mut self,
+        name: &str,
+        base: u64,
+        size: u64,
+        permission: Permission,
+    ) -> Result<&mut Mem64, String> {
+        if !self.is_range_free(base, size) {
+            return Err(format!(
+                "invalid or overlapping map 0x{base:x} + 0x{size:x}"
+            ));
+        }
+        self.create_backing_map(name, base, size, permission)
+    }
+
+    fn create_backing_map(
+        &mut self,
+        name: &str,
+        base: u64,
+        size: u64,
+        permission: Permission,
+    ) -> Result<&mut Mem64, String> {
+        if size == 0
+            || base.checked_add(size).is_none()
+            || self.is_mapped(base)
+            || self.maps.range(base..base + size).next().is_some()
+        {
+            return Err(format!(
+                "invalid or overlapping map 0x{base:x} + 0x{size:x}"
+            ));
+        }
+
+        if self.exists_mapname(name) {
+            self.show_maps();
+            return Err(format!("this map name {} already exists!", name));
+        }
+
+        let mut mem = Mem64::default();
+        mem.set_name(name);
+        mem.set_base(base);
+        mem.try_set_size(size)
+            .map_err(|_| "cannot allocate backing memory".to_string())?;
+        mem.set_permission(permission);
+
+        let base_key = self.mem_slab.insert(mem);
+        self.name_map.insert(name.to_string(), base_key);
+        self.maps.insert(base, base_key);
+        // Creating a map can reuse a freed slab slot, leaving stale TLB entries
+        // that still point at the recycled key — flush so lookups re-resolve.
+        self.tlb.get_mut().flush();
+        // decodes cached for code that used to live at these addresses are stale
+        if permission.can_execute() {
+            self.note_code_write(base, size);
+        }
+        Ok(self
+            .mem_slab
+            .get_mut(base_key)
+            .expect("just-inserted slab key missing"))
+    }
+
+    fn read_scalar<T: LittleEndianScalar>(&self, addr: u64, kind: ScalarKind) -> Option<T> {
+        let end_addr = addr.checked_add(T::SIZE as u64 - 1)?;
+        let banzai = self.banzai;
+        match self.get_mem_by_addr(addr) {
+            Some(mem) if mem.inside(end_addr) && mem.can_read_range(addr, T::SIZE) => mem
+                .with_backing(|bytes| {
+                    let offset = (addr - mem.get_base()) as usize;
+                    scalar::read_le(&bytes[offset..offset + T::SIZE])
+                }),
+            Some(mem)
+                if !mem.inside(end_addr)
+                    && mem.can_read_range(addr, (mem.get_bottom() - addr) as usize)
+                    && T::SIZE > 1 =>
+            {
+                // Cross-map boundary: the read starts in one map and spills
+                // into the next contiguous one (e.g. PE header → first section).
+                let boundary = mem.get_bottom();
+                let lo_len = (boundary - addr) as usize;
+                let hi_len = T::SIZE - lo_len;
+                if let Some((&next_base, &next_key)) = self.maps.range(boundary..).next()
+                    && next_base == boundary
+                    && let Some(next_mem) = self.mem_slab.get(next_key)
+                    && next_mem.can_read_range(next_base, hi_len)
+                    && next_mem.inside(boundary + hi_len as u64 - 1)
+                {
+                    let mut buf = [0u8; 16];
+                    buf[..lo_len].copy_from_slice(&mem.read_bytes(addr, lo_len));
+                    buf[lo_len..T::SIZE].copy_from_slice(&next_mem.read_bytes(boundary, hi_len));
+                    return scalar::read_le(&buf[..T::SIZE]);
+                }
+                None
+            }
+            None if banzai => {
+                log::warn!(
+                    "Reading {} from unmapped region at 0x{:x}",
+                    kind.label(),
+                    addr
+                );
+                None
+            }
+            _ => None,
+        }
+    }
+
+    fn write_scalar<T: LittleEndianScalar>(
+        &mut self,
+        addr: u64,
+        value: T,
+        kind: ScalarKind,
+    ) -> bool {
+        let Some(end_addr) = addr.checked_add(T::SIZE as u64 - 1) else {
+            return false;
+        };
+        // Check for cross-map boundary write before taking &mut.
+        if T::SIZE > 1
+            && let Some(mem) = self.get_mem_by_addr(addr)
+            && !mem.inside(end_addr)
+            && mem.can_write_range(addr, (mem.get_bottom() - addr) as usize)
+        {
+            let boundary = mem.get_bottom();
+            let lo_len = (boundary - addr) as usize;
+            let hi_len = T::SIZE - lo_len;
+            let lo_exec = mem.has_permission(Permission::EXECUTE);
+            if let Some((&next_base, &next_key)) = self.maps.range(boundary..).next()
+                && next_base == boundary
+                && let Some(next_mem) = self.mem_slab.get(next_key)
+                && next_mem.can_write_range(next_base, hi_len)
+                && next_mem.inside(boundary + hi_len as u64 - 1)
+            {
+                let exec = lo_exec || next_mem.has_permission(Permission::EXECUTE);
+                let mut buf = [0u8; 16];
+                value.write_le(&mut buf);
+                let Some((_, &first_key)) = self.maps.range(..=addr).next_back() else {
+                    return false;
+                };
+                let Some(first_mem) = self.mem_slab.get_mut(first_key) else {
+                    return false;
+                };
+                first_mem.write_bytes(addr, &buf[..lo_len]);
+                let Some(next_mem_mut) = self.mem_slab.get_mut(next_key) else {
+                    return false;
+                };
+                next_mem_mut.write_bytes(boundary, &buf[lo_len..T::SIZE]);
+                if exec {
+                    self.note_code_write(addr, T::SIZE as u64);
+                }
+                return true;
+            }
+        }
+        match self.get_mem_by_addr_mut(addr) {
+            Some(mem) if mem.inside(end_addr) && mem.can_write_range(addr, T::SIZE) => {
+                let mut buf = [0u8; 16];
+                value.write_le(&mut buf);
+                mem.write_bytes(addr, &buf[..T::SIZE]);
+                let exec = mem.has_permission(Permission::EXECUTE);
+                if exec {
+                    self.note_code_write(addr, T::SIZE as u64);
+                }
+                true
+            }
+            Some(mem) => {
+                let name = mem.get_name();
+                let base = mem.get_base();
+                let size = mem.size() as u64;
+                let perm = if mem.can_write_range(addr, T::SIZE) {
+                    "RW"
+                } else {
+                    "RO"
+                };
+                log::warn!(
+                    "Writing {} to non-writable/oob region at 0x{:x} [{} 0x{:x}..0x{:x} {}]",
+                    kind.label(),
+                    addr,
+                    name,
+                    base,
+                    base + size,
+                    perm,
+                );
+                false
+            }
+            None => {
+                log::warn!(
+                    "Writing {} to unmapped region at 0x{:x} (no map covers this address)",
+                    kind.label(),
+                    addr
+                );
+                false
+            }
+        }
+    }
+
+    /// Write a byte to the virtual address space. Returns false if unmapped or read-only.
+    pub fn write_byte(&mut self, addr: u64, value: u8) -> bool {
+        self.write_scalar(addr, value, ScalarKind::Byte)
+    }
+
+    /// Read a byte from the virtual address space. Returns None if unmapped.
+    pub fn read_byte(&self, addr: u64) -> Option<u8> {
+        self.read_scalar(addr, ScalarKind::Byte)
+    }
+
+    pub fn read_f64(&self, addr: u64) -> Option<f64> {
+        self.read_qword(addr).map(f64::from_bits)
+    }
+
+    pub fn read_f32(&self, addr: u64) -> Option<f32> {
+        self.read_dword(addr).map(f32::from_bits)
+    }
+
+    pub fn write_f64(&mut self, addr: u64, value: f64) -> bool {
+        self.write_qword(addr, value.to_bits())
+    }
+
+    pub fn write_f32(&mut self, addr: u64, value: f32) -> bool {
+        self.write_dword(addr, value.to_bits())
+    }
+
+    /// Write a 64-bit value to the virtual address space.
+    pub fn write_qword(&mut self, addr: u64, value: u64) -> bool {
+        self.write_scalar(addr, value, ScalarKind::Qword)
+    }
+
+    /// Write a 32-bit value to the virtual address space.
+    pub fn write_dword(&mut self, addr: u64, value: u32) -> bool {
+        self.write_scalar(addr, value, ScalarKind::Dword)
+    }
+
+    /// Write a 16-bit value to the virtual address space.
+    pub fn write_word(&mut self, addr: u64, value: u16) -> bool {
+        self.write_scalar(addr, value, ScalarKind::Word)
+    }
+
+    pub fn write_bytes_slice(&mut self, addr: u64, data: &[u8]) -> bool {
+        self.write_bytes(addr, data)
+    }
+
+    /// Write a byte slice to the virtual address space, handling cross-map boundaries.
+    pub fn write_bytes(&mut self, addr: u64, data: &[u8]) -> bool {
+        if !self.can_access_range(addr, data.len(), Permission::WRITE) {
+            return false;
+        }
+        let mut offset = 0;
+        while offset < data.len() {
+            let cursor = addr + offset as u64;
+            let Some(mem) = self.get_mem_by_addr_mut(cursor) else {
+                return false;
+            };
+            let len = (mem.get_bottom() - cursor).min((data.len() - offset) as u64) as usize;
+            let executable = mem.has_permission(Permission::EXECUTE);
+            mem.write_bytes(cursor, &data[offset..offset + len]);
+            if executable {
+                self.note_code_write(cursor, len as u64);
+            }
+            offset += len;
+        }
+        true
+    }
+
+    /// Check every covered region before an operation mutates memory.
+    pub fn can_access_range(&self, addr: u64, len: usize, required: Permission) -> bool {
+        self.first_inaccessible_address(addr, len, required)
+            .is_none()
+    }
+
+    pub(crate) fn first_inaccessible_address(
+        &self,
+        addr: u64,
+        len: usize,
+        required: Permission,
+    ) -> Option<u64> {
+        let Some(end) = addr.checked_add(len as u64) else {
+            return Some(addr);
+        };
+        let mut cursor = addr;
+        while cursor < end {
+            let Some(mem) = self.get_mem_by_addr(cursor) else {
+                return Some(cursor);
+            };
+            let size = (end.min(mem.get_bottom()) - cursor) as usize;
+            let accessible = mem.accessible_prefix(cursor, size, required);
+            if accessible != size {
+                return Some(cursor + accessible as u64);
+            }
+            cursor += size as u64;
+        }
+        None
+    }
+
+    pub fn write_128bits_le(&mut self, addr: u64, value: u128) -> bool {
+        self.write_scalar(addr, value, ScalarKind::Oword)
+    }
+
+    pub fn write_128bits_be(&mut self, addr: u64, value: u128) -> bool {
+        self.write_bytes(addr, &value.to_be_bytes())
+    }
+
+    pub fn read_128bits_be(&self, addr: u64) -> Option<u128> {
+        let b = self.try_read_bytes(addr, 16)?;
+        let arr: [u8; 16] = b.as_ref().try_into().ok()?;
+        Some(u128::from_be_bytes(arr))
+    }
+
+    pub fn read_128bits_le(&self, addr: u64) -> Option<u128> {
+        self.read_scalar(addr, ScalarKind::Oword)
+    }
+
+    /// Read a 64-bit value from the virtual address space.
+    pub fn read_qword(&self, addr: u64) -> Option<u64> {
+        self.read_scalar(addr, ScalarKind::Qword)
+    }
+
+    /// Read a 32-bit value from the virtual address space.
+    pub fn read_dword(&self, addr: u64) -> Option<u32> {
+        self.read_scalar(addr, ScalarKind::Dword)
+    }
+
+    /// Read a 16-bit value from the virtual address space.
+    pub fn read_word(&self, addr: u64) -> Option<u16> {
+        self.read_scalar(addr, ScalarKind::Word)
+    }
+
+    /// Get a memory region by name. Panics if the name doesn't exist.
+    pub fn get_mem_ref(&self, name: &str) -> &Mem64 {
+        self.get_map_by_name(name)
+            .expect("incorrect memory map name")
+    }
+
+    // deprecated
+    pub fn get_mem(&self, name: &str) -> &Mem64 {
+        self.get_map_by_name(name)
+            .expect("incorrect memory map name")
+    }
+
+    /// Get a mutable memory region by name. Panics if the name doesn't exist.
+    pub fn get_mem_mut(&mut self, name: &str) -> &mut Mem64 {
+        self.get_map_by_name_mut(name)
+            .expect("incorrect memory map name")
+    }
+
+    #[inline(always)]
+    pub fn get_mem2(&mut self, name: &str) -> Option<&mut Mem64> {
+        self.get_map_by_name_mut(name)
+    }
+
+    #[inline(always)]
+    pub fn get_mem_by_addr_mut(&mut self, addr: u64) -> Option<&mut Mem64> {
+        let tlb_entry_mut = self.tlb.get_mut().get_entry_of_mut(addr, 0);
+        let mem_key = tlb_entry_mut.get_mem();
+        match self.mem_slab.get(mem_key) {
+            Some(mem) => {
+                if mem.inside(addr) {
+                    return self.mem_slab.get_mut(tlb_entry_mut.mem64); // Clone the &Mem64
+                }
+            }
+            _ => {
+                tlb_entry_mut.invalidate();
+            } // Remove the tlb entry
+        };
+
+        // TLB miss now search in the maps
+        let mem_key_option = self
+            .maps
+            .range(..=addr)
+            .next_back()
+            .map(|(_start_addr, &key)| key);
+
+        let mem_key = mem_key_option?;
+        let mem_ref_mut = self.mem_slab.get_mut(mem_key)?;
+        if !mem_ref_mut.inside(addr) {
+            return None;
+        }
+
+        // Update TLB
+        tlb_entry_mut.lpf = LPF_OF(addr);
+        tlb_entry_mut.mem64 = mem_key;
+
+        // Return back the memref
+        Some(mem_ref_mut)
+    }
+
+    #[inline(always)]
+    pub fn get_mem_by_addr(&self, addr: u64) -> Option<&Mem64> {
+        let mut binding = self.tlb.borrow_mut();
+        let entry = binding.get_entry_of(addr, 0);
+
+        let mem_key = entry.get_mem();
+        match self.mem_slab.get(mem_key) {
+            Some(mem) if mem.inside(addr) => {
+                return Some(mem); // Clone the &Mem64
+            }
+            _ => (), // TLB miss now search in maps
+        };
+
+        let mem_key_option = self.maps.range(..=addr).next_back().map(|(_k, &v)| v);
+
+        let mem_key = mem_key_option?; // Return None if not found
+
+        let mem_ref = self.mem_slab.get(mem_key)?;
+        if !mem_ref.inside(addr) {
+            return None;
+        }
+
+        // --- Update TLB ---
+        let tlb_entry_mut = binding.get_entry_of_mut(addr, 0);
+        tlb_entry_mut.lpf = LPF_OF(addr);
+        tlb_entry_mut.mem64 = mem_key;
+        Some(mem_ref)
+    }
+
+    pub fn print_maps_keyword(&self, kw: &str) {
+        log::trace!("--- maps ---");
+        for (mem_name, base) in self.name_map.iter() {
+            let Some(mem) = self.get_map_by_name(mem_name) else {
+                continue;
+            };
+            let k = mem_name;
+
+            let n = if k.len() < 20 { 20 - k.len() } else { 1 };
+            let mut spcs: String = String::new();
+            for i in 0..n {
+                spcs.push(' ');
+            }
+            if k.contains(kw) {
+                log::trace!(
+                    "{}{}0x{:x} - 0x{:x} ({})",
+                    k,
+                    spcs,
+                    mem.get_base(),
+                    mem.get_bottom(),
+                    mem.size()
+                );
+            }
+        }
+        log::trace!("memory usage: {} bytes", self.size());
+        log::trace!("---");
+    }
+
+    pub fn print_maps(&self) {
+        println!("print_maps");
+        log::trace!("--- maps ---");
+
+        // sort the memory according to base key
+        let map_size = self.mem_slab.len();
+        let mut sorted_array: Vec<&Mem64> = Vec::with_capacity(map_size);
+        for (pos, mem) in self.mem_slab.iter() {
+            sorted_array.push(mem);
+        }
+        sorted_array.sort_unstable_by_key(|mem| mem.get_base());
+
+        // Now displaying the sorted_array according to base
+        for mem in sorted_array {
+            let mem_name = mem.get_name();
+            let n = if mem_name.len() < 20 {
+                20 - mem_name.len()
+            } else {
+                1
+            };
+
+            log::trace!(
+                "{: <32}\t\t0x{:x} - 0x{:x} ({})",
+                mem_name,
+                mem.get_base(),
+                mem.get_bottom(),
+                mem.size()
+            );
+        }
+
+        log::trace!("memory usage: {} bytes", self.size());
+        log::trace!("---");
+    }
+
+    #[inline(always)]
+    pub fn get_addr_base(&self, addr: u64) -> Option<u64> {
+        self.get_mem_by_addr(addr).map(|mem| mem.get_base())
+    }
+
+    /// Resolve the **allocation base** for `NtFreeVirtualMemory(MEM_RELEASE)` when the guest passes
+    /// an interior pointer, the exclusive end (`addr == Mem64::bottom`), or when `get_addr_base`
+    /// misses due to edge cases — scans `alloc_*` maps (see `trace_LdrInitializeThunk` / Ldr heap).
+    pub fn alloc_region_base_for_free(&self, addr: u64) -> Option<u64> {
+        if let Some(b) = self.get_addr_base(addr) {
+            return Some(b);
+        }
+        if addr > 0
+            && let Some(b) = self.get_addr_base(addr - 1)
+        {
+            return Some(b);
+        }
+        for (_, mem) in self.mem_slab.iter() {
+            let name = mem.get_name();
+            if !name.starts_with("alloc_") {
+                continue;
+            }
+            if mem.inside(addr) || (addr > 0 && mem.inside(addr - 1)) {
+                return Some(mem.get_base());
+            }
+            if addr == mem.get_bottom() {
+                return Some(mem.get_base());
+            }
+        }
+        None
+    }
+
+    /// Find the PE image (base, size_of_image) that contains `addr`.
+    /// Registered images retain identity even after their headers are modified.
+    /// For legacy maps, reads the PE optional-header `SizeOfImage` from `*.pe`,
+    /// and checks whether `addr` falls within `[base, base+size_of_image)`.
+    pub fn find_pe_image_info(&self, addr: u64) -> Option<(u64, u64)> {
+        if let Some(allocation) = self.allocation_at(addr)
+            && allocation.kind == MemoryKind::Image
+        {
+            return Some((allocation.base, allocation.size));
+        }
+        for name in self.name_map.keys() {
+            if !name.ends_with(".pe") {
+                continue;
+            }
+            if let Some(pe_map) = self.get_map_by_name(name) {
+                let pe_base = pe_map.get_base();
+                let pe_hdr_off = self.read_dword(pe_base + 0x3c).unwrap_or(0) as u64;
+                if pe_hdr_off == 0 {
+                    continue;
+                }
+                let size_of_image =
+                    self.read_dword(pe_base + pe_hdr_off + 0x50).unwrap_or(0) as u64;
+                if size_of_image == 0 {
+                    continue;
+                }
+                if addr >= pe_base && addr < pe_base + size_of_image {
+                    return Some((pe_base, size_of_image));
+                }
+            }
+        }
+        None
+    }
+
+    /// Return the base address of the first mapped region that starts **after** `addr`,
+    /// or `None` if no such region exists.  Used by `NtQueryVirtualMemory` to compute
+    /// the size of a free (MEM_FREE) virtual-address range.
+    pub fn next_mapped_addr(&self, addr: u64) -> Option<u64> {
+        self.maps
+            .range(addr.saturating_add(1)..)
+            .next()
+            .map(|(&start, _)| start)
+    }
+
+    #[inline(always)]
+    pub fn is_mapped(&self, addr: u64) -> bool {
+        self.get_mem_by_addr(addr).is_some()
+    }
+
+    #[inline(always)]
+    pub fn is_allocated(&self, addr: u64) -> bool {
+        self.get_mem_by_addr(addr).is_some()
+    }
+
+    #[inline(always)]
+    pub fn is_valid_ptr(&self, addr: u64) -> bool {
+        addr > 0 && self.get_mem_by_addr(addr).is_some()
+    }
+
+    /// Validate that every byte in `[addr, addr + len)` is mapped **and**
+    /// writable. Returns `true` when the range is safe to write to.
+    ///
+    /// Semantics:
+    /// - `len == 0` is always valid (no dereference).
+    /// - `addr == 0` with `len > 0` is rejected (null pointer).
+    /// - `addr + len` is checked for `u64` overflow.
+    /// - A range that crosses between adjacent maps is accepted only if every
+    ///   covered map permits writes; holes between maps are rejected.
+    ///
+    /// This is the focused replacement for the `is_mapped(start) &&
+    /// is_mapped(start + len - 1)` pattern, which can accept a range that
+    /// straddles an unmapped hole or a read-only region.
+    pub fn validate_write_range(&self, addr: u64, len: u64) -> bool {
+        if len == 0 {
+            return true;
+        }
+        if addr == 0 {
+            return false;
+        }
+        usize::try_from(len).is_ok_and(|len| self.can_access_range(addr, len, Permission::WRITE))
+    }
+
+    #[inline(always)]
+    pub fn show_addr_names(&self, addr: u64) {
+        self.get_mem_by_addr(addr).map(|mem| mem.get_name());
+    }
+
+    #[inline(always)]
+    pub fn get_addr_name(&self, addr: u64) -> Option<&str> {
+        self.get_mem_by_addr(addr).map(|mem| mem.get_name())
+    }
+
+    #[inline(always)]
+    pub fn get_addr_name_mut(&mut self, addr: u64) -> Option<&str> {
+        self.get_mem_by_addr(addr).map(|mem| mem.get_name())
+    }
+
+    pub fn size(&self) -> usize {
+        let mut sz: usize = 0;
+        for (_, mem) in self.mem_slab.iter() {
+            sz += mem.size();
+        }
+        sz
+    }
+
+    #[inline]
+    pub fn overlaps(&self, addr: u64, size: u64) -> bool {
+        !self.is_range_free(addr, size)
+    }
+
+    pub fn show_allocs(&self) {
+        for (_, mem) in self.mem_slab.iter() {
+            let name = mem.get_name();
+            if name.starts_with("alloc_") || name.starts_with("valloc_") {
+                log::trace!(
+                    "{} 0x{:x} - 0x{:x} ({})",
+                    name,
+                    mem.get_base(),
+                    mem.get_bottom(),
+                    mem.size()
+                );
+            }
+        }
+    }
+
+    pub fn show_maps(&self) {
+        for (_, mem) in self.mem_slab.iter() {
+            let name = mem.get_name();
+            log::trace!(
+                "{} 0x{:x} - 0x{:x} ({})",
+                name,
+                mem.get_base(),
+                mem.get_bottom(),
+                mem.size()
+            );
+        }
+    }
+
+    /// Free (unmap) a memory region by name.
+    pub fn free(&mut self, name: &str) {
+        if let Some(mem) = self.get_map_by_name(name) {
+            let base = mem.get_base();
+            self.dealloc(base);
+        }
+    }
+
+    pub fn dealloc(&mut self, addr: u64) {
+        let mem_key = match self.maps.get(&addr) {
+            Some(key) => key,
+            None => {
+                log::trace!("dealloc: non mapped address 0x{:x}", addr);
+                return;
+            }
+        };
+        let mem_key = *mem_key;
+        let Some(mem) = self.mem_slab.get(mem_key) else {
+            log::warn!("dealloc: slab entry missing for 0x{:x}", addr);
+            self.maps.remove(&addr);
+            return;
+        };
+        let end = mem.get_bottom();
+        let name = mem.get_name().to_string();
+        let executable = mem.has_permission(Permission::EXECUTE);
+        let size = mem.size() as u64;
+        self.buffers
+            .retain(|_, buffer| buffer.base < addr || buffer.base >= end);
+        self.forget_memory_range(addr, end);
+        self.name_map.remove(&name);
+        if executable {
+            self.note_code_write(addr, size);
+        }
+        let Some(mem) = self.mem_slab.get_mut(mem_key) else {
+            return;
+        };
+        mem.clear();
+        self.mem_slab.remove(mem_key);
+        self.tlb.borrow_mut().flush();
+        self.maps.remove(&addr);
+    }
+
+    /// Unmap `[addr, addr + len)` with Linux `munmap` semantics: maps fully
+    /// inside the range go away, maps that only partially overlap it are
+    /// trimmed, and a map that contains the whole range is split in two.
+    pub fn unmap_range(&mut self, addr: u64, len: u64) {
+        if len == 0 {
+            return;
+        }
+        let Some(end) = addr.checked_add(len) else {
+            return;
+        };
+        self.forget_memory_range(addr, end);
+        self.buffers
+            .retain(|&pointer, a| pointer.saturating_add(a.size) <= addr || a.base >= end);
+        self.note_code_write(addr, len);
+        let overlapping: Vec<u64> = self
+            .maps
+            .range(..end)
+            .filter(|(_, key)| self.mem_slab[**key].get_bottom() > addr)
+            .map(|(base, _)| *base)
+            .collect();
+        for base in overlapping {
+            let key = self.maps[&base];
+            let bottom = self.mem_slab[key].get_bottom();
+            if addr <= base && end >= bottom {
+                self.dealloc(base);
+            } else if addr <= base {
+                self.mem_slab[key].drop_front((end - base) as usize);
+                self.maps.remove(&base);
+                self.maps.insert(end, key);
+            } else if end >= bottom {
+                self.mem_slab[key].truncate((addr - base) as usize);
+            } else {
+                let mem = &mut self.mem_slab[key];
+                let permissions = mem.permission_runs(end, bottom - end);
+                let shared = mem.shared_tail(end);
+                let tail = mem.split_off(end);
+                mem.truncate((addr - base) as usize);
+                let perm = mem.permission();
+                let name = format!("{}_{:x}", mem.get_name(), end);
+                match self.create_backing_map(&name, end, tail.len() as u64, perm) {
+                    Ok(m) => {
+                        if let Some((view, storage)) = shared {
+                            m.bind_shared(view, storage);
+                        } else {
+                            m.force_write_bytes(end, &tail);
+                        }
+                        for (addr, len, permission) in permissions {
+                            m.set_permission_range(addr, len, permission);
+                        }
+                    }
+                    Err(e) => log::error!("unmap_range: cannot re-create tail: {e}"),
+                }
+            }
+        }
+        self.tlb.borrow_mut().flush();
+    }
+
+    /// Whether neither backing maps nor allocation owners touch the range.
+    pub fn is_range_free(&self, addr: u64, len: u64) -> bool {
+        let Some(end) = addr.checked_add(len) else {
+            return false;
+        };
+        len > 0 && self.overlapping_range(addr, end).is_none()
+    }
+
+    pub fn map(&mut self, name: &str, sz: u64, permission: Permission) -> u64 {
+        let Some(addr) = self.alloc(sz) else {
+            log::error!("maps.map: cannot allocate {} bytes for '{}'", sz, name);
+            return 0;
+        };
+        if let Err(e) = self.create_map(name, addr, sz, permission) {
+            log::error!("maps.map: cannot create map '{}': {}", name, e);
+            return 0;
+        }
+        addr
+    }
+
+    pub fn map_lib(&mut self, name: &str, sz: u64, permission: Permission) -> u64 {
+        let addr = if self.is_64bits {
+            self.lib64_alloc(sz)
+        } else {
+            self.lib32_alloc(sz)
+        };
+        let Some(addr) = addr else {
+            log::error!("maps.map_lib: cannot allocate {} bytes for '{}'", sz, name);
+            return 0;
+        };
+        if let Err(e) = self.create_map(name, addr, sz, permission) {
+            log::error!("maps.map_lib: cannot create map '{}': {}", name, e);
+            return 0;
+        }
+        addr
+    }
+
+    pub fn lib64_alloc(&self, sz: u64) -> Option<u64> {
+        self._alloc(sz, LIBS64_MIN, LIBS64_MAX, true)
+    }
+
+    /// Like `lib64_alloc` but the gap search honours the full `sz`, never the
+    /// `max_alloc_size` cap: an mmap reservation must own its whole span even
+    /// when the caller backs only part of it, or the next mapping lands inside.
+    pub fn lib64_reserve(&self, sz: u64) -> Option<u64> {
+        self._alloc_uncapped(sz, LIBS64_MIN, LIBS64_MAX)
+    }
+
+    pub fn lib32_alloc(&self, sz: u64) -> Option<u64> {
+        self._alloc(sz, LIBS32_MIN, LIBS32_MAX, true)
+    }
+
+    /// Find a free address for `sz` bytes. Returns the base address; the caller must create the map.
+    pub fn alloc(&self, sz: u64) -> Option<u64> {
+        if self.is_64bits {
+            self._alloc(sz, ALLOC64_MIN, ALLOC64_MAX, false)
+        } else {
+            self._alloc(sz, ALLOC32_MIN, ALLOC32_MAX, false)
+        }
+    }
+
+    fn _alloc(&self, size: u64, bottom: u64, top: u64, _lib: bool) -> Option<u64> {
+        if size > self.max_alloc_size {
+            return None;
+        }
+        self.find_free_range(size, Self::DEFAULT_ALIGNMENT, bottom, top)
+    }
+
+    fn _alloc_uncapped(&self, size: u64, bottom: u64, top: u64) -> Option<u64> {
+        self.find_free_range(size, Self::DEFAULT_ALIGNMENT, bottom, top)
+    }
+
+    #[inline(always)]
+    fn align_up(&self, addr: u64, align: u64) -> u64 {
+        (addr + (align - 1)) & !(align - 1)
+    }
+
+    #[inline(always)]
+    fn align_down(&self, addr: u64, align: u64) -> u64 {
+        addr & !(align - 1)
+    }
+
+    pub fn save_all_allocs(&mut self, path: String) {
+        for (_, mem) in self.mem_slab.iter() {
+            if mem.get_name().to_string().starts_with("alloc_") {
+                let mut ppath = path.clone();
+                ppath.push('/');
+                ppath.push_str(mem.get_name());
+                ppath.push_str(".bin");
+                mem.save(mem.get_base(), mem.size(), ppath);
+            }
+        }
+    }
+
+    pub fn save_all(&self, path: String) {
+        for (_, mem) in self.mem_slab.iter() {
+            let mut ppath = path.clone();
+            ppath.push('/');
+            ppath.push_str(&format!("{:08x}-{}", mem.get_base(), mem.get_name()));
+            ppath.push_str(".bin");
+            mem.save(mem.get_base(), mem.size(), ppath);
+        }
+    }
+
+    pub fn save(&mut self, addr: u64, size: u64, filename: String) {
+        //TODO: return a boolean or option.
+        match self.get_mem_by_addr_mut(addr) {
+            Some(m) => {
+                m.save(addr, size as usize, filename);
+            }
+            None => {
+                log::trace!("this address is not mapped.");
+            }
+        }
+    }
+
+    pub fn mem_test(&self) -> bool {
+        // Collect (name, base, bottom) once; the slab is a Slab<Mem> and iterating
+        // it twice is safe while we hold no mutable borrow here.
+        let regions: Vec<(u64, u64, String)> = self
+            .mem_slab
+            .iter()
+            .map(|(_, m)| (m.get_base(), m.get_bottom(), m.get_name().to_string()))
+            .collect();
+
+        for (i, (b1, t1, n1)) in regions.iter().enumerate() {
+            for (j, (b2, t2, n2)) in regions.iter().enumerate() {
+                if i == j {
+                    continue;
+                }
+
+                // Pairwise overlap test: two half-open ranges [b1, t1), [b2, t2)
+                // overlap iff b1 < t2 && b2 < t1. Equivalent to the original
+                // per-byte scan in O(1) instead of O(region size).
+                if b1 < t2 && b2 < t1 {
+                    log::trace!("/!\\ {} overlaps with {}", n1, n2);
+                    log::trace!("/!\\ 0x{:x}-0x{:x} vs 0x{:x}-0x{:x}", b1, t1, b2, t2);
+                    return false;
+                }
+            }
+        }
+
+        // Bottom must equal base + size.
+        for (_, mem) in self.mem_slab.iter() {
+            if mem.get_base() + (mem.size() as u64) != mem.get_bottom() {
+                log::trace!("/!\\ memory bottom dont match, mem: {}", mem.get_name());
+                return false;
+            }
+        }
+
+        true
+    }
+}

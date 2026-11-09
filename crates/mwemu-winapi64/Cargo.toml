@@ -1,0 +1,17 @@
+[package]
+name = "mwemu-winapi64"
+version = "1.0.0"
+edition = "2024"
+authors = ["sha0coder"]
+license = "Apache-2.0"
+rust-version = "1.95"
+description = "64-bit Windows API handlers of libmwemu. Use libmwemu instead of depending on this directly."
+homepage = "https://mwemu.github.io/"
+repository = "https://github.com/mwemuorg/mwemu"
+
+[dependencies]
+mwemu-core = { path = "../mwemu-core", version = "1.0.0" }
+chrono = { version = "0.4", features = ["serde"] }
+lazy_static = "1.4.0"
+log = "0.4.22"
+rand = "0.9.1"

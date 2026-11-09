@@ -4,7 +4,7 @@
 # exceed the recorded baseline. Run from the repo root. (`assert!` aborts in
 # release builds too, so it counts; `debug_assert!` does not.)
 
-SRC="crates/libmwemu/src"
+SRC="crates/mwemu-core/src"
 
 # Baseline — update these when you intentionally reduce the counts.
 declare -A BASELINE=(

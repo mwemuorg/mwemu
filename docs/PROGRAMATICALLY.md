@@ -8,7 +8,7 @@ The main instatiates emu module, set the config, loads the binary and run.
 
 
 ```rust
-    let mut emu = Emu::new(Arch::X86);
+    let mut emu = libmwemu::emu32(); // or emu64() / emu_aarch64()
     
     emu.set_config(cfg);
     emu.init();
@@ -16,6 +16,11 @@ The main instatiates emu module, set the config, loads the binary and run.
 
     emu.run(0);
 ```
+
+`emu32()`, `emu64()` and `emu_aarch64()` also plug in the Windows API handlers.
+If you build the emulator another way (`Emu::new(arch)`, `Serialization::load`),
+call `libmwemu::register_api_handlers()` once first, or the first API call
+stops the emulation with an error.
 
 in run method we can specify a stop address, when emulator reach this address will end the run function.
 So we can do multiple runs.
@@ -26,12 +31,11 @@ but run(0) means forever.
 
 ```rust
 
-    let mut emu = Emu::new(Arch::X86);
+    let mut emu = libmwemu::emu32();
     
     emu.set_config(cfg);
     emu.init();
     emu.load_code(&filename.to_string());
-    emu.disable_ctrlc();
     
     // alloc a buffer needed to generate the key
     let buff = emu.alloc("key_buffer", 1024);

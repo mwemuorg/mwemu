@@ -126,6 +126,9 @@ impl CustomLogFormat {
 }
 
 fn main() -> process::ExitCode {
+    // `--arch` and `--dump` build the emulator without emu32()/emu64().
+    libmwemu::register_api_handlers();
+
     let matches = App::new("MWEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")

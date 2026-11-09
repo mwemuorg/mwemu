@@ -1,5 +1,4 @@
 mod helpers;
-pub(crate) use helpers::file_system_root;
 
 /// Resolve a path in the sample bundle, or **skip** the test (returns early,
 /// passing silently) when the bundle isn't present. CI runs without the bundle,

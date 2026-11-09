@@ -73,6 +73,9 @@ jobs:
           cargo clippy --locked
           --package mwemu
           --package libmwemu
+          --package mwemu-core
+          --package mwemu-winapi32
+          --package mwemu-winapi64
           --package rs-header
           --package cmwemu
           --all-targets
@@ -204,6 +207,9 @@ jobs:
           cargo nextest run --locked
           --package mwemu
           --package libmwemu
+          --package mwemu-core
+          --package mwemu-winapi32
+          --package mwemu-winapi64
           --package rs-header
           --package cmwemu
           --target ${{ matrix.target }}

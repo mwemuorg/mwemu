@@ -1,81 +1,68 @@
-#![allow(non_snake_case)]
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_must_use)]
-#![allow(clippy::assertions_on_constants)]
+//! libmwemu: an x86, x86-64 and AArch64 emulator for malware analysis.
+//!
+//! This crate is the public face of three internal ones: the emulator core
+//! (`mwemu-core`) and the Windows API handlers (`mwemu-winapi32`,
+//! `mwemu-winapi64`). It re-exports the core's API and plugs the handlers in.
+
+// Lints the test suite was written under.
+#![cfg_attr(test, allow(non_snake_case))]
+#![cfg_attr(test, allow(dead_code))]
+#![cfg_attr(test, allow(unused_variables))]
+#![cfg_attr(test, allow(unused_must_use))]
+#![cfg_attr(test, allow(clippy::assertions_on_constants))]
 // NOTE: `neg_cmp_op_on_partial_ord` is kept deliberately — in the float
 // compare handlers (cmpss/cmpsd/cmpps/cmppd/avx) `!(a < b)` is NOT the same
 // as `a >= b` for NaN operands, which is the intended x86 semantics.
-#![allow(clippy::neg_cmp_op_on_partial_ord)]
+#![cfg_attr(test, allow(clippy::neg_cmp_op_on_partial_ord))]
 // The `construct_uint!` macro from `uint` generates code with manual div_ceil;
 // we cannot fix it inside the macro expansion.
-#![allow(clippy::manual_div_ceil)]
+#![cfg_attr(test, allow(clippy::manual_div_ceil))]
 
-#[macro_use]
-pub mod utils;
-
-// Internal modules — not part of the public API.
-pub(crate) mod api;
-pub(crate) mod engine;
-pub(crate) mod exception;
-pub(crate) mod loaders;
-pub(crate) mod syscall;
-pub(crate) mod threading;
-pub(crate) mod windows;
-
-// Semi-public modules — exposed for advanced use (snapshot, debugger).
-pub mod arch;
-pub mod debug;
-pub mod kernel;
-
-// Core public modules
-pub mod emu;
-pub mod maps;
-pub mod serialization;
-
-// Standalone public modules
-pub mod config;
-pub mod err;
-pub mod hooks;
+pub use mwemu_core::{arch, config, debug, emu, err, hooks, kernel, maps, serialization, utils};
 
 // Backwards-compatible re-exports (arch)
-pub use arch::aarch64::regs as regs_aarch64;
-pub use arch::x86::context;
-pub use arch::x86::eflags;
-pub use arch::x86::flags;
-pub use arch::x86::fpu;
-pub use arch::x86::regs as regs64;
-
-// Internal re-exports used by crate modules (api/syscall).
-pub(crate) use api::linux as linuxapi;
-pub(crate) use api::macos as macosapi;
-pub(crate) use api::windows as winapi;
-pub(crate) use syscall::windows::ntapi;
+pub use mwemu_core::{context, eflags, flags, fpu, regs_aarch64, regs64};
 
 // Re-exports for external crates
-pub use debug::console;
-pub use debug::gdb;
-pub use debug::script;
-pub use emu::emu_context;
-pub use utils::color_enabled;
-pub use utils::disable_color;
+pub use mwemu_core::{color_enabled, console, disable_color, emu_context, gdb, script};
+
+// Macros
+pub use mwemu_core::{color, get_bit, log_orange, log_red, popn, set_bit, to32};
+
+// The tests were written inside the single-crate libmwemu and reach its
+// internals as `crate::…`; keep those paths valid for them.
+#[cfg(test)]
+pub(crate) use mwemu_core::{engine, exception, syscall, threading, windows};
+#[cfg(test)]
+pub(crate) mod api {
+    pub(crate) use mwemu_core::api::*;
+    pub(crate) mod windows {
+        pub(crate) use mwemu_core::api::windows::*;
+        pub(crate) use mwemu_winapi32 as winapi32;
+        pub(crate) use mwemu_winapi64 as winapi64;
+    }
+}
+#[cfg(test)]
+pub(crate) use api::windows as winapi;
 
 #[cfg(test)]
 mod tests;
+
 use arch::Arch;
 use emu::Emu;
+use mwemu_core::api::dispatch::{self, ApiDispatch};
 
 /// Register the Windows API handlers with the emulator core. `emu32()`,
 /// `emu64()` and `emu_aarch64()` do it for you; call it yourself before
 /// running an emulator built another way (`Emu::new`, `Serialization::load`).
 /// Calling it more than once is harmless.
 pub fn register_api_handlers() {
-    api::dispatch::register(api::dispatch::ApiDispatch {
-        winapi32_gateway: winapi::winapi32::gateway,
-        winapi64_gateway: winapi::winapi64::gateway,
-        winapi64_gateway_by_import: winapi::winapi64::gateway_by_import,
-        winapi64_load_library_a: winapi::winapi64::kernel32::LoadLibraryA,
-        winapi64_get_proc_address: winapi::winapi64::kernel32::GetProcAddress,
+    dispatch::register(ApiDispatch {
+        winapi32_gateway: mwemu_winapi32::gateway,
+        winapi64_gateway: mwemu_winapi64::gateway,
+        winapi64_gateway_by_import: mwemu_winapi64::gateway_by_import,
+        winapi64_load_library_a: mwemu_winapi64::kernel32::LoadLibraryA,
+        winapi64_get_proc_address: mwemu_winapi64::kernel32::GetProcAddress,
     });
 }
 

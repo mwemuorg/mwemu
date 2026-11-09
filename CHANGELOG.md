@@ -104,6 +104,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source so `rdrand`/`rdseed` return the same sequence on every run.
   `Emu::random_u64()` exposes the source.
 
+### Changed
+
+- **libmwemu is split into crates** (#228): `mwemu-core` (the emulator),
+  `mwemu-winapi32` and `mwemu-winapi64` (the Windows API handlers), with
+  `libmwemu` on top re-exporting the same public paths as before. rustc
+  type-checks a crate on one thread, so the handlers (73% of the code) now
+  compile in parallel with each other and editing one no longer re-checks the
+  emulator core.
+- **`libmwemu::register_api_handlers()`**: the core no longer names the
+  handlers, so they are registered at run time. `emu32()`, `emu64()` and
+  `emu_aarch64()` do it; call it once yourself if you build the emulator with
+  `Emu::new(arch)` or `Serialization::load*` instead. Without it the first
+  Windows API call logs an error and stops the emulation.
+
 ## [1.0.0] - 2026-10-24
 
 First stable release. All crates bumped to 1.0.0: libmwemu, mwemu, pymwemu,

@@ -1,8 +1,8 @@
-use crate::api::windows::registry_store::HKEY_LOCAL_MACHINE;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::security::*;
+use crate::windows::registry_store::HKEY_LOCAL_MACHINE;
 
 use crate::{emu32, emu64};
 

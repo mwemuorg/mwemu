@@ -16,7 +16,8 @@ operator, references to dispatcher locals other than `emu`, `api`, `addr`, or
 match. `return String::new();` becomes `return;`; any other `return <string>`
 makes the handler return String and the arm `return Name(...)`.
 
-usage: split_gateways.py <crate_src_dir> <file.rs>...
+usage: split_winapi_gateways.py <handler_crate_src_dir> <file.rs>...
+  e.g. split_winapi_gateways.py crates/mwemu-winapi64/src crates/mwemu-winapi64/src/user32/mod.rs
 """
 import os
 import re
@@ -152,11 +153,23 @@ def parse_uses(header):
 
 
 def module_file(crate_src, path):
+    """File of a `crate::…` module named from a handler crate. `crate::winapi`
+    is `crate::api::windows`; under it `winapi32`/`winapi64` are the handler
+    crates themselves and everything else lives in mwemu-core."""
     rel = path.split("::")
     assert rel[0] == "crate", path
-    base = os.path.join(crate_src, *rel[1:])
-    for cand in (base + ".rs", os.path.join(base, "mod.rs")):
-        if os.path.exists(cand): return cand
+    rel = rel[1:]
+    if rel[:1] == ["winapi"]:
+        rel = ["api", "windows"] + rel[1:]
+    crates = os.path.dirname(os.path.dirname(os.path.abspath(crate_src)))
+    if rel[:2] == ["api", "windows"] and rel[2:3] in (["winapi32"], ["winapi64"]):
+        roots, rel = [os.path.join(crates, "mwemu-" + rel[2], "src")], rel[3:]
+    else:
+        roots = [crate_src, os.path.join(crates, "mwemu-core", "src")]
+    for root in roots:
+        base = os.path.join(root, *rel)
+        for cand in (base + ".rs", os.path.join(base, "mod.rs"), os.path.join(base, "lib.rs")):
+            if os.path.exists(cand): return cand
     raise FileNotFoundError(path)
 
 

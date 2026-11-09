@@ -5,7 +5,7 @@
 CARGO_TARGET ?=
 
 # Keep this list aligned with the workspace default-members and hosted CI.
-CI_PACKAGES := --package mwemu --package libmwemu --package rs-header --package cmwemu
+CI_PACKAGES := --package mwemu --package libmwemu --package mwemu-core --package mwemu-winapi32 --package mwemu-winapi64 --package rs-header --package cmwemu
 
 # Test samples + Windows DLLs live at the repo root (test/ and maps/), the single
 # canonical location shared by the CLI and the tests (tests/helpers.rs resolves

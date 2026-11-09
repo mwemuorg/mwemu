@@ -210,7 +210,7 @@ heap arena via a dummy allocation at init time.
 
 ## _HEAP structure definition
 
-The `Heap64` struct in `crates/libmwemu/src/windows/structures/heap64.rs`
+The `Heap64` struct in `crates/mwemu-core/src/windows/structures/heap64.rs`
 models the fields documented above. It follows the same load/save pattern
 as PEB64, TEB64 etc — every field is read/written individually through
 `Mem64` accessors (safe Rust, no raw pointer arithmetic).

@@ -10,7 +10,7 @@ use crate::{emu32, emu64};
 use rs_header::pe::export_index::{ExportIndexData, build_export_index};
 use rs_header::pe::shared::ImageSectionHeader;
 
-use crate::api::windows::export_index::{
+use crate::windows::export_index::{
     ExportIndexRegistry, IndexedExport, MAX_FORWARDER_DEPTH, ModuleExportIndex,
 };
 
@@ -116,7 +116,7 @@ fn parse_and_register(
     size: u32,
 ) {
     let parsed = build_export_index(raw, sections, va, size).expect("parse");
-    let normalized = crate::api::windows::export_index::normalize_module_name(module);
+    let normalized = crate::windows::export_index::normalize_module_name(module);
     let index = ModuleExportIndex::from_parsed(module.to_string(), normalized, base, &parsed);
     reg.register(index);
 }
