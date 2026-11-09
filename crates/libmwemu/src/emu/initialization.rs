@@ -495,7 +495,7 @@ impl Emu {
                 name.as_str(),
                 base,
                 arena_size as u64,
-                if opts == 0x40000 {
+                if opts & 0x40000 != 0 {
                     Permission::READ_WRITE_EXECUTE
                 } else {
                     Permission::READ_WRITE
@@ -516,17 +516,33 @@ impl Emu {
         if arena_idx == 0 || arena_idx >= self.heap_arenas.len() {
             return;
         }
+        let guarded: Vec<_> = self.kernel.as_ref().map_or_else(Vec::new, |kernel| {
+            kernel
+                .heap
+                .chunks()
+                .iter()
+                .filter(|chunk| chunk.heap_owner == Some(arena_idx) && !chunk.is_freed())
+                .map(|chunk| chunk.addr)
+                .collect()
+        });
+        for address in guarded {
+            self.kernel_free(address, "HeapDestroy");
+        }
         let name = format!(".heap_{}", arena_idx);
         if self.maps.exists_mapname(&name) {
             self.maps.free(&name);
         }
+        self.heap_arenas[arena_idx].clear();
     }
 
     pub fn heap_arena_mut(&mut self, idx: usize) -> Option<&mut O1Heap> {
         if idx == 0 {
             Some(self.heap_mut())
         } else {
-            self.heap_arenas.get_mut(idx).map(|b| b.as_mut())
+            self.heap_arenas
+                .get_mut(idx)
+                .filter(|arena| self.maps.is_mapped(arena.base()))
+                .map(|b| b.as_mut())
         }
     }
 

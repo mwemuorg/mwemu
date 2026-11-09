@@ -24,7 +24,7 @@ pub fn WriteFile(emu: &mut emu::Emu) {
 
     if is_std && size > 0 && size < 4096 {
         let bytes = emu.maps.read_bytes(buff, size as usize);
-        let text = String::from_utf8_lossy(bytes);
+        let text = String::from_utf8_lossy(&bytes);
         let stream = match file_hndl {
             0xfffffffffffffff6 => "stdin",
             0xfffffffffffffff5 => "stdout",

@@ -13,7 +13,7 @@ pub(super) fn BCryptHashData(emu: &mut emu::Emu) {
     let len = cb_input.min(0x100_0000);
     if pb_input != 0 && len > 0 {
         let data = emu.maps.read_bytes(pb_input, len);
-        crypto_state::hash_data(h_hash, data);
+        crypto_state::hash_data(h_hash, &data);
     }
 
     log_red!(

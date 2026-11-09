@@ -497,7 +497,8 @@ fn test_crypto_genkey_encrypt_decrypt_64() {
 
     let encrypted = emu.maps.read_bytes(data_addr, plaintext.len());
     assert_ne!(
-        encrypted, plaintext,
+        encrypted.as_ref(),
+        plaintext,
         "encrypted data should differ from plaintext"
     );
 
@@ -512,7 +513,8 @@ fn test_crypto_genkey_encrypt_decrypt_64() {
 
     let decrypted = emu.maps.read_bytes(data_addr, plaintext.len());
     assert_eq!(
-        decrypted, plaintext,
+        decrypted.as_ref(),
+        plaintext,
         "decrypted data should match original plaintext"
     );
 }

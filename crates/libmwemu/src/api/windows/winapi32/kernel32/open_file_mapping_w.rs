@@ -1,9 +1,6 @@
-use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::emu::Emu;
+use crate::winapi::common::sections;
 
-pub fn OpenFileMappingW(emu: &mut emu::Emu) {
-    log_red!(emu, "kernel32!OpenFileMappingW");
-    emu.regs_mut().rax = helper::handler_create("OpenFileMappingW");
-    stdcall_ret(emu, 1);
+pub fn OpenFileMappingW(emu: &mut Emu) {
+    sections::open_file_mapping(emu, true);
 }

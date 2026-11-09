@@ -122,14 +122,11 @@ fn test_virtual_alloc() {
 fn test_heap_alloc_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
     // HeapAlloc(hHeap, dwFlags, dwBytes) via the x64 calling convention.
     // Small allocation → managed heap path (< 0x8000).
-    let p1 = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::HeapAlloc,
-        &[0x1234, 0x8, 0x100],
-    );
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0x8, 0x100]);
     assert!(p1 != 0, "HeapAlloc(0x100) returned NULL");
     assert!(
         emu.maps.is_mapped(p1),
@@ -139,16 +136,12 @@ fn test_heap_alloc_64() {
     assert_eq!(emu.maps.read_qword(p1).unwrap(), 0xdead_beef_cafe_babe);
 
     // Second small allocation must not overlap the first.
-    let p2 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[0x1234, 0, 0x100]);
+    let p2 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x100]);
     assert!(p2 != 0, "second HeapAlloc returned NULL");
     assert!(p2 != p1, "two allocations returned the same pointer");
 
     // Large allocation → dedicated map path (>= 0x8000).
-    let big = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x20000],
-    );
+    let big = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x20000]);
     assert!(big != 0, "large HeapAlloc returned NULL");
     assert!(emu.maps.is_mapped(big), "large HeapAlloc not mapped");
     emu.maps.write_dword(big + 0x1fff0, 0x11223344);
@@ -159,8 +152,9 @@ fn test_heap_alloc_64() {
 fn test_heap_realloc_small_to_small_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[0x1234, 0, 0x100]);
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x100]);
     assert!(p1 != 0);
     emu.maps.write_qword(p1, 0xdead_beef_cafe_babe);
 
@@ -168,7 +162,7 @@ fn test_heap_realloc_small_to_small_64() {
     let p2 = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0, p1, 0x400],
+        &[heap, 0, p1, 0x400],
     );
     assert!(p2 != 0, "HeapReAlloc returned NULL");
     assert_eq!(
@@ -182,8 +176,9 @@ fn test_heap_realloc_small_to_small_64() {
 fn test_heap_realloc_small_to_large_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[0x1234, 0, 0x100]);
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x100]);
     assert!(p1 != 0);
     emu.maps.write_qword(p1, 0x1122_3344_5566_7788);
 
@@ -191,7 +186,7 @@ fn test_heap_realloc_small_to_large_64() {
     let p2 = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0, p1, 0x20000],
+        &[heap, 0, p1, 0x20000],
     );
     assert!(p2 != 0);
     assert_eq!(emu.maps.read_qword(p2).unwrap(), 0x1122_3344_5566_7788);
@@ -201,19 +196,16 @@ fn test_heap_realloc_small_to_large_64() {
 fn test_heap_realloc_large_to_large_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let p1 = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x20000],
-    );
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x20000]);
     assert!(p1 != 0);
     emu.maps.write_dword(p1 + 0x100, 0xaabbccdd);
 
     let p2 = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0, p1, 0x30000],
+        &[heap, 0, p1, 0x30000],
     );
     assert!(p2 != 0);
     assert_eq!(emu.maps.read_dword(p2 + 0x100).unwrap(), 0xaabbccdd);
@@ -223,12 +215,9 @@ fn test_heap_realloc_large_to_large_64() {
 fn test_heap_realloc_shrink_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let p1 = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x20000],
-    );
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x20000]);
     assert!(p1 != 0);
     emu.maps.write_qword(p1, 0xfeed_face_dead_beef);
     emu.maps.write_qword(p1 + 0x10000, 0x0011_2233_4455_6677);
@@ -236,7 +225,7 @@ fn test_heap_realloc_shrink_64() {
     let p2 = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0, p1, 0x200],
+        &[heap, 0, p1, 0x200],
     );
     assert!(p2 != 0);
     assert_eq!(emu.maps.read_qword(p2).unwrap(), 0xfeed_face_dead_beef);
@@ -246,8 +235,9 @@ fn test_heap_realloc_shrink_64() {
 fn test_heap_realloc_zero_memory_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[0x1234, 0, 0x100]);
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x100]);
     assert!(p1 != 0);
     for i in 0..0x100 {
         emu.maps.write_byte(p1 + i, 0xab);
@@ -256,7 +246,7 @@ fn test_heap_realloc_zero_memory_64() {
     let p2 = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0x8, p1, 0x20000],
+        &[heap, 0x8, p1, 0x20000],
     );
     assert!(p2 != 0);
     assert_eq!(emu.maps.read_byte(p2).unwrap(), 0xab);
@@ -270,12 +260,13 @@ fn test_heap_realloc_zero_memory_64() {
 fn test_heap_realloc_invalid_pointer_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
     // 0xdead is unmapped.
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0, 0xdead, 0x100],
+        &[heap, 0, 0xdead, 0x100],
     );
     assert_eq!(ret, 0);
 }
@@ -284,18 +275,15 @@ fn test_heap_realloc_invalid_pointer_64() {
 fn test_heap_realloc_in_place_shrink_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let p1 = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::HeapAlloc,
-        &[0x1234, 0, 0x20000],
-    );
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x20000]);
     assert!(p1 != 0);
 
     let p2 = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0x10, p1, 0x100],
+        &[heap, 0x10, p1, 0x100],
     );
     assert_eq!(p1, p2, "in-place shrink should return the same pointer");
 }
@@ -304,14 +292,17 @@ fn test_heap_realloc_in_place_shrink_64() {
 fn test_heap_realloc_in_place_grow_fails_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[0x1234, 0, 0x100]);
+    let p1 = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x100]);
     assert!(p1 != 0);
+    let _blocker =
+        helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x100]);
 
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0x10, p1, 0x20000],
+        &[heap, 0x10, p1, 0x20000],
     );
     assert_eq!(ret, 0, "in-place grow should fail");
 }
@@ -320,11 +311,12 @@ fn test_heap_realloc_in_place_grow_fails_64() {
 fn test_heap_realloc_zero_size_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0, 0x1000, 0],
+        &[heap, 0, 0x1000, 0],
     );
     assert_eq!(ret, 0);
 }
@@ -333,11 +325,12 @@ fn test_heap_realloc_zero_size_64() {
 fn test_heap_realloc_null_ptr_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::HeapReAlloc,
-        &[0x1234, 0, 0, 0x100],
+        &[heap, 0, 0, 0x100],
     );
     assert_eq!(ret, 0);
 }
@@ -346,12 +339,13 @@ fn test_heap_realloc_null_ptr_64() {
 fn test_ntdll_rtl_realloc_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
     // RtlAllocateHeap always bumps the requested size up to 1024.
     let p1 = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::RtlAllocateHeap,
-        &[0x1234, 0, 0x100],
+        &[heap, 0, 0x100],
     );
     assert!(p1 != 0, "RtlAllocateHeap returned NULL");
     emu.maps.write_qword(p1, 0x9988_7766_5544_3322);
@@ -359,7 +353,7 @@ fn test_ntdll_rtl_realloc_64() {
     let p2 = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::RtlReAllocateHeap,
-        &[0x1234, 0, p1, 0x400],
+        &[heap, 0, p1, 0x400],
     );
     assert!(p2 != 0, "RtlReAllocateHeap returned NULL");
     assert_eq!(emu.maps.read_qword(p2).unwrap(), 0x9988_7766_5544_3322);
@@ -368,7 +362,7 @@ fn test_ntdll_rtl_realloc_64() {
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::RtlReAllocateHeap,
-        &[0x1234, 0, 0xdead, 0x100],
+        &[heap, 0, 0xdead, 0x100],
     );
     assert_eq!(ret, 0);
 }
@@ -744,11 +738,12 @@ fn test_global_alloc_free_64() {
 fn test_heap_size_64() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let ptr = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[0x1234, 0, 0x100]);
+    let ptr = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x100]);
     assert_ne!(ptr, 0);
 
-    let sz = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[0x1234, 0, ptr]);
+    let sz = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[heap, 0, ptr]);
     assert!(
         sz >= 0x100,
         "HeapSize returned {:#x}, expected >= 0x100",
@@ -1042,13 +1037,15 @@ fn test_nt_free_virtual_memory_64() {
     emu.maps
         .create_map("ntfree_io", base_ptr, 0x1000, Permission::READ_WRITE);
     emu.maps.write_qword(base_ptr, base);
+    emu.maps.write_qword(base_ptr + 8, 0);
 
     let status = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::NtFreeVirtualMemory,
-        &[0xFFFFFFFFFFFFFFFF, base_ptr, 0, 0x8000],
+        &[0xFFFFFFFFFFFFFFFF, base_ptr, base_ptr + 8, 0x8000],
     );
     assert_eq!(status, 0, "NtFreeVirtualMemory must return STATUS_SUCCESS");
+    assert!(!emu.maps.is_mapped(base));
 }
 
 // ── ntdll: RtlInitUnicodeString ──

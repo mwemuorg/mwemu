@@ -1,50 +1,6 @@
-use crate::api::windows::common::heap as heap_engine;
-use crate::emu;
-use crate::kernel::heap::Region;
+use crate::emu::Emu;
+use crate::winapi::common::heap;
 
-pub fn HeapAlloc(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let mut size = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-
-    if size < emu.cfg.heap_alloc_min_size {
-        size = emu.cfg.heap_alloc_min_size;
-    }
-
-    let zeroed = flags & 0x00000008 != 0; // HEAP_ZERO_MEMORY
-    let result = if emu.cfg.memory_guard {
-        let addr = emu.kernel_alloc(Region::Slab, size, "heap", "HeapAlloc", zeroed);
-        if addr != 0 { Some(addr) } else { None }
-    } else {
-        heap_engine::heap_allocate(emu, hndl as u64, size)
-    };
-
-    match result {
-        Some(heap_addr) => {
-            emu.regs_mut().rax = heap_addr;
-            log_red!(
-                emu,
-                "kernel32!HeapAlloc eip: 0x{:x} flags: 0x{:x} size: {} =0x{:x}",
-                emu.regs().get_eip(),
-                flags,
-                size,
-                emu.regs().rax as u32
-            );
-        }
-        None => {
-            log_red!(
-                emu,
-                "kernel32!HeapAlloc failed (hndl=0x{:x} flags=0x{:x} size={})",
-                hndl,
-                flags,
-                size
-            );
-            heap_engine::fail_allocation(emu, flags as u64);
-            emu.regs_mut().rax = 0;
-        }
-    }
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+pub fn HeapAlloc(emu: &mut Emu) {
+    heap::alloc_api(emu);
 }

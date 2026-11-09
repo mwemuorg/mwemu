@@ -104,7 +104,7 @@ pub(crate) fn crypt_string_to_binary_a(
 ) -> u64 {
     let input_str = if num_chars > 0 {
         let bytes = emu.maps.read_bytes(string_ptr, num_chars as usize);
-        String::from_utf8_lossy(bytes).into_owned()
+        String::from_utf8_lossy(&bytes).into_owned()
     } else {
         emu.maps.read_string(string_ptr)
     };
@@ -203,17 +203,17 @@ pub(crate) fn crypt_binary_to_string_a(
     let data = emu.maps.read_bytes(data_ptr, data_len as usize);
 
     let encoded = match flags & 0x0000_000f {
-        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_encode(data),
+        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_encode(&data),
         CRYPT_STRING_BASE64HEADER => {
-            let b64 = base64_encode(data);
+            let b64 = base64_encode(&data);
             format!(
                 "-----BEGIN CERTIFICATE-----\r\n{}\r\n-----END CERTIFICATE-----\r\n",
                 b64
             )
         }
-        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => String::from_utf8_lossy(data).into_owned(),
-        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => hex_encode(data),
-        _ => base64_encode(data),
+        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => String::from_utf8_lossy(&data).into_owned(),
+        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => hex_encode(&data),
+        _ => base64_encode(&data),
     };
 
     let needed = encoded.len() as u32 + 1;
@@ -264,17 +264,17 @@ pub(crate) fn crypt_binary_to_string_w(
     let data = emu.maps.read_bytes(data_ptr, data_len as usize);
 
     let encoded = match flags & 0x0000_000f {
-        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_encode(data),
+        CRYPT_STRING_BASE64 | CRYPT_STRING_BASE64_ANY => base64_encode(&data),
         CRYPT_STRING_BASE64HEADER => {
-            let b64 = base64_encode(data);
+            let b64 = base64_encode(&data);
             format!(
                 "-----BEGIN CERTIFICATE-----\r\n{}\r\n-----END CERTIFICATE-----\r\n",
                 b64
             )
         }
-        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => String::from_utf8_lossy(data).into_owned(),
-        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => hex_encode(data),
-        _ => base64_encode(data),
+        CRYPT_STRING_BINARY | CRYPT_STRING_ANY => String::from_utf8_lossy(&data).into_owned(),
+        CRYPT_STRING_HEX | CRYPT_STRING_HEX_ANY | CRYPT_STRING_HEXRAW => hex_encode(&data),
+        _ => base64_encode(&data),
     };
 
     let needed = encoded.len() as u32 + 1;

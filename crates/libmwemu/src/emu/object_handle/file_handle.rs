@@ -263,6 +263,37 @@ impl FileHandle {
     }
 
     // Example methods that might be called by emulated WinAPI functions
+    /// Read backing bytes without changing the guest file position.
+    pub fn mapping_bytes(&self, size: usize) -> io::Result<Vec<u8>> {
+        if !self.is_valid || self.is_dir {
+            return Err(io::Error::new(
+                ErrorKind::InvalidInput,
+                "invalid file handle",
+            ));
+        }
+        let mut file = self.open_file()?.try_clone()?;
+        let position = self.file_position;
+        let mut bytes = Vec::new();
+        bytes.try_reserve_exact(size).map_err(io::Error::other)?;
+        bytes.resize(size, 0);
+        file.seek(SeekFrom::Start(0))?;
+        let result: io::Result<()> = (|| {
+            let mut read = 0;
+            while read < size {
+                let n = file.read(&mut bytes[read..])?;
+                if n == 0 {
+                    break;
+                }
+                read += n;
+            }
+            Ok(())
+        })();
+        let restore = file.seek(SeekFrom::Start(position));
+        result?;
+        restore?;
+        Ok(bytes)
+    }
+
     pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, io::Error> {
         if !self.is_valid {
             return Err(io::Error::new(
@@ -370,16 +401,19 @@ impl FileHandle {
         if let Some(time) = written {
             times = times.set_modified(time);
         }
+
         #[cfg(target_os = "macos")]
         if let Some(time) = created {
             use std::os::macos::fs::FileTimesExt;
             times = times.set_created(time);
         }
+
         #[cfg(windows)]
         if let Some(time) = created {
             use std::os::windows::fs::FileTimesExt;
             times = times.set_created(time);
         }
+
         #[cfg(not(any(target_os = "macos", windows)))]
         let _ = created;
         self.open_file()?.set_times(times)
@@ -389,15 +423,19 @@ impl FileHandle {
     pub fn is_valid(&self) -> bool {
         self.is_valid
     }
+
     pub fn is_dir(&self) -> bool {
         self.is_dir
     }
+
     pub fn get_path(&self) -> &Path {
         &self.path
     }
+
     pub fn get_position(&self) -> u64 {
         self.file_position
     }
+
     pub fn is_eof(&self) -> bool {
         self.is_eof
     }

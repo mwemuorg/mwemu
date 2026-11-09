@@ -1,21 +1,6 @@
-use crate::api::windows::common::heap as heap_engine;
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::heap;
 
-pub fn HeapFree(emu: &mut emu::Emu) {
-    let heap = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let mem = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-
-    log_red!(emu, "kernel32!HeapFree mem: 0x{:x}", mem);
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-
-    if emu.cfg.memory_guard {
-        emu.kernel_free(mem as u64, "HeapFree");
-    } else {
-        heap_engine::heap_free(emu, heap as u64, mem as u64);
-    }
-    emu.regs_mut().rax = 1;
+pub fn HeapFree(emu: &mut Emu) {
+    heap::free_api(emu);
 }

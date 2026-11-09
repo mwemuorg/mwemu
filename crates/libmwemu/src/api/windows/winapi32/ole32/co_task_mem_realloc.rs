@@ -1,11 +1,6 @@
-use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::emu::Emu;
+use crate::winapi::common::crt;
 
-pub fn CoTaskMemRealloc(emu: &mut emu::Emu) {
-    let _a0 = arg(emu, 0);
-    let _a1 = arg(emu, 1);
-    log_red!(emu, "ole32!CoTaskMemRealloc a0:0x{:x} a1:0x{:x}", _a0, _a1);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+pub fn CoTaskMemRealloc(emu: &mut Emu) {
+    crt::task_realloc(emu);
 }

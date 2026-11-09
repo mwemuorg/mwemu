@@ -1,24 +1,6 @@
-use crate::api::windows::common::heap as heap_engine;
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::heap;
 
-pub fn HeapSize(emu: &mut emu::Emu) {
-    let _heap = emu.regs().rcx;
-    let _flags = emu.regs().rdx;
-    let mem = emu.regs().r8;
-
-    match heap_engine::heap_allocation_size(emu, mem) {
-        Some(size) => {
-            log_red!(emu, "kernel32!HeapSize mem: 0x{:x} ={}", mem, size);
-            let out_ptr = emu.regs().r8;
-            if out_ptr != 0 {
-                emu.maps.write_qword(out_ptr, 0);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = size as u64;
-        }
-        None => {
-            log_red!(emu, "kernel32!HeapSize mem: 0x{:x} not found", mem);
-            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
-        }
-    }
+pub fn HeapSize(emu: &mut Emu) {
+    heap::size_api(emu);
 }

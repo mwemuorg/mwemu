@@ -1,18 +1,6 @@
-use crate::emu;
-use crate::winapi::helper;
-pub fn UnmapViewOfFileEx(emu: &mut emu::Emu) {
-    let param1 = emu.regs().rcx;
-    let param2 = emu.regs().rdx;
-    log_red!(
-        emu,
-        "kernel32!UnmapViewOfFileEx param1:0x{:x} param2:0x{:x}",
-        param1,
-        param2
-    );
-    let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        helper::handler_close(h);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+use crate::emu::Emu;
+use crate::winapi::common::sections;
+
+pub fn UnmapViewOfFileEx(emu: &mut Emu) {
+    sections::unmap_view(emu, true);
 }

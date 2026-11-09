@@ -1,16 +1,18 @@
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{self, Write};
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use byteorder::{LittleEndian, WriteBytesExt};
+use byteorder::{LittleEndian as LE, WriteBytesExt};
 use minidump::format as md;
 
 use super::context::{ThreadContextInput, build_thread_context};
 use crate::arch::{Arch, OperatingSystem};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::{MemoryInfo, MemoryKind};
 use crate::threading::context::ArchThreadState;
 
 const MINIDUMP_HEADER_SIZE: u32 = 32;
@@ -24,11 +26,13 @@ const MINIDUMP_FLAGS_FULL_MEMORY: u64 = 0x802;
 
 type MemoryListResult = (Vec<u8>, Vec<u8>, BTreeMap<u64, MemoryLocation>);
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct MemoryRegion<'a> {
+    allocation_base: u64,
+    info: MemoryInfo,
     name: &'a str,
     base: u64,
-    bytes: &'a [u8],
+    bytes: Cow<'a, [u8]>,
     permission: Permission,
 }
 
@@ -145,29 +149,39 @@ fn align4(value: u32) -> u32 {
 }
 
 fn collect_memory_regions(emu: &Emu) -> Vec<MemoryRegion<'_>> {
-    emu.maps
-        .maps
-        .iter()
-        .filter_map(|(base, slab_key)| {
-            let mem = emu.maps.mem_slab.get(*slab_key)?;
-            if mem.size() == 0 {
-                return None;
+    let mut regions = Vec::new();
+    for (base, key) in &emu.maps.maps {
+        let Some(mem) = emu.maps.mem_slab.get(*key) else {
+            continue;
+        };
+        let mut cursor = *base;
+        while cursor < mem.get_bottom() {
+            let info = emu.maps.query_memory(cursor);
+            let end = (info.base + info.size).min(mem.get_bottom());
+            for (start, len, permission) in mem.permission_runs(cursor, end - cursor) {
+                let offset = (start - base) as usize;
+                regions.push(MemoryRegion {
+                    allocation_base: info.allocation_base,
+                    info,
+                    name: mem.get_name(),
+                    base: start,
+                    bytes: mem.backing_bytes(offset, len as usize),
+                    permission,
+                });
             }
-
-            Some(MemoryRegion {
-                name: mem.get_name(),
-                base: *base,
-                bytes: mem.get_bytes(),
-                permission: mem.permission(),
-            })
-        })
-        .collect()
+            cursor = end;
+        }
+    }
+    regions
 }
 
 fn collect_modules(emu: &Emu, regions: &[MemoryRegion<'_>]) -> Vec<ModuleInfo> {
     let mut modules = Vec::new();
 
     for region in regions {
+        if region.base != region.allocation_base {
+            continue;
+        }
         let Some(prefix) = region.name.strip_suffix(".pe") else {
             continue;
         };
@@ -258,7 +272,7 @@ fn build_memory_list_stream(
     let mut trailing_data = Vec::new();
     let mut locations = BTreeMap::new();
 
-    output.write_u32::<LittleEndian>(regions.len() as u32)?;
+    output.write_u32::<LE>(regions.len() as u32)?;
 
     for region in regions {
         let data_size = region.bytes.len().min(u32::MAX as usize) as u32;
@@ -270,9 +284,9 @@ fn build_memory_list_stream(
             },
         );
 
-        output.write_u64::<LittleEndian>(region.base)?;
-        output.write_u32::<LittleEndian>(data_size)?;
-        output.write_u32::<LittleEndian>(next_data_rva)?;
+        output.write_u64::<LE>(region.base)?;
+        output.write_u32::<LE>(data_size)?;
+        output.write_u32::<LE>(next_data_rva)?;
         next_data_rva += data_size;
     }
 
@@ -289,25 +303,41 @@ fn build_memory_info_list_stream(
     _base_rva: u32,
 ) -> io::Result<Vec<u8>> {
     let mut output = Vec::new();
-    output.write_u32::<LittleEndian>(16)?;
-    output.write_u32::<LittleEndian>(MINIDUMP_MEMORY_INFO_SIZE)?;
-    output.write_u64::<LittleEndian>(regions.len() as u64)?;
+    output.write_u32::<LE>(16)?;
+    output.write_u32::<LE>(MINIDUMP_MEMORY_INFO_SIZE)?;
+    output.write_u64::<LE>(regions.len() as u64)?;
 
     for region in regions {
         let (allocation_base, memory_type) = module_for_region(region, modules)
             .map(|module| (module.base, md::MemoryType::MEM_IMAGE.bits()))
-            .unwrap_or((region.base, md::MemoryType::MEM_PRIVATE.bits()));
-        let protection = permission_to_memory_protection(region.permission);
+            .unwrap_or((
+                region.allocation_base,
+                match region.info.kind {
+                    MemoryKind::Private => md::MemoryType::MEM_PRIVATE.bits(),
+                    MemoryKind::Mapped => md::MemoryType::MEM_MAPPED.bits(),
+                    MemoryKind::Image => md::MemoryType::MEM_IMAGE.bits(),
+                },
+            ));
+        let committed = region.info.state.is_some_and(|state| state.committed);
+        let protection = region.info.state.map_or_else(
+            || permission_to_memory_protection(region.permission),
+            |state| state.protection,
+        );
+        let state = if committed {
+            md::MemoryState::MEM_COMMIT
+        } else {
+            md::MemoryState::MEM_RESERVE
+        };
 
-        output.write_u64::<LittleEndian>(region.base)?;
-        output.write_u64::<LittleEndian>(allocation_base)?;
-        output.write_u32::<LittleEndian>(protection)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u64::<LittleEndian>(region.bytes.len() as u64)?;
-        output.write_u32::<LittleEndian>(md::MemoryState::MEM_COMMIT.bits())?;
-        output.write_u32::<LittleEndian>(protection)?;
-        output.write_u32::<LittleEndian>(memory_type)?;
-        output.write_u32::<LittleEndian>(0)?;
+        output.write_u64::<LE>(region.base)?;
+        output.write_u64::<LE>(allocation_base)?;
+        output.write_u32::<LE>(region.info.allocation_protection)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u64::<LE>(region.bytes.len() as u64)?;
+        output.write_u32::<LE>(state.bits())?;
+        output.write_u32::<LE>(protection)?;
+        output.write_u32::<LE>(memory_type)?;
+        output.write_u32::<LE>(0)?;
     }
 
     Ok(output)
@@ -340,18 +370,18 @@ fn build_system_info_stream(emu: &Emu, _base_rva: u32) -> io::Result<Vec<u8>> {
         (0, 0, 0, 0)
     };
 
-    output.write_u16::<LittleEndian>(processor_architecture)?;
-    output.write_u16::<LittleEndian>(6)?;
-    output.write_u16::<LittleEndian>(0)?;
+    output.write_u16::<LE>(processor_architecture)?;
+    output.write_u16::<LE>(6)?;
+    output.write_u16::<LE>(0)?;
     output.write_u8(1)?;
     output.write_u8(product_type)?;
-    output.write_u32::<LittleEndian>(major_version)?;
-    output.write_u32::<LittleEndian>(minor_version)?;
-    output.write_u32::<LittleEndian>(build_number)?;
-    output.write_u32::<LittleEndian>(platform_id)?;
-    output.write_u32::<LittleEndian>(0)?;
-    output.write_u16::<LittleEndian>(0)?;
-    output.write_u16::<LittleEndian>(0)?;
+    output.write_u32::<LE>(major_version)?;
+    output.write_u32::<LE>(minor_version)?;
+    output.write_u32::<LE>(build_number)?;
+    output.write_u32::<LE>(platform_id)?;
+    output.write_u32::<LE>(0)?;
+    output.write_u16::<LE>(0)?;
+    output.write_u16::<LE>(0)?;
     output.extend_from_slice(&[0; 24]);
     Ok(output)
 }
@@ -365,27 +395,27 @@ fn build_module_list_stream(
     let mut output = Vec::new();
     let mut trailing_data = Vec::new();
 
-    output.write_u32::<LittleEndian>(modules.len() as u32)?;
+    output.write_u32::<LE>(modules.len() as u32)?;
 
     for module in modules {
         let name_blob = encode_minidump_string(&module.display_name)?;
         let name_rva = next_name_rva;
         next_name_rva += name_blob.len() as u32;
 
-        output.write_u64::<LittleEndian>(module.base)?;
-        output.write_u32::<LittleEndian>(module.size_of_image)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(name_rva)?;
+        output.write_u64::<LE>(module.base)?;
+        output.write_u32::<LE>(module.size_of_image)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(name_rva)?;
         write_fixed_file_info(&mut output)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
 
         trailing_data.extend_from_slice(&name_blob);
     }
@@ -450,19 +480,19 @@ fn build_thread_list_stream(
     }
 
     let mut output = Vec::new();
-    output.write_u32::<LittleEndian>(thread_count)?;
+    output.write_u32::<LE>(thread_count)?;
 
     for (thread, teb, stack_base, stack_location, context_rva, context_size) in entries {
-        output.write_u32::<LittleEndian>(thread.id.min(u32::MAX as u64) as u32)?;
-        output.write_u32::<LittleEndian>(u32::from(thread.suspended))?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u32::<LittleEndian>(0)?;
-        output.write_u64::<LittleEndian>(teb)?;
-        output.write_u64::<LittleEndian>(stack_base)?;
-        output.write_u32::<LittleEndian>(stack_location.data_size)?;
-        output.write_u32::<LittleEndian>(stack_location.rva)?;
-        output.write_u32::<LittleEndian>(context_size)?;
-        output.write_u32::<LittleEndian>(context_rva)?;
+        output.write_u32::<LE>(thread.id.min(u32::MAX as u64) as u32)?;
+        output.write_u32::<LE>(u32::from(thread.suspended))?;
+        output.write_u32::<LE>(0)?;
+        output.write_u32::<LE>(0)?;
+        output.write_u64::<LE>(teb)?;
+        output.write_u64::<LE>(stack_base)?;
+        output.write_u32::<LE>(stack_location.data_size)?;
+        output.write_u32::<LE>(stack_location.rva)?;
+        output.write_u32::<LE>(context_size)?;
+        output.write_u32::<LE>(context_rva)?;
     }
 
     Ok((output, trailing_data))
@@ -518,18 +548,18 @@ fn encode_minidump_string(value: &str) -> io::Result<Vec<u8>> {
         .checked_mul(2)
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "string too large"))?;
     let mut output = Vec::with_capacity(4 + byte_len);
-    output.write_u32::<LittleEndian>(byte_len as u32)?;
+    output.write_u32::<LE>(byte_len as u32)?;
     for ch in utf16 {
-        output.write_u16::<LittleEndian>(ch)?;
+        output.write_u16::<LE>(ch)?;
     }
     Ok(output)
 }
 
 fn write_fixed_file_info(output: &mut Vec<u8>) -> io::Result<()> {
-    output.write_u32::<LittleEndian>(md::VS_FFI_SIGNATURE)?;
-    output.write_u32::<LittleEndian>(md::VS_FFI_STRUCVERSION)?;
+    output.write_u32::<LE>(md::VS_FFI_SIGNATURE)?;
+    output.write_u32::<LE>(md::VS_FFI_STRUCVERSION)?;
     for _ in 0..11 {
-        output.write_u32::<LittleEndian>(0)?;
+        output.write_u32::<LE>(0)?;
     }
     Ok(())
 }
@@ -551,20 +581,20 @@ fn write_header(output: &mut Vec<u8>, stream_count: u32) -> io::Result<()> {
         .as_secs()
         .min(u32::MAX as u64) as u32;
 
-    output.write_u32::<LittleEndian>(md::MINIDUMP_SIGNATURE)?;
-    output.write_u32::<LittleEndian>(md::MINIDUMP_VERSION)?;
-    output.write_u32::<LittleEndian>(stream_count)?;
-    output.write_u32::<LittleEndian>(MINIDUMP_HEADER_SIZE)?;
-    output.write_u32::<LittleEndian>(0)?;
-    output.write_u32::<LittleEndian>(now)?;
-    output.write_u64::<LittleEndian>(MINIDUMP_FLAGS_FULL_MEMORY)?;
+    output.write_u32::<LE>(md::MINIDUMP_SIGNATURE)?;
+    output.write_u32::<LE>(md::MINIDUMP_VERSION)?;
+    output.write_u32::<LE>(stream_count)?;
+    output.write_u32::<LE>(MINIDUMP_HEADER_SIZE)?;
+    output.write_u32::<LE>(0)?;
+    output.write_u32::<LE>(now)?;
+    output.write_u64::<LE>(MINIDUMP_FLAGS_FULL_MEMORY)?;
     Ok(())
 }
 
 fn write_directory(output: &mut Vec<u8>, directory: &md::MINIDUMP_DIRECTORY) -> io::Result<()> {
-    output.write_u32::<LittleEndian>(directory.stream_type)?;
-    output.write_u32::<LittleEndian>(directory.location.data_size)?;
-    output.write_u32::<LittleEndian>(directory.location.rva)?;
+    output.write_u32::<LE>(directory.stream_type)?;
+    output.write_u32::<LE>(directory.location.data_size)?;
+    output.write_u32::<LE>(directory.location.rva)?;
     Ok(())
 }
 

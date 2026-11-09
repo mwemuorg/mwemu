@@ -1,3 +1,4 @@
+use crate::winapi::common::sections;
 use std::fs::File;
 use std::io::{Read as _, Seek as _, SeekFrom};
 
@@ -476,8 +477,11 @@ fn NtClose(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
 
     let uri = helper::handler_get_uri(hndl);
-
     log_red!(emu, "ntdll!NtClose hndl: 0x{:x} uri: {}", hndl, uri);
+    if sections::close(emu, hndl) {
+        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        return;
+    }
 
     if uri.is_empty() {
         emu.regs_mut().rax = constants::STATUS_INVALID_HANDLE;

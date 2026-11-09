@@ -69,7 +69,10 @@ impl Emu {
         };
 
         // block
-        let block = code.read_from(rip).to_vec(); // reduce code block for more speed
+        let block = code.read_code(rip, constants::BLOCK_LEN).to_vec();
+        if block.is_empty() {
+            return false;
+        }
 
         // decoder
         let mut decoder;

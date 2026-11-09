@@ -1,15 +1,20 @@
-use crate::api::windows::common::ntdll;
+use crate::api::windows::common::memory;
+use crate::api::windows::common::memory::Call;
 use crate::emu;
-use crate::emu::object_handle::SectionHandle;
-use crate::maps::mem64::Permission;
-use crate::winapi::helper;
+use crate::winapi::common::sections;
+use crate::winapi::common::{crt, memory_ops};
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants;
-use crate::windows::structures;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
+    if memory_ops::dispatch(api, emu) || crt::dispatch(api, emu) {
+        return true;
+    }
     match api {
+        "NtReadVirtualMemory" => memory::nt_process_memory(emu, Call::Api, false),
+        "NtWriteVirtualMemory" => memory::nt_process_memory(emu, Call::Api, true),
         "NtAllocateVirtualMemory" => NtAllocateVirtualMemory(emu),
+        "NtAllocateVirtualMemoryEx" => memory::nt_allocate(emu, Call::Api, true),
         "NtQueryVirtualMemory" => NtQueryVirtualMemory(emu),
         "RtlZeroMemory" => RtlZeroMemory(emu),
         "NtProtectVirtualMemory" => NtProtectVirtualMemory(emu),
@@ -33,149 +38,19 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn RtlZeroMemory(emu: &mut emu::Emu) {
-    let dest = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let length = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-
-    ntdll::rtl_zero_memory(emu, dest, length);
+    memory_ops::dispatch("RtlZeroMemory", emu);
 }
 
 fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
-    let addr_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let addr = emu.maps.read_dword(addr_ptr).unwrap_or(0) as u64;
-    let size = emu.maps.read_dword(size_ptr).unwrap_or(0) as u64;
-
-    let protection_offset = 20;
-    let protection_addr = emu.regs().rsp + protection_offset;
-    let protect_value = emu.maps.read_dword(protection_addr).unwrap_or(0);
-
-    let (can_read, can_write, can_execute) = ntdll::protect_to_rwx(protect_value);
-
-    let do_alloc: bool = if addr == 0 {
-        true
-    } else {
-        emu.maps.is_mapped(addr)
-    };
-
-    if size == 0 {
-        {
-            log::warn!("NtAllocateVirtualMemory mapping zero bytes.");
-            return;
-        }
-    }
-
-    let alloc_addr: u64 = if do_alloc {
-        match emu.maps.alloc(size) {
-            Some(a) => a,
-            None => {
-                log::warn!(
-                    "/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory "
-                );
-                return;
-            }
-        }
-    } else {
-        addr
-    };
-
-    log_red!(
-        emu,
-        "ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} alloc: 0x{:x}",
-        addr,
-        size,
-        alloc_addr
-    );
-
-    if emu
-        .maps
-        .create_map(
-            format!("valloc_{:x}", alloc_addr).as_str(),
-            alloc_addr,
-            size,
-            Permission::from_flags(can_read, can_write, can_execute),
-        )
-        .is_err()
-    {
-        log::error!(
-            "ntdll!NtAllocateVirtualMemory cannot create map at 0x{:x}",
-            alloc_addr
-        );
-        return;
-    }
-
-    if !emu.maps.write_dword(addr_ptr, alloc_addr as u32) {
-        {
-            log::warn!("NtAllocateVirtualMemory: cannot write on address pointer");
-            return;
-        }
-    }
-
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
-
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
+    memory::nt_allocate(emu, Call::Api, false);
 }
 
 fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let addr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-
-    log_red!(emu, "ntdll!NtQueryVirtualMemory addr: 0x{:x}", addr);
-
-    if handle != 0xffffffff {
-        log::trace!("\tusing handle of remote process {:x}", handle);
-
-        if !helper::handler_exist(handle) {
-            log::trace!("\nhandler doesnt exist.");
-        }
-    }
-
-    let out_meminfo_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-
-    if !emu.maps.is_mapped(addr) {
-        log::trace!(
-            "/!\\ ntdll!NtQueryVirtualMemory: querying non maped addr: 0x{:x}",
-            addr
-        );
-        for _ in 0..6 {
-            emu.stack_pop32(false);
-        }
-        emu.regs_mut().rax = constants::STATUS_INVALID_PARAMETER;
-        return;
-    }
-
-    let base = emu.maps.get_addr_base(addr).unwrap_or(0);
-
-    let mut mem_info = structures::MemoryBasicInformation::load(out_meminfo_ptr, &emu.maps);
-    mem_info.base_address = base as u32;
-    mem_info.allocation_base = base as u32;
-    mem_info.allocation_protect = constants::PAGE_EXECUTE | constants::PAGE_READWRITE;
-    mem_info.state = constants::MEM_COMMIT;
-    mem_info.typ = constants::MEM_PRIVATE;
-    mem_info.save(out_meminfo_ptr, &mut emu.maps);
-
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
-
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    memory::nt_query(emu, Call::Api);
 }
 
 fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
-    let sz = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let status = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let page_number = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let page = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let old_prot_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-
-    log_red!(emu, "ntdll!NtProtectVirtualMemory sz: {}", sz);
-
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
-
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    memory::nt_protect(emu, Call::Api);
 }
 
 fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
@@ -192,147 +67,37 @@ fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
 }
 
 fn memset(emu: &mut emu::Emu) {
-    let ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let byte = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let count = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-
-    ntdll::memset(emu, ptr, byte as u64, count as u64);
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-
-    emu.regs_mut().rax = ptr;
+    crt::fill(emu);
 }
 
 fn memcpy(emu: &mut emu::Emu) {
-    let dst_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let src_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let count = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as usize;
-
-    ntdll::memcpy(emu, dst_ptr, src_ptr, count);
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    crt::copy(emu);
 }
 
 fn NtFreeVirtualMemory(emu: &mut emu::Emu) {
-    let base_addr_ptr = arg(emu, 1) as u64;
-    let base_addr = emu.maps.read_dword(base_addr_ptr).unwrap_or(0) as u64;
-    log_red!(emu, "ntdll!NtFreeVirtualMemory base: 0x{:x}", base_addr);
-    if base_addr != 0 {
-        emu.maps.dealloc(base_addr);
-    }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
-    stdcall_ret(emu, 4);
+    memory::nt_free(emu, Call::Api);
 }
+
 fn NtCreateSection(emu: &mut emu::Emu) {
-    let section_handle_ptr = arg(emu, 0) as u64;
-    let max_size_ptr = arg(emu, 3) as u64;
-    let protection = arg(emu, 4);
-    let max_size = if max_size_ptr != 0 {
-        emu.maps.read_qword(max_size_ptr).unwrap_or(0x10000)
-    } else {
-        0x10000
-    };
-    log_red!(
-        emu,
-        "ntdll!NtCreateSection max_size: 0x{:x} prot: 0x{:x}",
-        max_size,
-        protection
-    );
-    let section = SectionHandle {
-        name: format!("section_{:x}", emu.pos),
-        max_size,
-        protection,
-        mapped_addr: None,
-        mapped_size: 0,
-    };
-    let key = emu.handle_management.insert_section_handle(section);
-    emu.maps.write_dword(section_handle_ptr, key as u32);
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
-    stdcall_ret(emu, 7);
+    sections::nt_create(emu, Call::Api);
 }
+
 fn NtMapViewOfSection(emu: &mut emu::Emu) {
-    let section_handle = arg(emu, 0);
-    let base_addr_ptr = arg(emu, 2) as u64;
-    let view_size_ptr = arg(emu, 6) as u64;
-    let view_size = emu.maps.read_dword(view_size_ptr).unwrap_or(0) as u64;
-    let alloc_size = if view_size == 0 { 0x10000 } else { view_size };
-    log_red!(
-        emu,
-        "ntdll!NtMapViewOfSection handle: {} view_size: 0x{:x}",
-        section_handle,
-        alloc_size
-    );
-    let mapped = emu.maps.alloc(alloc_size).and_then(|base| {
-        emu.maps
-            .create_map(
-                &format!("section_map_{:x}", emu.pos),
-                base,
-                alloc_size,
-                Permission::from_flags(true, true, false),
-            )
-            .ok()
-            .map(|_| base)
-    });
-    let Some(base) = mapped else {
-        log::warn!("ntdll!NtMapViewOfSection: cannot map the view");
-        emu.regs_mut().rax = constants::STATUS_NO_MEMORY;
-        stdcall_ret(emu, 10);
-        return;
-    };
-    emu.maps.write_dword(base_addr_ptr, base as u32);
-    if view_size_ptr != 0 {
-        emu.maps.write_dword(view_size_ptr, alloc_size as u32);
-    }
-    if let Some(sh) = emu.handle_management.get_mut_section_handle(section_handle) {
-        sh.mapped_addr = Some(base);
-        sh.mapped_size = alloc_size;
-    }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
-    stdcall_ret(emu, 10);
+    sections::nt_map(emu, Call::Api);
 }
+
 fn NtUnmapViewOfSection(emu: &mut emu::Emu) {
-    let base_addr = arg(emu, 1) as u64;
-    log_red!(emu, "ntdll!NtUnmapViewOfSection base: 0x{:x}", base_addr);
-    if base_addr != 0 {
-        emu.maps.dealloc(base_addr);
-    }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
-    stdcall_ret(emu, 2);
+    sections::nt_unmap(emu, Call::Api);
 }
+
 fn RtlMoveMemory(emu: &mut emu::Emu) {
-    let dst = arg(emu, 0) as u64;
-    let src = arg(emu, 1) as u64;
-    let sz = arg(emu, 2) as usize;
-    log_red!(
-        emu,
-        "ntdll!RtlMoveMemory dst: 0x{:x} src: 0x{:x} sz: {}",
-        dst,
-        src,
-        sz
-    );
-    ntdll::rtl_move_memory(emu, dst, src, sz);
-    stdcall_ret(emu, 3);
+    memory_ops::dispatch("RtlMoveMemory", emu);
 }
+
 fn RtlCopyMemory(emu: &mut emu::Emu) {
-    let dst = arg(emu, 0) as u64;
-    let src = arg(emu, 1) as u64;
-    let sz = arg(emu, 2) as usize;
-    log_red!(
-        emu,
-        "ntdll!RtlCopyMemory dst: 0x{:x} src: 0x{:x} sz: {}",
-        dst,
-        src,
-        sz
-    );
-    if !ntdll::memcpy(emu, dst, src, sz) {
-        log::warn!("RtlCopyMemory failed to copy");
-    }
-    stdcall_ret(emu, 3);
+    memory_ops::dispatch("RtlCopyMemory", emu);
 }
+
 fn NtFlushInstructionCache(emu: &mut emu::Emu) {
     let addr = arg(emu, 1);
     let sz = arg(emu, 2);
