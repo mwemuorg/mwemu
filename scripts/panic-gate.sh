@@ -7,18 +7,20 @@
 SRC="crates/mwemu-core/src"
 
 # Baseline — update these when you intentionally reduce the counts.
+# emu_unwrap and emu_assert went up by 12 and 8 when loaders/macho/macho64.rs
+# moved to emu/loaders/ (#228): the Mach-O parser is now under this gate too.
 declare -A BASELINE=(
   [engine_unwrap]=2
   [engine_expect]=0
   [engine_panic]=0
-  [emu_unwrap]=32
+  [emu_unwrap]=44
   [emu_expect]=6
   [emu_panic]=5
   [maps_unwrap]=13
   [maps_expect]=26
   [maps_panic]=0
   [engine_assert]=0
-  [emu_assert]=89
+  [emu_assert]=97
   [maps_assert]=39
 )
 
