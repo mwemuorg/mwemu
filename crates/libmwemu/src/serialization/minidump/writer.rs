@@ -11,7 +11,6 @@ use minidump::format as md;
 use super::context::{ThreadContextInput, build_thread_context};
 use crate::arch::{Arch, OperatingSystem};
 use crate::emu::Emu;
-use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{MemoryInfo, MemoryKind};
 use crate::threading::context::ArchThreadState;
 
@@ -33,7 +32,6 @@ struct MemoryRegion<'a> {
     name: &'a str,
     base: u64,
     bytes: Cow<'a, [u8]>,
-    permission: Permission,
 }
 
 #[derive(Clone, Copy)]
@@ -70,8 +68,8 @@ impl MinidumpWriter {
 
         let memory_info_rva =
             align4(memory_rva + memory_stream.len() as u32 + memory_trailing_data.len() as u32);
-        let memory_info_stream =
-            build_memory_info_list_stream(&regions, &modules, memory_info_rva)?;
+        let memory_info = collect_memory_info(emu, &regions, &modules);
+        let memory_info_stream = build_memory_info_list_stream(&memory_info)?;
 
         let system_info_rva = align4(memory_info_rva + memory_info_stream.len() as u32);
         let system_info_stream = build_system_info_stream(emu, system_info_rva)?;
@@ -158,7 +156,7 @@ fn collect_memory_regions(emu: &Emu) -> Vec<MemoryRegion<'_>> {
         while cursor < mem.get_bottom() {
             let info = emu.maps.query_memory(cursor);
             let end = (info.base + info.size).min(mem.get_bottom());
-            for (start, len, permission) in mem.permission_runs(cursor, end - cursor) {
+            for (start, len, _) in mem.permission_runs(cursor, end - cursor) {
                 let offset = (start - base) as usize;
                 regions.push(MemoryRegion {
                     allocation_base: info.allocation_base,
@@ -166,7 +164,6 @@ fn collect_memory_regions(emu: &Emu) -> Vec<MemoryRegion<'_>> {
                     name: mem.get_name(),
                     base: start,
                     bytes: mem.backing_bytes(offset, len as usize),
-                    permission,
                 });
             }
             cursor = end;
@@ -297,49 +294,78 @@ fn build_memory_list_stream(
     Ok((output, trailing_data, locations))
 }
 
-fn build_memory_info_list_stream(
+fn collect_memory_info(
+    emu: &Emu,
     regions: &[MemoryRegion<'_>],
     modules: &[ModuleInfo],
-    _base_rva: u32,
-) -> io::Result<Vec<u8>> {
+) -> Vec<MemoryInfo> {
+    let mut infos: Vec<_> = regions
+        .iter()
+        .map(|region| {
+            let mut info = region.info;
+            info.base = region.base;
+            info.size = region.bytes.len() as u64;
+            if let Some(module) = module_for_region(region, modules) {
+                info.allocation_base = module.base;
+                info.kind = MemoryKind::Image;
+            }
+            info
+        })
+        .collect();
+    // An image owner includes holes with no backing bytes. MemoryInfoList must
+    // retain them even though MemoryList has no payload for those ranges.
+    for allocation in emu.maps.allocations.values() {
+        let mut cursor = allocation.base;
+        while cursor < allocation.end() {
+            if let Some(mem) = emu.maps.get_mem_by_addr(cursor) {
+                cursor = mem.get_bottom().min(allocation.end());
+                continue;
+            }
+            let mut info = emu.maps.query_memory(cursor);
+            let end = (info.base + info.size).min(allocation.end()).min(
+                emu.maps
+                    .next_mapped_addr(cursor)
+                    .unwrap_or(allocation.end()),
+            );
+            info.base = cursor;
+            info.size = end - cursor;
+            infos.push(info);
+            cursor = end;
+        }
+    }
+    infos.sort_by_key(|info| info.base);
+    infos
+}
+
+fn build_memory_info_list_stream(regions: &[MemoryInfo]) -> io::Result<Vec<u8>> {
     let mut output = Vec::new();
     output.write_u32::<LE>(16)?;
     output.write_u32::<LE>(MINIDUMP_MEMORY_INFO_SIZE)?;
     output.write_u64::<LE>(regions.len() as u64)?;
 
-    for region in regions {
-        let (allocation_base, memory_type) = module_for_region(region, modules)
-            .map(|module| (module.base, md::MemoryType::MEM_IMAGE.bits()))
-            .unwrap_or((
-                region.allocation_base,
-                match region.info.kind {
-                    MemoryKind::Private => md::MemoryType::MEM_PRIVATE.bits(),
-                    MemoryKind::Mapped => md::MemoryType::MEM_MAPPED.bits(),
-                    MemoryKind::Image => md::MemoryType::MEM_IMAGE.bits(),
-                },
-            ));
-        let committed = region.info.state.is_some_and(|state| state.committed);
-        let protection = region.info.state.map_or_else(
-            || permission_to_memory_protection(region.permission),
-            |state| state.protection,
-        );
+    for info in regions {
+        let memory_type = match info.kind {
+            MemoryKind::Private => md::MemoryType::MEM_PRIVATE,
+            MemoryKind::Mapped => md::MemoryType::MEM_MAPPED,
+            MemoryKind::Image => md::MemoryType::MEM_IMAGE,
+        };
+        let committed = info.state.is_some_and(|state| state.committed);
+        let protection = info.state.map_or(0, |state| state.protection);
         let state = if committed {
             md::MemoryState::MEM_COMMIT
         } else {
             md::MemoryState::MEM_RESERVE
         };
-
-        output.write_u64::<LE>(region.base)?;
-        output.write_u64::<LE>(allocation_base)?;
-        output.write_u32::<LE>(region.info.allocation_protection)?;
+        output.write_u64::<LE>(info.base)?;
+        output.write_u64::<LE>(info.allocation_base)?;
+        output.write_u32::<LE>(info.allocation_protection)?;
         output.write_u32::<LE>(0)?;
-        output.write_u64::<LE>(region.bytes.len() as u64)?;
+        output.write_u64::<LE>(info.size)?;
         output.write_u32::<LE>(state.bits())?;
         output.write_u32::<LE>(protection)?;
-        output.write_u32::<LE>(memory_type)?;
+        output.write_u32::<LE>(memory_type.bits())?;
         output.write_u32::<LE>(0)?;
     }
-
     Ok(output)
 }
 
@@ -484,7 +510,7 @@ fn build_thread_list_stream(
 
     for (thread, teb, stack_base, stack_location, context_rva, context_size) in entries {
         output.write_u32::<LE>(thread.id.min(u32::MAX as u64) as u32)?;
-        output.write_u32::<LE>(u32::from(thread.suspended))?;
+        output.write_u32::<LE>(thread.suspended as u32)?;
         output.write_u32::<LE>(0)?;
         output.write_u32::<LE>(0)?;
         output.write_u64::<LE>(teb)?;
@@ -527,18 +553,6 @@ fn stack_location_for_thread(
     };
 
     (region.base, *location)
-}
-
-fn permission_to_memory_protection(permission: Permission) -> u32 {
-    match permission.bits() {
-        0 => md::MemoryProtection::PAGE_NOACCESS.bits(),
-        1 => md::MemoryProtection::PAGE_READONLY.bits(),
-        2 | 3 => md::MemoryProtection::PAGE_READWRITE.bits(),
-        4 => md::MemoryProtection::PAGE_EXECUTE.bits(),
-        5 => md::MemoryProtection::PAGE_EXECUTE_READ.bits(),
-        6 | 7 => md::MemoryProtection::PAGE_EXECUTE_READWRITE.bits(),
-        _ => md::MemoryProtection::PAGE_READWRITE.bits(),
-    }
 }
 
 fn encode_minidump_string(value: &str) -> io::Result<Vec<u8>> {

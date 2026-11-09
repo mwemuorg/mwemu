@@ -125,9 +125,9 @@ fn win32_error(error: MemoryError) -> u64 {
 
 fn address_limit(emu: &Emu) -> u64 {
     if emu.cfg.arch.is_64bits() {
-        0x8000_0000_0000
+        constants::USER64_ADDRESS_LIMIT
     } else {
-        0x1_0000_0000
+        constants::USER32_ADDRESS_LIMIT
     }
 }
 
@@ -235,8 +235,8 @@ pub(crate) fn free(
 
 pub(crate) fn virtual_alloc(emu: &mut Emu, remote: bool, numa: bool) {
     let call = Call::Api;
-    let offset = usize::from(remote);
-    let count = 4 + offset + usize::from(numa);
+    let offset = remote as usize;
+    let count = 4 + offset + numa as usize;
     if remote && !current_process(call.arg(emu, 0)) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
         call.finish(emu, 0, count);
@@ -261,7 +261,7 @@ pub(crate) fn virtual_alloc(emu: &mut Emu, remote: bool, numa: bool) {
 
 pub(crate) fn virtual_free(emu: &mut Emu, remote: bool) {
     let call = Call::Api;
-    let offset = usize::from(remote);
+    let offset = remote as usize;
     let count = 3 + offset;
     if remote && !current_process(call.arg(emu, 0)) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
@@ -397,7 +397,7 @@ pub(crate) fn query(emu: &mut Emu, address: u64, output: u64, length: u64) -> Re
 
 pub(crate) fn virtual_query(emu: &mut Emu, remote: bool) {
     let call = Call::Api;
-    let offset = usize::from(remote);
+    let offset = remote as usize;
     if remote && !current_process(call.arg(emu, 0)) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
         call.finish(emu, 0, 4);
@@ -480,7 +480,7 @@ pub(crate) fn process_memory(emu: &mut Emu, write: bool) {
         };
         emu.set_last_error(error);
     }
-    Call::Api.finish(emu, u64::from(result.is_ok()), 5);
+    Call::Api.finish(emu, result.is_ok() as u64, 5);
 }
 
 pub(crate) fn nt_process_memory(emu: &mut Emu, call: Call, write: bool) {
@@ -490,7 +490,7 @@ pub(crate) fn nt_process_memory(emu: &mut Emu, call: Call, write: bool) {
 
 pub(crate) fn virtual_protect(emu: &mut Emu, remote: bool) {
     let call = Call::Api;
-    let offset = usize::from(remote);
+    let offset = remote as usize;
     if remote && !current_process(call.arg(emu, 0)) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
         call.finish(emu, 0, 5);
@@ -501,7 +501,7 @@ pub(crate) fn virtual_protect(emu: &mut Emu, remote: bool) {
     let protection = call.arg(emu, offset + 2) as u32;
     let old = call.arg(emu, offset + 3);
     let ok = virtual_protect::protect_winapi(emu, address, size, protection, old);
-    call.finish(emu, u64::from(ok), 4 + offset);
+    call.finish(emu, ok as u64, 4 + offset);
 }
 
 pub(crate) fn nt_protect(emu: &mut Emu, call: Call) {

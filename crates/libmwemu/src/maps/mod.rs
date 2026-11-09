@@ -1,5 +1,6 @@
 pub mod buffers;
 pub mod heap_allocation;
+pub(crate) mod image;
 mod inspection;
 pub mod mem64;
 pub mod scalar;
@@ -14,7 +15,7 @@ use crate::maps::mem64::Permission;
 use crate::maps::scalar::{LittleEndianScalar, ScalarKind};
 use crate::maps::shared::SharedStorage;
 use crate::maps::tlb::LPF_OF;
-use crate::maps::virtual_memory::Allocation;
+use crate::maps::virtual_memory::{Allocation, MemoryKind};
 use crate::windows::constants;
 use ahash::AHashMap;
 use mem64::Mem64;
@@ -236,7 +237,26 @@ impl Maps {
         size: u64,
         permission: Permission,
     ) -> Result<&mut Mem64, String> {
-        if size == 0 || !self.is_range_free(base, size) {
+        if !self.is_range_free(base, size) {
+            return Err(format!(
+                "invalid or overlapping map 0x{base:x} + 0x{size:x}"
+            ));
+        }
+        self.create_backing_map(name, base, size, permission)
+    }
+
+    fn create_backing_map(
+        &mut self,
+        name: &str,
+        base: u64,
+        size: u64,
+        permission: Permission,
+    ) -> Result<&mut Mem64, String> {
+        if size == 0
+            || base.checked_add(size).is_none()
+            || self.is_mapped(base)
+            || self.maps.range(base..base + size).next().is_some()
+        {
             return Err(format!(
                 "invalid or overlapping map 0x{base:x} + 0x{size:x}"
             ));
@@ -703,9 +723,15 @@ impl Maps {
     }
 
     /// Find the PE image (base, size_of_image) that contains `addr`.
-    /// Iterates maps named `*.pe`, reads the PE optional-header `SizeOfImage`,
+    /// Registered images retain identity even after their headers are modified.
+    /// For legacy maps, reads the PE optional-header `SizeOfImage` from `*.pe`,
     /// and checks whether `addr` falls within `[base, base+size_of_image)`.
     pub fn find_pe_image_info(&self, addr: u64) -> Option<(u64, u64)> {
+        if let Some(allocation) = self.allocation_at(addr)
+            && allocation.kind == MemoryKind::Image
+        {
+            return Some((allocation.base, allocation.size));
+        }
         for name in self.name_map.keys() {
             if !name.ends_with(".pe") {
                 continue;
@@ -849,26 +875,28 @@ impl Maps {
                 return;
             }
         };
-        let Some(mem) = self.mem_slab.get_mut(*mem_key) else {
+        let mem_key = *mem_key;
+        let Some(mem) = self.mem_slab.get(mem_key) else {
             log::warn!("dealloc: slab entry missing for 0x{:x}", addr);
             self.maps.remove(&addr);
             return;
         };
         let end = mem.get_bottom();
+        let name = mem.get_name().to_string();
+        let executable = mem.has_permission(Permission::EXECUTE);
+        let size = mem.size() as u64;
         self.buffers
             .retain(|_, buffer| buffer.base < addr || buffer.base >= end);
-        self.allocations
-            .retain(|_, allocation| allocation.end() <= addr || allocation.base >= end);
-        self.name_map.remove(mem.get_name());
-        if mem.has_permission(Permission::EXECUTE) {
-            let (base, size) = (mem.get_base(), mem.size() as u64);
-            self.note_code_write(base, size);
+        self.forget_memory_range(addr, end);
+        self.name_map.remove(&name);
+        if executable {
+            self.note_code_write(addr, size);
         }
-        let Some(mem) = self.mem_slab.get_mut(*mem_key) else {
+        let Some(mem) = self.mem_slab.get_mut(mem_key) else {
             return;
         };
         mem.clear();
-        self.mem_slab.remove(*mem_key);
+        self.mem_slab.remove(mem_key);
         self.tlb.borrow_mut().flush();
         self.maps.remove(&addr);
     }
@@ -883,8 +911,7 @@ impl Maps {
         let Some(end) = addr.checked_add(len) else {
             return;
         };
-        self.allocations
-            .retain(|_, a| a.end() <= addr || a.base >= end);
+        self.forget_memory_range(addr, end);
         self.buffers
             .retain(|&pointer, a| pointer.saturating_add(a.size) <= addr || a.base >= end);
         self.note_code_write(addr, len);
@@ -913,7 +940,7 @@ impl Maps {
                 mem.truncate((addr - base) as usize);
                 let perm = mem.permission();
                 let name = format!("{}_{:x}", mem.get_name(), end);
-                match self.create_map(&name, end, tail.len() as u64, perm) {
+                match self.create_backing_map(&name, end, tail.len() as u64, perm) {
                     Ok(m) => {
                         if let Some((view, storage)) = shared {
                             m.bind_shared(view, storage);
@@ -931,12 +958,12 @@ impl Maps {
         self.tlb.borrow_mut().flush();
     }
 
-    /// Whether no map touches `[addr, addr + len)`.
+    /// Whether neither backing maps nor allocation owners touch the range.
     pub fn is_range_free(&self, addr: u64, len: u64) -> bool {
         let Some(end) = addr.checked_add(len) else {
             return false;
         };
-        len > 0 && !self.is_mapped(addr) && self.maps.range(addr..end).next().is_none()
+        len > 0 && self.overlapping_range(addr, end).is_none()
     }
 
     pub fn map(&mut self, name: &str, sz: u64, permission: Permission) -> u64 {
