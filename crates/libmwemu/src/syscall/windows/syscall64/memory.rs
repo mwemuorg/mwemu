@@ -3,7 +3,7 @@ use crate::api::windows::common::memory::Call;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::syscall::windows::syscall64::sync::next_handle;
-use crate::winapi::winapi64::kernel32::load_library;
+use crate::windows::loader64::load_library;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::syscalls::*;

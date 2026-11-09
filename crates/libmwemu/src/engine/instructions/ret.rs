@@ -1,8 +1,8 @@
 use crate::debug::console::Console;
 use crate::emu::Emu;
 use crate::exception::seh32;
-use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::memory::*;
+use crate::windows::{loader32, loader64};
 
 use crate::{color, exception::handlers as exception};
 use iced_x86::Instruction;
@@ -22,9 +22,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     if emu.cfg.trace_calls {
         let dest_sym = if emu.cfg.is_x64() {
-            winapi64::kernel32::guess_api_name(emu, ret_addr)
+            loader64::guess_api_name(emu, ret_addr)
         } else {
-            winapi32::kernel32::guess_api_name(emu, ret_addr as u32)
+            loader32::guess_api_name(emu, ret_addr as u32)
         };
         let dest_note = if dest_sym.is_empty() {
             String::new()

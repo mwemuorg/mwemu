@@ -15,7 +15,6 @@ pub(crate) mod oleaut32;
 pub mod registry;
 pub(crate) mod shell32;
 mod shlwapi;
-pub mod stolen_prologue;
 mod urlmon;
 pub(crate) mod user32;
 mod uxtheme;

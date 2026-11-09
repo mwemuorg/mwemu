@@ -5,7 +5,7 @@
 use rs_header::pe::PeLoader;
 
 use crate::emu::Emu;
-use crate::winapi::{winapi32, winapi64};
+use crate::windows::{loader32, loader64};
 
 impl PeLoader for Emu {
     fn is_mapped(&self, addr: u64) -> bool {
@@ -38,25 +38,25 @@ impl PeLoader for Emu {
 
     fn load_library(&mut self, libname: &str) -> u64 {
         if self.cfg.is_x64() {
-            winapi64::kernel32::load_library(self, libname)
+            loader64::load_library(self, libname)
         } else {
-            winapi32::kernel32::load_library(self, libname)
+            loader32::load_library(self, libname)
         }
     }
 
     fn resolve_api_name(&mut self, name: &str) -> u64 {
         if self.cfg.is_x64() {
-            winapi64::kernel32::resolve_api_name(self, name)
+            loader64::resolve_api_name(self, name)
         } else {
-            winapi32::kernel32::resolve_api_name(self, name)
+            loader32::resolve_api_name(self, name)
         }
     }
 
     fn resolve_api_name_in_module(&mut self, module: &str, name: &str) -> u64 {
         if self.cfg.is_x64() {
-            winapi64::kernel32::resolve_api_name_in_module(self, module, name)
+            loader64::resolve_api_name_in_module(self, module, name)
         } else {
-            winapi32::kernel32::resolve_api_name_in_module(self, module, name)
+            loader32::resolve_api_name_in_module(self, module, name)
         }
     }
 
@@ -72,9 +72,9 @@ impl PeLoader for Emu {
 
     fn search_api_name(&mut self, name: &str) -> (u64, String, String) {
         if self.cfg.is_x64() {
-            winapi64::kernel32::search_api_name(self, name)
+            loader64::search_api_name(self, name)
         } else {
-            winapi32::kernel32::search_api_name(self, name)
+            loader32::search_api_name(self, name)
         }
     }
 }

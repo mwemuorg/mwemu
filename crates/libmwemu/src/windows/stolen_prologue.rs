@@ -128,7 +128,7 @@ fn export_entry_before(emu: &emu::Emu, addr: u64) -> Option<(u64, u64)> {
 }
 
 fn argument_count(emu: &mut emu::Emu, entry: u64) -> usize {
-    let name = super::kernel32::guess_api_name(emu, entry);
+    let name = super::loader64::guess_api_name(emu, entry);
     let name = name.rsplit('!').next().unwrap_or(&name);
     API_ARGUMENT_COUNT
         .iter()

@@ -12,7 +12,7 @@ use crate::{
     api::banzai::Banzai, config::Config, debug::breakpoint::Breakpoints, hooks::Hooks, maps::Maps,
     threading::context::ThreadContext, threading::global_locks::GlobalLocks, utils::colors::Colors,
 };
-use crate::{winapi::winapi32, winapi::winapi64, windows::kuser_shared, windows::structures};
+use crate::windows::{kuser_shared, loader32, loader64, structures};
 
 use crate::api::windows::export_index::ExportIndexRegistry;
 use crate::emu::object_handle::{HandleManagement, HeapHandle};
@@ -890,7 +890,7 @@ impl Emu {
 
         peb32::init_peb(self);
         kuser_shared::init_kuser_shared_data(self);
-        winapi32::kernel32::load_library(self, "ntdll.dll");
+        loader32::load_library(self, "ntdll.dll");
         let ntdll_base = self
             .maps
             .get_map_by_name("ntdll.pe")
@@ -900,17 +900,17 @@ impl Emu {
             peb32::update_peb_image_base(self, ntdll_base as u32);
         }
 
-        winapi32::kernel32::load_library(self, "kernel32.dll");
-        winapi32::kernel32::load_library(self, "kernelbase.dll");
-        winapi32::kernel32::load_library(self, "iphlpapi.dll");
-        winapi32::kernel32::load_library(self, "ws2_32.dll");
-        winapi32::kernel32::load_library(self, "advapi32.dll");
-        //winapi32::kernel32::load_library(self, "comctl32.dll");
-        winapi32::kernel32::load_library(self, "winhttp.dll");
-        winapi32::kernel32::load_library(self, "wininet.dll");
-        //winapi32::kernel32::load_library(self, "dnsapi.dll");
-        winapi32::kernel32::load_library(self, "shell32.dll");
-        //winapi32::kernel32::load_library(self, "shlwapi.dll");
+        loader32::load_library(self, "kernel32.dll");
+        loader32::load_library(self, "kernelbase.dll");
+        loader32::load_library(self, "iphlpapi.dll");
+        loader32::load_library(self, "ws2_32.dll");
+        loader32::load_library(self, "advapi32.dll");
+        //loader32::load_library(self, "comctl32.dll");
+        loader32::load_library(self, "winhttp.dll");
+        loader32::load_library(self, "wininet.dll");
+        //loader32::load_library(self, "dnsapi.dll");
+        loader32::load_library(self, "shell32.dll");
+        //loader32::load_library(self, "shlwapi.dll");
 
         let teb_map = self.maps.get_mem_mut("teb");
         let mut teb = structures::TEB::load_map(teb_map.get_base(), teb_map);
@@ -1020,7 +1020,7 @@ impl Emu {
 
             // ntdll must be pre-mapped so we can resolve and call
             // `LdrInitializeThunk`.
-            winapi64::kernel32::load_library(self, "ntdll.dll");
+            loader64::load_library(self, "ntdll.dll");
 
             // Build the syscall number translation table from this ntdll's
             // actual syscall stubs. Microsoft renumbers syscalls between
@@ -1039,8 +1039,8 @@ impl Emu {
             // maps exist when we re-populate the linked list afterwards
             // (LdrInit on Win10+ relies on syscalls we don't fully model,
             // and bails before bringing these in via the KnownDll path).
-            //winapi64::kernel32::load_library(self, "kernel32.dll");
-            //winapi64::kernel32::load_library(self, "kernelbase.dll");
+            //loader64::load_library(self, "kernel32.dll");
+            //loader64::load_library(self, "kernelbase.dll");
 
             // ntdll patches its own globals during LdrInitializeThunk (LdrpHashTable,
             // LdrpModuleBaseAddressIndex, etc.).  These often fall in the .rdata section

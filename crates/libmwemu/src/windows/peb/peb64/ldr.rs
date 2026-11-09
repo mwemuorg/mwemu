@@ -171,7 +171,7 @@ impl Flink {
             && ordinal.func_rva < self.export_table_rva.saturating_add(self.export_dir_size)
         {
             let forwarder = emu.maps.read_string(self.mod_base + ordinal.func_rva);
-            let resolved = crate::winapi::winapi64::kernel32::resolve_forwarded_export_string_depth(
+            let resolved = crate::windows::loader64::resolve_forwarded_export_string_depth(
                 emu,
                 &forwarder,
                 forward_depth.saturating_add(1),

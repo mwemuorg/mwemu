@@ -65,23 +65,39 @@ mod tests;
 use arch::Arch;
 use emu::Emu;
 
-/// Create an x86-64 emulator with Ctrl-C handling disabled.
-pub fn emu64() -> Emu {
-    let mut emu = Emu::new(Arch::X86_64);
+/// Register the Windows API handlers with the emulator core. `emu32()`,
+/// `emu64()` and `emu_aarch64()` do it for you; call it yourself before
+/// running an emulator built another way (`Emu::new`, `Serialization::load`).
+/// Calling it more than once is harmless.
+pub fn register_api_handlers() {
+    api::dispatch::register(api::dispatch::ApiDispatch {
+        winapi32_gateway: winapi::winapi32::gateway,
+        winapi64_gateway: winapi::winapi64::gateway,
+        winapi64_gateway_by_import: winapi::winapi64::gateway_by_import,
+        winapi64_load_library_a: winapi::winapi64::kernel32::LoadLibraryA,
+        winapi64_get_proc_address: winapi::winapi64::kernel32::GetProcAddress,
+    });
+}
+
+/// Create an emulator for `arch` with Ctrl-C handling disabled.
+fn new_emu(arch: Arch) -> Emu {
+    register_api_handlers();
+    let mut emu = Emu::new(arch);
     emu.disable_ctrlc();
     emu
+}
+
+/// Create an x86-64 emulator with Ctrl-C handling disabled.
+pub fn emu64() -> Emu {
+    new_emu(Arch::X86_64)
 }
 
 /// Create an x86 (32-bit) emulator with Ctrl-C handling disabled.
 pub fn emu32() -> Emu {
-    let mut emu = Emu::new(Arch::X86);
-    emu.disable_ctrlc();
-    emu
+    new_emu(Arch::X86)
 }
 
 /// Create an AArch64 emulator with Ctrl-C handling disabled.
 pub fn emu_aarch64() -> Emu {
-    let mut emu = Emu::new(Arch::Aarch64);
-    emu.disable_ctrlc();
-    emu
+    new_emu(Arch::Aarch64)
 }

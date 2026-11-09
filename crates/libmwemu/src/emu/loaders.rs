@@ -6,7 +6,7 @@ use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::loaders::macho::macho64::Macho64;
 use crate::maps::mem64::Permission;
-use crate::winapi::winapi64;
+use crate::windows::loader64;
 
 use crate::windows::peb::{peb32, peb64};
 use rs_header::elf::elf32::Elf32;
@@ -451,7 +451,7 @@ impl Emu {
             }
             // Optional SSDT loader bootstrap: call ntdll!LdrInitializeThunk to perform loader init.
             if self.cfg.emulate_winapi {
-                let ldr_init = winapi64::kernel32::resolve_api_name_in_module(
+                let ldr_init = loader64::resolve_api_name_in_module(
                     self,
                     "ntdll.dll",
                     "LdrInitializeThunk",
@@ -780,9 +780,9 @@ impl Emu {
 
     fn init_msvcrt_cmdln_globals(&mut self) {
         let wcmdln_addr =
-            winapi64::kernel32::resolve_api_name_in_module(self, "msvcrt.dll", "_wcmdln");
+            loader64::resolve_api_name_in_module(self, "msvcrt.dll", "_wcmdln");
         let acmdln_addr =
-            winapi64::kernel32::resolve_api_name_in_module(self, "msvcrt.dll", "_acmdln");
+            loader64::resolve_api_name_in_module(self, "msvcrt.dll", "_acmdln");
 
         if wcmdln_addr == 0 && acmdln_addr == 0 {
             return;

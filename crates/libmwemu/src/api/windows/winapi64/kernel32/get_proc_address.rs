@@ -59,7 +59,7 @@ fn resolve_name_via_registry_or_scanner(
     }
 
     // 2) Fallback to the global resolver + PEB scanner.
-    let addr = crate::api::windows::winapi64::kernel32::resolver::resolve_api_name_in_module(
+    let addr = crate::windows::loader64::resolve_api_name_in_module(
         emu, "", name,
     );
     // We don't know the module name for the scanner fallback; use a placeholder.

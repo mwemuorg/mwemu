@@ -6,8 +6,7 @@ use std::vec::Vec;
 use crate::debug::console::Console;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::winapi::winapi32;
-use crate::winapi::winapi64;
+use crate::windows::{loader32, loader64};
 use crate::windows::peb::peb32;
 use crate::windows::peb::peb64;
 use crate::windows::structures;
@@ -922,9 +921,9 @@ impl Script {
                     let lib: String;
                     let name: String;
                     if emu.cfg.is_x64() {
-                        (addr, lib, name) = winapi64::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = loader64::search_api_name(emu, args[1]);
                     } else {
-                        (addr, lib, name) = winapi32::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = loader32::search_api_name(emu, args[1]);
                     }
 
                     if addr == 0 {
@@ -945,9 +944,9 @@ impl Script {
                     let lib: String;
                     let name: String;
                     if emu.cfg.is_x64() {
-                        (addr, lib, name) = winapi64::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = loader64::search_api_name(emu, args[1]);
                     } else {
-                        (addr, lib, name) = winapi32::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = loader32::search_api_name(emu, args[1]);
                     }
 
                     if addr == 0 {
@@ -963,9 +962,9 @@ impl Script {
                         return;
                     }
                     if emu.cfg.is_x64() {
-                        winapi64::kernel32::dump_module_iat(emu, args[1]);
+                        loader64::dump_module_iat(emu, args[1]);
                     } else {
-                        winapi32::kernel32::dump_module_iat(emu, args[1]);
+                        loader32::dump_module_iat(emu, args[1]);
                     }
                 }
                 "dt" => {

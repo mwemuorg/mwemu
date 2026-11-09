@@ -80,7 +80,7 @@ pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> 
 pub fn init_guest_file_system(emu: &crate::emu::Emu) -> io::Result<()> {
     let mut mappings = Vec::new();
     if !emu.cfg.filename.is_empty() {
-        let guest = crate::winapi::winapi64::kernel32::main_module_path(emu);
+        let guest = crate::api::windows::common::modules::main_module_path(emu);
         let host = canonicalize(&emu.cfg.filename)?;
         let guest = WindowsPath::from_path(&guest).map_err(io::Error::other)?;
         mappings.push((guest, host));

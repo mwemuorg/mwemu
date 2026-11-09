@@ -29,10 +29,6 @@ pub use activate_act_ctx::*;
 mod free_resource;
 pub use free_resource::*;
 
-#[path = "../get_module_file_name_w.rs"]
-mod get_module_file_name_w;
-pub use get_module_file_name_w::*;
-
 #[path = "../get_proc_address.rs"]
 mod get_proc_address;
 pub use get_proc_address::*;

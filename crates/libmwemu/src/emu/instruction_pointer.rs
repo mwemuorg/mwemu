@@ -3,11 +3,11 @@ use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
 
 use crate::{
+    api::dispatch,
     console::Console,
     emu::Emu,
     exception::types::{ExceptionType, MemoryAccess},
-    winapi::winapi32,
-    winapi::winapi64,
+    windows::{loader32, loader64, native_crt, stolen_prologue},
 };
 
 impl Emu {
@@ -121,11 +121,11 @@ impl Emu {
                     // sets `rax` for emulated APIs (api-ms-win-crt → wincrt, etc.).
                     if dll.trim().eq_ignore_ascii_case("msvcrt.dll") {
                         let resolved =
-                            winapi64::kernel32::resolve_api_name_in_module(self, dll, api);
+                            loader64::resolve_api_name_in_module(self, dll, api);
                         let native_target = if resolved != 0 {
                             self.maps
                                 .get_addr_name(resolved)
-                                .map(winapi64::msvcrt::is_native_section)
+                                .map(native_crt::is_native_section)
                                 .unwrap_or(false)
                         } else {
                             false
@@ -134,7 +134,7 @@ impl Emu {
                             // this `set_rip_with_check`; leave the stack intact and let
                             // the msvcrt gadget `ret` itself. ret.rs will pop the matching
                             // call-stack frame.
-                            winapi64::msvcrt::log_native_call(self, resolved);
+                            native_crt::log_native_call(self, resolved);
                             self.set_rip_without_check(resolved);
                             self.force_break = true;
                             return true;
@@ -153,7 +153,7 @@ impl Emu {
                     }
                     self.gateway_return = self.stack_pop64(false).unwrap_or(0);
                     self.regs_mut().rip = self.gateway_return;
-                    winapi64::gateway_by_import(self, dll, api, addr);
+                    dispatch::winapi64_gateway_by_import(self, dll, api, addr);
                     self.force_break = true;
                     self.is_api_run = true;
                     true
@@ -185,7 +185,7 @@ impl Emu {
         let map_name = self.filename.as_str();
 
         /*
-        if addr < constants::LIBS64_MIN
+        if addr < LIBS64_MIN
             || name == "code"
             || (!map_name.is_empty() && name.starts_with(&map_name))
             || name == "loader.text"*/
@@ -249,7 +249,7 @@ impl Emu {
             // to emulate the real DLLs and only implement the kernel syscall
             // surface.
             if unlikely(self.cfg.emulate_winapi) {
-                let api_name = winapi64::kernel32::guess_api_name(self, addr);
+                let api_name = loader64::guess_api_name(self, addr);
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
                 }
@@ -265,9 +265,9 @@ impl Emu {
             // its winapi stub; library code is never executed for real here.
             let in_code_section = name.ends_with(".text");
             let addr = if in_code_section
-                && winapi64::kernel32::guess_api_name(self, addr).is_empty()
+                && loader64::guess_api_name(self, addr).is_empty()
             {
-                match winapi64::stolen_prologue::unwind(self, addr) {
+                match stolen_prologue::unwind(self, addr) {
                     Some(entry) => {
                         log::trace!(
                             "jump to 0x{:x} skips the prologue of the API at 0x{:x}",
@@ -315,17 +315,17 @@ impl Emu {
                         return false;
                     }
                 };
-                if winapi64::msvcrt::is_native_section(section_name) {
+                if native_crt::is_native_section(section_name) {
                     // Native execution: the legacy msvcrt gadget owns its own
                     // `ret`. The gateway model above popped the caller's
                     // architectural return address; restore it so native `ret`
                     // consumes the right value. The matching native `ret`
                     // (ret.rs) will pop the call-stack frame we leave here.
                     let _ = self.stack_push64(self.gateway_return);
-                    winapi64::msvcrt::log_native_call(self, addr);
+                    native_crt::log_native_call(self, addr);
                     self.set_rip_without_check(addr);
                 } else {
-                    winapi64::gateway(addr, section_name.to_string().as_str(), self);
+                    dispatch::winapi64_gateway(addr, section_name.to_string().as_str(), self);
                 }
             }
             self.force_break = true;
@@ -391,7 +391,7 @@ impl Emu {
         } else if self.os.is_windows() {
             // emulate winapi mode
             if self.cfg.emulate_winapi {
-                let api_name = winapi64::kernel32::guess_api_name(self, addr);
+                let api_name = loader64::guess_api_name(self, addr);
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
                 }
@@ -419,7 +419,7 @@ impl Emu {
                 };
 
             if handle_winapi {
-                winapi64::gateway(addr, &name, self);
+                dispatch::winapi64_gateway(addr, &name, self);
             }
         }
 
@@ -454,7 +454,7 @@ impl Emu {
                 return if !api_name.is_empty() {
                     // winapi emulation case
                     if self.cfg.emulate_winapi {
-                        let api_name = winapi32::kernel32::guess_api_name(self, addr as u32);
+                        let api_name = loader32::guess_api_name(self, addr as u32);
                         if self.cfg.verbose >= 1 {
                             log_red!(self, "emulating {}", api_name);
                         }
@@ -464,7 +464,7 @@ impl Emu {
 
                     self.gateway_return = self.stack_pop32(false).unwrap_or(0) as u64;
                     self.regs_mut().rip = self.gateway_return;
-                    winapi32::gateway(addr as u32, "not_loaded", self);
+                    dispatch::winapi32_gateway(addr as u32, "not_loaded", self);
                     self.force_break = true;
                     self.is_api_run = true;
                     true
@@ -523,7 +523,7 @@ impl Emu {
 
             // winapi emulation case
             if self.cfg.emulate_winapi {
-                let api_name = winapi32::kernel32::guess_api_name(self, addr as u32);
+                let api_name = loader32::guess_api_name(self, addr as u32);
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
                 }
@@ -558,7 +558,7 @@ impl Emu {
                         return false;
                     }
                 };
-                winapi32::gateway(to32!(addr), name.to_string().as_str(), self);
+                dispatch::winapi32_gateway(to32!(addr), name.to_string().as_str(), self);
             }
             self.force_break = true;
         }

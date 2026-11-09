@@ -1,9 +1,10 @@
 use crate::utils::helpers::unlikely;
 use crate::{
+    api::dispatch,
     emu::{API_CALL_LOG_CAP, ApiCallLogEntry, Emu},
     exception::types::ExceptionType,
-    winapi::{winapi32, winapi64},
     windows::peb::{peb32, peb64},
+    windows::{loader32, loader64, native_crt},
 };
 
 impl Emu {
@@ -34,18 +35,18 @@ impl Emu {
                     return;
                 }
             };
-            if unlikely(winapi64::msvcrt::is_native_section(name)) {
+            if unlikely(native_crt::is_native_section(name)) {
                 // Match the engine-side path: native msvcrt bytes own their
                 // own `ret`. The caller has already pushed the return address;
                 // do not consume it here.
-                winapi64::msvcrt::log_native_call(self, addr);
+                native_crt::log_native_call(self, addr);
                 self.set_pc(addr);
                 return;
             }
             let temp_name = name.to_string();
             self.gateway_return = self.stack_pop64(false).unwrap_or(0);
             self.set_pc(self.gateway_return);
-            winapi64::gateway(addr, temp_name.as_str(), self);
+            dispatch::winapi64_gateway(addr, temp_name.as_str(), self);
         } else {
             self.gateway_return = self.stack_pop32(false).unwrap_or(0) as u64;
             self.set_pc(self.gateway_return);
@@ -57,7 +58,7 @@ impl Emu {
                     return;
                 }
             };
-            winapi32::gateway(addr as u32, name.to_string().as_str(), self);
+            dispatch::winapi32_gateway(addr as u32, name.to_string().as_str(), self);
         }
     }
 
@@ -73,18 +74,18 @@ impl Emu {
     /// Dynamic link a windows DLL from emu.cfg.maps_folder.
     pub fn link_library(&mut self, libname: &str) -> u64 {
         if self.cfg.arch.is_64bits() {
-            winapi64::kernel32::load_library(self, libname)
+            loader64::load_library(self, libname)
         } else {
-            winapi32::kernel32::load_library(self, libname)
+            loader32::load_library(self, libname)
         }
     }
 
     /// Resolve the winapi name having an address.
     pub fn api_addr_to_name(&mut self, addr: u64) -> String {
         let name: String = if self.cfg.arch.is_64bits() {
-            winapi64::kernel32::resolve_api_addr_to_name(self, addr)
+            loader64::resolve_api_addr_to_name(self, addr)
         } else {
-            winapi32::kernel32::resolve_api_addr_to_name(self, addr)
+            loader32::resolve_api_addr_to_name(self, addr)
         };
 
         name
@@ -93,10 +94,10 @@ impl Emu {
     /// Resolve the address of an api name keyword.
     pub fn api_name_to_addr(&mut self, kw: &str) -> u64 {
         if self.cfg.arch.is_64bits() {
-            let (addr, lib, name) = winapi64::kernel32::search_api_name(self, kw);
+            let (addr, lib, name) = loader64::search_api_name(self, kw);
             addr
         } else {
-            let (addr, lib, name) = winapi32::kernel32::search_api_name(self, kw);
+            let (addr, lib, name) = loader32::search_api_name(self, kw);
             addr
         }
     }

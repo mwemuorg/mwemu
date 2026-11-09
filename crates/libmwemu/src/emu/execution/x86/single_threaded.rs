@@ -350,7 +350,7 @@ impl Emu {
                     if self.cfg.emulate_winapi && pc >= 0x7ff000000000 {
                         let shims = self.shim_table();
                         if shims.lla != 0 && pc == shims.lla {
-                            crate::winapi::winapi64::kernel32::LoadLibraryA(self);
+                            crate::api::dispatch::winapi64_load_library_a(self);
                             let ret_addr = self.stack_pop64(false).unwrap_or(0);
                             if self.cfg.verbose >= 1 {
                                 log::trace!(
@@ -373,7 +373,7 @@ impl Emu {
                         if (shims.lpa != 0 && pc == shims.lpa)
                             || (shims.lpa2 != 0 && pc == shims.lpa2)
                         {
-                            crate::winapi::winapi64::kernel32::GetProcAddress(self);
+                            crate::api::dispatch::winapi64_get_proc_address(self);
                             if self.cfg.verbose >= 1 {
                                 log::trace!(
                                     "** {} kernelbase!GetProcAddress(ForCaller) shim → rax=0x{:x} pc=0x{:x}",

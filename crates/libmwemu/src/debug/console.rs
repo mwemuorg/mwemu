@@ -1,7 +1,6 @@
 use crate::emu::Emu;
 use crate::serialization;
-use crate::winapi::winapi32;
-use crate::winapi::winapi64;
+use crate::windows::{loader32, loader64};
 use crate::windows::peb::peb32;
 use crate::windows::peb::peb64;
 use crate::windows::structures;
@@ -1004,9 +1003,9 @@ impl Console {
                     let name: String;
 
                     if emu.cfg.is_x64() {
-                        (addr, lib, name) = winapi64::kernel32::search_api_name(emu, &kw);
+                        (addr, lib, name) = loader64::search_api_name(emu, &kw);
                     } else {
-                        (addr, lib, name) = winapi32::kernel32::search_api_name(emu, &kw);
+                        (addr, lib, name) = loader32::search_api_name(emu, &kw);
                     }
 
                     if addr == 0 {
@@ -1027,9 +1026,9 @@ impl Console {
                     };
 
                     let name: String = if emu.cfg.is_x64() {
-                        winapi64::kernel32::resolve_api_addr_to_name(emu, addr)
+                        loader64::resolve_api_addr_to_name(emu, addr)
                     } else {
-                        winapi32::kernel32::resolve_api_addr_to_name(emu, addr)
+                        loader32::resolve_api_addr_to_name(emu, addr)
                     };
 
                     if name.is_empty() {
@@ -1042,9 +1041,9 @@ impl Console {
                     con.print("module");
                     let lib = con.cmd2().to_lowercase();
                     if emu.cfg.is_x64() {
-                        winapi64::kernel32::dump_module_iat(emu, &lib);
+                        loader64::dump_module_iat(emu, &lib);
                     } else {
-                        winapi32::kernel32::dump_module_iat(emu, &lib);
+                        loader32::dump_module_iat(emu, &lib);
                     }
                 }
                 "dump" => {

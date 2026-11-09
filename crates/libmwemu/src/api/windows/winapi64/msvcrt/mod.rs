@@ -24,35 +24,6 @@ fn release(emu: &mut emu::Emu, addr: u64) {
     buffers::free(emu, addr, BufferKind::Crt);
 }
 
-// --- Native execution helpers (kept from the original 64-bit msvcrt) ---
-
-const NATIVE_SECTIONS: [&str; 2] = ["msvcrt.text", "msvcrtfothk"];
-
-const LOGGED_FUNCTIONS: [&str; 8] = [
-    "__set_app_type",
-    "malloc",
-    "realloc",
-    "_errno",
-    "_lock",
-    "__dllonexit",
-    "_msize",
-    "_initterm",
-];
-
-pub(crate) fn is_native_section(section_name: &str) -> bool {
-    NATIVE_SECTIONS.contains(&section_name)
-}
-
-pub(crate) fn log_native_call(emu: &mut emu::Emu, addr: u64) {
-    let Some(fn_name) = emu.export_indexes.resolve_address_module("msvcrt", addr) else {
-        return;
-    };
-    if !LOGGED_FUNCTIONS.contains(&fn_name) {
-        return;
-    }
-    log_red!(emu, "executing msvcrt!{}", fn_name);
-}
-
 // --- 64-bit CRT gateway ---
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
@@ -97,21 +68,4 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
     log::error!("attempt to call unimplemented API {}", api);
     log::warn!("calling unimplemented API {} at 0x{:x}", api, rip);
     api.to_ascii_lowercase()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn native_sections_match_exact_loader_names() {
-        assert!(is_native_section("msvcrt.text"));
-        assert!(is_native_section("msvcrtfothk"));
-        assert!(!is_native_section("msvcrt.rdata"));
-        assert!(!is_native_section("msvcrt.data"));
-        assert!(!is_native_section(""));
-        assert!(!is_native_section("MSVCRT.TEXT"));
-        assert!(!is_native_section("msvcrt.text "));
-        assert!(!is_native_section("kernel32.text"));
-    }
 }

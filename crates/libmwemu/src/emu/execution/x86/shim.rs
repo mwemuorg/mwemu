@@ -33,7 +33,7 @@ impl Emu {
                 return t;
             }
             // user32 is loaded now but mba was 0 — re-resolve just mba.
-            let mba = crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
+            let mba = crate::windows::loader64::resolve_api_name_in_module(
                 self,
                 "user32.dll",
                 "MessageBoxA",
@@ -46,22 +46,22 @@ impl Emu {
             return new;
         }
         let t = ShimTable {
-            lla: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
+            lla: crate::windows::loader64::resolve_api_name_in_module(
                 self,
                 "kernelbase.dll",
                 "LoadLibraryA",
             ),
-            lpa: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
+            lpa: crate::windows::loader64::resolve_api_name_in_module(
                 self,
                 "kernelbase.dll",
                 "GetProcAddress",
             ),
-            lpa2: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
+            lpa2: crate::windows::loader64::resolve_api_name_in_module(
                 self,
                 "kernelbase.dll",
                 "GetProcAddressForCaller",
             ),
-            mba: crate::winapi::winapi64::kernel32::resolve_api_name_in_module(
+            mba: crate::windows::loader64::resolve_api_name_in_module(
                 self,
                 "user32.dll",
                 "MessageBoxA",
