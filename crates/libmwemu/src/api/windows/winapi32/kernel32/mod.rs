@@ -1,6 +1,5 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::winapi::helper;
 
 mod appcompat;
 mod console;
@@ -33,6 +32,2037 @@ pub use state::*;
 pub use strings_nls::*;
 pub use sync::*;
 pub use system::*;
+
+mod activate_act_ctx_api;
+pub use activate_act_ctx_api::ActivateActCtx_api;
+mod activate_package_virtualization_context_api;
+pub use activate_package_virtualization_context_api::ActivatePackageVirtualizationContext_api;
+mod add_console_alias_a_api;
+pub use add_console_alias_a_api::AddConsoleAliasA_api;
+mod add_console_alias_w_api;
+pub use add_console_alias_w_api::AddConsoleAliasW_api;
+mod add_dll_directory_api;
+pub use add_dll_directory_api::AddDllDirectory_api;
+mod add_local_alternate_computer_name_a_api;
+pub use add_local_alternate_computer_name_a_api::AddLocalAlternateComputerNameA_api;
+mod add_ref_act_ctx_api;
+pub use add_ref_act_ctx_api::AddRefActCtx_api;
+mod add_ref_act_ctx_worker_api;
+pub use add_ref_act_ctx_worker_api::AddRefActCtxWorker_api;
+mod add_resource_attribute_ace_api;
+pub use add_resource_attribute_ace_api::AddResourceAttributeAce_api;
+mod add_sid_to_boundary_descriptor_api;
+pub use add_sid_to_boundary_descriptor_api::AddSIDToBoundaryDescriptor_api;
+mod add_scoped_policy_id_ace_api;
+pub use add_scoped_policy_id_ace_api::AddScopedPolicyIDAce_api;
+mod add_secure_memory_cache_callback_api;
+pub use add_secure_memory_cache_callback_api::AddSecureMemoryCacheCallback_api;
+mod add_vectored_continue_handler_api;
+pub use add_vectored_continue_handler_api::AddVectoredContinueHandler_api;
+mod alloc_console_api;
+pub use alloc_console_api::AllocConsole_api;
+mod alloc_console_with_options_api;
+pub use alloc_console_with_options_api::AllocConsoleWithOptions_api;
+mod allocate_user_physical_pages_api;
+pub use allocate_user_physical_pages_api::AllocateUserPhysicalPages_api;
+mod allocate_user_physical_pages_numa_api;
+pub use allocate_user_physical_pages_numa_api::AllocateUserPhysicalPagesNuma_api;
+mod app_policy_get_clr_compat_api;
+pub use app_policy_get_clr_compat_api::AppPolicyGetClrCompat_api;
+mod app_policy_get_create_file_access_api;
+pub use app_policy_get_create_file_access_api::AppPolicyGetCreateFileAccess_api;
+mod app_policy_get_lifecycle_management_api;
+pub use app_policy_get_lifecycle_management_api::AppPolicyGetLifecycleManagement_api;
+mod app_policy_get_media_foundation_codec_loading_api;
+pub use app_policy_get_media_foundation_codec_loading_api::AppPolicyGetMediaFoundationCodecLoading_api;
+mod app_policy_get_process_termination_method_api;
+pub use app_policy_get_process_termination_method_api::AppPolicyGetProcessTerminationMethod_api;
+mod app_policy_get_show_developer_diagnostic_api;
+pub use app_policy_get_show_developer_diagnostic_api::AppPolicyGetShowDeveloperDiagnostic_api;
+mod app_policy_get_thread_initialization_type_api;
+pub use app_policy_get_thread_initialization_type_api::AppPolicyGetThreadInitializationType_api;
+mod app_policy_get_windowing_model_api;
+pub use app_policy_get_windowing_model_api::AppPolicyGetWindowingModel_api;
+mod app_x_get_os_max_version_tested_api;
+pub use app_x_get_os_max_version_tested_api::AppXGetOSMaxVersionTested_api;
+mod are_short_names_enabled_api;
+pub use are_short_names_enabled_api::AreShortNamesEnabled_api;
+mod assign_process_to_job_object_api;
+pub use assign_process_to_job_object_api::AssignProcessToJobObject_api;
+mod attach_console_api;
+pub use attach_console_api::AttachConsole_api;
+mod backup_read_ex_api;
+pub use backup_read_ex_api::BackupReadEx_api;
+mod backup_write_ex_api;
+pub use backup_write_ex_api::BackupWriteEx_api;
+mod base_check_appcompat_cache_api;
+pub use base_check_appcompat_cache_api::BaseCheckAppcompatCache_api;
+mod base_check_appcompat_cache_ex_api;
+pub use base_check_appcompat_cache_ex_api::BaseCheckAppcompatCacheEx_api;
+mod base_cleanup_appcompat_cache_support_api;
+pub use base_cleanup_appcompat_cache_support_api::BaseCleanupAppcompatCacheSupport_api;
+mod base_dump_appcompat_cache_api;
+pub use base_dump_appcompat_cache_api::BaseDumpAppcompatCache_api;
+mod base_dump_appcompat_cache_worker_api;
+pub use base_dump_appcompat_cache_worker_api::BaseDumpAppcompatCacheWorker_api;
+mod base_elevation_post_processing_api;
+pub use base_elevation_post_processing_api::BaseElevationPostProcessing_api;
+mod base_flush_appcompat_cache_api;
+pub use base_flush_appcompat_cache_api::BaseFlushAppcompatCache_api;
+mod base_format_object_attributes_api;
+pub use base_format_object_attributes_api::BaseFormatObjectAttributes_api;
+mod base_format_time_out_api;
+pub use base_format_time_out_api::BaseFormatTimeOut_api;
+mod base_get_named_object_directory_api;
+pub use base_get_named_object_directory_api::BaseGetNamedObjectDirectory_api;
+mod base_init_appcompat_cache_support_api;
+pub use base_init_appcompat_cache_support_api::BaseInitAppcompatCacheSupport_api;
+mod base_init_appcompat_cache_support_worker_api;
+pub use base_init_appcompat_cache_support_worker_api::BaseInitAppcompatCacheSupportWorker_api;
+mod base_is_appcompat_infrastructure_disabled_api;
+pub use base_is_appcompat_infrastructure_disabled_api::BaseIsAppcompatInfrastructureDisabled_api;
+mod base_is_appcompat_infrastructure_disabled_worker_api;
+pub use base_is_appcompat_infrastructure_disabled_worker_api::BaseIsAppcompatInfrastructureDisabledWorker_api;
+mod base_query_module_data_api;
+pub use base_query_module_data_api::BaseQueryModuleData_api;
+mod base_thread_init_thunk_api;
+pub use base_thread_init_thunk_api::BaseThreadInitThunk_api;
+mod base_update_appcompat_cache_api;
+pub use base_update_appcompat_cache_api::BaseUpdateAppcompatCache_api;
+mod basep_check_ppl_support_api;
+pub use basep_check_ppl_support_api::BasepCheckPplSupport_api;
+mod basep_finish_package_activation_api;
+pub use basep_finish_package_activation_api::BasepFinishPackageActivation_api;
+mod basep_finish_package_activation_for_sx_s_api;
+pub use basep_finish_package_activation_for_sx_s_api::BasepFinishPackageActivationForSxS_api;
+mod basep_free_activation_token_info_api;
+pub use basep_free_activation_token_info_api::BasepFreeActivationTokenInfo_api;
+mod basep_get_app_compat_data_api;
+pub use basep_get_app_compat_data_api::BasepGetAppCompatData_api;
+mod basep_get_package_activation_token_for_file_path_api;
+pub use basep_get_package_activation_token_for_file_path_api::BasepGetPackageActivationTokenForFilePath_api;
+mod basep_get_package_activation_token_for_file_path2_api;
+pub use basep_get_package_activation_token_for_file_path2_api::BasepGetPackageActivationTokenForFilePath2_api;
+mod basep_get_package_activation_token_for_sx_s_api;
+pub use basep_get_package_activation_token_for_sx_s_api::BasepGetPackageActivationTokenForSxS_api;
+mod basep_get_package_activation_token_for_sx_s2_api;
+pub use basep_get_package_activation_token_for_sx_s2_api::BasepGetPackageActivationTokenForSxS2_api;
+mod basep_get_package_activation_token_for_sx_s3_api;
+pub use basep_get_package_activation_token_for_sx_s3_api::BasepGetPackageActivationTokenForSxS3_api;
+mod basep_get_packaged_app_info_for_file_api;
+pub use basep_get_packaged_app_info_for_file_api::BasepGetPackagedAppInfoForFile_api;
+mod basep_map_module_handle_api;
+pub use basep_map_module_handle_api::BasepMapModuleHandle_api;
+mod basep_query_module_chpe_settings_api;
+pub use basep_query_module_chpe_settings_api::BasepQueryModuleChpeSettings_api;
+mod basep_release_app_x_context_api;
+pub use basep_release_app_x_context_api::BasepReleaseAppXContext_api;
+mod basep_release_packaged_app_info_api;
+pub use basep_release_packaged_app_info_api::BasepReleasePackagedAppInfo_api;
+mod beep;
+pub use beep::Beep;
+mod build_io_ring_cancel_request_api;
+pub use build_io_ring_cancel_request_api::BuildIoRingCancelRequest_api;
+mod build_io_ring_flush_file_api;
+pub use build_io_ring_flush_file_api::BuildIoRingFlushFile_api;
+mod build_io_ring_read_file_api;
+pub use build_io_ring_read_file_api::BuildIoRingReadFile_api;
+mod build_io_ring_read_file_scatter_api;
+pub use build_io_ring_read_file_scatter_api::BuildIoRingReadFileScatter_api;
+mod build_io_ring_register_buffers_api;
+pub use build_io_ring_register_buffers_api::BuildIoRingRegisterBuffers_api;
+mod build_io_ring_register_file_handles_api;
+pub use build_io_ring_register_file_handles_api::BuildIoRingRegisterFileHandles_api;
+mod build_io_ring_write_file_api;
+pub use build_io_ring_write_file_api::BuildIoRingWriteFile_api;
+mod build_io_ring_write_file_gather_api;
+pub use build_io_ring_write_file_gather_api::BuildIoRingWriteFileGather_api;
+mod call_named_pipe_w_api;
+pub use call_named_pipe_w_api::CallNamedPipeW_api;
+mod callback_may_run_long_api;
+pub use callback_may_run_long_api::CallbackMayRunLong_api;
+mod cancel_device_wakeup_request_api;
+pub use cancel_device_wakeup_request_api::CancelDeviceWakeupRequest_api;
+mod cancel_io_api;
+pub use cancel_io_api::CancelIo_api;
+mod cancel_io_ex_api;
+pub use cancel_io_ex_api::CancelIoEx_api;
+mod cancel_synchronous_io_api;
+pub use cancel_synchronous_io_api::CancelSynchronousIo_api;
+mod cancel_threadpool_io_api;
+pub use cancel_threadpool_io_api::CancelThreadpoolIo_api;
+mod cancel_waitable_timer_api;
+pub use cancel_waitable_timer_api::CancelWaitableTimer_api;
+mod ceip_is_opted_in_2;
+pub use ceip_is_opted_in_2::CeipIsOptedIn;
+mod change_timer_queue_timer_api;
+pub use change_timer_queue_timer_api::ChangeTimerQueueTimer_api;
+mod check_allow_decrypted_remote_destination_policy_2;
+pub use check_allow_decrypted_remote_destination_policy_2::CheckAllowDecryptedRemoteDestinationPolicy;
+mod check_elevation_enabled_api;
+pub use check_elevation_enabled_api::CheckElevationEnabled_api;
+mod check_for_read_only_resource_filter_api;
+pub use check_for_read_only_resource_filter_api::CheckForReadOnlyResourceFilter_api;
+mod check_remote_debugger_present_api;
+pub use check_remote_debugger_present_api::CheckRemoteDebuggerPresent_api;
+mod check_token_capability_api;
+pub use check_token_capability_api::CheckTokenCapability_api;
+mod check_token_membership_ex_api;
+pub use check_token_membership_ex_api::CheckTokenMembershipEx_api;
+mod clear_comm_break_api;
+pub use clear_comm_break_api::ClearCommBreak_api;
+mod clear_comm_error_api;
+pub use clear_comm_error_api::ClearCommError_api;
+mod close_io_ring_api;
+pub use close_io_ring_api::CloseIoRing_api;
+mod close_package_info_api;
+pub use close_package_info_api::ClosePackageInfo_api;
+mod close_private_namespace_api;
+pub use close_private_namespace_api::ClosePrivateNamespace_api;
+mod close_profile_user_mapping_2;
+pub use close_profile_user_mapping_2::CloseProfileUserMapping;
+mod close_pseudo_console_api;
+pub use close_pseudo_console_api::ClosePseudoConsole_api;
+mod close_state_api;
+pub use close_state_api::CloseState_api;
+mod close_threadpool_api;
+pub use close_threadpool_api::CloseThreadpool_api;
+mod close_threadpool_cleanup_group_api;
+pub use close_threadpool_cleanup_group_api::CloseThreadpoolCleanupGroup_api;
+mod close_threadpool_cleanup_group_members_api;
+pub use close_threadpool_cleanup_group_members_api::CloseThreadpoolCleanupGroupMembers_api;
+mod close_threadpool_io_api;
+pub use close_threadpool_io_api::CloseThreadpoolIo_api;
+mod close_threadpool_timer_api;
+pub use close_threadpool_timer_api::CloseThreadpoolTimer_api;
+mod close_threadpool_wait_api;
+pub use close_threadpool_wait_api::CloseThreadpoolWait_api;
+mod close_threadpool_work_api;
+pub use close_threadpool_work_api::CloseThreadpoolWork_api;
+mod cmd_bat_notification_api;
+pub use cmd_bat_notification_api::CmdBatNotification_api;
+mod comm_config_dialog_w_api;
+pub use comm_config_dialog_w_api::CommConfigDialogW_api;
+mod compare_file_time_api;
+pub use compare_file_time_api::CompareFileTime_api;
+mod compare_string_a;
+pub use compare_string_a::CompareStringA;
+mod compare_string_ex_api;
+pub use compare_string_ex_api::CompareStringEx_api;
+mod compare_string_ordinal;
+pub use compare_string_ordinal::CompareStringOrdinal;
+mod continue_debug_event_api;
+pub use continue_debug_event_api::ContinueDebugEvent_api;
+mod convert_default_locale_api;
+pub use convert_default_locale_api::ConvertDefaultLocale_api;
+mod convert_fiber_to_thread_2;
+pub use convert_fiber_to_thread_2::ConvertFiberToThread;
+mod convert_thread_to_fiber_api;
+pub use convert_thread_to_fiber_api::ConvertThreadToFiber_api;
+mod convert_thread_to_fiber_ex_api;
+pub use convert_thread_to_fiber_ex_api::ConvertThreadToFiberEx_api;
+mod copy_context_api;
+pub use copy_context_api::CopyContext_api;
+mod copy_file2_api;
+pub use copy_file2_api::CopyFile2_api;
+mod copy_file_ex_w;
+pub use copy_file_ex_w::CopyFileExW;
+mod create_act_ctx_w_api;
+pub use create_act_ctx_w_api::CreateActCtxW_api;
+mod create_boundary_descriptor_w_api;
+pub use create_boundary_descriptor_w_api::CreateBoundaryDescriptorW_api;
+mod create_console_screen_buffer_api;
+pub use create_console_screen_buffer_api::CreateConsoleScreenBuffer_api;
+mod create_directory2_a_api;
+pub use create_directory2_a_api::CreateDirectory2A_api;
+mod create_directory2_w_api;
+pub use create_directory2_w_api::CreateDirectory2W_api;
+mod create_directory_ex_w_api;
+pub use create_directory_ex_w_api::CreateDirectoryExW_api;
+mod create_enclave_api;
+pub use create_enclave_api::CreateEnclave_api;
+mod create_event_ex_a_api;
+pub use create_event_ex_a_api::CreateEventExA_api;
+mod create_event_ex_w_api;
+pub use create_event_ex_w_api::CreateEventExW_api;
+mod create_event_w_api;
+pub use create_event_w_api::CreateEventW_api;
+mod create_fiber_api;
+pub use create_fiber_api::CreateFiber_api;
+mod create_fiber_ex_api;
+pub use create_fiber_ex_api::CreateFiberEx_api;
+mod create_file2_api;
+pub use create_file2_api::CreateFile2_api;
+mod create_file3_api;
+pub use create_file3_api::CreateFile3_api;
+mod create_file_mapping_from_app_api;
+pub use create_file_mapping_from_app_api::CreateFileMappingFromApp_api;
+mod create_file_mapping_numa_w_api;
+pub use create_file_mapping_numa_w_api::CreateFileMappingNumaW_api;
+mod create_file_transacted_a_api;
+pub use create_file_transacted_a_api::CreateFileTransactedA_api;
+mod create_file_transacted_w_api;
+pub use create_file_transacted_w_api::CreateFileTransactedW_api;
+mod create_hard_link_a_api;
+pub use create_hard_link_a_api::CreateHardLinkA_api;
+mod create_hard_link_transacted_w_api;
+pub use create_hard_link_transacted_w_api::CreateHardLinkTransactedW_api;
+mod create_hard_link_w_api;
+pub use create_hard_link_w_api::CreateHardLinkW_api;
+mod create_io_completion_port_api;
+pub use create_io_completion_port_api::CreateIoCompletionPort_api;
+mod create_io_ring_api;
+pub use create_io_ring_api::CreateIoRing_api;
+mod create_job_object_a_api;
+pub use create_job_object_a_api::CreateJobObjectA_api;
+mod create_job_object_w_api;
+pub use create_job_object_w_api::CreateJobObjectW_api;
+mod create_job_set_api;
+pub use create_job_set_api::CreateJobSet_api;
+mod create_mailslot_a_api;
+pub use create_mailslot_a_api::CreateMailslotA_api;
+mod create_mailslot_w_api;
+pub use create_mailslot_w_api::CreateMailslotW_api;
+mod create_memory_resource_notification_api;
+pub use create_memory_resource_notification_api::CreateMemoryResourceNotification_api;
+mod create_mutex_ex_a_api;
+pub use create_mutex_ex_a_api::CreateMutexExA_api;
+mod create_mutex_ex_w_api;
+pub use create_mutex_ex_w_api::CreateMutexExW_api;
+mod create_named_pipe_w_api;
+pub use create_named_pipe_w_api::CreateNamedPipeW_api;
+mod create_package_virtualization_context_api;
+pub use create_package_virtualization_context_api::CreatePackageVirtualizationContext_api;
+mod create_pipe;
+pub use create_pipe::CreatePipe;
+mod create_private_namespace_a_api;
+pub use create_private_namespace_a_api::CreatePrivateNamespaceA_api;
+mod create_private_namespace_w_api;
+pub use create_private_namespace_w_api::CreatePrivateNamespaceW_api;
+mod create_process_as_user_a_api;
+pub use create_process_as_user_a_api::CreateProcessAsUserA_api;
+mod create_process_as_user_w_api;
+pub use create_process_as_user_w_api::CreateProcessAsUserW_api;
+mod create_process_internal_a_api;
+pub use create_process_internal_a_api::CreateProcessInternalA_api;
+mod create_process_internal_w_api;
+pub use create_process_internal_w_api::CreateProcessInternalW_api;
+mod create_pseudo_console_api;
+pub use create_pseudo_console_api::CreatePseudoConsole_api;
+mod create_remote_thread_ex_api;
+pub use create_remote_thread_ex_api::CreateRemoteThreadEx_api;
+mod create_semaphore_ex_w;
+pub use create_semaphore_ex_w::CreateSemaphoreExW;
+mod create_semaphore_w;
+pub use create_semaphore_w::CreateSemaphoreW;
+mod create_symbolic_link_w_api;
+pub use create_symbolic_link_w_api::CreateSymbolicLinkW_api;
+mod create_threadpool_api;
+pub use create_threadpool_api::CreateThreadpool_api;
+mod create_threadpool_cleanup_group_api;
+pub use create_threadpool_cleanup_group_api::CreateThreadpoolCleanupGroup_api;
+mod create_threadpool_io_api;
+pub use create_threadpool_io_api::CreateThreadpoolIo_api;
+mod create_threadpool_timer_api;
+pub use create_threadpool_timer_api::CreateThreadpoolTimer_api;
+mod create_threadpool_wait_api;
+pub use create_threadpool_wait_api::CreateThreadpoolWait_api;
+mod create_threadpool_work_api;
+pub use create_threadpool_work_api::CreateThreadpoolWork_api;
+mod create_timer_queue_api;
+pub use create_timer_queue_api::CreateTimerQueue_api;
+mod create_timer_queue_timer_api;
+pub use create_timer_queue_timer_api::CreateTimerQueueTimer_api;
+mod create_waitable_timer_ex_w;
+pub use create_waitable_timer_ex_w::CreateWaitableTimerExW;
+mod ctrl_routine_api;
+pub use ctrl_routine_api::CtrlRoutine_api;
+mod deactivate_act_ctx_api;
+pub use deactivate_act_ctx_api::DeactivateActCtx_api;
+mod deactivate_package_virtualization_context_api;
+pub use deactivate_package_virtualization_context_api::DeactivatePackageVirtualizationContext_api;
+mod debug_active_process_api;
+pub use debug_active_process_api::DebugActiveProcess_api;
+mod debug_active_process_stop_api;
+pub use debug_active_process_stop_api::DebugActiveProcessStop_api;
+mod debug_break_2;
+pub use debug_break_2::DebugBreak;
+mod debug_break_process_api;
+pub use debug_break_process_api::DebugBreakProcess_api;
+mod decode_system_pointer_api;
+pub use decode_system_pointer_api::DecodeSystemPointer_api;
+mod define_dos_device_w_api;
+pub use define_dos_device_w_api::DefineDosDeviceW_api;
+mod delay_load_failure_hook_api;
+pub use delay_load_failure_hook_api::DelayLoadFailureHook_api;
+mod delete_boundary_descriptor_api;
+pub use delete_boundary_descriptor_api::DeleteBoundaryDescriptor_api;
+mod delete_critical_section;
+pub use delete_critical_section::DeleteCriticalSection;
+mod delete_fiber_api;
+pub use delete_fiber_api::DeleteFiber_api;
+mod delete_file2_a_api;
+pub use delete_file2_a_api::DeleteFile2A_api;
+mod delete_file2_w_api;
+pub use delete_file2_w_api::DeleteFile2W_api;
+mod delete_file_transacted_a_api;
+pub use delete_file_transacted_a_api::DeleteFileTransactedA_api;
+mod delete_proc_thread_attribute_list_api;
+pub use delete_proc_thread_attribute_list_api::DeleteProcThreadAttributeList_api;
+mod delete_synchronization_barrier_api;
+pub use delete_synchronization_barrier_api::DeleteSynchronizationBarrier_api;
+mod delete_timer_queue_ex_api;
+pub use delete_timer_queue_ex_api::DeleteTimerQueueEx_api;
+mod delete_timer_queue_timer_api;
+pub use delete_timer_queue_timer_api::DeleteTimerQueueTimer_api;
+mod delete_volume_mount_point_w_api;
+pub use delete_volume_mount_point_w_api::DeleteVolumeMountPointW_api;
+mod device_io_control_2;
+pub use device_io_control_2::DeviceIoControl;
+mod disable_thread_library_calls_api;
+pub use disable_thread_library_calls_api::DisableThreadLibraryCalls_api;
+mod disassociate_current_thread_from_callback_api;
+pub use disassociate_current_thread_from_callback_api::DisassociateCurrentThreadFromCallback_api;
+mod discard_virtual_memory_api;
+pub use discard_virtual_memory_api::DiscardVirtualMemory_api;
+mod dns_hostname_to_computer_name_ex_w_api;
+pub use dns_hostname_to_computer_name_ex_w_api::DnsHostnameToComputerNameExW_api;
+mod duplicate_console_handle_api;
+pub use duplicate_console_handle_api::DuplicateConsoleHandle_api;
+mod duplicate_package_virtualization_context_api;
+pub use duplicate_package_virtualization_context_api::DuplicatePackageVirtualizationContext_api;
+mod enable_process_optional_x_state_features_api;
+pub use enable_process_optional_x_state_features_api::EnableProcessOptionalXStateFeatures_api;
+mod encode_system_pointer_api;
+pub use encode_system_pointer_api::EncodeSystemPointer_api;
+mod enter_synchronization_barrier_api;
+pub use enter_synchronization_barrier_api::EnterSynchronizationBarrier_api;
+mod enum_calendar_info_ex_ex_api;
+pub use enum_calendar_info_ex_ex_api::EnumCalendarInfoExEx_api;
+mod enum_calendar_info_ex_w_api;
+pub use enum_calendar_info_ex_w_api::EnumCalendarInfoExW_api;
+mod enum_calendar_info_w_api;
+pub use enum_calendar_info_w_api::EnumCalendarInfoW_api;
+mod enum_date_formats_ex_ex_api;
+pub use enum_date_formats_ex_ex_api::EnumDateFormatsExEx_api;
+mod enum_date_formats_ex_w_api;
+pub use enum_date_formats_ex_w_api::EnumDateFormatsExW_api;
+mod enum_date_formats_w_api;
+pub use enum_date_formats_w_api::EnumDateFormatsW_api;
+mod enum_language_group_locales_w_api;
+pub use enum_language_group_locales_w_api::EnumLanguageGroupLocalesW_api;
+mod enum_resource_languages_a_api;
+pub use enum_resource_languages_a_api::EnumResourceLanguagesA_api;
+mod enum_resource_languages_ex_a_api;
+pub use enum_resource_languages_ex_a_api::EnumResourceLanguagesExA_api;
+mod enum_resource_languages_ex_w_api;
+pub use enum_resource_languages_ex_w_api::EnumResourceLanguagesExW_api;
+mod enum_resource_languages_w_api;
+pub use enum_resource_languages_w_api::EnumResourceLanguagesW_api;
+mod enum_resource_names_a_api;
+pub use enum_resource_names_a_api::EnumResourceNamesA_api;
+mod enum_resource_names_ex_a_api;
+pub use enum_resource_names_ex_a_api::EnumResourceNamesExA_api;
+mod enum_resource_names_ex_w_api;
+pub use enum_resource_names_ex_w_api::EnumResourceNamesExW_api;
+mod enum_resource_names_w_api;
+pub use enum_resource_names_w_api::EnumResourceNamesW_api;
+mod enum_resource_types_a_api;
+pub use enum_resource_types_a_api::EnumResourceTypesA_api;
+mod enum_resource_types_ex_a_api;
+pub use enum_resource_types_ex_a_api::EnumResourceTypesExA_api;
+mod enum_resource_types_ex_w_api;
+pub use enum_resource_types_ex_w_api::EnumResourceTypesExW_api;
+mod enum_resource_types_w_api;
+pub use enum_resource_types_w_api::EnumResourceTypesW_api;
+mod enum_system_code_pages_w_api;
+pub use enum_system_code_pages_w_api::EnumSystemCodePagesW_api;
+mod enum_system_firmware_tables_api;
+pub use enum_system_firmware_tables_api::EnumSystemFirmwareTables_api;
+mod enum_system_language_groups_w_api;
+pub use enum_system_language_groups_w_api::EnumSystemLanguageGroupsW_api;
+mod enum_system_locales_a_api;
+pub use enum_system_locales_a_api::EnumSystemLocalesA_api;
+mod enum_system_locales_ex_api;
+pub use enum_system_locales_ex_api::EnumSystemLocalesEx_api;
+mod enum_system_locales_w_api;
+pub use enum_system_locales_w_api::EnumSystemLocalesW_api;
+mod enum_time_formats_ex_api;
+pub use enum_time_formats_ex_api::EnumTimeFormatsEx_api;
+mod enum_time_formats_w_api;
+pub use enum_time_formats_w_api::EnumTimeFormatsW_api;
+mod enum_ui_languages_w_api;
+pub use enum_ui_languages_w_api::EnumUILanguagesW_api;
+mod escape_comm_function_api;
+pub use escape_comm_function_api::EscapeCommFunction_api;
+mod exit_vdm_api;
+pub use exit_vdm_api::ExitVDM_api;
+mod expunge_console_command_history_a_api;
+pub use expunge_console_command_history_a_api::ExpungeConsoleCommandHistoryA_api;
+mod expunge_console_command_history_w_api;
+pub use expunge_console_command_history_w_api::ExpungeConsoleCommandHistoryW_api;
+mod fatal_app_exit_a_api;
+pub use fatal_app_exit_a_api::FatalAppExitA_api;
+mod fatal_app_exit_w_api;
+pub use fatal_app_exit_w_api::FatalAppExitW_api;
+mod fill_console_output_attribute_api;
+pub use fill_console_output_attribute_api::FillConsoleOutputAttribute_api;
+mod fill_console_output_character_a_api;
+pub use fill_console_output_character_a_api::FillConsoleOutputCharacterA_api;
+mod fill_console_output_character_w_api;
+pub use fill_console_output_character_w_api::FillConsoleOutputCharacterW_api;
+mod find_act_ctx_section_guid_api;
+pub use find_act_ctx_section_guid_api::FindActCtxSectionGuid_api;
+mod find_act_ctx_section_string_w_api;
+pub use find_act_ctx_section_string_w_api::FindActCtxSectionStringW_api;
+mod find_close_change_notification_api;
+pub use find_close_change_notification_api::FindCloseChangeNotification_api;
+mod find_first_change_notification_a_api;
+pub use find_first_change_notification_a_api::FindFirstChangeNotificationA_api;
+mod find_first_change_notification_w_api;
+pub use find_first_change_notification_w_api::FindFirstChangeNotificationW_api;
+mod find_first_file_ex_a_api;
+pub use find_first_file_ex_a_api::FindFirstFileExA_api;
+mod find_first_file_ex_w_api;
+pub use find_first_file_ex_w_api::FindFirstFileExW_api;
+mod find_first_file_name_transacted_w_api;
+pub use find_first_file_name_transacted_w_api::FindFirstFileNameTransactedW_api;
+mod find_first_file_name_w_api;
+pub use find_first_file_name_w_api::FindFirstFileNameW_api;
+mod find_first_file_transacted_a_api;
+pub use find_first_file_transacted_a_api::FindFirstFileTransactedA_api;
+mod find_first_file_transacted_w_api;
+pub use find_first_file_transacted_w_api::FindFirstFileTransactedW_api;
+mod find_first_stream_transacted_w_api;
+pub use find_first_stream_transacted_w_api::FindFirstStreamTransactedW_api;
+mod find_first_stream_w_api;
+pub use find_first_stream_w_api::FindFirstStreamW_api;
+mod find_first_volume_w_api;
+pub use find_first_volume_w_api::FindFirstVolumeW_api;
+mod find_nls_string_api;
+pub use find_nls_string_api::FindNLSString_api;
+mod find_nls_string_ex_api;
+pub use find_nls_string_ex_api::FindNLSStringEx_api;
+mod find_next_change_notification_api;
+pub use find_next_change_notification_api::FindNextChangeNotification_api;
+mod find_next_file_name_w_api;
+pub use find_next_file_name_w_api::FindNextFileNameW_api;
+mod find_next_stream_w_api;
+pub use find_next_stream_w_api::FindNextStreamW_api;
+mod find_next_volume_w_api;
+pub use find_next_volume_w_api::FindNextVolumeW_api;
+mod find_packages_by_package_family_api;
+pub use find_packages_by_package_family_api::FindPackagesByPackageFamily_api;
+mod find_resource_ex_a_api;
+pub use find_resource_ex_a_api::FindResourceExA_api;
+mod find_resource_ex_w_api;
+pub use find_resource_ex_w_api::FindResourceExW_api;
+mod find_string_ordinal_api;
+pub use find_string_ordinal_api::FindStringOrdinal_api;
+mod find_volume_close_api;
+pub use find_volume_close_api::FindVolumeClose_api;
+mod fls_free;
+pub use fls_free::FlsFree;
+mod fls_get_value2_api;
+pub use fls_get_value2_api::FlsGetValue2_api;
+mod flush_console_input_buffer_api;
+pub use flush_console_input_buffer_api::FlushConsoleInputBuffer_api;
+mod flush_file_buffers;
+pub use flush_file_buffers::FlushFileBuffers;
+mod flush_instruction_cache_api;
+pub use flush_instruction_cache_api::FlushInstructionCache_api;
+mod flush_process_write_buffers_api;
+pub use flush_process_write_buffers_api::FlushProcessWriteBuffers_api;
+mod flush_view_of_file_api;
+pub use flush_view_of_file_api::FlushViewOfFile_api;
+mod fold_string_w_api;
+pub use fold_string_w_api::FoldStringW_api;
+mod format_application_user_model_id_api;
+pub use format_application_user_model_id_api::FormatApplicationUserModelId_api;
+mod free_console_api;
+pub use free_console_api::FreeConsole_api;
+mod free_library_and_exit_thread_api;
+pub use free_library_and_exit_thread_api::FreeLibraryAndExitThread_api;
+mod free_library_when_callback_returns_api;
+pub use free_library_when_callback_returns_api::FreeLibraryWhenCallbackReturns_api;
+mod free_user_physical_pages_api;
+pub use free_user_physical_pages_api::FreeUserPhysicalPages_api;
+mod generate_console_ctrl_event_api;
+pub use generate_console_ctrl_event_api::GenerateConsoleCtrlEvent_api;
+mod get_app_container_ace_api;
+pub use get_app_container_ace_api::GetAppContainerAce_api;
+mod get_app_container_named_object_path_api;
+pub use get_app_container_named_object_path_api::GetAppContainerNamedObjectPath_api;
+mod get_application_recovery_callback_api;
+pub use get_application_recovery_callback_api::GetApplicationRecoveryCallback_api;
+mod get_application_recovery_callback_worker_api;
+pub use get_application_recovery_callback_worker_api::GetApplicationRecoveryCallbackWorker_api;
+mod get_application_restart_settings_api;
+pub use get_application_restart_settings_api::GetApplicationRestartSettings_api;
+mod get_application_user_model_id_api;
+pub use get_application_user_model_id_api::GetApplicationUserModelId_api;
+mod get_binary_type_api;
+pub use get_binary_type_api::GetBinaryType_api;
+mod get_binary_type_a_api;
+pub use get_binary_type_a_api::GetBinaryTypeA_api;
+mod get_cp_info_ex_a_api;
+pub use get_cp_info_ex_a_api::GetCPInfoExA_api;
+mod get_cp_info_ex_w_api;
+pub use get_cp_info_ex_w_api::GetCPInfoExW_api;
+mod get_cached_signing_level_api;
+pub use get_cached_signing_level_api::GetCachedSigningLevel_api;
+mod get_calendar_info_ex_api;
+pub use get_calendar_info_ex_api::GetCalendarInfoEx_api;
+mod get_calendar_info_w_api;
+pub use get_calendar_info_w_api::GetCalendarInfoW_api;
+mod get_comm_config_api;
+pub use get_comm_config_api::GetCommConfig_api;
+mod get_comm_mask_api;
+pub use get_comm_mask_api::GetCommMask_api;
+mod get_comm_modem_status_api;
+pub use get_comm_modem_status_api::GetCommModemStatus_api;
+mod get_comm_properties_api;
+pub use get_comm_properties_api::GetCommProperties_api;
+mod get_comm_state_api;
+pub use get_comm_state_api::GetCommState_api;
+mod get_comm_timeouts_api;
+pub use get_comm_timeouts_api::GetCommTimeouts_api;
+mod get_compressed_file_size_a_api;
+pub use get_compressed_file_size_a_api::GetCompressedFileSizeA_api;
+mod get_compressed_file_size_transacted_a_api;
+pub use get_compressed_file_size_transacted_a_api::GetCompressedFileSizeTransactedA_api;
+mod get_compressed_file_size_w_api;
+pub use get_compressed_file_size_w_api::GetCompressedFileSizeW_api;
+mod get_computer_name_ex_a_api;
+pub use get_computer_name_ex_a_api::GetComputerNameExA_api;
+mod get_computer_name_ex_w_api;
+pub use get_computer_name_ex_w_api::GetComputerNameExW_api;
+mod get_console_alias_a_api;
+pub use get_console_alias_a_api::GetConsoleAliasA_api;
+mod get_console_alias_exes_a_api;
+pub use get_console_alias_exes_a_api::GetConsoleAliasExesA_api;
+mod get_console_alias_exes_length_a_api;
+pub use get_console_alias_exes_length_a_api::GetConsoleAliasExesLengthA_api;
+mod get_console_alias_exes_length_w_api;
+pub use get_console_alias_exes_length_w_api::GetConsoleAliasExesLengthW_api;
+mod get_console_alias_exes_w_api;
+pub use get_console_alias_exes_w_api::GetConsoleAliasExesW_api;
+mod get_console_alias_w_api;
+pub use get_console_alias_w_api::GetConsoleAliasW_api;
+mod get_console_aliases_a_api;
+pub use get_console_aliases_a_api::GetConsoleAliasesA_api;
+mod get_console_aliases_length_a_api;
+pub use get_console_aliases_length_a_api::GetConsoleAliasesLengthA_api;
+mod get_console_aliases_length_w_api;
+pub use get_console_aliases_length_w_api::GetConsoleAliasesLengthW_api;
+mod get_console_aliases_w_api;
+pub use get_console_aliases_w_api::GetConsoleAliasesW_api;
+mod get_console_command_history_a_api;
+pub use get_console_command_history_a_api::GetConsoleCommandHistoryA_api;
+mod get_console_command_history_length_a_api;
+pub use get_console_command_history_length_a_api::GetConsoleCommandHistoryLengthA_api;
+mod get_console_command_history_length_w_api;
+pub use get_console_command_history_length_w_api::GetConsoleCommandHistoryLengthW_api;
+mod get_console_command_history_w_api;
+pub use get_console_command_history_w_api::GetConsoleCommandHistoryW_api;
+mod get_console_cursor_info_api;
+pub use get_console_cursor_info_api::GetConsoleCursorInfo_api;
+mod get_console_cursor_mode_api;
+pub use get_console_cursor_mode_api::GetConsoleCursorMode_api;
+mod get_console_display_mode_api;
+pub use get_console_display_mode_api::GetConsoleDisplayMode_api;
+mod get_console_font_size_api;
+pub use get_console_font_size_api::GetConsoleFontSize_api;
+mod get_console_history_info_api;
+pub use get_console_history_info_api::GetConsoleHistoryInfo_api;
+mod get_console_input_exe_name_a_api;
+pub use get_console_input_exe_name_a_api::GetConsoleInputExeNameA_api;
+mod get_console_input_exe_name_w_api;
+pub use get_console_input_exe_name_w_api::GetConsoleInputExeNameW_api;
+mod get_console_nls_mode_api;
+pub use get_console_nls_mode_api::GetConsoleNlsMode_api;
+mod get_console_original_title_a_api;
+pub use get_console_original_title_a_api::GetConsoleOriginalTitleA_api;
+mod get_console_original_title_w_api;
+pub use get_console_original_title_w_api::GetConsoleOriginalTitleW_api;
+mod get_console_process_list_api;
+pub use get_console_process_list_api::GetConsoleProcessList_api;
+mod get_console_screen_buffer_info_api;
+pub use get_console_screen_buffer_info_api::GetConsoleScreenBufferInfo_api;
+mod get_console_screen_buffer_info_ex_api;
+pub use get_console_screen_buffer_info_ex_api::GetConsoleScreenBufferInfoEx_api;
+mod get_console_selection_info_api;
+pub use get_console_selection_info_api::GetConsoleSelectionInfo_api;
+mod get_console_title_a_api;
+pub use get_console_title_a_api::GetConsoleTitleA_api;
+mod get_console_title_w_api;
+pub use get_console_title_w_api::GetConsoleTitleW_api;
+mod get_console_window_2;
+pub use get_console_window_2::GetConsoleWindow;
+mod get_currency_format_ex_api;
+pub use get_currency_format_ex_api::GetCurrencyFormatEx_api;
+mod get_current_act_ctx_api;
+pub use get_current_act_ctx_api::GetCurrentActCtx_api;
+mod get_current_application_user_model_id_api;
+pub use get_current_application_user_model_id_api::GetCurrentApplicationUserModelId_api;
+mod get_current_console_font_api;
+pub use get_current_console_font_api::GetCurrentConsoleFont_api;
+mod get_current_console_font_ex_api;
+pub use get_current_console_font_ex_api::GetCurrentConsoleFontEx_api;
+mod get_current_package_family_name_api;
+pub use get_current_package_family_name_api::GetCurrentPackageFamilyName_api;
+mod get_current_package_full_name_api;
+pub use get_current_package_full_name_api::GetCurrentPackageFullName_api;
+mod get_current_package_id_api;
+pub use get_current_package_id_api::GetCurrentPackageId_api;
+mod get_current_package_info_api;
+pub use get_current_package_info_api::GetCurrentPackageInfo_api;
+mod get_current_package_path;
+pub use get_current_package_path::GetCurrentPackagePath;
+mod get_current_package_virtualization_context_2;
+pub use get_current_package_virtualization_context_2::GetCurrentPackageVirtualizationContext;
+mod get_current_processor_number_2;
+pub use get_current_processor_number_2::GetCurrentProcessorNumber;
+mod get_current_processor_number_ex_api;
+pub use get_current_processor_number_ex_api::GetCurrentProcessorNumberEx_api;
+mod get_current_thread_stack_limits_api;
+pub use get_current_thread_stack_limits_api::GetCurrentThreadStackLimits_api;
+mod get_date_format_a_api;
+pub use get_date_format_a_api::GetDateFormatA_api;
+mod get_date_format_ex_api;
+pub use get_date_format_ex_api::GetDateFormatEx_api;
+mod get_date_format_w;
+pub use get_date_format_w::GetDateFormatW;
+mod get_disk_free_space_w_api;
+pub use get_disk_free_space_w_api::GetDiskFreeSpaceW_api;
+mod get_disk_space_information_a_api;
+pub use get_disk_space_information_a_api::GetDiskSpaceInformationA_api;
+mod get_disk_space_information_w_api;
+pub use get_disk_space_information_w_api::GetDiskSpaceInformationW_api;
+mod get_duration_format_ex_api;
+pub use get_duration_format_ex_api::GetDurationFormatEx_api;
+mod get_dynamic_time_zone_information_api;
+pub use get_dynamic_time_zone_information_api::GetDynamicTimeZoneInformation_api;
+mod get_enabled_x_state_features_2;
+pub use get_enabled_x_state_features_2::GetEnabledXStateFeatures;
+mod get_environment_strings_a;
+pub use get_environment_strings_a::GetEnvironmentStringsA;
+mod get_environment_variable_a_api;
+pub use get_environment_variable_a_api::GetEnvironmentVariableA_api;
+mod get_era_name_counted_string_api;
+pub use get_era_name_counted_string_api::GetEraNameCountedString_api;
+mod get_error_mode_2;
+pub use get_error_mode_2::GetErrorMode;
+mod get_exit_code_process;
+pub use get_exit_code_process::GetExitCodeProcess;
+mod get_exit_code_thread;
+pub use get_exit_code_thread::GetExitCodeThread;
+mod get_file_attributes_ex_a_api;
+pub use get_file_attributes_ex_a_api::GetFileAttributesExA_api;
+mod get_file_attributes_ex_w_api;
+pub use get_file_attributes_ex_w_api::GetFileAttributesExW_api;
+mod get_file_attributes_transacted_w_api;
+pub use get_file_attributes_transacted_w_api::GetFileAttributesTransactedW_api;
+mod get_file_information_by_handle_api;
+pub use get_file_information_by_handle_api::GetFileInformationByHandle_api;
+mod get_file_information_by_handle_ex_api;
+pub use get_file_information_by_handle_ex_api::GetFileInformationByHandleEx_api;
+mod get_file_information_by_name_api;
+pub use get_file_information_by_name_api::GetFileInformationByName_api;
+mod get_file_mui_info_api;
+pub use get_file_mui_info_api::GetFileMUIInfo_api;
+mod get_file_mui_path_api;
+pub use get_file_mui_path_api::GetFileMUIPath_api;
+mod get_file_time_api;
+pub use get_file_time_api::GetFileTime_api;
+mod get_final_path_name_by_handle_a_api;
+pub use get_final_path_name_by_handle_a_api::GetFinalPathNameByHandleA_api;
+mod get_final_path_name_by_handle_w_api;
+pub use get_final_path_name_by_handle_w_api::GetFinalPathNameByHandleW_api;
+mod get_firmware_environment_variable_ex_a_api;
+pub use get_firmware_environment_variable_ex_a_api::GetFirmwareEnvironmentVariableExA_api;
+mod get_firmware_environment_variable_ex_w_api;
+pub use get_firmware_environment_variable_ex_w_api::GetFirmwareEnvironmentVariableExW_api;
+mod get_handle_information_api;
+pub use get_handle_information_api::GetHandleInformation_api;
+mod get_io_ring_info_api;
+pub use get_io_ring_info_api::GetIoRingInfo_api;
+mod get_large_page_minimum_2;
+pub use get_large_page_minimum_2::GetLargePageMinimum;
+mod get_largest_console_window_size_api;
+pub use get_largest_console_window_size_api::GetLargestConsoleWindowSize_api;
+mod get_locale_info_ex;
+pub use get_locale_info_ex::GetLocaleInfoEx;
+mod get_logical_drive_strings_a_api;
+pub use get_logical_drive_strings_a_api::GetLogicalDriveStringsA_api;
+mod get_logical_drive_strings_w_api;
+pub use get_logical_drive_strings_w_api::GetLogicalDriveStringsW_api;
+mod get_logical_processor_information_api;
+pub use get_logical_processor_information_api::GetLogicalProcessorInformation_api;
+mod get_logical_processor_information_ex_api;
+pub use get_logical_processor_information_ex_api::GetLogicalProcessorInformationEx_api;
+mod get_long_path_name_transacted_a_api;
+pub use get_long_path_name_transacted_a_api::GetLongPathNameTransactedA_api;
+mod get_long_path_name_transacted_w_api;
+pub use get_long_path_name_transacted_w_api::GetLongPathNameTransactedW_api;
+mod get_machine_type_attributes_api;
+pub use get_machine_type_attributes_api::GetMachineTypeAttributes_api;
+mod get_memory_error_handling_capabilities_api;
+pub use get_memory_error_handling_capabilities_api::GetMemoryErrorHandlingCapabilities_api;
+mod get_module_handle_ex_a_api;
+pub use get_module_handle_ex_a_api::GetModuleHandleExA_api;
+mod get_nls_version_api;
+pub use get_nls_version_api::GetNLSVersion_api;
+mod get_nls_version_ex_api;
+pub use get_nls_version_ex_api::GetNLSVersionEx_api;
+mod get_named_pipe_attribute_api;
+pub use get_named_pipe_attribute_api::GetNamedPipeAttribute_api;
+mod get_named_pipe_client_computer_name_w_api;
+pub use get_named_pipe_client_computer_name_w_api::GetNamedPipeClientComputerNameW_api;
+mod get_named_pipe_handle_state_w_api;
+pub use get_named_pipe_handle_state_w_api::GetNamedPipeHandleStateW_api;
+mod get_named_pipe_info_api;
+pub use get_named_pipe_info_api::GetNamedPipeInfo_api;
+mod get_named_pipe_server_process_id_api;
+pub use get_named_pipe_server_process_id_api::GetNamedPipeServerProcessId_api;
+mod get_next_vdm_command_api;
+pub use get_next_vdm_command_api::GetNextVDMCommand_api;
+mod get_numa_highest_node_number_api;
+pub use get_numa_highest_node_number_api::GetNumaHighestNodeNumber_api;
+mod get_numa_node_processor_mask2_api;
+pub use get_numa_node_processor_mask2_api::GetNumaNodeProcessorMask2_api;
+mod get_numa_node_processor_mask_ex_api;
+pub use get_numa_node_processor_mask_ex_api::GetNumaNodeProcessorMaskEx_api;
+mod get_numa_proximity_node_ex_api;
+pub use get_numa_proximity_node_ex_api::GetNumaProximityNodeEx_api;
+mod get_number_format_ex_api;
+pub use get_number_format_ex_api::GetNumberFormatEx_api;
+mod get_number_of_console_input_events_api;
+pub use get_number_of_console_input_events_api::GetNumberOfConsoleInputEvents_api;
+mod get_number_of_console_mouse_buttons_api;
+pub use get_number_of_console_mouse_buttons_api::GetNumberOfConsoleMouseButtons_api;
+mod get_overlapped_result_api;
+pub use get_overlapped_result_api::GetOverlappedResult_api;
+mod get_overlapped_result_ex_api;
+pub use get_overlapped_result_ex_api::GetOverlappedResultEx_api;
+mod get_package_application_ids_api;
+pub use get_package_application_ids_api::GetPackageApplicationIds_api;
+mod get_package_family_name_api;
+pub use get_package_family_name_api::GetPackageFamilyName_api;
+mod get_package_full_name_api;
+pub use get_package_full_name_api::GetPackageFullName_api;
+mod get_package_id_api;
+pub use get_package_id_api::GetPackageId_api;
+mod get_package_info_api;
+pub use get_package_info_api::GetPackageInfo_api;
+mod get_package_path_api;
+pub use get_package_path_api::GetPackagePath_api;
+mod get_package_path_by_full_name_api;
+pub use get_package_path_by_full_name_api::GetPackagePathByFullName_api;
+mod get_packages_by_package_family_api;
+pub use get_packages_by_package_family_api::GetPackagesByPackageFamily_api;
+mod get_physically_installed_system_memory_api;
+pub use get_physically_installed_system_memory_api::GetPhysicallyInstalledSystemMemory_api;
+mod get_priority_class_api;
+pub use get_priority_class_api::GetPriorityClass_api;
+mod get_process_default_cpu_set_masks_api;
+pub use get_process_default_cpu_set_masks_api::GetProcessDefaultCpuSetMasks_api;
+mod get_process_default_cpu_sets_api;
+pub use get_process_default_cpu_sets_api::GetProcessDefaultCpuSets_api;
+mod get_process_group_affinity_api;
+pub use get_process_group_affinity_api::GetProcessGroupAffinity_api;
+mod get_process_handle_count_api;
+pub use get_process_handle_count_api::GetProcessHandleCount_api;
+mod get_process_heaps_api;
+pub use get_process_heaps_api::GetProcessHeaps_api;
+mod get_process_id;
+pub use get_process_id::GetProcessId;
+mod get_process_id_of_thread_api;
+pub use get_process_id_of_thread_api::GetProcessIdOfThread_api;
+mod get_process_information_api;
+pub use get_process_information_api::GetProcessInformation_api;
+mod get_process_mitigation_policy_api;
+pub use get_process_mitigation_policy_api::GetProcessMitigationPolicy_api;
+mod get_process_preferred_ui_languages_api;
+pub use get_process_preferred_ui_languages_api::GetProcessPreferredUILanguages_api;
+mod get_process_priority_boost_api;
+pub use get_process_priority_boost_api::GetProcessPriorityBoost_api;
+mod get_process_shutdown_parameters_api;
+pub use get_process_shutdown_parameters_api::GetProcessShutdownParameters_api;
+mod get_process_times_api;
+pub use get_process_times_api::GetProcessTimes_api;
+mod get_process_version_api;
+pub use get_process_version_api::GetProcessVersion_api;
+mod get_process_working_set_size_ex_api;
+pub use get_process_working_set_size_ex_api::GetProcessWorkingSetSizeEx_api;
+mod get_processes_in_virtualization_context_api;
+pub use get_processes_in_virtualization_context_api::GetProcessesInVirtualizationContext_api;
+mod get_processor_system_cycle_time_api;
+pub use get_processor_system_cycle_time_api::GetProcessorSystemCycleTime_api;
+mod get_product_info_api;
+pub use get_product_info_api::GetProductInfo_api;
+mod get_queued_completion_status_api;
+pub use get_queued_completion_status_api::GetQueuedCompletionStatus_api;
+mod get_queued_completion_status_ex_api;
+pub use get_queued_completion_status_ex_api::GetQueuedCompletionStatusEx_api;
+mod get_staged_package_path_by_full_name_api;
+pub use get_staged_package_path_by_full_name_api::GetStagedPackagePathByFullName_api;
+mod get_state_folder_api;
+pub use get_state_folder_api::GetStateFolder_api;
+mod get_string_scripts_api;
+pub use get_string_scripts_api::GetStringScripts_api;
+mod get_string_type_a;
+pub use get_string_type_a::GetStringTypeA;
+mod get_string_type_ex_a_api;
+pub use get_string_type_ex_a_api::GetStringTypeExA_api;
+mod get_string_type_ex_w_api;
+pub use get_string_type_ex_w_api::GetStringTypeExW_api;
+mod get_system_app_data_key_api;
+pub use get_system_app_data_key_api::GetSystemAppDataKey_api;
+mod get_system_cpu_set_information_api;
+pub use get_system_cpu_set_information_api::GetSystemCpuSetInformation_api;
+mod get_system_default_lcid_2;
+pub use get_system_default_lcid_2::GetSystemDefaultLCID;
+mod get_system_default_lang_id_2;
+pub use get_system_default_lang_id_2::GetSystemDefaultLangID;
+mod get_system_default_locale_name_api;
+pub use get_system_default_locale_name_api::GetSystemDefaultLocaleName_api;
+mod get_system_default_ui_language_2;
+pub use get_system_default_ui_language_2::GetSystemDefaultUILanguage;
+mod get_system_file_cache_size_api;
+pub use get_system_file_cache_size_api::GetSystemFileCacheSize_api;
+mod get_system_firmware_table_api;
+pub use get_system_firmware_table_api::GetSystemFirmwareTable_api;
+mod get_system_preferred_ui_languages_api;
+pub use get_system_preferred_ui_languages_api::GetSystemPreferredUILanguages_api;
+mod get_system_time_adjustment_api;
+pub use get_system_time_adjustment_api::GetSystemTimeAdjustment_api;
+mod get_system_time_precise_as_file_time_api;
+pub use get_system_time_precise_as_file_time_api::GetSystemTimePreciseAsFileTime_api;
+mod get_system_times_api;
+pub use get_system_times_api::GetSystemTimes_api;
+mod get_system_wow64_directory_a_api;
+pub use get_system_wow64_directory_a_api::GetSystemWow64DirectoryA_api;
+mod get_system_wow64_directory_w_api;
+pub use get_system_wow64_directory_w_api::GetSystemWow64DirectoryW_api;
+mod get_temp_file_name_a_api;
+pub use get_temp_file_name_a_api::GetTempFileNameA_api;
+mod get_temp_file_name_w_api;
+pub use get_temp_file_name_w_api::GetTempFileNameW_api;
+mod get_temp_path2_a_api;
+pub use get_temp_path2_a_api::GetTempPath2A_api;
+mod get_temp_path2_w_api;
+pub use get_temp_path2_w_api::GetTempPath2W_api;
+mod get_thread_description_api;
+pub use get_thread_description_api::GetThreadDescription_api;
+mod get_thread_enabled_x_state_features_2;
+pub use get_thread_enabled_x_state_features_2::GetThreadEnabledXStateFeatures;
+mod get_thread_error_mode_2;
+pub use get_thread_error_mode_2::GetThreadErrorMode;
+mod get_thread_group_affinity_api;
+pub use get_thread_group_affinity_api::GetThreadGroupAffinity_api;
+mod get_thread_io_pending_flag_api;
+pub use get_thread_io_pending_flag_api::GetThreadIOPendingFlag_api;
+mod get_thread_ideal_processor_ex_api;
+pub use get_thread_ideal_processor_ex_api::GetThreadIdealProcessorEx_api;
+mod get_thread_information_api;
+pub use get_thread_information_api::GetThreadInformation_api;
+mod get_thread_priority_api;
+pub use get_thread_priority_api::GetThreadPriority_api;
+mod get_thread_priority_boost_api;
+pub use get_thread_priority_boost_api::GetThreadPriorityBoost_api;
+mod get_thread_selected_cpu_set_masks_api;
+pub use get_thread_selected_cpu_set_masks_api::GetThreadSelectedCpuSetMasks_api;
+mod get_thread_selected_cpu_sets_api;
+pub use get_thread_selected_cpu_sets_api::GetThreadSelectedCpuSets_api;
+mod get_thread_times_api;
+pub use get_thread_times_api::GetThreadTimes_api;
+mod get_time_format_a_api;
+pub use get_time_format_a_api::GetTimeFormatA_api;
+mod get_time_format_a_worker_api;
+pub use get_time_format_a_worker_api::GetTimeFormatAWorker_api;
+mod get_time_format_ex_api;
+pub use get_time_format_ex_api::GetTimeFormatEx_api;
+mod get_time_format_w;
+pub use get_time_format_w::GetTimeFormatW;
+mod get_time_zone_information_for_year_api;
+pub use get_time_zone_information_for_year_api::GetTimeZoneInformationForYear_api;
+mod get_ui_language_info_api;
+pub use get_ui_language_info_api::GetUILanguageInfo_api;
+mod get_user_default_locale_name_api;
+pub use get_user_default_locale_name_api::GetUserDefaultLocaleName_api;
+mod get_user_preferred_ui_languages_api;
+pub use get_user_preferred_ui_languages_api::GetUserPreferredUILanguages_api;
+mod get_vdm_current_directories_api;
+pub use get_vdm_current_directories_api::GetVDMCurrentDirectories_api;
+mod get_volume_information_by_handle_w_api;
+pub use get_volume_information_by_handle_w_api::GetVolumeInformationByHandleW_api;
+mod get_volume_name_for_volume_mount_point_w_api;
+pub use get_volume_name_for_volume_mount_point_w_api::GetVolumeNameForVolumeMountPointW_api;
+mod get_volume_path_name_a_api;
+pub use get_volume_path_name_a_api::GetVolumePathNameA_api;
+mod get_volume_path_name_w_api;
+pub use get_volume_path_name_w_api::GetVolumePathNameW_api;
+mod get_volume_path_names_for_volume_name_w_api;
+pub use get_volume_path_names_for_volume_name_w_api::GetVolumePathNamesForVolumeNameW_api;
+mod get_write_watch_api;
+pub use get_write_watch_api::GetWriteWatch_api;
+mod get_x_state_features_mask_api;
+pub use get_x_state_features_mask_api::GetXStateFeaturesMask_api;
+mod global_compact_api;
+pub use global_compact_api::GlobalCompact_api;
+mod global_memory_status_ex_api;
+pub use global_memory_status_ex_api::GlobalMemoryStatusEx_api;
+mod heap_compact_api;
+pub use heap_compact_api::HeapCompact_api;
+mod heap_lock_api;
+pub use heap_lock_api::HeapLock_api;
+mod heap_query_information_api;
+pub use heap_query_information_api::HeapQueryInformation_api;
+mod heap_summary_api;
+pub use heap_summary_api::HeapSummary_api;
+mod heap_unlock_api;
+pub use heap_unlock_api::HeapUnlock_api;
+mod heap_validate_api;
+pub use heap_validate_api::HeapValidate_api;
+mod heap_walk_api;
+pub use heap_walk_api::HeapWalk_api;
+mod idn_to_ascii_api;
+pub use idn_to_ascii_api::IdnToAscii_api;
+mod idn_to_nameprep_unicode_api;
+pub use idn_to_nameprep_unicode_api::IdnToNameprepUnicode_api;
+mod idn_to_unicode_api;
+pub use idn_to_unicode_api::IdnToUnicode_api;
+mod init_once_begin_initialize_api;
+pub use init_once_begin_initialize_api::InitOnceBeginInitialize_api;
+mod init_once_complete_api;
+pub use init_once_complete_api::InitOnceComplete_api;
+mod init_once_execute_once_api;
+pub use init_once_execute_once_api::InitOnceExecuteOnce_api;
+mod init_once_initialize_api;
+pub use init_once_initialize_api::InitOnceInitialize_api;
+mod initialize_condition_variable;
+pub use initialize_condition_variable::InitializeConditionVariable;
+mod initialize_context_api;
+pub use initialize_context_api::InitializeContext_api;
+mod initialize_context2_api;
+pub use initialize_context2_api::InitializeContext2_api;
+mod initialize_enclave_api;
+pub use initialize_enclave_api::InitializeEnclave_api;
+mod initialize_proc_thread_attribute_list_api;
+pub use initialize_proc_thread_attribute_list_api::InitializeProcThreadAttributeList_api;
+mod initialize_s_list_head_api;
+pub use initialize_s_list_head_api::InitializeSListHead_api;
+mod initialize_synchronization_barrier_api;
+pub use initialize_synchronization_barrier_api::InitializeSynchronizationBarrier_api;
+mod install_elam_certificate_info_api;
+pub use install_elam_certificate_info_api::InstallELAMCertificateInfo_api;
+mod interlocked_compare_exchange64_api;
+pub use interlocked_compare_exchange64_api::InterlockedCompareExchange64_api;
+mod interlocked_flush_s_list_api;
+pub use interlocked_flush_s_list_api::InterlockedFlushSList_api;
+mod interlocked_pop_entry_s_list_api;
+pub use interlocked_pop_entry_s_list_api::InterlockedPopEntrySList_api;
+mod interlocked_push_entry_s_list_api;
+pub use interlocked_push_entry_s_list_api::InterlockedPushEntrySList_api;
+mod interlocked_push_list_s_list_api;
+pub use interlocked_push_list_s_list_api::InterlockedPushListSList_api;
+mod interlocked_push_list_s_list_ex_api;
+pub use interlocked_push_list_s_list_ex_api::InterlockedPushListSListEx_api;
+mod is_dbcs_lead_byte_api;
+pub use is_dbcs_lead_byte_api::IsDBCSLeadByte_api;
+mod is_dbcs_lead_byte_ex_api;
+pub use is_dbcs_lead_byte_ex_api::IsDBCSLeadByteEx_api;
+mod is_enclave_type_supported_api;
+pub use is_enclave_type_supported_api::IsEnclaveTypeSupported_api;
+mod is_io_ring_op_supported_api;
+pub use is_io_ring_op_supported_api::IsIoRingOpSupported_api;
+mod is_nls_defined_string_api;
+pub use is_nls_defined_string_api::IsNLSDefinedString_api;
+mod is_native_vhd_boot_api;
+pub use is_native_vhd_boot_api::IsNativeVhdBoot_api;
+mod is_normalized_string_api;
+pub use is_normalized_string_api::IsNormalizedString_api;
+mod is_process_critical_api;
+pub use is_process_critical_api::IsProcessCritical_api;
+mod is_process_in_job_api;
+pub use is_process_in_job_api::IsProcessInJob_api;
+mod is_threadpool_timer_set_api;
+pub use is_threadpool_timer_set_api::IsThreadpoolTimerSet_api;
+mod is_user_cet_available_in_environment_api;
+pub use is_user_cet_available_in_environment_api::IsUserCetAvailableInEnvironment_api;
+mod is_valid_language_group_api;
+pub use is_valid_language_group_api::IsValidLanguageGroup_api;
+mod is_valid_locale_name_api;
+pub use is_valid_locale_name_api::IsValidLocaleName_api;
+mod is_valid_nls_version_api;
+pub use is_valid_nls_version_api::IsValidNLSVersion_api;
+mod is_wow64_guest_machine_supported_api;
+pub use is_wow64_guest_machine_supported_api::IsWow64GuestMachineSupported_api;
+mod is_wow64_process2_api;
+pub use is_wow64_process2_api::IsWow64Process2_api;
+mod k32_empty_working_set_api;
+pub use k32_empty_working_set_api::K32EmptyWorkingSet_api;
+mod k32_enum_device_drivers_api;
+pub use k32_enum_device_drivers_api::K32EnumDeviceDrivers_api;
+mod k32_enum_page_files_a_api;
+pub use k32_enum_page_files_a_api::K32EnumPageFilesA_api;
+mod k32_enum_page_files_w_api;
+pub use k32_enum_page_files_w_api::K32EnumPageFilesW_api;
+mod k32_enum_process_modules_api;
+pub use k32_enum_process_modules_api::K32EnumProcessModules_api;
+mod k32_enum_process_modules_ex_api;
+pub use k32_enum_process_modules_ex_api::K32EnumProcessModulesEx_api;
+mod k32_enum_processes_api;
+pub use k32_enum_processes_api::K32EnumProcesses_api;
+mod k32_get_device_driver_base_name_a_api;
+pub use k32_get_device_driver_base_name_a_api::K32GetDeviceDriverBaseNameA_api;
+mod k32_get_device_driver_base_name_w_api;
+pub use k32_get_device_driver_base_name_w_api::K32GetDeviceDriverBaseNameW_api;
+mod k32_get_device_driver_file_name_a_api;
+pub use k32_get_device_driver_file_name_a_api::K32GetDeviceDriverFileNameA_api;
+mod k32_get_device_driver_file_name_w_api;
+pub use k32_get_device_driver_file_name_w_api::K32GetDeviceDriverFileNameW_api;
+mod k32_get_mapped_file_name_a_api;
+pub use k32_get_mapped_file_name_a_api::K32GetMappedFileNameA_api;
+mod k32_get_mapped_file_name_w_api;
+pub use k32_get_mapped_file_name_w_api::K32GetMappedFileNameW_api;
+mod k32_get_module_base_name_a_api;
+pub use k32_get_module_base_name_a_api::K32GetModuleBaseNameA_api;
+mod k32_get_module_base_name_w_api;
+pub use k32_get_module_base_name_w_api::K32GetModuleBaseNameW_api;
+mod k32_get_module_file_name_ex_a_api;
+pub use k32_get_module_file_name_ex_a_api::K32GetModuleFileNameExA_api;
+mod k32_get_module_file_name_ex_w_api;
+pub use k32_get_module_file_name_ex_w_api::K32GetModuleFileNameExW_api;
+mod k32_get_module_information_api;
+pub use k32_get_module_information_api::K32GetModuleInformation_api;
+mod k32_get_performance_info_api;
+pub use k32_get_performance_info_api::K32GetPerformanceInfo_api;
+mod k32_get_process_image_file_name_a_api;
+pub use k32_get_process_image_file_name_a_api::K32GetProcessImageFileNameA_api;
+mod k32_get_process_image_file_name_w_api;
+pub use k32_get_process_image_file_name_w_api::K32GetProcessImageFileNameW_api;
+mod k32_get_process_memory_info_api;
+pub use k32_get_process_memory_info_api::K32GetProcessMemoryInfo_api;
+mod k32_get_ws_changes_api;
+pub use k32_get_ws_changes_api::K32GetWsChanges_api;
+mod k32_get_ws_changes_ex_api;
+pub use k32_get_ws_changes_ex_api::K32GetWsChangesEx_api;
+mod k32_initialize_process_for_ws_watch_api;
+pub use k32_initialize_process_for_ws_watch_api::K32InitializeProcessForWsWatch_api;
+mod k32_query_working_set_api;
+pub use k32_query_working_set_api::K32QueryWorkingSet_api;
+mod k32_query_working_set_ex_api;
+pub use k32_query_working_set_ex_api::K32QueryWorkingSetEx_api;
+mod lcid_to_locale_name_api;
+pub use lcid_to_locale_name_api::LCIDToLocaleName_api;
+mod lc_map_string_a_api;
+pub use lc_map_string_a_api::LCMapStringA_api;
+mod lc_map_string_ex_api;
+pub use lc_map_string_ex_api::LCMapStringEx_api;
+mod lz_close_file_api;
+pub use lz_close_file_api::LZCloseFile_api;
+mod lz_create_file_w_api;
+pub use lz_create_file_w_api::LZCreateFileW_api;
+mod lz_done_2;
+pub use lz_done_2::LZDone;
+mod leave_critical_section_when_callback_returns_api;
+pub use leave_critical_section_when_callback_returns_api::LeaveCriticalSectionWhenCallbackReturns_api;
+mod load_app_init_dlls_2;
+pub use load_app_init_dlls_2::LoadAppInitDlls;
+mod load_enclave_data_api;
+pub use load_enclave_data_api::LoadEnclaveData_api;
+mod load_module_api;
+pub use load_module_api::LoadModule_api;
+mod load_packaged_library_api;
+pub use load_packaged_library_api::LoadPackagedLibrary_api;
+mod load_string_base_ex_w_api;
+pub use load_string_base_ex_w_api::LoadStringBaseExW_api;
+mod local_file_time_to_file_time_api;
+pub use local_file_time_to_file_time_api::LocalFileTimeToFileTime_api;
+mod local_file_time_to_local_system_time_api;
+pub use local_file_time_to_local_system_time_api::LocalFileTimeToLocalSystemTime_api;
+mod local_lock_api;
+pub use local_lock_api::LocalLock_api;
+mod local_re_alloc_api;
+pub use local_re_alloc_api::LocalReAlloc_api;
+mod local_system_time_to_local_file_time_api;
+pub use local_system_time_to_local_file_time_api::LocalSystemTimeToLocalFileTime_api;
+mod local_unlock_api;
+pub use local_unlock_api::LocalUnlock_api;
+mod locale_name_to_lcid_api;
+pub use locale_name_to_lcid_api::LocaleNameToLCID_api;
+mod locate_x_state_feature_api;
+pub use locate_x_state_feature_api::LocateXStateFeature_api;
+mod lock_file;
+pub use lock_file::LockFile;
+mod lock_file_ex_api;
+pub use lock_file_ex_api::LockFileEx_api;
+mod log_unexpected_codepath_api;
+pub use log_unexpected_codepath_api::LogUnexpectedCodepath_api;
+mod map_user_physical_pages_api;
+pub use map_user_physical_pages_api::MapUserPhysicalPages_api;
+mod map_user_physical_pages_scatter_api;
+pub use map_user_physical_pages_scatter_api::MapUserPhysicalPagesScatter_api;
+mod map_view_of_file_ex_api;
+pub use map_view_of_file_ex_api::MapViewOfFileEx_api;
+mod map_view_of_file_ex_numa_api;
+pub use map_view_of_file_ex_numa_api::MapViewOfFileExNuma_api;
+mod map_view_of_file_from_app_api;
+pub use map_view_of_file_from_app_api::MapViewOfFileFromApp_api;
+mod move_file_ex_w;
+pub use move_file_ex_w::MoveFileExW;
+mod move_file_with_progress_a_api;
+pub use move_file_with_progress_a_api::MoveFileWithProgressA_api;
+mod move_file_with_progress_w_api;
+pub use move_file_with_progress_w_api::MoveFileWithProgressW_api;
+mod need_current_directory_for_exe_path_a_api;
+pub use need_current_directory_for_exe_path_a_api::NeedCurrentDirectoryForExePathA_api;
+mod need_current_directory_for_exe_path_w_api;
+pub use need_current_directory_for_exe_path_w_api::NeedCurrentDirectoryForExePathW_api;
+mod nls_check_policy_api;
+pub use nls_check_policy_api::NlsCheckPolicy_api;
+mod nls_get_cache_update_count_api;
+pub use nls_get_cache_update_count_api::NlsGetCacheUpdateCount_api;
+mod nls_update_locale_api;
+pub use nls_update_locale_api::NlsUpdateLocale_api;
+mod nls_update_system_locale_api;
+pub use nls_update_system_locale_api::NlsUpdateSystemLocale_api;
+mod normalize_string_api;
+pub use normalize_string_api::NormalizeString_api;
+mod notify_mount_mgr_api;
+pub use notify_mount_mgr_api::NotifyMountMgr_api;
+mod offer_virtual_memory_api;
+pub use offer_virtual_memory_api::OfferVirtualMemory_api;
+mod open_console_w_api;
+pub use open_console_w_api::OpenConsoleW_api;
+mod open_console_w_stub_api;
+pub use open_console_w_stub_api::OpenConsoleWStub_api;
+mod open_event_a_api;
+pub use open_event_a_api::OpenEventA_api;
+mod open_event_w_api;
+pub use open_event_w_api::OpenEventW_api;
+mod open_file_by_id_api;
+pub use open_file_by_id_api::OpenFileById_api;
+mod open_file_mapping_w_api;
+pub use open_file_mapping_w_api::OpenFileMappingW_api;
+mod open_mutex_w;
+pub use open_mutex_w::OpenMutexW;
+mod open_package_info_by_full_name_api;
+pub use open_package_info_by_full_name_api::OpenPackageInfoByFullName_api;
+mod open_private_namespace_w_api;
+pub use open_private_namespace_w_api::OpenPrivateNamespaceW_api;
+mod open_profile_user_mapping_api;
+pub use open_profile_user_mapping_api::OpenProfileUserMapping_api;
+mod open_semaphore_a_api;
+pub use open_semaphore_a_api::OpenSemaphoreA_api;
+mod open_semaphore_w_api;
+pub use open_semaphore_w_api::OpenSemaphoreW_api;
+mod open_state_api;
+pub use open_state_api::OpenState_api;
+mod open_state_explicit_api;
+pub use open_state_explicit_api::OpenStateExplicit_api;
+mod open_thread_token_api;
+pub use open_thread_token_api::OpenThreadToken_api;
+mod open_waitable_timer_a_api;
+pub use open_waitable_timer_a_api::OpenWaitableTimerA_api;
+mod open_waitable_timer_w_api;
+pub use open_waitable_timer_w_api::OpenWaitableTimerW_api;
+mod package_family_name_from_full_name_api;
+pub use package_family_name_from_full_name_api::PackageFamilyNameFromFullName_api;
+mod package_family_name_from_id_api;
+pub use package_family_name_from_id_api::PackageFamilyNameFromId_api;
+mod package_full_name_from_id_api;
+pub use package_full_name_from_id_api::PackageFullNameFromId_api;
+mod package_id_from_full_name_api;
+pub use package_id_from_full_name_api::PackageIdFromFullName_api;
+mod package_name_and_publisher_id_from_family_name_api;
+pub use package_name_and_publisher_id_from_family_name_api::PackageNameAndPublisherIdFromFamilyName_api;
+mod parse_application_user_model_id_api;
+pub use parse_application_user_model_id_api::ParseApplicationUserModelId_api;
+mod peek_console_input_a_api;
+pub use peek_console_input_a_api::PeekConsoleInputA_api;
+mod peek_console_input_w_api;
+pub use peek_console_input_w_api::PeekConsoleInputW_api;
+mod peek_named_pipe_api;
+pub use peek_named_pipe_api::PeekNamedPipe_api;
+mod pop_io_ring_completion_api;
+pub use pop_io_ring_completion_api::PopIoRingCompletion_api;
+mod post_queued_completion_status_api;
+pub use post_queued_completion_status_api::PostQueuedCompletionStatus_api;
+mod prefetch_virtual_memory_api;
+pub use prefetch_virtual_memory_api::PrefetchVirtualMemory_api;
+mod priv_copy_file_ex_w_api;
+pub use priv_copy_file_ex_w_api::PrivCopyFileExW_api;
+mod process_id_to_session_id_api;
+pub use process_id_to_session_id_api::ProcessIdToSessionId_api;
+mod pss_capture_snapshot_api;
+pub use pss_capture_snapshot_api::PssCaptureSnapshot_api;
+mod pss_duplicate_snapshot_api;
+pub use pss_duplicate_snapshot_api::PssDuplicateSnapshot_api;
+mod pss_free_snapshot_api;
+pub use pss_free_snapshot_api::PssFreeSnapshot_api;
+mod pss_query_snapshot_api;
+pub use pss_query_snapshot_api::PssQuerySnapshot_api;
+mod pss_walk_marker_create_api;
+pub use pss_walk_marker_create_api::PssWalkMarkerCreate_api;
+mod pss_walk_marker_free_api;
+pub use pss_walk_marker_free_api::PssWalkMarkerFree_api;
+mod pss_walk_marker_get_position_api;
+pub use pss_walk_marker_get_position_api::PssWalkMarkerGetPosition_api;
+mod pss_walk_marker_rewind_api;
+pub use pss_walk_marker_rewind_api::PssWalkMarkerRewind_api;
+mod pss_walk_marker_seek_api;
+pub use pss_walk_marker_seek_api::PssWalkMarkerSeek_api;
+mod pss_walk_marker_seek_to_beginning_api;
+pub use pss_walk_marker_seek_to_beginning_api::PssWalkMarkerSeekToBeginning_api;
+mod pss_walk_marker_set_position_api;
+pub use pss_walk_marker_set_position_api::PssWalkMarkerSetPosition_api;
+mod pss_walk_marker_tell_api;
+pub use pss_walk_marker_tell_api::PssWalkMarkerTell_api;
+mod pss_walk_snapshot_api;
+pub use pss_walk_snapshot_api::PssWalkSnapshot_api;
+mod pulse_event_api;
+pub use pulse_event_api::PulseEvent_api;
+mod purge_comm_api;
+pub use purge_comm_api::PurgeComm_api;
+mod query_act_ctx_settings_w_api;
+pub use query_act_ctx_settings_w_api::QueryActCtxSettingsW_api;
+mod query_act_ctx_w_api;
+pub use query_act_ctx_w_api::QueryActCtxW_api;
+mod query_depth_s_list_api;
+pub use query_depth_s_list_api::QueryDepthSList_api;
+mod query_dos_device_w_api;
+pub use query_dos_device_w_api::QueryDosDeviceW_api;
+mod query_full_process_image_name_a_api;
+pub use query_full_process_image_name_a_api::QueryFullProcessImageNameA_api;
+mod query_full_process_image_name_w_api;
+pub use query_full_process_image_name_w_api::QueryFullProcessImageNameW_api;
+mod query_idle_processor_cycle_time_api;
+pub use query_idle_processor_cycle_time_api::QueryIdleProcessorCycleTime_api;
+mod query_idle_processor_cycle_time_ex_api;
+pub use query_idle_processor_cycle_time_ex_api::QueryIdleProcessorCycleTimeEx_api;
+mod query_io_ring_capabilities_api;
+pub use query_io_ring_capabilities_api::QueryIoRingCapabilities_api;
+mod query_memory_resource_notification_api;
+pub use query_memory_resource_notification_api::QueryMemoryResourceNotification_api;
+mod query_process_affinity_update_mode_api;
+pub use query_process_affinity_update_mode_api::QueryProcessAffinityUpdateMode_api;
+mod query_process_cycle_time_api;
+pub use query_process_cycle_time_api::QueryProcessCycleTime_api;
+mod query_protected_policy_api;
+pub use query_protected_policy_api::QueryProtectedPolicy_api;
+mod query_thread_cycle_time_api;
+pub use query_thread_cycle_time_api::QueryThreadCycleTime_api;
+mod query_threadpool_stack_information_api;
+pub use query_threadpool_stack_information_api::QueryThreadpoolStackInformation_api;
+mod query_unbiased_interrupt_time_api;
+pub use query_unbiased_interrupt_time_api::QueryUnbiasedInterruptTime_api;
+mod queue_user_apc_api;
+pub use queue_user_apc_api::QueueUserAPC_api;
+mod queue_user_apc2_api;
+pub use queue_user_apc2_api::QueueUserAPC2_api;
+mod queue_user_work_item_api;
+pub use queue_user_work_item_api::QueueUserWorkItem_api;
+mod quirk_get_data2_worker_api;
+pub use quirk_get_data2_worker_api::QuirkGetData2Worker_api;
+mod quirk_is_enabled3_worker_api;
+pub use quirk_is_enabled3_worker_api::QuirkIsEnabled3Worker_api;
+mod raise_fail_fast_exception_api;
+pub use raise_fail_fast_exception_api::RaiseFailFastException_api;
+mod re_open_file_api;
+pub use re_open_file_api::ReOpenFile_api;
+mod read_console_a_api;
+pub use read_console_a_api::ReadConsoleA_api;
+mod read_console_input_a_api;
+pub use read_console_input_a_api::ReadConsoleInputA_api;
+mod read_console_input_ex_a_api;
+pub use read_console_input_ex_a_api::ReadConsoleInputExA_api;
+mod read_console_input_ex_w_api;
+pub use read_console_input_ex_w_api::ReadConsoleInputExW_api;
+mod read_console_input_w_api;
+pub use read_console_input_w_api::ReadConsoleInputW_api;
+mod read_console_output_a_api;
+pub use read_console_output_a_api::ReadConsoleOutputA_api;
+mod read_console_output_attribute_api;
+pub use read_console_output_attribute_api::ReadConsoleOutputAttribute_api;
+mod read_console_output_character_a_api;
+pub use read_console_output_character_a_api::ReadConsoleOutputCharacterA_api;
+mod read_console_output_character_w_api;
+pub use read_console_output_character_w_api::ReadConsoleOutputCharacterW_api;
+mod read_console_output_w_api;
+pub use read_console_output_w_api::ReadConsoleOutputW_api;
+mod read_console_w_api;
+pub use read_console_w_api::ReadConsoleW_api;
+mod read_directory_changes_ex_w_api;
+pub use read_directory_changes_ex_w_api::ReadDirectoryChangesExW_api;
+mod read_directory_changes_w_api;
+pub use read_directory_changes_w_api::ReadDirectoryChangesW_api;
+mod read_file_ex_api;
+pub use read_file_ex_api::ReadFileEx_api;
+mod read_file_scatter_api;
+pub use read_file_scatter_api::ReadFileScatter_api;
+mod reclaim_virtual_memory_api;
+pub use reclaim_virtual_memory_api::ReclaimVirtualMemory_api;
+mod reg_copy_tree_w_api;
+pub use reg_copy_tree_w_api::RegCopyTreeW_api;
+mod reg_delete_key_ex_a_api;
+pub use reg_delete_key_ex_a_api::RegDeleteKeyExA_api;
+mod reg_delete_key_ex_w_api;
+pub use reg_delete_key_ex_w_api::RegDeleteKeyExW_api;
+mod reg_delete_tree_a_api;
+pub use reg_delete_tree_a_api::RegDeleteTreeA_api;
+mod reg_delete_tree_w_api;
+pub use reg_delete_tree_w_api::RegDeleteTreeW_api;
+mod reg_delete_value_a_api;
+pub use reg_delete_value_a_api::RegDeleteValueA_api;
+mod reg_delete_value_w_api;
+pub use reg_delete_value_w_api::RegDeleteValueW_api;
+mod reg_disable_predefined_cache_ex_api;
+pub use reg_disable_predefined_cache_ex_api::RegDisablePredefinedCacheEx_api;
+mod reg_enum_key_ex_a_api;
+pub use reg_enum_key_ex_a_api::RegEnumKeyExA_api;
+mod reg_enum_key_ex_w_api;
+pub use reg_enum_key_ex_w_api::RegEnumKeyExW_api;
+mod reg_enum_value_a_api;
+pub use reg_enum_value_a_api::RegEnumValueA_api;
+mod reg_enum_value_w_api;
+pub use reg_enum_value_w_api::RegEnumValueW_api;
+mod reg_flush_key_api;
+pub use reg_flush_key_api::RegFlushKey_api;
+mod reg_get_key_security_api;
+pub use reg_get_key_security_api::RegGetKeySecurity_api;
+mod reg_get_value_a_api;
+pub use reg_get_value_a_api::RegGetValueA_api;
+mod reg_get_value_w_api;
+pub use reg_get_value_w_api::RegGetValueW_api;
+mod reg_load_key_a_api;
+pub use reg_load_key_a_api::RegLoadKeyA_api;
+mod reg_load_key_w_api;
+pub use reg_load_key_w_api::RegLoadKeyW_api;
+mod reg_load_mui_string_a_api;
+pub use reg_load_mui_string_a_api::RegLoadMUIStringA_api;
+mod reg_load_mui_string_w_api;
+pub use reg_load_mui_string_w_api::RegLoadMUIStringW_api;
+mod reg_notify_change_key_value_api;
+pub use reg_notify_change_key_value_api::RegNotifyChangeKeyValue_api;
+mod reg_open_current_user_api;
+pub use reg_open_current_user_api::RegOpenCurrentUser_api;
+mod reg_open_key_ex_a_api;
+pub use reg_open_key_ex_a_api::RegOpenKeyExA_api;
+mod reg_open_user_classes_root_api;
+pub use reg_open_user_classes_root_api::RegOpenUserClassesRoot_api;
+mod reg_query_info_key_a_api;
+pub use reg_query_info_key_a_api::RegQueryInfoKeyA_api;
+mod reg_query_info_key_w_api;
+pub use reg_query_info_key_w_api::RegQueryInfoKeyW_api;
+mod reg_query_value_ex_a_api;
+pub use reg_query_value_ex_a_api::RegQueryValueExA_api;
+mod reg_query_value_ex_w_api;
+pub use reg_query_value_ex_w_api::RegQueryValueExW_api;
+mod reg_restore_key_a_api;
+pub use reg_restore_key_a_api::RegRestoreKeyA_api;
+mod reg_restore_key_w_api;
+pub use reg_restore_key_w_api::RegRestoreKeyW_api;
+mod reg_save_key_ex_a_api;
+pub use reg_save_key_ex_a_api::RegSaveKeyExA_api;
+mod reg_save_key_ex_w_api;
+pub use reg_save_key_ex_w_api::RegSaveKeyExW_api;
+mod reg_set_key_security_api;
+pub use reg_set_key_security_api::RegSetKeySecurity_api;
+mod reg_un_load_key_a_api;
+pub use reg_un_load_key_a_api::RegUnLoadKeyA_api;
+mod reg_un_load_key_w_api;
+pub use reg_un_load_key_w_api::RegUnLoadKeyW_api;
+mod register_bad_memory_notification_api;
+pub use register_bad_memory_notification_api::RegisterBadMemoryNotification_api;
+mod register_wait_for_single_object_api;
+pub use register_wait_for_single_object_api::RegisterWaitForSingleObject_api;
+mod register_wait_for_single_object_ex_api;
+pub use register_wait_for_single_object_ex_api::RegisterWaitForSingleObjectEx_api;
+mod register_wow_base_handlers_api;
+pub use register_wow_base_handlers_api::RegisterWowBaseHandlers_api;
+mod register_wow_exec_api;
+pub use register_wow_exec_api::RegisterWowExec_api;
+mod release_act_ctx_api;
+pub use release_act_ctx_api::ReleaseActCtx_api;
+mod release_act_ctx_worker_api;
+pub use release_act_ctx_worker_api::ReleaseActCtxWorker_api;
+mod release_mutex_api;
+pub use release_mutex_api::ReleaseMutex_api;
+mod release_mutex_when_callback_returns_api;
+pub use release_mutex_when_callback_returns_api::ReleaseMutexWhenCallbackReturns_api;
+mod release_package_virtualization_context_api;
+pub use release_package_virtualization_context_api::ReleasePackageVirtualizationContext_api;
+mod release_pseudo_console_api;
+pub use release_pseudo_console_api::ReleasePseudoConsole_api;
+mod release_semaphore_api;
+pub use release_semaphore_api::ReleaseSemaphore_api;
+mod release_semaphore_when_callback_returns_api;
+pub use release_semaphore_when_callback_returns_api::ReleaseSemaphoreWhenCallbackReturns_api;
+mod remove_directory2_a_api;
+pub use remove_directory2_a_api::RemoveDirectory2A_api;
+mod remove_directory2_w_api;
+pub use remove_directory2_w_api::RemoveDirectory2W_api;
+mod remove_directory_transacted_a_api;
+pub use remove_directory_transacted_a_api::RemoveDirectoryTransactedA_api;
+mod remove_dll_directory_api;
+pub use remove_dll_directory_api::RemoveDllDirectory_api;
+mod remove_local_alternate_computer_name_a_api;
+pub use remove_local_alternate_computer_name_a_api::RemoveLocalAlternateComputerNameA_api;
+mod remove_vectored_continue_handler_api;
+pub use remove_vectored_continue_handler_api::RemoveVectoredContinueHandler_api;
+mod remove_vectored_exception_handler_api;
+pub use remove_vectored_exception_handler_api::RemoveVectoredExceptionHandler_api;
+mod replace_file_api;
+pub use replace_file_api::ReplaceFile_api;
+mod replace_file_w_api;
+pub use replace_file_w_api::ReplaceFileW_api;
+mod request_device_wakeup_api;
+pub use request_device_wakeup_api::RequestDeviceWakeup_api;
+mod reset_write_watch_api;
+pub use reset_write_watch_api::ResetWriteWatch_api;
+mod resize_pseudo_console_api;
+pub use resize_pseudo_console_api::ResizePseudoConsole_api;
+mod resolve_delay_loaded_api_api;
+pub use resolve_delay_loaded_api_api::ResolveDelayLoadedAPI_api;
+mod resolve_delay_loads_from_dll_api;
+pub use resolve_delay_loads_from_dll_api::ResolveDelayLoadsFromDll_api;
+mod resolve_locale_name_api;
+pub use resolve_locale_name_api::ResolveLocaleName_api;
+mod restore_last_error_api;
+pub use restore_last_error_api::RestoreLastError_api;
+mod rtl_capture_context_api;
+pub use rtl_capture_context_api::RtlCaptureContext_api;
+mod rtl_capture_stack_back_trace_api;
+pub use rtl_capture_stack_back_trace_api::RtlCaptureStackBackTrace_api;
+mod rtl_fill_memory_api;
+pub use rtl_fill_memory_api::RtlFillMemory_api;
+mod rtl_move_memory_api;
+pub use rtl_move_memory_api::RtlMoveMemory_api;
+mod rtl_pc_to_file_header_api;
+pub use rtl_pc_to_file_header_api::RtlPcToFileHeader_api;
+mod rtl_unwind_api;
+pub use rtl_unwind_api::RtlUnwind_api;
+mod rtl_zero_memory_api;
+pub use rtl_zero_memory_api::RtlZeroMemory_api;
+mod scroll_console_screen_buffer_a_api;
+pub use scroll_console_screen_buffer_a_api::ScrollConsoleScreenBufferA_api;
+mod scroll_console_screen_buffer_w_api;
+pub use scroll_console_screen_buffer_w_api::ScrollConsoleScreenBufferW_api;
+mod search_path_a;
+pub use search_path_a::SearchPathA;
+mod search_path_w;
+pub use search_path_w::SearchPathW;
+mod set_cached_signing_level_api;
+pub use set_cached_signing_level_api::SetCachedSigningLevel_api;
+mod set_calendar_info_w_api;
+pub use set_calendar_info_w_api::SetCalendarInfoW_api;
+mod set_comm_break_api;
+pub use set_comm_break_api::SetCommBreak_api;
+mod set_comm_config_api;
+pub use set_comm_config_api::SetCommConfig_api;
+mod set_comm_mask_api;
+pub use set_comm_mask_api::SetCommMask_api;
+mod set_comm_state_api;
+pub use set_comm_state_api::SetCommState_api;
+mod set_comm_timeouts_api;
+pub use set_comm_timeouts_api::SetCommTimeouts_api;
+mod set_computer_name_a_api;
+pub use set_computer_name_a_api::SetComputerNameA_api;
+mod set_computer_name_ex2_w_api;
+pub use set_computer_name_ex2_w_api::SetComputerNameEx2W_api;
+mod set_computer_name_ex_a_api;
+pub use set_computer_name_ex_a_api::SetComputerNameExA_api;
+mod set_computer_name_ex_w_api;
+pub use set_computer_name_ex_w_api::SetComputerNameExW_api;
+mod set_computer_name_w_api;
+pub use set_computer_name_w_api::SetComputerNameW_api;
+mod set_console_active_screen_buffer_api;
+pub use set_console_active_screen_buffer_api::SetConsoleActiveScreenBuffer_api;
+mod set_console_cp_api;
+pub use set_console_cp_api::SetConsoleCP_api;
+mod set_console_ctrl_handler_api;
+pub use set_console_ctrl_handler_api::SetConsoleCtrlHandler_api;
+mod set_console_cursor_info_api;
+pub use set_console_cursor_info_api::SetConsoleCursorInfo_api;
+mod set_console_cursor_mode_api;
+pub use set_console_cursor_mode_api::SetConsoleCursorMode_api;
+mod set_console_cursor_position_api;
+pub use set_console_cursor_position_api::SetConsoleCursorPosition_api;
+mod set_console_display_mode_api;
+pub use set_console_display_mode_api::SetConsoleDisplayMode_api;
+mod set_console_history_info_api;
+pub use set_console_history_info_api::SetConsoleHistoryInfo_api;
+mod set_console_input_exe_name_a_api;
+pub use set_console_input_exe_name_a_api::SetConsoleInputExeNameA_api;
+mod set_console_input_exe_name_w_api;
+pub use set_console_input_exe_name_w_api::SetConsoleInputExeNameW_api;
+mod set_console_mode_api;
+pub use set_console_mode_api::SetConsoleMode_api;
+mod set_console_nls_mode_api;
+pub use set_console_nls_mode_api::SetConsoleNlsMode_api;
+mod set_console_number_of_commands_a_api;
+pub use set_console_number_of_commands_a_api::SetConsoleNumberOfCommandsA_api;
+mod set_console_number_of_commands_w_api;
+pub use set_console_number_of_commands_w_api::SetConsoleNumberOfCommandsW_api;
+mod set_console_output_cp_api;
+pub use set_console_output_cp_api::SetConsoleOutputCP_api;
+mod set_console_screen_buffer_info_ex_api;
+pub use set_console_screen_buffer_info_ex_api::SetConsoleScreenBufferInfoEx_api;
+mod set_console_screen_buffer_size_api;
+pub use set_console_screen_buffer_size_api::SetConsoleScreenBufferSize_api;
+mod set_console_text_attribute_api;
+pub use set_console_text_attribute_api::SetConsoleTextAttribute_api;
+mod set_console_title_a_api;
+pub use set_console_title_a_api::SetConsoleTitleA_api;
+mod set_console_title_w_api;
+pub use set_console_title_w_api::SetConsoleTitleW_api;
+mod set_console_window_info_api;
+pub use set_console_window_info_api::SetConsoleWindowInfo_api;
+mod set_critical_section_spin_count_api;
+pub use set_critical_section_spin_count_api::SetCriticalSectionSpinCount_api;
+mod set_current_console_font_ex_api;
+pub use set_current_console_font_ex_api::SetCurrentConsoleFontEx_api;
+mod set_current_directory_w_api;
+pub use set_current_directory_w_api::SetCurrentDirectoryW_api;
+mod set_default_comm_config_w_api;
+pub use set_default_comm_config_w_api::SetDefaultCommConfigW_api;
+mod set_default_dll_directories_api;
+pub use set_default_dll_directories_api::SetDefaultDllDirectories_api;
+mod set_dynamic_time_zone_information_api;
+pub use set_dynamic_time_zone_information_api::SetDynamicTimeZoneInformation_api;
+mod set_end_of_file;
+pub use set_end_of_file::SetEndOfFile;
+mod set_environment_strings_w_api;
+pub use set_environment_strings_w_api::SetEnvironmentStringsW_api;
+mod set_event;
+pub use set_event::SetEvent;
+mod set_event_when_callback_returns_api;
+pub use set_event_when_callback_returns_api::SetEventWhenCallbackReturns_api;
+mod set_file_apis_to_ansi_api;
+pub use set_file_apis_to_ansi_api::SetFileApisToANSI_api;
+mod set_file_apis_to_oem_api;
+pub use set_file_apis_to_oem_api::SetFileApisToOEM_api;
+mod set_file_attributes_transacted_a_api;
+pub use set_file_attributes_transacted_a_api::SetFileAttributesTransactedA_api;
+mod set_file_completion_notification_modes_api;
+pub use set_file_completion_notification_modes_api::SetFileCompletionNotificationModes_api;
+mod set_file_information_by_handle_api;
+pub use set_file_information_by_handle_api::SetFileInformationByHandle_api;
+mod set_file_io_overlapped_range_api;
+pub use set_file_io_overlapped_range_api::SetFileIoOverlappedRange_api;
+mod set_file_pointer_ex;
+pub use set_file_pointer_ex::SetFilePointerEx;
+mod set_file_time_api;
+pub use set_file_time_api::SetFileTime_api;
+mod set_file_valid_data_api;
+pub use set_file_valid_data_api::SetFileValidData_api;
+mod set_firmware_environment_variable_ex_a_api;
+pub use set_firmware_environment_variable_ex_a_api::SetFirmwareEnvironmentVariableExA_api;
+mod set_firmware_environment_variable_ex_w_api;
+pub use set_firmware_environment_variable_ex_w_api::SetFirmwareEnvironmentVariableExW_api;
+mod set_handle_context_api;
+pub use set_handle_context_api::SetHandleContext_api;
+mod set_handle_information_api;
+pub use set_handle_information_api::SetHandleInformation_api;
+mod set_io_ring_completion_event_api;
+pub use set_io_ring_completion_event_api::SetIoRingCompletionEvent_api;
+mod set_last_console_event_active_api;
+pub use set_last_console_event_active_api::SetLastConsoleEventActive_api;
+mod set_local_primary_computer_name_a_api;
+pub use set_local_primary_computer_name_a_api::SetLocalPrimaryComputerNameA_api;
+mod set_local_time_api;
+pub use set_local_time_api::SetLocalTime_api;
+mod set_locale_info_w;
+pub use set_locale_info_w::SetLocaleInfoW;
+mod set_named_pipe_handle_state_api;
+pub use set_named_pipe_handle_state_api::SetNamedPipeHandleState_api;
+mod set_priority_class_api;
+pub use set_priority_class_api::SetPriorityClass_api;
+mod set_process_affinity_update_mode_api;
+pub use set_process_affinity_update_mode_api::SetProcessAffinityUpdateMode_api;
+mod set_process_default_cpu_set_masks_api;
+pub use set_process_default_cpu_set_masks_api::SetProcessDefaultCpuSetMasks_api;
+mod set_process_default_cpu_sets_api;
+pub use set_process_default_cpu_sets_api::SetProcessDefaultCpuSets_api;
+mod set_process_dynamic_eh_continuation_targets_api;
+pub use set_process_dynamic_eh_continuation_targets_api::SetProcessDynamicEHContinuationTargets_api;
+mod set_process_dynamic_enforced_cet_compatible_ranges_api;
+pub use set_process_dynamic_enforced_cet_compatible_ranges_api::SetProcessDynamicEnforcedCetCompatibleRanges_api;
+mod set_process_information_api;
+pub use set_process_information_api::SetProcessInformation_api;
+mod set_process_mitigation_policy_api;
+pub use set_process_mitigation_policy_api::SetProcessMitigationPolicy_api;
+mod set_process_preferred_ui_languages_api;
+pub use set_process_preferred_ui_languages_api::SetProcessPreferredUILanguages_api;
+mod set_process_priority_boost_api;
+pub use set_process_priority_boost_api::SetProcessPriorityBoost_api;
+mod set_process_shutdown_parameters_api;
+pub use set_process_shutdown_parameters_api::SetProcessShutdownParameters_api;
+mod set_process_working_set_size_ex_api;
+pub use set_process_working_set_size_ex_api::SetProcessWorkingSetSizeEx_api;
+mod set_protected_policy_api;
+pub use set_protected_policy_api::SetProtectedPolicy_api;
+mod set_search_path_mode_api;
+pub use set_search_path_mode_api::SetSearchPathMode_api;
+mod set_std_handle_api;
+pub use set_std_handle_api::SetStdHandle_api;
+mod set_std_handle_ex_api;
+pub use set_std_handle_ex_api::SetStdHandleEx_api;
+mod set_system_file_cache_size_api;
+pub use set_system_file_cache_size_api::SetSystemFileCacheSize_api;
+mod set_system_time_api;
+pub use set_system_time_api::SetSystemTime_api;
+mod set_termsrv_app_install_mode_api;
+pub use set_termsrv_app_install_mode_api::SetTermsrvAppInstallMode_api;
+mod set_thread_description_api;
+pub use set_thread_description_api::SetThreadDescription_api;
+mod set_thread_error_mode_api;
+pub use set_thread_error_mode_api::SetThreadErrorMode_api;
+mod set_thread_group_affinity_api;
+pub use set_thread_group_affinity_api::SetThreadGroupAffinity_api;
+mod set_thread_ideal_processor_api;
+pub use set_thread_ideal_processor_api::SetThreadIdealProcessor_api;
+mod set_thread_ideal_processor_ex_api;
+pub use set_thread_ideal_processor_ex_api::SetThreadIdealProcessorEx_api;
+mod set_thread_information_api;
+pub use set_thread_information_api::SetThreadInformation_api;
+mod set_thread_preferred_ui_languages_api;
+pub use set_thread_preferred_ui_languages_api::SetThreadPreferredUILanguages_api;
+mod set_thread_priority_api;
+pub use set_thread_priority_api::SetThreadPriority_api;
+mod set_thread_priority_boost_api;
+pub use set_thread_priority_boost_api::SetThreadPriorityBoost_api;
+mod set_thread_selected_cpu_set_masks_api;
+pub use set_thread_selected_cpu_set_masks_api::SetThreadSelectedCpuSetMasks_api;
+mod set_thread_selected_cpu_sets_api;
+pub use set_thread_selected_cpu_sets_api::SetThreadSelectedCpuSets_api;
+mod set_thread_stack_guarantee_api;
+pub use set_thread_stack_guarantee_api::SetThreadStackGuarantee_api;
+mod set_thread_token_api;
+pub use set_thread_token_api::SetThreadToken_api;
+mod set_thread_ui_language_api;
+pub use set_thread_ui_language_api::SetThreadUILanguage_api;
+mod set_threadpool_stack_information_api;
+pub use set_threadpool_stack_information_api::SetThreadpoolStackInformation_api;
+mod set_threadpool_thread_maximum_api;
+pub use set_threadpool_thread_maximum_api::SetThreadpoolThreadMaximum_api;
+mod set_threadpool_thread_minimum_api;
+pub use set_threadpool_thread_minimum_api::SetThreadpoolThreadMinimum_api;
+mod set_threadpool_timer_api;
+pub use set_threadpool_timer_api::SetThreadpoolTimer_api;
+mod set_threadpool_timer_ex_api;
+pub use set_threadpool_timer_ex_api::SetThreadpoolTimerEx_api;
+mod set_threadpool_wait_api;
+pub use set_threadpool_wait_api::SetThreadpoolWait_api;
+mod set_threadpool_wait_ex_api;
+pub use set_threadpool_wait_ex_api::SetThreadpoolWaitEx_api;
+mod set_time_zone_information_api;
+pub use set_time_zone_information_api::SetTimeZoneInformation_api;
+mod set_vdm_current_directories_api;
+pub use set_vdm_current_directories_api::SetVDMCurrentDirectories_api;
+mod set_volume_mount_point_w_stub_api;
+pub use set_volume_mount_point_w_stub_api::SetVolumeMountPointWStub_api;
+mod set_waitable_timer_api;
+pub use set_waitable_timer_api::SetWaitableTimer_api;
+mod set_waitable_timer_ex_api;
+pub use set_waitable_timer_ex_api::SetWaitableTimerEx_api;
+mod set_x_state_features_mask_api;
+pub use set_x_state_features_mask_api::SetXStateFeaturesMask_api;
+mod setup_comm_api;
+pub use setup_comm_api::SetupComm_api;
+mod signal_object_and_wait_api;
+pub use signal_object_and_wait_api::SignalObjectAndWait_api;
+mod sleep_condition_variable_cs;
+pub use sleep_condition_variable_cs::SleepConditionVariableCS;
+mod sleep_condition_variable_srw;
+pub use sleep_condition_variable_srw::SleepConditionVariableSRW;
+mod sleep_ex;
+pub use sleep_ex::SleepEx;
+mod sort_close_handle_api;
+pub use sort_close_handle_api::SortCloseHandle_api;
+mod sort_get_handle_api;
+pub use sort_get_handle_api::SortGetHandle_api;
+mod start_threadpool_io_api;
+pub use start_threadpool_io_api::StartThreadpoolIo_api;
+mod submit_io_ring_api;
+pub use submit_io_ring_api::SubmitIoRing_api;
+mod submit_threadpool_work_api;
+pub use submit_threadpool_work_api::SubmitThreadpoolWork_api;
+mod suspend_thread;
+pub use suspend_thread::SuspendThread;
+mod switch_to_fiber_api;
+pub use switch_to_fiber_api::SwitchToFiber_api;
+mod switch_to_thread_api;
+pub use switch_to_thread_api::SwitchToThread_api;
+mod system_time_to_tz_specific_local_time_ex_api;
+pub use system_time_to_tz_specific_local_time_ex_api::SystemTimeToTzSpecificLocalTimeEx_api;
+mod terminate_job_object_api;
+pub use terminate_job_object_api::TerminateJobObject_api;
+mod terminate_thread_api;
+pub use terminate_thread_api::TerminateThread_api;
+mod termsrv_app_install_mode_api;
+pub use termsrv_app_install_mode_api::TermsrvAppInstallMode_api;
+mod termsrv_get_windows_directory_a_api;
+pub use termsrv_get_windows_directory_a_api::TermsrvGetWindowsDirectoryA_api;
+mod termsrv_get_windows_directory_w_api;
+pub use termsrv_get_windows_directory_w_api::TermsrvGetWindowsDirectoryW_api;
+mod termsrv_set_key_security_api;
+pub use termsrv_set_key_security_api::TermsrvSetKeySecurity_api;
+mod tls_get_value2_api;
+pub use tls_get_value2_api::TlsGetValue2_api;
+mod toolhelp32_read_process_memory_api;
+pub use toolhelp32_read_process_memory_api::Toolhelp32ReadProcessMemory_api;
+mod transact_named_pipe_api;
+pub use transact_named_pipe_api::TransactNamedPipe_api;
+mod transmit_comm_char_api;
+pub use transmit_comm_char_api::TransmitCommChar_api;
+mod try_enter_critical_section_api;
+pub use try_enter_critical_section_api::TryEnterCriticalSection_api;
+mod try_submit_threadpool_callback_api;
+pub use try_submit_threadpool_callback_api::TrySubmitThreadpoolCallback_api;
+mod tz_specific_local_time_to_system_time_api;
+pub use tz_specific_local_time_to_system_time_api::TzSpecificLocalTimeToSystemTime_api;
+mod tz_specific_local_time_to_system_time_ex_api;
+pub use tz_specific_local_time_to_system_time_ex_api::TzSpecificLocalTimeToSystemTimeEx_api;
+mod ut_register_api;
+pub use ut_register_api::UTRegister_api;
+mod ut_un_register_api;
+pub use ut_un_register_api::UTUnRegister_api;
+mod unlock_file;
+pub use unlock_file::UnlockFile;
+mod unlock_file_ex_api;
+pub use unlock_file_ex_api::UnlockFileEx_api;
+mod unmap_view_of_file_api;
+pub use unmap_view_of_file_api::UnmapViewOfFile_api;
+mod unmap_view_of_file_ex_api;
+pub use unmap_view_of_file_ex_api::UnmapViewOfFileEx_api;
+mod unregister_bad_memory_notification_api;
+pub use unregister_bad_memory_notification_api::UnregisterBadMemoryNotification_api;
+mod unregister_console_ime_api;
+pub use unregister_console_ime_api::UnregisterConsoleIME_api;
+mod unregister_wait_ex_api;
+pub use unregister_wait_ex_api::UnregisterWaitEx_api;
+mod update_proc_thread_attribute_api;
+pub use update_proc_thread_attribute_api::UpdateProcThreadAttribute_api;
+mod ver_language_name_a_api;
+pub use ver_language_name_a_api::VerLanguageNameA_api;
+mod ver_language_name_w_api;
+pub use ver_language_name_w_api::VerLanguageNameW_api;
+mod ver_set_condition_mask;
+pub use ver_set_condition_mask::VerSetConditionMask;
+mod verify_scripts_api;
+pub use verify_scripts_api::VerifyScripts_api;
+mod virtual_free_ex_api;
+pub use virtual_free_ex_api::VirtualFreeEx_api;
+mod virtual_unlock_api;
+pub use virtual_unlock_api::VirtualUnlock_api;
+mod wts_get_active_console_session_id_api;
+pub use wts_get_active_console_session_id_api::WTSGetActiveConsoleSessionId_api;
+mod wait_comm_event_api;
+pub use wait_comm_event_api::WaitCommEvent_api;
+mod wait_for_debug_event_api;
+pub use wait_for_debug_event_api::WaitForDebugEvent_api;
+mod wait_for_debug_event_ex_api;
+pub use wait_for_debug_event_ex_api::WaitForDebugEventEx_api;
+mod wait_for_multiple_objects_ex;
+pub use wait_for_multiple_objects_ex::WaitForMultipleObjectsEx;
+mod wait_for_single_object_ex;
+pub use wait_for_single_object_ex::WaitForSingleObjectEx;
+mod wait_for_threadpool_io_callbacks_api;
+pub use wait_for_threadpool_io_callbacks_api::WaitForThreadpoolIoCallbacks_api;
+mod wait_for_threadpool_timer_callbacks_api;
+pub use wait_for_threadpool_timer_callbacks_api::WaitForThreadpoolTimerCallbacks_api;
+mod wait_for_threadpool_wait_callbacks_api;
+pub use wait_for_threadpool_wait_callbacks_api::WaitForThreadpoolWaitCallbacks_api;
+mod wait_for_threadpool_work_callbacks_api;
+pub use wait_for_threadpool_work_callbacks_api::WaitForThreadpoolWorkCallbacks_api;
+mod wait_named_pipe_w_api;
+pub use wait_named_pipe_w_api::WaitNamedPipeW_api;
+mod wake_all_condition_variable;
+pub use wake_all_condition_variable::WakeAllConditionVariable;
+mod wake_condition_variable;
+pub use wake_condition_variable::WakeConditionVariable;
+mod wer_get_flags_api;
+pub use wer_get_flags_api::WerGetFlags_api;
+mod wer_register_additional_process_api;
+pub use wer_register_additional_process_api::WerRegisterAdditionalProcess_api;
+mod wer_register_app_local_dump_api;
+pub use wer_register_app_local_dump_api::WerRegisterAppLocalDump_api;
+mod wer_register_custom_metadata_api;
+pub use wer_register_custom_metadata_api::WerRegisterCustomMetadata_api;
+mod wer_register_excluded_memory_block_api;
+pub use wer_register_excluded_memory_block_api::WerRegisterExcludedMemoryBlock_api;
+mod wer_register_file_api;
+pub use wer_register_file_api::WerRegisterFile_api;
+mod wer_register_memory_block_api;
+pub use wer_register_memory_block_api::WerRegisterMemoryBlock_api;
+mod wer_register_memory_block_worker_api;
+pub use wer_register_memory_block_worker_api::WerRegisterMemoryBlockWorker_api;
+mod wer_register_runtime_exception_module_api;
+pub use wer_register_runtime_exception_module_api::WerRegisterRuntimeExceptionModule_api;
+mod wer_register_runtime_exception_module_worker_api;
+pub use wer_register_runtime_exception_module_worker_api::WerRegisterRuntimeExceptionModuleWorker_api;
+mod wer_set_flags_worker_api;
+pub use wer_set_flags_worker_api::WerSetFlagsWorker_api;
+mod wer_unregister_additional_process_api;
+pub use wer_unregister_additional_process_api::WerUnregisterAdditionalProcess_api;
+mod wer_unregister_app_local_dump_api;
+pub use wer_unregister_app_local_dump_api::WerUnregisterAppLocalDump_api;
+mod wer_unregister_custom_metadata_api;
+pub use wer_unregister_custom_metadata_api::WerUnregisterCustomMetadata_api;
+mod wer_unregister_excluded_memory_block_api;
+pub use wer_unregister_excluded_memory_block_api::WerUnregisterExcludedMemoryBlock_api;
+mod wer_unregister_file_api;
+pub use wer_unregister_file_api::WerUnregisterFile_api;
+mod wer_unregister_memory_block_api;
+pub use wer_unregister_memory_block_api::WerUnregisterMemoryBlock_api;
+mod wer_unregister_runtime_exception_module_api;
+pub use wer_unregister_runtime_exception_module_api::WerUnregisterRuntimeExceptionModule_api;
+mod wer_unregister_runtime_exception_module_worker_api;
+pub use wer_unregister_runtime_exception_module_worker_api::WerUnregisterRuntimeExceptionModuleWorker_api;
+mod werp_notify_load_string_resource_worker_api;
+pub use werp_notify_load_string_resource_worker_api::WerpNotifyLoadStringResourceWorker_api;
+mod wow64_disable_wow64_fs_redirection_api;
+pub use wow64_disable_wow64_fs_redirection_api::Wow64DisableWow64FsRedirection_api;
+mod wow64_get_thread_context_api;
+pub use wow64_get_thread_context_api::Wow64GetThreadContext_api;
+mod wow64_revert_wow64_fs_redirection_api;
+pub use wow64_revert_wow64_fs_redirection_api::Wow64RevertWow64FsRedirection_api;
+mod wow64_set_thread_context_api;
+pub use wow64_set_thread_context_api::Wow64SetThreadContext_api;
+mod wow64_transition_api;
+pub use wow64_transition_api::Wow64Transition_api;
+mod write_console_a_api;
+pub use write_console_a_api::WriteConsoleA_api;
+mod write_console_input_a_api;
+pub use write_console_input_a_api::WriteConsoleInputA_api;
+mod write_console_input_w_api;
+pub use write_console_input_w_api::WriteConsoleInputW_api;
+mod write_console_output_a_api;
+pub use write_console_output_a_api::WriteConsoleOutputA_api;
+mod write_console_output_attribute_api;
+pub use write_console_output_attribute_api::WriteConsoleOutputAttribute_api;
+mod write_console_output_character_a_api;
+pub use write_console_output_character_a_api::WriteConsoleOutputCharacterA_api;
+mod write_console_output_character_w_api;
+pub use write_console_output_character_w_api::WriteConsoleOutputCharacterW_api;
+mod write_console_output_w_api;
+pub use write_console_output_w_api::WriteConsoleOutputW_api;
+mod write_file_ex_api;
+pub use write_file_ex_api::WriteFileEx_api;
+mod write_file_gather_api;
+pub use write_file_gather_api::WriteFileGather_api;
+mod zombify_act_ctx_api;
+pub use zombify_act_ctx_api::ZombifyActCtx_api;
+mod _hread_api;
+pub use _hread_api::_hread_api;
+mod _hwrite_api;
+pub use _hwrite_api::_hwrite_api;
+mod lstrcmpi_2;
+pub use lstrcmpi_2::lstrcmpi;
+mod lstrcpy_a_api;
+pub use lstrcpy_a_api::lstrcpyA_api;
+mod lstrcpyn_a_api;
+pub use lstrcpyn_a_api::lstrcpynA_api;
+mod lstrcpyn_w_api;
+pub use lstrcpyn_w_api::lstrcpynW_api;
+mod time_get_system_time_api;
+pub use time_get_system_time_api::timeGetSystemTime_api;
+mod create_ums_completion_list_api;
+pub use create_ums_completion_list_api::CreateUmsCompletionList_api;
+mod create_ums_thread_context_api;
+pub use create_ums_thread_context_api::CreateUmsThreadContext_api;
+mod delete_ums_completion_list_api;
+pub use delete_ums_completion_list_api::DeleteUmsCompletionList_api;
+mod delete_ums_thread_context_api;
+pub use delete_ums_thread_context_api::DeleteUmsThreadContext_api;
+mod dequeue_ums_completion_list_items_api;
+pub use dequeue_ums_completion_list_items_api::DequeueUmsCompletionListItems_api;
+mod enter_ums_scheduling_mode_api;
+pub use enter_ums_scheduling_mode_api::EnterUmsSchedulingMode_api;
+mod etw_event_enabled;
+pub use etw_event_enabled::EtwEventEnabled;
+mod etw_event_register;
+pub use etw_event_register::EtwEventRegister;
+mod etw_event_set_information;
+pub use etw_event_set_information::EtwEventSetInformation;
+mod etw_event_write_transfer;
+pub use etw_event_write_transfer::EtwEventWriteTransfer;
+mod execute_ums_thread_api;
+pub use execute_ums_thread_api::ExecuteUmsThread_api;
+mod get_current_ums_thread_2;
+pub use get_current_ums_thread_2::GetCurrentUmsThread;
+mod get_next_ums_list_item_api;
+pub use get_next_ums_list_item_api::GetNextUmsListItem_api;
+mod get_ums_completion_list_event_api;
+pub use get_ums_completion_list_event_api::GetUmsCompletionListEvent_api;
+mod get_ums_system_thread_information_api;
+pub use get_ums_system_thread_information_api::GetUmsSystemThreadInformation_api;
+mod get_user_default_lang_id_2;
+pub use get_user_default_lang_id_2::GetUserDefaultLangId;
+mod l_str_cmp_i_api;
+pub use l_str_cmp_i_api::LStrCmpI_api;
+mod l_str_cmp_iw_api;
+pub use l_str_cmp_iw_api::LStrCmpIW_api;
+mod query_ums_thread_information_api;
+pub use query_ums_thread_information_api::QueryUmsThreadInformation_api;
+mod rtl_add_function_table_api;
+pub use rtl_add_function_table_api::RtlAddFunctionTable_api;
+mod rtl_compare_memory_api;
+pub use rtl_compare_memory_api::RtlCompareMemory_api;
+mod rtl_copy_memory_api;
+pub use rtl_copy_memory_api::RtlCopyMemory_api;
+mod rtl_delete_function_table_api;
+pub use rtl_delete_function_table_api::RtlDeleteFunctionTable_api;
+mod rtl_exit_user_process;
+pub use rtl_exit_user_process::RtlExitUserProcess;
+mod rtl_install_function_table_callback_api;
+pub use rtl_install_function_table_callback_api::RtlInstallFunctionTableCallback_api;
+mod rtl_is_ec_code_api;
+pub use rtl_is_ec_code_api::RtlIsEcCode_api;
+mod rtl_lookup_function_entry_api;
+pub use rtl_lookup_function_entry_api::RtlLookupFunctionEntry_api;
+mod rtl_raise_exception_api;
+pub use rtl_raise_exception_api::RtlRaiseException_api;
+mod rtl_restore_context_api;
+pub use rtl_restore_context_api::RtlRestoreContext_api;
+mod rtl_unwind_ex_api;
+pub use rtl_unwind_ex_api::RtlUnwindEx_api;
+mod rtl_virtual_unwind_api;
+pub use rtl_virtual_unwind_api::RtlVirtualUnwind_api;
+mod rtl_virtual_unwind2_api;
+pub use rtl_virtual_unwind2_api::RtlVirtualUnwind2_api;
+mod set_ums_thread_information_api;
+pub use set_ums_thread_information_api::SetUmsThreadInformation_api;
+mod ums_thread_yield_api;
+pub use ums_thread_yield_api::UmsThreadYield_api;
+mod __c_specific_handler_api;
+pub use __c_specific_handler_api::__C_specific_handler_api;
+mod __chkstk_api;
+pub use __chkstk_api::__chkstk_api;
+mod __misaligned_access_api;
+pub use __misaligned_access_api::__misaligned_access_api;
+mod _local_unwind_api;
+pub use _local_unwind_api::_local_unwind_api;
+mod uaw_lstrcmp_w_api;
+pub use uaw_lstrcmp_w_api::uaw_lstrcmpW_api;
+mod uaw_lstrcmpi_w_api;
+pub use uaw_lstrcmpi_w_api::uaw_lstrcmpiW_api;
+mod uaw_lstrlen_w_api;
+pub use uaw_lstrlen_w_api::uaw_lstrlenW_api;
+mod uaw_wcschr_api;
+pub use uaw_wcschr_api::uaw_wcschr_api;
+mod uaw_wcscpy_api;
+pub use uaw_wcscpy_api::uaw_wcscpy_api;
+mod uaw_wcsicmp_api;
+pub use uaw_wcsicmp_api::uaw_wcsicmp_api;
+mod uaw_wcslen_api;
+pub use uaw_wcslen_api::uaw_wcslen_api;
+mod uaw_wcsrchr_api;
+pub use uaw_wcsrchr_api::uaw_wcsrchr_api;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
@@ -868,14016 +2898,1041 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "ZombifyActCtxWorker" => ZombifyActCtxWorker(emu),
 
         // ---- auto-generated stubs from kernel32.dll export table ----
-        "ActivateActCtx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ActivateActCtx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ActivatePackageVirtualizationContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ActivatePackageVirtualizationContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddConsoleAliasA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!AddConsoleAliasA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "AddConsoleAliasW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!AddConsoleAliasW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "AddDllDirectory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddDllDirectory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddLocalAlternateComputerNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!AddLocalAlternateComputerNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "AddRefActCtx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddRefActCtx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddRefActCtxWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddRefActCtxWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddResourceAttributeAce" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddResourceAttributeAce arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddSIDToBoundaryDescriptor" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddSIDToBoundaryDescriptor arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddScopedPolicyIDAce" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddScopedPolicyIDAce arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddSecureMemoryCacheCallback" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddSecureMemoryCacheCallback arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AddVectoredContinueHandler" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AddVectoredContinueHandler h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AllocConsole" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!AllocConsole arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
-            let handle = helper::handler_create("allocconsole");
-            emu.regs_mut().rax = handle;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "AllocConsoleWithOptions" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AllocConsoleWithOptions arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AllocateUserPhysicalPages" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AllocateUserPhysicalPages arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AllocateUserPhysicalPagesNuma" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AllocateUserPhysicalPagesNuma arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AppPolicyGetClrCompat" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetClrCompat arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AppPolicyGetCreateFileAccess" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetCreateFileAccess h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AppPolicyGetLifecycleManagement" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetLifecycleManagement arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+        "ActivateActCtx" => ActivateActCtx_api(emu),
+        "ActivatePackageVirtualizationContext" => ActivatePackageVirtualizationContext_api(emu),
+        "AddConsoleAliasA" => AddConsoleAliasA_api(emu),
+        "AddConsoleAliasW" => AddConsoleAliasW_api(emu),
+        "AddDllDirectory" => AddDllDirectory_api(emu),
+        "AddLocalAlternateComputerNameA" => AddLocalAlternateComputerNameA_api(emu),
+        "AddRefActCtx" => AddRefActCtx_api(emu),
+        "AddRefActCtxWorker" => AddRefActCtxWorker_api(emu),
+        "AddResourceAttributeAce" => AddResourceAttributeAce_api(emu),
+        "AddSIDToBoundaryDescriptor" => AddSIDToBoundaryDescriptor_api(emu),
+        "AddScopedPolicyIDAce" => AddScopedPolicyIDAce_api(emu),
+        "AddSecureMemoryCacheCallback" => AddSecureMemoryCacheCallback_api(emu),
+        "AddVectoredContinueHandler" => AddVectoredContinueHandler_api(emu),
+        "AllocConsole" => AllocConsole_api(emu),
+        "AllocConsoleWithOptions" => AllocConsoleWithOptions_api(emu),
+        "AllocateUserPhysicalPages" => AllocateUserPhysicalPages_api(emu),
+        "AllocateUserPhysicalPagesNuma" => AllocateUserPhysicalPagesNuma_api(emu),
+        "AppPolicyGetClrCompat" => AppPolicyGetClrCompat_api(emu),
+        "AppPolicyGetCreateFileAccess" => AppPolicyGetCreateFileAccess_api(emu),
+        "AppPolicyGetLifecycleManagement" => AppPolicyGetLifecycleManagement_api(emu),
         "AppPolicyGetMediaFoundationCodecLoading" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetMediaFoundationCodecLoading arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            AppPolicyGetMediaFoundationCodecLoading_api(emu)
         }
-        "AppPolicyGetProcessTerminationMethod" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetProcessTerminationMethod h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AppPolicyGetShowDeveloperDiagnostic" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetShowDeveloperDiagnostic arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AppPolicyGetThreadInitializationType" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetThreadInitializationType h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AppPolicyGetWindowingModel" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppPolicyGetWindowingModel arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AppXGetOSMaxVersionTested" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AppXGetOSMaxVersionTested arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AreShortNamesEnabled" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AreShortNamesEnabled arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AssignProcessToJobObject" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!AssignProcessToJobObject h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "AttachConsole" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!AttachConsole");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BackupReadEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BackupReadEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BackupWriteEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BackupWriteEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseCheckAppcompatCache" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseCheckAppcompatCache arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseCheckAppcompatCacheEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseCheckAppcompatCacheEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseCleanupAppcompatCacheSupport" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseCleanupAppcompatCacheSupport arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseDumpAppcompatCache" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseDumpAppcompatCache arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseDumpAppcompatCacheWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseDumpAppcompatCacheWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseElevationPostProcessing" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseElevationPostProcessing h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseFlushAppcompatCache" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseFlushAppcompatCache arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseFormatObjectAttributes" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseFormatObjectAttributes h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseFormatTimeOut" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseFormatTimeOut arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseGetNamedObjectDirectory" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseGetNamedObjectDirectory h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseInitAppcompatCacheSupport" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseInitAppcompatCacheSupport arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseInitAppcompatCacheSupportWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseInitAppcompatCacheSupportWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseIsAppcompatInfrastructureDisabled" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseIsAppcompatInfrastructureDisabled arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+        "AppPolicyGetProcessTerminationMethod" => AppPolicyGetProcessTerminationMethod_api(emu),
+        "AppPolicyGetShowDeveloperDiagnostic" => AppPolicyGetShowDeveloperDiagnostic_api(emu),
+        "AppPolicyGetThreadInitializationType" => AppPolicyGetThreadInitializationType_api(emu),
+        "AppPolicyGetWindowingModel" => AppPolicyGetWindowingModel_api(emu),
+        "AppXGetOSMaxVersionTested" => AppXGetOSMaxVersionTested_api(emu),
+        "AreShortNamesEnabled" => AreShortNamesEnabled_api(emu),
+        "AssignProcessToJobObject" => AssignProcessToJobObject_api(emu),
+        "AttachConsole" => AttachConsole_api(emu),
+        "BackupReadEx" => BackupReadEx_api(emu),
+        "BackupWriteEx" => BackupWriteEx_api(emu),
+        "BaseCheckAppcompatCache" => BaseCheckAppcompatCache_api(emu),
+        "BaseCheckAppcompatCacheEx" => BaseCheckAppcompatCacheEx_api(emu),
+        "BaseCleanupAppcompatCacheSupport" => BaseCleanupAppcompatCacheSupport_api(emu),
+        "BaseDumpAppcompatCache" => BaseDumpAppcompatCache_api(emu),
+        "BaseDumpAppcompatCacheWorker" => BaseDumpAppcompatCacheWorker_api(emu),
+        "BaseElevationPostProcessing" => BaseElevationPostProcessing_api(emu),
+        "BaseFlushAppcompatCache" => BaseFlushAppcompatCache_api(emu),
+        "BaseFormatObjectAttributes" => BaseFormatObjectAttributes_api(emu),
+        "BaseFormatTimeOut" => BaseFormatTimeOut_api(emu),
+        "BaseGetNamedObjectDirectory" => BaseGetNamedObjectDirectory_api(emu),
+        "BaseInitAppcompatCacheSupport" => BaseInitAppcompatCacheSupport_api(emu),
+        "BaseInitAppcompatCacheSupportWorker" => BaseInitAppcompatCacheSupportWorker_api(emu),
+        "BaseIsAppcompatInfrastructureDisabled" => BaseIsAppcompatInfrastructureDisabled_api(emu),
         "BaseIsAppcompatInfrastructureDisabledWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseIsAppcompatInfrastructureDisabledWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            BaseIsAppcompatInfrastructureDisabledWorker_api(emu)
         }
-        "BaseQueryModuleData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseQueryModuleData arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseThreadInitThunk" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseThreadInitThunk h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BaseUpdateAppcompatCache" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BaseUpdateAppcompatCache arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepCheckPplSupport" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepCheckPplSupport arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepFinishPackageActivation" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepFinishPackageActivation arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepFinishPackageActivationForSxS" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepFinishPackageActivationForSxS arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepFreeActivationTokenInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepFreeActivationTokenInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepGetAppCompatData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepGetAppCompatData arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+        "BaseQueryModuleData" => BaseQueryModuleData_api(emu),
+        "BaseThreadInitThunk" => BaseThreadInitThunk_api(emu),
+        "BaseUpdateAppcompatCache" => BaseUpdateAppcompatCache_api(emu),
+        "BasepCheckPplSupport" => BasepCheckPplSupport_api(emu),
+        "BasepFinishPackageActivation" => BasepFinishPackageActivation_api(emu),
+        "BasepFinishPackageActivationForSxS" => BasepFinishPackageActivationForSxS_api(emu),
+        "BasepFreeActivationTokenInfo" => BasepFreeActivationTokenInfo_api(emu),
+        "BasepGetAppCompatData" => BasepGetAppCompatData_api(emu),
         "BasepGetPackageActivationTokenForFilePath" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepGetPackageActivationTokenForFilePath h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            BasepGetPackageActivationTokenForFilePath_api(emu)
         }
         "BasepGetPackageActivationTokenForFilePath2" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepGetPackageActivationTokenForFilePath2 h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            BasepGetPackageActivationTokenForFilePath2_api(emu)
         }
-        "BasepGetPackageActivationTokenForSxS" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepGetPackageActivationTokenForSxS h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepGetPackageActivationTokenForSxS2" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepGetPackageActivationTokenForSxS2 h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepGetPackageActivationTokenForSxS3" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepGetPackageActivationTokenForSxS3 h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepGetPackagedAppInfoForFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepGetPackagedAppInfoForFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepMapModuleHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepMapModuleHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepQueryModuleChpeSettings" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepQueryModuleChpeSettings arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepReleaseAppXContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepReleaseAppXContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BasepReleasePackagedAppInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BasepReleasePackagedAppInfo arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Beep" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!Beep arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingCancelRequest" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingCancelRequest arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingFlushFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingFlushFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingReadFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingReadFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingReadFileScatter" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingReadFileScatter h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingRegisterBuffers" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingRegisterBuffers arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingRegisterFileHandles" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingRegisterFileHandles h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingWriteFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingWriteFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "BuildIoRingWriteFileGather" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!BuildIoRingWriteFileGather h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CallNamedPipeW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!CallNamedPipeW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..7 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "CallbackMayRunLong" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CallbackMayRunLong arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CancelDeviceWakeupRequest" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CancelDeviceWakeupRequest h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CancelIo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!CancelIo h:0x{:x} arg2:0x{:x}", handle, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CancelIoEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CancelIoEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CancelSynchronousIo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CancelSynchronousIo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CancelThreadpoolIo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CancelThreadpoolIo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CancelWaitableTimer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!CancelWaitableTimer 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "CeipIsOptedIn" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CeipIsOptedIn arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ChangeTimerQueueTimer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!ChangeTimerQueueTimer 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
+        "BasepGetPackageActivationTokenForSxS" => BasepGetPackageActivationTokenForSxS_api(emu),
+        "BasepGetPackageActivationTokenForSxS2" => BasepGetPackageActivationTokenForSxS2_api(emu),
+        "BasepGetPackageActivationTokenForSxS3" => BasepGetPackageActivationTokenForSxS3_api(emu),
+        "BasepGetPackagedAppInfoForFile" => BasepGetPackagedAppInfoForFile_api(emu),
+        "BasepMapModuleHandle" => BasepMapModuleHandle_api(emu),
+        "BasepQueryModuleChpeSettings" => BasepQueryModuleChpeSettings_api(emu),
+        "BasepReleaseAppXContext" => BasepReleaseAppXContext_api(emu),
+        "BasepReleasePackagedAppInfo" => BasepReleasePackagedAppInfo_api(emu),
+        "Beep" => Beep(emu),
+        "BuildIoRingCancelRequest" => BuildIoRingCancelRequest_api(emu),
+        "BuildIoRingFlushFile" => BuildIoRingFlushFile_api(emu),
+        "BuildIoRingReadFile" => BuildIoRingReadFile_api(emu),
+        "BuildIoRingReadFileScatter" => BuildIoRingReadFileScatter_api(emu),
+        "BuildIoRingRegisterBuffers" => BuildIoRingRegisterBuffers_api(emu),
+        "BuildIoRingRegisterFileHandles" => BuildIoRingRegisterFileHandles_api(emu),
+        "BuildIoRingWriteFile" => BuildIoRingWriteFile_api(emu),
+        "BuildIoRingWriteFileGather" => BuildIoRingWriteFileGather_api(emu),
+        "CallNamedPipeW" => CallNamedPipeW_api(emu),
+        "CallbackMayRunLong" => CallbackMayRunLong_api(emu),
+        "CancelDeviceWakeupRequest" => CancelDeviceWakeupRequest_api(emu),
+        "CancelIo" => CancelIo_api(emu),
+        "CancelIoEx" => CancelIoEx_api(emu),
+        "CancelSynchronousIo" => CancelSynchronousIo_api(emu),
+        "CancelThreadpoolIo" => CancelThreadpoolIo_api(emu),
+        "CancelWaitableTimer" => CancelWaitableTimer_api(emu),
+        "CeipIsOptedIn" => CeipIsOptedIn(emu),
+        "ChangeTimerQueueTimer" => ChangeTimerQueueTimer_api(emu),
         "CheckAllowDecryptedRemoteDestinationPolicy" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CheckAllowDecryptedRemoteDestinationPolicy arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CheckElevationEnabled" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CheckElevationEnabled arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CheckForReadOnlyResourceFilter" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CheckForReadOnlyResourceFilter arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CheckRemoteDebuggerPresent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CheckRemoteDebuggerPresent arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CheckTokenCapability" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CheckTokenCapability h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CheckTokenMembershipEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CheckTokenMembershipEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ClearCommBreak" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ClearCommBreak arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ClearCommError" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ClearCommError arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseIoRing" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseIoRing h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ClosePackageInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ClosePackageInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ClosePrivateNamespace" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ClosePrivateNamespace h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseProfileUserMapping" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseProfileUserMapping h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ClosePseudoConsole" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ClosePseudoConsole h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseState" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseState h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseThreadpool" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseThreadpool h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseThreadpoolCleanupGroup" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseThreadpoolCleanupGroup h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseThreadpoolCleanupGroupMembers" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseThreadpoolCleanupGroupMembers h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseThreadpoolIo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseThreadpoolIo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CloseThreadpoolTimer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!CloseThreadpoolTimer 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "CloseThreadpoolWait" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!CloseThreadpoolWait 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "CloseThreadpoolWork" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CloseThreadpoolWork h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CmdBatNotification" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CmdBatNotification arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CommConfigDialogW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!CommConfigDialogW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "CompareFileTime" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!CompareFileTime p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CompareStringA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!CompareStringA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 2;
-        }
-        "CompareStringEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CompareStringEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "CompareStringOrdinal" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CompareStringOrdinal p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 2;
-        }
-        "ContinueDebugEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!ContinueDebugEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "ConvertDefaultLocale" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ConvertDefaultLocale arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "ConvertFiberToThread" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ConvertFiberToThread arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "ConvertThreadToFiber" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ConvertThreadToFiber arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "ConvertThreadToFiberEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ConvertThreadToFiberEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "CopyContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CopyContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "CopyFile2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CopyFile2 arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-        }
-        "CopyFileExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!CopyFileExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "CreateActCtxW" => {
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateActCtxW");
-            emu.regs_mut().rax = helper::handler_create("CreateActCtxW");
-        }
-        "CreateBoundaryDescriptorW" => {
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateBoundaryDescriptorW");
-            emu.regs_mut().rax = helper::handler_create("CreateBoundaryDescriptorW");
-        }
-        "CreateConsoleScreenBuffer" => {
-            for _ in 0..5u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateConsoleScreenBuffer");
-            emu.regs_mut().rax = helper::handler_create("CreateConsoleScreenBuffer");
-        }
-        "CreateDirectory2A" => {
-            log_red!(emu, "kernel32!CreateDirectory2A");
-            emu.regs_mut().rax = helper::handler_create("CreateDirectory2A");
-        }
-        "CreateDirectory2W" => {
-            log_red!(emu, "kernel32!CreateDirectory2W");
-            emu.regs_mut().rax = helper::handler_create("CreateDirectory2W");
-        }
-        "CreateDirectoryExW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateDirectoryExW");
-            emu.regs_mut().rax = helper::handler_create("CreateDirectoryExW");
-        }
-        "CreateEnclave" => {
-            log_red!(emu, "kernel32!CreateEnclave");
-            emu.regs_mut().rax = helper::handler_create("CreateEnclave");
-        }
-        "CreateEventExA" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateEventExA");
-            emu.regs_mut().rax = helper::handler_create("CreateEventExA");
-        }
-        "CreateEventExW" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateEventExW");
-            emu.regs_mut().rax = helper::handler_create("CreateEventExW");
-        }
-        "CreateEventW" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateEventW");
-            emu.regs_mut().rax = helper::handler_create("CreateEventW");
-        }
-        "CreateFiber" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateFiber");
-            emu.regs_mut().rax = helper::handler_create("CreateFiber");
-        }
-        "CreateFiberEx" => {
-            for _ in 0..5u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateFiberEx");
-            emu.regs_mut().rax = helper::handler_create("CreateFiberEx");
-        }
-        "CreateFile2" => {
-            for _ in 0..5u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateFile2");
-            emu.regs_mut().rax = helper::handler_create("CreateFile2");
-        }
-        "CreateFile3" => {
-            log_red!(emu, "kernel32!CreateFile3");
-            emu.regs_mut().rax = helper::handler_create("CreateFile3");
-        }
-        "CreateFileMappingFromApp" => {
-            for _ in 0..5u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateFileMappingFromApp");
-            emu.regs_mut().rax = helper::handler_create("CreateFileMappingFromApp");
-        }
-        "CreateFileMappingNumaW" => {
-            for _ in 0..7u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateFileMappingNumaW");
-            emu.regs_mut().rax = helper::handler_create("CreateFileMappingNumaW");
-        }
-        "CreateFileTransactedA" => {
-            for _ in 0..10u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateFileTransactedA");
-            emu.regs_mut().rax = helper::handler_create("CreateFileTransactedA");
-        }
-        "CreateFileTransactedW" => {
-            for _ in 0..10u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateFileTransactedW");
-            emu.regs_mut().rax = helper::handler_create("CreateFileTransactedW");
-        }
-        "CreateHardLinkA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!CreateHardLinkA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "CreateHardLinkTransactedW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!CreateHardLinkTransactedW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "CreateHardLinkW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!CreateHardLinkW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "CreateIoCompletionPort" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateIoCompletionPort");
-            emu.regs_mut().rax = helper::handler_create("CreateIoCompletionPort");
-        }
-        "CreateIoRing" => {
-            log_red!(emu, "kernel32!CreateIoRing");
-            emu.regs_mut().rax = helper::handler_create("CreateIoRing");
-        }
-        "CreateJobObjectA" => {
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateJobObjectA");
-            emu.regs_mut().rax = helper::handler_create("CreateJobObjectA");
-        }
-        "CreateJobObjectW" => {
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateJobObjectW");
-            emu.regs_mut().rax = helper::handler_create("CreateJobObjectW");
-        }
-        "CreateJobSet" => {
-            log_red!(emu, "kernel32!CreateJobSet");
-            emu.regs_mut().rax = helper::handler_create("CreateJobSet");
-        }
-        "CreateMailslotA" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateMailslotA");
-            emu.regs_mut().rax = helper::handler_create("CreateMailslotA");
-        }
-        "CreateMailslotW" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateMailslotW");
-            emu.regs_mut().rax = helper::handler_create("CreateMailslotW");
-        }
-        "CreateMemoryResourceNotification" => {
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateMemoryResourceNotification");
-            emu.regs_mut().rax = helper::handler_create("CreateMemoryResourceNotification");
-        }
-        "CreateMutexExA" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateMutexExA");
-            emu.regs_mut().rax = helper::handler_create("CreateMutexExA");
-        }
-        "CreateMutexExW" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateMutexExW");
-            emu.regs_mut().rax = helper::handler_create("CreateMutexExW");
-        }
-        "CreateNamedPipeW" => {
-            for _ in 0..8u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateNamedPipeW");
-            emu.regs_mut().rax = helper::handler_create("CreateNamedPipeW");
-        }
-        "CreatePackageVirtualizationContext" => {
-            log_red!(emu, "kernel32!CreatePackageVirtualizationContext");
-            emu.regs_mut().rax = helper::handler_create("CreatePackageVirtualizationContext");
-        }
-        "CreatePipe" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreatePipe");
-            emu.regs_mut().rax = helper::handler_create("CreatePipe");
-        }
-        "CreatePrivateNamespaceA" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreatePrivateNamespaceA");
-            emu.regs_mut().rax = helper::handler_create("CreatePrivateNamespaceA");
-        }
-        "CreatePrivateNamespaceW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreatePrivateNamespaceW");
-            emu.regs_mut().rax = helper::handler_create("CreatePrivateNamespaceW");
-        }
-        "CreateProcessAsUserA" => {
-            for _ in 0..11u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateProcessAsUserA");
-            emu.regs_mut().rax = helper::handler_create("CreateProcessAsUserA");
-        }
-        "CreateProcessAsUserW" => {
-            for _ in 0..11u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateProcessAsUserW");
-            emu.regs_mut().rax = helper::handler_create("CreateProcessAsUserW");
-        }
-        "CreateProcessInternalA" => {
-            log_red!(emu, "kernel32!CreateProcessInternalA");
-            emu.regs_mut().rax = helper::handler_create("CreateProcessInternalA");
-        }
-        "CreateProcessInternalW" => {
-            log_red!(emu, "kernel32!CreateProcessInternalW");
-            emu.regs_mut().rax = helper::handler_create("CreateProcessInternalW");
-        }
-        "CreatePseudoConsole" => {
-            log_red!(emu, "kernel32!CreatePseudoConsole");
-            emu.regs_mut().rax = helper::handler_create("CreatePseudoConsole");
-        }
-        "CreateRemoteThreadEx" => {
-            for _ in 0..8u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateRemoteThreadEx");
-            emu.regs_mut().rax = helper::handler_create("CreateRemoteThreadEx");
-        }
-        "CreateSemaphoreExW" => {
-            for _ in 0..6u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateSemaphoreExW");
-            emu.regs_mut().rax = helper::handler_create("CreateSemaphoreExW");
-        }
-        "CreateSemaphoreW" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateSemaphoreW");
-            emu.regs_mut().rax = helper::handler_create("CreateSemaphoreW");
-        }
-        "CreateSymbolicLinkW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!CreateSymbolicLinkW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "CreateThreadpool" => {
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateThreadpool");
-            emu.regs_mut().rax = helper::handler_create("CreateThreadpool");
-        }
-        "CreateThreadpoolCleanupGroup" => {
-            log_red!(emu, "kernel32!CreateThreadpoolCleanupGroup");
-            emu.regs_mut().rax = helper::handler_create("CreateThreadpoolCleanupGroup");
-        }
-        "CreateThreadpoolIo" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateThreadpoolIo");
-            emu.regs_mut().rax = helper::handler_create("CreateThreadpoolIo");
-        }
-        "CreateThreadpoolTimer" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateThreadpoolTimer");
-            emu.regs_mut().rax = helper::handler_create("CreateThreadpoolTimer");
-        }
-        "CreateThreadpoolWait" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateThreadpoolWait");
-            emu.regs_mut().rax = helper::handler_create("CreateThreadpoolWait");
-        }
-        "CreateThreadpoolWork" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateThreadpoolWork");
-            emu.regs_mut().rax = helper::handler_create("CreateThreadpoolWork");
-        }
-        "CreateTimerQueue" => {
-            log_red!(emu, "kernel32!CreateTimerQueue");
-            emu.regs_mut().rax = helper::handler_create("CreateTimerQueue");
-        }
-        "CreateTimerQueueTimer" => {
-            for _ in 0..7u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateTimerQueueTimer");
-            emu.regs_mut().rax = helper::handler_create("CreateTimerQueueTimer");
-        }
-        "CreateWaitableTimerExW" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!CreateWaitableTimerExW");
-            emu.regs_mut().rax = helper::handler_create("CreateWaitableTimerExW");
-        }
-        "CtrlRoutine" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!CtrlRoutine arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DeactivateActCtx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DeactivateActCtx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DeactivatePackageVirtualizationContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DeactivatePackageVirtualizationContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DebugActiveProcess" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DebugActiveProcess h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DebugActiveProcessStop" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DebugActiveProcessStop h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DebugBreak" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DebugBreak arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DebugBreakProcess" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DebugBreakProcess h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DecodeSystemPointer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DecodeSystemPointer arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DefineDosDeviceW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!DefineDosDeviceW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "DelayLoadFailureHook" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DelayLoadFailureHook arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DeleteBoundaryDescriptor" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DeleteBoundaryDescriptor h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DeleteCriticalSection" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!DeleteCriticalSection 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "DeleteFiber" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DeleteFiber h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DeleteFile2A" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!DeleteFile2A '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "DeleteFile2W" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!DeleteFile2W '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "DeleteFileTransactedA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!DeleteFileTransactedA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "DeleteProcThreadAttributeList" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DeleteProcThreadAttributeList h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DeleteSynchronizationBarrier" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!DeleteSynchronizationBarrier 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "DeleteTimerQueueEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!DeleteTimerQueueEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "DeleteTimerQueueTimer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!DeleteTimerQueueTimer 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "DeleteVolumeMountPointW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!DeleteVolumeMountPointW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "DeviceIoControl" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DeviceIoControl arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DisableThreadLibraryCalls" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!DisableThreadLibraryCalls");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DisassociateCurrentThreadFromCallback" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DisassociateCurrentThreadFromCallback h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DiscardVirtualMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DiscardVirtualMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DnsHostnameToComputerNameExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!DnsHostnameToComputerNameExW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "DuplicateConsoleHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DuplicateConsoleHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "DuplicatePackageVirtualizationContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DuplicatePackageVirtualizationContext h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnableProcessOptionalXStateFeatures" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EnableProcessOptionalXStateFeatures h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EncodeSystemPointer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EncodeSystemPointer arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnterSynchronizationBarrier" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!EnterSynchronizationBarrier 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "EnumCalendarInfoExEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EnumCalendarInfoExEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnumCalendarInfoExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumCalendarInfoExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumCalendarInfoW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!EnumCalendarInfoW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumDateFormatsExEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EnumDateFormatsExEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnumDateFormatsExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumDateFormatsExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumDateFormatsW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumDateFormatsW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumLanguageGroupLocalesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!EnumLanguageGroupLocalesW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceLanguagesA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceLanguagesA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceLanguagesExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!EnumResourceLanguagesExA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceLanguagesExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!EnumResourceLanguagesExW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceLanguagesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceLanguagesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceNamesA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceNamesA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceNamesExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceNamesExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceNamesExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceNamesExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceNamesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceNamesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceTypesA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceTypesA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceTypesExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceTypesExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceTypesExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceTypesExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumResourceTypesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumResourceTypesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumSystemCodePagesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumSystemCodePagesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumSystemFirmwareTables" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EnumSystemFirmwareTables arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnumSystemLanguageGroupsW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!EnumSystemLanguageGroupsW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumSystemLocalesA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!EnumSystemLocalesA '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumSystemLocalesEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EnumSystemLocalesEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnumSystemLocalesW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!EnumSystemLocalesW '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumTimeFormatsEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EnumTimeFormatsEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnumTimeFormatsW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumTimeFormatsW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EnumUILanguagesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!EnumUILanguagesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "EscapeCommFunction" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EscapeCommFunction arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ExitVDM" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!ExitVDM arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ExpungeConsoleCommandHistoryA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!ExpungeConsoleCommandHistoryA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ExpungeConsoleCommandHistoryW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!ExpungeConsoleCommandHistoryW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FatalAppExitA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!FatalAppExitA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FatalAppExitW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!FatalAppExitW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FillConsoleOutputAttribute" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FillConsoleOutputAttribute p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FillConsoleOutputCharacterA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!FillConsoleOutputCharacterA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FillConsoleOutputCharacterW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!FillConsoleOutputCharacterW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FindActCtxSectionGuid" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FindActCtxSectionGuid h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FindActCtxSectionStringW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!FindActCtxSectionStringW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FindCloseChangeNotification" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!FindCloseChangeNotification");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FindFirstChangeNotificationA" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstChangeNotificationA");
-            emu.regs_mut().rax = helper::handler_create("FindFirstChangeNotificationA");
-        }
-        "FindFirstChangeNotificationW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstChangeNotificationW");
-            emu.regs_mut().rax = helper::handler_create("FindFirstChangeNotificationW");
-        }
-        "FindFirstFileExA" => {
-            for _ in 0..6u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstFileExA");
-            emu.regs_mut().rax = helper::handler_create("FindFirstFileExA");
-        }
-        "FindFirstFileExW" => {
-            for _ in 0..6u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstFileExW");
-            emu.regs_mut().rax = helper::handler_create("FindFirstFileExW");
-        }
-        "FindFirstFileNameTransactedW" => {
-            for _ in 0..5u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstFileNameTransactedW");
-            emu.regs_mut().rax = helper::handler_create("FindFirstFileNameTransactedW");
-        }
-        "FindFirstFileNameW" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstFileNameW");
-            emu.regs_mut().rax = helper::handler_create("FindFirstFileNameW");
-        }
-        "FindFirstFileTransactedA" => {
-            for _ in 0..7u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstFileTransactedA");
-            emu.regs_mut().rax = helper::handler_create("FindFirstFileTransactedA");
-        }
-        "FindFirstFileTransactedW" => {
-            for _ in 0..7u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstFileTransactedW");
-            emu.regs_mut().rax = helper::handler_create("FindFirstFileTransactedW");
-        }
-        "FindFirstStreamTransactedW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!FindFirstStreamTransactedW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FindFirstStreamW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!FindFirstStreamW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FindFirstVolumeW" => {
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!FindFirstVolumeW");
-            emu.regs_mut().rax = helper::handler_create("FindFirstVolumeW");
-        }
-        "FindNLSString" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FindNLSString arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FindNLSStringEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FindNLSStringEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FindNextChangeNotification" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!FindNextChangeNotification");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FindNextFileNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!FindNextFileNameW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FindNextStreamW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!FindNextStreamW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "FindNextVolumeW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!FindNextVolumeW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "FindPackagesByPackageFamily" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FindPackagesByPackageFamily arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FindResourceExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            let hndl = helper::handler_create("resource");
-            log_red!(
-                emu,
-                "kernel32!FindResourceExA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x} => 0x{:x}",
-                s,
-                p1,
-                p2,
-                p3,
-                hndl
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = hndl;
-        }
-        "FindResourceExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            let hndl = helper::handler_create("resource");
-            log_red!(
-                emu,
-                "kernel32!FindResourceExW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x} => 0x{:x}",
-                s,
-                p1,
-                p2,
-                p3,
-                hndl
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = hndl;
-        }
-        "FindStringOrdinal" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FindStringOrdinal arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FindVolumeClose" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!FindVolumeClose");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FlsFree" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!FlsFree arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FlsGetValue2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FlsGetValue2 arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FlushConsoleInputBuffer" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FlushConsoleInputBuffer h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FlushFileBuffers" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!FlushFileBuffers");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FlushInstructionCache" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FlushInstructionCache h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FlushProcessWriteBuffers" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FlushProcessWriteBuffers h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FlushViewOfFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FlushViewOfFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FoldStringW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!FoldStringW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-        }
-        "FormatApplicationUserModelId" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FormatApplicationUserModelId arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FreeConsole" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!FreeConsole handle:0x{:x}", handle);
-            if handle != 0 {
-                helper::handler_close(handle);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "FreeLibraryAndExitThread" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FreeLibraryAndExitThread h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FreeLibraryWhenCallbackReturns" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FreeLibraryWhenCallbackReturns h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "FreeUserPhysicalPages" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!FreeUserPhysicalPages h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GenerateConsoleCtrlEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!GenerateConsoleCtrlEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetAppContainerAce" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetAppContainerAce h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetAppContainerNamedObjectPath" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetAppContainerNamedObjectPath h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetApplicationRecoveryCallback" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetApplicationRecoveryCallback h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetApplicationRecoveryCallbackWorker" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetApplicationRecoveryCallbackWorker h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetApplicationRestartSettings" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetApplicationRestartSettings h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetApplicationUserModelId" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetApplicationUserModelId h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetBinaryType" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetBinaryType h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetBinaryTypeA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetBinaryTypeA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetCPInfoExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetCPInfoExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetCPInfoExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!GetCPInfoExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetCachedSigningLevel" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCachedSigningLevel h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCalendarInfoEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCalendarInfoEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCalendarInfoW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetCalendarInfoW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetCommConfig" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCommConfig h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCommMask" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCommMask h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCommModemStatus" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCommModemStatus h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCommProperties" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCommProperties h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCommState" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCommState h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCommTimeouts" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCommTimeouts h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCompressedFileSizeA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!GetCompressedFileSizeA '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 4096;
-        }
-        "GetCompressedFileSizeTransactedA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetCompressedFileSizeTransactedA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetCompressedFileSizeW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!GetCompressedFileSizeW '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 4096;
-        }
-        "GetComputerNameExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetComputerNameExA '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetComputerNameExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetComputerNameExW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetConsoleAliasA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasExesA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetConsoleAliasExesA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasExesLengthA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleAliasExesLengthA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasExesLengthW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleAliasExesLengthW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasExesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!GetConsoleAliasExesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!GetConsoleAliasW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasesA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetConsoleAliasesA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasesLengthA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleAliasesLengthA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasesLengthW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleAliasesLengthW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleAliasesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!GetConsoleAliasesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleCommandHistoryA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleCommandHistoryA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleCommandHistoryLengthA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleCommandHistoryLengthA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleCommandHistoryLengthW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleCommandHistoryLengthW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleCommandHistoryW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleCommandHistoryW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleCursorInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleCursorInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleCursorMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleCursorMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleDisplayMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleDisplayMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleFontSize" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleFontSize h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleHistoryInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleHistoryInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleInputExeNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleInputExeNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleInputExeNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleInputExeNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleNlsMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleNlsMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleOriginalTitleA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleOriginalTitleA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleOriginalTitleW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetConsoleOriginalTitleW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleProcessList" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleProcessList h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleScreenBufferInfo" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetConsoleScreenBufferInfo p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleScreenBufferInfoEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleScreenBufferInfoEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleSelectionInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleSelectionInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetConsoleTitleA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!GetConsoleTitleA '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetConsoleTitleW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!GetConsoleTitleW '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetConsoleWindow" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetConsoleWindow h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrencyFormatEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrencyFormatEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentActCtx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentActCtx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentApplicationUserModelId" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentApplicationUserModelId h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentConsoleFont" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentConsoleFont h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentConsoleFontEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentConsoleFontEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentPackageFamilyName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentPackageFamilyName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentPackageFullName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentPackageFullName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentPackageId" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentPackageId h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentPackageInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentPackageInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentPackagePath" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentPackagePath h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentPackageVirtualizationContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentPackageVirtualizationContext h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentProcessorNumber" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentProcessorNumber h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentProcessorNumberEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentProcessorNumberEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentThreadStackLimits" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentThreadStackLimits h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetDateFormatA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetDateFormatA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetDateFormatEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetDateFormatEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..7 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetDateFormatW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetDateFormatW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetDiskFreeSpaceW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetDiskFreeSpaceW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetDiskSpaceInformationA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetDiskSpaceInformationA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetDiskSpaceInformationW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetDiskSpaceInformationW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetDurationFormatEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetDurationFormatEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetDynamicTimeZoneInformation" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetDynamicTimeZoneInformation");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetEnabledXStateFeatures" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetEnabledXStateFeatures h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetEnvironmentStringsA" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!GetEnvironmentStringsA arg1:0x{:x}", arg1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetEnvironmentVariableA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetEnvironmentVariableA '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetEraNameCountedString" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetEraNameCountedString h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetErrorMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetErrorMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetExitCodeProcess" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetExitCodeProcess p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetExitCodeThread" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetExitCodeThread p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileAttributesExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetFileAttributesExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileAttributesExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!GetFileAttributesExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileAttributesTransactedW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetFileAttributesTransactedW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileInformationByHandle" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetFileInformationByHandle p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileInformationByHandleEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetFileInformationByHandleEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileInformationByName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetFileInformationByName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileMUIInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetFileMUIInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileMUIPath" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetFileMUIPath h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetFileTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetFileTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetFinalPathNameByHandleA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetFinalPathNameByHandleA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetFinalPathNameByHandleW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetFinalPathNameByHandleW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetFirmwareEnvironmentVariableExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetFirmwareEnvironmentVariableExA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetFirmwareEnvironmentVariableExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetFirmwareEnvironmentVariableExW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetHandleInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetHandleInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetIoRingInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetIoRingInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetLargePageMinimum" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetLargePageMinimum h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetLargestConsoleWindowSize" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetLargestConsoleWindowSize h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetLocaleInfoEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetLocaleInfoEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetLogicalDriveStringsA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetLogicalDriveStringsA '{}' p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 4;
-        }
-        "GetLogicalDriveStringsW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetLogicalDriveStringsW '{}' p1:0x{:x}",
-                s,
-                p1
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 4;
-        }
-        "GetLogicalProcessorInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetLogicalProcessorInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetLogicalProcessorInformationEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetLogicalProcessorInformationEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetLongPathNameTransactedA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetLongPathNameTransactedA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetLongPathNameTransactedW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetLongPathNameTransactedW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetMachineTypeAttributes" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetMachineTypeAttributes h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetMemoryErrorHandlingCapabilities" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetMemoryErrorHandlingCapabilities h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetModuleHandleExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetModuleHandleExA '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetNLSVersion" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNLSVersion h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNLSVersionEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNLSVersionEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNamedPipeAttribute" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNamedPipeAttribute h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNamedPipeClientComputerNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetNamedPipeClientComputerNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetNamedPipeHandleStateW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetNamedPipeHandleStateW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..7 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetNamedPipeInfo" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNamedPipeInfo p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNamedPipeServerProcessId" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNamedPipeServerProcessId h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNextVDMCommand" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNextVDMCommand h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNumaHighestNodeNumber" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNumaHighestNodeNumber h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNumaNodeProcessorMask2" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNumaNodeProcessorMask2 h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNumaNodeProcessorMaskEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNumaNodeProcessorMaskEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNumaProximityNodeEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNumaProximityNodeEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNumberFormatEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNumberFormatEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNumberOfConsoleInputEvents" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!GetNumberOfConsoleInputEvents 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetNumberOfConsoleMouseButtons" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNumberOfConsoleMouseButtons h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetOverlappedResult" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetOverlappedResult h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetOverlappedResultEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetOverlappedResultEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackageApplicationIds" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackageApplicationIds h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackageFamilyName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackageFamilyName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackageFullName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackageFullName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackageId" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackageId h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackageInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackageInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackagePath" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackagePath h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackagePathByFullName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackagePathByFullName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPackagesByPackageFamily" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPackagesByPackageFamily h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPhysicallyInstalledSystemMemory" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetPhysicallyInstalledSystemMemory h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetPriorityClass" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetPriorityClass");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0x20;
-        }
-        "GetProcessDefaultCpuSetMasks" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessDefaultCpuSetMasks h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessDefaultCpuSets" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessDefaultCpuSets h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessGroupAffinity" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessGroupAffinity h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessHandleCount" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetProcessHandleCount p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessHeaps" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessHeaps h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessId" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetProcessId");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0x1234;
-        }
-        "GetProcessIdOfThread" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessIdOfThread h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessMitigationPolicy" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessMitigationPolicy h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessPreferredUILanguages" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessPreferredUILanguages h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessPriorityBoost" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessPriorityBoost h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessShutdownParameters" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessShutdownParameters h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessTimes" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessTimes h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessVersion" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessVersion h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessWorkingSetSizeEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessWorkingSetSizeEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessesInVirtualizationContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessesInVirtualizationContext h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProcessorSystemCycleTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProcessorSystemCycleTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetProductInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetProductInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetQueuedCompletionStatus" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetQueuedCompletionStatus h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetQueuedCompletionStatusEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetQueuedCompletionStatusEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetStagedPackagePathByFullName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetStagedPackagePathByFullName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetStateFolder" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetStateFolder h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetStringScripts" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetStringScripts h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetStringTypeA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetStringTypeA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetStringTypeExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetStringTypeExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetStringTypeExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!GetStringTypeExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemAppDataKey" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemAppDataKey h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemCpuSetInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemCpuSetInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemDefaultLCID" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemDefaultLCID h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemDefaultLangID" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemDefaultLangID h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemDefaultLocaleName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemDefaultLocaleName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemDefaultUILanguage" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemDefaultUILanguage h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemFileCacheSize" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemFileCacheSize h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemFirmwareTable" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemFirmwareTable h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemPreferredUILanguages" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemPreferredUILanguages h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemTimeAdjustment" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemTimeAdjustment h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemTimePreciseAsFileTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemTimePreciseAsFileTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemTimes" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetSystemTimes h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemWow64DirectoryA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetSystemWow64DirectoryA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetSystemWow64DirectoryW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetSystemWow64DirectoryW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetTempFileNameA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetTempFileNameA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetTempFileNameW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetTempFileNameW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetTempPath2A" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!GetTempPath2A '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetTempPath2W" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!GetTempPath2W '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadDescription" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadDescription h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadEnabledXStateFeatures" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadEnabledXStateFeatures h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadErrorMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadErrorMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadGroupAffinity" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadGroupAffinity h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadIOPendingFlag" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadIOPendingFlag h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadIdealProcessorEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadIdealProcessorEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadPriority" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!GetThreadPriority");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 2;
-        }
-        "GetThreadPriorityBoost" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadPriorityBoost h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadSelectedCpuSetMasks" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadSelectedCpuSetMasks h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadSelectedCpuSets" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadSelectedCpuSets h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetThreadTimes" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetThreadTimes h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetTimeFormatA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetTimeFormatA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetTimeFormatAWorker" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetTimeFormatAWorker h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetTimeFormatEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetTimeFormatEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetTimeFormatW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetTimeFormatW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetTimeZoneInformationForYear" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetTimeZoneInformationForYear h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetUILanguageInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetUILanguageInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetUserDefaultLocaleName" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetUserDefaultLocaleName h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetUserPreferredUILanguages" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetUserPreferredUILanguages h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetVDMCurrentDirectories" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetVDMCurrentDirectories h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetVolumeInformationByHandleW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetVolumeInformationByHandleW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..8 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetVolumeNameForVolumeMountPointW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetVolumeNameForVolumeMountPointW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetVolumePathNameA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetVolumePathNameA '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetVolumePathNameW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!GetVolumePathNameW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetVolumePathNamesForVolumeNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!GetVolumePathNamesForVolumeNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "GetWriteWatch" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetWriteWatch h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetXStateFeaturesMask" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetXStateFeaturesMask h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GlobalCompact" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GlobalCompact arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GlobalMemoryStatusEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GlobalMemoryStatusEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "HeapCompact" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!HeapCompact p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 4096;
-        }
-        "HeapLock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!HeapLock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HeapQueryInformation" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!HeapQueryInformation p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "HeapSummary" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!HeapSummary arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "HeapUnlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!HeapUnlock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "HeapValidate" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!HeapValidate p1:0x{:x} p2:0x{:x}", p1, p2);
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "HeapWalk" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!HeapWalk arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IdnToAscii" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IdnToAscii arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IdnToNameprepUnicode" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IdnToNameprepUnicode arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IdnToUnicode" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IdnToUnicode arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitOnceBeginInitialize" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InitOnceBeginInitialize p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitOnceComplete" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!InitOnceComplete p1:0x{:x} p2:0x{:x}", p1, p2);
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitOnceExecuteOnce" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InitOnceExecuteOnce p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitOnceInitialize" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!InitOnceInitialize");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitializeConditionVariable" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!InitializeConditionVariable 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InitializeContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InitializeContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitializeContext2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InitializeContext2 arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitializeEnclave" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InitializeEnclave arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitializeProcThreadAttributeList" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InitializeProcThreadAttributeList h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitializeSListHead" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InitializeSListHead arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InitializeSynchronizationBarrier" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(
-                emu,
-                "kernel32!InitializeSynchronizationBarrier 0x{:x}",
-                arg1
-            );
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InstallELAMCertificateInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!InstallELAMCertificateInfo arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "InterlockedCompareExchange64" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!InterlockedCompareExchange64 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InterlockedFlushSList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!InterlockedFlushSList 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InterlockedPopEntrySList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!InterlockedPopEntrySList 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InterlockedPushEntrySList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!InterlockedPushEntrySList 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InterlockedPushListSList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!InterlockedPushListSList 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "InterlockedPushListSListEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!InterlockedPushListSListEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "IsDBCSLeadByte" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsDBCSLeadByte arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsDBCSLeadByteEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsDBCSLeadByteEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsEnclaveTypeSupported" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsEnclaveTypeSupported arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsIoRingOpSupported" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsIoRingOpSupported arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsNLSDefinedString" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsNLSDefinedString arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsNativeVhdBoot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsNativeVhdBoot arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsNormalizedString" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsNormalizedString arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsProcessCritical" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!IsProcessCritical 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "IsProcessInJob" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsProcessInJob h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsThreadpoolTimerSet" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!IsThreadpoolTimerSet 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "IsUserCetAvailableInEnvironment" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsUserCetAvailableInEnvironment arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsValidLanguageGroup" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!IsValidLanguageGroup p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsValidLocaleName" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsValidLocaleName arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsValidNLSVersion" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsValidNLSVersion arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsWow64GuestMachineSupported" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsWow64GuestMachineSupported arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "IsWow64Process2" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!IsWow64Process2 h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32EmptyWorkingSet" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32EmptyWorkingSet arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32EnumDeviceDrivers" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32EnumDeviceDrivers arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32EnumPageFilesA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!K32EnumPageFilesA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32EnumPageFilesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!K32EnumPageFilesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32EnumProcessModules" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32EnumProcessModules h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32EnumProcessModulesEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32EnumProcessModulesEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32EnumProcesses" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32EnumProcesses h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetDeviceDriverBaseNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetDeviceDriverBaseNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetDeviceDriverBaseNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetDeviceDriverBaseNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetDeviceDriverFileNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetDeviceDriverFileNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetDeviceDriverFileNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetDeviceDriverFileNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetMappedFileNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!K32GetMappedFileNameA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetMappedFileNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!K32GetMappedFileNameW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetModuleBaseNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!K32GetModuleBaseNameA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetModuleBaseNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!K32GetModuleBaseNameW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetModuleFileNameExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetModuleFileNameExA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetModuleFileNameExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetModuleFileNameExW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetModuleInformation" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32GetModuleInformation arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetPerformanceInfo" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32GetPerformanceInfo arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetProcessImageFileNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetProcessImageFileNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetProcessImageFileNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!K32GetProcessImageFileNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetProcessMemoryInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32GetProcessMemoryInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetWsChanges" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32GetWsChanges arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32GetWsChangesEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32GetWsChangesEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32InitializeProcessForWsWatch" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32InitializeProcessForWsWatch h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32QueryWorkingSet" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32QueryWorkingSet arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "K32QueryWorkingSetEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!K32QueryWorkingSetEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LCIDToLocaleName" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LCIDToLocaleName p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LCMapStringA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!LCMapStringA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "LCMapStringEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LCMapStringEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..9 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LZCloseFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LZCloseFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LZCreateFileW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!LZCreateFileW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "LZDone" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!LZDone arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+            CheckAllowDecryptedRemoteDestinationPolicy(emu)
+        }
+        "CheckElevationEnabled" => CheckElevationEnabled_api(emu),
+        "CheckForReadOnlyResourceFilter" => CheckForReadOnlyResourceFilter_api(emu),
+        "CheckRemoteDebuggerPresent" => CheckRemoteDebuggerPresent_api(emu),
+        "CheckTokenCapability" => CheckTokenCapability_api(emu),
+        "CheckTokenMembershipEx" => CheckTokenMembershipEx_api(emu),
+        "ClearCommBreak" => ClearCommBreak_api(emu),
+        "ClearCommError" => ClearCommError_api(emu),
+        "CloseIoRing" => CloseIoRing_api(emu),
+        "ClosePackageInfo" => ClosePackageInfo_api(emu),
+        "ClosePrivateNamespace" => ClosePrivateNamespace_api(emu),
+        "CloseProfileUserMapping" => CloseProfileUserMapping(emu),
+        "ClosePseudoConsole" => ClosePseudoConsole_api(emu),
+        "CloseState" => CloseState_api(emu),
+        "CloseThreadpool" => CloseThreadpool_api(emu),
+        "CloseThreadpoolCleanupGroup" => CloseThreadpoolCleanupGroup_api(emu),
+        "CloseThreadpoolCleanupGroupMembers" => CloseThreadpoolCleanupGroupMembers_api(emu),
+        "CloseThreadpoolIo" => CloseThreadpoolIo_api(emu),
+        "CloseThreadpoolTimer" => CloseThreadpoolTimer_api(emu),
+        "CloseThreadpoolWait" => CloseThreadpoolWait_api(emu),
+        "CloseThreadpoolWork" => CloseThreadpoolWork_api(emu),
+        "CmdBatNotification" => CmdBatNotification_api(emu),
+        "CommConfigDialogW" => CommConfigDialogW_api(emu),
+        "CompareFileTime" => CompareFileTime_api(emu),
+        "CompareStringA" => CompareStringA(emu),
+        "CompareStringEx" => CompareStringEx_api(emu),
+        "CompareStringOrdinal" => CompareStringOrdinal(emu),
+        "ContinueDebugEvent" => ContinueDebugEvent_api(emu),
+        "ConvertDefaultLocale" => ConvertDefaultLocale_api(emu),
+        "ConvertFiberToThread" => ConvertFiberToThread(emu),
+        "ConvertThreadToFiber" => ConvertThreadToFiber_api(emu),
+        "ConvertThreadToFiberEx" => ConvertThreadToFiberEx_api(emu),
+        "CopyContext" => CopyContext_api(emu),
+        "CopyFile2" => CopyFile2_api(emu),
+        "CopyFileExW" => CopyFileExW(emu),
+        "CreateActCtxW" => CreateActCtxW_api(emu),
+        "CreateBoundaryDescriptorW" => CreateBoundaryDescriptorW_api(emu),
+        "CreateConsoleScreenBuffer" => CreateConsoleScreenBuffer_api(emu),
+        "CreateDirectory2A" => CreateDirectory2A_api(emu),
+        "CreateDirectory2W" => CreateDirectory2W_api(emu),
+        "CreateDirectoryExW" => CreateDirectoryExW_api(emu),
+        "CreateEnclave" => CreateEnclave_api(emu),
+        "CreateEventExA" => CreateEventExA_api(emu),
+        "CreateEventExW" => CreateEventExW_api(emu),
+        "CreateEventW" => CreateEventW_api(emu),
+        "CreateFiber" => CreateFiber_api(emu),
+        "CreateFiberEx" => CreateFiberEx_api(emu),
+        "CreateFile2" => CreateFile2_api(emu),
+        "CreateFile3" => CreateFile3_api(emu),
+        "CreateFileMappingFromApp" => CreateFileMappingFromApp_api(emu),
+        "CreateFileMappingNumaW" => CreateFileMappingNumaW_api(emu),
+        "CreateFileTransactedA" => CreateFileTransactedA_api(emu),
+        "CreateFileTransactedW" => CreateFileTransactedW_api(emu),
+        "CreateHardLinkA" => CreateHardLinkA_api(emu),
+        "CreateHardLinkTransactedW" => CreateHardLinkTransactedW_api(emu),
+        "CreateHardLinkW" => CreateHardLinkW_api(emu),
+        "CreateIoCompletionPort" => CreateIoCompletionPort_api(emu),
+        "CreateIoRing" => CreateIoRing_api(emu),
+        "CreateJobObjectA" => CreateJobObjectA_api(emu),
+        "CreateJobObjectW" => CreateJobObjectW_api(emu),
+        "CreateJobSet" => CreateJobSet_api(emu),
+        "CreateMailslotA" => CreateMailslotA_api(emu),
+        "CreateMailslotW" => CreateMailslotW_api(emu),
+        "CreateMemoryResourceNotification" => CreateMemoryResourceNotification_api(emu),
+        "CreateMutexExA" => CreateMutexExA_api(emu),
+        "CreateMutexExW" => CreateMutexExW_api(emu),
+        "CreateNamedPipeW" => CreateNamedPipeW_api(emu),
+        "CreatePackageVirtualizationContext" => CreatePackageVirtualizationContext_api(emu),
+        "CreatePipe" => CreatePipe(emu),
+        "CreatePrivateNamespaceA" => CreatePrivateNamespaceA_api(emu),
+        "CreatePrivateNamespaceW" => CreatePrivateNamespaceW_api(emu),
+        "CreateProcessAsUserA" => CreateProcessAsUserA_api(emu),
+        "CreateProcessAsUserW" => CreateProcessAsUserW_api(emu),
+        "CreateProcessInternalA" => CreateProcessInternalA_api(emu),
+        "CreateProcessInternalW" => CreateProcessInternalW_api(emu),
+        "CreatePseudoConsole" => CreatePseudoConsole_api(emu),
+        "CreateRemoteThreadEx" => CreateRemoteThreadEx_api(emu),
+        "CreateSemaphoreExW" => CreateSemaphoreExW(emu),
+        "CreateSemaphoreW" => CreateSemaphoreW(emu),
+        "CreateSymbolicLinkW" => CreateSymbolicLinkW_api(emu),
+        "CreateThreadpool" => CreateThreadpool_api(emu),
+        "CreateThreadpoolCleanupGroup" => CreateThreadpoolCleanupGroup_api(emu),
+        "CreateThreadpoolIo" => CreateThreadpoolIo_api(emu),
+        "CreateThreadpoolTimer" => CreateThreadpoolTimer_api(emu),
+        "CreateThreadpoolWait" => CreateThreadpoolWait_api(emu),
+        "CreateThreadpoolWork" => CreateThreadpoolWork_api(emu),
+        "CreateTimerQueue" => CreateTimerQueue_api(emu),
+        "CreateTimerQueueTimer" => CreateTimerQueueTimer_api(emu),
+        "CreateWaitableTimerExW" => CreateWaitableTimerExW(emu),
+        "CtrlRoutine" => CtrlRoutine_api(emu),
+        "DeactivateActCtx" => DeactivateActCtx_api(emu),
+        "DeactivatePackageVirtualizationContext" => DeactivatePackageVirtualizationContext_api(emu),
+        "DebugActiveProcess" => DebugActiveProcess_api(emu),
+        "DebugActiveProcessStop" => DebugActiveProcessStop_api(emu),
+        "DebugBreak" => DebugBreak(emu),
+        "DebugBreakProcess" => DebugBreakProcess_api(emu),
+        "DecodeSystemPointer" => DecodeSystemPointer_api(emu),
+        "DefineDosDeviceW" => DefineDosDeviceW_api(emu),
+        "DelayLoadFailureHook" => DelayLoadFailureHook_api(emu),
+        "DeleteBoundaryDescriptor" => DeleteBoundaryDescriptor_api(emu),
+        "DeleteCriticalSection" => DeleteCriticalSection(emu),
+        "DeleteFiber" => DeleteFiber_api(emu),
+        "DeleteFile2A" => DeleteFile2A_api(emu),
+        "DeleteFile2W" => DeleteFile2W_api(emu),
+        "DeleteFileTransactedA" => DeleteFileTransactedA_api(emu),
+        "DeleteProcThreadAttributeList" => DeleteProcThreadAttributeList_api(emu),
+        "DeleteSynchronizationBarrier" => DeleteSynchronizationBarrier_api(emu),
+        "DeleteTimerQueueEx" => DeleteTimerQueueEx_api(emu),
+        "DeleteTimerQueueTimer" => DeleteTimerQueueTimer_api(emu),
+        "DeleteVolumeMountPointW" => DeleteVolumeMountPointW_api(emu),
+        "DeviceIoControl" => DeviceIoControl(emu),
+        "DisableThreadLibraryCalls" => DisableThreadLibraryCalls_api(emu),
+        "DisassociateCurrentThreadFromCallback" => DisassociateCurrentThreadFromCallback_api(emu),
+        "DiscardVirtualMemory" => DiscardVirtualMemory_api(emu),
+        "DnsHostnameToComputerNameExW" => DnsHostnameToComputerNameExW_api(emu),
+        "DuplicateConsoleHandle" => DuplicateConsoleHandle_api(emu),
+        "DuplicatePackageVirtualizationContext" => DuplicatePackageVirtualizationContext_api(emu),
+        "EnableProcessOptionalXStateFeatures" => EnableProcessOptionalXStateFeatures_api(emu),
+        "EncodeSystemPointer" => EncodeSystemPointer_api(emu),
+        "EnterSynchronizationBarrier" => EnterSynchronizationBarrier_api(emu),
+        "EnumCalendarInfoExEx" => EnumCalendarInfoExEx_api(emu),
+        "EnumCalendarInfoExW" => EnumCalendarInfoExW_api(emu),
+        "EnumCalendarInfoW" => EnumCalendarInfoW_api(emu),
+        "EnumDateFormatsExEx" => EnumDateFormatsExEx_api(emu),
+        "EnumDateFormatsExW" => EnumDateFormatsExW_api(emu),
+        "EnumDateFormatsW" => EnumDateFormatsW_api(emu),
+        "EnumLanguageGroupLocalesW" => EnumLanguageGroupLocalesW_api(emu),
+        "EnumResourceLanguagesA" => EnumResourceLanguagesA_api(emu),
+        "EnumResourceLanguagesExA" => EnumResourceLanguagesExA_api(emu),
+        "EnumResourceLanguagesExW" => EnumResourceLanguagesExW_api(emu),
+        "EnumResourceLanguagesW" => EnumResourceLanguagesW_api(emu),
+        "EnumResourceNamesA" => EnumResourceNamesA_api(emu),
+        "EnumResourceNamesExA" => EnumResourceNamesExA_api(emu),
+        "EnumResourceNamesExW" => EnumResourceNamesExW_api(emu),
+        "EnumResourceNamesW" => EnumResourceNamesW_api(emu),
+        "EnumResourceTypesA" => EnumResourceTypesA_api(emu),
+        "EnumResourceTypesExA" => EnumResourceTypesExA_api(emu),
+        "EnumResourceTypesExW" => EnumResourceTypesExW_api(emu),
+        "EnumResourceTypesW" => EnumResourceTypesW_api(emu),
+        "EnumSystemCodePagesW" => EnumSystemCodePagesW_api(emu),
+        "EnumSystemFirmwareTables" => EnumSystemFirmwareTables_api(emu),
+        "EnumSystemLanguageGroupsW" => EnumSystemLanguageGroupsW_api(emu),
+        "EnumSystemLocalesA" => EnumSystemLocalesA_api(emu),
+        "EnumSystemLocalesEx" => EnumSystemLocalesEx_api(emu),
+        "EnumSystemLocalesW" => EnumSystemLocalesW_api(emu),
+        "EnumTimeFormatsEx" => EnumTimeFormatsEx_api(emu),
+        "EnumTimeFormatsW" => EnumTimeFormatsW_api(emu),
+        "EnumUILanguagesW" => EnumUILanguagesW_api(emu),
+        "EscapeCommFunction" => EscapeCommFunction_api(emu),
+        "ExitVDM" => ExitVDM_api(emu),
+        "ExpungeConsoleCommandHistoryA" => ExpungeConsoleCommandHistoryA_api(emu),
+        "ExpungeConsoleCommandHistoryW" => ExpungeConsoleCommandHistoryW_api(emu),
+        "FatalAppExitA" => FatalAppExitA_api(emu),
+        "FatalAppExitW" => FatalAppExitW_api(emu),
+        "FillConsoleOutputAttribute" => FillConsoleOutputAttribute_api(emu),
+        "FillConsoleOutputCharacterA" => FillConsoleOutputCharacterA_api(emu),
+        "FillConsoleOutputCharacterW" => FillConsoleOutputCharacterW_api(emu),
+        "FindActCtxSectionGuid" => FindActCtxSectionGuid_api(emu),
+        "FindActCtxSectionStringW" => FindActCtxSectionStringW_api(emu),
+        "FindCloseChangeNotification" => FindCloseChangeNotification_api(emu),
+        "FindFirstChangeNotificationA" => FindFirstChangeNotificationA_api(emu),
+        "FindFirstChangeNotificationW" => FindFirstChangeNotificationW_api(emu),
+        "FindFirstFileExA" => FindFirstFileExA_api(emu),
+        "FindFirstFileExW" => FindFirstFileExW_api(emu),
+        "FindFirstFileNameTransactedW" => FindFirstFileNameTransactedW_api(emu),
+        "FindFirstFileNameW" => FindFirstFileNameW_api(emu),
+        "FindFirstFileTransactedA" => FindFirstFileTransactedA_api(emu),
+        "FindFirstFileTransactedW" => FindFirstFileTransactedW_api(emu),
+        "FindFirstStreamTransactedW" => FindFirstStreamTransactedW_api(emu),
+        "FindFirstStreamW" => FindFirstStreamW_api(emu),
+        "FindFirstVolumeW" => FindFirstVolumeW_api(emu),
+        "FindNLSString" => FindNLSString_api(emu),
+        "FindNLSStringEx" => FindNLSStringEx_api(emu),
+        "FindNextChangeNotification" => FindNextChangeNotification_api(emu),
+        "FindNextFileNameW" => FindNextFileNameW_api(emu),
+        "FindNextStreamW" => FindNextStreamW_api(emu),
+        "FindNextVolumeW" => FindNextVolumeW_api(emu),
+        "FindPackagesByPackageFamily" => FindPackagesByPackageFamily_api(emu),
+        "FindResourceExA" => FindResourceExA_api(emu),
+        "FindResourceExW" => FindResourceExW_api(emu),
+        "FindStringOrdinal" => FindStringOrdinal_api(emu),
+        "FindVolumeClose" => FindVolumeClose_api(emu),
+        "FlsFree" => FlsFree(emu),
+        "FlsGetValue2" => FlsGetValue2_api(emu),
+        "FlushConsoleInputBuffer" => FlushConsoleInputBuffer_api(emu),
+        "FlushFileBuffers" => FlushFileBuffers(emu),
+        "FlushInstructionCache" => FlushInstructionCache_api(emu),
+        "FlushProcessWriteBuffers" => FlushProcessWriteBuffers_api(emu),
+        "FlushViewOfFile" => FlushViewOfFile_api(emu),
+        "FoldStringW" => FoldStringW_api(emu),
+        "FormatApplicationUserModelId" => FormatApplicationUserModelId_api(emu),
+        "FreeConsole" => FreeConsole_api(emu),
+        "FreeLibraryAndExitThread" => FreeLibraryAndExitThread_api(emu),
+        "FreeLibraryWhenCallbackReturns" => FreeLibraryWhenCallbackReturns_api(emu),
+        "FreeUserPhysicalPages" => FreeUserPhysicalPages_api(emu),
+        "GenerateConsoleCtrlEvent" => GenerateConsoleCtrlEvent_api(emu),
+        "GetAppContainerAce" => GetAppContainerAce_api(emu),
+        "GetAppContainerNamedObjectPath" => GetAppContainerNamedObjectPath_api(emu),
+        "GetApplicationRecoveryCallback" => GetApplicationRecoveryCallback_api(emu),
+        "GetApplicationRecoveryCallbackWorker" => GetApplicationRecoveryCallbackWorker_api(emu),
+        "GetApplicationRestartSettings" => GetApplicationRestartSettings_api(emu),
+        "GetApplicationUserModelId" => GetApplicationUserModelId_api(emu),
+        "GetBinaryType" => GetBinaryType_api(emu),
+        "GetBinaryTypeA" => GetBinaryTypeA_api(emu),
+        "GetCPInfoExA" => GetCPInfoExA_api(emu),
+        "GetCPInfoExW" => GetCPInfoExW_api(emu),
+        "GetCachedSigningLevel" => GetCachedSigningLevel_api(emu),
+        "GetCalendarInfoEx" => GetCalendarInfoEx_api(emu),
+        "GetCalendarInfoW" => GetCalendarInfoW_api(emu),
+        "GetCommConfig" => GetCommConfig_api(emu),
+        "GetCommMask" => GetCommMask_api(emu),
+        "GetCommModemStatus" => GetCommModemStatus_api(emu),
+        "GetCommProperties" => GetCommProperties_api(emu),
+        "GetCommState" => GetCommState_api(emu),
+        "GetCommTimeouts" => GetCommTimeouts_api(emu),
+        "GetCompressedFileSizeA" => GetCompressedFileSizeA_api(emu),
+        "GetCompressedFileSizeTransactedA" => GetCompressedFileSizeTransactedA_api(emu),
+        "GetCompressedFileSizeW" => GetCompressedFileSizeW_api(emu),
+        "GetComputerNameExA" => GetComputerNameExA_api(emu),
+        "GetComputerNameExW" => GetComputerNameExW_api(emu),
+        "GetConsoleAliasA" => GetConsoleAliasA_api(emu),
+        "GetConsoleAliasExesA" => GetConsoleAliasExesA_api(emu),
+        "GetConsoleAliasExesLengthA" => GetConsoleAliasExesLengthA_api(emu),
+        "GetConsoleAliasExesLengthW" => GetConsoleAliasExesLengthW_api(emu),
+        "GetConsoleAliasExesW" => GetConsoleAliasExesW_api(emu),
+        "GetConsoleAliasW" => GetConsoleAliasW_api(emu),
+        "GetConsoleAliasesA" => GetConsoleAliasesA_api(emu),
+        "GetConsoleAliasesLengthA" => GetConsoleAliasesLengthA_api(emu),
+        "GetConsoleAliasesLengthW" => GetConsoleAliasesLengthW_api(emu),
+        "GetConsoleAliasesW" => GetConsoleAliasesW_api(emu),
+        "GetConsoleCommandHistoryA" => GetConsoleCommandHistoryA_api(emu),
+        "GetConsoleCommandHistoryLengthA" => GetConsoleCommandHistoryLengthA_api(emu),
+        "GetConsoleCommandHistoryLengthW" => GetConsoleCommandHistoryLengthW_api(emu),
+        "GetConsoleCommandHistoryW" => GetConsoleCommandHistoryW_api(emu),
+        "GetConsoleCursorInfo" => GetConsoleCursorInfo_api(emu),
+        "GetConsoleCursorMode" => GetConsoleCursorMode_api(emu),
+        "GetConsoleDisplayMode" => GetConsoleDisplayMode_api(emu),
+        "GetConsoleFontSize" => GetConsoleFontSize_api(emu),
+        "GetConsoleHistoryInfo" => GetConsoleHistoryInfo_api(emu),
+        "GetConsoleInputExeNameA" => GetConsoleInputExeNameA_api(emu),
+        "GetConsoleInputExeNameW" => GetConsoleInputExeNameW_api(emu),
+        "GetConsoleNlsMode" => GetConsoleNlsMode_api(emu),
+        "GetConsoleOriginalTitleA" => GetConsoleOriginalTitleA_api(emu),
+        "GetConsoleOriginalTitleW" => GetConsoleOriginalTitleW_api(emu),
+        "GetConsoleProcessList" => GetConsoleProcessList_api(emu),
+        "GetConsoleScreenBufferInfo" => GetConsoleScreenBufferInfo_api(emu),
+        "GetConsoleScreenBufferInfoEx" => GetConsoleScreenBufferInfoEx_api(emu),
+        "GetConsoleSelectionInfo" => GetConsoleSelectionInfo_api(emu),
+        "GetConsoleTitleA" => GetConsoleTitleA_api(emu),
+        "GetConsoleTitleW" => GetConsoleTitleW_api(emu),
+        "GetConsoleWindow" => GetConsoleWindow(emu),
+        "GetCurrencyFormatEx" => GetCurrencyFormatEx_api(emu),
+        "GetCurrentActCtx" => GetCurrentActCtx_api(emu),
+        "GetCurrentApplicationUserModelId" => GetCurrentApplicationUserModelId_api(emu),
+        "GetCurrentConsoleFont" => GetCurrentConsoleFont_api(emu),
+        "GetCurrentConsoleFontEx" => GetCurrentConsoleFontEx_api(emu),
+        "GetCurrentPackageFamilyName" => GetCurrentPackageFamilyName_api(emu),
+        "GetCurrentPackageFullName" => GetCurrentPackageFullName_api(emu),
+        "GetCurrentPackageId" => GetCurrentPackageId_api(emu),
+        "GetCurrentPackageInfo" => GetCurrentPackageInfo_api(emu),
+        "GetCurrentPackagePath" => GetCurrentPackagePath(emu),
+        "GetCurrentPackageVirtualizationContext" => GetCurrentPackageVirtualizationContext(emu),
+        "GetCurrentProcessorNumber" => GetCurrentProcessorNumber(emu),
+        "GetCurrentProcessorNumberEx" => GetCurrentProcessorNumberEx_api(emu),
+        "GetCurrentThreadStackLimits" => GetCurrentThreadStackLimits_api(emu),
+        "GetDateFormatA" => GetDateFormatA_api(emu),
+        "GetDateFormatEx" => GetDateFormatEx_api(emu),
+        "GetDateFormatW" => GetDateFormatW(emu),
+        "GetDiskFreeSpaceW" => GetDiskFreeSpaceW_api(emu),
+        "GetDiskSpaceInformationA" => GetDiskSpaceInformationA_api(emu),
+        "GetDiskSpaceInformationW" => GetDiskSpaceInformationW_api(emu),
+        "GetDurationFormatEx" => GetDurationFormatEx_api(emu),
+        "GetDynamicTimeZoneInformation" => GetDynamicTimeZoneInformation_api(emu),
+        "GetEnabledXStateFeatures" => GetEnabledXStateFeatures(emu),
+        "GetEnvironmentStringsA" => GetEnvironmentStringsA(emu),
+        "GetEnvironmentVariableA" => GetEnvironmentVariableA_api(emu),
+        "GetEraNameCountedString" => GetEraNameCountedString_api(emu),
+        "GetErrorMode" => GetErrorMode(emu),
+        "GetExitCodeProcess" => GetExitCodeProcess(emu),
+        "GetExitCodeThread" => GetExitCodeThread(emu),
+        "GetFileAttributesExA" => GetFileAttributesExA_api(emu),
+        "GetFileAttributesExW" => GetFileAttributesExW_api(emu),
+        "GetFileAttributesTransactedW" => GetFileAttributesTransactedW_api(emu),
+        "GetFileInformationByHandle" => GetFileInformationByHandle_api(emu),
+        "GetFileInformationByHandleEx" => GetFileInformationByHandleEx_api(emu),
+        "GetFileInformationByName" => GetFileInformationByName_api(emu),
+        "GetFileMUIInfo" => GetFileMUIInfo_api(emu),
+        "GetFileMUIPath" => GetFileMUIPath_api(emu),
+        "GetFileTime" => GetFileTime_api(emu),
+        "GetFinalPathNameByHandleA" => GetFinalPathNameByHandleA_api(emu),
+        "GetFinalPathNameByHandleW" => GetFinalPathNameByHandleW_api(emu),
+        "GetFirmwareEnvironmentVariableExA" => GetFirmwareEnvironmentVariableExA_api(emu),
+        "GetFirmwareEnvironmentVariableExW" => GetFirmwareEnvironmentVariableExW_api(emu),
+        "GetHandleInformation" => GetHandleInformation_api(emu),
+        "GetIoRingInfo" => GetIoRingInfo_api(emu),
+        "GetLargePageMinimum" => GetLargePageMinimum(emu),
+        "GetLargestConsoleWindowSize" => GetLargestConsoleWindowSize_api(emu),
+        "GetLocaleInfoEx" => GetLocaleInfoEx(emu),
+        "GetLogicalDriveStringsA" => GetLogicalDriveStringsA_api(emu),
+        "GetLogicalDriveStringsW" => GetLogicalDriveStringsW_api(emu),
+        "GetLogicalProcessorInformation" => GetLogicalProcessorInformation_api(emu),
+        "GetLogicalProcessorInformationEx" => GetLogicalProcessorInformationEx_api(emu),
+        "GetLongPathNameTransactedA" => GetLongPathNameTransactedA_api(emu),
+        "GetLongPathNameTransactedW" => GetLongPathNameTransactedW_api(emu),
+        "GetMachineTypeAttributes" => GetMachineTypeAttributes_api(emu),
+        "GetMemoryErrorHandlingCapabilities" => GetMemoryErrorHandlingCapabilities_api(emu),
+        "GetModuleHandleExA" => GetModuleHandleExA_api(emu),
+        "GetNLSVersion" => GetNLSVersion_api(emu),
+        "GetNLSVersionEx" => GetNLSVersionEx_api(emu),
+        "GetNamedPipeAttribute" => GetNamedPipeAttribute_api(emu),
+        "GetNamedPipeClientComputerNameW" => GetNamedPipeClientComputerNameW_api(emu),
+        "GetNamedPipeHandleStateW" => GetNamedPipeHandleStateW_api(emu),
+        "GetNamedPipeInfo" => GetNamedPipeInfo_api(emu),
+        "GetNamedPipeServerProcessId" => GetNamedPipeServerProcessId_api(emu),
+        "GetNextVDMCommand" => GetNextVDMCommand_api(emu),
+        "GetNumaHighestNodeNumber" => GetNumaHighestNodeNumber_api(emu),
+        "GetNumaNodeProcessorMask2" => GetNumaNodeProcessorMask2_api(emu),
+        "GetNumaNodeProcessorMaskEx" => GetNumaNodeProcessorMaskEx_api(emu),
+        "GetNumaProximityNodeEx" => GetNumaProximityNodeEx_api(emu),
+        "GetNumberFormatEx" => GetNumberFormatEx_api(emu),
+        "GetNumberOfConsoleInputEvents" => GetNumberOfConsoleInputEvents_api(emu),
+        "GetNumberOfConsoleMouseButtons" => GetNumberOfConsoleMouseButtons_api(emu),
+        "GetOverlappedResult" => GetOverlappedResult_api(emu),
+        "GetOverlappedResultEx" => GetOverlappedResultEx_api(emu),
+        "GetPackageApplicationIds" => GetPackageApplicationIds_api(emu),
+        "GetPackageFamilyName" => GetPackageFamilyName_api(emu),
+        "GetPackageFullName" => GetPackageFullName_api(emu),
+        "GetPackageId" => GetPackageId_api(emu),
+        "GetPackageInfo" => GetPackageInfo_api(emu),
+        "GetPackagePath" => GetPackagePath_api(emu),
+        "GetPackagePathByFullName" => GetPackagePathByFullName_api(emu),
+        "GetPackagesByPackageFamily" => GetPackagesByPackageFamily_api(emu),
+        "GetPhysicallyInstalledSystemMemory" => GetPhysicallyInstalledSystemMemory_api(emu),
+        "GetPriorityClass" => GetPriorityClass_api(emu),
+        "GetProcessDefaultCpuSetMasks" => GetProcessDefaultCpuSetMasks_api(emu),
+        "GetProcessDefaultCpuSets" => GetProcessDefaultCpuSets_api(emu),
+        "GetProcessGroupAffinity" => GetProcessGroupAffinity_api(emu),
+        "GetProcessHandleCount" => GetProcessHandleCount_api(emu),
+        "GetProcessHeaps" => GetProcessHeaps_api(emu),
+        "GetProcessId" => GetProcessId(emu),
+        "GetProcessIdOfThread" => GetProcessIdOfThread_api(emu),
+        "GetProcessInformation" => GetProcessInformation_api(emu),
+        "GetProcessMitigationPolicy" => GetProcessMitigationPolicy_api(emu),
+        "GetProcessPreferredUILanguages" => GetProcessPreferredUILanguages_api(emu),
+        "GetProcessPriorityBoost" => GetProcessPriorityBoost_api(emu),
+        "GetProcessShutdownParameters" => GetProcessShutdownParameters_api(emu),
+        "GetProcessTimes" => GetProcessTimes_api(emu),
+        "GetProcessVersion" => GetProcessVersion_api(emu),
+        "GetProcessWorkingSetSizeEx" => GetProcessWorkingSetSizeEx_api(emu),
+        "GetProcessesInVirtualizationContext" => GetProcessesInVirtualizationContext_api(emu),
+        "GetProcessorSystemCycleTime" => GetProcessorSystemCycleTime_api(emu),
+        "GetProductInfo" => GetProductInfo_api(emu),
+        "GetQueuedCompletionStatus" => GetQueuedCompletionStatus_api(emu),
+        "GetQueuedCompletionStatusEx" => GetQueuedCompletionStatusEx_api(emu),
+        "GetStagedPackagePathByFullName" => GetStagedPackagePathByFullName_api(emu),
+        "GetStateFolder" => GetStateFolder_api(emu),
+        "GetStringScripts" => GetStringScripts_api(emu),
+        "GetStringTypeA" => GetStringTypeA(emu),
+        "GetStringTypeExA" => GetStringTypeExA_api(emu),
+        "GetStringTypeExW" => GetStringTypeExW_api(emu),
+        "GetSystemAppDataKey" => GetSystemAppDataKey_api(emu),
+        "GetSystemCpuSetInformation" => GetSystemCpuSetInformation_api(emu),
+        "GetSystemDefaultLCID" => GetSystemDefaultLCID(emu),
+        "GetSystemDefaultLangID" => GetSystemDefaultLangID(emu),
+        "GetSystemDefaultLocaleName" => GetSystemDefaultLocaleName_api(emu),
+        "GetSystemDefaultUILanguage" => GetSystemDefaultUILanguage(emu),
+        "GetSystemFileCacheSize" => GetSystemFileCacheSize_api(emu),
+        "GetSystemFirmwareTable" => GetSystemFirmwareTable_api(emu),
+        "GetSystemPreferredUILanguages" => GetSystemPreferredUILanguages_api(emu),
+        "GetSystemTimeAdjustment" => GetSystemTimeAdjustment_api(emu),
+        "GetSystemTimePreciseAsFileTime" => GetSystemTimePreciseAsFileTime_api(emu),
+        "GetSystemTimes" => GetSystemTimes_api(emu),
+        "GetSystemWow64DirectoryA" => GetSystemWow64DirectoryA_api(emu),
+        "GetSystemWow64DirectoryW" => GetSystemWow64DirectoryW_api(emu),
+        "GetTempFileNameA" => GetTempFileNameA_api(emu),
+        "GetTempFileNameW" => GetTempFileNameW_api(emu),
+        "GetTempPath2A" => GetTempPath2A_api(emu),
+        "GetTempPath2W" => GetTempPath2W_api(emu),
+        "GetThreadDescription" => GetThreadDescription_api(emu),
+        "GetThreadEnabledXStateFeatures" => GetThreadEnabledXStateFeatures(emu),
+        "GetThreadErrorMode" => GetThreadErrorMode(emu),
+        "GetThreadGroupAffinity" => GetThreadGroupAffinity_api(emu),
+        "GetThreadIOPendingFlag" => GetThreadIOPendingFlag_api(emu),
+        "GetThreadIdealProcessorEx" => GetThreadIdealProcessorEx_api(emu),
+        "GetThreadInformation" => GetThreadInformation_api(emu),
+        "GetThreadPriority" => GetThreadPriority_api(emu),
+        "GetThreadPriorityBoost" => GetThreadPriorityBoost_api(emu),
+        "GetThreadSelectedCpuSetMasks" => GetThreadSelectedCpuSetMasks_api(emu),
+        "GetThreadSelectedCpuSets" => GetThreadSelectedCpuSets_api(emu),
+        "GetThreadTimes" => GetThreadTimes_api(emu),
+        "GetTimeFormatA" => GetTimeFormatA_api(emu),
+        "GetTimeFormatAWorker" => GetTimeFormatAWorker_api(emu),
+        "GetTimeFormatEx" => GetTimeFormatEx_api(emu),
+        "GetTimeFormatW" => GetTimeFormatW(emu),
+        "GetTimeZoneInformationForYear" => GetTimeZoneInformationForYear_api(emu),
+        "GetUILanguageInfo" => GetUILanguageInfo_api(emu),
+        "GetUserDefaultLocaleName" => GetUserDefaultLocaleName_api(emu),
+        "GetUserPreferredUILanguages" => GetUserPreferredUILanguages_api(emu),
+        "GetVDMCurrentDirectories" => GetVDMCurrentDirectories_api(emu),
+        "GetVolumeInformationByHandleW" => GetVolumeInformationByHandleW_api(emu),
+        "GetVolumeNameForVolumeMountPointW" => GetVolumeNameForVolumeMountPointW_api(emu),
+        "GetVolumePathNameA" => GetVolumePathNameA_api(emu),
+        "GetVolumePathNameW" => GetVolumePathNameW_api(emu),
+        "GetVolumePathNamesForVolumeNameW" => GetVolumePathNamesForVolumeNameW_api(emu),
+        "GetWriteWatch" => GetWriteWatch_api(emu),
+        "GetXStateFeaturesMask" => GetXStateFeaturesMask_api(emu),
+        "GlobalCompact" => GlobalCompact_api(emu),
+        "GlobalMemoryStatusEx" => GlobalMemoryStatusEx_api(emu),
+        "HeapCompact" => HeapCompact_api(emu),
+        "HeapLock" => HeapLock_api(emu),
+        "HeapQueryInformation" => HeapQueryInformation_api(emu),
+        "HeapSummary" => HeapSummary_api(emu),
+        "HeapUnlock" => HeapUnlock_api(emu),
+        "HeapValidate" => HeapValidate_api(emu),
+        "HeapWalk" => HeapWalk_api(emu),
+        "IdnToAscii" => IdnToAscii_api(emu),
+        "IdnToNameprepUnicode" => IdnToNameprepUnicode_api(emu),
+        "IdnToUnicode" => IdnToUnicode_api(emu),
+        "InitOnceBeginInitialize" => InitOnceBeginInitialize_api(emu),
+        "InitOnceComplete" => InitOnceComplete_api(emu),
+        "InitOnceExecuteOnce" => InitOnceExecuteOnce_api(emu),
+        "InitOnceInitialize" => InitOnceInitialize_api(emu),
+        "InitializeConditionVariable" => InitializeConditionVariable(emu),
+        "InitializeContext" => InitializeContext_api(emu),
+        "InitializeContext2" => InitializeContext2_api(emu),
+        "InitializeEnclave" => InitializeEnclave_api(emu),
+        "InitializeProcThreadAttributeList" => InitializeProcThreadAttributeList_api(emu),
+        "InitializeSListHead" => InitializeSListHead_api(emu),
+        "InitializeSynchronizationBarrier" => InitializeSynchronizationBarrier_api(emu),
+        "InstallELAMCertificateInfo" => InstallELAMCertificateInfo_api(emu),
+        "InterlockedCompareExchange64" => InterlockedCompareExchange64_api(emu),
+        "InterlockedFlushSList" => InterlockedFlushSList_api(emu),
+        "InterlockedPopEntrySList" => InterlockedPopEntrySList_api(emu),
+        "InterlockedPushEntrySList" => InterlockedPushEntrySList_api(emu),
+        "InterlockedPushListSList" => InterlockedPushListSList_api(emu),
+        "InterlockedPushListSListEx" => InterlockedPushListSListEx_api(emu),
+        "IsDBCSLeadByte" => IsDBCSLeadByte_api(emu),
+        "IsDBCSLeadByteEx" => IsDBCSLeadByteEx_api(emu),
+        "IsEnclaveTypeSupported" => IsEnclaveTypeSupported_api(emu),
+        "IsIoRingOpSupported" => IsIoRingOpSupported_api(emu),
+        "IsNLSDefinedString" => IsNLSDefinedString_api(emu),
+        "IsNativeVhdBoot" => IsNativeVhdBoot_api(emu),
+        "IsNormalizedString" => IsNormalizedString_api(emu),
+        "IsProcessCritical" => IsProcessCritical_api(emu),
+        "IsProcessInJob" => IsProcessInJob_api(emu),
+        "IsThreadpoolTimerSet" => IsThreadpoolTimerSet_api(emu),
+        "IsUserCetAvailableInEnvironment" => IsUserCetAvailableInEnvironment_api(emu),
+        "IsValidLanguageGroup" => IsValidLanguageGroup_api(emu),
+        "IsValidLocaleName" => IsValidLocaleName_api(emu),
+        "IsValidNLSVersion" => IsValidNLSVersion_api(emu),
+        "IsWow64GuestMachineSupported" => IsWow64GuestMachineSupported_api(emu),
+        "IsWow64Process2" => IsWow64Process2_api(emu),
+        "K32EmptyWorkingSet" => K32EmptyWorkingSet_api(emu),
+        "K32EnumDeviceDrivers" => K32EnumDeviceDrivers_api(emu),
+        "K32EnumPageFilesA" => K32EnumPageFilesA_api(emu),
+        "K32EnumPageFilesW" => K32EnumPageFilesW_api(emu),
+        "K32EnumProcessModules" => K32EnumProcessModules_api(emu),
+        "K32EnumProcessModulesEx" => K32EnumProcessModulesEx_api(emu),
+        "K32EnumProcesses" => K32EnumProcesses_api(emu),
+        "K32GetDeviceDriverBaseNameA" => K32GetDeviceDriverBaseNameA_api(emu),
+        "K32GetDeviceDriverBaseNameW" => K32GetDeviceDriverBaseNameW_api(emu),
+        "K32GetDeviceDriverFileNameA" => K32GetDeviceDriverFileNameA_api(emu),
+        "K32GetDeviceDriverFileNameW" => K32GetDeviceDriverFileNameW_api(emu),
+        "K32GetMappedFileNameA" => K32GetMappedFileNameA_api(emu),
+        "K32GetMappedFileNameW" => K32GetMappedFileNameW_api(emu),
+        "K32GetModuleBaseNameA" => K32GetModuleBaseNameA_api(emu),
+        "K32GetModuleBaseNameW" => K32GetModuleBaseNameW_api(emu),
+        "K32GetModuleFileNameExA" => K32GetModuleFileNameExA_api(emu),
+        "K32GetModuleFileNameExW" => K32GetModuleFileNameExW_api(emu),
+        "K32GetModuleInformation" => K32GetModuleInformation_api(emu),
+        "K32GetPerformanceInfo" => K32GetPerformanceInfo_api(emu),
+        "K32GetProcessImageFileNameA" => K32GetProcessImageFileNameA_api(emu),
+        "K32GetProcessImageFileNameW" => K32GetProcessImageFileNameW_api(emu),
+        "K32GetProcessMemoryInfo" => K32GetProcessMemoryInfo_api(emu),
+        "K32GetWsChanges" => K32GetWsChanges_api(emu),
+        "K32GetWsChangesEx" => K32GetWsChangesEx_api(emu),
+        "K32InitializeProcessForWsWatch" => K32InitializeProcessForWsWatch_api(emu),
+        "K32QueryWorkingSet" => K32QueryWorkingSet_api(emu),
+        "K32QueryWorkingSetEx" => K32QueryWorkingSetEx_api(emu),
+        "LCIDToLocaleName" => LCIDToLocaleName_api(emu),
+        "LCMapStringA" => LCMapStringA_api(emu),
+        "LCMapStringEx" => LCMapStringEx_api(emu),
+        "LZCloseFile" => LZCloseFile_api(emu),
+        "LZCreateFileW" => LZCreateFileW_api(emu),
+        "LZDone" => LZDone(emu),
         "LeaveCriticalSectionWhenCallbackReturns" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(
-                emu,
-                "kernel32!LeaveCriticalSectionWhenCallbackReturns 0x{:x}",
-                arg1
-            );
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
+            LeaveCriticalSectionWhenCallbackReturns_api(emu)
         }
-        "LoadAppInitDlls" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LoadAppInitDlls arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LoadEnclaveData" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LoadEnclaveData arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LoadModule" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LoadModule arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LoadPackagedLibrary" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LoadPackagedLibrary arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LoadStringBaseExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!LoadStringBaseExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "LocalFileTimeToFileTime" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!LocalFileTimeToFileTime p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LocalFileTimeToLocalSystemTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LocalFileTimeToLocalSystemTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LocalLock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!LocalLock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "LocalReAlloc" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!LocalReAlloc p1:0x{:x} p2:0x{:x}", p1, p2);
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0x100000;
-        }
-        "LocalSystemTimeToLocalFileTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LocalSystemTimeToLocalFileTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LocalUnlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!LocalUnlock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "LocaleNameToLCID" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!LocaleNameToLCID p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0x0409;
-        }
-        "LocateXStateFeature" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LocateXStateFeature arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LockFile" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!LockFile 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "LockFileEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!LockFileEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "LogUnexpectedCodepath" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!LogUnexpectedCodepath arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "MapUserPhysicalPages" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!MapUserPhysicalPages arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "MapUserPhysicalPagesScatter" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!MapUserPhysicalPagesScatter arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "MapViewOfFileEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!MapViewOfFileEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0x100000;
-        }
-        "MapViewOfFileExNuma" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!MapViewOfFileExNuma h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "MapViewOfFileFromApp" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!MapViewOfFileFromApp h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "MoveFileExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!MoveFileExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "MoveFileWithProgressA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!MoveFileWithProgressA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "MoveFileWithProgressW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!MoveFileWithProgressW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "NeedCurrentDirectoryForExePathA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!NeedCurrentDirectoryForExePathA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "NeedCurrentDirectoryForExePathW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!NeedCurrentDirectoryForExePathW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "NlsCheckPolicy" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!NlsCheckPolicy arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "NlsGetCacheUpdateCount" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!NlsGetCacheUpdateCount arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "NlsUpdateLocale" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!NlsUpdateLocale arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "NlsUpdateSystemLocale" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!NlsUpdateSystemLocale arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "NormalizeString" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!NormalizeString arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "NotifyMountMgr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!NotifyMountMgr 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "OfferVirtualMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!OfferVirtualMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "OpenConsoleW" => {
-            log_red!(emu, "kernel32!OpenConsoleW");
-            emu.regs_mut().rax = helper::handler_create("OpenConsoleW");
-        }
-        "OpenConsoleWStub" => {
-            log_red!(emu, "kernel32!OpenConsoleWStub");
-            emu.regs_mut().rax = helper::handler_create("OpenConsoleWStub");
-        }
-        "OpenEventA" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenEventA");
-            emu.regs_mut().rax = helper::handler_create("OpenEventA");
-        }
-        "OpenEventW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenEventW");
-            emu.regs_mut().rax = helper::handler_create("OpenEventW");
-        }
-        "OpenFileById" => {
-            for _ in 0..6u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenFileById");
-            emu.regs_mut().rax = helper::handler_create("OpenFileById");
-        }
-        "OpenFileMappingW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenFileMappingW");
-            emu.regs_mut().rax = helper::handler_create("OpenFileMappingW");
-        }
-        "OpenMutexW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenMutexW");
-            emu.regs_mut().rax = helper::handler_create("OpenMutexW");
-        }
-        "OpenPackageInfoByFullName" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!OpenPackageInfoByFullName arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "OpenPrivateNamespaceW" => {
-            for _ in 0..2u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenPrivateNamespaceW");
-            emu.regs_mut().rax = helper::handler_create("OpenPrivateNamespaceW");
-        }
-        "OpenProfileUserMapping" => {
-            log_red!(emu, "kernel32!OpenProfileUserMapping");
-            emu.regs_mut().rax = helper::handler_create("OpenProfileUserMapping");
-        }
-        "OpenSemaphoreA" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenSemaphoreA");
-            emu.regs_mut().rax = helper::handler_create("OpenSemaphoreA");
-        }
-        "OpenSemaphoreW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenSemaphoreW");
-            emu.regs_mut().rax = helper::handler_create("OpenSemaphoreW");
-        }
-        "OpenState" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!OpenState arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "OpenStateExplicit" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!OpenStateExplicit arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "OpenThreadToken" => {
-            for _ in 0..4u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenThreadToken");
-            emu.regs_mut().rax = helper::handler_create("OpenThreadToken");
-        }
-        "OpenWaitableTimerA" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenWaitableTimerA");
-            emu.regs_mut().rax = helper::handler_create("OpenWaitableTimerA");
-        }
-        "OpenWaitableTimerW" => {
-            for _ in 0..3u32 {
-                emu.stack_pop32(false);
-            }
-            log_red!(emu, "kernel32!OpenWaitableTimerW");
-            emu.regs_mut().rax = helper::handler_create("OpenWaitableTimerW");
-        }
-        "PackageFamilyNameFromFullName" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PackageFamilyNameFromFullName arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PackageFamilyNameFromId" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PackageFamilyNameFromId arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PackageFullNameFromId" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PackageFullNameFromId arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PackageIdFromFullName" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PackageIdFromFullName arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+        "LoadAppInitDlls" => LoadAppInitDlls(emu),
+        "LoadEnclaveData" => LoadEnclaveData_api(emu),
+        "LoadModule" => LoadModule_api(emu),
+        "LoadPackagedLibrary" => LoadPackagedLibrary_api(emu),
+        "LoadStringBaseExW" => LoadStringBaseExW_api(emu),
+        "LocalFileTimeToFileTime" => LocalFileTimeToFileTime_api(emu),
+        "LocalFileTimeToLocalSystemTime" => LocalFileTimeToLocalSystemTime_api(emu),
+        "LocalLock" => LocalLock_api(emu),
+        "LocalReAlloc" => LocalReAlloc_api(emu),
+        "LocalSystemTimeToLocalFileTime" => LocalSystemTimeToLocalFileTime_api(emu),
+        "LocalUnlock" => LocalUnlock_api(emu),
+        "LocaleNameToLCID" => LocaleNameToLCID_api(emu),
+        "LocateXStateFeature" => LocateXStateFeature_api(emu),
+        "LockFile" => LockFile(emu),
+        "LockFileEx" => LockFileEx_api(emu),
+        "LogUnexpectedCodepath" => LogUnexpectedCodepath_api(emu),
+        "MapUserPhysicalPages" => MapUserPhysicalPages_api(emu),
+        "MapUserPhysicalPagesScatter" => MapUserPhysicalPagesScatter_api(emu),
+        "MapViewOfFileEx" => MapViewOfFileEx_api(emu),
+        "MapViewOfFileExNuma" => MapViewOfFileExNuma_api(emu),
+        "MapViewOfFileFromApp" => MapViewOfFileFromApp_api(emu),
+        "MoveFileExW" => MoveFileExW(emu),
+        "MoveFileWithProgressA" => MoveFileWithProgressA_api(emu),
+        "MoveFileWithProgressW" => MoveFileWithProgressW_api(emu),
+        "NeedCurrentDirectoryForExePathA" => NeedCurrentDirectoryForExePathA_api(emu),
+        "NeedCurrentDirectoryForExePathW" => NeedCurrentDirectoryForExePathW_api(emu),
+        "NlsCheckPolicy" => NlsCheckPolicy_api(emu),
+        "NlsGetCacheUpdateCount" => NlsGetCacheUpdateCount_api(emu),
+        "NlsUpdateLocale" => NlsUpdateLocale_api(emu),
+        "NlsUpdateSystemLocale" => NlsUpdateSystemLocale_api(emu),
+        "NormalizeString" => NormalizeString_api(emu),
+        "NotifyMountMgr" => NotifyMountMgr_api(emu),
+        "OfferVirtualMemory" => OfferVirtualMemory_api(emu),
+        "OpenConsoleW" => OpenConsoleW_api(emu),
+        "OpenConsoleWStub" => OpenConsoleWStub_api(emu),
+        "OpenEventA" => OpenEventA_api(emu),
+        "OpenEventW" => OpenEventW_api(emu),
+        "OpenFileById" => OpenFileById_api(emu),
+        "OpenFileMappingW" => OpenFileMappingW_api(emu),
+        "OpenMutexW" => OpenMutexW(emu),
+        "OpenPackageInfoByFullName" => OpenPackageInfoByFullName_api(emu),
+        "OpenPrivateNamespaceW" => OpenPrivateNamespaceW_api(emu),
+        "OpenProfileUserMapping" => OpenProfileUserMapping_api(emu),
+        "OpenSemaphoreA" => OpenSemaphoreA_api(emu),
+        "OpenSemaphoreW" => OpenSemaphoreW_api(emu),
+        "OpenState" => OpenState_api(emu),
+        "OpenStateExplicit" => OpenStateExplicit_api(emu),
+        "OpenThreadToken" => OpenThreadToken_api(emu),
+        "OpenWaitableTimerA" => OpenWaitableTimerA_api(emu),
+        "OpenWaitableTimerW" => OpenWaitableTimerW_api(emu),
+        "PackageFamilyNameFromFullName" => PackageFamilyNameFromFullName_api(emu),
+        "PackageFamilyNameFromId" => PackageFamilyNameFromId_api(emu),
+        "PackageFullNameFromId" => PackageFullNameFromId_api(emu),
+        "PackageIdFromFullName" => PackageIdFromFullName_api(emu),
         "PackageNameAndPublisherIdFromFamilyName" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PackageNameAndPublisherIdFromFamilyName arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ParseApplicationUserModelId" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ParseApplicationUserModelId arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PeekConsoleInputA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!PeekConsoleInputA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "PeekConsoleInputW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!PeekConsoleInputW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "PeekNamedPipe" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PeekNamedPipe p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PopIoRingCompletion" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PopIoRingCompletion arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PostQueuedCompletionStatus" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PostQueuedCompletionStatus arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PrefetchVirtualMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PrefetchVirtualMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PrivCopyFileExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!PrivCopyFileExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ProcessIdToSessionId" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ProcessIdToSessionId h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssCaptureSnapshot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssCaptureSnapshot arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssDuplicateSnapshot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssDuplicateSnapshot arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssFreeSnapshot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssFreeSnapshot arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssQuerySnapshot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssQuerySnapshot arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerCreate" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerCreate arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerFree" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerFree arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerGetPosition" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerGetPosition arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerRewind" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerRewind arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerSeek" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerSeek arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerSeekToBeginning" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerSeekToBeginning arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerSetPosition" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerSetPosition arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkMarkerTell" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkMarkerTell arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PssWalkSnapshot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PssWalkSnapshot arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "PulseEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!PulseEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "PurgeComm" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!PurgeComm arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryActCtxSettingsW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!QueryActCtxSettingsW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "QueryActCtxW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!QueryActCtxW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "QueryDepthSList" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryDepthSList h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryDosDeviceW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!QueryDosDeviceW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "QueryFullProcessImageNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!QueryFullProcessImageNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "QueryFullProcessImageNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!QueryFullProcessImageNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "QueryIdleProcessorCycleTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryIdleProcessorCycleTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryIdleProcessorCycleTimeEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryIdleProcessorCycleTimeEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryIoRingCapabilities" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryIoRingCapabilities h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryMemoryResourceNotification" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryMemoryResourceNotification h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryProcessAffinityUpdateMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryProcessAffinityUpdateMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryProcessCycleTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryProcessCycleTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryProtectedPolicy" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryProtectedPolicy h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryThreadCycleTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryThreadCycleTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryThreadpoolStackInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryThreadpoolStackInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueryUnbiasedInterruptTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryUnbiasedInterruptTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueueUserAPC" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueueUserAPC arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueueUserAPC2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueueUserAPC2 arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QueueUserWorkItem" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueueUserWorkItem arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QuirkGetData2Worker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QuirkGetData2Worker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "QuirkIsEnabled3Worker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QuirkIsEnabled3Worker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RaiseFailFastException" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RaiseFailFastException arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReOpenFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReOpenFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!ReadConsoleA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleInputA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!ReadConsoleInputA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleInputExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!ReadConsoleInputExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleInputExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!ReadConsoleInputExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleInputW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!ReadConsoleInputW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleOutputA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!ReadConsoleOutputA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleOutputAttribute" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReadConsoleOutputAttribute h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleOutputCharacterA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!ReadConsoleOutputCharacterA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleOutputCharacterW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!ReadConsoleOutputCharacterW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleOutputW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!ReadConsoleOutputW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadConsoleW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!ReadConsoleW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadDirectoryChangesExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!ReadDirectoryChangesExW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadDirectoryChangesW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!ReadDirectoryChangesW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ReadFileEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReadFileEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReadFileScatter" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReadFileScatter h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReclaimVirtualMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReclaimVirtualMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegCopyTreeW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!RegCopyTreeW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegDeleteKeyExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegDeleteKeyExA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegDeleteKeyExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegDeleteKeyExW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegDeleteTreeA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!RegDeleteTreeA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegDeleteTreeW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!RegDeleteTreeW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegDeleteValueA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!RegDeleteValueA '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegDeleteValueW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!RegDeleteValueW '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegDisablePredefinedCacheEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegDisablePredefinedCacheEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegEnumKeyExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegEnumKeyExA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..8 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 259;
-        }
-        "RegEnumKeyExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegEnumKeyExW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..8 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 259;
-        }
-        "RegEnumValueA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegEnumValueA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..8 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 259;
-        }
-        "RegEnumValueW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegEnumValueW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..8 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 259;
-        }
-        "RegFlushKey" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!RegFlushKey");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegGetKeySecurity" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegGetKeySecurity h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegGetValueA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!RegGetValueA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegGetValueW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!RegGetValueW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegLoadKeyA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegLoadKeyA '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegLoadKeyW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegLoadKeyW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegLoadMUIStringA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!RegLoadMUIStringA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegLoadMUIStringW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!RegLoadMUIStringW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegNotifyChangeKeyValue" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegNotifyChangeKeyValue p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegOpenCurrentUser" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegOpenCurrentUser arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegOpenKeyExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegOpenKeyExA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegOpenUserClassesRoot" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegOpenUserClassesRoot arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegQueryInfoKeyA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegQueryInfoKeyA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..12 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegQueryInfoKeyW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            let p7 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegQueryInfoKeyW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..12 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegQueryValueExA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegQueryValueExA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 2;
-        }
-        "RegQueryValueExW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegQueryValueExW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 2;
-        }
-        "RegRestoreKeyA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegRestoreKeyA '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegRestoreKeyW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!RegRestoreKeyW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegSaveKeyExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!RegSaveKeyExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegSaveKeyExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!RegSaveKeyExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RegSetKeySecurity" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegSetKeySecurity h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegUnLoadKeyA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!RegUnLoadKeyA '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegUnLoadKeyW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!RegUnLoadKeyW '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegisterBadMemoryNotification" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegisterBadMemoryNotification arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegisterWaitForSingleObject" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!RegisterWaitForSingleObject 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegisterWaitForSingleObjectEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!RegisterWaitForSingleObjectEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RegisterWowBaseHandlers" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegisterWowBaseHandlers h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RegisterWowExec" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RegisterWowExec arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReleaseActCtx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReleaseActCtx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReleaseActCtxWorker" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReleaseActCtxWorker h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReleaseMutex" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!ReleaseMutex 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "ReleaseMutexWhenCallbackReturns" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!ReleaseMutexWhenCallbackReturns 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "ReleasePackageVirtualizationContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReleasePackageVirtualizationContext h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReleasePseudoConsole" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReleasePseudoConsole h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReleaseSemaphore" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!ReleaseSemaphore 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "ReleaseSemaphoreWhenCallbackReturns" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(
-                emu,
-                "kernel32!ReleaseSemaphoreWhenCallbackReturns 0x{:x}",
-                arg1
-            );
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "RemoveDirectory2A" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!RemoveDirectory2A '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RemoveDirectory2W" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!RemoveDirectory2W '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RemoveDirectoryTransactedA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!RemoveDirectoryTransactedA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RemoveDllDirectory" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RemoveDllDirectory h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RemoveLocalAlternateComputerNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!RemoveLocalAlternateComputerNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RemoveVectoredContinueHandler" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RemoveVectoredContinueHandler h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RemoveVectoredExceptionHandler" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RemoveVectoredExceptionHandler h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReplaceFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ReplaceFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ReplaceFileW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!ReplaceFileW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "RequestDeviceWakeup" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RequestDeviceWakeup arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ResetWriteWatch" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ResetWriteWatch h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ResizePseudoConsole" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ResizePseudoConsole arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ResolveDelayLoadedAPI" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ResolveDelayLoadedAPI arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ResolveDelayLoadsFromDll" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ResolveDelayLoadsFromDll arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ResolveLocaleName" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ResolveLocaleName p1:0x{:x} p2:0x{:x}",
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RestoreLastError" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RestoreLastError arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlCaptureContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlCaptureContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlCaptureStackBackTrace" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlCaptureStackBackTrace arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlFillMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlFillMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlMoveMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlMoveMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlPcToFileHeader" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlPcToFileHeader h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlUnwind" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlUnwind arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlZeroMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlZeroMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ScrollConsoleScreenBufferA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!ScrollConsoleScreenBufferA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "ScrollConsoleScreenBufferW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!ScrollConsoleScreenBufferW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SearchPathA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!SearchPathA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SearchPathW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!SearchPathW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetCachedSigningLevel" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetCachedSigningLevel h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetCalendarInfoW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!SetCalendarInfoW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetCommBreak" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetCommBreak h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetCommConfig" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetCommConfig h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetCommMask" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetCommMask h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetCommState" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetCommState h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetCommTimeouts" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetCommTimeouts h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetComputerNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!SetComputerNameA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetComputerNameEx2W" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!SetComputerNameEx2W '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetComputerNameExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!SetComputerNameExA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetComputerNameExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!SetComputerNameExW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetComputerNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!SetComputerNameW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleActiveScreenBuffer" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleActiveScreenBuffer h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleCP" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleCP h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleCtrlHandler" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetConsoleCtrlHandler p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleCursorInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleCursorInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleCursorMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleCursorMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleCursorPosition" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetConsoleCursorPosition p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleDisplayMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleDisplayMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleHistoryInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleHistoryInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleInputExeNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetConsoleInputExeNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleInputExeNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetConsoleInputExeNameW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleMode" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetConsoleMode p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleNlsMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleNlsMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleNumberOfCommandsA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetConsoleNumberOfCommandsA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleNumberOfCommandsW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetConsoleNumberOfCommandsW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleOutputCP" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleOutputCP h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleScreenBufferInfoEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleScreenBufferInfoEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleScreenBufferSize" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleScreenBufferSize h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleTextAttribute" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetConsoleTextAttribute p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleTitleA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!SetConsoleTitleA '{}'", s);
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleTitleW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!SetConsoleTitleW '{}'", s);
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetConsoleWindowInfo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetConsoleWindowInfo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetCriticalSectionSpinCount" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetCriticalSectionSpinCount 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetCurrentConsoleFontEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetCurrentConsoleFontEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetCurrentDirectoryW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!SetCurrentDirectoryW '{}'", s);
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetDefaultCommConfigW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!SetDefaultCommConfigW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetDefaultDllDirectories" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetDefaultDllDirectories h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetDynamicTimeZoneInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetDynamicTimeZoneInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetEndOfFile" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetEndOfFile");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetEnvironmentStringsW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!SetEnvironmentStringsW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetEventWhenCallbackReturns" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetEventWhenCallbackReturns 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetFileApisToANSI" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetFileApisToANSI h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFileApisToOEM" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetFileApisToOEM h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFileAttributesTransactedA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetFileAttributesTransactedA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetFileCompletionNotificationModes" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetFileCompletionNotificationModes h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFileInformationByHandle" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetFileInformationByHandle p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFileIoOverlappedRange" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetFileIoOverlappedRange h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFilePointerEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetFilePointerEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFileTime" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetFileTime h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFileValidData" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetFileValidData p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetFirmwareEnvironmentVariableExA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetFirmwareEnvironmentVariableExA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetFirmwareEnvironmentVariableExW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetFirmwareEnvironmentVariableExW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetHandleContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetHandleContext h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetHandleInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetHandleInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetIoRingCompletionEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetIoRingCompletionEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetLastConsoleEventActive" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetLastConsoleEventActive 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetLocalPrimaryComputerNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!SetLocalPrimaryComputerNameA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetLocalTime" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetLocalTime");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetLocaleInfoW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!SetLocaleInfoW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "SetNamedPipeHandleState" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetNamedPipeHandleState p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetPriorityClass" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetPriorityClass p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessAffinityUpdateMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessAffinityUpdateMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessDefaultCpuSetMasks" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessDefaultCpuSetMasks h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessDefaultCpuSets" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessDefaultCpuSets h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessDynamicEHContinuationTargets" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessDynamicEHContinuationTargets h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+            PackageNameAndPublisherIdFromFamilyName_api(emu)
+        }
+        "ParseApplicationUserModelId" => ParseApplicationUserModelId_api(emu),
+        "PeekConsoleInputA" => PeekConsoleInputA_api(emu),
+        "PeekConsoleInputW" => PeekConsoleInputW_api(emu),
+        "PeekNamedPipe" => PeekNamedPipe_api(emu),
+        "PopIoRingCompletion" => PopIoRingCompletion_api(emu),
+        "PostQueuedCompletionStatus" => PostQueuedCompletionStatus_api(emu),
+        "PrefetchVirtualMemory" => PrefetchVirtualMemory_api(emu),
+        "PrivCopyFileExW" => PrivCopyFileExW_api(emu),
+        "ProcessIdToSessionId" => ProcessIdToSessionId_api(emu),
+        "PssCaptureSnapshot" => PssCaptureSnapshot_api(emu),
+        "PssDuplicateSnapshot" => PssDuplicateSnapshot_api(emu),
+        "PssFreeSnapshot" => PssFreeSnapshot_api(emu),
+        "PssQuerySnapshot" => PssQuerySnapshot_api(emu),
+        "PssWalkMarkerCreate" => PssWalkMarkerCreate_api(emu),
+        "PssWalkMarkerFree" => PssWalkMarkerFree_api(emu),
+        "PssWalkMarkerGetPosition" => PssWalkMarkerGetPosition_api(emu),
+        "PssWalkMarkerRewind" => PssWalkMarkerRewind_api(emu),
+        "PssWalkMarkerSeek" => PssWalkMarkerSeek_api(emu),
+        "PssWalkMarkerSeekToBeginning" => PssWalkMarkerSeekToBeginning_api(emu),
+        "PssWalkMarkerSetPosition" => PssWalkMarkerSetPosition_api(emu),
+        "PssWalkMarkerTell" => PssWalkMarkerTell_api(emu),
+        "PssWalkSnapshot" => PssWalkSnapshot_api(emu),
+        "PulseEvent" => PulseEvent_api(emu),
+        "PurgeComm" => PurgeComm_api(emu),
+        "QueryActCtxSettingsW" => QueryActCtxSettingsW_api(emu),
+        "QueryActCtxW" => QueryActCtxW_api(emu),
+        "QueryDepthSList" => QueryDepthSList_api(emu),
+        "QueryDosDeviceW" => QueryDosDeviceW_api(emu),
+        "QueryFullProcessImageNameA" => QueryFullProcessImageNameA_api(emu),
+        "QueryFullProcessImageNameW" => QueryFullProcessImageNameW_api(emu),
+        "QueryIdleProcessorCycleTime" => QueryIdleProcessorCycleTime_api(emu),
+        "QueryIdleProcessorCycleTimeEx" => QueryIdleProcessorCycleTimeEx_api(emu),
+        "QueryIoRingCapabilities" => QueryIoRingCapabilities_api(emu),
+        "QueryMemoryResourceNotification" => QueryMemoryResourceNotification_api(emu),
+        "QueryProcessAffinityUpdateMode" => QueryProcessAffinityUpdateMode_api(emu),
+        "QueryProcessCycleTime" => QueryProcessCycleTime_api(emu),
+        "QueryProtectedPolicy" => QueryProtectedPolicy_api(emu),
+        "QueryThreadCycleTime" => QueryThreadCycleTime_api(emu),
+        "QueryThreadpoolStackInformation" => QueryThreadpoolStackInformation_api(emu),
+        "QueryUnbiasedInterruptTime" => QueryUnbiasedInterruptTime_api(emu),
+        "QueueUserAPC" => QueueUserAPC_api(emu),
+        "QueueUserAPC2" => QueueUserAPC2_api(emu),
+        "QueueUserWorkItem" => QueueUserWorkItem_api(emu),
+        "QuirkGetData2Worker" => QuirkGetData2Worker_api(emu),
+        "QuirkIsEnabled3Worker" => QuirkIsEnabled3Worker_api(emu),
+        "RaiseFailFastException" => RaiseFailFastException_api(emu),
+        "ReOpenFile" => ReOpenFile_api(emu),
+        "ReadConsoleA" => ReadConsoleA_api(emu),
+        "ReadConsoleInputA" => ReadConsoleInputA_api(emu),
+        "ReadConsoleInputExA" => ReadConsoleInputExA_api(emu),
+        "ReadConsoleInputExW" => ReadConsoleInputExW_api(emu),
+        "ReadConsoleInputW" => ReadConsoleInputW_api(emu),
+        "ReadConsoleOutputA" => ReadConsoleOutputA_api(emu),
+        "ReadConsoleOutputAttribute" => ReadConsoleOutputAttribute_api(emu),
+        "ReadConsoleOutputCharacterA" => ReadConsoleOutputCharacterA_api(emu),
+        "ReadConsoleOutputCharacterW" => ReadConsoleOutputCharacterW_api(emu),
+        "ReadConsoleOutputW" => ReadConsoleOutputW_api(emu),
+        "ReadConsoleW" => ReadConsoleW_api(emu),
+        "ReadDirectoryChangesExW" => ReadDirectoryChangesExW_api(emu),
+        "ReadDirectoryChangesW" => ReadDirectoryChangesW_api(emu),
+        "ReadFileEx" => ReadFileEx_api(emu),
+        "ReadFileScatter" => ReadFileScatter_api(emu),
+        "ReclaimVirtualMemory" => ReclaimVirtualMemory_api(emu),
+        "RegCopyTreeW" => RegCopyTreeW_api(emu),
+        "RegDeleteKeyExA" => RegDeleteKeyExA_api(emu),
+        "RegDeleteKeyExW" => RegDeleteKeyExW_api(emu),
+        "RegDeleteTreeA" => RegDeleteTreeA_api(emu),
+        "RegDeleteTreeW" => RegDeleteTreeW_api(emu),
+        "RegDeleteValueA" => RegDeleteValueA_api(emu),
+        "RegDeleteValueW" => RegDeleteValueW_api(emu),
+        "RegDisablePredefinedCacheEx" => RegDisablePredefinedCacheEx_api(emu),
+        "RegEnumKeyExA" => RegEnumKeyExA_api(emu),
+        "RegEnumKeyExW" => RegEnumKeyExW_api(emu),
+        "RegEnumValueA" => RegEnumValueA_api(emu),
+        "RegEnumValueW" => RegEnumValueW_api(emu),
+        "RegFlushKey" => RegFlushKey_api(emu),
+        "RegGetKeySecurity" => RegGetKeySecurity_api(emu),
+        "RegGetValueA" => RegGetValueA_api(emu),
+        "RegGetValueW" => RegGetValueW_api(emu),
+        "RegLoadKeyA" => RegLoadKeyA_api(emu),
+        "RegLoadKeyW" => RegLoadKeyW_api(emu),
+        "RegLoadMUIStringA" => RegLoadMUIStringA_api(emu),
+        "RegLoadMUIStringW" => RegLoadMUIStringW_api(emu),
+        "RegNotifyChangeKeyValue" => RegNotifyChangeKeyValue_api(emu),
+        "RegOpenCurrentUser" => RegOpenCurrentUser_api(emu),
+        "RegOpenKeyExA" => RegOpenKeyExA_api(emu),
+        "RegOpenUserClassesRoot" => RegOpenUserClassesRoot_api(emu),
+        "RegQueryInfoKeyA" => RegQueryInfoKeyA_api(emu),
+        "RegQueryInfoKeyW" => RegQueryInfoKeyW_api(emu),
+        "RegQueryValueExA" => RegQueryValueExA_api(emu),
+        "RegQueryValueExW" => RegQueryValueExW_api(emu),
+        "RegRestoreKeyA" => RegRestoreKeyA_api(emu),
+        "RegRestoreKeyW" => RegRestoreKeyW_api(emu),
+        "RegSaveKeyExA" => RegSaveKeyExA_api(emu),
+        "RegSaveKeyExW" => RegSaveKeyExW_api(emu),
+        "RegSetKeySecurity" => RegSetKeySecurity_api(emu),
+        "RegUnLoadKeyA" => RegUnLoadKeyA_api(emu),
+        "RegUnLoadKeyW" => RegUnLoadKeyW_api(emu),
+        "RegisterBadMemoryNotification" => RegisterBadMemoryNotification_api(emu),
+        "RegisterWaitForSingleObject" => RegisterWaitForSingleObject_api(emu),
+        "RegisterWaitForSingleObjectEx" => RegisterWaitForSingleObjectEx_api(emu),
+        "RegisterWowBaseHandlers" => RegisterWowBaseHandlers_api(emu),
+        "RegisterWowExec" => RegisterWowExec_api(emu),
+        "ReleaseActCtx" => ReleaseActCtx_api(emu),
+        "ReleaseActCtxWorker" => ReleaseActCtxWorker_api(emu),
+        "ReleaseMutex" => ReleaseMutex_api(emu),
+        "ReleaseMutexWhenCallbackReturns" => ReleaseMutexWhenCallbackReturns_api(emu),
+        "ReleasePackageVirtualizationContext" => ReleasePackageVirtualizationContext_api(emu),
+        "ReleasePseudoConsole" => ReleasePseudoConsole_api(emu),
+        "ReleaseSemaphore" => ReleaseSemaphore_api(emu),
+        "ReleaseSemaphoreWhenCallbackReturns" => ReleaseSemaphoreWhenCallbackReturns_api(emu),
+        "RemoveDirectory2A" => RemoveDirectory2A_api(emu),
+        "RemoveDirectory2W" => RemoveDirectory2W_api(emu),
+        "RemoveDirectoryTransactedA" => RemoveDirectoryTransactedA_api(emu),
+        "RemoveDllDirectory" => RemoveDllDirectory_api(emu),
+        "RemoveLocalAlternateComputerNameA" => RemoveLocalAlternateComputerNameA_api(emu),
+        "RemoveVectoredContinueHandler" => RemoveVectoredContinueHandler_api(emu),
+        "RemoveVectoredExceptionHandler" => RemoveVectoredExceptionHandler_api(emu),
+        "ReplaceFile" => ReplaceFile_api(emu),
+        "ReplaceFileW" => ReplaceFileW_api(emu),
+        "RequestDeviceWakeup" => RequestDeviceWakeup_api(emu),
+        "ResetWriteWatch" => ResetWriteWatch_api(emu),
+        "ResizePseudoConsole" => ResizePseudoConsole_api(emu),
+        "ResolveDelayLoadedAPI" => ResolveDelayLoadedAPI_api(emu),
+        "ResolveDelayLoadsFromDll" => ResolveDelayLoadsFromDll_api(emu),
+        "ResolveLocaleName" => ResolveLocaleName_api(emu),
+        "RestoreLastError" => RestoreLastError_api(emu),
+        "RtlCaptureContext" => RtlCaptureContext_api(emu),
+        "RtlCaptureStackBackTrace" => RtlCaptureStackBackTrace_api(emu),
+        "RtlFillMemory" => RtlFillMemory_api(emu),
+        "RtlMoveMemory" => RtlMoveMemory_api(emu),
+        "RtlPcToFileHeader" => RtlPcToFileHeader_api(emu),
+        "RtlUnwind" => RtlUnwind_api(emu),
+        "RtlZeroMemory" => RtlZeroMemory_api(emu),
+        "ScrollConsoleScreenBufferA" => ScrollConsoleScreenBufferA_api(emu),
+        "ScrollConsoleScreenBufferW" => ScrollConsoleScreenBufferW_api(emu),
+        "SearchPathA" => SearchPathA(emu),
+        "SearchPathW" => SearchPathW(emu),
+        "SetCachedSigningLevel" => SetCachedSigningLevel_api(emu),
+        "SetCalendarInfoW" => SetCalendarInfoW_api(emu),
+        "SetCommBreak" => SetCommBreak_api(emu),
+        "SetCommConfig" => SetCommConfig_api(emu),
+        "SetCommMask" => SetCommMask_api(emu),
+        "SetCommState" => SetCommState_api(emu),
+        "SetCommTimeouts" => SetCommTimeouts_api(emu),
+        "SetComputerNameA" => SetComputerNameA_api(emu),
+        "SetComputerNameEx2W" => SetComputerNameEx2W_api(emu),
+        "SetComputerNameExA" => SetComputerNameExA_api(emu),
+        "SetComputerNameExW" => SetComputerNameExW_api(emu),
+        "SetComputerNameW" => SetComputerNameW_api(emu),
+        "SetConsoleActiveScreenBuffer" => SetConsoleActiveScreenBuffer_api(emu),
+        "SetConsoleCP" => SetConsoleCP_api(emu),
+        "SetConsoleCtrlHandler" => SetConsoleCtrlHandler_api(emu),
+        "SetConsoleCursorInfo" => SetConsoleCursorInfo_api(emu),
+        "SetConsoleCursorMode" => SetConsoleCursorMode_api(emu),
+        "SetConsoleCursorPosition" => SetConsoleCursorPosition_api(emu),
+        "SetConsoleDisplayMode" => SetConsoleDisplayMode_api(emu),
+        "SetConsoleHistoryInfo" => SetConsoleHistoryInfo_api(emu),
+        "SetConsoleInputExeNameA" => SetConsoleInputExeNameA_api(emu),
+        "SetConsoleInputExeNameW" => SetConsoleInputExeNameW_api(emu),
+        "SetConsoleMode" => SetConsoleMode_api(emu),
+        "SetConsoleNlsMode" => SetConsoleNlsMode_api(emu),
+        "SetConsoleNumberOfCommandsA" => SetConsoleNumberOfCommandsA_api(emu),
+        "SetConsoleNumberOfCommandsW" => SetConsoleNumberOfCommandsW_api(emu),
+        "SetConsoleOutputCP" => SetConsoleOutputCP_api(emu),
+        "SetConsoleScreenBufferInfoEx" => SetConsoleScreenBufferInfoEx_api(emu),
+        "SetConsoleScreenBufferSize" => SetConsoleScreenBufferSize_api(emu),
+        "SetConsoleTextAttribute" => SetConsoleTextAttribute_api(emu),
+        "SetConsoleTitleA" => SetConsoleTitleA_api(emu),
+        "SetConsoleTitleW" => SetConsoleTitleW_api(emu),
+        "SetConsoleWindowInfo" => SetConsoleWindowInfo_api(emu),
+        "SetCriticalSectionSpinCount" => SetCriticalSectionSpinCount_api(emu),
+        "SetCurrentConsoleFontEx" => SetCurrentConsoleFontEx_api(emu),
+        "SetCurrentDirectoryW" => SetCurrentDirectoryW_api(emu),
+        "SetDefaultCommConfigW" => SetDefaultCommConfigW_api(emu),
+        "SetDefaultDllDirectories" => SetDefaultDllDirectories_api(emu),
+        "SetDynamicTimeZoneInformation" => SetDynamicTimeZoneInformation_api(emu),
+        "SetEndOfFile" => SetEndOfFile(emu),
+        "SetEnvironmentStringsW" => SetEnvironmentStringsW_api(emu),
+        "SetEvent" => SetEvent(emu),
+        "SetEventWhenCallbackReturns" => SetEventWhenCallbackReturns_api(emu),
+        "SetFileApisToANSI" => SetFileApisToANSI_api(emu),
+        "SetFileApisToOEM" => SetFileApisToOEM_api(emu),
+        "SetFileAttributesTransactedA" => SetFileAttributesTransactedA_api(emu),
+        "SetFileCompletionNotificationModes" => SetFileCompletionNotificationModes_api(emu),
+        "SetFileInformationByHandle" => SetFileInformationByHandle_api(emu),
+        "SetFileIoOverlappedRange" => SetFileIoOverlappedRange_api(emu),
+        "SetFilePointerEx" => SetFilePointerEx(emu),
+        "SetFileTime" => SetFileTime_api(emu),
+        "SetFileValidData" => SetFileValidData_api(emu),
+        "SetFirmwareEnvironmentVariableExA" => SetFirmwareEnvironmentVariableExA_api(emu),
+        "SetFirmwareEnvironmentVariableExW" => SetFirmwareEnvironmentVariableExW_api(emu),
+        "SetHandleContext" => SetHandleContext_api(emu),
+        "SetHandleInformation" => SetHandleInformation_api(emu),
+        "SetIoRingCompletionEvent" => SetIoRingCompletionEvent_api(emu),
+        "SetLastConsoleEventActive" => SetLastConsoleEventActive_api(emu),
+        "SetLocalPrimaryComputerNameA" => SetLocalPrimaryComputerNameA_api(emu),
+        "SetLocalTime" => SetLocalTime_api(emu),
+        "SetLocaleInfoW" => SetLocaleInfoW(emu),
+        "SetNamedPipeHandleState" => SetNamedPipeHandleState_api(emu),
+        "SetPriorityClass" => SetPriorityClass_api(emu),
+        "SetProcessAffinityUpdateMode" => SetProcessAffinityUpdateMode_api(emu),
+        "SetProcessDefaultCpuSetMasks" => SetProcessDefaultCpuSetMasks_api(emu),
+        "SetProcessDefaultCpuSets" => SetProcessDefaultCpuSets_api(emu),
+        "SetProcessDynamicEHContinuationTargets" => SetProcessDynamicEHContinuationTargets_api(emu),
         "SetProcessDynamicEnforcedCetCompatibleRanges" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessDynamicEnforcedCetCompatibleRanges h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessMitigationPolicy" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessMitigationPolicy h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessPreferredUILanguages" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessPreferredUILanguages h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessPriorityBoost" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessPriorityBoost h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessShutdownParameters" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessShutdownParameters h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProcessWorkingSetSizeEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProcessWorkingSetSizeEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetProtectedPolicy" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetProtectedPolicy h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetSearchPathMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetSearchPathMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetStdHandle" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetStdHandle p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetStdHandleEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetStdHandleEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetSystemFileCacheSize" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetSystemFileCacheSize h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetSystemTime" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetSystemTime");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetTermsrvAppInstallMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetTermsrvAppInstallMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadDescription" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadDescription h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadErrorMode" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadErrorMode h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadGroupAffinity" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadGroupAffinity h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadIdealProcessor" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadIdealProcessor h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadIdealProcessorEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadIdealProcessorEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadPreferredUILanguages" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadPreferredUILanguages h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadPriority" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetThreadPriority p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadPriorityBoost" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadPriorityBoost h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadSelectedCpuSetMasks" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadSelectedCpuSetMasks h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadSelectedCpuSets" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadSelectedCpuSets h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadStackGuarantee" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadStackGuarantee h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadToken" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadToken h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadUILanguage" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadUILanguage h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadpoolStackInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadpoolStackInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadpoolThreadMaximum" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadpoolThreadMaximum h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadpoolThreadMinimum" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetThreadpoolThreadMinimum h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetThreadpoolTimer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetThreadpoolTimer 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetThreadpoolTimerEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetThreadpoolTimerEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetThreadpoolWait" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetThreadpoolWait 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetThreadpoolWaitEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetThreadpoolWaitEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetTimeZoneInformation" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetTimeZoneInformation");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetVDMCurrentDirectories" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetVDMCurrentDirectories h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetVolumeMountPointWStub" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetVolumeMountPointWStub h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetWaitableTimer" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetWaitableTimer 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetWaitableTimerEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SetWaitableTimerEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SetXStateFeaturesMask" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetXStateFeaturesMask h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetupComm" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SetupComm h:0x{:x} arg2:0x{:x}", handle, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SignalObjectAndWait" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SignalObjectAndWait 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SleepConditionVariableCS" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SleepConditionVariableCS 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SleepConditionVariableSRW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SleepConditionVariableSRW 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SleepEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SleepEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SortCloseHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SortCloseHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SortGetHandle" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SortGetHandle h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "StartThreadpoolIo" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!StartThreadpoolIo h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SubmitIoRing" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SubmitIoRing arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SubmitThreadpoolWork" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SubmitThreadpoolWork h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SuspendThread" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!SuspendThread");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SwitchToFiber" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SwitchToFiber arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SwitchToThread" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!SwitchToThread 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "SystemTimeToTzSpecificLocalTimeEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SystemTimeToTzSpecificLocalTimeEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TerminateJobObject" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TerminateJobObject h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TerminateThread" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!TerminateThread p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TermsrvAppInstallMode" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TermsrvAppInstallMode arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TermsrvGetWindowsDirectoryA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!TermsrvGetWindowsDirectoryA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "TermsrvGetWindowsDirectoryW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!TermsrvGetWindowsDirectoryW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "TermsrvSetKeySecurity" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TermsrvSetKeySecurity h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TlsGetValue2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TlsGetValue2 arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Toolhelp32ReadProcessMemory" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!Toolhelp32ReadProcessMemory h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TransactNamedPipe" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-            let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TransactNamedPipe p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..7 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TransmitCommChar" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TransmitCommChar arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TryEnterCriticalSection" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!TryEnterCriticalSection 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "TrySubmitThreadpoolCallback" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TrySubmitThreadpoolCallback h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TzSpecificLocalTimeToSystemTime" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TzSpecificLocalTimeToSystemTime arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "TzSpecificLocalTimeToSystemTimeEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!TzSpecificLocalTimeToSystemTimeEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UTRegister" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!UTRegister arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UTUnRegister" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!UTUnRegister arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UnlockFile" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!UnlockFile 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UnlockFileEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!UnlockFileEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UnmapViewOfFile" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!UnmapViewOfFile");
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UnmapViewOfFileEx" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!UnmapViewOfFileEx h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UnregisterBadMemoryNotification" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!UnregisterBadMemoryNotification h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UnregisterConsoleIME" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!UnregisterConsoleIME h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UnregisterWaitEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!UnregisterWaitEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "UpdateProcThreadAttribute" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!UpdateProcThreadAttribute h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "VerLanguageNameA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!VerLanguageNameA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "VerLanguageNameW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!VerLanguageNameW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "VerSetConditionMask" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!VerSetConditionMask arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "VerifyScripts" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!VerifyScripts arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "VirtualFreeEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!VirtualFreeEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "VirtualUnlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!VirtualUnlock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WTSGetActiveConsoleSessionId" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WTSGetActiveConsoleSessionId arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WaitCommEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitCommEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForDebugEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForDebugEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForDebugEventEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForDebugEventEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForMultipleObjectsEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForMultipleObjectsEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForSingleObjectEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForSingleObjectEx 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForThreadpoolIoCallbacks" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForThreadpoolIoCallbacks 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForThreadpoolTimerCallbacks" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForThreadpoolTimerCallbacks 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForThreadpoolWaitCallbacks" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForThreadpoolWaitCallbacks 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitForThreadpoolWorkCallbacks" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitForThreadpoolWorkCallbacks 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WaitNamedPipeW" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WaitNamedPipeW 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WakeAllConditionVariable" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WakeAllConditionVariable 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WakeConditionVariable" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WakeConditionVariable 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WerGetFlags" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerGetFlags arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerRegisterAdditionalProcess" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerRegisterAdditionalProcess h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerRegisterAppLocalDump" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerRegisterAppLocalDump arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerRegisterCustomMetadata" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerRegisterCustomMetadata arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerRegisterExcludedMemoryBlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WerRegisterExcludedMemoryBlock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WerRegisterFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerRegisterFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerRegisterMemoryBlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WerRegisterMemoryBlock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WerRegisterMemoryBlockWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WerRegisterMemoryBlockWorker 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WerRegisterRuntimeExceptionModule" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerRegisterRuntimeExceptionModule arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+            SetProcessDynamicEnforcedCetCompatibleRanges_api(emu)
+        }
+        "SetProcessInformation" => SetProcessInformation_api(emu),
+        "SetProcessMitigationPolicy" => SetProcessMitigationPolicy_api(emu),
+        "SetProcessPreferredUILanguages" => SetProcessPreferredUILanguages_api(emu),
+        "SetProcessPriorityBoost" => SetProcessPriorityBoost_api(emu),
+        "SetProcessShutdownParameters" => SetProcessShutdownParameters_api(emu),
+        "SetProcessWorkingSetSizeEx" => SetProcessWorkingSetSizeEx_api(emu),
+        "SetProtectedPolicy" => SetProtectedPolicy_api(emu),
+        "SetSearchPathMode" => SetSearchPathMode_api(emu),
+        "SetStdHandle" => SetStdHandle_api(emu),
+        "SetStdHandleEx" => SetStdHandleEx_api(emu),
+        "SetSystemFileCacheSize" => SetSystemFileCacheSize_api(emu),
+        "SetSystemTime" => SetSystemTime_api(emu),
+        "SetTermsrvAppInstallMode" => SetTermsrvAppInstallMode_api(emu),
+        "SetThreadDescription" => SetThreadDescription_api(emu),
+        "SetThreadErrorMode" => SetThreadErrorMode_api(emu),
+        "SetThreadGroupAffinity" => SetThreadGroupAffinity_api(emu),
+        "SetThreadIdealProcessor" => SetThreadIdealProcessor_api(emu),
+        "SetThreadIdealProcessorEx" => SetThreadIdealProcessorEx_api(emu),
+        "SetThreadInformation" => SetThreadInformation_api(emu),
+        "SetThreadPreferredUILanguages" => SetThreadPreferredUILanguages_api(emu),
+        "SetThreadPriority" => SetThreadPriority_api(emu),
+        "SetThreadPriorityBoost" => SetThreadPriorityBoost_api(emu),
+        "SetThreadSelectedCpuSetMasks" => SetThreadSelectedCpuSetMasks_api(emu),
+        "SetThreadSelectedCpuSets" => SetThreadSelectedCpuSets_api(emu),
+        "SetThreadStackGuarantee" => SetThreadStackGuarantee_api(emu),
+        "SetThreadToken" => SetThreadToken_api(emu),
+        "SetThreadUILanguage" => SetThreadUILanguage_api(emu),
+        "SetThreadpoolStackInformation" => SetThreadpoolStackInformation_api(emu),
+        "SetThreadpoolThreadMaximum" => SetThreadpoolThreadMaximum_api(emu),
+        "SetThreadpoolThreadMinimum" => SetThreadpoolThreadMinimum_api(emu),
+        "SetThreadpoolTimer" => SetThreadpoolTimer_api(emu),
+        "SetThreadpoolTimerEx" => SetThreadpoolTimerEx_api(emu),
+        "SetThreadpoolWait" => SetThreadpoolWait_api(emu),
+        "SetThreadpoolWaitEx" => SetThreadpoolWaitEx_api(emu),
+        "SetTimeZoneInformation" => SetTimeZoneInformation_api(emu),
+        "SetVDMCurrentDirectories" => SetVDMCurrentDirectories_api(emu),
+        "SetVolumeMountPointWStub" => SetVolumeMountPointWStub_api(emu),
+        "SetWaitableTimer" => SetWaitableTimer_api(emu),
+        "SetWaitableTimerEx" => SetWaitableTimerEx_api(emu),
+        "SetXStateFeaturesMask" => SetXStateFeaturesMask_api(emu),
+        "SetupComm" => SetupComm_api(emu),
+        "SignalObjectAndWait" => SignalObjectAndWait_api(emu),
+        "SleepConditionVariableCS" => SleepConditionVariableCS(emu),
+        "SleepConditionVariableSRW" => SleepConditionVariableSRW(emu),
+        "SleepEx" => SleepEx(emu),
+        "SortCloseHandle" => SortCloseHandle_api(emu),
+        "SortGetHandle" => SortGetHandle_api(emu),
+        "StartThreadpoolIo" => StartThreadpoolIo_api(emu),
+        "SubmitIoRing" => SubmitIoRing_api(emu),
+        "SubmitThreadpoolWork" => SubmitThreadpoolWork_api(emu),
+        "SuspendThread" => SuspendThread(emu),
+        "SwitchToFiber" => SwitchToFiber_api(emu),
+        "SwitchToThread" => SwitchToThread_api(emu),
+        "SystemTimeToTzSpecificLocalTimeEx" => SystemTimeToTzSpecificLocalTimeEx_api(emu),
+        "TerminateJobObject" => TerminateJobObject_api(emu),
+        "TerminateThread" => TerminateThread_api(emu),
+        "TermsrvAppInstallMode" => TermsrvAppInstallMode_api(emu),
+        "TermsrvGetWindowsDirectoryA" => TermsrvGetWindowsDirectoryA_api(emu),
+        "TermsrvGetWindowsDirectoryW" => TermsrvGetWindowsDirectoryW_api(emu),
+        "TermsrvSetKeySecurity" => TermsrvSetKeySecurity_api(emu),
+        "TlsGetValue2" => TlsGetValue2_api(emu),
+        "Toolhelp32ReadProcessMemory" => Toolhelp32ReadProcessMemory_api(emu),
+        "TransactNamedPipe" => TransactNamedPipe_api(emu),
+        "TransmitCommChar" => TransmitCommChar_api(emu),
+        "TryEnterCriticalSection" => TryEnterCriticalSection_api(emu),
+        "TrySubmitThreadpoolCallback" => TrySubmitThreadpoolCallback_api(emu),
+        "TzSpecificLocalTimeToSystemTime" => TzSpecificLocalTimeToSystemTime_api(emu),
+        "TzSpecificLocalTimeToSystemTimeEx" => TzSpecificLocalTimeToSystemTimeEx_api(emu),
+        "UTRegister" => UTRegister_api(emu),
+        "UTUnRegister" => UTUnRegister_api(emu),
+        "UnlockFile" => UnlockFile(emu),
+        "UnlockFileEx" => UnlockFileEx_api(emu),
+        "UnmapViewOfFile" => UnmapViewOfFile_api(emu),
+        "UnmapViewOfFileEx" => UnmapViewOfFileEx_api(emu),
+        "UnregisterBadMemoryNotification" => UnregisterBadMemoryNotification_api(emu),
+        "UnregisterConsoleIME" => UnregisterConsoleIME_api(emu),
+        "UnregisterWaitEx" => UnregisterWaitEx_api(emu),
+        "UpdateProcThreadAttribute" => UpdateProcThreadAttribute_api(emu),
+        "VerLanguageNameA" => VerLanguageNameA_api(emu),
+        "VerLanguageNameW" => VerLanguageNameW_api(emu),
+        "VerSetConditionMask" => VerSetConditionMask(emu),
+        "VerifyScripts" => VerifyScripts_api(emu),
+        "VirtualFreeEx" => VirtualFreeEx_api(emu),
+        "VirtualUnlock" => VirtualUnlock_api(emu),
+        "WTSGetActiveConsoleSessionId" => WTSGetActiveConsoleSessionId_api(emu),
+        "WaitCommEvent" => WaitCommEvent_api(emu),
+        "WaitForDebugEvent" => WaitForDebugEvent_api(emu),
+        "WaitForDebugEventEx" => WaitForDebugEventEx_api(emu),
+        "WaitForMultipleObjectsEx" => WaitForMultipleObjectsEx(emu),
+        "WaitForSingleObjectEx" => WaitForSingleObjectEx(emu),
+        "WaitForThreadpoolIoCallbacks" => WaitForThreadpoolIoCallbacks_api(emu),
+        "WaitForThreadpoolTimerCallbacks" => WaitForThreadpoolTimerCallbacks_api(emu),
+        "WaitForThreadpoolWaitCallbacks" => WaitForThreadpoolWaitCallbacks_api(emu),
+        "WaitForThreadpoolWorkCallbacks" => WaitForThreadpoolWorkCallbacks_api(emu),
+        "WaitNamedPipeW" => WaitNamedPipeW_api(emu),
+        "WakeAllConditionVariable" => WakeAllConditionVariable(emu),
+        "WakeConditionVariable" => WakeConditionVariable(emu),
+        "WerGetFlags" => WerGetFlags_api(emu),
+        "WerRegisterAdditionalProcess" => WerRegisterAdditionalProcess_api(emu),
+        "WerRegisterAppLocalDump" => WerRegisterAppLocalDump_api(emu),
+        "WerRegisterCustomMetadata" => WerRegisterCustomMetadata_api(emu),
+        "WerRegisterExcludedMemoryBlock" => WerRegisterExcludedMemoryBlock_api(emu),
+        "WerRegisterFile" => WerRegisterFile_api(emu),
+        "WerRegisterMemoryBlock" => WerRegisterMemoryBlock_api(emu),
+        "WerRegisterMemoryBlockWorker" => WerRegisterMemoryBlockWorker_api(emu),
+        "WerRegisterRuntimeExceptionModule" => WerRegisterRuntimeExceptionModule_api(emu),
         "WerRegisterRuntimeExceptionModuleWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerRegisterRuntimeExceptionModuleWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            WerRegisterRuntimeExceptionModuleWorker_api(emu)
         }
-        "WerSetFlagsWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerSetFlagsWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerUnregisterAdditionalProcess" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerUnregisterAdditionalProcess h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerUnregisterAppLocalDump" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerUnregisterAppLocalDump arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerUnregisterCustomMetadata" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerUnregisterCustomMetadata arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerUnregisterExcludedMemoryBlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(
-                emu,
-                "kernel32!WerUnregisterExcludedMemoryBlock 0x{:x}",
-                arg1
-            );
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WerUnregisterFile" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerUnregisterFile h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerUnregisterMemoryBlock" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!WerUnregisterMemoryBlock 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "WerUnregisterRuntimeExceptionModule" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerUnregisterRuntimeExceptionModule arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+        "WerSetFlagsWorker" => WerSetFlagsWorker_api(emu),
+        "WerUnregisterAdditionalProcess" => WerUnregisterAdditionalProcess_api(emu),
+        "WerUnregisterAppLocalDump" => WerUnregisterAppLocalDump_api(emu),
+        "WerUnregisterCustomMetadata" => WerUnregisterCustomMetadata_api(emu),
+        "WerUnregisterExcludedMemoryBlock" => WerUnregisterExcludedMemoryBlock_api(emu),
+        "WerUnregisterFile" => WerUnregisterFile_api(emu),
+        "WerUnregisterMemoryBlock" => WerUnregisterMemoryBlock_api(emu),
+        "WerUnregisterRuntimeExceptionModule" => WerUnregisterRuntimeExceptionModule_api(emu),
         "WerUnregisterRuntimeExceptionModuleWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerUnregisterRuntimeExceptionModuleWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WerpNotifyLoadStringResourceWorker" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WerpNotifyLoadStringResourceWorker arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Wow64DisableWow64FsRedirection" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!Wow64DisableWow64FsRedirection arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Wow64GetThreadContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!Wow64GetThreadContext h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Wow64RevertWow64FsRedirection" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!Wow64RevertWow64FsRedirection arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Wow64SetThreadContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!Wow64SetThreadContext h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "Wow64Transition" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!Wow64Transition arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!WriteConsoleA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                s,
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleInputA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!WriteConsoleInputA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleInputW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!WriteConsoleInputW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleOutputA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(emu, "kernel32!WriteConsoleOutputA '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleOutputAttribute" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WriteConsoleOutputAttribute h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleOutputCharacterA" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!WriteConsoleOutputCharacterA '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleOutputCharacterW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(
-                emu,
-                "kernel32!WriteConsoleOutputCharacterW '{}'  0x{:x}",
-                s,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "WriteConsoleOutputW" => {
-            let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = emu.maps.read_wide_string(str_ptr);
-            log_red!(emu, "kernel32!WriteConsoleOutputW '{}'  0x{:x}", s, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "WriteFileEx" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WriteFileEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-                p1,
-                p2,
-                p3
-            );
-            for _ in 0..5 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "WriteFileGather" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!WriteFileGather h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "ZombifyActCtx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ZombifyActCtx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "_hread" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!_hread arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "_hwrite" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!_hwrite arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "lstrcmpi" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!lstrcmpi p1:0x{:x}", p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "lstrcpyA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!lstrcpyA '{}' p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-        }
-        "lstrcpynA" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!lstrcpynA '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "lstrcpynW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(
-                emu,
-                "kernel32!lstrcpynW '{}' p1:0x{:x} p2:0x{:x}",
-                s,
-                p1,
-                p2
-            );
-            for _ in 0..3 {
-                emu.stack_pop32(false);
-            }
-        }
-        "timeGetSystemTime" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!timeGetSystemTime arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "CreateUmsCompletionList" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let arg3 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let arg4 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            log_red!(
-                emu,
-                "kernel32!CreateUmsCompletionList arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
-                arg1,
-                arg2,
-                arg3,
-                arg4
-            );
-            let nparams = emu.banzai.get_params("CreateUmsCompletionList");
-            if nparams > 0 {
-                for _ in 0..nparams {
-                    emu.stack_pop32(false);
-                }
-            }
-            let hndl = helper::handler_create("kernel32://CreateUmsCompletionList");
-            assert!(hndl < 0x00000001_00000000);
-            emu.regs_mut().rax = hndl;
-        }
-        "CreateUmsThreadContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let arg3 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let arg4 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            log_red!(
-                emu,
-                "kernel32!CreateUmsThreadContext arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
-                arg1,
-                arg2,
-                arg3,
-                arg4
-            );
-            let nparams = emu.banzai.get_params("CreateUmsThreadContext");
-            if nparams > 0 {
-                for _ in 0..nparams {
-                    emu.stack_pop32(false);
-                }
-            }
-            let hndl = helper::handler_create("kernel32://CreateUmsThreadContext");
-            assert!(hndl < 0x00000001_00000000);
-            emu.regs_mut().rax = hndl;
-        }
-        "DeleteUmsCompletionList" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
-            log_red!(
-                emu,
-                "kernel32!DeleteUmsCompletionList handle:0x{:x}",
-                handle
-            );
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "DeleteUmsThreadContext" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            helper::handler_close(handle);
-            log_red!(emu, "kernel32!DeleteUmsThreadContext handle:0x{:x}", handle);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "DequeueUmsCompletionListItems" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!DequeueUmsCompletionListItems arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EnterUmsSchedulingMode" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!EnterUmsSchedulingMode arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EtwEventEnabled" | "EventEnabled" => {
-            let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let event_descriptor =
-                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let level = if event_descriptor != 0 {
-                emu.maps.read_byte(event_descriptor).unwrap_or(0)
-            } else {
-                0
-            };
-            log_red!(
-                emu,
-                "kernel32!EventEnabled handle:0x{:x} level:{}",
-                reg_handle,
-                level
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "EtwEventRegister" | "EventRegister" => {
-            let provider_guid = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let callback = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let callback_ctx = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let reg_handle_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-            let guid_str = emu.maps.read_string(provider_guid);
-            let hndl = helper::handler_create(&guid_str);
-            if reg_handle_ptr != 0 {
-                emu.maps.write_dword(reg_handle_ptr, hndl as u32);
-            }
-            log_red!(
-                emu,
-                "kernel32!EventRegister guid:'{}' cb:0x{:x} => handle:0x{:x}",
-                guid_str,
-                callback,
-                hndl
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 0;
-        }
-        "EtwEventSetInformation" | "EventSetInformation" => {
-            let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let info_class = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-            let info_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-            let info_len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let info_data = emu.maps.read_string(info_ptr);
-            log_red!(
-                emu,
-                "kernel32!EventSetInformation handle:0x{:x} class:{} data:'{}' len:{}",
-                reg_handle,
-                info_class,
-                info_data,
-                info_len
-            );
-            for _ in 0..4 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 0;
-        }
-        "EtwEventWriteTransfer" | "EventWriteTransfer" => {
-            let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let event_descriptor =
-                emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let activity_id = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-            let related_id = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-            let desc_str = emu.maps.read_string(event_descriptor);
-            log_red!(
-                emu,
-                "kernel32!EventWriteTransfer handle:0x{:x} desc:'{}' activity:0x{:x}",
-                reg_handle,
-                desc_str,
-                activity_id
-            );
-            for _ in 0..6 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 0;
-        }
-        "ExecuteUmsThread" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!ExecuteUmsThread h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetCurrentUmsThread" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetCurrentUmsThread h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetNextUmsListItem" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetNextUmsListItem h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetUmsCompletionListEvent" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!GetUmsCompletionListEvent 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "GetUmsSystemThreadInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetUmsSystemThreadInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "GetUserDefaultLangId" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!GetUserDefaultLangId h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LStrCmpI" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!LStrCmpI arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "LStrCmpIW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!LStrCmpIW '{}'  p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "QueryUmsThreadInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!QueryUmsThreadInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlAddFunctionTable" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlAddFunctionTable arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlCompareMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlCompareMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlCopyMemory" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlCopyMemory arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlDeleteFunctionTable" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlDeleteFunctionTable arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlExitUserProcess" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlExitUserProcess h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlInstallFunctionTableCallback" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlInstallFunctionTableCallback arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlIsEcCode" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlIsEcCode arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlLookupFunctionEntry" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlLookupFunctionEntry arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlRaiseException" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlRaiseException arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlRestoreContext" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlRestoreContext arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlUnwindEx" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlUnwindEx arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlVirtualUnwind" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlVirtualUnwind arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "RtlVirtualUnwind2" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!RtlVirtualUnwind2 arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "SetUmsThreadInformation" => {
-            let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!SetUmsThreadInformation h:0x{:x} arg2:0x{:x}",
-                handle,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "UmsThreadYield" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-            log_red!(emu, "kernel32!UmsThreadYield 0x{:x}", arg1);
-            helper::advance_tick(emu, 1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            for _ in 0..1u32 {
-                emu.stack_pop32(false);
-            }
-        }
-        "__C_specific_handler" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!__C_specific_handler arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "__chkstk" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(emu, "kernel32!__chkstk arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "__misaligned_access" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!__misaligned_access arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "_local_unwind" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!_local_unwind arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_lstrcmpW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!uaw_lstrcmpW '{}'  p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_lstrcmpiW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!uaw_lstrcmpiW '{}'  p1:0x{:x}", s, p1);
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_lstrlenW" => {
-            let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let s = if p0 != 0 && p0 > 0xffff {
-                emu.maps.read_wide_string(p0)
-            } else {
-                format!("0x{:x}", p0)
-            };
-            log_red!(emu, "kernel32!uaw_lstrlenW '{}'", s);
-            for _ in 0..1 {
-                emu.stack_pop32(false);
-            }
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_wcschr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!uaw_wcschr arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_wcscpy" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!uaw_wcscpy arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_wcsicmp" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!uaw_wcsicmp arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_wcslen" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!uaw_wcslen arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
-        "uaw_wcsrchr" => {
-            let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-            let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-            log_red!(
-                emu,
-                "kernel32!uaw_wcsrchr arg1:0x{:x} arg2:0x{:x}",
-                arg1,
-                arg2
-            );
-            for _ in 0..2 {
-                emu.stack_pop32(false);
-            }
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-        }
+            WerUnregisterRuntimeExceptionModuleWorker_api(emu)
+        }
+        "WerpNotifyLoadStringResourceWorker" => WerpNotifyLoadStringResourceWorker_api(emu),
+        "Wow64DisableWow64FsRedirection" => Wow64DisableWow64FsRedirection_api(emu),
+        "Wow64GetThreadContext" => Wow64GetThreadContext_api(emu),
+        "Wow64RevertWow64FsRedirection" => Wow64RevertWow64FsRedirection_api(emu),
+        "Wow64SetThreadContext" => Wow64SetThreadContext_api(emu),
+        "Wow64Transition" => Wow64Transition_api(emu),
+        "WriteConsoleA" => WriteConsoleA_api(emu),
+        "WriteConsoleInputA" => WriteConsoleInputA_api(emu),
+        "WriteConsoleInputW" => WriteConsoleInputW_api(emu),
+        "WriteConsoleOutputA" => WriteConsoleOutputA_api(emu),
+        "WriteConsoleOutputAttribute" => WriteConsoleOutputAttribute_api(emu),
+        "WriteConsoleOutputCharacterA" => WriteConsoleOutputCharacterA_api(emu),
+        "WriteConsoleOutputCharacterW" => WriteConsoleOutputCharacterW_api(emu),
+        "WriteConsoleOutputW" => WriteConsoleOutputW_api(emu),
+        "WriteFileEx" => WriteFileEx_api(emu),
+        "WriteFileGather" => WriteFileGather_api(emu),
+        "ZombifyActCtx" => ZombifyActCtx_api(emu),
+        "_hread" => _hread_api(emu),
+        "_hwrite" => _hwrite_api(emu),
+        "lstrcmpi" => lstrcmpi(emu),
+        "lstrcpyA" => lstrcpyA_api(emu),
+        "lstrcpynA" => lstrcpynA_api(emu),
+        "lstrcpynW" => lstrcpynW_api(emu),
+        "timeGetSystemTime" => timeGetSystemTime_api(emu),
+        "CreateUmsCompletionList" => CreateUmsCompletionList_api(emu),
+        "CreateUmsThreadContext" => CreateUmsThreadContext_api(emu),
+        "DeleteUmsCompletionList" => DeleteUmsCompletionList_api(emu),
+        "DeleteUmsThreadContext" => DeleteUmsThreadContext_api(emu),
+        "DequeueUmsCompletionListItems" => DequeueUmsCompletionListItems_api(emu),
+        "EnterUmsSchedulingMode" => EnterUmsSchedulingMode_api(emu),
+        "EtwEventEnabled" | "EventEnabled" => EtwEventEnabled(emu),
+        "EtwEventRegister" | "EventRegister" => EtwEventRegister(emu),
+        "EtwEventSetInformation" | "EventSetInformation" => EtwEventSetInformation(emu),
+        "EtwEventWriteTransfer" | "EventWriteTransfer" => EtwEventWriteTransfer(emu),
+        "ExecuteUmsThread" => ExecuteUmsThread_api(emu),
+        "GetCurrentUmsThread" => GetCurrentUmsThread(emu),
+        "GetNextUmsListItem" => GetNextUmsListItem_api(emu),
+        "GetUmsCompletionListEvent" => GetUmsCompletionListEvent_api(emu),
+        "GetUmsSystemThreadInformation" => GetUmsSystemThreadInformation_api(emu),
+        "GetUserDefaultLangId" => GetUserDefaultLangId(emu),
+        "LStrCmpI" => LStrCmpI_api(emu),
+        "LStrCmpIW" => LStrCmpIW_api(emu),
+        "QueryUmsThreadInformation" => QueryUmsThreadInformation_api(emu),
+        "RtlAddFunctionTable" => RtlAddFunctionTable_api(emu),
+        "RtlCompareMemory" => RtlCompareMemory_api(emu),
+        "RtlCopyMemory" => RtlCopyMemory_api(emu),
+        "RtlDeleteFunctionTable" => RtlDeleteFunctionTable_api(emu),
+        "RtlExitUserProcess" => RtlExitUserProcess(emu),
+        "RtlInstallFunctionTableCallback" => RtlInstallFunctionTableCallback_api(emu),
+        "RtlIsEcCode" => RtlIsEcCode_api(emu),
+        "RtlLookupFunctionEntry" => RtlLookupFunctionEntry_api(emu),
+        "RtlRaiseException" => RtlRaiseException_api(emu),
+        "RtlRestoreContext" => RtlRestoreContext_api(emu),
+        "RtlUnwindEx" => RtlUnwindEx_api(emu),
+        "RtlVirtualUnwind" => RtlVirtualUnwind_api(emu),
+        "RtlVirtualUnwind2" => RtlVirtualUnwind2_api(emu),
+        "SetUmsThreadInformation" => SetUmsThreadInformation_api(emu),
+        "UmsThreadYield" => UmsThreadYield_api(emu),
+        "__C_specific_handler" => __C_specific_handler_api(emu),
+        "__chkstk" => __chkstk_api(emu),
+        "__misaligned_access" => __misaligned_access_api(emu),
+        "_local_unwind" => _local_unwind_api(emu),
+        "uaw_lstrcmpW" => uaw_lstrcmpW_api(emu),
+        "uaw_lstrcmpiW" => uaw_lstrcmpiW_api(emu),
+        "uaw_lstrlenW" => uaw_lstrlenW_api(emu),
+        "uaw_wcschr" => uaw_wcschr_api(emu),
+        "uaw_wcscpy" => uaw_wcscpy_api(emu),
+        "uaw_wcsicmp" => uaw_wcsicmp_api(emu),
+        "uaw_wcslen" => uaw_wcslen_api(emu),
+        "uaw_wcsrchr" => uaw_wcsrchr_api(emu),
 
         _ => return fallback::unimplemented(addr, api, emu),
     }

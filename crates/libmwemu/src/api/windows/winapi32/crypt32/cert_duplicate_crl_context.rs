@@ -1,0 +1,12 @@
+use crate::emu;
+use crate::winapi::helper;
+
+pub fn CertDuplicateCRLContext(emu: &mut emu::Emu) {
+    let esp = emu.regs().get_esp();
+    let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
+    for _ in 0..1u32 {
+        emu.stack_pop32(false);
+    }
+    log_red!(emu, "crypt32!CertDuplicateCRLContext arg1:0x{:x}", arg1);
+    emu.regs_mut().rax = helper::handler_create("CertDuplicateCRLContext");
+}

@@ -1,0 +1,16 @@
+use crate::emu;
+
+pub(super) fn CharUpperBuffW(emu: &mut emu::Emu) {
+    let buf = emu.regs().rcx;
+    let len = emu.regs().rdx as u32;
+    log_red!(emu, "user32!CharUpperBuffW buf=0x{:x} len={}", buf, len);
+    for i in 0..len as u64 {
+        if let Some(ch) = emu.maps.read_word(buf + i * 2)
+            && let Some(c) = char::from_u32(ch as u32)
+        {
+            let upper = c.to_uppercase().next().unwrap_or(c) as u16;
+            emu.maps.write_word(buf + i * 2, upper);
+        }
+    }
+    emu.regs_mut().rax = len as u64;
+}

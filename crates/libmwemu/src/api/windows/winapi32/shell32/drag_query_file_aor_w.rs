@@ -1,0 +1,29 @@
+use crate::emu;
+
+pub fn DragQueryFileAorW(emu: &mut emu::Emu) {
+    let hdrop = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let index = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let buf_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let buf_size = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    log_red!(
+        emu,
+        "shell32!DragQueryFileAorW hdrop:0x{:x} index:{}",
+        hdrop,
+        index
+    );
+    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    if out_ptr != 0 {
+        emu.maps.write_dword(out_ptr, 0);
+    }
+    if index == 0xFFFFFFFF {
+        emu.regs_mut().rax = 1;
+    } else if buf_ptr != 0 && buf_size > 10 {
+        emu.maps.write_string(buf_ptr, "C:\\file.txt");
+        emu.regs_mut().rax = 10;
+    } else {
+        emu.regs_mut().rax = 10;
+    }
+    for _ in 0..4u32 {
+        emu.stack_pop32(false);
+    }
+}

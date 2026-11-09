@@ -1,0 +1,12 @@
+use crate::emu;
+use crate::winapi::winapi32::arg;
+use crate::winapi::winapi32::stdcall_ret;
+
+pub fn GetNearestColor(emu: &mut emu::Emu) {
+    let hdc = arg(emu, 0);
+    let color = arg(emu, 1);
+    log_red!(emu, "gdi32!GetNearestColor color:0x{:06x}", color);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = color as u64;
+    stdcall_ret(emu, 2);
+}

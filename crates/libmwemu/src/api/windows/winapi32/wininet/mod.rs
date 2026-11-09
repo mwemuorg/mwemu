@@ -1,13 +1,570 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
-use crate::winapi::helper;
 use crate::winapi::winapi32::kernel32;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 mod request;
 mod session;
 mod teardown;
 mod url;
+
+mod app_cache_check_manifest;
+pub use app_cache_check_manifest::AppCacheCheckManifest;
+mod app_cache_close_handle;
+pub use app_cache_close_handle::AppCacheCloseHandle;
+mod app_cache_create_and_commit_file;
+pub use app_cache_create_and_commit_file::AppCacheCreateAndCommitFile;
+mod app_cache_delete_group;
+pub use app_cache_delete_group::AppCacheDeleteGroup;
+mod app_cache_delete_ie_group;
+pub use app_cache_delete_ie_group::AppCacheDeleteIEGroup;
+mod app_cache_duplicate_handle;
+pub use app_cache_duplicate_handle::AppCacheDuplicateHandle;
+mod app_cache_finalize;
+pub use app_cache_finalize::AppCacheFinalize;
+mod app_cache_free_download_list;
+pub use app_cache_free_download_list::AppCacheFreeDownloadList;
+mod app_cache_free_group_list;
+pub use app_cache_free_group_list::AppCacheFreeGroupList;
+mod app_cache_free_ie_space;
+pub use app_cache_free_ie_space::AppCacheFreeIESpace;
+mod app_cache_free_space;
+pub use app_cache_free_space::AppCacheFreeSpace;
+mod app_cache_get_download_list;
+pub use app_cache_get_download_list::AppCacheGetDownloadList;
+mod app_cache_get_fallback_url;
+pub use app_cache_get_fallback_url::AppCacheGetFallbackUrl;
+mod app_cache_get_group_list;
+pub use app_cache_get_group_list::AppCacheGetGroupList;
+mod app_cache_get_ie_group_list;
+pub use app_cache_get_ie_group_list::AppCacheGetIEGroupList;
+mod app_cache_get_info;
+pub use app_cache_get_info::AppCacheGetInfo;
+mod app_cache_get_manifest_url;
+pub use app_cache_get_manifest_url::AppCacheGetManifestUrl;
+mod app_cache_lookup;
+pub use app_cache_lookup::AppCacheLookup;
+mod commit_url_cache_entry_a;
+pub use commit_url_cache_entry_a::CommitUrlCacheEntryA;
+mod commit_url_cache_entry_binary_blob;
+pub use commit_url_cache_entry_binary_blob::CommitUrlCacheEntryBinaryBlob;
+mod commit_url_cache_entry_w;
+pub use commit_url_cache_entry_w::CommitUrlCacheEntryW;
+mod create_md5_sso_hash;
+pub use create_md5_sso_hash::CreateMD5SSOHash;
+mod create_url_cache_container_a;
+pub use create_url_cache_container_a::CreateUrlCacheContainerA;
+mod create_url_cache_container_w;
+pub use create_url_cache_container_w::CreateUrlCacheContainerW;
+mod create_url_cache_entry_a;
+pub use create_url_cache_entry_a::CreateUrlCacheEntryA;
+mod create_url_cache_entry_ex_w;
+pub use create_url_cache_entry_ex_w::CreateUrlCacheEntryExW;
+mod create_url_cache_entry_w;
+pub use create_url_cache_entry_w::CreateUrlCacheEntryW;
+mod create_url_cache_group;
+pub use create_url_cache_group::CreateUrlCacheGroup;
+mod delete_ie3_cache;
+pub use delete_ie3_cache::DeleteIE3Cache;
+mod delete_url_cache_container_a;
+pub use delete_url_cache_container_a::DeleteUrlCacheContainerA;
+mod delete_url_cache_container_w;
+pub use delete_url_cache_container_w::DeleteUrlCacheContainerW;
+mod delete_url_cache_entry;
+pub use delete_url_cache_entry::DeleteUrlCacheEntry;
+mod delete_url_cache_entry_a;
+pub use delete_url_cache_entry_a::DeleteUrlCacheEntryA;
+mod delete_url_cache_entry_w;
+pub use delete_url_cache_entry_w::DeleteUrlCacheEntryW;
+mod delete_url_cache_group;
+pub use delete_url_cache_group::DeleteUrlCacheGroup;
+mod delete_wpad_cache_for_networks;
+pub use delete_wpad_cache_for_networks::DeleteWpadCacheForNetworks;
+mod detect_auto_proxy_url;
+pub use detect_auto_proxy_url::DetectAutoProxyUrl;
+mod dispatch_api_call;
+pub use dispatch_api_call::DispatchAPICall;
+mod dll_can_unload_now;
+pub use dll_can_unload_now::DllCanUnloadNow;
+mod dll_get_class_object;
+pub use dll_get_class_object::DllGetClassObject;
+mod dll_install;
+pub use dll_install::DllInstall;
+mod dll_register_server;
+pub use dll_register_server::DllRegisterServer;
+mod dll_unregister_server;
+pub use dll_unregister_server::DllUnregisterServer;
+mod find_close_url_cache;
+pub use find_close_url_cache::FindCloseUrlCache;
+mod find_first_url_cache_container_a;
+pub use find_first_url_cache_container_a::FindFirstUrlCacheContainerA;
+mod find_first_url_cache_container_w;
+pub use find_first_url_cache_container_w::FindFirstUrlCacheContainerW;
+mod find_first_url_cache_entry_a;
+pub use find_first_url_cache_entry_a::FindFirstUrlCacheEntryA;
+mod find_first_url_cache_entry_ex_a;
+pub use find_first_url_cache_entry_ex_a::FindFirstUrlCacheEntryExA;
+mod find_first_url_cache_entry_ex_w;
+pub use find_first_url_cache_entry_ex_w::FindFirstUrlCacheEntryExW;
+mod find_first_url_cache_entry_w;
+pub use find_first_url_cache_entry_w::FindFirstUrlCacheEntryW;
+mod find_first_url_cache_group;
+pub use find_first_url_cache_group::FindFirstUrlCacheGroup;
+mod find_next_url_cache_container_a;
+pub use find_next_url_cache_container_a::FindNextUrlCacheContainerA;
+mod find_next_url_cache_container_w;
+pub use find_next_url_cache_container_w::FindNextUrlCacheContainerW;
+mod find_next_url_cache_entry_a;
+pub use find_next_url_cache_entry_a::FindNextUrlCacheEntryA;
+mod find_next_url_cache_entry_ex_a;
+pub use find_next_url_cache_entry_ex_a::FindNextUrlCacheEntryExA;
+mod find_next_url_cache_entry_ex_w;
+pub use find_next_url_cache_entry_ex_w::FindNextUrlCacheEntryExW;
+mod find_next_url_cache_entry_w;
+pub use find_next_url_cache_entry_w::FindNextUrlCacheEntryW;
+mod find_next_url_cache_group;
+pub use find_next_url_cache_group::FindNextUrlCacheGroup;
+mod force_nexus_lookup;
+pub use force_nexus_lookup::ForceNexusLookup;
+mod force_nexus_lookup_ex_w;
+pub use force_nexus_lookup_ex_w::ForceNexusLookupExW;
+mod free_url_cache_space_a;
+pub use free_url_cache_space_a::FreeUrlCacheSpaceA;
+mod free_url_cache_space_w;
+pub use free_url_cache_space_w::FreeUrlCacheSpaceW;
+mod ftp_command_a;
+pub use ftp_command_a::FtpCommandA;
+mod ftp_command_w;
+pub use ftp_command_w::FtpCommandW;
+mod ftp_create_directory_a;
+pub use ftp_create_directory_a::FtpCreateDirectoryA;
+mod ftp_create_directory_w;
+pub use ftp_create_directory_w::FtpCreateDirectoryW;
+mod ftp_delete_file_a;
+pub use ftp_delete_file_a::FtpDeleteFileA;
+mod ftp_delete_file_w;
+pub use ftp_delete_file_w::FtpDeleteFileW;
+mod ftp_find_first_file_a;
+pub use ftp_find_first_file_a::FtpFindFirstFileA;
+mod ftp_find_first_file_w;
+pub use ftp_find_first_file_w::FtpFindFirstFileW;
+mod ftp_get_current_directory_a;
+pub use ftp_get_current_directory_a::FtpGetCurrentDirectoryA;
+mod ftp_get_current_directory_w;
+pub use ftp_get_current_directory_w::FtpGetCurrentDirectoryW;
+mod ftp_get_file_a;
+pub use ftp_get_file_a::FtpGetFileA;
+mod ftp_get_file_ex;
+pub use ftp_get_file_ex::FtpGetFileEx;
+mod ftp_get_file_size;
+pub use ftp_get_file_size::FtpGetFileSize;
+mod ftp_get_file_w;
+pub use ftp_get_file_w::FtpGetFileW;
+mod ftp_open_file_a;
+pub use ftp_open_file_a::FtpOpenFileA;
+mod ftp_open_file_w;
+pub use ftp_open_file_w::FtpOpenFileW;
+mod ftp_put_file_a;
+pub use ftp_put_file_a::FtpPutFileA;
+mod ftp_put_file_ex;
+pub use ftp_put_file_ex::FtpPutFileEx;
+mod ftp_put_file_w;
+pub use ftp_put_file_w::FtpPutFileW;
+mod ftp_remove_directory_a;
+pub use ftp_remove_directory_a::FtpRemoveDirectoryA;
+mod ftp_remove_directory_w;
+pub use ftp_remove_directory_w::FtpRemoveDirectoryW;
+mod ftp_rename_file_a;
+pub use ftp_rename_file_a::FtpRenameFileA;
+mod ftp_rename_file_w;
+pub use ftp_rename_file_w::FtpRenameFileW;
+mod ftp_set_current_directory_a;
+pub use ftp_set_current_directory_a::FtpSetCurrentDirectoryA;
+mod ftp_set_current_directory_w;
+pub use ftp_set_current_directory_w::FtpSetCurrentDirectoryW;
+mod get_proxy_dll_info;
+pub use get_proxy_dll_info::GetProxyDllInfo;
+mod get_url_cache_config_info_a;
+pub use get_url_cache_config_info_a::GetUrlCacheConfigInfoA;
+mod get_url_cache_config_info_w;
+pub use get_url_cache_config_info_w::GetUrlCacheConfigInfoW;
+mod get_url_cache_entry_binary_blob;
+pub use get_url_cache_entry_binary_blob::GetUrlCacheEntryBinaryBlob;
+mod get_url_cache_entry_info_a;
+pub use get_url_cache_entry_info_a::GetUrlCacheEntryInfoA;
+mod get_url_cache_entry_info_ex_a;
+pub use get_url_cache_entry_info_ex_a::GetUrlCacheEntryInfoExA;
+mod get_url_cache_entry_info_ex_w;
+pub use get_url_cache_entry_info_ex_w::GetUrlCacheEntryInfoExW;
+mod get_url_cache_entry_info_w;
+pub use get_url_cache_entry_info_w::GetUrlCacheEntryInfoW;
+mod get_url_cache_group_attribute_a;
+pub use get_url_cache_group_attribute_a::GetUrlCacheGroupAttributeA;
+mod get_url_cache_group_attribute_w;
+pub use get_url_cache_group_attribute_w::GetUrlCacheGroupAttributeW;
+mod get_url_cache_header_data;
+pub use get_url_cache_header_data::GetUrlCacheHeaderData;
+mod gopher_create_locator_a;
+pub use gopher_create_locator_a::GopherCreateLocatorA;
+mod gopher_create_locator_w;
+pub use gopher_create_locator_w::GopherCreateLocatorW;
+mod gopher_find_first_file_a;
+pub use gopher_find_first_file_a::GopherFindFirstFileA;
+mod gopher_find_first_file_w;
+pub use gopher_find_first_file_w::GopherFindFirstFileW;
+mod gopher_get_attribute_a;
+pub use gopher_get_attribute_a::GopherGetAttributeA;
+mod gopher_get_attribute_w;
+pub use gopher_get_attribute_w::GopherGetAttributeW;
+mod gopher_get_locator_type_a;
+pub use gopher_get_locator_type_a::GopherGetLocatorTypeA;
+mod gopher_get_locator_type_w;
+pub use gopher_get_locator_type_w::GopherGetLocatorTypeW;
+mod gopher_open_file_a;
+pub use gopher_open_file_a::GopherOpenFileA;
+mod gopher_open_file_w;
+pub use gopher_open_file_w::GopherOpenFileW;
+mod http_add_request_headers_a;
+pub use http_add_request_headers_a::HttpAddRequestHeadersA;
+mod http_add_request_headers_w;
+pub use http_add_request_headers_w::HttpAddRequestHeadersW;
+mod http_check_dav_compliance;
+pub use http_check_dav_compliance::HttpCheckDavCompliance;
+mod http_close_dependency_handle;
+pub use http_close_dependency_handle::HttpCloseDependencyHandle;
+mod http_duplicate_dependency_handle;
+pub use http_duplicate_dependency_handle::HttpDuplicateDependencyHandle;
+mod http_end_request_a;
+pub use http_end_request_a::HttpEndRequestA;
+mod http_end_request_w;
+pub use http_end_request_w::HttpEndRequestW;
+mod http_get_server_credentials;
+pub use http_get_server_credentials::HttpGetServerCredentials;
+mod http_get_tunnel_socket;
+pub use http_get_tunnel_socket::HttpGetTunnelSocket;
+mod http_indicate_page_load_complete;
+pub use http_indicate_page_load_complete::HttpIndicatePageLoadComplete;
+mod http_is_host_hsts_enabled;
+pub use http_is_host_hsts_enabled::HttpIsHostHstsEnabled;
+mod http_open_dependency_handle;
+pub use http_open_dependency_handle::HttpOpenDependencyHandle;
+mod http_push_close;
+pub use http_push_close::HttpPushClose;
+mod http_push_enable;
+pub use http_push_enable::HttpPushEnable;
+mod http_push_wait;
+pub use http_push_wait::HttpPushWait;
+mod http_send_request_ex_a;
+pub use http_send_request_ex_a::HttpSendRequestExA;
+mod http_send_request_ex_w;
+pub use http_send_request_ex_w::HttpSendRequestExW;
+mod http_web_socket_close;
+pub use http_web_socket_close::HttpWebSocketClose;
+mod http_web_socket_complete_upgrade;
+pub use http_web_socket_complete_upgrade::HttpWebSocketCompleteUpgrade;
+mod http_web_socket_query_close_status;
+pub use http_web_socket_query_close_status::HttpWebSocketQueryCloseStatus;
+mod http_web_socket_receive;
+pub use http_web_socket_receive::HttpWebSocketReceive;
+mod http_web_socket_send;
+pub use http_web_socket_send::HttpWebSocketSend;
+mod http_web_socket_shutdown;
+pub use http_web_socket_shutdown::HttpWebSocketShutdown;
+mod increment_url_cache_header_data;
+pub use increment_url_cache_header_data::IncrementUrlCacheHeaderData;
+mod internet_alg_id_to_string_a;
+pub use internet_alg_id_to_string_a::InternetAlgIdToStringA;
+mod internet_alg_id_to_string_w;
+pub use internet_alg_id_to_string_w::InternetAlgIdToStringW;
+mod internet_attempt_connect;
+pub use internet_attempt_connect::InternetAttemptConnect;
+mod internet_autodial;
+pub use internet_autodial::InternetAutodial;
+mod internet_autodial_callback;
+pub use internet_autodial_callback::InternetAutodialCallback;
+mod internet_autodial_hangup;
+pub use internet_autodial_hangup::InternetAutodialHangup;
+mod internet_canonicalize_url_a;
+pub use internet_canonicalize_url_a::InternetCanonicalizeUrlA;
+mod internet_canonicalize_url_w;
+pub use internet_canonicalize_url_w::InternetCanonicalizeUrlW;
+mod internet_check_connection_a;
+pub use internet_check_connection_a::InternetCheckConnectionA;
+mod internet_check_connection_w;
+pub use internet_check_connection_w::InternetCheckConnectionW;
+mod internet_clear_all_per_site_cookie_decisions;
+pub use internet_clear_all_per_site_cookie_decisions::InternetClearAllPerSiteCookieDecisions;
+mod internet_combine_url_a;
+pub use internet_combine_url_a::InternetCombineUrlA;
+mod internet_combine_url_w;
+pub use internet_combine_url_w::InternetCombineUrlW;
+mod internet_confirm_zone_crossing;
+pub use internet_confirm_zone_crossing::InternetConfirmZoneCrossing;
+mod internet_confirm_zone_crossing_a;
+pub use internet_confirm_zone_crossing_a::InternetConfirmZoneCrossingA;
+mod internet_confirm_zone_crossing_w;
+pub use internet_confirm_zone_crossing_w::InternetConfirmZoneCrossingW;
+mod internet_convert_url_from_wire_to_wide_char;
+pub use internet_convert_url_from_wire_to_wide_char::InternetConvertUrlFromWireToWideChar;
+mod internet_create_url_a;
+pub use internet_create_url_a::InternetCreateUrlA;
+mod internet_create_url_w;
+pub use internet_create_url_w::InternetCreateUrlW;
+mod internet_dial;
+pub use internet_dial::InternetDial;
+mod internet_dial_a;
+pub use internet_dial_a::InternetDialA;
+mod internet_dial_w;
+pub use internet_dial_w::InternetDialW;
+mod internet_enum_per_site_cookie_decision_a;
+pub use internet_enum_per_site_cookie_decision_a::InternetEnumPerSiteCookieDecisionA;
+mod internet_enum_per_site_cookie_decision_w;
+pub use internet_enum_per_site_cookie_decision_w::InternetEnumPerSiteCookieDecisionW;
+mod internet_find_next_file_a;
+pub use internet_find_next_file_a::InternetFindNextFileA;
+mod internet_find_next_file_w;
+pub use internet_find_next_file_w::InternetFindNextFileW;
+mod internet_fortezza_command;
+pub use internet_fortezza_command::InternetFortezzaCommand;
+mod internet_free_cookies;
+pub use internet_free_cookies::InternetFreeCookies;
+mod internet_free_proxy_info_list;
+pub use internet_free_proxy_info_list::InternetFreeProxyInfoList;
+mod internet_get_cert_by_url;
+pub use internet_get_cert_by_url::InternetGetCertByURL;
+mod internet_get_cert_by_urla;
+pub use internet_get_cert_by_urla::InternetGetCertByURLA;
+mod internet_get_connected_state;
+pub use internet_get_connected_state::InternetGetConnectedState;
+mod internet_get_connected_state_ex;
+pub use internet_get_connected_state_ex::InternetGetConnectedStateEx;
+mod internet_get_connected_state_ex_a;
+pub use internet_get_connected_state_ex_a::InternetGetConnectedStateExA;
+mod internet_get_connected_state_ex_w;
+pub use internet_get_connected_state_ex_w::InternetGetConnectedStateExW;
+mod internet_get_cookie_a;
+pub use internet_get_cookie_a::InternetGetCookieA;
+mod internet_get_cookie_ex2;
+pub use internet_get_cookie_ex2::InternetGetCookieEx2;
+mod internet_get_cookie_ex_a;
+pub use internet_get_cookie_ex_a::InternetGetCookieExA;
+mod internet_get_cookie_ex_w;
+pub use internet_get_cookie_ex_w::InternetGetCookieExW;
+mod internet_get_cookie_w;
+pub use internet_get_cookie_w::InternetGetCookieW;
+mod internet_get_last_response_info_a;
+pub use internet_get_last_response_info_a::InternetGetLastResponseInfoA;
+mod internet_get_last_response_info_w;
+pub use internet_get_last_response_info_w::InternetGetLastResponseInfoW;
+mod internet_get_per_site_cookie_decision_a;
+pub use internet_get_per_site_cookie_decision_a::InternetGetPerSiteCookieDecisionA;
+mod internet_get_per_site_cookie_decision_w;
+pub use internet_get_per_site_cookie_decision_w::InternetGetPerSiteCookieDecisionW;
+mod internet_get_proxy_for_url;
+pub use internet_get_proxy_for_url::InternetGetProxyForUrl;
+mod internet_get_security_info_by_url;
+pub use internet_get_security_info_by_url::InternetGetSecurityInfoByURL;
+mod internet_get_security_info_by_urla;
+pub use internet_get_security_info_by_urla::InternetGetSecurityInfoByURLA;
+mod internet_get_security_info_by_urlw;
+pub use internet_get_security_info_by_urlw::InternetGetSecurityInfoByURLW;
+mod internet_go_online;
+pub use internet_go_online::InternetGoOnline;
+mod internet_go_online_a;
+pub use internet_go_online_a::InternetGoOnlineA;
+mod internet_go_online_w;
+pub use internet_go_online_w::InternetGoOnlineW;
+mod internet_hang_up;
+pub use internet_hang_up::InternetHangUp;
+mod internet_initialize_auto_proxy_dll;
+pub use internet_initialize_auto_proxy_dll::InternetInitializeAutoProxyDll;
+mod internet_lock_request_file;
+pub use internet_lock_request_file::InternetLockRequestFile;
+mod internet_open_url_a;
+pub use internet_open_url_a::InternetOpenUrlA;
+mod internet_open_url_w;
+pub use internet_open_url_w::InternetOpenUrlW;
+mod internet_query_data_available;
+pub use internet_query_data_available::InternetQueryDataAvailable;
+mod internet_query_fortezza_status;
+pub use internet_query_fortezza_status::InternetQueryFortezzaStatus;
+mod internet_security_protocol_to_string_a;
+pub use internet_security_protocol_to_string_a::InternetSecurityProtocolToStringA;
+mod internet_security_protocol_to_string_w;
+pub use internet_security_protocol_to_string_w::InternetSecurityProtocolToStringW;
+mod internet_set_cookie_a;
+pub use internet_set_cookie_a::InternetSetCookieA;
+mod internet_set_cookie_ex2;
+pub use internet_set_cookie_ex2::InternetSetCookieEx2;
+mod internet_set_cookie_ex_a;
+pub use internet_set_cookie_ex_a::InternetSetCookieExA;
+mod internet_set_cookie_ex_w;
+pub use internet_set_cookie_ex_w::InternetSetCookieExW;
+mod internet_set_cookie_w;
+pub use internet_set_cookie_w::InternetSetCookieW;
+mod internet_set_dial_state;
+pub use internet_set_dial_state::InternetSetDialState;
+mod internet_set_dial_state_a;
+pub use internet_set_dial_state_a::InternetSetDialStateA;
+mod internet_set_dial_state_w;
+pub use internet_set_dial_state_w::InternetSetDialStateW;
+mod internet_set_file_pointer;
+pub use internet_set_file_pointer::InternetSetFilePointer;
+mod internet_set_option_ex_a;
+pub use internet_set_option_ex_a::InternetSetOptionExA;
+mod internet_set_option_ex_w;
+pub use internet_set_option_ex_w::InternetSetOptionExW;
+mod internet_set_per_site_cookie_decision_a;
+pub use internet_set_per_site_cookie_decision_a::InternetSetPerSiteCookieDecisionA;
+mod internet_set_per_site_cookie_decision_w;
+pub use internet_set_per_site_cookie_decision_w::InternetSetPerSiteCookieDecisionW;
+mod internet_set_secure_legacy_servers_app_compat;
+pub use internet_set_secure_legacy_servers_app_compat::InternetSetSecureLegacyServersAppCompat;
+mod internet_show_security_info_by_url;
+pub use internet_show_security_info_by_url::InternetShowSecurityInfoByURL;
+mod internet_show_security_info_by_urla;
+pub use internet_show_security_info_by_urla::InternetShowSecurityInfoByURLA;
+mod internet_show_security_info_by_urlw;
+pub use internet_show_security_info_by_urlw::InternetShowSecurityInfoByURLW;
+mod internet_time_from_system_time;
+pub use internet_time_from_system_time::InternetTimeFromSystemTime;
+mod internet_time_from_system_time_a;
+pub use internet_time_from_system_time_a::InternetTimeFromSystemTimeA;
+mod internet_time_from_system_time_w;
+pub use internet_time_from_system_time_w::InternetTimeFromSystemTimeW;
+mod internet_time_to_system_time;
+pub use internet_time_to_system_time::InternetTimeToSystemTime;
+mod internet_time_to_system_time_a;
+pub use internet_time_to_system_time_a::InternetTimeToSystemTimeA;
+mod internet_time_to_system_time_w;
+pub use internet_time_to_system_time_w::InternetTimeToSystemTimeW;
+mod _get_file_extension_from_url;
+pub use _get_file_extension_from_url::_GetFileExtensionFromUrl;
+mod internet_unlock_request_file;
+pub use internet_unlock_request_file::InternetUnlockRequestFile;
+mod internet_write_file;
+pub use internet_write_file::InternetWriteFile;
+mod internet_write_file_ex_a;
+pub use internet_write_file_ex_a::InternetWriteFileExA;
+mod internet_write_file_ex_w;
+pub use internet_write_file_ex_w::InternetWriteFileExW;
+mod is_host_in_proxy_bypass_list;
+pub use is_host_in_proxy_bypass_list::IsHostInProxyBypassList;
+mod is_url_cache_entry_expired_a;
+pub use is_url_cache_entry_expired_a::IsUrlCacheEntryExpiredA;
+mod is_url_cache_entry_expired_w;
+pub use is_url_cache_entry_expired_w::IsUrlCacheEntryExpiredW;
+mod load_url_cache_content;
+pub use load_url_cache_content::LoadUrlCacheContent;
+mod parse_x509_encoded_certificate_for_list_box_entry;
+pub use parse_x509_encoded_certificate_for_list_box_entry::ParseX509EncodedCertificateForListBoxEntry;
+mod privacy_get_zone_preference_w;
+pub use privacy_get_zone_preference_w::PrivacyGetZonePreferenceW;
+mod privacy_set_zone_preference_w;
+pub use privacy_set_zone_preference_w::PrivacySetZonePreferenceW;
+mod read_url_cache_entry_stream;
+pub use read_url_cache_entry_stream::ReadUrlCacheEntryStream;
+mod read_url_cache_entry_stream_ex;
+pub use read_url_cache_entry_stream_ex::ReadUrlCacheEntryStreamEx;
+mod register_url_cache_notification;
+pub use register_url_cache_notification::RegisterUrlCacheNotification;
+mod resume_suspended_download;
+pub use resume_suspended_download::ResumeSuspendedDownload;
+mod retrieve_url_cache_entry_file_a;
+pub use retrieve_url_cache_entry_file_a::RetrieveUrlCacheEntryFileA;
+mod retrieve_url_cache_entry_file_w;
+pub use retrieve_url_cache_entry_file_w::RetrieveUrlCacheEntryFileW;
+mod retrieve_url_cache_entry_stream_a;
+pub use retrieve_url_cache_entry_stream_a::RetrieveUrlCacheEntryStreamA;
+mod retrieve_url_cache_entry_stream_w;
+pub use retrieve_url_cache_entry_stream_w::RetrieveUrlCacheEntryStreamW;
+mod run_once_url_cache;
+pub use run_once_url_cache::RunOnceUrlCache;
+mod set_url_cache_config_info_a;
+pub use set_url_cache_config_info_a::SetUrlCacheConfigInfoA;
+mod set_url_cache_config_info_w;
+pub use set_url_cache_config_info_w::SetUrlCacheConfigInfoW;
+mod set_url_cache_entry_group;
+pub use set_url_cache_entry_group::SetUrlCacheEntryGroup;
+mod set_url_cache_entry_group_a;
+pub use set_url_cache_entry_group_a::SetUrlCacheEntryGroupA;
+mod set_url_cache_entry_group_w;
+pub use set_url_cache_entry_group_w::SetUrlCacheEntryGroupW;
+mod set_url_cache_entry_info_a;
+pub use set_url_cache_entry_info_a::SetUrlCacheEntryInfoA;
+mod set_url_cache_entry_info_w;
+pub use set_url_cache_entry_info_w::SetUrlCacheEntryInfoW;
+mod set_url_cache_group_attribute_a;
+pub use set_url_cache_group_attribute_a::SetUrlCacheGroupAttributeA;
+mod set_url_cache_group_attribute_w;
+pub use set_url_cache_group_attribute_w::SetUrlCacheGroupAttributeW;
+mod set_url_cache_header_data;
+pub use set_url_cache_header_data::SetUrlCacheHeaderData;
+mod show_certificate;
+pub use show_certificate::ShowCertificate;
+mod show_client_auth_certs;
+pub use show_client_auth_certs::ShowClientAuthCerts;
+mod show_security_info;
+pub use show_security_info::ShowSecurityInfo;
+mod show_x509_encoded_certificate;
+pub use show_x509_encoded_certificate::ShowX509EncodedCertificate;
+mod unlock_url_cache_entry_file;
+pub use unlock_url_cache_entry_file::UnlockUrlCacheEntryFile;
+mod unlock_url_cache_entry_file_a;
+pub use unlock_url_cache_entry_file_a::UnlockUrlCacheEntryFileA;
+mod unlock_url_cache_entry_file_w;
+pub use unlock_url_cache_entry_file_w::UnlockUrlCacheEntryFileW;
+mod unlock_url_cache_entry_stream;
+pub use unlock_url_cache_entry_stream::UnlockUrlCacheEntryStream;
+mod update_url_cache_content_path;
+pub use update_url_cache_content_path::UpdateUrlCacheContentPath;
+mod url_cache_check_entries_exist;
+pub use url_cache_check_entries_exist::UrlCacheCheckEntriesExist;
+mod url_cache_close_entry_handle;
+pub use url_cache_close_entry_handle::UrlCacheCloseEntryHandle;
+mod url_cache_container_set_entry_maximum_age;
+pub use url_cache_container_set_entry_maximum_age::UrlCacheContainerSetEntryMaximumAge;
+mod url_cache_create_container;
+pub use url_cache_create_container::UrlCacheCreateContainer;
+mod url_cache_find_first_entry;
+pub use url_cache_find_first_entry::UrlCacheFindFirstEntry;
+mod url_cache_find_next_entry;
+pub use url_cache_find_next_entry::UrlCacheFindNextEntry;
+mod url_cache_free_entry_info;
+pub use url_cache_free_entry_info::UrlCacheFreeEntryInfo;
+mod url_cache_free_global_space;
+pub use url_cache_free_global_space::UrlCacheFreeGlobalSpace;
+mod url_cache_get_content_paths;
+pub use url_cache_get_content_paths::UrlCacheGetContentPaths;
+mod url_cache_get_entry_info;
+pub use url_cache_get_entry_info::UrlCacheGetEntryInfo;
+mod url_cache_get_global_cache_size;
+pub use url_cache_get_global_cache_size::UrlCacheGetGlobalCacheSize;
+mod url_cache_get_global_limit;
+pub use url_cache_get_global_limit::UrlCacheGetGlobalLimit;
+mod url_cache_read_entry_stream;
+pub use url_cache_read_entry_stream::UrlCacheReadEntryStream;
+mod url_cache_reload_settings;
+pub use url_cache_reload_settings::UrlCacheReloadSettings;
+mod url_cache_retrieve_entry_file;
+pub use url_cache_retrieve_entry_file::UrlCacheRetrieveEntryFile;
+mod url_cache_retrieve_entry_stream;
+pub use url_cache_retrieve_entry_stream::UrlCacheRetrieveEntryStream;
+mod url_cache_server;
+pub use url_cache_server::UrlCacheServer;
+mod url_cache_set_global_limit;
+pub use url_cache_set_global_limit::UrlCacheSetGlobalLimit;
+mod url_cache_update_entry_extra_data;
+pub use url_cache_update_entry_extra_data::UrlCacheUpdateEntryExtraData;
+mod url_zones_detach;
+pub use url_zones_detach::UrlZonesDetach;
+mod http_query_info_w;
+pub use http_query_info_w::HttpQueryInfoW;
+mod internet_query_option_a;
+pub use internet_query_option_a::InternetQueryOptionA;
+mod internet_query_option_w;
+pub use internet_query_option_w::InternetQueryOptionW;
+mod internet_set_status_callback;
+pub use internet_set_status_callback::InternetSetStatusCallback;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
@@ -31,3430 +588,289 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "InternetCloseHandle" => teardown::internet_close_handle(emu),
         "InternetCrackUrlA" => url::internet_crack_url_a(emu),
         "InternetCrackUrlW" => url::internet_crack_url_w(emu),
-        "AppCacheCheckManifest" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheCheckManifest arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheCloseHandle" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheCloseHandle arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheCreateAndCommitFile" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheCreateAndCommitFile arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheDeleteGroup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheDeleteGroup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheDeleteIEGroup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheDeleteIEGroup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheDuplicateHandle" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheDuplicateHandle arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheFinalize" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheFinalize arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheFreeDownloadList" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheFreeDownloadList arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheFreeGroupList" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheFreeGroupList arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheFreeIESpace" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheFreeIESpace arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheFreeSpace" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheFreeSpace arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheGetDownloadList" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheGetDownloadList arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheGetFallbackUrl" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheGetFallbackUrl arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheGetGroupList" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheGetGroupList arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheGetIEGroupList" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheGetIEGroupList arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheGetInfo" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheGetInfo arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheGetManifestUrl" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheGetManifestUrl arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "AppCacheLookup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!AppCacheLookup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "CommitUrlCacheEntryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CommitUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 10);
-        }
-        "CommitUrlCacheEntryBinaryBlob" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CommitUrlCacheEntryBinaryBlob arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "CommitUrlCacheEntryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CommitUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 10);
-        }
-        "CreateMD5SSOHash" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CreateMD5SSOHash arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("createmd5ssohash");
-            stdcall_ret(emu, 1);
-        }
-        "CreateUrlCacheContainerA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CreateUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "CreateUrlCacheContainerW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CreateUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "CreateUrlCacheEntryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CreateUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("createurlcacheentrya");
-            stdcall_ret(emu, 6);
-        }
-        "CreateUrlCacheEntryExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CreateUrlCacheEntryExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "CreateUrlCacheEntryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CreateUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("createurlcacheentryw");
-            stdcall_ret(emu, 6);
-        }
-        "CreateUrlCacheGroup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!CreateUrlCacheGroup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("createurlcachegroup");
-            stdcall_ret(emu, 2);
-        }
-        "DeleteIE3Cache" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!DeleteIE3Cache handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "DeleteUrlCacheContainerA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!DeleteUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "DeleteUrlCacheContainerW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!DeleteUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "DeleteUrlCacheEntry" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!DeleteUrlCacheEntry handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "DeleteUrlCacheEntryA" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!DeleteUrlCacheEntryA handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "DeleteUrlCacheEntryW" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!DeleteUrlCacheEntryW handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "DeleteUrlCacheGroup" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!DeleteUrlCacheGroup handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "DeleteWpadCacheForNetworks" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!DeleteWpadCacheForNetworks handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "DetectAutoProxyUrl" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!DetectAutoProxyUrl arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "DispatchAPICall" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!DispatchAPICall arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "DllCanUnloadNow" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!DllCanUnloadNow arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "DllGetClassObject" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!DllGetClassObject arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "DllInstall" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!DllInstall arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "DllRegisterServer" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!DllRegisterServer arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("dllregisterserver");
-            stdcall_ret(emu, 2);
-        }
-        "DllUnregisterServer" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!DllUnregisterServer handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FindCloseUrlCache" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!FindCloseUrlCache handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "FindFirstUrlCacheContainerA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindFirstUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("findfirsturlcachecontainera");
-            stdcall_ret(emu, 2);
-        }
-        "FindFirstUrlCacheContainerW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindFirstUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("findfirsturlcachecontainerw");
-            stdcall_ret(emu, 2);
-        }
-        "FindFirstUrlCacheEntryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindFirstUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentrya");
-            stdcall_ret(emu, 2);
-        }
-        "FindFirstUrlCacheEntryExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindFirstUrlCacheEntryExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentryexa");
-            stdcall_ret(emu, 2);
-        }
-        "FindFirstUrlCacheEntryExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindFirstUrlCacheEntryExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentryexw");
-            stdcall_ret(emu, 2);
-        }
-        "FindFirstUrlCacheEntryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindFirstUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentryw");
-            stdcall_ret(emu, 2);
-        }
-        "FindFirstUrlCacheGroup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindFirstUrlCacheGroup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("findfirsturlcachegroup");
-            stdcall_ret(emu, 2);
-        }
-        "FindNextUrlCacheContainerA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindNextUrlCacheContainerA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "FindNextUrlCacheContainerW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindNextUrlCacheContainerW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "FindNextUrlCacheEntryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindNextUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "FindNextUrlCacheEntryExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindNextUrlCacheEntryExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "FindNextUrlCacheEntryExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindNextUrlCacheEntryExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "FindNextUrlCacheEntryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindNextUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "FindNextUrlCacheGroup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FindNextUrlCacheGroup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "ForceNexusLookup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ForceNexusLookup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "ForceNexusLookupExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ForceNexusLookupExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FreeUrlCacheSpaceA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FreeUrlCacheSpaceA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "FreeUrlCacheSpaceW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FreeUrlCacheSpaceW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "FtpCommandA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpCommandA arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "FtpCommandW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpCommandW arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "FtpCreateDirectoryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpCreateDirectoryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpCreateDirectoryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpCreateDirectoryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpDeleteFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpDeleteFileA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpDeleteFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpDeleteFileW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpFindFirstFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpFindFirstFileA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
-            stdcall_ret(emu, 4);
-        }
-        "FtpFindFirstFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpFindFirstFileW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
-            stdcall_ret(emu, 4);
-        }
-        "FtpGetCurrentDirectoryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpGetCurrentDirectoryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpGetCurrentDirectoryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpGetCurrentDirectoryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpGetFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpGetFileA arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpGetFileEx" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpGetFileEx arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpGetFileSize" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpGetFileSize arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "FtpGetFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpGetFileW arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpOpenFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpOpenFileA arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.regs_mut().rax = helper::handler_create("ftpopenfilea");
-            stdcall_ret(emu, 4);
-        }
-        "FtpOpenFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpOpenFileW arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.regs_mut().rax = helper::handler_create("ftpopenfilew");
-            stdcall_ret(emu, 4);
-        }
-        "FtpPutFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpPutFileA arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpPutFileEx" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpPutFileEx arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpPutFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!FtpPutFileW arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpRemoveDirectoryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpRemoveDirectoryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpRemoveDirectoryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpRemoveDirectoryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpRenameFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpRenameFileA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpRenameFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpRenameFileW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "FtpSetCurrentDirectoryA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpSetCurrentDirectoryA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "FtpSetCurrentDirectoryW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!FtpSetCurrentDirectoryW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "GetProxyDllInfo" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetProxyDllInfo arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheConfigInfoA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheConfigInfoA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "GetUrlCacheConfigInfoW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheConfigInfoW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "GetUrlCacheEntryBinaryBlob" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheEntryBinaryBlob arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheEntryInfoA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheEntryInfoA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheEntryInfoExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheEntryInfoExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheEntryInfoExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheEntryInfoExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheEntryInfoW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheEntryInfoW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheGroupAttributeA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheGroupAttributeA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheGroupAttributeW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheGroupAttributeW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GetUrlCacheHeaderData" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GetUrlCacheHeaderData arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "GopherCreateLocatorA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherCreateLocatorA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("gophercreatelocatora");
-            stdcall_ret(emu, 2);
-        }
-        "GopherCreateLocatorW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherCreateLocatorW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("gophercreatelocatorw");
-            stdcall_ret(emu, 2);
-        }
-        "GopherFindFirstFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherFindFirstFileA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
-            stdcall_ret(emu, 6);
-        }
-        "GopherFindFirstFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherFindFirstFileW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
-            stdcall_ret(emu, 6);
-        }
-        "GopherGetAttributeA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherGetAttributeA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GopherGetAttributeW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherGetAttributeW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GopherGetLocatorTypeA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherGetLocatorTypeA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GopherGetLocatorTypeW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherGetLocatorTypeW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "GopherOpenFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherOpenFileA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("gopheropenfilea");
-            stdcall_ret(emu, 6);
-        }
-        "GopherOpenFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!GopherOpenFileW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("gopheropenfilew");
-            stdcall_ret(emu, 6);
-        }
-        "HttpAddRequestHeadersA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpAddRequestHeadersA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "HttpAddRequestHeadersW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpAddRequestHeadersW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "HttpCheckDavCompliance" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpCheckDavCompliance arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpCloseDependencyHandle" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpCloseDependencyHandle handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "HttpDuplicateDependencyHandle" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpDuplicateDependencyHandle arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("httpduplicatedependencyhandle");
-            stdcall_ret(emu, 2);
-        }
-        "HttpEndRequestA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpEndRequestA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "HttpEndRequestW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpEndRequestW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "HttpGetServerCredentials" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpGetServerCredentials arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpGetTunnelSocket" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpGetTunnelSocket arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpIndicatePageLoadComplete" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpIndicatePageLoadComplete arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("httpindicatepageloadcomplete");
-            stdcall_ret(emu, 2);
-        }
-        "HttpIsHostHstsEnabled" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpIsHostHstsEnabled arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("httpishosthstsenabled");
-            stdcall_ret(emu, 2);
-        }
-        "HttpOpenDependencyHandle" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpOpenDependencyHandle arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("httpopendependencyhandle");
-            stdcall_ret(emu, 2);
-        }
-        "HttpPushClose" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!HttpPushClose handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "HttpPushEnable" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpPushEnable arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("httppushenable");
-            stdcall_ret(emu, 2);
-        }
-        "HttpPushWait" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!HttpPushWait arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpSendRequestExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpSendRequestExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "HttpSendRequestExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpSendRequestExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "HttpWebSocketClose" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!HttpWebSocketClose handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "HttpWebSocketCompleteUpgrade" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketCompleteUpgrade arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpWebSocketQueryCloseStatus" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketQueryCloseStatus handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "HttpWebSocketReceive" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketReceive arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpWebSocketSend" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketSend arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpWebSocketShutdown" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpWebSocketShutdown arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "IncrementUrlCacheHeaderData" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!IncrementUrlCacheHeaderData arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetAlgIdToStringA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetAlgIdToStringA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetAlgIdToStringW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetAlgIdToStringW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetAttemptConnect" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetAttemptConnect arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("internetattemptconnect");
-            stdcall_ret(emu, 1);
-        }
-        "InternetAutodial" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetAutodial arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetAutodialCallback" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetAutodialCallback arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetAutodialHangup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetAutodialHangup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetCanonicalizeUrlA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCanonicalizeUrlA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetCanonicalizeUrlW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCanonicalizeUrlW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetCheckConnectionA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCheckConnectionA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetCheckConnectionW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCheckConnectionW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetClearAllPerSiteCookieDecisions" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetClearAllPerSiteCookieDecisions arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetCombineUrlA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCombineUrlA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetCombineUrlW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCombineUrlW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetConfirmZoneCrossing" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetConfirmZoneCrossing arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 3);
-        }
-        "InternetConfirmZoneCrossingA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetConfirmZoneCrossingA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 3);
-        }
-        "InternetConfirmZoneCrossingW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetConfirmZoneCrossingW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 3);
-        }
-        "InternetConvertUrlFromWireToWideChar" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetConvertUrlFromWireToWideChar arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetCreateUrlA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCreateUrlA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetCreateUrlW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetCreateUrlW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetDial" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!InternetDial arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetDialA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!InternetDialA arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetDialW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(emu, "wininet!InternetDialW arg0:0x{:x} arg1:0x{:x}", a0, a1);
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetEnumPerSiteCookieDecisionA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetEnumPerSiteCookieDecisionA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 3);
-        }
-        "InternetEnumPerSiteCookieDecisionW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetEnumPerSiteCookieDecisionW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 3);
-        }
-        "InternetFindNextFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetFindNextFileA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetFindNextFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetFindNextFileW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetFortezzaCommand" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetFortezzaCommand arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetFreeCookies" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!InternetFreeCookies handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetFreeProxyInfoList" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetFreeProxyInfoList handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetGetCertByURL" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetCertByURL arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetGetCertByURLA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetCertByURLA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetConnectedState" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetConnectedState arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetGetConnectedStateEx" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetConnectedStateEx arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetGetConnectedStateExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetConnectedStateExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetGetConnectedStateExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetConnectedStateExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetGetCookieA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetCookieA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetCookieEx2" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetCookieEx2 arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetCookieExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetCookieExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetCookieExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetCookieExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetCookieW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetCookieW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetLastResponseInfoA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetLastResponseInfoA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetGetLastResponseInfoW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetLastResponseInfoW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetGetPerSiteCookieDecisionA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetPerSiteCookieDecisionA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "InternetGetPerSiteCookieDecisionW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetPerSiteCookieDecisionW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "InternetGetProxyForUrl" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetProxyForUrl arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetSecurityInfoByURL" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetSecurityInfoByURL arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetGetSecurityInfoByURLA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetSecurityInfoByURLA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGetSecurityInfoByURLW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGetSecurityInfoByURLW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetGoOnline" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGoOnline arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetGoOnlineA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGoOnlineA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetGoOnlineW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetGoOnlineW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetHangUp" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetHangUp arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetInitializeAutoProxyDll" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetInitializeAutoProxyDll arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("internetinitializeautoproxydll");
-            stdcall_ret(emu, 3);
-        }
-        "InternetLockRequestFile" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetLockRequestFile arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetOpenUrlA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetOpenUrlA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("internetopenurla");
-            stdcall_ret(emu, 4);
-        }
-        "InternetOpenUrlW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetOpenUrlW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("internetopenurlw");
-            stdcall_ret(emu, 4);
-        }
-        "InternetQueryDataAvailable" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetQueryDataAvailable arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetQueryFortezzaStatus" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetQueryFortezzaStatus arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetSecurityProtocolToStringA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSecurityProtocolToStringA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetSecurityProtocolToStringW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSecurityProtocolToStringW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetSetCookieA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetCookieA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetSetCookieEx2" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetCookieEx2 arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "InternetSetCookieExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetCookieExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetSetCookieExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetCookieExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetSetCookieW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetCookieW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetSetDialState" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetDialState arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetSetDialStateA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetDialStateA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetSetDialStateW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetDialStateW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetSetFilePointer" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetFilePointer arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 3);
-        }
-        "InternetSetOptionExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetOptionExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetSetOptionExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetOptionExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetSetPerSiteCookieDecisionA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetPerSiteCookieDecisionA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetSetPerSiteCookieDecisionW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetPerSiteCookieDecisionW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetSetSecureLegacyServersAppCompat" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetSetSecureLegacyServersAppCompat arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetShowSecurityInfoByURL" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetShowSecurityInfoByURL arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "InternetShowSecurityInfoByURLA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetShowSecurityInfoByURLA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "InternetShowSecurityInfoByURLW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetShowSecurityInfoByURLW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "InternetTimeFromSystemTime" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeFromSystemTime arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetTimeFromSystemTimeA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeFromSystemTimeA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetTimeFromSystemTimeW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeFromSystemTimeW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetTimeToSystemTime" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeToSystemTime arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "InternetTimeToSystemTimeA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeToSystemTimeA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "InternetTimeToSystemTimeW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetTimeToSystemTimeW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "_GetFileExtensionFromUrl" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!_GetFileExtensionFromUrl arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "InternetUnlockRequestFile" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetUnlockRequestFile handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "InternetWriteFile" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetWriteFile arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetWriteFileExA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetWriteFileExA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetWriteFileExW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetWriteFileExW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "IsHostInProxyBypassList" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!IsHostInProxyBypassList arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "IsUrlCacheEntryExpiredA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!IsUrlCacheEntryExpiredA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "IsUrlCacheEntryExpiredW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!IsUrlCacheEntryExpiredW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "LoadUrlCacheContent" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!LoadUrlCacheContent arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("loadurlcachecontent");
-            stdcall_ret(emu, 1);
-        }
+        "AppCacheCheckManifest" => AppCacheCheckManifest(emu),
+        "AppCacheCloseHandle" => AppCacheCloseHandle(emu),
+        "AppCacheCreateAndCommitFile" => AppCacheCreateAndCommitFile(emu),
+        "AppCacheDeleteGroup" => AppCacheDeleteGroup(emu),
+        "AppCacheDeleteIEGroup" => AppCacheDeleteIEGroup(emu),
+        "AppCacheDuplicateHandle" => AppCacheDuplicateHandle(emu),
+        "AppCacheFinalize" => AppCacheFinalize(emu),
+        "AppCacheFreeDownloadList" => AppCacheFreeDownloadList(emu),
+        "AppCacheFreeGroupList" => AppCacheFreeGroupList(emu),
+        "AppCacheFreeIESpace" => AppCacheFreeIESpace(emu),
+        "AppCacheFreeSpace" => AppCacheFreeSpace(emu),
+        "AppCacheGetDownloadList" => AppCacheGetDownloadList(emu),
+        "AppCacheGetFallbackUrl" => AppCacheGetFallbackUrl(emu),
+        "AppCacheGetGroupList" => AppCacheGetGroupList(emu),
+        "AppCacheGetIEGroupList" => AppCacheGetIEGroupList(emu),
+        "AppCacheGetInfo" => AppCacheGetInfo(emu),
+        "AppCacheGetManifestUrl" => AppCacheGetManifestUrl(emu),
+        "AppCacheLookup" => AppCacheLookup(emu),
+        "CommitUrlCacheEntryA" => CommitUrlCacheEntryA(emu),
+        "CommitUrlCacheEntryBinaryBlob" => CommitUrlCacheEntryBinaryBlob(emu),
+        "CommitUrlCacheEntryW" => CommitUrlCacheEntryW(emu),
+        "CreateMD5SSOHash" => CreateMD5SSOHash(emu),
+        "CreateUrlCacheContainerA" => CreateUrlCacheContainerA(emu),
+        "CreateUrlCacheContainerW" => CreateUrlCacheContainerW(emu),
+        "CreateUrlCacheEntryA" => CreateUrlCacheEntryA(emu),
+        "CreateUrlCacheEntryExW" => CreateUrlCacheEntryExW(emu),
+        "CreateUrlCacheEntryW" => CreateUrlCacheEntryW(emu),
+        "CreateUrlCacheGroup" => CreateUrlCacheGroup(emu),
+        "DeleteIE3Cache" => DeleteIE3Cache(emu),
+        "DeleteUrlCacheContainerA" => DeleteUrlCacheContainerA(emu),
+        "DeleteUrlCacheContainerW" => DeleteUrlCacheContainerW(emu),
+        "DeleteUrlCacheEntry" => DeleteUrlCacheEntry(emu),
+        "DeleteUrlCacheEntryA" => DeleteUrlCacheEntryA(emu),
+        "DeleteUrlCacheEntryW" => DeleteUrlCacheEntryW(emu),
+        "DeleteUrlCacheGroup" => DeleteUrlCacheGroup(emu),
+        "DeleteWpadCacheForNetworks" => DeleteWpadCacheForNetworks(emu),
+        "DetectAutoProxyUrl" => DetectAutoProxyUrl(emu),
+        "DispatchAPICall" => DispatchAPICall(emu),
+        "DllCanUnloadNow" => DllCanUnloadNow(emu),
+        "DllGetClassObject" => DllGetClassObject(emu),
+        "DllInstall" => DllInstall(emu),
+        "DllRegisterServer" => DllRegisterServer(emu),
+        "DllUnregisterServer" => DllUnregisterServer(emu),
+        "FindCloseUrlCache" => FindCloseUrlCache(emu),
+        "FindFirstUrlCacheContainerA" => FindFirstUrlCacheContainerA(emu),
+        "FindFirstUrlCacheContainerW" => FindFirstUrlCacheContainerW(emu),
+        "FindFirstUrlCacheEntryA" => FindFirstUrlCacheEntryA(emu),
+        "FindFirstUrlCacheEntryExA" => FindFirstUrlCacheEntryExA(emu),
+        "FindFirstUrlCacheEntryExW" => FindFirstUrlCacheEntryExW(emu),
+        "FindFirstUrlCacheEntryW" => FindFirstUrlCacheEntryW(emu),
+        "FindFirstUrlCacheGroup" => FindFirstUrlCacheGroup(emu),
+        "FindNextUrlCacheContainerA" => FindNextUrlCacheContainerA(emu),
+        "FindNextUrlCacheContainerW" => FindNextUrlCacheContainerW(emu),
+        "FindNextUrlCacheEntryA" => FindNextUrlCacheEntryA(emu),
+        "FindNextUrlCacheEntryExA" => FindNextUrlCacheEntryExA(emu),
+        "FindNextUrlCacheEntryExW" => FindNextUrlCacheEntryExW(emu),
+        "FindNextUrlCacheEntryW" => FindNextUrlCacheEntryW(emu),
+        "FindNextUrlCacheGroup" => FindNextUrlCacheGroup(emu),
+        "ForceNexusLookup" => ForceNexusLookup(emu),
+        "ForceNexusLookupExW" => ForceNexusLookupExW(emu),
+        "FreeUrlCacheSpaceA" => FreeUrlCacheSpaceA(emu),
+        "FreeUrlCacheSpaceW" => FreeUrlCacheSpaceW(emu),
+        "FtpCommandA" => FtpCommandA(emu),
+        "FtpCommandW" => FtpCommandW(emu),
+        "FtpCreateDirectoryA" => FtpCreateDirectoryA(emu),
+        "FtpCreateDirectoryW" => FtpCreateDirectoryW(emu),
+        "FtpDeleteFileA" => FtpDeleteFileA(emu),
+        "FtpDeleteFileW" => FtpDeleteFileW(emu),
+        "FtpFindFirstFileA" => FtpFindFirstFileA(emu),
+        "FtpFindFirstFileW" => FtpFindFirstFileW(emu),
+        "FtpGetCurrentDirectoryA" => FtpGetCurrentDirectoryA(emu),
+        "FtpGetCurrentDirectoryW" => FtpGetCurrentDirectoryW(emu),
+        "FtpGetFileA" => FtpGetFileA(emu),
+        "FtpGetFileEx" => FtpGetFileEx(emu),
+        "FtpGetFileSize" => FtpGetFileSize(emu),
+        "FtpGetFileW" => FtpGetFileW(emu),
+        "FtpOpenFileA" => FtpOpenFileA(emu),
+        "FtpOpenFileW" => FtpOpenFileW(emu),
+        "FtpPutFileA" => FtpPutFileA(emu),
+        "FtpPutFileEx" => FtpPutFileEx(emu),
+        "FtpPutFileW" => FtpPutFileW(emu),
+        "FtpRemoveDirectoryA" => FtpRemoveDirectoryA(emu),
+        "FtpRemoveDirectoryW" => FtpRemoveDirectoryW(emu),
+        "FtpRenameFileA" => FtpRenameFileA(emu),
+        "FtpRenameFileW" => FtpRenameFileW(emu),
+        "FtpSetCurrentDirectoryA" => FtpSetCurrentDirectoryA(emu),
+        "FtpSetCurrentDirectoryW" => FtpSetCurrentDirectoryW(emu),
+        "GetProxyDllInfo" => GetProxyDllInfo(emu),
+        "GetUrlCacheConfigInfoA" => GetUrlCacheConfigInfoA(emu),
+        "GetUrlCacheConfigInfoW" => GetUrlCacheConfigInfoW(emu),
+        "GetUrlCacheEntryBinaryBlob" => GetUrlCacheEntryBinaryBlob(emu),
+        "GetUrlCacheEntryInfoA" => GetUrlCacheEntryInfoA(emu),
+        "GetUrlCacheEntryInfoExA" => GetUrlCacheEntryInfoExA(emu),
+        "GetUrlCacheEntryInfoExW" => GetUrlCacheEntryInfoExW(emu),
+        "GetUrlCacheEntryInfoW" => GetUrlCacheEntryInfoW(emu),
+        "GetUrlCacheGroupAttributeA" => GetUrlCacheGroupAttributeA(emu),
+        "GetUrlCacheGroupAttributeW" => GetUrlCacheGroupAttributeW(emu),
+        "GetUrlCacheHeaderData" => GetUrlCacheHeaderData(emu),
+        "GopherCreateLocatorA" => GopherCreateLocatorA(emu),
+        "GopherCreateLocatorW" => GopherCreateLocatorW(emu),
+        "GopherFindFirstFileA" => GopherFindFirstFileA(emu),
+        "GopherFindFirstFileW" => GopherFindFirstFileW(emu),
+        "GopherGetAttributeA" => GopherGetAttributeA(emu),
+        "GopherGetAttributeW" => GopherGetAttributeW(emu),
+        "GopherGetLocatorTypeA" => GopherGetLocatorTypeA(emu),
+        "GopherGetLocatorTypeW" => GopherGetLocatorTypeW(emu),
+        "GopherOpenFileA" => GopherOpenFileA(emu),
+        "GopherOpenFileW" => GopherOpenFileW(emu),
+        "HttpAddRequestHeadersA" => HttpAddRequestHeadersA(emu),
+        "HttpAddRequestHeadersW" => HttpAddRequestHeadersW(emu),
+        "HttpCheckDavCompliance" => HttpCheckDavCompliance(emu),
+        "HttpCloseDependencyHandle" => HttpCloseDependencyHandle(emu),
+        "HttpDuplicateDependencyHandle" => HttpDuplicateDependencyHandle(emu),
+        "HttpEndRequestA" => HttpEndRequestA(emu),
+        "HttpEndRequestW" => HttpEndRequestW(emu),
+        "HttpGetServerCredentials" => HttpGetServerCredentials(emu),
+        "HttpGetTunnelSocket" => HttpGetTunnelSocket(emu),
+        "HttpIndicatePageLoadComplete" => HttpIndicatePageLoadComplete(emu),
+        "HttpIsHostHstsEnabled" => HttpIsHostHstsEnabled(emu),
+        "HttpOpenDependencyHandle" => HttpOpenDependencyHandle(emu),
+        "HttpPushClose" => HttpPushClose(emu),
+        "HttpPushEnable" => HttpPushEnable(emu),
+        "HttpPushWait" => HttpPushWait(emu),
+        "HttpSendRequestExA" => HttpSendRequestExA(emu),
+        "HttpSendRequestExW" => HttpSendRequestExW(emu),
+        "HttpWebSocketClose" => HttpWebSocketClose(emu),
+        "HttpWebSocketCompleteUpgrade" => HttpWebSocketCompleteUpgrade(emu),
+        "HttpWebSocketQueryCloseStatus" => HttpWebSocketQueryCloseStatus(emu),
+        "HttpWebSocketReceive" => HttpWebSocketReceive(emu),
+        "HttpWebSocketSend" => HttpWebSocketSend(emu),
+        "HttpWebSocketShutdown" => HttpWebSocketShutdown(emu),
+        "IncrementUrlCacheHeaderData" => IncrementUrlCacheHeaderData(emu),
+        "InternetAlgIdToStringA" => InternetAlgIdToStringA(emu),
+        "InternetAlgIdToStringW" => InternetAlgIdToStringW(emu),
+        "InternetAttemptConnect" => InternetAttemptConnect(emu),
+        "InternetAutodial" => InternetAutodial(emu),
+        "InternetAutodialCallback" => InternetAutodialCallback(emu),
+        "InternetAutodialHangup" => InternetAutodialHangup(emu),
+        "InternetCanonicalizeUrlA" => InternetCanonicalizeUrlA(emu),
+        "InternetCanonicalizeUrlW" => InternetCanonicalizeUrlW(emu),
+        "InternetCheckConnectionA" => InternetCheckConnectionA(emu),
+        "InternetCheckConnectionW" => InternetCheckConnectionW(emu),
+        "InternetClearAllPerSiteCookieDecisions" => InternetClearAllPerSiteCookieDecisions(emu),
+        "InternetCombineUrlA" => InternetCombineUrlA(emu),
+        "InternetCombineUrlW" => InternetCombineUrlW(emu),
+        "InternetConfirmZoneCrossing" => InternetConfirmZoneCrossing(emu),
+        "InternetConfirmZoneCrossingA" => InternetConfirmZoneCrossingA(emu),
+        "InternetConfirmZoneCrossingW" => InternetConfirmZoneCrossingW(emu),
+        "InternetConvertUrlFromWireToWideChar" => InternetConvertUrlFromWireToWideChar(emu),
+        "InternetCreateUrlA" => InternetCreateUrlA(emu),
+        "InternetCreateUrlW" => InternetCreateUrlW(emu),
+        "InternetDial" => InternetDial(emu),
+        "InternetDialA" => InternetDialA(emu),
+        "InternetDialW" => InternetDialW(emu),
+        "InternetEnumPerSiteCookieDecisionA" => InternetEnumPerSiteCookieDecisionA(emu),
+        "InternetEnumPerSiteCookieDecisionW" => InternetEnumPerSiteCookieDecisionW(emu),
+        "InternetFindNextFileA" => InternetFindNextFileA(emu),
+        "InternetFindNextFileW" => InternetFindNextFileW(emu),
+        "InternetFortezzaCommand" => InternetFortezzaCommand(emu),
+        "InternetFreeCookies" => InternetFreeCookies(emu),
+        "InternetFreeProxyInfoList" => InternetFreeProxyInfoList(emu),
+        "InternetGetCertByURL" => InternetGetCertByURL(emu),
+        "InternetGetCertByURLA" => InternetGetCertByURLA(emu),
+        "InternetGetConnectedState" => InternetGetConnectedState(emu),
+        "InternetGetConnectedStateEx" => InternetGetConnectedStateEx(emu),
+        "InternetGetConnectedStateExA" => InternetGetConnectedStateExA(emu),
+        "InternetGetConnectedStateExW" => InternetGetConnectedStateExW(emu),
+        "InternetGetCookieA" => InternetGetCookieA(emu),
+        "InternetGetCookieEx2" => InternetGetCookieEx2(emu),
+        "InternetGetCookieExA" => InternetGetCookieExA(emu),
+        "InternetGetCookieExW" => InternetGetCookieExW(emu),
+        "InternetGetCookieW" => InternetGetCookieW(emu),
+        "InternetGetLastResponseInfoA" => InternetGetLastResponseInfoA(emu),
+        "InternetGetLastResponseInfoW" => InternetGetLastResponseInfoW(emu),
+        "InternetGetPerSiteCookieDecisionA" => InternetGetPerSiteCookieDecisionA(emu),
+        "InternetGetPerSiteCookieDecisionW" => InternetGetPerSiteCookieDecisionW(emu),
+        "InternetGetProxyForUrl" => InternetGetProxyForUrl(emu),
+        "InternetGetSecurityInfoByURL" => InternetGetSecurityInfoByURL(emu),
+        "InternetGetSecurityInfoByURLA" => InternetGetSecurityInfoByURLA(emu),
+        "InternetGetSecurityInfoByURLW" => InternetGetSecurityInfoByURLW(emu),
+        "InternetGoOnline" => InternetGoOnline(emu),
+        "InternetGoOnlineA" => InternetGoOnlineA(emu),
+        "InternetGoOnlineW" => InternetGoOnlineW(emu),
+        "InternetHangUp" => InternetHangUp(emu),
+        "InternetInitializeAutoProxyDll" => InternetInitializeAutoProxyDll(emu),
+        "InternetLockRequestFile" => InternetLockRequestFile(emu),
+        "InternetOpenUrlA" => InternetOpenUrlA(emu),
+        "InternetOpenUrlW" => InternetOpenUrlW(emu),
+        "InternetQueryDataAvailable" => InternetQueryDataAvailable(emu),
+        "InternetQueryFortezzaStatus" => InternetQueryFortezzaStatus(emu),
+        "InternetSecurityProtocolToStringA" => InternetSecurityProtocolToStringA(emu),
+        "InternetSecurityProtocolToStringW" => InternetSecurityProtocolToStringW(emu),
+        "InternetSetCookieA" => InternetSetCookieA(emu),
+        "InternetSetCookieEx2" => InternetSetCookieEx2(emu),
+        "InternetSetCookieExA" => InternetSetCookieExA(emu),
+        "InternetSetCookieExW" => InternetSetCookieExW(emu),
+        "InternetSetCookieW" => InternetSetCookieW(emu),
+        "InternetSetDialState" => InternetSetDialState(emu),
+        "InternetSetDialStateA" => InternetSetDialStateA(emu),
+        "InternetSetDialStateW" => InternetSetDialStateW(emu),
+        "InternetSetFilePointer" => InternetSetFilePointer(emu),
+        "InternetSetOptionExA" => InternetSetOptionExA(emu),
+        "InternetSetOptionExW" => InternetSetOptionExW(emu),
+        "InternetSetPerSiteCookieDecisionA" => InternetSetPerSiteCookieDecisionA(emu),
+        "InternetSetPerSiteCookieDecisionW" => InternetSetPerSiteCookieDecisionW(emu),
+        "InternetSetSecureLegacyServersAppCompat" => InternetSetSecureLegacyServersAppCompat(emu),
+        "InternetShowSecurityInfoByURL" => InternetShowSecurityInfoByURL(emu),
+        "InternetShowSecurityInfoByURLA" => InternetShowSecurityInfoByURLA(emu),
+        "InternetShowSecurityInfoByURLW" => InternetShowSecurityInfoByURLW(emu),
+        "InternetTimeFromSystemTime" => InternetTimeFromSystemTime(emu),
+        "InternetTimeFromSystemTimeA" => InternetTimeFromSystemTimeA(emu),
+        "InternetTimeFromSystemTimeW" => InternetTimeFromSystemTimeW(emu),
+        "InternetTimeToSystemTime" => InternetTimeToSystemTime(emu),
+        "InternetTimeToSystemTimeA" => InternetTimeToSystemTimeA(emu),
+        "InternetTimeToSystemTimeW" => InternetTimeToSystemTimeW(emu),
+        "_GetFileExtensionFromUrl" => _GetFileExtensionFromUrl(emu),
+        "InternetUnlockRequestFile" => InternetUnlockRequestFile(emu),
+        "InternetWriteFile" => InternetWriteFile(emu),
+        "InternetWriteFileExA" => InternetWriteFileExA(emu),
+        "InternetWriteFileExW" => InternetWriteFileExW(emu),
+        "IsHostInProxyBypassList" => IsHostInProxyBypassList(emu),
+        "IsUrlCacheEntryExpiredA" => IsUrlCacheEntryExpiredA(emu),
+        "IsUrlCacheEntryExpiredW" => IsUrlCacheEntryExpiredW(emu),
+        "LoadUrlCacheContent" => LoadUrlCacheContent(emu),
         "ParseX509EncodedCertificateForListBoxEntry" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ParseX509EncodedCertificateForListBoxEntry arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
+            ParseX509EncodedCertificateForListBoxEntry(emu)
         }
-        "PrivacyGetZonePreferenceW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!PrivacyGetZonePreferenceW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "PrivacySetZonePreferenceW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!PrivacySetZonePreferenceW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "ReadUrlCacheEntryStream" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ReadUrlCacheEntryStream arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "ReadUrlCacheEntryStreamEx" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ReadUrlCacheEntryStreamEx arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "RegisterUrlCacheNotification" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!RegisterUrlCacheNotification arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("registerurlcachenotification");
-            stdcall_ret(emu, 6);
-        }
-        "ResumeSuspendedDownload" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ResumeSuspendedDownload arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "RetrieveUrlCacheEntryFileA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryFileA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "RetrieveUrlCacheEntryFileW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryFileW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "RetrieveUrlCacheEntryStreamA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryStreamA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "RetrieveUrlCacheEntryStreamW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!RetrieveUrlCacheEntryStreamW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "RunOnceUrlCache" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!RunOnceUrlCache arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "SetUrlCacheConfigInfoA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheConfigInfoA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "SetUrlCacheConfigInfoW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheConfigInfoW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "SetUrlCacheEntryGroup" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryGroup arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "SetUrlCacheEntryGroupA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryGroupA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "SetUrlCacheEntryGroupW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryGroupW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "SetUrlCacheEntryInfoA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryInfoA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "SetUrlCacheEntryInfoW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheEntryInfoW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "SetUrlCacheGroupAttributeA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheGroupAttributeA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "SetUrlCacheGroupAttributeW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheGroupAttributeW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "SetUrlCacheHeaderData" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!SetUrlCacheHeaderData arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "ShowCertificate" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ShowCertificate arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "ShowClientAuthCerts" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ShowClientAuthCerts arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "ShowSecurityInfo" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ShowSecurityInfo arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "ShowX509EncodedCertificate" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!ShowX509EncodedCertificate arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UnlockUrlCacheEntryFile" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!UnlockUrlCacheEntryFile handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UnlockUrlCacheEntryFileA" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!UnlockUrlCacheEntryFileA handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UnlockUrlCacheEntryFileW" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!UnlockUrlCacheEntryFileW handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UnlockUrlCacheEntryStream" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!UnlockUrlCacheEntryStream handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UpdateUrlCacheContentPath" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UpdateUrlCacheContentPath arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheCheckEntriesExist" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheCheckEntriesExist arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheCloseEntryHandle" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheCloseEntryHandle handle:0x{:x}",
-                handle
-            );
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "UrlCacheContainerSetEntryMaximumAge" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheContainerSetEntryMaximumAge arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "UrlCacheCreateContainer" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheCreateContainer arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.regs_mut().rax = helper::handler_create("urlcachecreatecontainer");
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheFindFirstEntry" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheFindFirstEntry arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheFindNextEntry" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheFindNextEntry arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheFreeEntryInfo" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!UrlCacheFreeEntryInfo handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheFreeGlobalSpace" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!UrlCacheFreeGlobalSpace handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheGetContentPaths" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetContentPaths arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheGetEntryInfo" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetEntryInfo arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheGetGlobalCacheSize" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetGlobalCacheSize arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheGetGlobalLimit" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheGetGlobalLimit arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheReadEntryStream" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheReadEntryStream arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheReloadSettings" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheReloadSettings arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheRetrieveEntryFile" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheRetrieveEntryFile arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheRetrieveEntryStream" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheRetrieveEntryStream arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheServer" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheServer arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheSetGlobalLimit" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheSetGlobalLimit arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "UrlCacheUpdateEntryExtraData" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!UrlCacheUpdateEntryExtraData arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 3);
-        }
-        "UrlZonesDetach" => {
-            let handle = arg(emu, 0) as u64;
-            log_red!(emu, "wininet!UrlZonesDetach handle:0x{:x}", handle);
-            helper::handler_close(handle);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "HttpQueryInfoW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!HttpQueryInfoW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetQueryOptionA" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetQueryOptionA arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
-        "InternetQueryOptionW" => {
-            let a0 = arg(emu, 0) as u64;
-            let a1 = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "wininet!InternetQueryOptionW arg0:0x{:x} arg1:0x{:x}",
-                a0,
-                a1
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 4);
-        }
+        "PrivacyGetZonePreferenceW" => PrivacyGetZonePreferenceW(emu),
+        "PrivacySetZonePreferenceW" => PrivacySetZonePreferenceW(emu),
+        "ReadUrlCacheEntryStream" => ReadUrlCacheEntryStream(emu),
+        "ReadUrlCacheEntryStreamEx" => ReadUrlCacheEntryStreamEx(emu),
+        "RegisterUrlCacheNotification" => RegisterUrlCacheNotification(emu),
+        "ResumeSuspendedDownload" => ResumeSuspendedDownload(emu),
+        "RetrieveUrlCacheEntryFileA" => RetrieveUrlCacheEntryFileA(emu),
+        "RetrieveUrlCacheEntryFileW" => RetrieveUrlCacheEntryFileW(emu),
+        "RetrieveUrlCacheEntryStreamA" => RetrieveUrlCacheEntryStreamA(emu),
+        "RetrieveUrlCacheEntryStreamW" => RetrieveUrlCacheEntryStreamW(emu),
+        "RunOnceUrlCache" => RunOnceUrlCache(emu),
+        "SetUrlCacheConfigInfoA" => SetUrlCacheConfigInfoA(emu),
+        "SetUrlCacheConfigInfoW" => SetUrlCacheConfigInfoW(emu),
+        "SetUrlCacheEntryGroup" => SetUrlCacheEntryGroup(emu),
+        "SetUrlCacheEntryGroupA" => SetUrlCacheEntryGroupA(emu),
+        "SetUrlCacheEntryGroupW" => SetUrlCacheEntryGroupW(emu),
+        "SetUrlCacheEntryInfoA" => SetUrlCacheEntryInfoA(emu),
+        "SetUrlCacheEntryInfoW" => SetUrlCacheEntryInfoW(emu),
+        "SetUrlCacheGroupAttributeA" => SetUrlCacheGroupAttributeA(emu),
+        "SetUrlCacheGroupAttributeW" => SetUrlCacheGroupAttributeW(emu),
+        "SetUrlCacheHeaderData" => SetUrlCacheHeaderData(emu),
+        "ShowCertificate" => ShowCertificate(emu),
+        "ShowClientAuthCerts" => ShowClientAuthCerts(emu),
+        "ShowSecurityInfo" => ShowSecurityInfo(emu),
+        "ShowX509EncodedCertificate" => ShowX509EncodedCertificate(emu),
+        "UnlockUrlCacheEntryFile" => UnlockUrlCacheEntryFile(emu),
+        "UnlockUrlCacheEntryFileA" => UnlockUrlCacheEntryFileA(emu),
+        "UnlockUrlCacheEntryFileW" => UnlockUrlCacheEntryFileW(emu),
+        "UnlockUrlCacheEntryStream" => UnlockUrlCacheEntryStream(emu),
+        "UpdateUrlCacheContentPath" => UpdateUrlCacheContentPath(emu),
+        "UrlCacheCheckEntriesExist" => UrlCacheCheckEntriesExist(emu),
+        "UrlCacheCloseEntryHandle" => UrlCacheCloseEntryHandle(emu),
+        "UrlCacheContainerSetEntryMaximumAge" => UrlCacheContainerSetEntryMaximumAge(emu),
+        "UrlCacheCreateContainer" => UrlCacheCreateContainer(emu),
+        "UrlCacheFindFirstEntry" => UrlCacheFindFirstEntry(emu),
+        "UrlCacheFindNextEntry" => UrlCacheFindNextEntry(emu),
+        "UrlCacheFreeEntryInfo" => UrlCacheFreeEntryInfo(emu),
+        "UrlCacheFreeGlobalSpace" => UrlCacheFreeGlobalSpace(emu),
+        "UrlCacheGetContentPaths" => UrlCacheGetContentPaths(emu),
+        "UrlCacheGetEntryInfo" => UrlCacheGetEntryInfo(emu),
+        "UrlCacheGetGlobalCacheSize" => UrlCacheGetGlobalCacheSize(emu),
+        "UrlCacheGetGlobalLimit" => UrlCacheGetGlobalLimit(emu),
+        "UrlCacheReadEntryStream" => UrlCacheReadEntryStream(emu),
+        "UrlCacheReloadSettings" => UrlCacheReloadSettings(emu),
+        "UrlCacheRetrieveEntryFile" => UrlCacheRetrieveEntryFile(emu),
+        "UrlCacheRetrieveEntryStream" => UrlCacheRetrieveEntryStream(emu),
+        "UrlCacheServer" => UrlCacheServer(emu),
+        "UrlCacheSetGlobalLimit" => UrlCacheSetGlobalLimit(emu),
+        "UrlCacheUpdateEntryExtraData" => UrlCacheUpdateEntryExtraData(emu),
+        "UrlZonesDetach" => UrlZonesDetach(emu),
+        "HttpQueryInfoW" => HttpQueryInfoW(emu),
+        "InternetQueryOptionA" => InternetQueryOptionA(emu),
+        "InternetQueryOptionW" => InternetQueryOptionW(emu),
         "InternetSetStatusCallback"
         | "InternetSetStatusCallbackA"
-        | "InternetSetStatusCallbackW" => {
-            let handle = arg(emu, 0) as u64;
-            let callback = arg(emu, 1) as u64;
-            let valid = helper::handler_exist(handle);
-            log_red!(
-                emu,
-                "wininet!InternetSetStatusCallback handle: 0x{:x} callback: 0x{:x} valid: {}",
-                handle,
-                callback,
-                valid
-            );
-            emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 2);
-        }
+        | "InternetSetStatusCallbackW" => InternetSetStatusCallback(emu),
 
         _ => {
             return fallback::unimplemented(addr, api, emu);
