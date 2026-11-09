@@ -13,10 +13,6 @@ pub fn K32QueryWorkingSetEx(emu: &mut emu::Emu) {
         p_info,
         cb
     );
-    let out_ptr = arg(emu, 2) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 3);

@@ -21,10 +21,6 @@ pub fn SHGetSpecialFolderPathW(emu: &mut emu::Emu) {
         csidl,
         path
     );
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     for _ in 0..4 {
         emu.stack_pop32(false);
     }

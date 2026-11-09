@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn IsRectEmpty(emu: &mut emu::Emu) {
     let rect = emu.regs().rcx;
@@ -14,11 +13,7 @@ pub fn IsRectEmpty(emu: &mut emu::Emu) {
     };
     log_red!(emu, "user32!IsRectEmpty 0x{:x} => {}", rect, empty);
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     emu.set_last_error(0);
     emu.regs_mut().rax = if empty { 1 } else { 0 };
 }

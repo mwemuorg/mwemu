@@ -9,10 +9,6 @@ pub fn CredGetSessionTypes(emu: &mut emu::Emu) {
         arg1,
         arg2
     );
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     for _ in 0..2 {
         emu.stack_pop32(false);
     }

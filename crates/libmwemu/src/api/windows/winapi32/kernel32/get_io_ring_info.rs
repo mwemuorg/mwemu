@@ -10,10 +10,6 @@ pub fn GetIoRingInfo(emu: &mut emu::Emu) {
         io_ring,
         info_ptr
     );
-    let out_ptr = arg(emu, 1) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0x80070057u64;
     stdcall_ret(emu, 2);

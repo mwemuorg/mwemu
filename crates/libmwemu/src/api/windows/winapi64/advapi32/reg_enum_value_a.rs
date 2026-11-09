@@ -9,10 +9,6 @@ pub fn RegEnumValueA(emu: &mut emu::Emu) {
         hkey,
         index
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     for _ in 0..8 {}
     emu.set_last_error(0);
     emu.regs_mut().rax = 259;

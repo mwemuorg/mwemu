@@ -9,10 +9,6 @@ pub fn GetSystemDefaultLocaleName(emu: &mut emu::Emu) {
         buf_ptr,
         buf_len
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     if buf_ptr != 0 && buf_len >= 6 {
         emu.maps.write_wide_string(buf_ptr, "en-US");
     }

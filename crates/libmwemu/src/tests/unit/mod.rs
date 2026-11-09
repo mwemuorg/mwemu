@@ -17,6 +17,7 @@ mod maps_unmap_range;
 mod memory_map_operations;
 mod pure_rust_check;
 mod register_state_tests;
+mod regression_58433ebf;
 mod regsisters_test;
 mod seh32_arguments;
 mod serialization_tests;

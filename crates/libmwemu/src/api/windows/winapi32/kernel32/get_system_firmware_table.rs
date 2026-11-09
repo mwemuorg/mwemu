@@ -33,10 +33,6 @@ pub fn GetSystemFirmwareTable(emu: &mut emu::Emu) {
         buffer_ptr,
         buffer_size
     );
-    let out_ptr = arg(emu, 3) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
 
     // TODO: Return actual bytes written/required, or 0 on error
     if buffer_size == 0 {

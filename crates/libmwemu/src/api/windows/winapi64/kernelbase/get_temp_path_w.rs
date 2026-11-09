@@ -8,10 +8,6 @@ pub fn GetTempPathW(emu: &mut emu::Emu) {
         emu.maps.write_wide_string(buf_ptr, tmp);
     }
     log_red!(emu, "kernelbase!GetTempPathW => '{}'", tmp);
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = tmp.len() as u64;
 }

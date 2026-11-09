@@ -6,10 +6,6 @@ pub fn GetLogicalDriveStringsA(emu: &mut emu::Emu) {
     let buff_ptr = arg(emu, 1) as u64;
 
     log_red!(emu, "kernel32!GetLogicalDriveStringsA len:{}", buf_len);
-    let out_ptr = arg(emu, 1) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
 
     // Returns "C:\\\0\0" — each drive string null-terminated, extra null at end
     let drives = b"C:\\\0\0";

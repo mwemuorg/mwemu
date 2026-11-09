@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn IsValidSid(emu: &mut emu::Emu) {
     let sid_ptr = emu.regs().rcx;
@@ -12,11 +11,7 @@ pub fn IsValidSid(emu: &mut emu::Emu) {
     };
     log_red!(emu, "advapi32!IsValidSid sid:0x{:x} => {}", sid_ptr, valid);
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     emu.set_last_error(0);
     emu.regs_mut().rax = if valid { 1 } else { 0 };
 }

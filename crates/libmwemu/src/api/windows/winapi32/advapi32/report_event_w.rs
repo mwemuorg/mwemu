@@ -19,10 +19,6 @@ pub fn ReportEventW(emu: &mut emu::Emu) {
         event_id,
         num_strings
     );
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 32).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     for _ in 0..9 {
         emu.stack_pop32(false);
     }

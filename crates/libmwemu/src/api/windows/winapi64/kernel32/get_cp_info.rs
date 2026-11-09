@@ -10,10 +10,6 @@ pub fn GetCPInfo(emu: &mut emu::Emu) {
         code_page,
         lp_cp_info
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
 
     // Create and initialize a CpInfo structure
     let cp_info = match code_page {

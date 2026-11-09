@@ -1,6 +1,5 @@
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
-use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 pub fn LocalReAlloc(emu: &mut emu::Emu) {
     let h_mem = arg(emu, 0) as u64;
@@ -13,11 +12,6 @@ pub fn LocalReAlloc(emu: &mut emu::Emu) {
         new_size,
         flags
     );
-    let handle = helper::handler_create("LocalReAlloc");
-    let out_ptr = arg(emu, 2) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
     // If size is 0, free and return 0
     if new_size == 0 {
         if h_mem != 0 {

@@ -14,10 +14,6 @@ pub fn GetThreadInformation(emu: &mut emu::Emu) {
         info_ptr,
         info_size
     );
-    let out_ptr = arg(emu, 3) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     if info_ptr != 0 && info_size > 0 {
         let clear_size = (info_size as usize).min(256);
         for i in 0..clear_size {

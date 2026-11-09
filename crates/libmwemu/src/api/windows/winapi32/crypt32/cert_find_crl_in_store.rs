@@ -8,10 +8,6 @@ pub fn CertFindCRLInStore(emu: &mut emu::Emu) {
     let pv_find_para = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
     let p_prev_crl_ctx = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
     log_red!(emu, "crypt32!CertFindCRLInStore 0x{:x}", h_cert_store);
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     for _ in 0..6 {

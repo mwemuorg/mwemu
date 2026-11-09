@@ -9,10 +9,6 @@ pub fn FindNextFileW(emu: &mut emu::Emu) {
         h_find,
         find_data_ptr
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.regs_mut().rax = 0;
     emu.set_last_error(18);
 }

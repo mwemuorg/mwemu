@@ -10,7 +10,7 @@ static INIT: Once = Once::new();
 
 pub fn setup() {
     INIT.call_once(|| {
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("error"))
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("off"))
             .format(|buf, record| writeln!(buf, "{}", record.args()))
             .init();
     });

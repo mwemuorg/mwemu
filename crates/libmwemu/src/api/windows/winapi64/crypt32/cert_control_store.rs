@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn CertControlStore(emu: &mut emu::Emu) {
     let arg1 = emu.regs().rcx;
@@ -9,9 +8,5 @@ pub fn CertControlStore(emu: &mut emu::Emu) {
     log_red!(emu, "crypt32!CertControlStore 0x{:x} 0x{:x}", arg1, arg2);
     emu.set_last_error(0);
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
 }

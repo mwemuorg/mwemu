@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 pub fn DuplicatePackageVirtualizationContext(emu: &mut emu::Emu) {
     let handle = arg(emu, 0) as u64;
@@ -12,11 +11,6 @@ pub fn DuplicatePackageVirtualizationContext(emu: &mut emu::Emu) {
         handle,
         param2
     );
-    let handle = helper::handler_create("DuplicatePackageVirtualizationContext");
-    let out_ptr = arg(emu, 3) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 4);

@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 use crate::windows::constants;
 pub fn StringExValidateDestW(emu: &mut emu::Emu) {
     let param1 = emu.regs().rcx;
@@ -15,11 +14,7 @@ pub fn StringExValidateDestW(emu: &mut emu::Emu) {
         param4
     );
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     emu.set_last_error(0);
     emu.regs_mut().rax = constants::ERROR_SUCCESS;
 }

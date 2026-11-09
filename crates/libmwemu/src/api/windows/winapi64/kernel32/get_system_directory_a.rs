@@ -8,10 +8,6 @@ pub fn GetSystemDirectoryA(emu: &mut emu::Emu) {
     emu.maps.write_string(out_buff_ptr, &output);
 
     log_red!(emu, "kernel32!GetSystemDirectoryA");
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
 
     emu.regs_mut().rax = output.len() as u64;
 }

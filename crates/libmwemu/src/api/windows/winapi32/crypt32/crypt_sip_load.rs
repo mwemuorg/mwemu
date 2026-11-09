@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn CryptSIPLoad(emu: &mut emu::Emu) {
     let pg_subject = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -12,11 +11,6 @@ pub fn CryptSIPLoad(emu: &mut emu::Emu) {
         dw_flags,
         p_sip_dispatch
     );
-    let handle = helper::handler_create("CryptSIPLoad");
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, handle as u32);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     for _ in 0..3 {

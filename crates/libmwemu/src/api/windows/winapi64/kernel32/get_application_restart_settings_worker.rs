@@ -8,10 +8,6 @@ pub fn GetApplicationRestartSettingsWorker(emu: &mut emu::Emu) {
         "kernel32!GetApplicationRestartSettingsWorker h:0x{:x}",
         h_process
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0x80004005u64;
 }

@@ -9,10 +9,6 @@ pub fn GetDllDirectoryA(emu: &mut emu::Emu) {
         buf_len,
         buf_ptr
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     if buf_ptr != 0 && buf_len >= 1 {
         emu.maps.write_byte(buf_ptr, 0);
     }

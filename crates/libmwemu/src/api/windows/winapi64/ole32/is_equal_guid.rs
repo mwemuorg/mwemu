@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn IsEqualGUID(emu: &mut emu::Emu) {
     let guid1 = emu.regs().rcx;
@@ -26,10 +25,6 @@ pub fn IsEqualGUID(emu: &mut emu::Emu) {
         equal
     );
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     emu.regs_mut().rax = equal as u64;
 }

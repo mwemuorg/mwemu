@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn InitializeSecurityDescriptor(emu: &mut emu::Emu) {
     let sd_ptr = emu.regs().rcx;
@@ -16,10 +15,5 @@ pub fn InitializeSecurityDescriptor(emu: &mut emu::Emu) {
         sd_ptr,
         revision
     );
-    let handle = helper::handler_create("InitializeSecurityDescriptor");
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
     emu.regs_mut().rax = 1;
 }

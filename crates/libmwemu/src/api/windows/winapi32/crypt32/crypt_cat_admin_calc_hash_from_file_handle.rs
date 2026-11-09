@@ -10,10 +10,6 @@ pub fn CryptCATAdminCalcHashFromFileHandle(emu: &mut emu::Emu) {
         "crypt32!CryptCATAdminCalcHashFromFileHandle 0x{:x}",
         h_file
     );
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     for _ in 0..4 {

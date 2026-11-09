@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 pub fn IsDBCSLeadByteEx(emu: &mut emu::Emu) {
     let code_page = emu.regs().rcx as u32;
     let test_char = emu.regs().rdx as u8;
@@ -12,11 +11,7 @@ pub fn IsDBCSLeadByteEx(emu: &mut emu::Emu) {
         is_lead
     );
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     emu.set_last_error(0);
     emu.regs_mut().rax = if is_lead { 1 } else { 0 };
 }

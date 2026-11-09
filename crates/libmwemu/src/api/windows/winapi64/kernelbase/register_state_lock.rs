@@ -10,11 +10,6 @@ pub fn RegisterStateLock(emu: &mut emu::Emu) {
         arg1,
         arg2
     );
-    let handle = helper::handler_create("RegisterStateLock");
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
 
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);

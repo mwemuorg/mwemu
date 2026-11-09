@@ -9,10 +9,6 @@ pub fn GetHostNameW(emu: &mut emu::Emu) {
         name_ptr,
         namelen
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     if name_ptr != 0 && namelen > 8 {
         emu.maps.write_wide_string(name_ptr, "DESKTOP");
     }

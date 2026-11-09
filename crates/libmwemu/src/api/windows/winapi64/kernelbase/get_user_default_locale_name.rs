@@ -7,9 +7,5 @@ pub fn GetUserDefaultLocaleName(emu: &mut emu::Emu) {
         emu.maps.write_wide_string(buf_ptr, "en-US");
     }
     log_red!(emu, "kernelbase!GetUserDefaultLocaleName => en-US");
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.regs_mut().rax = 6;
 }

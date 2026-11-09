@@ -8,10 +8,6 @@ pub fn InternetShowSecurityInfoByURLW(emu: &mut emu::Emu) {
         "wininet!InternetShowSecurityInfoByURLW arg1:0x{:x}",
         arg1
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.set_last_error(2);
     emu.regs_mut().rax = 0;
 }

@@ -7,9 +7,5 @@ pub fn IsThreadTSFEventAware(emu: &mut emu::Emu) {
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
 }

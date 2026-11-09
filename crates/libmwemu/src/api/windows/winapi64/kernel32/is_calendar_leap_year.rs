@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 pub fn IsCalendarLeapYear(emu: &mut emu::Emu) {
     let locale = emu.regs().rcx;
     let calendar = emu.regs().rdx;
@@ -16,11 +15,7 @@ pub fn IsCalendarLeapYear(emu: &mut emu::Emu) {
         is_leap
     );
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     emu.set_last_error(0);
     emu.regs_mut().rax = if is_leap { 1 } else { 0 };
 }

@@ -12,10 +12,6 @@ pub fn GetCachedSigningLevel(emu: &mut emu::Emu) {
         flags_ptr,
         signing_level_ptr
     );
-    let out_ptr = arg(emu, 2) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     if signing_level_ptr != 0 {
         emu.maps.write_byte(signing_level_ptr, 0);
     }

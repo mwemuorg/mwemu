@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn AddAccessDeniedAce(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -13,11 +12,6 @@ pub fn AddAccessDeniedAce(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    let handle = helper::handler_create("AddAccessDeniedAce");
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, handle as u32);
-    }
     for _ in 0..4 {
         emu.stack_pop32(false);
     }

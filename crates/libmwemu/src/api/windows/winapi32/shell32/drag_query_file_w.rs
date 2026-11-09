@@ -11,10 +11,6 @@ pub fn DragQueryFileW(emu: &mut emu::Emu) {
         hdrop,
         index
     );
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     if index == 0xFFFFFFFF {
         emu.regs_mut().rax = 1;
     } else if buf_ptr != 0 && buf_size > 10 {

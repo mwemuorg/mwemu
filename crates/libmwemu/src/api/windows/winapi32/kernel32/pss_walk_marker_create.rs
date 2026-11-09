@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 pub fn PssWalkMarkerCreate(emu: &mut emu::Emu) {
     let param1 = arg(emu, 0) as u64;
@@ -10,11 +9,6 @@ pub fn PssWalkMarkerCreate(emu: &mut emu::Emu) {
         param1,
         param2
     );
-    let handle = helper::handler_create("PssWalkMarkerCreate");
-    let out_ptr = arg(emu, 1) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
     stdcall_ret(emu, 2);

@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 pub fn AddVectoredContinueHandler(emu: &mut emu::Emu) {
     let first = emu.regs().rcx as u32;
     let handler = emu.regs().rdx;
@@ -9,11 +8,6 @@ pub fn AddVectoredContinueHandler(emu: &mut emu::Emu) {
         first,
         handler
     );
-    let handle = helper::handler_create("AddVectoredContinueHandler");
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = handler;
 }

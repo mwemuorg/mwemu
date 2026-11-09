@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 pub fn MapViewOfFileEx(emu: &mut emu::Emu) {
     let p0 = arg(emu, 0) as u64;
@@ -15,11 +14,6 @@ pub fn MapViewOfFileEx(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    let handle = helper::handler_create("MapViewOfFileEx");
-    let out_ptr = arg(emu, 5) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0x100000;
     stdcall_ret(emu, 6);

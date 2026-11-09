@@ -9,10 +9,6 @@ pub fn GetVDMCurrentDirectories(emu: &mut emu::Emu) {
         drive_count,
         dirs_ptr
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

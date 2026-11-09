@@ -13,10 +13,6 @@ pub fn K32EnumPageFilesA(emu: &mut emu::Emu) {
         handle,
         param2
     );
-    let out_ptr = arg(emu, 3) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
 
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;

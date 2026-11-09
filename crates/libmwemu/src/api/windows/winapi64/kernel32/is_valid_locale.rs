@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 pub fn IsValidLocale(emu: &mut emu::Emu) {
     let locale = emu.regs().rcx as u32;
     let flags = emu.regs().rdx;
@@ -29,11 +28,7 @@ pub fn IsValidLocale(emu: &mut emu::Emu) {
         valid
     );
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     emu.set_last_error(0);
     emu.regs_mut().rax = if valid { 1 } else { 0 };
 }

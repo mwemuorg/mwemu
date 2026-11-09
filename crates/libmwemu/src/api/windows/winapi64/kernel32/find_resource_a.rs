@@ -62,9 +62,8 @@ pub fn FindResourceA(emu: &mut emu::Emu) {
     };
 
     let Some((addr, size)) = x else {
-        log::trace!("{} resource not found, returning placeholder", emu.pos);
-        let hndl = helper::handler_create("rsrc://placeholder_0_0");
-        emu.regs_mut().rax = hndl;
+        log::trace!("{} resource not found", emu.pos);
+        emu.regs_mut().rax = 0;
         return;
     };
 

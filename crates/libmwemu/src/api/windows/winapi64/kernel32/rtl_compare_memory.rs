@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 pub fn RtlCompareMemory(emu: &mut emu::Emu) {
     let source1 = emu.regs().rcx;
     let source2 = emu.regs().rdx;
@@ -12,11 +11,7 @@ pub fn RtlCompareMemory(emu: &mut emu::Emu) {
         length
     );
     let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     let mut matching = 0usize;
     let len = length.min(0x100000);
     for i in 0..len {

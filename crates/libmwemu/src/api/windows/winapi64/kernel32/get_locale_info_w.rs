@@ -65,11 +65,6 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
         lp_lc_data,
         cch_data
     );
-    let out_ptr = emu.regs().r9;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
-
     let result = match crate::api::windows::common::kernel32::locale_info_value(lctype) {
         Some(v) => v,
         None => {

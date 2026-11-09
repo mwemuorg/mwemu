@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn StartServiceW(emu: &mut emu::Emu) {
     let hsvc = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -11,11 +10,6 @@ pub fn StartServiceW(emu: &mut emu::Emu) {
         hsvc,
         num_args
     );
-    let handle = helper::handler_create("StartServiceW");
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, handle as u32);
-    }
     for _ in 0..3 {
         emu.stack_pop32(false);
     }

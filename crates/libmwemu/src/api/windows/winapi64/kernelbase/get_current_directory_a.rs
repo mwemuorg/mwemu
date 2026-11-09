@@ -10,10 +10,6 @@ pub fn GetCurrentDirectoryA(emu: &mut emu::Emu) {
         buf,
         size
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     if buf != 0 && (cwd.len() as u32) < size {
         emu.maps.write_string(buf, cwd);
     }

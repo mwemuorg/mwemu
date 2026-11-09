@@ -13,10 +13,6 @@ pub fn GetCurrentDirectoryW(emu: &mut emu::Emu) {
         buff_len,
         buff_ptr,
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
 
     // When buffer length is 0 or buffer is null, return required size INCLUDING null terminator
     if buff_len == 0 || buff_ptr == 0 {

@@ -8,10 +8,6 @@ pub fn CryptHashCertificate2(emu: &mut emu::Emu) {
     let cb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
     let pb_computed_hash = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
     log_red!(emu, "crypt32!CryptHashCertificate2 0x{:x}", pwsz_hash_alg);
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     for _ in 0..6 {

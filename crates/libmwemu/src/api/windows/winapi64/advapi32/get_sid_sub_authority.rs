@@ -12,10 +12,6 @@ pub fn GetSidSubAuthority(emu: &mut emu::Emu) {
         index,
         result
     );
-    let out_ptr = emu.regs().rdx;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
     for _ in 0..2 {}
     emu.set_last_error(0);
     emu.regs_mut().rax = result;

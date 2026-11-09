@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 pub fn IsNormalizedString(emu: &mut emu::Emu) {
     let norm_form = arg(emu, 0) as u64;
@@ -14,10 +13,6 @@ pub fn IsNormalizedString(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     let h = arg(emu, 0) as u64;
-    if helper::handler_exist(h) {
-        emu.regs_mut().rax = 1;
-    } else {
-        emu.regs_mut().rax = 0;
-    }
+    emu.regs_mut().rax = 1;
     stdcall_ret(emu, 3);
 }

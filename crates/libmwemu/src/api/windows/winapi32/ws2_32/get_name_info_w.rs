@@ -12,10 +12,6 @@ pub fn GetNameInfoW(emu: &mut emu::Emu) {
         host_ptr,
         hostlen
     );
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    if out_ptr != 0 {
-        emu.maps.write_dword(out_ptr, 0);
-    }
     if host_ptr != 0 && hostlen > 10 {
         emu.maps.write_wide_string(host_ptr, "localhost");
     }
