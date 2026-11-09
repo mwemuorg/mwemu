@@ -6,11 +6,11 @@
 #![allow(clippy::doc_lazy_continuation)]
 #![allow(clippy::unusual_byte_groupings)]
 
+pub mod fixtures;
+
+use fixtures::{LOADER32, LOADER64};
 use rs_header::pe::pe32::PE32;
 use rs_header::pe::pe64::PE64;
-
-static LOADER64: &[u8] = include_bytes!("fixtures/loader64.exe");
-static LOADER32: &[u8] = include_bytes!("fixtures/loader32.exe");
 
 #[test]
 fn parse_pe64() {
@@ -92,5 +92,28 @@ fn pe32_section_raw_data_is_empty_without_backing_bytes() {
         pe.sect_hdr[0].pointer_to_raw_data = offset;
         pe.sect_hdr[0].size_of_raw_data = u32::MAX;
         assert!(pe.get_section_ptr(&[], 0).is_empty(), "raw offset {offset}");
+    }
+}
+
+#[test]
+fn pe_headers_respect_file_bounds() {
+    let mut pe32 = PE32::parse("loader32.exe", LOADER32);
+    let mut pe64 = PE64::parse("loader64.exe", LOADER64);
+    let cases: &[(&[u8], u32, &[u8])] = &[
+        (b"headers!", 0, b""),
+        (b"headers!", 3, b"hea"),
+        (b"headers!", 8, b"headers!"), // Exactly at EOF.
+        (b"headers!", 9, b"headers!"), // Declared size extends past EOF.
+        (b"headers!", u32::MAX, b"headers!"),
+        (b"x", 1, b"x"),
+        (b"x", 2, b"x"),
+        (b"", 0, b""),
+        (b"", u32::MAX, b""),
+    ];
+    for &(raw, declared, expected) in cases {
+        pe32.opt.size_of_headers = declared;
+        pe64.opt.size_of_headers = declared;
+        assert_eq!(pe32.headers(raw), expected, "PE32 size {declared}");
+        assert_eq!(pe64.headers(raw), expected, "PE64 size {declared}");
     }
 }

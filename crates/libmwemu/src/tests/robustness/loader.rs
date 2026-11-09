@@ -1,8 +1,10 @@
 //! Emu loader robustness: missing/garbage files and the format classifier.
 
 use crate::emu::Emu;
-use crate::emu64;
+use crate::tests::helpers::{LOADER32, LOADER64};
+use crate::{emu32, emu64};
 use rs_header::pe::{IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_I386, pe_machine_type};
+use std::fs;
 use std::io::Write;
 
 fn write_temp(name: &str, bytes: &[u8]) -> String {
@@ -129,4 +131,60 @@ fn pe32_x64_mismatch_only_fires_for_pe32_plus_dash_six() {
     // Non-PE inputs are out of scope for this check: load_code handles them.
     assert!(Emu::pe32_x64_mismatch_error(&sc, true).is_none());
     assert!(Emu::pe32_x64_mismatch_error("/nonexistent/xyz", true).is_none());
+}
+
+fn pe_header_image(is_x64: bool, header_size: u32) -> Vec<u8> {
+    let fixture = if is_x64 { LOADER64 } else { LOADER32 };
+    // Keep the section table and the first 512 bytes of .text.
+    let mut raw = fixture[..0x600].to_vec();
+    let nt = u32::from_le_bytes(raw[0x3c..0x40].try_into().unwrap()) as usize;
+    let optional_header = nt + 24;
+    let size_offset = optional_header + 60;
+    raw[size_offset..size_offset + 4].copy_from_slice(&header_size.to_le_bytes());
+    // No imports, relocations or TLS: the test needs no system DLLs or guest execution.
+    let directories = optional_header + if is_x64 { 112 } else { 96 };
+    raw[directories..directories + 16 * 8].fill(0);
+    raw
+}
+
+fn check_pe_header_mapping(name: &str, is_x64: bool, load: impl Fn(&mut Emu, &str) -> u64) {
+    for declared in [0x400, 0x600, 0x601, 0x1000] {
+        let raw = pe_header_image(is_x64, declared);
+        let path = write_temp(name, &raw);
+        let mut emu = if is_x64 { emu64() } else { emu32() };
+        emu.cfg.console_enabled = false;
+        emu.cfg.winver = None;
+        let base = load(&mut emu, &path);
+        assert_ne!(base, 0, "header size {declared:#x}");
+        let header = emu.maps.get_mem_by_addr(base).unwrap();
+        assert_eq!(header.get_base(), base);
+        assert_eq!(header.size(), 0x1000, "preserve the aligned mapped size");
+        let copied = (declared as usize).min(raw.len());
+        assert_eq!(&header.get_mem()[..copied], &raw[..copied]);
+        assert!(header.get_mem()[copied..].iter().all(|&byte| byte == 0));
+        let section = emu.maps.get_mem_by_addr(base + 0x1000).unwrap();
+        assert_eq!(&section.get_mem()[..0x200], &raw[0x400..0x600]);
+        fs::remove_file(path).unwrap();
+    }
+}
+
+#[test]
+fn pe32_headers_load_available_bytes_and_zero_fill() {
+    check_pe_header_mapping("mwemu_rob_headers32.exe", false, |emu, path| {
+        u64::from(emu.load_pe32(path, false, 0x400000).0)
+    });
+}
+
+#[test]
+fn pe64_headers_load_available_bytes_and_zero_fill() {
+    check_pe_header_mapping("mwemu_rob_headers64.exe", true, |emu, path| {
+        emu.load_pe64(path, false, 0x140000000).0
+    });
+}
+
+#[test]
+fn pe64_dll_headers_load_available_bytes_and_zero_fill() {
+    check_pe_header_mapping("mwemu_rob_headers64.dll", true, |emu, path| {
+        emu.map_dll_pe64(path).0
+    });
 }

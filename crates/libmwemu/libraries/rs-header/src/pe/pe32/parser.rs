@@ -128,9 +128,9 @@ impl PE32 {
         (max_va as usize) + max_va_sz
     }
 
-    /// The PE headers slice (caller-owned bytes).
+    /// The available PE header bytes, capped at the end of the file.
     pub fn headers<'a>(&self, raw: &'a [u8]) -> &'a [u8] {
-        &raw[0..self.opt.size_of_headers as usize]
+        &raw[..(self.opt.size_of_headers as usize).min(raw.len())]
     }
 
     /// True if the COFF `Characteristics` field has the IMAGE_FILE_DLL bit set.

@@ -2,6 +2,10 @@ use std::io::Write as _;
 use std::path::PathBuf;
 use std::sync::Once;
 
+#[path = "../../libraries/rs-header/tests/fixtures/mod.rs"]
+mod pe_fixtures;
+pub use pe_fixtures::{LOADER32, LOADER64};
+
 static INIT: Once = Once::new();
 
 pub fn setup() {

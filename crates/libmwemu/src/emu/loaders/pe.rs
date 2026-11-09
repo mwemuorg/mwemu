@@ -237,7 +237,8 @@ impl Emu {
                     return (0, 0);
                 }
             };
-            pemap.memcpy(pe32.headers(&raw), pe32.opt.size_of_headers as usize);
+            let headers = pe32.headers(&raw);
+            pemap.memcpy(headers, headers.len());
 
             for i in 0..pe32.num_of_sections() {
                 let ptr = pe32.get_section_ptr(&raw, i);
@@ -453,7 +454,8 @@ impl Emu {
                 return (0, pe64, raw);
             }
         };
-        pemap.memcpy(pe64.headers(&raw), pe64.opt.size_of_headers as usize);
+        let headers = pe64.headers(&raw);
+        pemap.memcpy(headers, headers.len());
         for i in 0..pe64.num_of_sections() {
             let ptr = pe64.get_section_ptr(&raw, i);
             let sect = pe64.get_section(i);
@@ -664,7 +666,8 @@ impl Emu {
                 return (base, 0);
             }
         };
-        pemap.memcpy(pe64.headers(&raw), pe64.opt.size_of_headers as usize);
+        let headers = pe64.headers(&raw);
+        pemap.memcpy(headers, headers.len());
 
         for i in 0..pe64.num_of_sections() {
             let ptr = pe64.get_section_ptr(&raw, i);

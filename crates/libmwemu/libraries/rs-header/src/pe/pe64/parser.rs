@@ -123,9 +123,9 @@ impl PE64 {
         self.fh.characteristics & IMAGE_FILE_DLL != 0
     }
 
-    /// The PE headers slice (caller-owned bytes).
+    /// The available PE header bytes, capped at the end of the file.
     pub fn headers<'a>(&self, raw: &'a [u8]) -> &'a [u8] {
-        &raw[0..self.opt.size_of_headers as usize]
+        &raw[..(self.opt.size_of_headers as usize).min(raw.len())]
     }
 
     pub fn vaddr_to_off(sections: &Vec<ImageSectionHeader>, vaddr: u32) -> u32 {
