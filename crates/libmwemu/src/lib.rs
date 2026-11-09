@@ -5,18 +5,11 @@
 //! `mwemu-winapi64`). It re-exports the core's API and plugs the handlers in.
 
 // Lints the test suite was written under.
-#![cfg_attr(test, allow(non_snake_case))]
-#![cfg_attr(test, allow(dead_code))]
-#![cfg_attr(test, allow(unused_variables))]
-#![cfg_attr(test, allow(unused_must_use))]
+#![cfg_attr(
+    test,
+    allow(non_snake_case, dead_code, unused_variables, unused_must_use)
+)]
 #![cfg_attr(test, allow(clippy::assertions_on_constants))]
-// NOTE: `neg_cmp_op_on_partial_ord` is kept deliberately — in the float
-// compare handlers (cmpss/cmpsd/cmpps/cmppd/avx) `!(a < b)` is NOT the same
-// as `a >= b` for NaN operands, which is the intended x86 semantics.
-#![cfg_attr(test, allow(clippy::neg_cmp_op_on_partial_ord))]
-// The `construct_uint!` macro from `uint` generates code with manual div_ceil;
-// we cannot fix it inside the macro expansion.
-#![cfg_attr(test, allow(clippy::manual_div_ceil))]
 
 pub use mwemu_core::{arch, config, debug, emu, err, hooks, kernel, maps, serialization, utils};
 
