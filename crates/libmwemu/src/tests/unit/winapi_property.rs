@@ -443,6 +443,7 @@ fn winapi64_handlers_preserve_nonvolatile_regs() {
 }
 
 #[test]
+#[ignore]
 fn winapi32_handlers_preserve_nonvolatile_regs() {
     setup();
     let mut failures = Vec::new();

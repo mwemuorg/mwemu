@@ -435,7 +435,11 @@ impl From<SerializableEmu> for Emu {
             // Win32 resource management
             handle_management: HandleManagement::new(), // TODO: not yet serialized
             section_handles: HashMap::new(),
+            file_section_names: HashMap::new(),
             file_handles: HashMap::new(),
+            section_view_dll: HashMap::new(),
+            validated_knowndlls: HashSet::new(),
+            last_closed_section_dll: None,
             fts_handles: HashMap::new(),
             getopt_char_index: 0,
             emulated_stdout: Vec::new(),

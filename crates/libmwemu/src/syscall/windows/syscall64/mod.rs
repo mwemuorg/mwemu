@@ -335,6 +335,7 @@ pub fn gateway(emu: &mut Emu) {
                 .next()
                 .unwrap_or("")
                 .to_lowercase();
+
             let resolved = resolve_maps_dll(emu, &basename);
             if let Some(path) = resolved {
                 if file_info_ptr != 0 && emu.maps.is_mapped(file_info_ptr) {
@@ -370,22 +371,7 @@ pub fn gateway(emu: &mut Emu) {
                 emu.regs_mut().rax = STATUS_OBJECT_NAME_NOT_FOUND;
             }
         }
-        // `NtAreMappedFilesTheSame` (0x8e on some Windows builds, 0x90 on others):
-        // the loader calls this right after mapping a KnownDll section to check
-        // whether the freshly section-mapped view and the on-disk file are the
-        // same image. For the genuine System32 DLLs we serve via --iso they ARE
-        // the same file, so the correct answer is STATUS_SUCCESS. Answering
-        // STATUS_NOT_SAME_DEVICE makes ntdll reject the KnownDll mapping, fall
-        // back to relocating the disk copy itself, and then fail re-validation
-        // with STATUS_INVALID_IMAGE_FORMAT — which aborts process init.
-        0x8e | 0x90 => {
-            log_orange!(
-                emu,
-                "syscall 0x{:x}: NtAreMappedFilesTheSame (stub → SAME / SUCCESS)",
-                nr,
-            );
-            emu.regs_mut().rax = STATUS_SUCCESS;
-        }
+        0x8e | 0x90 => memory::nt_are_mapped_files_the_same(emu),
         // `NtConnectPort` (0xa4): the CSR client (`CsrClientConnectToServer`,
         // called from kernelbase's DLL init) connects to the CSRSS API port.
         // There is no CSRSS to talk to, but the connect MUST succeed — returning

@@ -241,6 +241,9 @@ impl Emu {
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
                 }
+                if !api_name.is_empty() && ssdt_fast_path(self, &api_name) {
+                    return true;
+                }
                 self.regs_mut().rip = addr;
                 return true;
             }
@@ -544,4 +547,387 @@ impl Emu {
 
         true
     }
+}
+
+/// SSDT fast-path: intercept CPU-hot ntdll string-conversion functions
+/// and execute them in Rust instead of emulating ~190 instructions each.
+/// Returns `true` when the function was handled (RIP set to return address,
+/// registers filled with the result). The CALL instruction already pushed
+/// the return address before `set_rip` is invoked.
+fn ssdt_fast_path(emu: &mut Emu, api_name: &str) -> bool {
+    match api_name {
+        "ntdll!RtlAnsiCharToUnicodeChar" => ssdt_rtl_ansi_char_to_unicode_char(emu),
+        "ntdll!RtlUTF8ToUnicodeN" => ssdt_rtl_utf8_to_unicode_n(emu),
+        "ntdll!RtlUnicodeToUTF8N" => ssdt_rtl_unicode_to_utf8_n(emu),
+        "ntdll!RtlUnicodeToMultiByteN" => ssdt_rtl_unicode_to_multibyte_n(emu),
+        "ntdll!RtlAnsiStringToUnicodeString" => ssdt_rtl_ansi_string_to_unicode_string(emu),
+        "ntdll!RtlMultiByteToUnicodeN" => ssdt_rtl_multibyte_to_unicode_n(emu),
+        "ntdll!RtlEqualUnicodeString" => ssdt_rtl_equal_unicode_string(emu),
+        _ => false,
+    }
+}
+
+/// `WCHAR RtlAnsiCharToUnicodeChar(PUCHAR *SourceCharacter)`
+/// RCX = pointer to pointer to source byte(s).
+/// Returns: Unicode char in AX/RAX. Advances *SourceCharacter.
+fn ssdt_rtl_ansi_char_to_unicode_char(emu: &mut Emu) -> bool {
+    let pp_src = emu.regs().rcx;
+    let p_src = match emu.maps.read_qword(pp_src) {
+        Some(v) => v,
+        None => return false,
+    };
+    let b0 = match emu.maps.read_byte(p_src) {
+        Some(v) => v,
+        None => return false,
+    };
+    let (wch, advance): (u16, u64) = if b0 < 0x80 {
+        (b0 as u16, 1)
+    } else if b0 & 0xE0 == 0xC0 {
+        let b1 = emu.maps.read_byte(p_src + 1).unwrap_or(0);
+        let cp = ((b0 as u32 & 0x1F) << 6) | (b1 as u32 & 0x3F);
+        (cp as u16, 2)
+    } else if b0 & 0xF0 == 0xE0 {
+        let b1 = emu.maps.read_byte(p_src + 1).unwrap_or(0);
+        let b2 = emu.maps.read_byte(p_src + 2).unwrap_or(0);
+        let cp = ((b0 as u32 & 0x0F) << 12) | ((b1 as u32 & 0x3F) << 6) | (b2 as u32 & 0x3F);
+        (cp as u16, 3)
+    } else if b0 & 0xF8 == 0xF0 {
+        let b1 = emu.maps.read_byte(p_src + 1).unwrap_or(0);
+        let b2 = emu.maps.read_byte(p_src + 2).unwrap_or(0);
+        let b3 = emu.maps.read_byte(p_src + 3).unwrap_or(0);
+        let cp = ((b0 as u32 & 0x07) << 18)
+            | ((b1 as u32 & 0x3F) << 12)
+            | ((b2 as u32 & 0x3F) << 6)
+            | (b3 as u32 & 0x3F);
+        if cp > 0xFFFF {
+            (0xFFFD, 4) // replacement char for surrogates
+        } else {
+            (cp as u16, 4)
+        }
+    } else {
+        (0xFFFD, 1) // invalid lead byte
+    };
+
+    emu.maps.write_qword(pp_src, p_src + advance);
+    emu.regs_mut().rax = wch as u64;
+    let ret = emu.stack_pop64(false).unwrap_or(0);
+    emu.regs_mut().rip = ret;
+    true
+}
+
+/// `NTSTATUS RtlUTF8ToUnicodeN(PWCH Dest, ULONG MaxBytesDest, PULONG ActualBytes,
+///                               PCCH Src, ULONG SrcBytes)`
+/// x64: RCX=Dest, RDX=MaxBytesDest, R8=ActualBytes(out), R9=Src, [RSP+0x28]=SrcBytes
+fn ssdt_rtl_utf8_to_unicode_n(emu: &mut Emu) -> bool {
+    let dest = emu.regs().rcx;
+    let max_bytes = emu.regs().rdx as usize;
+    let actual_bytes_ptr = emu.regs().r8;
+    let src = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let src_bytes = emu.maps.read_qword(rsp + 0x28).unwrap_or(0) as usize;
+
+    let max_wchars = max_bytes / 2;
+    let mut si: usize = 0;
+    let mut di: usize = 0;
+
+    while si < src_bytes && di < max_wchars {
+        let b0 = emu.maps.read_byte(src + si as u64).unwrap_or(0);
+        let (wch, advance): (u16, usize) = if b0 < 0x80 {
+            (b0 as u16, 1)
+        } else if b0 & 0xE0 == 0xC0 && si + 1 < src_bytes {
+            let b1 = emu.maps.read_byte(src + si as u64 + 1).unwrap_or(0);
+            (((b0 as u16 & 0x1F) << 6) | (b1 as u16 & 0x3F), 2)
+        } else if b0 & 0xF0 == 0xE0 && si + 2 < src_bytes {
+            let b1 = emu.maps.read_byte(src + si as u64 + 1).unwrap_or(0);
+            let b2 = emu.maps.read_byte(src + si as u64 + 2).unwrap_or(0);
+            (
+                ((b0 as u16 & 0x0F) << 12) | ((b1 as u16 & 0x3F) << 6) | (b2 as u16 & 0x3F),
+                3,
+            )
+        } else if b0 & 0xF8 == 0xF0 && si + 3 < src_bytes {
+            (0xFFFD, 4) // 4-byte → replacement (BMP only)
+        } else {
+            (0xFFFD, 1)
+        };
+        emu.maps.write_word(dest + (di * 2) as u64, wch);
+        si += advance;
+        di += 1;
+    }
+
+    let written = (di * 2) as u32;
+    if actual_bytes_ptr != 0 {
+        emu.maps.write_dword(actual_bytes_ptr, written);
+    }
+
+    emu.regs_mut().rax = 0; // STATUS_SUCCESS
+    let ret = emu.stack_pop64(false).unwrap_or(0);
+    emu.regs_mut().rip = ret;
+    true
+}
+
+/// `NTSTATUS RtlUnicodeToUTF8N(PCHAR Dest, ULONG MaxBytesDest, PULONG ActualBytes,
+///                               PCWCH Src, ULONG SrcBytes)`
+/// x64: RCX=Dest, RDX=MaxBytesDest, R8=ActualBytes(out), R9=Src, [RSP+0x28]=SrcBytes
+fn ssdt_rtl_unicode_to_utf8_n(emu: &mut Emu) -> bool {
+    let dest = emu.regs().rcx;
+    let max_bytes = emu.regs().rdx as usize;
+    let actual_bytes_ptr = emu.regs().r8;
+    let src = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let src_bytes = emu.maps.read_qword(rsp + 0x28).unwrap_or(0) as usize;
+
+    let wchar_count = src_bytes / 2;
+    let mut si: usize = 0;
+    let mut di: usize = 0;
+
+    while si < wchar_count && di < max_bytes {
+        let wch = emu.maps.read_word(src + (si * 2) as u64).unwrap_or(0);
+        if wch < 0x80 {
+            emu.maps.write_byte(dest + di as u64, wch as u8);
+            di += 1;
+        } else if wch < 0x800 {
+            if di + 1 >= max_bytes {
+                break;
+            }
+            emu.maps
+                .write_byte(dest + di as u64, (0xC0 | (wch >> 6)) as u8);
+            emu.maps
+                .write_byte(dest + di as u64 + 1, (0x80 | (wch & 0x3F)) as u8);
+            di += 2;
+        } else {
+            if di + 2 >= max_bytes {
+                break;
+            }
+            emu.maps
+                .write_byte(dest + di as u64, (0xE0 | (wch >> 12)) as u8);
+            emu.maps
+                .write_byte(dest + di as u64 + 1, (0x80 | ((wch >> 6) & 0x3F)) as u8);
+            emu.maps
+                .write_byte(dest + di as u64 + 2, (0x80 | (wch & 0x3F)) as u8);
+            di += 3;
+        }
+        si += 1;
+    }
+
+    let written = di as u32;
+    if actual_bytes_ptr != 0 {
+        emu.maps.write_dword(actual_bytes_ptr, written);
+    }
+
+    emu.regs_mut().rax = 0; // STATUS_SUCCESS
+    let ret = emu.stack_pop64(false).unwrap_or(0);
+    emu.regs_mut().rip = ret;
+    true
+}
+
+/// `NTSTATUS RtlUnicodeToMultiByteN(PCHAR Dest, ULONG MaxBytes, PULONG ActualBytes,
+///                                    PCWCH Src, ULONG SrcBytes)`
+fn ssdt_rtl_unicode_to_multibyte_n(emu: &mut Emu) -> bool {
+    let dest = emu.regs().rcx;
+    let max_bytes = emu.regs().rdx as usize;
+    let actual_bytes_ptr = emu.regs().r8;
+    let src = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let src_bytes = emu.maps.read_qword(rsp + 0x28).unwrap_or(0) as usize;
+
+    let wchar_count = src_bytes / 2;
+    let count = wchar_count.min(max_bytes);
+
+    for i in 0..count {
+        let wch = emu.maps.read_word(src + (i * 2) as u64).unwrap_or(0);
+        let byte = if wch < 0x100 { wch as u8 } else { b'?' };
+        emu.maps.write_byte(dest + i as u64, byte);
+    }
+
+    if actual_bytes_ptr != 0 {
+        emu.maps.write_dword(actual_bytes_ptr, count as u32);
+    }
+
+    emu.regs_mut().rax = 0;
+    let ret = emu.stack_pop64(false).unwrap_or(0);
+    emu.regs_mut().rip = ret;
+    true
+}
+
+fn utf8_decode_one(emu: &Emu, addr: u64) -> (u16, usize) {
+    let b0 = emu.maps.read_byte(addr).unwrap_or(0);
+    if b0 < 0x80 {
+        (b0 as u16, 1)
+    } else if b0 & 0xE0 == 0xC0 {
+        let b1 = emu.maps.read_byte(addr + 1).unwrap_or(0);
+        (((b0 as u16 & 0x1F) << 6) | (b1 as u16 & 0x3F), 2)
+    } else if b0 & 0xF0 == 0xE0 {
+        let b1 = emu.maps.read_byte(addr + 1).unwrap_or(0);
+        let b2 = emu.maps.read_byte(addr + 2).unwrap_or(0);
+        (
+            ((b0 as u16 & 0x0F) << 12) | ((b1 as u16 & 0x3F) << 6) | (b2 as u16 & 0x3F),
+            3,
+        )
+    } else if b0 & 0xF8 == 0xF0 {
+        (0xFFFD, 4)
+    } else {
+        (0xFFFD, 1)
+    }
+}
+
+/// `NTSTATUS RtlAnsiStringToUnicodeString(PUNICODE_STRING Dest, PCANSI_STRING Src, BOOLEAN Alloc)`
+fn ssdt_rtl_ansi_string_to_unicode_string(emu: &mut Emu) -> bool {
+    let dest_us = emu.regs().rcx;
+    let src_as = emu.regs().rdx;
+    let alloc = emu.regs().r8 & 0xFF;
+
+    let src_len = emu.maps.read_word(src_as).unwrap_or(0) as usize;
+    let src_buf = emu.maps.read_qword(src_as + 8).unwrap_or(0);
+    if src_buf == 0 || src_len == 0 {
+        emu.maps.write_word(dest_us, 0);
+        emu.regs_mut().rax = 0;
+        let ret = emu.stack_pop64(false).unwrap_or(0);
+        emu.regs_mut().rip = ret;
+        return true;
+    }
+
+    let mut wchars: Vec<u16> = Vec::with_capacity(src_len + 1);
+    let mut si: usize = 0;
+    while si < src_len {
+        let (wch, advance) = utf8_decode_one(emu, src_buf + si as u64);
+        wchars.push(wch);
+        si += advance;
+    }
+    let uni_byte_len = (wchars.len() * 2) as u16;
+
+    if alloc != 0 {
+        let alloc_sz = uni_byte_len as u64 + 2;
+        let buf = match emu.maps.lib64_alloc(alloc_sz) {
+            Some(a) => a,
+            None => {
+                emu.regs_mut().rax = 0xC0000017;
+                let ret = emu.stack_pop64(false).unwrap_or(0);
+                emu.regs_mut().rip = ret;
+                return true;
+            }
+        };
+        let name = format!("ansi2uni_{:x}", buf);
+        let _ = emu.maps.create_map(
+            &name,
+            buf,
+            alloc_sz,
+            crate::maps::mem64::Permission::READ_WRITE,
+        );
+        emu.maps.write_word(dest_us, uni_byte_len);
+        emu.maps.write_word(dest_us + 2, uni_byte_len + 2);
+        emu.maps.write_qword(dest_us + 8, buf);
+
+        for (i, &wch) in wchars.iter().enumerate() {
+            emu.maps.write_word(buf + (i * 2) as u64, wch);
+        }
+        emu.maps.write_word(buf + uni_byte_len as u64, 0);
+    } else {
+        let dst_max = emu.maps.read_word(dest_us + 2).unwrap_or(0) as usize;
+        let dst_buf = emu.maps.read_qword(dest_us + 8).unwrap_or(0);
+        if dst_buf == 0 {
+            emu.regs_mut().rax = 0xC0000005;
+            let ret = emu.stack_pop64(false).unwrap_or(0);
+            emu.regs_mut().rip = ret;
+            return true;
+        }
+        let write_count = wchars.len().min(dst_max / 2);
+        for (i, _) in wchars.iter().enumerate().take(write_count) {
+            emu.maps.write_word(dst_buf + (i * 2) as u64, wchars[i]);
+        }
+        let written = (write_count * 2) as u16;
+        emu.maps.write_word(dest_us, written);
+        if written + 2 <= dst_max as u16 {
+            emu.maps.write_word(dst_buf + written as u64, 0);
+        }
+    }
+
+    emu.regs_mut().rax = 0;
+    let ret = emu.stack_pop64(false).unwrap_or(0);
+    emu.regs_mut().rip = ret;
+    true
+}
+
+/// `NTSTATUS RtlMultiByteToUnicodeN(PWCH Dest, ULONG MaxBytesDest, PULONG BytesWritten,
+///                                    PCCH Src, ULONG SrcBytes)`
+fn ssdt_rtl_multibyte_to_unicode_n(emu: &mut Emu) -> bool {
+    let dest = emu.regs().rcx;
+    let max_bytes = emu.regs().rdx as usize;
+    let bytes_written_ptr = emu.regs().r8;
+    let src = emu.regs().r9;
+    let rsp = emu.regs().rsp;
+    let src_bytes = emu.maps.read_qword(rsp + 0x28).unwrap_or(0) as usize;
+
+    let max_wchars = max_bytes / 2;
+    let mut si: usize = 0;
+    let mut di: usize = 0;
+
+    while si < src_bytes && di < max_wchars {
+        let (wch, advance) = utf8_decode_one(emu, src + si as u64);
+        emu.maps.write_word(dest + (di * 2) as u64, wch);
+        si += advance;
+        di += 1;
+    }
+
+    let written = (di * 2) as u32;
+    if bytes_written_ptr != 0 {
+        emu.maps.write_dword(bytes_written_ptr, written);
+    }
+
+    emu.regs_mut().rax = 0;
+    let ret = emu.stack_pop64(false).unwrap_or(0);
+    emu.regs_mut().rip = ret;
+    true
+}
+
+fn read_unicode_string(emu: &Emu, us_ptr: u64) -> String {
+    if us_ptr == 0 {
+        return String::new();
+    }
+    let len = emu.maps.read_word(us_ptr).unwrap_or(0) as usize;
+    let buf = emu.maps.read_qword(us_ptr + 8).unwrap_or(0);
+    if buf == 0 || len == 0 {
+        return String::new();
+    }
+    let wchar_count = len / 2;
+    let mut chars = Vec::with_capacity(wchar_count);
+    for i in 0..wchar_count {
+        let wch = emu.maps.read_word(buf + (i * 2) as u64).unwrap_or(0);
+        if wch == 0 {
+            break;
+        }
+        chars.push(wch);
+    }
+    String::from_utf16_lossy(&chars)
+}
+
+/// `BOOLEAN RtlEqualUnicodeString(PCUNICODE_STRING s1, PCUNICODE_STRING s2, BOOLEAN ci)`
+fn ssdt_rtl_equal_unicode_string(emu: &mut Emu) -> bool {
+    let s1_ptr = emu.regs().rcx;
+    let s2_ptr = emu.regs().rdx;
+    let case_insensitive = (emu.regs().r8 & 0xFF) != 0;
+
+    let s1 = read_unicode_string(emu, s1_ptr);
+    let s2 = read_unicode_string(emu, s2_ptr);
+
+    let equal = if case_insensitive {
+        s1.eq_ignore_ascii_case(&s2)
+    } else {
+        s1 == s2
+    };
+
+    if emu.cfg.verbose >= 1 {
+        log_red!(
+            emu,
+            "RtlEqualUnicodeString: '{}' vs '{}' ci={} => {}",
+            s1,
+            s2,
+            case_insensitive,
+            equal
+        );
+    }
+
+    emu.regs_mut().rax = if equal { 1 } else { 0 };
+    let ret = emu.stack_pop64(false).unwrap_or(0);
+    emu.regs_mut().rip = ret;
+    true
 }

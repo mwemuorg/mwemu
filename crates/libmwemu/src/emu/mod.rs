@@ -211,14 +211,18 @@ pub struct Emu {
 
     // --- Win32 resource management ---
     pub(crate) handle_management: HandleManagement, // file and object handle table
-    pub(crate) section_handles: HashMap<u64, String>, // KnownDll section handle → DLL filename (e.g., "kernel32.dll")
+    pub(crate) section_handles: HashMap<u64, String>, // KnownDll section handle → DLL filename — from NtOpenSection only
+    pub(crate) file_section_names: HashMap<u64, String>, // file-backed section handle → DLL filename — from NtCreateSection(file_handle)
     pub(crate) file_handles: HashMap<u64, String>, // NtOpenFile handle → resolved basename (e.g., "kernelbase.dll"); used by NtCreateSection to inherit the dll name
+    pub(crate) section_view_dll: HashMap<u64, String>, // section_view base → DLL filename; used by NtAreMappedFilesTheSame to compare views from the same file
+    pub(crate) validated_knowndlls: HashSet<String>, // DLLs that passed AreMappedFilesTheSame — NtQueryAttributesFile returns NOT_FOUND for these on subsequent calls
     pub(crate) fts_handles: HashMap<u64, crate::api::macos::libsystem::FtsState>, // macOS FTS traversal state
     pub(crate) getopt_char_index: usize, // position within current argv element for grouped flags (-la)
     pub emulated_stdout: Vec<u8>,        // buffered stdout output from emulated program
     pub(crate) syscall_number_map: HashMap<u64, u64>, // real_nr (from loaded ntdll) → canonical_nr (the value our gateway dispatcher matches on). Built at init by scanning ntdll exports; empty means no translation.
     pub(crate) syscall_name_by_real: HashMap<u64, String>, // real_nr → "Nt<Name>" as exported by the loaded ntdll. Used in diagnostics so unimplemented-syscall logs name the right function (the static `what_syscall()` table is tied to a single Windows build and would otherwise mislabel cross-build syscalls).
     pub(crate) known_dll_dir_handles: HashSet<u64>, // handles returned by NtOpenDirectoryObject for \KnownDlls / \KnownDlls32; used by NtOpenSection to recognise relative DLL opens
+    pub(crate) last_closed_section_dll: Option<String>, // DLL name from the most recently NtClose'd section handle — used to resolve NULL-handle NtMapViewOfSection for clean module views
     pub(crate) console_handles: HashSet<u64>, // handles backed by the console device (\Device\ConDrv\... and relative opens like \Reference / \Connect / \Input / \Output under a ConDrv root); used to recognise relative console opens and to answer NtDeviceIoControlFile on them
     pub(crate) api_resolve_cache: HashMap<String, u64>, // memoizes resolve_api_name_in_module: "module_lc\x01name" -> resolved VA. The resolver does an O(exports) string-read+lowercase scan per call; the loader resolves the same apiset imports ~100x (the kernelbase dance), so this dominated CPU without the cache. Only successful (non-zero) resolutions are cached.
     pub(crate) api_addr_name_cache: HashMap<u64, String>, // memoizes resolve_api_addr_to_name: VA -> export name. Same O(exports) scan; cached because module addresses are stable for a run.

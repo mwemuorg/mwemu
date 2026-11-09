@@ -181,10 +181,12 @@ pub fn ensure_peb_nls_tables(emu: &mut emu::Emu) {
         ("peb_nls_oem", peb_base + 0xA8, "C_437.NLS"),
         ("peb_nls_unicode", peb_base + 0xB0, "locale.nls"),
     ];
-    for (name, slot_addr, nls_filename) in slots {
+    let mut nls_bases: [u64; 3] = [0; 3];
+    for (i, (name, slot_addr, nls_filename)) in slots.iter().enumerate() {
         let cur = emu.maps.read_qword(*slot_addr).unwrap_or(0);
         let page = cur & !0xFFF;
         if cur != 0 && page != 0 && emu.maps.is_mapped(page) {
+            nls_bases[i] = cur;
             continue;
         }
         let base = if let Some(m) = emu.maps.get_map_by_name(name) {
@@ -220,6 +222,80 @@ pub fn ensure_peb_nls_tables(emu: &mut emu::Emu) {
             }
         };
         emu.maps.write_qword(*slot_addr, base);
+        nls_bases[i] = base;
+    }
+
+    ensure_peb_readonly_shared_memory(emu, peb_base, &nls_bases);
+}
+
+/// Map the ReadOnlySharedMemory region that PEB.ReadOnlyStaticServerData
+/// points into. kernel32's DllMain dereferences this pointer array to
+/// reach codepage tables; without the mapping, the access faults.
+fn ensure_peb_readonly_shared_memory(emu: &mut emu::Emu, peb_base: u64, nls_bases: &[u64; 3]) {
+    let ro_base = emu.maps.read_qword(peb_base + 0x88).unwrap_or(0x7efe0000);
+    if ro_base == 0 {
+        return;
+    }
+    if emu.maps.is_mapped(ro_base) {
+        return;
+    }
+    let sz: u64 = 0x2000;
+    if let Err(e) = emu
+        .maps
+        .create_map("peb_ro_shared", ro_base, sz, Permission::READ_WRITE)
+    {
+        log::warn!("ensure_peb_readonly_shared_memory: {}", e);
+        return;
+    }
+    emu.maps.memset(ro_base, 0, sz as usize);
+
+    // ReadOnlyStaticServerData is an array of offsets (relative to
+    // ReadOnlySharedMemoryBase). Entry [0] points to BASE_STATIC_SERVER_DATA
+    // which kernel32 reads for WindowsDirectory, CSDVersionString, etc.
+    let srv_data = emu.maps.read_qword(peb_base + 0x98).unwrap_or(0);
+    if srv_data >= ro_base && srv_data < ro_base + sz {
+        let bssd = ro_base;
+        // BASE_STATIC_SERVER_DATA layout (64-bit):
+        //   +0x00  UNICODE_STRING WindowsDirectory       (16 bytes)
+        //   +0x10  UNICODE_STRING WindowsSystemDirectory  (16 bytes)
+        //   +0x20  UNICODE_STRING NamedObjectDirectory    (16 bytes)
+        //   +0x30  USHORT WindowsMajorVersion
+        //   +0x32  USHORT WindowsMinorVersion
+        //   +0x34  USHORT BuildNumber
+        //   +0x36  USHORT CSDVersion
+        //   +0x38  USHORT RCNumber
+        //   +0x3A  WCHAR  CSDVersionString[128]
+        let sys_dir = b"C:\\Windows\\System32\0";
+        let win_dir = b"C:\\Windows\0";
+        let sys_wide_off = bssd + 0x200;
+        let win_wide_off = bssd + 0x300;
+        for (i, &b) in sys_dir.iter().enumerate() {
+            emu.maps.write_word(sys_wide_off + i as u64 * 2, b as u16);
+        }
+        for (i, &b) in win_dir.iter().enumerate() {
+            emu.maps.write_word(win_wide_off + i as u64 * 2, b as u16);
+        }
+        let sys_len = ((sys_dir.len() - 1) * 2) as u16;
+        let win_len = ((win_dir.len() - 1) * 2) as u16;
+        // WindowsDirectory
+        emu.maps.write_word(bssd, win_len);
+        emu.maps.write_word(bssd + 2, win_len + 2);
+        emu.maps.write_qword(bssd + 8, win_wide_off);
+        // WindowsSystemDirectory
+        emu.maps.write_word(bssd + 0x10, sys_len);
+        emu.maps.write_word(bssd + 0x12, sys_len + 2);
+        emu.maps.write_qword(bssd + 0x18, sys_wide_off);
+        // Version info
+        emu.maps.write_word(bssd + 0x30, 10);
+        emu.maps.write_word(bssd + 0x32, 0);
+        emu.maps.write_word(bssd + 0x34, 26100);
+        emu.maps.write_word(bssd + 0x36, 0);
+        emu.maps.write_word(bssd + 0x38, 0);
+        // CSDVersionString at +0x3A: empty (null terminator)
+        emu.maps.write_word(bssd + 0x3A, 0);
+
+        // Entry [0] = offset of BASE_STATIC_SERVER_DATA from ro_base
+        emu.maps.write_qword(srv_data, bssd - ro_base);
     }
 }
 
