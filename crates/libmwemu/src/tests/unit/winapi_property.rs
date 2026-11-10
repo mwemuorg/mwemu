@@ -500,8 +500,27 @@ fn winapi64_handlers_preserve_rsp() {
 
         for dll in DLLS_64 {
             let apis = dll.api_names();
+            let mut emu = emu64();
+            emu.cfg.console_enabled = false;
+            emu.running_script = true;
+            emu.init_stack64();
+            register_dll(
+                &mut emu,
+                dll.name,
+                apis.first().map_or("_", |s| s),
+                MODULE64,
+            );
+            let rsp_base = emu.regs().rsp;
+
             for api in &apis {
-                let mut emu = make_emu64_zeroed(dll.name, api);
+                emu.regs_mut().rsp = rsp_base;
+                emu.regs_mut().rcx = 0;
+                emu.regs_mut().rdx = 0;
+                emu.regs_mut().r8 = 0;
+                emu.regs_mut().r9 = 0;
+                for i in 0..16 {
+                    emu.maps.write_qword(rsp_base + 0x20 + i * 8, 0);
+                }
                 let rsp_before = emu.regs().rsp;
 
                 if catch_unwind(AssertUnwindSafe(|| {
@@ -548,8 +567,27 @@ fn winapi64_handlers_preserve_nonvolatile_regs() {
 
         for dll in DLLS_64 {
             let apis = dll.api_names();
+            let mut emu = emu64();
+            emu.cfg.console_enabled = false;
+            emu.running_script = true;
+            emu.init_stack64();
+            register_dll(
+                &mut emu,
+                dll.name,
+                apis.first().map_or("_", |s| s),
+                MODULE64,
+            );
+            let rsp_base = emu.regs().rsp;
+
             for api in &apis {
-                let mut emu = make_emu64_zeroed(dll.name, api);
+                emu.regs_mut().rsp = rsp_base;
+                emu.regs_mut().rcx = 0;
+                emu.regs_mut().rdx = 0;
+                emu.regs_mut().r8 = 0;
+                emu.regs_mut().r9 = 0;
+                for i in 0..16 {
+                    emu.maps.write_qword(rsp_base + 0x20 + i * 8, 0);
+                }
                 set_sentinels_64(&mut emu);
 
                 if catch_unwind(AssertUnwindSafe(|| {
