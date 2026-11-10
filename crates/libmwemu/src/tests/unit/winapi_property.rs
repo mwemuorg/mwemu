@@ -609,7 +609,12 @@ fn winapi32_handlers_preserve_nonvolatile_regs() {
             emu.cfg.console_enabled = false;
             emu.running_script = true;
             emu.init_stack32();
-            register_dll(&mut emu, dll.name, apis.first().map_or("_", |s| s), MODULE32);
+            register_dll(
+                &mut emu,
+                dll.name,
+                apis.first().map_or("_", |s| s),
+                MODULE32,
+            );
             let stack_base = emu.regs().get_esp() as u64;
 
             for api in &apis {

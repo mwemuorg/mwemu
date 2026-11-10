@@ -147,16 +147,18 @@ pub(super) fn handle_syscall64_writev(emu: &mut emu::Emu) {
     }
 
     let total = data.len() as u64;
-    match fd {
-        1 => {
-            let _ = std::io::stdout().write_all(&data);
-            let _ = std::io::stdout().flush();
+    if emu.cfg.console_enabled {
+        match fd {
+            1 => {
+                let _ = std::io::stdout().write_all(&data);
+                let _ = std::io::stdout().flush();
+            }
+            2 => {
+                let _ = std::io::stderr().write_all(&data);
+                let _ = std::io::stderr().flush();
+            }
+            _ => {}
         }
-        2 => {
-            let _ = std::io::stderr().write_all(&data);
-            let _ = std::io::stderr().flush();
-        }
-        _ => {}
     }
     log::trace!(
         "{}** {} syscall writev(fd:{} iovcnt:{}) ={} {}",
@@ -274,16 +276,18 @@ pub(super) fn handle_syscall64_write(emu: &mut emu::Emu) {
     for i in 0..sz {
         data.push(emu.maps.read_byte(buff + i).unwrap_or(0));
     }
-    match fd {
-        1 => {
-            let _ = std::io::stdout().write_all(&data);
-            let _ = std::io::stdout().flush();
+    if emu.cfg.console_enabled {
+        match fd {
+            1 => {
+                let _ = std::io::stdout().write_all(&data);
+                let _ = std::io::stdout().flush();
+            }
+            2 => {
+                let _ = std::io::stderr().write_all(&data);
+                let _ = std::io::stderr().flush();
+            }
+            _ => {}
         }
-        2 => {
-            let _ = std::io::stderr().write_all(&data);
-            let _ = std::io::stderr().flush();
-        }
-        _ => {}
     }
     log::trace!(
         "{}** {} syscall write(fd:{} buf:0x{:x} sz:{}) {}",
