@@ -31,13 +31,13 @@ impl DllDef {
             .collect();
         let common_sources: &[&str] = match self.name {
             "kernel32" | "kernelbase" => &[
-                include_str!("../../../../mwemu-core/src/api/windows/common/files.rs"),
-                include_str!("../../../../mwemu-core/src/api/windows/common/handles.rs"),
-                include_str!("../../../../mwemu-core/src/api/windows/common/modules.rs"),
-                include_str!("../../../../mwemu-core/src/api/windows/common/strings.rs"),
+                include_str!("../../../../mwemu-windows/src/api/windows/common/files.rs"),
+                include_str!("../../../../mwemu-windows/src/api/windows/common/handles.rs"),
+                include_str!("../../../../mwemu-windows/src/api/windows/common/modules.rs"),
+                include_str!("../../../../mwemu-windows/src/api/windows/common/strings.rs"),
             ],
             "user32" => &[include_str!(
-                "../../../../mwemu-core/src/api/windows/common/strings.rs"
+                "../../../../mwemu-windows/src/api/windows/common/strings.rs"
             )],
             _ => &[],
         };

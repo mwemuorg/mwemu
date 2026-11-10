@@ -1,6 +1,6 @@
-use crate::api::windows::common::modules;
 use crate::emu;
 use crate::emu::loaders::pe_stub_exports::get_stub_exports;
+use crate::windows::module_names as modules;
 use crate::windows::peb::peb64;
 
 pub fn is_library_loaded(emu: &mut emu::Emu, libname: &str) -> bool {

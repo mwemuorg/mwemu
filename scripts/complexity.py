@@ -83,7 +83,7 @@ def measure_file(path):
 def main():
     parser = argparse.ArgumentParser(description='Rust cyclomatic complexity')
     parser.add_argument('paths', nargs='*', default=['crates/mwemu-core/src', 'crates/mwemu-debug/src',
-                                 'crates/mwemu-linux/src', 'crates/mwemu-macos/src',
+                                 'crates/mwemu-linux/src', 'crates/mwemu-macos/src', 'crates/mwemu-windows/src',
                                  'crates/mwemu-winapi32/src',
                                  'crates/mwemu-winapi64/src', 'crates/libmwemu/src'])
     parser.add_argument('--threshold', type=int, default=40,

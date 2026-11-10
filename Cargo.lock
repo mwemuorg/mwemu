@@ -1231,6 +1231,7 @@ dependencies = [
  "mwemu-macos",
  "mwemu-winapi32",
  "mwemu-winapi64",
+ "mwemu-windows",
  "rs-header",
  "serde_json",
  "tempdir",
@@ -1391,19 +1392,16 @@ dependencies = [
  "chrono",
  "csv",
  "ctrlc",
- "des",
  "dunce",
  "fast_log",
  "flate2",
  "goblin",
- "hmac",
  "iced-x86",
  "lazy_static",
  "log",
  "md5",
  "memmap2",
  "nohash-hasher",
- "pbkdf2",
  "rand 0.9.5",
  "rs-header",
  "scan_fmt",
@@ -1411,8 +1409,6 @@ dependencies = [
  "serde_arrays",
  "serde_json",
  "serial_test",
- "sha1",
- "sha2",
  "slab",
  "soft-canonicalize",
  "tempdir",
@@ -1491,6 +1487,7 @@ dependencies = [
  "lazy_static",
  "log",
  "mwemu-core",
+ "mwemu-windows",
  "rand 0.9.5",
  "scan_fmt",
 ]
@@ -1503,7 +1500,24 @@ dependencies = [
  "lazy_static",
  "log",
  "mwemu-core",
+ "mwemu-windows",
  "rand 0.9.5",
+]
+
+[[package]]
+name = "mwemu-windows"
+version = "1.0.0"
+dependencies = [
+ "aes",
+ "des",
+ "iced-x86",
+ "lazy_static",
+ "log",
+ "md5",
+ "mwemu-core",
+ "pbkdf2",
+ "sha1",
+ "sha2",
 ]
 
 [[package]]

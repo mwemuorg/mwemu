@@ -14,11 +14,12 @@ extern crate mwemu_core;
 
 // The handlers name the emulator core as `crate::…`, as they did when this
 // was a module of libmwemu. Keep those paths valid.
-pub(crate) use mwemu_core::{context, debug, emu, exception, layers, maps, threading, windows};
+pub(crate) use mwemu_core::{context, debug, emu, exception, layers, maps, threading};
+pub(crate) use mwemu_windows::windows;
 pub(crate) mod api {
     pub(crate) mod windows {
         pub(crate) use crate as winapi64;
-        pub(crate) use mwemu_core::api::windows::*;
+        pub(crate) use mwemu_windows::api::windows::*;
     }
 }
 pub(crate) use api::windows as winapi;

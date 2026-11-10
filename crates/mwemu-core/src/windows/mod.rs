@@ -1,13 +1,10 @@
 pub mod constants;
-pub mod environment_store;
 pub mod export_index;
 pub mod kuser_shared;
 pub mod loader32;
 pub mod loader64;
+pub mod module_names;
 pub mod native_crt;
 pub mod peb;
-pub mod profile_store;
-pub mod registry_store;
 pub mod stolen_prologue;
 pub mod structures;
-pub mod window_table;

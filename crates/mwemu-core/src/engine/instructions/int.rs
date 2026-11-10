@@ -1,6 +1,5 @@
 use crate::emu::Emu;
 use crate::layers;
-use crate::syscall::windows;
 use crate::{color, exception::types};
 use iced_x86::Instruction;
 
@@ -37,9 +36,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                         layers::linux().syscall32(emu);
                     }
                 } else if emu.cfg.is_x64() {
-                    windows::syscall64::gateway(emu);
+                    layers::windows().syscall64(emu);
                 } else {
-                    windows::syscall32::gateway(emu);
+                    layers::windows().syscall32(emu);
                 }
             }
 

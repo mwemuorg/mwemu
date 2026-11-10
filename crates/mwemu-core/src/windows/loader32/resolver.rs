@@ -1,6 +1,6 @@
-use crate::api::windows::common::modules;
 use crate::emu;
 use crate::windows::export_index::IndexedExport;
+use crate::windows::module_names as modules;
 use crate::windows::peb::peb32;
 
 pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {

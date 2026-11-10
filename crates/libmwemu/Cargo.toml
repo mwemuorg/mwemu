@@ -16,6 +16,7 @@ mwemu-core = { path = "../mwemu-core" }
 mwemu-debug = { path = "../mwemu-debug" }
 mwemu-linux = { path = "../mwemu-linux" }
 mwemu-macos = { path = "../mwemu-macos" }
+mwemu-windows = { path = "../mwemu-windows" }
 mwemu-winapi32 = { path = "../mwemu-winapi32" }
 mwemu-winapi64 = { path = "../mwemu-winapi64" }
 

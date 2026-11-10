@@ -1,5 +1,5 @@
 use crate::emu::Emu;
-use crate::ntapi;
+use crate::layers;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
@@ -7,7 +7,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         log::warn!("sysenter: ntapi64 not implemented yet");
         return false;
     } else {
-        ntapi::ntapi32::gateway(emu.regs().get_eax(), emu.regs().get_edx(), emu);
+        layers::windows().ntapi32(emu.regs().get_eax(), emu.regs().get_edx(), emu);
     }
     true
 }

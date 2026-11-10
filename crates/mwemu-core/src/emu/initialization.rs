@@ -1031,7 +1031,7 @@ impl Emu {
             // NtQuerySystemEnvironmentValueEx) and silently misroutes —
             // RtlRaiseException then returns "0" instead of dispatching the
             // exception, leading to a RtlRaiseStatus(0) recursion.
-            crate::syscall::windows::syscall64::build_syscall_translation_table(self);
+            crate::layers::windows().build_syscall_translation_table(self);
 
             // Pre-map kernel32 and kernelbase even though modern ntdll
             // clears the legacy `InMemoryOrderModuleList` during init —

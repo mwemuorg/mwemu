@@ -1,0 +1,23 @@
+[package]
+name = "mwemu-windows"
+version = "1.0.0"
+edition = "2024"
+authors = ["sha0coder"]
+license = "Apache-2.0"
+rust-version = "1.95"
+description = "Windows layer of libmwemu: the NT syscalls, the helpers the API handlers share and the emulated registry, environment and window state. Use libmwemu instead of depending on this directly."
+homepage = "https://mwemu.github.io/"
+repository = "https://github.com/mwemuorg/mwemu"
+publish = false
+
+[dependencies]
+mwemu-core = { path = "../mwemu-core" }
+iced-x86 = { version = "1.21.0", features = ["serde"] }
+lazy_static = "1.4.0"
+log = "0.4.22"
+md5 = "0.7.0"
+sha1 = "0.10.7"
+sha2 = "0.10.8"
+aes = "0.8.4"
+des = "0.8.1"
+pbkdf2 = "0.12.2"

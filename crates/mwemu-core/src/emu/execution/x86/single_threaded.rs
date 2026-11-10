@@ -10,7 +10,6 @@ use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::execution::x86::decode::ensure_instruction_cache_populated_x86;
 use crate::engine;
 use crate::err::MwemuError;
-use crate::syscall::windows::syscall64::memory as win_syscall64_memory;
 use crate::utils::helpers::unlikely;
 
 use super::Emu;
@@ -530,7 +529,7 @@ impl Emu {
                     // call site so the function-call overhead disappears on the
                     // common (non-ssdt) path.
                     if self.cfg.emulate_winapi {
-                        win_syscall64_memory::ntdll_heap_list_walk_fixup(self, &x86_ins, addr);
+                        crate::layers::windows().ntdll_heap_list_walk_fixup(self, &x86_ins, addr);
                     }
 
                     let should_stop_after_return =

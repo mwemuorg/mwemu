@@ -34,7 +34,6 @@ pub mod hooks;
 pub mod kernel;
 pub mod layers;
 pub mod maps;
-pub mod syscall;
 pub mod threading;
 pub mod windows;
 
@@ -47,7 +46,6 @@ pub use arch::x86::fpu;
 pub use arch::x86::regs as regs64;
 
 pub use api::windows as winapi;
-pub use syscall::windows::ntapi;
 
 pub use debug::console;
 pub use emu::emu_context;

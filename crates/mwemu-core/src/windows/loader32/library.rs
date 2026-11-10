@@ -1,6 +1,6 @@
-use crate::api::windows::common::modules;
 use crate::emu;
 use crate::emu::loaders::pe_stub_exports::get_stub_exports;
+use crate::windows::module_names as modules;
 use crate::windows::peb::peb32;
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {

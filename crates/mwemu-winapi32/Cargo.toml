@@ -12,6 +12,7 @@ publish = false
 
 [dependencies]
 mwemu-core = { path = "../mwemu-core" }
+mwemu-windows = { path = "../mwemu-windows" }
 chrono = { version = "0.4", features = ["serde"] }
 lazy_static = "1.4.0"
 log = "0.4.22"
