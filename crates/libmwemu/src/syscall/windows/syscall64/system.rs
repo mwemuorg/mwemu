@@ -896,7 +896,7 @@ pub fn nt_manage_hot_patch(emu: &mut Emu) {
         info
     );
 
-    emu.regs_mut().rax = STATUS_NOT_SUPPORTED;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 /// `NtQueryDebugFilterState(ComponentId, Level)` — returns FALSE (0) to indicate

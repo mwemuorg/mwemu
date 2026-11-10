@@ -5,6 +5,7 @@ use crate::windows::constants::syscalls::*;
 use std::sync::atomic::Ordering;
 
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::syscall::windows::syscall64;
 use crate::tests::helpers;
 
@@ -49,6 +50,50 @@ fn nt_query_virtual_memory_success_writes_output() {
         crate::windows::structures::MemoryBasicInformation64::SIZE
     );
     assert_eq!(emu.maps.read_qword(0x500100).unwrap_or(0), 0x400000);
+}
+
+#[test]
+fn nt_map_view_of_section_preserves_page_permissions() {
+    helpers::setup();
+    let cases = [
+        (PAGE_NOACCESS, Permission::NONE),
+        (PAGE_READONLY, Permission::READ),
+        (PAGE_READWRITE, Permission::READ_WRITE),
+        (PAGE_WRITECOPY, Permission::READ_WRITE),
+        (PAGE_EXECUTE, Permission::EXECUTE),
+        (PAGE_EXECUTE_READ, Permission::READ_EXECUTE),
+        (PAGE_EXECUTE_READWRITE, Permission::READ_WRITE_EXECUTE),
+        (PAGE_EXECUTE_WRITECOPY, Permission::READ_WRITE_EXECUTE),
+        (PAGE_EXECUTE_READ | PAGE_NOCACHE, Permission::READ_EXECUTE),
+    ];
+    for (protection, expected) in cases {
+        let mut emu = setup_emu64_syscall();
+        let section_handle = 0x100;
+        let rsp = emu.regs().rsp;
+        let base_ptr = rsp + 0x100;
+        let size_ptr = base_ptr + 8;
+
+        // An empty section name selects the placeholder-view path without loading a DLL.
+        emu.section_handles.insert(section_handle, String::new());
+        assert!(emu.maps.write_qword(base_ptr, 0));
+        assert!(emu.maps.write_qword(size_ptr, PAGE_SIZE));
+        assert!(emu.maps.write_qword(rsp + 0x38, size_ptr));
+        assert!(emu.maps.write_dword(rsp + 0x40, VIEW_SHARE));
+        assert!(emu.maps.write_dword(rsp + 0x50, protection));
+        emu.regs_mut().rax = WIN64_NTMAPVIEWOFSECTION;
+        emu.regs_mut().rcx = section_handle;
+        emu.regs_mut().rdx = NT_CURRENT_PROCESS;
+        emu.regs_mut().r8 = base_ptr;
+        emu.regs_mut().r9 = 0;
+
+        syscall64::gateway(&mut emu);
+
+        assert_eq!(emu.regs().rax, STATUS_SUCCESS, "protection {protection:#x}");
+        let base = emu.maps.read_qword(base_ptr).expect("mapped base");
+        let map = emu.maps.get_mem_by_addr(base).expect("mapped section view");
+        assert_eq!(map.permission(), expected, "protection {protection:#x}");
+        assert_eq!(emu.maps.read_qword(size_ptr), Some(PAGE_SIZE));
+    }
 }
 
 #[test]

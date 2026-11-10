@@ -1,5 +1,6 @@
 // NTSTATUS reference: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55
 pub const STATUS_SUCCESS: u64 = 0x00000000;
+pub const STATUS_IMAGE_NOT_AT_BASE: u64 = 0x40000003;
 pub const STATUS_NOT_IMPLEMENTED: u64 = 0xC0000002;
 pub const STATUS_INVALID_PARAMETER: u64 = 0xC000000D;
 pub const STATUS_NOT_SUPPORTED: u64 = 0xC00000BB;

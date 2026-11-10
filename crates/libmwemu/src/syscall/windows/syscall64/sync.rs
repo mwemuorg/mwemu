@@ -210,5 +210,9 @@ pub fn nt_close(emu: &mut Emu) {
         handle
     );
 
+    if let Some(dll_name) = emu.section_handles.remove(&handle) {
+        emu.last_closed_section_dll = Some(dll_name);
+    }
+
     emu.regs_mut().rax = STATUS_SUCCESS;
 }

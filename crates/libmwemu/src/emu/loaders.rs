@@ -493,6 +493,10 @@ impl Emu {
                     // Rip: entry point — NtContinue will redirect execution here
                     let _ = self.maps.write_qword(ctx_addr + 0xF8, ep);
 
+                    crate::windows::peb::peb64::ensure_ntdll_loader_globals(self);
+                    crate::syscall::windows::syscall64::memory::patch_ntdll_load_reason_checks(
+                        self,
+                    );
                     let _ = self.call64(ldr_init, &[ctx_addr, ntdll_base, 0]);
                     self.ldr_init_done = true;
                     if self.process_terminated {
