@@ -8,7 +8,7 @@
 # crate split (#236); the counts follow the code.
 declare -A DIRS=(
   [engine]="crates/mwemu-x86/src/engine crates/mwemu-aarch64/src/engine"
-  [emu]="crates/mwemu-core/src/emu crates/mwemu-handles/src/emu crates/mwemu-linux/src/emu"
+  [emu]="crates/mwemu-core/src/emu crates/mwemu-handles/src/emu crates/mwemu-linux/src/emu crates/mwemu-macos/src/emu"
   [maps]="crates/mwemu-maps/src/maps"
 )
 

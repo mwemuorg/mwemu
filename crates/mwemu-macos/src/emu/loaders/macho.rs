@@ -2,12 +2,35 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
 use crate::emu::Emu;
+use crate::emu::initialization::MacosInit;
 use crate::emu::loaders::macho_sentinels;
 use crate::emu::loaders::macho64::Macho64;
 
-impl Emu {
+/// Loading a Mach-O executable and its dylibs into the emulator.
+pub(crate) trait MachoLoading {
     /// Load a 64-bit Mach-O binary.
-    pub fn load_macho64(&mut self, filename: &str) {
+    fn load_macho64(&mut self, filename: &str);
+
+    /// Map the sentinel page in the library range so branching or returning
+    /// to it is intercepted like any other API call.
+    fn map_macos_sentinels(&mut self, addr_to_sym: &mut HashMap<u64, String>);
+
+    /// Allocate global data symbols required by macOS binaries and inject them
+    /// into the export map so GOT resolution picks them up.
+    fn inject_macos_globals(
+        &mut self,
+        export_map: &mut HashMap<String, u64>,
+        addr_to_sym: &mut HashMap<u64, String>,
+    );
+
+    /// Load a Mach-O dylib from disk and map its segments into memory.
+    /// Returns (base_address, vec of (symbol_name, absolute_address)).
+    fn map_dylib_macho64(&mut self, filename: &str, lib_name: &str) -> (u64, Vec<(String, u64)>);
+}
+
+impl MachoLoading for Emu {
+    /// Load a 64-bit Mach-O binary.
+    fn load_macho64(&mut self, filename: &str) {
         let mut macho = match Macho64::parse(filename) {
             Ok(m) => m,
             Err(e) => {
@@ -321,11 +344,7 @@ impl Emu {
 
     /// Load a Mach-O dylib from disk and map its segments into memory.
     /// Returns (base_address, vec of (symbol_name, absolute_address)).
-    pub fn map_dylib_macho64(
-        &mut self,
-        filename: &str,
-        lib_name: &str,
-    ) -> (u64, Vec<(String, u64)>) {
+    fn map_dylib_macho64(&mut self, filename: &str, lib_name: &str) -> (u64, Vec<(String, u64)>) {
         use crate::emu::loaders::macho64::prot_to_permission;
 
         let dylib = match Macho64::parse(filename) {

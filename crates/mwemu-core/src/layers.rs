@@ -65,6 +65,14 @@ pub trait MacosLayer: Sync {
     fn syscall_aarch64(&self, emu: &mut Emu);
     /// The guest called the libSystem hook at `addr`, in the map named `section`.
     fn api_call(&self, addr: u64, section: &str, symbol: &str, emu: &mut Emu);
+    /// Load the 64-bit Mach-O executable `filename` and its dylibs
+    /// (`Emu::load_macho64`).
+    fn load_macho64(&self, emu: &mut Emu, filename: &str);
+    /// Set `emu` up as an x86-64 macOS process (`Emu::init_macos64`).
+    fn init64(&self, emu: &mut Emu);
+    /// Set `emu` up as an AArch64 macOS process
+    /// (`Emu::init_macos_aarch64`).
+    fn init_aarch64(&self, emu: &mut Emu);
 }
 
 /// The Windows layer (`mwemu-windows`): the NT syscalls and the fix-ups they
@@ -268,6 +276,15 @@ impl MacosLayer for Missing {
         self.stop(emu);
     }
     fn api_call(&self, _addr: u64, _section: &str, _symbol: &str, emu: &mut Emu) {
+        self.stop(emu);
+    }
+    fn load_macho64(&self, emu: &mut Emu, _filename: &str) {
+        self.stop(emu);
+    }
+    fn init64(&self, emu: &mut Emu) {
+        self.stop(emu);
+    }
+    fn init_aarch64(&self, emu: &mut Emu) {
         self.stop(emu);
     }
 }

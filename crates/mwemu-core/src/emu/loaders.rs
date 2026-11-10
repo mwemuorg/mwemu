@@ -17,7 +17,6 @@ use rs_header::pe::{
 
 mod kext;
 mod ko;
-mod macho;
 pub mod macho64;
 pub mod macho_sentinels;
 mod pe;
