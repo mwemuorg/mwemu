@@ -3,7 +3,7 @@ use crate::{emu::Emu, windows::structures::MemoryOperation};
 
 impl Emu {
     /// CPU pushes observe write hooks; API/bootstrap stack helpers remain host operations.
-    pub(crate) fn push_instruction(&mut self, value: u64, bits: u32) -> bool {
+    pub fn push_instruction(&mut self, value: u64, bits: u32) -> bool {
         let sp = self.sp();
         let addr = sp.wrapping_sub((bits / u8::BITS) as u64);
         let addr = if self.cfg.is_x64() {

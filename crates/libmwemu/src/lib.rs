@@ -37,9 +37,11 @@ pub use mwemu_core::{color, get_bit, log_orange, log_red, popn, set_bit, to32};
 // The tests were written inside the single-crate libmwemu and reach its
 // internals as `crate::…`; keep those paths valid for them.
 #[cfg(test)]
-pub(crate) use mwemu_core::{engine, exception, threading};
+pub(crate) use mwemu_core::{exception, threading};
 #[cfg(test)]
 pub(crate) use mwemu_windows::windows;
+#[cfg(test)]
+pub(crate) use mwemu_x86::engine;
 #[cfg(test)]
 pub(crate) mod syscall {
     pub(crate) use mwemu_linux::syscall::linux;
@@ -72,6 +74,8 @@ use mwemu_core::api::dispatch::{self, ApiDispatch};
 /// built another way (`Emu::new`, `Serialization::load`). Calling it more than
 /// once is harmless.
 pub fn register_api_handlers() {
+    mwemu_x86::register();
+    mwemu_aarch64::register();
     mwemu_debug::register();
     mwemu_linux::register();
     mwemu_macos::register();

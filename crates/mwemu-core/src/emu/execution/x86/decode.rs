@@ -3,7 +3,6 @@ use iced_x86::{Decoder, DecoderOptions};
 
 use crate::debug::console::Console;
 use crate::emu::Emu;
-use crate::engine;
 use crate::err::MwemuError;
 use crate::exception::types::{ExceptionType, MemoryAccess};
 
@@ -167,7 +166,7 @@ pub fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
     let result_ok = if Emu::is_rep_string_instruction(&ins) {
         emu.execute_x86_rep_fully(&ins, sz)
     } else {
-        engine::emulate_instruction(emu, &ins, sz, true)
+        crate::layers::x86().emulate(emu, &ins, sz, true)
     };
     emu.last_instruction_size = sz;
 

@@ -4,7 +4,13 @@
 # exceed the recorded baseline. Run from the repo root. (`assert!` aborts in
 # release builds too, so it counts; `debug_assert!` does not.)
 
-SRC="crates/mwemu-core/src"
+# Where each gated area lives. They were folders of one crate before the
+# crate split (#236); the counts follow the code.
+declare -A DIRS=(
+  [engine]="crates/mwemu-x86/src/engine crates/mwemu-aarch64/src/engine"
+  [emu]="crates/mwemu-core/src/emu"
+  [maps]="crates/mwemu-core/src/maps"
+)
 
 # Baseline — update these when you intentionally reduce the counts.
 # emu_unwrap and emu_assert went up by 12 and 8 when loaders/macho/macho64.rs
@@ -25,17 +31,17 @@ declare -A BASELINE=(
 )
 
 count_matches() {
-  local pattern="$1" dir="$2"
+  local pattern="$1"
+  shift
   local result
-  result=$(grep -rc "$pattern" "$dir" --include="*.rs" 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
+  result=$(grep -rc "$pattern" "$@" --include="*.rs" 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
   echo "${result:-0}"
 }
 
 # assert!/assert_eq!/assert_ne! not preceded by `debug_` (extended regex).
 count_asserts() {
-  local dir="$1"
   local result
-  result=$(grep -rcE '(^|[^_a-z])assert(_eq|_ne)?!\(' "$dir" --include="*.rs" 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
+  result=$(grep -rcE '(^|[^_a-z])assert(_eq|_ne)?!\(' "$@" --include="*.rs" 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
   echo "${result:-0}"
 }
 
@@ -51,9 +57,11 @@ for area in engine emu maps; do
 
     key="${area}_${sig_key}"
     if [ "$sig_key" = assert ]; then
-      count=$(count_asserts "$SRC/$area/")
+      # shellcheck disable=SC2086  # one area can be several directories
+      count=$(count_asserts ${DIRS[$area]})
     else
-      count=$(count_matches "$pattern" "$SRC/$area/")
+      # shellcheck disable=SC2086
+      count=$(count_matches "$pattern" ${DIRS[$area]})
     fi
     max=${BASELINE[$key]}
 

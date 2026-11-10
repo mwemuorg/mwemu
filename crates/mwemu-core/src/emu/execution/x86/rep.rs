@@ -1,7 +1,6 @@
 use iced_x86::{Instruction, Mnemonic, OpKind};
 
 use super::Emu;
-use crate::engine;
 
 impl Emu {
     /// Bulk fast-path for REP-prefixed string instructions. Returns `true` when
@@ -266,7 +265,7 @@ impl Emu {
         let mut ok = true;
         self.rep = Some(0);
         while self.regs().rcx != 0 {
-            ok = engine::emulate_instruction(self, ins, sz, true);
+            ok = crate::layers::x86().emulate(self, ins, sz, true);
             if ok {
                 self.update_x86_rep_state_after_execution(*ins);
             }

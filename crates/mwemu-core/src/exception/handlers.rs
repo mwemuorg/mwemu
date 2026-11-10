@@ -288,7 +288,7 @@ pub fn exit64(emu: &mut Emu) {
     exit(emu);
 }
 
-pub(crate) fn handle_return(emu: &mut Emu, return_address: u64) -> bool {
+pub fn handle_return(emu: &mut Emu, return_address: u64) -> bool {
     let Some(frame) = Frame::active(emu) else {
         return false;
     };

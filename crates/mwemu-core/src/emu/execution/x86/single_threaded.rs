@@ -8,7 +8,6 @@ use iced_x86::{Decoder, DecoderOptions, Instruction};
 use crate::debug::console::Console;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::execution::x86::decode::ensure_instruction_cache_populated_x86;
-use crate::engine;
 use crate::err::MwemuError;
 use crate::utils::helpers::unlikely;
 
@@ -124,7 +123,7 @@ impl Emu {
         let result_ok = if Self::is_rep_string_instruction(&ins) {
             self.execute_x86_rep_fully(&ins, sz)
         } else {
-            engine::emulate_instruction(self, &ins, sz, true)
+            crate::layers::x86().emulate(self, &ins, sz, true)
         };
         //tracing::trace_instruction(self, self.pos);
         self.last_instruction_size = sz;
@@ -537,7 +536,7 @@ impl Emu {
 
                     // --- Emulate ---
                     let previous_fault_count = self.fault_count;
-                    let emulation_ok = engine::emulate_instruction(self, &x86_ins, sz, false);
+                    let emulation_ok = crate::layers::x86().emulate(self, &x86_ins, sz, false);
                     self.last_instruction_size = sz;
 
                     if self.is_running.load(atomic::Ordering::Relaxed) == 0 {

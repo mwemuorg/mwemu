@@ -6,7 +6,6 @@ use std::sync::atomic;
 use crate::color;
 use crate::debug::console::Console;
 use crate::emu::decoded_instruction::DecodedInstruction;
-use crate::engine;
 use crate::err::MwemuError;
 
 use super::{Emu, assert_aarch64_arch};
@@ -250,7 +249,7 @@ impl Emu {
                         && aarch64_ins.opcode == yaxpeax_arm::armv8::a64::Opcode::RET;
 
                     // --- Emulate ---
-                    let emulation_ok = engine::aarch64::emulate_instruction(self, &aarch64_ins);
+                    let emulation_ok = crate::layers::aarch64().emulate(self, &aarch64_ins);
                     self.last_instruction_size = sz;
 
                     if self.is_running.load(atomic::Ordering::Relaxed) == 0 {

@@ -13,12 +13,14 @@ repository = "https://github.com/mwemuorg/mwemu"
 
 [dependencies]
 mwemu-core = { path = "../mwemu-core" }
+mwemu-aarch64 = { path = "../mwemu-aarch64" }
 mwemu-debug = { path = "../mwemu-debug" }
 mwemu-linux = { path = "../mwemu-linux" }
 mwemu-macos = { path = "../mwemu-macos" }
 mwemu-windows = { path = "../mwemu-windows" }
 mwemu-winapi32 = { path = "../mwemu-winapi32" }
 mwemu-winapi64 = { path = "../mwemu-winapi64" }
+mwemu-x86 = { path = "../mwemu-x86" }
 
 [dev-dependencies]
 # The tests must never download DLLs; see the feature in mwemu-core.

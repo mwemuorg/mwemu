@@ -29,7 +29,6 @@ pub mod arch;
 pub mod config;
 pub mod debug;
 pub mod emu;
-pub mod engine;
 pub mod err;
 pub mod exception;
 pub mod hooks;

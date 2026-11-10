@@ -1,6 +1,5 @@
 use crate::debug::console::Console;
 use crate::emu::Emu;
-use crate::engine;
 use crate::err::MwemuError;
 use crate::windows::constants::memory::*;
 
@@ -113,7 +112,7 @@ pub fn decode_and_execute_aarch64(emu: &mut Emu) -> (usize, bool) {
         }
     }
 
-    let result_ok = engine::aarch64::emulate_instruction(emu, &ins);
+    let result_ok = crate::layers::aarch64().emulate(emu, &ins);
     emu.last_instruction_size = 4;
 
     // Post-instruction hook

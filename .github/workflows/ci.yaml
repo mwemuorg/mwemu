@@ -74,6 +74,8 @@ jobs:
           --package mwemu
           --package libmwemu
           --package mwemu-core
+          --package mwemu-aarch64
+          --package mwemu-x86
           --package mwemu-debug
           --package mwemu-linux
           --package mwemu-macos
@@ -212,6 +214,8 @@ jobs:
           --package mwemu
           --package libmwemu
           --package mwemu-core
+          --package mwemu-aarch64
+          --package mwemu-x86
           --package mwemu-debug
           --package mwemu-linux
           --package mwemu-macos

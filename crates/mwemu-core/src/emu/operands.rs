@@ -1221,7 +1221,7 @@ impl Emu {
     /// Apply CPU write hooks before committing the whole store. Host Maps writes
     /// deliberately bypass this path. The u128 hook observes wide stores in
     /// ascending chunks of at most 128 bits, with every replacement applied.
-    pub(crate) fn write_instruction_bytes(&mut self, addr: u64, bytes: &mut [u8]) -> bool {
+    pub fn write_instruction_bytes(&mut self, addr: u64, bytes: &mut [u8]) -> bool {
         if unlikely(self.kernel_guard) {
             self.kernel_guard_access(self.pc(), addr, bytes.len() as u32, true);
         }
