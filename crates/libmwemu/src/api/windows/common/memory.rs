@@ -163,7 +163,11 @@ pub(crate) fn allocate(
     }
     if !reserve {
         emu.maps
-            .commit_memory(start, length, protection, permission)?;
+            .commit_memory(start, length, protection, permission)
+            .map_err(|e| match e {
+                MemoryError::Unmapped => MemoryError::InvalidParameter,
+                other => other,
+            })?;
         return Ok((start, length));
     }
     if length > emu.maps.max_alloc_size {

@@ -703,10 +703,11 @@ impl Emu {
                 peb32::update_ldr_entry_base(&exe_name, base as u64, self);
             }
 
+            let code_sz = raw.len().max(1) as u64;
             let code_map = match self.maps.create_map(
                 "code",
                 self.cfg.code_base_addr,
-                0,
+                code_sz,
                 Permission::READ_WRITE_EXECUTE,
             ) {
                 Ok(m) => m,
