@@ -15,6 +15,7 @@ repository = "https://github.com/mwemuorg/mwemu"
 mwemu-core = { path = "../mwemu-core" }
 mwemu-aarch64 = { path = "../mwemu-aarch64" }
 mwemu-debug = { path = "../mwemu-debug" }
+mwemu-kernel = { path = "../mwemu-kernel" }
 mwemu-linux = { path = "../mwemu-linux" }
 mwemu-macos = { path = "../mwemu-macos" }
 mwemu-windows = { path = "../mwemu-windows" }

@@ -13,8 +13,10 @@
 )]
 #![cfg_attr(test, allow(clippy::assertions_on_constants))]
 
-pub use mwemu_core::{arch, config, emu, err, hooks, kernel, maps, utils};
+pub use mwemu_core::{arch, config, emu, err, hooks, maps, utils};
+// The core's kernel-mode machinery plus the per-OS API surfaces.
 pub use mwemu_debug::serialization;
+pub use mwemu_kernel::kernel;
 
 /// Breakpoints, definitions and the console prompts are in the core; the
 /// console's commands, the gdb server and the script runner are in
@@ -76,6 +78,7 @@ use mwemu_core::api::dispatch::{self, ApiDispatch};
 pub fn register_api_handlers() {
     mwemu_x86::register();
     mwemu_aarch64::register();
+    mwemu_kernel::register();
     mwemu_debug::register();
     mwemu_linux::register();
     mwemu_macos::register();

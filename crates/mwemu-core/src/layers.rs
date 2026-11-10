@@ -1,8 +1,8 @@
 //! Entry points into the layers built on top of the emulator core.
 //!
 //! The CPU engines (what each instruction does), the OS layers (their
-//! syscalls and API hooks) and the debugger need `Emu`, so they are crates
-//! above this one and the core cannot name them. Whoever links a layer in
+//! syscalls and API hooks), the kernel API surfaces and the debugger need
+//! `Emu`, so they are crates above this one and the core cannot name them. Whoever links a layer in
 //! registers it here once, and the core reaches it through the layer's trait.
 //! `libmwemu` registers every layer in `emu32()`, `emu64()`, `emu_aarch64()`
 //! and `register_api_handlers()`.
@@ -14,6 +14,7 @@
 use std::sync::OnceLock;
 
 use crate::emu::Emu;
+use crate::kernel::KernelOs;
 
 /// The x86 and x86-64 engine (`mwemu-x86`).
 pub trait X86Engine: Sync {
@@ -78,6 +79,17 @@ pub trait WindowsLayer: Sync {
     fn ntdll_heap_list_walk_fixup(&self, emu: &mut Emu, ins: &iced_x86::Instruction, rip: u64);
 }
 
+/// The kernel API surfaces (`mwemu-kernel`): the kernel functions an emulated
+/// driver can call.
+pub trait KernelLayer: Sync {
+    /// If the driver import `name` is a variable of the `os` kernel, the size
+    /// of its storage; `None` if it is a function.
+    fn data_symbol_size(&self, os: KernelOs, name: &str) -> Option<u64>;
+    /// The driver called the `os` kernel function `symbol`. Returns false if
+    /// it is not implemented.
+    fn api_call(&self, os: KernelOs, symbol: &str, emu: &mut Emu) -> bool;
+}
+
 /// The debugger layer (`mwemu-debug`): the interactive console and snapshots.
 pub trait DebugLayer: Sync {
     /// Open the interactive console on the current state of `emu`.
@@ -91,6 +103,7 @@ static AARCH64: OnceLock<&'static dyn Aarch64Engine> = OnceLock::new();
 static LINUX: OnceLock<&'static dyn LinuxLayer> = OnceLock::new();
 static MACOS: OnceLock<&'static dyn MacosLayer> = OnceLock::new();
 static WINDOWS: OnceLock<&'static dyn WindowsLayer> = OnceLock::new();
+static KERNEL: OnceLock<&'static dyn KernelLayer> = OnceLock::new();
 static DEBUGGER: OnceLock<&'static dyn DebugLayer> = OnceLock::new();
 
 /// Register the x86 engine for this process. The first call wins; later
@@ -121,6 +134,12 @@ pub fn register_macos(layer: &'static dyn MacosLayer) {
 /// calls are ignored.
 pub fn register_windows(layer: &'static dyn WindowsLayer) {
     let _ = WINDOWS.set(layer);
+}
+
+/// Register the kernel API surfaces for this process. The first call wins;
+/// later calls are ignored.
+pub fn register_kernel(layer: &'static dyn KernelLayer) {
+    let _ = KERNEL.set(layer);
 }
 
 /// Register the debugger layer for this process. The first call wins; later
@@ -156,6 +175,14 @@ pub fn macos() -> &'static dyn MacosLayer {
 /// The registered Windows layer.
 pub fn windows() -> &'static dyn WindowsLayer {
     WINDOWS.get().copied().unwrap_or(&Missing("Windows layer"))
+}
+
+/// The registered kernel API surfaces.
+pub fn kernel() -> &'static dyn KernelLayer {
+    KERNEL
+        .get()
+        .copied()
+        .unwrap_or(&Missing("kernel API layer"))
 }
 
 /// The registered debugger layer.
@@ -246,6 +273,23 @@ impl WindowsLayer for Missing {
     }
     fn ntdll_heap_list_walk_fixup(&self, emu: &mut Emu, _ins: &iced_x86::Instruction, _rip: u64) {
         self.stop(emu);
+    }
+}
+
+impl KernelLayer for Missing {
+    fn data_symbol_size(&self, _os: KernelOs, name: &str) -> Option<u64> {
+        // There is no emulator to stop here: the first call the driver makes
+        // into the kernel does that.
+        log::error!(
+            "cannot classify the kernel import {}: the kernel API layer is not registered",
+            name
+        );
+        None
+    }
+    fn api_call(&self, _os: KernelOs, _symbol: &str, emu: &mut Emu) -> bool {
+        self.stop(emu);
+        // Not "unimplemented": the caller would log that and carry on.
+        true
     }
 }
 

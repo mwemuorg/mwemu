@@ -1228,6 +1228,7 @@ dependencies = [
  "mwemu-aarch64",
  "mwemu-core",
  "mwemu-debug",
+ "mwemu-kernel",
  "mwemu-linux",
  "mwemu-macos",
  "mwemu-winapi32",
@@ -1474,6 +1475,14 @@ dependencies = [
  "soft-canonicalize",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "mwemu-kernel"
+version = "1.0.0"
+dependencies = [
+ "log",
+ "mwemu-core",
 ]
 
 [[package]]

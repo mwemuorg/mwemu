@@ -74,6 +74,7 @@ jobs:
           --package mwemu
           --package libmwemu
           --package mwemu-core
+          --package mwemu-kernel
           --package mwemu-handles
           --package mwemu-wintypes
           --package mwemu-arch
@@ -218,6 +219,7 @@ jobs:
           --package mwemu
           --package libmwemu
           --package mwemu-core
+          --package mwemu-kernel
           --package mwemu-handles
           --package mwemu-wintypes
           --package mwemu-arch

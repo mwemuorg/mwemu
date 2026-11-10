@@ -17,15 +17,13 @@
 //!    quarantine instead of being recycled, and [`guard`] reports what touches
 //!    them. That is what makes a use-after-free observable rather than lucky.
 //!
-//! The per-OS API surfaces live in [`linux`], [`windows`] and [`macos`]; only
+//! The per-OS API surfaces (`linux`, `windows` and `macos`) are in the
+//! `mwemu-kernel` crate, reached through [`crate::layers::KernelLayer`]; only
 //! the symbol tables and the handlers differ, everything above is shared.
 
 pub mod guard;
 pub mod heap;
 pub mod layout;
-pub mod linux;
-pub mod macos;
-pub mod windows;
 
 use std::collections::HashMap;
 
@@ -402,13 +400,7 @@ impl Emu {
     /// function. This is the emulator's `resolve_symbol()`.
     pub fn kernel_resolve_import(&mut self, name: &str) -> Option<u64> {
         let os = self.kernel.as_ref()?.os;
-        let data_size = match os {
-            KernelOs::Linux => linux::data_symbol_size(name),
-            // The Windows and macOS surfaces import data through the image's
-            // import table rather than by name, so nothing is classified here
-            // yet; a function stub is the safe default.
-            KernelOs::Windows | KernelOs::MacOS => None,
-        };
+        let data_size = crate::layers::kernel().data_symbol_size(os, name);
         match data_size {
             Some(size) => self.kernel_data_for(name, size),
             None => self.kernel_stub_for(name),
@@ -663,11 +655,7 @@ impl Emu {
             return true;
         };
         let os = kernel_ref.os;
-        let handled = match os {
-            KernelOs::Linux => linux::gateway(&symbol, self),
-            KernelOs::Windows => windows::gateway(&symbol, self),
-            KernelOs::MacOS => macos::gateway(&symbol, self),
-        };
+        let handled = crate::layers::kernel().api_call(os, &symbol, self);
 
         if !handled {
             log::warn!(
