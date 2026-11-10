@@ -76,13 +76,13 @@ pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> 
 /// Default file system for an emulation: the `file_root` jail plus the main
 /// image visible at the guest path its loader entry reports, so code that
 /// opens its own module file (GetModuleFileName + CreateFile) reads the real
-/// bytes. Call after the binary is loaded.
-pub fn init_guest_file_system(emu: &crate::emu::Emu) -> io::Result<()> {
+/// bytes. `image` is the host path of the main image and that guest path, or
+/// `None` when no binary is loaded.
+pub fn init_file_system_for_image(image: Option<(&str, &str)>) -> io::Result<()> {
     let mut mappings = Vec::new();
-    if !emu.cfg.filename.is_empty() {
-        let guest = crate::windows::module_names::main_module_path(emu);
-        let host = canonicalize(&emu.cfg.filename)?;
-        let guest = WindowsPath::from_path(&guest).map_err(io::Error::other)?;
+    if let Some((host, guest)) = image {
+        let host = canonicalize(host)?;
+        let guest = WindowsPath::from_path(guest).map_err(io::Error::other)?;
         mappings.push((guest, host));
     }
     init_file_system_with_mappings(None as Option<PathBuf>, mappings)

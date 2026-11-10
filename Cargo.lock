@@ -1410,10 +1410,8 @@ dependencies = [
  "aes",
  "ahash",
  "bitfield",
- "byteorder",
  "csv",
  "ctrlc",
- "dunce",
  "fast_log",
  "flate2",
  "goblin",
@@ -1422,6 +1420,7 @@ dependencies = [
  "log",
  "memmap2",
  "mwemu-arch",
+ "mwemu-handles",
  "mwemu-maps",
  "mwemu-wintypes",
  "rand 0.9.5",
@@ -1429,12 +1428,9 @@ dependencies = [
  "scan_fmt",
  "serde",
  "serde_json",
- "serial_test",
  "slab",
- "soft-canonicalize",
  "tempdir",
  "tempfile",
- "thiserror",
  "uint",
  "ureq",
  "yaxpeax-arch",
@@ -1460,6 +1456,24 @@ dependencies = [
  "serde",
  "serde_json",
  "slab",
+]
+
+[[package]]
+name = "mwemu-handles"
+version = "1.0.0"
+dependencies = [
+ "ahash",
+ "byteorder",
+ "dunce",
+ "log",
+ "mwemu-maps",
+ "mwemu-wintypes",
+ "serde",
+ "serial_test",
+ "slab",
+ "soft-canonicalize",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]

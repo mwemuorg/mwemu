@@ -1,0 +1,27 @@
+[package]
+name = "mwemu-handles"
+version = "1.0.0"
+edition = "2024"
+authors = ["sha0coder"]
+license = "Apache-2.0"
+rust-version = "1.95"
+description = "Handle tables of libmwemu: file, registry, heap and mapping handles and the jailed guest file system. Use libmwemu instead of depending on this directly."
+homepage = "https://mwemu.github.io/"
+repository = "https://github.com/mwemuorg/mwemu"
+publish = false
+
+[dependencies]
+mwemu-maps = { path = "../mwemu-maps" }
+mwemu-wintypes = { path = "../mwemu-wintypes" }
+ahash = { version = "0.8.12", features = ["serde"] }
+byteorder = "1.5.0"
+dunce = "1.0.5"
+log = "0.4.22"
+serde = { version = "1.0.217", features = ["derive"] }
+slab = { version = "0.4.10", features = ["serde"] }
+soft-canonicalize = { version = "0.5", features = ["dunce"] }
+thiserror = "2.0.12"
+
+[dev-dependencies]
+serial_test = "3.4.0"
+tempfile = "3.23.0"

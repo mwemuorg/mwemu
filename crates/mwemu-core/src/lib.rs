@@ -76,23 +76,3 @@ fn emu64() -> emu::Emu {
     emu.disable_ctrlc();
     emu
 }
-
-/// Shared helpers for this crate's own unit tests (`libmwemu` has the same
-/// ones in its `tests` module).
-#[cfg(test)]
-mod tests {
-    use std::path::Path;
-    use std::sync::OnceLock;
-    use tempfile::TempDir;
-
-    /// Keep the global file-system root alive while independent tests use it.
-    pub(crate) fn file_system_root() -> &'static Path {
-        static ROOT: OnceLock<TempDir> = OnceLock::new();
-        ROOT.get_or_init(|| {
-            let root = tempfile::tempdir().unwrap();
-            crate::emu::object_handle::file_handle::init_file_system(Some(root.path())).unwrap();
-            root
-        })
-        .path()
-    }
-}
