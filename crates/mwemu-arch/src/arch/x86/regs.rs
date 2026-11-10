@@ -1152,6 +1152,7 @@ impl Regs64 {
         }
     }
 
+    #[inline]
     pub fn get_reg(&self, reg: Register) -> u64 {
         match reg {
             // 64bits
@@ -1267,6 +1268,7 @@ impl Regs64 {
         }
     }
 
+    #[inline]
     pub fn set_reg(&mut self, reg: Register, value: u64) {
         match reg {
             // 64bits
@@ -1410,6 +1412,7 @@ impl Regs64 {
         )
     }
 
+    #[inline]
     pub fn get_size(&self, reg: Register) -> u32 {
         let sz: u32 = match reg {
             Register::RAX => 64,

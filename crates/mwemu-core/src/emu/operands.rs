@@ -13,6 +13,7 @@ use crate::{
 
 impl Emu {
     /// Decode the jump parameter
+    #[inline]
     pub fn get_jump_value(&mut self, ins: &Instruction, noperand: u32) -> Option<u64> {
         match ins.op_kind(noperand) {
             OpKind::NearBranch64 | OpKind::NearBranch32 | OpKind::NearBranch16 => {
@@ -1255,6 +1256,7 @@ impl Emu {
 
     /// Fetch the size in amount of bits of a specific operand (reg/mem/imm), if it's a memory operation it
     /// depend on the dword ptr, qword ptr etc.
+    #[inline]
     pub fn get_operand_sz(&self, ins: &Instruction, noperand: u32) -> u32 {
         match ins.op_kind(noperand) {
             OpKind::Register => self.regs().get_size(ins.op_register(noperand)),

@@ -100,6 +100,7 @@ impl Mem64 {
     }
 
     /// Whether any byte has the requested permission (cache invalidation).
+    #[inline]
     pub fn has_permission(&self, required: Permission) -> bool {
         self.permission_at(self.base_addr).contains(required)
             || self
@@ -129,6 +130,7 @@ impl Mem64 {
 
     /// Accept executable bytes without granting guest data READ access.
     /// Retain the emulator's existing ability to execute readable pages.
+    #[inline]
     pub fn read_code(&self, addr: u64, limit: usize) -> Cow<'_, [u8]> {
         let len = self.accessible_prefix_matching(addr, limit, |p| p.can_read() || p.can_execute());
         if len == 0 {

@@ -684,11 +684,13 @@ impl Flags {
         self.f_id = get_bit!(flags, 21) == 1;
     }
 
+    #[inline]
     pub fn calc_flags(&mut self, final_value: u64, bits: u32) {
         self.f_tf = false;
         self.set_lazy_from_flags(final_value, self.f_cf, self.f_of, self.f_af, bits);
     }
 
+    #[inline]
     pub fn calc_logic_flags_lazy(&mut self, final_value: u64, bits: u32) {
         self.f_tf = false;
         self.f_cf = false;
@@ -831,6 +833,7 @@ impl Flags {
         r as u64
     }
 
+    #[inline]
     pub fn inc64(&mut self, value: u64) -> u64 {
         let result = value.wrapping_add(1);
         let cf = self.cf();
@@ -844,6 +847,7 @@ impl Flags {
         result
     }
 
+    #[inline]
     pub fn inc32(&mut self, value: u64) -> u64 {
         let value = value & 0xffff_ffff;
         let result = value.wrapping_add(1) & 0xffff_ffff;
@@ -858,6 +862,7 @@ impl Flags {
         result
     }
 
+    #[inline]
     pub fn inc16(&mut self, value: u64) -> u64 {
         let value = value & 0xffff;
         let result = value.wrapping_add(1) & 0xffff;
@@ -872,6 +877,7 @@ impl Flags {
         result
     }
 
+    #[inline]
     pub fn inc8(&mut self, value: u64) -> u64 {
         let value = value & 0xff;
         let result = value.wrapping_add(1) & 0xff;
@@ -886,6 +892,7 @@ impl Flags {
         result
     }
 
+    #[inline]
     pub fn dec64(&mut self, value: u64) -> u64 {
         let result = value.wrapping_sub(1);
         let cf = self.cf();
@@ -899,6 +906,7 @@ impl Flags {
         result
     }
 
+    #[inline]
     pub fn dec32(&mut self, value: u64) -> u64 {
         let value = value & 0xffff_ffff;
         let result = value.wrapping_sub(1) & 0xffff_ffff;
@@ -913,6 +921,7 @@ impl Flags {
         result
     }
 
+    #[inline]
     pub fn dec16(&mut self, value: u64) -> u64 {
         let value = value & 0xffff;
         let result = value.wrapping_sub(1) & 0xffff;
@@ -927,6 +936,7 @@ impl Flags {
         result
     }
 
+    #[inline]
     pub fn dec8(&mut self, value: u64) -> u64 {
         let value = value & 0xff;
         let result = value.wrapping_sub(1) & 0xff;
@@ -1565,6 +1575,7 @@ impl Flags {
         self.shr2p8(value, 1)
     }
 
+    #[inline]
     pub fn test(&mut self, value0: u64, value1: u64, sz: u32) {
         let result: u64 = value0 & value1;
 

@@ -44,6 +44,7 @@ impl Mem64 {
         Some(self.backing_bytes(offset, size))
     }
 
+    #[inline]
     pub fn backing_bytes(&self, offset: usize, size: usize) -> Cow<'_, [u8]> {
         if self.view.is_some() {
             Cow::Owned(self.with_backing(|bytes| bytes[offset..offset + size].to_vec()))
@@ -52,6 +53,7 @@ impl Mem64 {
         }
     }
 
+    #[inline]
     pub fn write_backing(&mut self, offset: usize, bytes: &[u8]) {
         if let (Some(view), Some(shared)) = (self.view, &self.shared) {
             shared.bytes.borrow_mut()[view.offset + offset..view.offset + offset + bytes.len()]

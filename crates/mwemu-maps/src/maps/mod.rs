@@ -423,11 +423,13 @@ impl Maps {
     }
 
     /// Write a byte to the virtual address space. Returns false if unmapped or read-only.
+    #[inline]
     pub fn write_byte(&mut self, addr: u64, value: u8) -> bool {
         self.write_scalar(addr, value, ScalarKind::Byte)
     }
 
     /// Read a byte from the virtual address space. Returns None if unmapped.
+    #[inline]
     pub fn read_byte(&self, addr: u64) -> Option<u8> {
         self.read_scalar(addr, ScalarKind::Byte)
     }
@@ -449,16 +451,19 @@ impl Maps {
     }
 
     /// Write a 64-bit value to the virtual address space.
+    #[inline]
     pub fn write_qword(&mut self, addr: u64, value: u64) -> bool {
         self.write_scalar(addr, value, ScalarKind::Qword)
     }
 
     /// Write a 32-bit value to the virtual address space.
+    #[inline]
     pub fn write_dword(&mut self, addr: u64, value: u32) -> bool {
         self.write_scalar(addr, value, ScalarKind::Dword)
     }
 
     /// Write a 16-bit value to the virtual address space.
+    #[inline]
     pub fn write_word(&mut self, addr: u64, value: u16) -> bool {
         self.write_scalar(addr, value, ScalarKind::Word)
     }
@@ -519,6 +524,7 @@ impl Maps {
         None
     }
 
+    #[inline]
     pub fn write_128bits_le(&mut self, addr: u64, value: u128) -> bool {
         self.write_scalar(addr, value, ScalarKind::Oword)
     }
@@ -533,21 +539,25 @@ impl Maps {
         Some(u128::from_be_bytes(arr))
     }
 
+    #[inline]
     pub fn read_128bits_le(&self, addr: u64) -> Option<u128> {
         self.read_scalar(addr, ScalarKind::Oword)
     }
 
     /// Read a 64-bit value from the virtual address space.
+    #[inline]
     pub fn read_qword(&self, addr: u64) -> Option<u64> {
         self.read_scalar(addr, ScalarKind::Qword)
     }
 
     /// Read a 32-bit value from the virtual address space.
+    #[inline]
     pub fn read_dword(&self, addr: u64) -> Option<u32> {
         self.read_scalar(addr, ScalarKind::Dword)
     }
 
     /// Read a 16-bit value from the virtual address space.
+    #[inline]
     pub fn read_word(&self, addr: u64) -> Option<u16> {
         self.read_scalar(addr, ScalarKind::Word)
     }

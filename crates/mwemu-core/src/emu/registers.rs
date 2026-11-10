@@ -4,6 +4,7 @@ use crate::{
 
 impl Emu {
     /// x86/x64 register file of the current thread.
+    #[inline]
     pub fn regs(&self) -> &Regs64 {
         match &self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs,
@@ -12,6 +13,7 @@ impl Emu {
     }
 
     /// Mutable x86/x64 register file of the current thread.
+    #[inline]
     pub fn regs_mut(&mut self) -> &mut Regs64 {
         match &mut self.threads[self.current_thread_id].arch {
             ArchThreadState::X86 { regs, .. } => regs,
