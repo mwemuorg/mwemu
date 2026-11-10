@@ -306,3 +306,22 @@ impl DebugLayer for Missing {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    /// Nothing registers an engine in this crate's test binary (the engines
+    /// are crates above this one), so this is the unregistered case.
+    #[test]
+    fn an_emulator_without_an_engine_stops_at_its_first_instruction() {
+        let mut emu = crate::emu64();
+        // mov rax, 5 ; hlt
+        let code = [0x48, 0xc7, 0xc0, 0x05, 0x00, 0x00, 0x00, 0xf4];
+        emu.load_code_bytes(&code).unwrap();
+        let entry = emu.pc();
+
+        let _ = emu.run(None);
+
+        assert_eq!(emu.regs().rax, 0, "the instruction must not have run");
+        assert_eq!(emu.pc(), entry, "the emulator must stop where it was");
+    }
+}
