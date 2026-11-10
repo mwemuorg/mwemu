@@ -1,8 +1,14 @@
+mod protection;
+mod storage;
+
 use crate::emu::emu_context;
-use crate::maps::scalar::{LittleEndianScalar, ScalarTrace};
+use crate::maps::scalar::{LittleEndianScalar, ScalarTrace, read_le};
+use crate::maps::shared::{SharedStorage, SharedView};
 use bytemuck::cast_slice;
 use md5;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::Read;
@@ -11,7 +17,7 @@ use std::io::Write;
 use std::io::prelude::*;
 
 /// Memory region permission flags (read/write/execute).
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Permission(u8);
 
 // Bit flags for permissions
@@ -143,7 +149,13 @@ pub struct Mem64 {
     base_addr: u64,
     bottom_addr: u64,
     permission: Permission,
+    #[serde(default)]
+    permission_overrides: BTreeMap<u64, Permission>,
     mem: Vec<u8>,
+    #[serde(default)]
+    view: Option<SharedView>,
+    #[serde(skip)]
+    shared: Option<SharedStorage>,
 }
 
 impl Default for Mem64 {
@@ -153,7 +165,10 @@ impl Default for Mem64 {
             base_addr: 0,
             bottom_addr: 0,
             permission: Permission::from_flags(true, true, false),
+            permission_overrides: BTreeMap::new(),
             mem: Vec::new(),
+            view: None,
+            shared: None,
         }
     }
 }
@@ -171,42 +186,52 @@ impl Mem64 {
             base_addr,
             bottom_addr,
             permission,
+            permission_overrides: BTreeMap::new(),
             mem,
+            view: None,
+            shared: None,
         }
     }
 
     pub fn permission(&self) -> Permission {
-        self.permission
+        self.permission_at(self.base_addr)
     }
 
     /// Set new permissions
     pub fn set_permission(&mut self, permission: Permission) {
         self.permission = permission;
+        self.permission_overrides.clear();
     }
 
     /// Add permissions
     pub fn add_permission(&mut self, permission: Permission) {
         self.permission = self.permission.add(permission);
+        for value in self.permission_overrides.values_mut() {
+            *value = value.add(permission);
+        }
     }
 
     /// Remove permissions
     pub fn remove_permission(&mut self, permission: Permission) {
         self.permission = self.permission.remove(permission);
+        for value in self.permission_overrides.values_mut() {
+            *value = value.remove(permission);
+        }
     }
 
     /// Check if read access is allowed for this memory region
     pub fn can_read(&self) -> bool {
-        self.permission.can_read()
+        self.permission().can_read()
     }
 
     /// Check if write access is allowed for this memory region
     pub fn can_write(&self) -> bool {
-        self.permission.can_write()
+        self.permission().can_write()
     }
 
     /// Check if execute access is allowed for this memory region
     pub fn can_execute(&self) -> bool {
-        self.permission.can_execute()
+        self.permission().can_execute()
     }
 
     pub fn clear(&mut self) {
@@ -214,6 +239,9 @@ impl Mem64 {
         self.base_addr = 0;
         self.bottom_addr = 0;
         self.mem.clear();
+        self.view = None;
+        self.shared = None;
+        self.permission_overrides.clear();
     }
 
     #[inline(always)]
@@ -228,41 +256,70 @@ impl Mem64 {
 
     #[inline(always)]
     pub fn get_mem(&self) -> Vec<u8> {
-        self.mem.clone()
+        self.get_bytes().into_owned()
     }
 
     #[inline(always)]
     pub fn alloc(&mut self, amount: usize) {
+        self.view = None;
+        self.shared = None;
         self.mem = vec![0; amount];
+        self.permission_overrides.clear();
     }
 
     pub fn extend(&mut self, amount: usize) {
+        self.detach_shared();
         self.mem.resize(self.mem.len() + amount, 0);
         self.bottom_addr += amount as u64;
     }
 
     #[inline(always)]
     pub fn size(&self) -> usize {
-        self.mem.len()
+        if self.view.is_some() {
+            (self.bottom_addr - self.base_addr) as usize
+        } else {
+            self.mem.len()
+        }
     }
 
     /// Drop the first `n` bytes so the map starts at `base + n` (munmap of a head).
     pub fn drop_front(&mut self, n: usize) {
-        self.mem.drain(..n);
+        let permission = self.permission_at(self.base_addr + n as u64);
+        if let Some(view) = self.view.as_mut() {
+            view.offset += n;
+        } else {
+            self.mem.drain(..n);
+        }
         self.base_addr += n as u64;
+        self.permission = permission;
+        self.permission_overrides
+            .retain(|addr, _| *addr > self.base_addr);
     }
 
     /// Keep only the first `n` bytes (munmap of a tail).
     pub fn truncate(&mut self, n: usize) {
-        self.mem.truncate(n);
+        if self.view.is_none() {
+            self.mem.truncate(n);
+        }
         self.bottom_addr = self.base_addr + n as u64;
+        self.permission_overrides
+            .retain(|addr, _| *addr < self.bottom_addr);
     }
 
     /// Cut the map at absolute address `at`, returning the bytes from there on
     /// (munmap of a hole: the caller re-creates the tail as its own map).
     pub fn split_off(&mut self, at: u64) -> Vec<u8> {
-        let tail = self.mem.split_off((at - self.base_addr) as usize);
+        let tail = if self.view.is_some() {
+            self.backing_bytes(
+                (at - self.base_addr) as usize,
+                (self.bottom_addr - at) as usize,
+            )
+            .into_owned()
+        } else {
+            self.mem.split_off((at - self.base_addr) as usize)
+        };
         self.bottom_addr = at;
+        self.permission_overrides.retain(|addr, _| *addr < at);
         tail
     }
 
@@ -277,7 +334,7 @@ impl Mem64 {
     }
 
     pub fn memcpy(&mut self, ptr: &[u8], sz: usize) {
-        if self.mem.len() < sz {
+        if self.size() < sz {
             log::error!(
                 "Try memcpy at mem but size bigger than allocated size: addr {}, size {}",
                 self.base_addr,
@@ -286,7 +343,7 @@ impl Mem64 {
             return;
         }
         // TODO: log trace read write?
-        self.mem[..sz].copy_from_slice(&ptr[..sz]);
+        self.write_backing(0, &ptr[..sz]);
     }
 
     #[inline]
@@ -296,12 +353,18 @@ impl Mem64 {
 
     #[inline(always)]
     pub fn set_base(&mut self, base_addr: u64) {
+        self.permission_overrides.clear();
         self.base_addr = base_addr;
         self.bottom_addr = base_addr;
     }
 
     #[inline(always)]
     pub fn update_base(&mut self, base_addr: u64) {
+        let previous = self.base_addr;
+        self.permission_overrides = std::mem::take(&mut self.permission_overrides)
+            .into_iter()
+            .map(|(addr, permission)| (base_addr + (addr - previous), permission))
+            .collect();
         self.base_addr = base_addr;
     }
 
@@ -316,6 +379,40 @@ impl Mem64 {
         self.bottom_addr = bottom_addr;
     }
 
+    pub fn try_set_size(&mut self, size: u64) -> Result<(), String> {
+        let end = self
+            .base_addr
+            .checked_add(size)
+            .ok_or("memory range overflow")?;
+        let len = usize::try_from(size).map_err(|_| "memory size overflow")?;
+        let mut bytes = Vec::new();
+        bytes
+            .try_reserve_exact(len)
+            .map_err(|_| "backing allocation failed")?;
+        bytes.resize(len, 0);
+        self.view = None;
+        self.shared = None;
+        self.mem = bytes;
+        self.bottom_addr = end;
+        self.permission_overrides.clear();
+        Ok(())
+    }
+
+    pub(crate) fn fill_backing(&mut self, addr: u64, value: u8, size: usize) {
+        let offset = (addr - self.base_addr) as usize;
+        if let (Some(view), Some(shared)) = (self.view, &self.shared) {
+            shared.bytes.borrow_mut()[view.offset + offset..view.offset + offset + size]
+                .fill(value);
+            shared.dirty.set(true);
+        } else {
+            self.mem[offset..offset + size].fill(value);
+        }
+    }
+
+    pub(crate) fn zero_backing(&mut self, addr: u64, size: usize) {
+        self.fill_backing(addr, 0, size);
+    }
+
     pub fn set_size(&mut self, size: u64) {
         self.bottom_addr = self.base_addr + size;
         self.alloc(size as usize);
@@ -327,64 +424,22 @@ impl Mem64 {
     }
 
     #[inline(always)]
-    pub fn read_from(&self, addr: u64) -> &[u8] {
-        if !self.can_read() {
-            if emu_context::mem_trace_enabled() {
-                log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
-            }
-            {
-                log::warn!("mem: read w/o permission at 0x{:x}", addr);
-                return &[];
-            }
-        }
-
-        if addr < self.base_addr || addr >= self.bottom_addr {
-            return &[];
-        }
-        let idx = (addr - self.base_addr) as usize;
-        let max_sz = (self.bottom_addr - self.base_addr) as usize;
-        match self.mem.get(idx..max_sz) {
-            Some(r) => {
-                if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
-                    log::trace!(
-                        "mem_trace: read_from: 0x{:x?} = {:x?}",
-                        self.build_addresses(addr, max_sz),
-                        r
-                    );
-                }
-                r
-            }
-            None => &[],
-        }
+    pub fn read_from(&self, addr: u64) -> Cow<'_, [u8]> {
+        self.read_bytes(addr, usize::MAX)
     }
 
     #[inline(always)]
-    pub fn read_bytes(&self, addr: u64, sz: usize) -> &[u8] {
-        if !self.can_read() {
-            {
-                log::warn!("mem: read w/o permission at 0x{:x}", addr);
-                return &[];
-            }
-        }
-
-        if addr >= self.base_addr + self.mem.len() as u64 {
-            // TODO: log trace?
-            return &[0; 0];
-        }
-        if addr < self.base_addr {
-            // TODO: log trace?
-            return &[0; 0];
+    pub fn read_bytes(&self, addr: u64, sz: usize) -> Cow<'_, [u8]> {
+        let len = self.accessible_prefix(addr, sz, Permission::READ);
+        if len == 0 {
+            return Cow::Borrowed(&[]);
         }
         let idx = (addr - self.base_addr) as usize;
-        let sz2 = idx + sz;
-        if sz2 > self.mem.len() {
-            return self.mem.get(idx..self.mem.len()).unwrap_or(&[]);
-        }
-        let r = self.mem.get(idx..sz2).unwrap_or(&[]);
+        let r = self.backing_bytes(idx, len);
         if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem_trace: read_bytes: 0x{:x?} = {:x?}",
-                self.build_addresses(addr, sz),
+                self.build_addresses(addr, r.len()),
                 r
             );
         }
@@ -392,26 +447,13 @@ impl Mem64 {
     }
 
     #[inline(always)]
-    pub fn get_bytes(&self) -> &[u8] {
-        let idx = 0;
-        let sz2 = self.size();
-        if sz2 > self.mem.len() {
-            return self.mem.get(idx..self.mem.len()).unwrap_or(&[]);
-        }
-        let r = self.mem.get(idx..sz2).unwrap_or(&[]);
-        if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
-            log::trace!(
-                "mem_trace: read_bytes: 0x{:x?} = {:x?}",
-                self.build_addresses(self.get_base(), self.size()),
-                r
-            );
-        }
-        r
+    pub fn get_bytes(&self) -> Cow<'_, [u8]> {
+        self.backing_bytes(0, self.size())
     }
 
     #[inline(always)]
     pub fn read_byte(&self, addr: u64) -> u8 {
-        if !self.can_read() {
+        if !self.can_read_range(addr, 1) {
             if emu_context::mem_trace_enabled() {
                 log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
             }
@@ -422,7 +464,7 @@ impl Mem64 {
         }
 
         let idx = (addr - self.base_addr) as usize;
-        let r = self.mem[idx];
+        let r = self.with_backing(|bytes| bytes[idx]);
         if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem_trace: read_byte: 0x{:x?} = 0x{:x}",
@@ -455,7 +497,7 @@ impl Mem64 {
     #[inline(always)]
     pub fn force_write_byte(&mut self, addr: u64, value: u8) {
         let idx = (addr - self.base_addr) as usize;
-        self.mem[idx] = value;
+        self.write_backing(idx, &[value]);
         if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem: force_write_byte: 0x{:x?} = 0x{:x}",
@@ -468,7 +510,7 @@ impl Mem64 {
     #[inline(always)]
     pub fn force_write_bytes(&mut self, addr: u64, bs: &[u8]) {
         let idx = (addr - self.base_addr) as usize;
-        self.mem[idx..(bs.len() + idx)].copy_from_slice(bs.as_ref());
+        self.write_backing(idx, bs);
         if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem: force_write_bytes: 0x{:x?} = {:?}",
@@ -515,7 +557,7 @@ impl Mem64 {
 
     #[inline(always)]
     pub fn write_byte(&mut self, addr: u64, value: u8) {
-        if !self.can_write() {
+        if !self.can_write_range(addr, 1) {
             {
                 log::warn!("mem: write w/o permission at 0x{:x}", addr);
                 return;
@@ -523,7 +565,7 @@ impl Mem64 {
         }
 
         let idx = (addr - self.base_addr) as usize;
-        self.mem[idx] = value;
+        self.write_backing(idx, &[value]);
         if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem_trace: write_byte: 0x{:x?} = 0x{:x}",
@@ -535,7 +577,7 @@ impl Mem64 {
 
     #[inline(always)]
     pub fn write_bytes(&mut self, addr: u64, bs: &[u8]) {
-        if !self.can_write() {
+        if !self.can_write_range(addr, bs.len()) {
             {
                 log::warn!("mem: write w/o permission at 0x{:x}", addr);
                 return;
@@ -543,7 +585,7 @@ impl Mem64 {
         }
 
         let idx = (addr - self.base_addr) as usize;
-        self.mem[idx..(bs.len() + idx)].copy_from_slice(bs.as_ref());
+        self.write_backing(idx, bs);
         if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem_trace: write_bytes: 0x{:x?} = {:x?}",
@@ -575,16 +617,6 @@ impl Mem64 {
 
     #[inline(always)]
     pub fn write_string(&mut self, addr: u64, s: &str) {
-        if !self.can_write() {
-            if emu_context::mem_trace_enabled() {
-                log::trace!("FAILED doesn't have permission: write_from: 0x{:x?}", addr);
-            }
-            {
-                log::warn!("mem: write w/o permission at 0x{:x}", addr);
-                return;
-            }
-        }
-
         let mut v = s.as_bytes().to_vec();
         if v.last() != Some(&0) {
             v.push(0);
@@ -603,7 +635,7 @@ impl Mem64 {
 
     #[inline(always)]
     pub fn read_string(&self, addr: u64) -> String {
-        if !self.can_read() {
+        if !self.can_read_range(addr, 1) {
             if emu_context::mem_trace_enabled() {
                 log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
             }
@@ -619,8 +651,8 @@ impl Mem64 {
         // the growing `Vec<u8>` too. The string is bounded by this map's end.
         const MAX_SIZE_STR: usize = 1_000_000;
         let start = (addr - self.base_addr) as usize;
-        let avail = self.mem.len().saturating_sub(start).min(MAX_SIZE_STR);
-        let region = &self.mem[start..start + avail];
+        let avail = self.accessible_prefix(addr, MAX_SIZE_STR, Permission::READ);
+        let region = self.backing_bytes(start, avail);
         let end = region.iter().position(|&b| b == 0).unwrap_or(avail);
         let s = &region[..end];
         if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
@@ -635,16 +667,6 @@ impl Mem64 {
 
     #[inline(always)]
     pub fn write_wide_string(&mut self, addr: u64, s: &str) {
-        if !self.can_write() {
-            if emu_context::mem_trace_enabled() {
-                log::trace!("FAILED doesn't have permission: write_from: 0x{:x?}", addr);
-            }
-            {
-                log::warn!("mem: write w/o permission at 0x{:x}", addr);
-                return;
-            }
-        }
-
         let mut wide_string: Vec<u16> = s.encode_utf16().collect();
         if wide_string.last() != Some(&0) {
             wide_string.push(0);
@@ -663,13 +685,13 @@ impl Mem64 {
     }
 
     fn read_scalar<T: LittleEndianScalar + Into<u128>>(&self, addr: u64, trace: ScalarTrace) -> T {
-        if !self.can_read() {
+        if !self.can_read_range(addr, T::SIZE) {
             if emu_context::mem_trace_enabled() {
                 log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
             }
             log::warn!("mem: read w/o permission at 0x{:x}, returning 0", addr);
             let zeros = vec![0u8; T::SIZE];
-            return crate::maps::scalar::read_le(&zeros).expect("incorrect length");
+            return read_le(&zeros).expect("incorrect length");
         }
 
         // Bounds check: callers via `Maps::read_scalar` already verify this, but
@@ -678,20 +700,20 @@ impl Mem64 {
         // zero (matches common emulator semantics for uninitialised memory) so
         // a stray read at a section boundary doesn't kill the whole run.
         let idx = (addr - self.base_addr) as usize;
-        if idx + T::SIZE > self.mem.len() {
+        if idx + T::SIZE > self.size() {
             log::warn!(
                 "Mem64::read_scalar out-of-bounds: addr=0x{:x} idx={} +{} > len={} ({})",
                 addr,
                 idx,
                 T::SIZE,
-                self.mem.len(),
+                self.size(),
                 trace.label()
             );
             let zeros = vec![0u8; T::SIZE];
-            return crate::maps::scalar::read_le(&zeros).expect("incorrect length");
+            return read_le(&zeros).expect("incorrect length");
         }
-        let r: T =
-            crate::maps::scalar::read_le(&self.mem[idx..idx + T::SIZE]).expect("incorrect length");
+        let r: T = self
+            .with_backing(|bytes| read_le(&bytes[idx..idx + T::SIZE]).expect("incorrect length"));
         if cfg!(feature = "log_mem_read") && emu_context::mem_trace_enabled() {
             log::trace!(
                 "mem_trace: {}: 0x{:x?} = 0x{:x}",
@@ -709,7 +731,7 @@ impl Mem64 {
         value: T,
         trace: ScalarTrace,
     ) {
-        if !self.can_write() {
+        if !self.can_write_range(addr, T::SIZE) {
             if emu_context::mem_trace_enabled() {
                 log::trace!("FAILED doesn't have permission: write_from: 0x{:x?}", addr);
             }
@@ -721,7 +743,7 @@ impl Mem64 {
         let idx = (addr - self.base_addr) as usize;
         let mut buf = [0u8; 16];
         value.write_le(&mut buf);
-        self.mem[idx..idx + T::SIZE].copy_from_slice(&buf[..T::SIZE]);
+        self.write_backing(idx, &buf[..T::SIZE]);
 
         if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
             log::trace!(
@@ -742,7 +764,7 @@ impl Mem64 {
         let idx = (addr - self.base_addr) as usize;
         let mut buf = [0u8; 16];
         value.write_le(&mut buf);
-        self.mem[idx..idx + T::SIZE].copy_from_slice(&buf[..T::SIZE]);
+        self.write_backing(idx, &buf[..T::SIZE]);
 
         if cfg!(feature = "log_mem_write") && emu_context::mem_trace_enabled() {
             log::trace!(
@@ -756,7 +778,7 @@ impl Mem64 {
 
     #[inline]
     pub fn read_wide_string(&self, addr: u64) -> String {
-        if !self.can_read() {
+        if !self.can_read_range(addr, 2) {
             if emu_context::mem_trace_enabled() {
                 log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
             }
@@ -792,7 +814,7 @@ impl Mem64 {
     }
 
     pub fn read_wide_string_n(&self, addr: u64, max_chars: usize) -> String {
-        if !self.can_read() {
+        if !self.can_read_range(addr, 2) {
             if emu_context::mem_trace_enabled() {
                 log::trace!("FAILED doesn't have permission: read_from: 0x{:x?}", addr);
             }
@@ -824,7 +846,7 @@ impl Mem64 {
 
     pub fn print_bytes(&self) {
         log::trace!("---mem---");
-        for b in self.mem.iter() {
+        for b in self.get_bytes().iter() {
             print!("{}", b);
         }
         log::trace!("---");
@@ -844,10 +866,13 @@ impl Mem64 {
     }
 
     pub fn md5(&self) -> md5::Digest {
-        md5::compute(&self.mem)
+        md5::compute(self.get_bytes())
     }
 
     pub fn load_at(&mut self, base_addr: u64) {
+        if self.view.is_some() {
+            return;
+        }
         self.set_base(base_addr);
         let mut name: String = String::from(&self.mem_name);
         name.push_str(".bin");
@@ -855,6 +880,9 @@ impl Mem64 {
     }
 
     pub fn load_chunk(&mut self, filename: &str, off: u64, sz: usize) -> bool {
+        if self.view.is_some() {
+            return false;
+        }
         // log::trace!("loading chunk: {} {} {}", filename, off, sz);
         let mut f = match File::open(filename) {
             Ok(f) => f,
@@ -905,8 +933,8 @@ impl Mem64 {
     pub fn save(&self, addr: u64, size: usize, filename: String) {
         let idx = (addr - self.base_addr) as usize;
         let sz2 = idx + size;
-        if sz2 > self.mem.len() {
-            log::error!("size too big, map size is {}  sz2:{}", self.mem.len(), sz2);
+        if sz2 > self.size() {
+            log::error!("size too big, map size is {}  sz2:{}", self.size(), sz2);
             return;
         }
 
@@ -918,7 +946,8 @@ impl Mem64 {
             }
         };
 
-        let Some(blob) = self.mem.get(idx..sz2) else {
+        let bytes = self.get_bytes();
+        let Some(blob) = bytes.get(idx..sz2) else {
             log::error!(
                 "save: invalid range {}..{} for mem len {}",
                 idx,
@@ -949,7 +978,8 @@ impl Mem64 {
             }
         };
 
-        let blob = self.mem.get(0..).unwrap_or(&[]);
+        let bytes = self.get_bytes();
+        let blob = bytes.as_ref();
 
         let res = f.write_all(blob).is_ok();
 

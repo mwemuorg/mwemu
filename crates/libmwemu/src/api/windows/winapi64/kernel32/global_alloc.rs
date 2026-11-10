@@ -1,37 +1,6 @@
-use crate::api::windows::common::heap as heap_engine;
-use crate::emu;
-use crate::winapi::helper;
-pub fn GlobalAlloc(emu: &mut emu::Emu) {
-    let flags = emu.regs().rcx as u32;
-    let size = emu.regs().rdx;
-    let zeroinit = flags & 0x0040 != 0; // GMEM_ZEROINIT
-    match heap_engine::heap_allocate(emu, 0, size) {
-        Some(addr) => {
-            if zeroinit {
-                emu.maps.memset(addr, 0, size as usize);
-            }
-            log_red!(
-                emu,
-                "kernel32!GlobalAlloc flags: 0x{:x} size: {} =0x{:x}",
-                flags,
-                size,
-                addr
-            );
-            let handle = helper::handler_create("GlobalAlloc");
-            let out_ptr = emu.regs().rdx;
-            if out_ptr != 0 {
-                emu.maps.write_qword(out_ptr, handle);
-            }
-            emu.regs_mut().rax = addr;
-        }
-        None => {
-            log_red!(
-                emu,
-                "kernel32!GlobalAlloc failed flags: 0x{:x} size: {}",
-                flags,
-                size
-            );
-            emu.regs_mut().rax = 0;
-        }
-    }
+use crate::emu::Emu;
+use crate::winapi::common::heap;
+
+pub fn GlobalAlloc(emu: &mut Emu) {
+    heap::local_alloc_api(emu);
 }

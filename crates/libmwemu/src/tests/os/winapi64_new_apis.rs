@@ -77,11 +77,12 @@ fn test_global_lock_unlock() {
 fn test_heap_size() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let ptr = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[0x1234, 0, 0x200]);
+    let ptr = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapAlloc, &[heap, 0, 0x200]);
     assert_ne!(ptr, 0);
 
-    let size = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[0x1234, 0, ptr]);
+    let size = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[heap, 0, ptr]);
     assert!(
         size >= 0x200,
         "HeapSize should be >= requested (got {})",
@@ -93,8 +94,9 @@ fn test_heap_size() {
 fn test_heap_size_invalid_ptr() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
-    let size = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[0x1234, 0, 0xDEAD]);
+    let size = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[heap, 0, 0xDEAD]);
     assert_eq!(
         size, 0xFFFFFFFFFFFFFFFF,
         "HeapSize of invalid ptr should return -1"
@@ -539,15 +541,10 @@ fn test_nt_section_lifecycle() {
     emu.maps.write_qword(max_size_ptr, 0x10000);
 
     // NtCreateSection(handle_ptr, SECTION_ALL_ACCESS, NULL, max_size_ptr, PAGE_READWRITE, SEC_COMMIT, NULL)
-    let rsp = emu.regs().rsp;
-    emu.maps.write_dword(rsp + 0x20, 0x04); // PAGE_READWRITE
-    emu.maps.write_qword(rsp + 0x28, 0x08000000); // SEC_COMMIT
-    emu.maps.write_qword(rsp + 0x30, 0); // no file handle
-
     let status = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::NtCreateSection,
-        &[handle_ptr, 0xF001F, 0, max_size_ptr],
+        &[handle_ptr, 0xF001F, 0, max_size_ptr, 0x04, 0x08000000, 0],
     );
     assert_eq!(status, 0, "NtCreateSection should return STATUS_SUCCESS");
 
@@ -556,14 +553,21 @@ fn test_nt_section_lifecycle() {
 
     // NtMapViewOfSection(section_handle, process, base_ptr, 0, 0, NULL, view_size_ptr, ...)
     emu.maps.write_qword(view_size_ptr, 0x10000);
-    emu.maps.write_qword(rsp + 0x20, 0); // commit size
-    emu.maps.write_qword(rsp + 0x28, 0); // section offset
-    emu.maps.write_qword(rsp + 0x30, view_size_ptr);
-
     let status = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::NtMapViewOfSection,
-        &[section_handle, 0xFFFFFFFF, base_ptr, 0],
+        &[
+            section_handle,
+            0xFFFFFFFF,
+            base_ptr,
+            0,
+            0,
+            0,
+            view_size_ptr,
+            1,
+            0,
+            4,
+        ],
     );
     assert_eq!(status, 0, "NtMapViewOfSection should return STATUS_SUCCESS");
 
@@ -587,6 +591,7 @@ fn test_nt_section_lifecycle() {
         status, 0,
         "NtUnmapViewOfSection should return STATUS_SUCCESS"
     );
+    assert!(!emu.maps.is_mapped(mapped_base));
 }
 
 // ─── ntdll: NtQueryInformationProcess ───
@@ -716,16 +721,18 @@ fn test_nt_free_virtual_memory() {
     emu.maps
         .create_map("freevm", base_ptr_addr, 0x1000, Permission::READ_WRITE);
     emu.maps.write_qword(base_ptr_addr, base);
+    emu.maps.write_qword(base_ptr_addr + 8, 0);
 
     let status = helpers::call_winapi64(
         &mut emu,
         winapi64::ntdll::NtFreeVirtualMemory,
-        &[0xFFFFFFFF, base_ptr_addr, 0, 0x8000], // MEM_RELEASE
+        &[0xFFFFFFFF, base_ptr_addr, base_ptr_addr + 8, 0x8000], // MEM_RELEASE
     );
     assert_eq!(
         status, 0,
         "NtFreeVirtualMemory should return STATUS_SUCCESS"
     );
+    assert!(!emu.maps.is_mapped(base));
 }
 
 // ─── advapi32: CryptAcquireContextA + CryptReleaseContext ───
@@ -994,11 +1001,12 @@ fn test_bcrypt_lifecycle() {
 fn test_global_alloc_heap_size_integration() {
     helpers::setup();
     let mut emu = emu64();
+    let heap = helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcessHeap, &[]);
 
     let ptr = helpers::call_winapi64(&mut emu, winapi64::kernel32::GlobalAlloc, &[0, 0x300]);
     assert_ne!(ptr, 0);
 
-    let size = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[0x1234, 0, ptr]);
+    let size = helpers::call_winapi64(&mut emu, winapi64::kernel32::HeapSize, &[heap, 0, ptr]);
     assert!(
         size >= 0x300,
         "HeapSize of GlobalAlloc'd memory should be >= requested (got {})",

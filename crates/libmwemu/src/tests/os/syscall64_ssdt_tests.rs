@@ -117,7 +117,10 @@ fn nt_write_then_read_virtual_memory_roundtrip() {
         emu.maps.read_qword(0x550088).unwrap_or(0),
         u64::try_from(payload.len()).expect("payload length fits u64")
     );
-    assert_eq!(emu.maps.read_bytes(0x550100, payload.len()), payload);
+    assert_eq!(
+        emu.maps.read_bytes(0x550100, payload.len()).as_ref(),
+        payload
+    );
 }
 
 #[test]
@@ -1544,7 +1547,7 @@ fn qsi_module_information_writes_ntoskrnl_payload() {
     let name_off = emu.maps.read_word(0x80012A).unwrap_or(0);
     assert!(name_off > 0);
     let path_bytes = emu.maps.read_bytes(0x80012C + u64::from(name_off), 13);
-    assert_eq!(path_bytes, b"ntoskrnl.exe\0");
+    assert_eq!(path_bytes.as_ref(), b"ntoskrnl.exe\0");
 }
 
 #[test]

@@ -1,24 +1,22 @@
 use crate::emu::Emu;
+use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::ALLOCATION_GRANULARITY;
 use crate::windows::constants;
 use crate::windows::peb::{peb32, peb64};
 use rs_header::pe::export_index::{ExportIndexData, build_export_index};
+use rs_header::pe::image::{aligned_size, image_size, section_data, section_size};
 use rs_header::pe::pe32::PE32;
 use rs_header::pe::pe64::PE64;
+use rs_header::pe::shared::ImageSectionHeader;
 
 /// Index of the export data directory in `data_directory[]`. Mirrors
 /// `IMAGE_DIRECTORY_ENTRY_EXPORT` from `rs-header::pe::shared` (always 0).
 const DATA_DIR_EXPORT: usize = 0;
 
-macro_rules! align_up {
-    ($size:expr, $align:expr) => {{
-        // A section alignment of 0 means the PE header failed to parse (e.g. the
-        // file couldn't be read); treat it as "no alignment" instead of
-        // underflowing `$align - 1`.
-        let align = if $align == 0 { 1 } else { $align };
-        ($size + align - 1) & !(align - 1)
-    }};
-}
+const SECTION_EXECUTE: u32 = 0x2000_0000;
+const SECTION_READ: u32 = 0x4000_0000;
+const SECTION_WRITE: u32 = 0x8000_0000;
 
 impl Emu {
     /// Read a PE image off disk. This is plain I/O — all interpretation of the
@@ -61,37 +59,31 @@ impl Emu {
         self.export_indexes.register(index);
     }
 
-    /// Relocatable DLLs go to `lib64_alloc` in `LIBS64_*`, like Windows ASLR does
-    /// for system DLLs: otherwise ntdll squats on 0x180000000, the default
-    /// `ImageBase` of every MSVC x64 DLL, and a relocation-less target DLL can
-    /// no longer load where its absolute addresses expect it.
-    /// Non-relocatable DLLs keep their PE `ImageBase` when it is in canonical
-    /// user space and does not overlap existing maps.
-    /// `raw_len` is the on-disk image size (rs-header's borrow-based PE no longer
-    /// owns the bytes, so the caller supplies it).
-    fn pick_pe64_dll_base(&mut self, pe64: &PE64, raw_len: u64) -> u64 {
-        const USER_MAX: u64 = 0x7FFF_FFFF_FFFF;
-        let ib = pe64.opt.image_base;
-        let span = (pe64.opt.size_of_image as u64).max(raw_len);
-        if ib < 0x10000 || pe64.has_relocations() {
-            return self.maps.lib64_alloc(raw_len).unwrap_or_else(|| {
-                log::error!("pe loader: out of memory allocating {} bytes", raw_len);
-                0
-            });
+    /// PE images use allocation granularity; other library buffers retain the
+    /// page-aligned generic allocator. The caller maps the chosen range.
+    pub(super) fn alloc_pe_image(&self, size: u64, bottom: u64, top: u64) -> Option<u64> {
+        if size > self.maps.max_alloc_size {
+            return None;
         }
-        let Some(end) = ib.checked_add(span) else {
-            return self.maps.lib64_alloc(raw_len).unwrap_or_else(|| {
-                log::error!("pe loader: out of memory allocating {} bytes", raw_len);
-                0
-            });
-        };
-        if end > USER_MAX || self.maps.overlaps(ib, span) {
-            return self.maps.lib64_alloc(raw_len).unwrap_or_else(|| {
-                log::error!("pe loader: out of memory allocating {} bytes", raw_len);
-                0
-            });
+        self.maps
+            .find_free_range(size, ALLOCATION_GRANULARITY, bottom, top)
+    }
+
+    /// Relocatable DLLs use the library range. Preserve a non-relocatable DLL's
+    /// preferred base only when the complete virtual image fits there.
+    fn pick_pe64_dll_base(&self, pe64: &PE64, span: u64) -> Option<u64> {
+        let base = pe64.opt.image_base;
+        if base >= ALLOCATION_GRANULARITY
+            && base.is_multiple_of(ALLOCATION_GRANULARITY)
+            && !pe64.has_relocations()
+            && base
+                .checked_add(span)
+                .is_some_and(|end| end <= constants::USER64_ADDRESS_LIMIT)
+            && !self.maps.overlaps(base, span)
+        {
+            return Some(base);
         }
-        ib
+        self.alloc_pe_image(span, constants::LIBS64_MIN, constants::LIBS64_MAX)
     }
 
     /// Complex funtion called from many places and with multiple purposes.
@@ -116,7 +108,18 @@ impl Emu {
         }
 
         let mut pe32 = PE32::parse(filename, &raw);
-        let raw_len = raw.len() as u64;
+        let mut image_span = image_size(
+            pe32.opt.size_of_headers,
+            pe32.opt.size_of_image,
+            &pe32.sect_hdr,
+            pe32.opt.section_alignment,
+        );
+        let is_reflective = raw
+            .windows(b"ReflectiveLoader".len())
+            .any(|w| w == b"ReflectiveLoader");
+        if is_reflective {
+            image_span = image_span.max(raw.len() as u64);
+        }
         let base: u32;
 
         log::trace!("loading pe32 {}", filename);
@@ -125,14 +128,7 @@ impl Emu {
 
         // base is forced by libmwemu
         if force_base > 0 {
-            if self.maps.overlaps(force_base as u64, raw_len) {
-                {
-                    log::warn!("pe32: forced base overlaps existing maps, using anyway");
-                    base = force_base;
-                }
-            } else {
-                base = force_base;
-            }
+            base = force_base;
 
         // base is setted by user
         } else if !is_maps
@@ -140,20 +136,21 @@ impl Emu {
             && !self.cfg.emulate_winapi
         {
             base = self.cfg.code_base_addr as u32;
-            if self.maps.overlaps(base as u64, raw_len) {
-                log::warn!("pe32: configured base overlaps existing maps");
-            }
 
         // base is setted by image base (if overlapps, alloc)
         } else {
             // user's program
             if set_entry {
-                if pe32.opt.image_base >= constants::LIBS32_MIN as u32
-                    || self
-                        .maps
-                        .overlaps(pe32.opt.image_base as u64, pe32.mem_size() as u64)
+                if pe32.opt.image_base < ALLOCATION_GRANULARITY as u32
+                    || !(pe32.opt.image_base as u64).is_multiple_of(ALLOCATION_GRANULARITY)
+                    || pe32.opt.image_base as u64 + image_span > constants::LIBS32_MIN
+                    || self.maps.overlaps(pe32.opt.image_base as u64, image_span)
                 {
-                    base = match self.maps.alloc(pe32.mem_size() as u64 + 0xff) {
+                    base = match self.alloc_pe_image(
+                        image_span,
+                        constants::ALLOC32_MIN,
+                        constants::ALLOC32_MAX,
+                    ) {
                         Some(a) => a as u32,
                         None => {
                             log::error!("pe32 loader: out of memory");
@@ -166,7 +163,11 @@ impl Emu {
 
             // system library
             } else {
-                base = match self.maps.lib32_alloc(pe32.mem_size() as u64) {
+                base = match self.alloc_pe_image(
+                    image_span,
+                    constants::LIBS32_MIN,
+                    constants::LIBS32_MAX,
+                ) {
                     Some(a) => a as u32,
                     None => {
                         log::error!("pe32 loader: out of memory for lib");
@@ -174,6 +175,29 @@ impl Emu {
                     }
                 };
             }
+        }
+
+        let regions = if is_reflective {
+            vec![ImageRegion {
+                name: format!("{filename2}.pe"),
+                offset: 0,
+                size: image_span,
+                permission: Permission::READ_WRITE_EXECUTE,
+                data: &raw,
+            }]
+        } else {
+            image_regions(
+                &filename2,
+                &raw,
+                pe32.headers(&raw),
+                pe32.opt.size_of_headers,
+                &pe32.sect_hdr,
+                pe32.opt.section_alignment,
+            )
+        };
+        if let Err(error) = self.maps.map_image(base as u64, image_span, &regions) {
+            log::error!("cannot map PE32 image {}: {}", filename, error);
+            return (0, 0);
         }
 
         if set_entry || self.cfg.emulate_winapi {
@@ -200,117 +224,7 @@ impl Emu {
             log::trace!("base: 0x{:x}", base);
         }
 
-        let sec_allign = pe32.opt.section_alignment;
-
-        let is_reflective = raw
-            .windows(b"ReflectiveLoader".len())
-            .any(|w| w == b"ReflectiveLoader");
-
-        if is_reflective {
-            // 4-flat. Reflective loaders read from PointerToRawData (file offsets),
-            // so load the entire raw file as one flat RWX map.
-            let flat_size = std::cmp::max(raw.len() as u64, pe32.opt.size_of_image as u64);
-            let flat_map = match self.maps.create_map(
-                &format!("{}.pe", filename2),
-                base as u64,
-                flat_size,
-                Permission::READ_WRITE_EXECUTE,
-            ) {
-                Ok(m) => m,
-                Err(e) => {
-                    log::error!("cannot create flat pe map: {}", e);
-                    return (0, 0);
-                }
-            };
-            flat_map.memcpy(&raw, raw.len());
-        } else {
-            // 4. Standard mapped loading: header map + per-section maps.
-            let pemap = match self.maps.create_map(
-                &format!("{}.pe", filename2),
-                base.into(),
-                align_up!(pe32.opt.size_of_headers, sec_allign) as u64,
-                Permission::READ_WRITE,
-            ) {
-                Ok(m) => m,
-                Err(e) => {
-                    log::error!("cannot create pe map: {}", e);
-                    return (0, 0);
-                }
-            };
-            let headers = pe32.headers(&raw);
-            pemap.memcpy(headers, headers.len());
-
-            for i in 0..pe32.num_of_sections() {
-                let ptr = pe32.get_section_ptr(&raw, i);
-                let sect = pe32.get_section(i);
-                let charactis = sect.characteristics;
-                let is_exec = charactis & 0x20000000 != 0x0;
-                let is_read = charactis & 0x40000000 != 0x0;
-                let mut is_write = charactis & 0x80000000 != 0x0;
-                if sect.get_name().trim() == ".didat" {
-                    is_write = true;
-                }
-                let permission = Permission::from_flags(is_read, is_write, is_exec);
-
-                let sz: u64 = if sect.virtual_size > sect.size_of_raw_data {
-                    sect.virtual_size as u64
-                } else {
-                    sect.size_of_raw_data as u64
-                };
-
-                if sz == 0 {
-                    log::trace!("size of section {} is 0", sect.get_name());
-                    continue;
-                }
-
-                let mut sect_name = sect
-                    .get_name()
-                    .replace(" ", "")
-                    .replace("\t", "")
-                    .replace("\x0a", "")
-                    .replace("\x0d", "");
-
-                if sect_name.is_empty() {
-                    sect_name = format!("{:x}", sect.virtual_address);
-                }
-
-                let mut map_name = format!("{}{}", filename2, sect_name);
-                if self.maps.exists_mapname(&map_name) {
-                    map_name = format!("{}_{:x}", map_name, sect.virtual_address);
-                }
-
-                let map = match self.maps.create_map(
-                    &map_name,
-                    base as u64 + sect.virtual_address as u64,
-                    align_up!(sz, sec_allign as u64),
-                    permission,
-                ) {
-                    Ok(m) => m,
-                    Err(_e) => {
-                        log::trace!(
-                            "weird pe, skipping section {} {} because overlaps",
-                            filename2,
-                            sect.get_name()
-                        );
-                        continue;
-                    }
-                };
-
-                if ptr.len() > sz as usize {
-                    log::warn!(
-                        "pe: section overflow {} {} {} {} (memcpy is size-guarded)",
-                        filename2,
-                        sect.get_name(),
-                        ptr.len(),
-                        sz
-                    );
-                }
-                if !ptr.is_empty() {
-                    map.memcpy(ptr, ptr.len());
-                }
-            }
-
-            // 4b. Base relocs on the mapped image before IAT binding.
+        if !is_reflective {
             pe32.apply_relocations(&raw, self, base);
         }
 
@@ -436,86 +350,28 @@ impl Emu {
         let map_name = self.filename_to_mapname(filename);
         let raw = Self::read_pe_raw(&filename.to_lowercase());
         let pe64 = PE64::parse(&filename.to_lowercase(), &raw);
-        let raw_len = raw.len() as u64;
-
-        let base = self.pick_pe64_dll_base(&pe64, raw_len);
-
-        let sec_allign = pe64.opt.section_alignment;
-
-        let pemap = match self.maps.create_map(
-            &format!("{}.pe", map_name),
-            base,
-            align_up!(pe64.opt.size_of_headers, sec_allign) as u64,
-            Permission::READ_WRITE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create pe64 map: {}", e);
-                return (0, pe64, raw);
-            }
+        let image_span = image_size(
+            pe64.opt.size_of_headers,
+            pe64.opt.size_of_image,
+            &pe64.sect_hdr,
+            pe64.opt.section_alignment,
+        );
+        let Some(base) = self.pick_pe64_dll_base(&pe64, image_span) else {
+            log::error!("pe64 loader: out of memory for lib");
+            return (0, pe64, raw);
         };
-        let headers = pe64.headers(&raw);
-        pemap.memcpy(headers, headers.len());
-        for i in 0..pe64.num_of_sections() {
-            let ptr = pe64.get_section_ptr(&raw, i);
-            let sect = pe64.get_section(i);
-            let charistic = sect.characteristics;
-            let is_exec = charistic & 0x20000000 != 0x0;
-            let is_read = charistic & 0x40000000 != 0x0;
-            let mut is_write = charistic & 0x80000000 != 0x0;
-            // The loader patches `.didat` during init without calling
-            // NtProtectVirtualMemory first — relies on SEC_IMAGE COW we do
-            // not model. Force RW so ntdll's page-touching helper succeeds.
-            if sect.get_name().trim() == ".didat" {
-                is_write = true;
-            }
-            let permission = Permission::from_flags(is_read, is_write, is_exec);
 
-            let map_sz: u64 = if sect.virtual_size > 0 {
-                sect.virtual_size as u64
-            } else {
-                sect.size_of_raw_data as u64
-            };
-
-            if map_sz == 0 {
-                log::trace!("size of section {} is 0", sect.get_name());
-                continue;
-            }
-
-            let mut sect_name = sect
-                .get_name()
-                .replace(" ", "")
-                .replace("\t", "")
-                .replace("\x0a", "")
-                .replace("\x0d", "");
-
-            if sect_name.is_empty() {
-                sect_name = format!("{:x}", sect.virtual_address);
-            }
-
-            let map = match self.maps.create_map(
-                &format!("{}{}", map_name, sect_name),
-                base + sect.virtual_address as u64,
-                align_up!(map_sz, sec_allign as u64),
-                permission,
-            ) {
-                Ok(m) => m,
-                Err(_e) => {
-                    log::trace!(
-                        "weird pe, skipping section because overlaps {} {}",
-                        map_name,
-                        sect.get_name()
-                    );
-                    continue;
-                }
-            };
-
-            let copy_len = (sect.size_of_raw_data as usize)
-                .min(map_sz as usize)
-                .min(ptr.len());
-            if copy_len > 0 {
-                map.memcpy(&ptr[..copy_len], copy_len);
-            }
+        let regions = image_regions(
+            &map_name,
+            &raw,
+            pe64.headers(&raw),
+            pe64.opt.size_of_headers,
+            &pe64.sect_hdr,
+            pe64.opt.section_alignment,
+        );
+        if let Err(error) = self.maps.map_image(base, image_span, &regions) {
+            log::error!("cannot map PE64 DLL {}: {}", filename, error);
+            return (0, pe64, raw);
         }
 
         pe64.apply_relocations(&raw, self, base);
@@ -570,29 +426,23 @@ impl Emu {
         }
 
         let mut pe64 = PE64::parse(filename, &raw);
-        let raw_len = raw.len() as u64;
-        let image_span = (pe64.opt.size_of_image as u64).max(raw_len);
+        let image_span = image_size(
+            pe64.opt.size_of_headers,
+            pe64.opt.size_of_image,
+            &pe64.sect_hdr,
+            pe64.opt.section_alignment,
+        );
         let base: u64;
 
         // 1. base logic
 
         // base is setted by libmwemu
         if force_base > 0 {
-            if self.maps.overlaps(force_base, image_span) {
-                {
-                    log::warn!("pe64: forced base overlaps existing maps, using anyway");
-                    base = force_base;
-                }
-            } else {
-                base = force_base;
-            }
+            base = force_base;
 
         // base is setted by user
         } else if !is_maps && self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
             base = self.cfg.code_base_addr;
-            if self.maps.overlaps(base, image_span) {
-                log::warn!("pe64: configured base overlaps existing maps");
-            }
 
         // base is setted by image base (if overlapps, alloc)
         } else {
@@ -600,7 +450,8 @@ impl Emu {
             if set_entry {
                 let preferred = pe64.opt.image_base;
                 let preferred_usable = if let Some(end) = preferred.checked_add(image_span) {
-                    (0x10000..constants::LIBS64_MIN).contains(&preferred)
+                    (ALLOCATION_GRANULARITY..constants::LIBS64_MIN).contains(&preferred)
+                        && preferred.is_multiple_of(ALLOCATION_GRANULARITY)
                         && end <= constants::LIBS64_MIN
                         && !self.maps.overlaps(preferred, image_span)
                 } else {
@@ -614,7 +465,11 @@ impl Emu {
                         "pe64: preferred image base 0x{:x} unavailable or outside program range, relocating",
                         preferred
                     );
-                    base = match self.maps.alloc(image_span + 0xff) {
+                    base = match self.alloc_pe_image(
+                        image_span,
+                        constants::ALLOC64_MIN,
+                        constants::ALLOC64_MAX,
+                    ) {
                         Some(a) => a,
                         None => {
                             log::error!("pe64 loader: out of memory");
@@ -625,8 +480,27 @@ impl Emu {
 
             // system library
             } else {
-                base = self.pick_pe64_dll_base(&pe64, raw_len);
+                base = match self.pick_pe64_dll_base(&pe64, image_span) {
+                    Some(base) => base,
+                    None => {
+                        log::error!("pe64 loader: out of memory for lib");
+                        return (0, 0);
+                    }
+                };
             }
+        }
+
+        let regions = image_regions(
+            &filename2,
+            &raw,
+            pe64.headers(&raw),
+            pe64.opt.size_of_headers,
+            &pe64.sect_hdr,
+            pe64.opt.section_alignment,
+        );
+        if let Err(error) = self.maps.map_image(base, image_span, &regions) {
+            log::error!("cannot map PE64 image {}: {}", filename, error);
+            return (0, 0);
         }
 
         // Only the main image owns `self.base` and the initial RIP. System DLLs loaded
@@ -650,99 +524,6 @@ impl Emu {
                 );
             }
             log::trace!("base: 0x{:x}", base);
-        }
-
-        let sec_allign = pe64.opt.section_alignment;
-        // 4. map pe and then sections
-        let pemap = match self.maps.create_map(
-            &format!("{}.pe", filename2),
-            base,
-            align_up!(pe64.opt.size_of_headers, sec_allign) as u64,
-            Permission::READ_WRITE,
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                log::error!("cannot create pe64 map: {}", e);
-                return (base, 0);
-            }
-        };
-        let headers = pe64.headers(&raw);
-        pemap.memcpy(headers, headers.len());
-
-        for i in 0..pe64.num_of_sections() {
-            let ptr = pe64.get_section_ptr(&raw, i);
-            let sect = pe64.get_section(i);
-
-            let charistic = sect.characteristics;
-            let is_exec = charistic & 0x20000000 != 0x0;
-            let is_read = charistic & 0x40000000 != 0x0;
-            let mut is_write = charistic & 0x80000000 != 0x0;
-            // The loader patches `.didat` during init without calling
-            // NtProtectVirtualMemory first — relies on SEC_IMAGE COW we do
-            // not model. Force RW so ntdll's page-touching helper succeeds.
-            if sect.get_name().trim() == ".didat" {
-                is_write = true;
-            }
-            let permission = Permission::from_flags(is_read, is_write, is_exec);
-
-            // Virtual size determines how much address space the section occupies.
-            // Raw size is the on-disk data size and may exceed virtual size for
-            // packed/overlay sections — using raw size would create an oversized map
-            // that overlaps subsequent sections.
-            let map_sz: u64 = if sect.virtual_size > 0 {
-                sect.virtual_size as u64
-            } else {
-                sect.size_of_raw_data as u64
-            };
-
-            if map_sz == 0 {
-                log::trace!("size of section {} is 0", sect.get_name());
-                continue;
-            }
-
-            let mut sect_name = sect
-                .get_name()
-                .replace(" ", "")
-                .replace("\t", "")
-                .replace("\x0a", "")
-                .replace("\x0d", "");
-
-            if sect_name.is_empty() {
-                sect_name = format!("{:x}", sect.virtual_address);
-            }
-
-            // See pe32: obfuscated non-UTF8 section names collide on the same
-            // fallback and drop later sections. Disambiguate by virtual address.
-            let mut map_name = format!("{}{}", filename2, sect_name);
-            if self.maps.exists_mapname(&map_name) {
-                map_name = format!("{}_{:x}", map_name, sect.virtual_address);
-            }
-
-            let map = match self.maps.create_map(
-                &map_name,
-                base + sect.virtual_address as u64,
-                align_up!(map_sz, sec_allign as u64),
-                permission,
-            ) {
-                Ok(m) => m,
-                Err(_e) => {
-                    log::trace!(
-                        "weird pe, skipping section because overlaps {} {}",
-                        filename2,
-                        sect.get_name()
-                    );
-                    continue;
-                }
-            };
-
-            // Copy only as many bytes as fit in the virtual mapping.
-            let copy_len = (sect.size_of_raw_data as usize)
-                .min(map_sz as usize)
-                .min(ptr.len());
-
-            if copy_len > 0 {
-                map.memcpy(&ptr[..copy_len], copy_len);
-            }
         }
 
         // 4b. Base relocs on the mapped image (all load paths, including DLL without emulate_winapi).
@@ -875,4 +656,53 @@ impl Emu {
         self.pe64_raw = Some(raw);
         (base, pe_hdr_off)
     }
+}
+
+fn image_regions<'a>(
+    module: &str,
+    raw: &'a [u8],
+    headers: &'a [u8],
+    header_size: u32,
+    sections: &[ImageSectionHeader],
+    alignment: u32,
+) -> Vec<ImageRegion<'a>> {
+    let mut regions = vec![ImageRegion {
+        name: format!("{module}.pe"),
+        offset: 0,
+        size: aligned_size(header_size, alignment),
+        permission: Permission::READ_WRITE,
+        data: headers,
+    }];
+    for section in sections {
+        let size = section_size(section, alignment);
+        if size == 0 {
+            continue;
+        }
+        let original_name = section.get_name();
+        let section_name = original_name.replace([' ', '\t', '\n', '\r'], "");
+        let section_name = if section_name.is_empty() {
+            format!("{:x}", section.virtual_address)
+        } else {
+            section_name
+        };
+        let mut name = format!("{module}{section_name}");
+        if regions.iter().any(|region| region.name == name) {
+            name = format!("{name}_{:x}", section.virtual_address);
+        }
+        // Windows init patches .didat before calling VirtualProtect; keep the
+        // existing writable approximation until image COW is implemented.
+        let permission = Permission::from_flags(
+            section.characteristics & SECTION_READ != 0,
+            section.characteristics & SECTION_WRITE != 0 || original_name.trim() == ".didat",
+            section.characteristics & SECTION_EXECUTE != 0,
+        );
+        regions.push(ImageRegion {
+            name,
+            offset: section.virtual_address as u64,
+            size,
+            permission,
+            data: section_data(raw, section, alignment),
+        });
+    }
+    regions
 }

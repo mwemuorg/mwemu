@@ -1,6 +1,8 @@
 use crate::emu;
-use crate::maps::mem64::Permission;
+use crate::maps::buffers::BufferKind;
 use crate::serialization;
+use crate::winapi::common::buffers;
+use crate::winapi::common::crt;
 use crate::winapi::winapi64::kernel32;
 
 mod _initterm_e;
@@ -400,60 +402,12 @@ pub use _sprintf_l::_sprintf_l;
 mod wprintf;
 pub use wprintf::wprintf;
 
-const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
-
 fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
-    if size < LARGE_ALLOC_THRESHOLD {
-        let heap_manage = emu.heap_mut();
-        return heap_manage.allocate(size as usize);
-    }
-
-    let allocation = emu.maps.alloc(size)?;
-    emu.maps
-        .create_map(
-            &format!("alloc_{:x}", allocation),
-            allocation,
-            size,
-            Permission::READ_WRITE,
-        )
-        .ok()?;
-    Some(allocation)
-}
-
-enum AllocKind {
-    Arena { size: usize },
-    Map { base: u64, size: usize },
-    Invalid,
-}
-
-fn classify(emu: &emu::Emu, addr: u64) -> AllocKind {
-    if let Some(heap) = emu.heap_arenas.first()
-        && let Some(size) = heap.allocation_size(addr)
-    {
-        return AllocKind::Arena { size };
-    }
-
-    match emu.maps.get_mem_by_addr(addr) {
-        Some(mem) if mem.get_base() == addr && mem.get_name().starts_with("alloc_") => {
-            AllocKind::Map {
-                base: addr,
-                size: mem.size(),
-            }
-        }
-        _ => AllocKind::Invalid,
-    }
+    buffers::allocate(emu, size, 16, 0, BufferKind::Crt)
 }
 
 fn release(emu: &mut emu::Emu, addr: u64) {
-    match classify(emu, addr) {
-        AllocKind::Arena { .. } => {
-            if let Some(heap) = emu.heap_arenas.first_mut() {
-                heap.free(addr);
-            }
-        }
-        AllocKind::Map { base, .. } => emu.maps.dealloc(base),
-        AllocKind::Invalid => {}
-    }
+    buffers::free(emu, addr, BufferKind::Crt);
 }
 
 // --- Native execution helpers (kept from the original 64-bit msvcrt) ---
@@ -494,6 +448,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
+    if crt::dispatch(api, emu) {
+        return String::new();
+    }
     match api {
         "_initterm_e" => _initterm_e(emu),
         "_initterm" => _initterm(emu),

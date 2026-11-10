@@ -14,6 +14,7 @@ use crate::eflags::Eflags;
 use crate::emu::Emu;
 use crate::flags::Flags;
 use crate::hooks::Hooks;
+use crate::maps::Maps;
 use crate::regs_aarch64::RegsAarch64;
 use crate::regs64::Regs64;
 use crate::serialization::fpu::SerializableFPU;
@@ -70,14 +71,14 @@ pub enum SerializableCurrentThreadState {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SerializableEmu {
+pub struct SerializableEmu<M = SerializableMaps> {
     // --- Configuration & display ---
     pub cfg: Config,
     pub colors: Colors,
     pub filename: String,
 
     // --- Memory & address space ---
-    pub maps: SerializableMaps,
+    pub maps: M,
     pub base: u64,
     pub heap_addr: u64,
     // NOTE: heap_arenas is not serialized (runtime only)
@@ -278,8 +279,8 @@ impl<'a> From<&'a Emu> for SerializableEmu {
     }
 }
 
-impl From<SerializableEmu> for Emu {
-    fn from(serialized: SerializableEmu) -> Self {
+impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
+    fn from(serialized: SerializableEmu<M>) -> Self {
         let SerializableEmu {
             cfg,
 

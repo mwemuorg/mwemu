@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::arch::Arch;
 use crate::{debug::definitions::Definition, windows::constants};
@@ -222,14 +223,12 @@ impl Config {
         self.arch.is_x86()
     }
 
-    /// Build an absolute path inside the configured maps folder.
+    /// Build a host path from the configured maps folder and a relative filename.
     pub fn get_maps_folder(&self, filename: &str) -> String {
-        let mut path = self.maps_folder.clone();
-        if !path.ends_with('/') {
-            path.push('/');
-        }
-        path.push_str(filename);
-        path
+        Path::new(&self.maps_folder)
+            .join(filename)
+            .to_string_lossy()
+            .into_owned()
     }
 }
 

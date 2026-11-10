@@ -21,7 +21,9 @@ impl From<&Maps> for SerializableMaps {
 
 impl From<SerializableMaps> for Maps {
     fn from(serialized: SerializableMaps) -> Self {
-        serialized.maps
+        let mut maps = serialized.maps;
+        maps.reconnect_shared_views();
+        maps
     }
 }
 

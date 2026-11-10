@@ -64,7 +64,7 @@ fn strncpy_pads_with_nul() {
     emu.maps.memset(dst, 0x41, 8);
     set_args(&mut emu, &[dst, src, 5]);
     gateway("strncpy", &mut emu);
-    assert_eq!(emu.maps.read_bytes(dst, 6), b"ab\0\0\0A");
+    assert_eq!(emu.maps.read_bytes(dst, 6).as_ref(), b"ab\0\0\0A");
 }
 
 #[test]
@@ -73,11 +73,11 @@ fn memory_functions() {
     emu.maps.write_bytes(d, b"0123456789");
     set_args(&mut emu, &[d + 2, d, 5]);
     gateway("memmove", &mut emu); // overlapping copy
-    assert_eq!(emu.maps.read_bytes(d, 10), b"0101234789");
+    assert_eq!(emu.maps.read_bytes(d, 10).as_ref(), b"0101234789");
 
     set_args(&mut emu, &[d, b'x' as u64, 3]);
     gateway("memset", &mut emu);
-    assert_eq!(emu.maps.read_bytes(d, 4), b"xxx1");
+    assert_eq!(emu.maps.read_bytes(d, 4).as_ref(), b"xxx1");
 
     set_args(&mut emu, &[d, b'1' as u64, 10]);
     gateway("memchr", &mut emu);
@@ -90,7 +90,7 @@ fn memory_functions() {
 
     set_args(&mut emu, &[d, 2]);
     gateway("bzero", &mut emu);
-    assert_eq!(emu.maps.read_bytes(d, 3), b"\0\0x");
+    assert_eq!(emu.maps.read_bytes(d, 3).as_ref(), b"\0\0x");
 }
 
 #[test]

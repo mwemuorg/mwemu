@@ -1,4 +1,8 @@
+use crate::api::windows::common::memory as memory_api;
 use crate::emu;
+use crate::winapi::common::heap as heap_api;
+use crate::winapi::common::memory_ops;
+use crate::winapi::common::sections;
 //use crate::serialization;
 use crate::winapi::winapi64;
 
@@ -4081,6 +4085,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
     if winapi64::registry::gateway(api, emu) {
+        return String::new();
+    }
+    if sections::dispatch(api, emu) {
+        return String::new();
+    }
+    if memory_ops::dispatch(api, emu) {
+        return String::new();
+    }
+    if heap_api::dispatch(api, emu) {
+        return String::new();
+    }
+    if memory_api::dispatch(api, emu) {
         return String::new();
     }
     match api {

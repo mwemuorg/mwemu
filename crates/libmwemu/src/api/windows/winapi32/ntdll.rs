@@ -1,4 +1,4 @@
-use crate::api::windows::common::{fallback, nt_api};
+use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
 use crate::windows::constants::STATUS_NOT_IMPLEMENTED;
@@ -19,6 +19,9 @@ pub use misc::RtlDecompressBuffer;
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
+    if memory_api::dispatch_nt(api, emu, Call::Api) {
+        return String::new();
+    }
     // Normalize all Zw aliases, then give real implementations priority.
     let normalized = nt_api::normalize(api);
     let dispatch_name = normalized.as_ref();

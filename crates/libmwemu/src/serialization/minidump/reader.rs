@@ -1,5 +1,5 @@
 use ahash::AHashMap;
-use minidump::format::MemoryProtection;
+use minidump::format::{MemoryProtection, MemoryState, MemoryType};
 use minidump::*;
 use slab::Slab;
 use std::cell::RefCell;
@@ -13,6 +13,7 @@ use crate::flags::Flags;
 use crate::maps::Maps;
 use crate::maps::mem64::{Mem64, Permission};
 use crate::maps::tlb::TLB;
+use crate::maps::virtual_memory::{Allocation, MemoryKind, PageState};
 use crate::regs64::Regs64;
 use crate::serialization::emu::SerializableEmu;
 use crate::serialization::maps::SerializableMaps;
@@ -94,11 +95,15 @@ impl MinidumpReader {
         let mut maps = BTreeMap::new();
         let mut name_map = AHashMap::new();
         let memory = dump.get_memory().unwrap_or_default();
+        let mut allocations: BTreeMap<u64, Allocation> = BTreeMap::new();
 
         if let Ok(memory_info) = dump.get_stream::<MinidumpMemoryInfoList>() {
             for info in memory_info.iter() {
                 let base_addr = info.raw.base_address;
-                if info.raw.region_size == 0 {
+                if info.raw.region_size == 0
+                    || (info.raw.state != MemoryState::MEM_COMMIT.bits()
+                        && info.raw.state != MemoryState::MEM_RESERVE.bits())
+                {
                     continue;
                 }
 
@@ -114,14 +119,55 @@ impl MinidumpReader {
                     x if x == MemoryProtection::PAGE_EXECUTE_READWRITE.bits() => {
                         Permission::READ_WRITE_EXECUTE
                     }
-                    _ => Permission::READ_WRITE_EXECUTE,
+                    x if x == MemoryProtection::PAGE_WRITECOPY.bits() => Permission::READ_WRITE,
+                    x if x == MemoryProtection::PAGE_EXECUTE_WRITECOPY.bits() => {
+                        Permission::READ_WRITE_EXECUTE
+                    }
+                    _ => Permission::NONE,
                 };
 
+                let committed = info.raw.state == MemoryState::MEM_COMMIT.bits();
+                let state = if committed {
+                    PageState::committed(info.raw.protection, permission)
+                } else {
+                    PageState::reserved()
+                };
+                let permission = state.permission;
+                let allocation_base = info.raw.allocation_base;
+                if allocation_base <= base_addr {
+                    let end = base_addr
+                        .checked_add(info.raw.region_size)
+                        .ok_or("memory range overflow")?;
+                    let kind = match info.raw._type {
+                        x if x == MemoryType::MEM_IMAGE.bits() => MemoryKind::Image,
+                        x if x == MemoryType::MEM_MAPPED.bits() => MemoryKind::Mapped,
+                        _ => MemoryKind::Private,
+                    };
+                    let allocation = allocations.entry(allocation_base).or_insert_with(|| {
+                        Allocation::new(
+                            allocation_base,
+                            end - allocation_base,
+                            info.raw.allocation_protection,
+                            kind,
+                            PageState::reserved(),
+                        )
+                    });
+                    allocation.size = allocation.size.max(end - allocation_base);
+                    allocation.set_state(base_addr, info.raw.region_size, state);
+                }
                 let Some(mem_region) = memory.memory_at_address(base_addr) else {
                     continue;
                 };
 
-                let mem_data = mem_region.bytes().to_vec();
+                let offset = usize::try_from(base_addr - mem_region.base_address())?;
+                let length = usize::try_from(info.raw.region_size)?;
+                let Some(bytes) = mem_region
+                    .bytes()
+                    .get(offset..offset.saturating_add(length))
+                else {
+                    continue;
+                };
+                let mem_data = bytes.to_vec();
                 if mem_data.is_empty() {
                     continue;
                 }
@@ -182,9 +228,11 @@ impl MinidumpReader {
         let banzai = false;
         let tlb = RefCell::new(TLB::new());
 
-        Ok(SerializableMaps::new(Maps::new(
-            mem_slab, maps, name_map, is_64bits, banzai, tlb,
-        )))
+        let mut memory = Maps::new(mem_slab, maps, name_map, is_64bits, banzai, tlb);
+        for allocation in allocations.into_values() {
+            memory.register_allocation(allocation);
+        }
+        Ok(SerializableMaps::new(memory))
     }
 
     fn extract_thread_context<T: Deref<Target = [u8]>>(

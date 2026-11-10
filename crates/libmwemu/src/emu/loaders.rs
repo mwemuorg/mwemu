@@ -694,13 +694,12 @@ impl Emu {
             let clear_flags = false; // TODO: this needs to be more dynamic, like if we have a flag set via args or not
             self.init_win32(clear_registers, clear_flags);
             let exe_name = self.cfg.exe_name.clone();
+            let exe_path = self.cfg.get_maps_folder(&exe_name);
             if self.cfg.is_x64() {
-                let (base, _pe_off) =
-                    self.load_pe64(&format!("{}/{}", self.cfg.maps_folder, exe_name), false, 0);
+                let (base, _pe_off) = self.load_pe64(&exe_path, false, 0);
                 peb64::update_ldr_entry_base(&exe_name, base, self);
             } else {
-                let (base, _pe_off) =
-                    self.load_pe32(&format!("{}/{}", self.cfg.maps_folder, exe_name), false, 0);
+                let (base, _pe_off) = self.load_pe32(&exe_path, false, 0);
                 peb32::update_ldr_entry_base(&exe_name, base as u64, self);
             }
 

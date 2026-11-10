@@ -78,7 +78,7 @@ pub fn unwind(emu: &mut emu::Emu, addr: u64) -> Option<u64> {
     let (code, entry) = export_entry_before(emu, addr)?;
     let argument_count = argument_count(emu, entry);
     let skipped = emu.maps.try_read_bytes(code, (addr - code) as usize)?;
-    let prologue = decode_prologue(skipped, code, argument_count)?;
+    let prologue = decode_prologue(&skipped, code, argument_count)?;
 
     let entry_rsp = emu.regs().rsp + prologue.rsp_delta;
     for reg in &prologue.clobbered {

@@ -10,7 +10,7 @@ pub(super) fn CryptHashData(emu: &mut emu::Emu) {
     let len = data_len.min(0x100_0000);
     if data_ptr != 0 && len > 0 {
         let data = emu.maps.read_bytes(data_ptr, len);
-        crypto_state::hash_data(hhash, data);
+        crypto_state::hash_data(hhash, &data);
     }
 
     log_red!(

@@ -29,7 +29,7 @@ pub fn BCryptHash(emu: &mut emu::Emu) {
         let temp_h = helper::handler_create(&format!("bcrypthash_temp://{}", algo_name));
         crypto_state::create_hash(temp_h, calg);
         let data = emu.maps.read_bytes(pb_input, cb_input.min(0x100_0000));
-        crypto_state::hash_data(temp_h, data);
+        crypto_state::hash_data(temp_h, &data);
         if let Some(digest) = crypto_state::get_hash_param(temp_h, crypto_state::HP_HASHVAL) {
             let wlen = digest.len().min(cb_output);
             emu.maps.write_bytes(pb_output, &digest[..wlen]);

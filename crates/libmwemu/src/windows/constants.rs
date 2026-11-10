@@ -19,6 +19,10 @@ pub const CURRENT_PROCESS_HANDLE: u64 = 1975;
 
 pub const CFG_DEFAULT_BASE: u64 = 0x3c0000;
 
+// Exclusive upper bounds of the emulated user address spaces.
+pub const USER32_ADDRESS_LIMIT: u64 = 0x1_0000_0000;
+pub const USER64_ADDRESS_LIMIT: u64 = 0x8000_0000_0000;
+
 pub const BLOCK_LEN: usize = 0x300;
 pub const ALLOC32_MIN: u64 = 0x6_000_000;
 pub const ALLOC32_MAX: u64 = 0x6F_FFF_FFF;
@@ -91,7 +95,7 @@ pub const HRESULT_E_INVALID_ARG: u64 = 0x80070057;
  * 0x8 -> severity: error
  * 0x007 -> facility: FACILITY_WIN32
  * 0x0057 -> ERROR_INVALID_PARAMETER
-*/
+ */
 
 pub const CP_UTF7: u64 = 65000;
 pub const CP_UTF8: u64 = 65001;
@@ -184,7 +188,7 @@ pub const STATUS_READING_RIP: u32 = 0xE000000C;
 pub const STATUS_ILLEGAL_INSTRUCTION: u32 = 0xC000001D;
 
 pub const PAGE_NOACCESS: u32 = 0x01;
-pub const PAGE_EXECUTE: u32 = 0x00;
+pub const PAGE_EXECUTE: u32 = 0x10;
 pub const PAGE_READONLY: u32 = 0x02;
 pub const PAGE_READWRITE: u32 = 0x04;
 pub const PAGE_GUARD: u32 = 0x100;

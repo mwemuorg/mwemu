@@ -127,7 +127,7 @@ fn parse_dotnet_metadata(emu: &mut emu::Emu) {
     let ver_len = emu.maps.read_dword(meta_addr + 12).unwrap_or(0) as u64;
     if ver_len > 0 && ver_len < 256 {
         let ver_bytes = emu.maps.read_bytes(meta_addr + 16, ver_len as usize);
-        let ver = String::from_utf8_lossy(ver_bytes)
+        let ver = String::from_utf8_lossy(&ver_bytes)
             .trim_end_matches('\0')
             .to_string();
         log_red!(emu, "\tFramework: {}", ver);
