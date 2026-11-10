@@ -4,13 +4,14 @@ use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::tests::helpers::{register_export_module, setup};
+use crate::tests::helpers::{register_export_module, run_with_timeout, setup};
 use crate::winapi::{winapi32, winapi64};
 use crate::{emu32, emu64};
 
 const MODULE64: u64 = 0x170000000;
 const MODULE32: u64 = 0x70000000;
 const SENTINEL: u64 = 0xDEAD_C0DE_CAFE_BABE;
+const WINAPI_BUDGET: std::time::Duration = std::time::Duration::from_secs(120);
 
 struct DllDef {
     name: &'static str,
@@ -350,146 +351,165 @@ fn set_sentinels_32(emu: &mut Emu) {
 #[test]
 fn winapi64_handlers_preserve_rsp() {
     setup();
-    let mut failures = Vec::new();
-    let mut tested = 0;
+    run_with_timeout(WINAPI_BUDGET, || {
+        let mut failures = Vec::new();
+        let mut tested = 0;
 
-    for dll in DLLS_64 {
-        let apis = extract_api_names(dll.source);
-        for api in &apis {
-            let mut emu = make_emu64_zeroed(dll.name, api);
-            let rsp_before = emu.regs().rsp;
+        for dll in DLLS_64 {
+            let apis = extract_api_names(dll.source);
+            for api in &apis {
+                let mut emu = make_emu64_zeroed(dll.name, api);
+                let rsp_before = emu.regs().rsp;
 
-            if catch_unwind(AssertUnwindSafe(|| {
-                winapi64::gateway(MODULE64 + 0x100, dll.section, &mut emu);
-            }))
-            .is_err()
-            {
-                continue;
+                if catch_unwind(AssertUnwindSafe(|| {
+                    winapi64::gateway(MODULE64 + 0x100, dll.section, &mut emu);
+                }))
+                .is_err()
+                {
+                    continue;
+                }
+
+                let rsp_after = emu.regs().rsp;
+                if rsp_after != rsp_before {
+                    failures.push(format!(
+                        "{}!{}: rsp changed 0x{:x} -> 0x{:x} (delta={})",
+                        dll.name,
+                        api,
+                        rsp_before,
+                        rsp_after,
+                        rsp_after as i64 - rsp_before as i64
+                    ));
+                }
+                tested += 1;
             }
-
-            let rsp_after = emu.regs().rsp;
-            if rsp_after != rsp_before {
-                failures.push(format!(
-                    "{}!{}: rsp changed 0x{:x} -> 0x{:x} (delta={})",
-                    dll.name,
-                    api,
-                    rsp_before,
-                    rsp_after,
-                    rsp_after as i64 - rsp_before as i64
-                ));
-            }
-            tested += 1;
         }
-    }
 
-    assert!(tested > 100, "expected >100 APIs tested, got {tested}");
-    assert!(
-        failures.is_empty(),
-        "{} of {tested} 64-bit APIs changed rsp:\n{}",
-        failures.len(),
-        failures.join("\n")
-    );
+        assert!(tested > 100, "expected >100 APIs tested, got {tested}");
+        assert!(
+            failures.is_empty(),
+            "{} of {tested} 64-bit APIs changed rsp:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+    })
+    .unwrap();
 }
 
 #[test]
 fn winapi64_handlers_preserve_nonvolatile_regs() {
     setup();
-    let mut failures = Vec::new();
-    let mut tested = 0;
+    run_with_timeout(WINAPI_BUDGET, || {
+        let mut failures = Vec::new();
+        let mut tested = 0;
 
-    for dll in DLLS_64 {
-        let apis = extract_api_names(dll.source);
-        for api in &apis {
-            let mut emu = make_emu64_zeroed(dll.name, api);
-            set_sentinels_64(&mut emu);
+        for dll in DLLS_64 {
+            let apis = extract_api_names(dll.source);
+            for api in &apis {
+                let mut emu = make_emu64_zeroed(dll.name, api);
+                set_sentinels_64(&mut emu);
 
-            if catch_unwind(AssertUnwindSafe(|| {
-                winapi64::gateway(MODULE64 + 0x100, dll.section, &mut emu);
-            }))
-            .is_err()
-            {
-                continue;
-            }
-
-            let r = emu.regs();
-            for (name, val) in [
-                ("rbx", r.rbx),
-                ("rbp", r.rbp),
-                ("rsi", r.rsi),
-                ("rdi", r.rdi),
-                ("r12", r.r12),
-                ("r13", r.r13),
-                ("r14", r.r14),
-                ("r15", r.r15),
-            ] {
-                if val != SENTINEL {
-                    failures.push(format!(
-                        "{}!{}: {name} = 0x{val:x} (expected 0x{SENTINEL:x})",
-                        dll.name, api
-                    ));
+                if catch_unwind(AssertUnwindSafe(|| {
+                    winapi64::gateway(MODULE64 + 0x100, dll.section, &mut emu);
+                }))
+                .is_err()
+                {
+                    continue;
                 }
-            }
-            tested += 1;
-        }
-    }
 
-    assert!(tested > 100, "expected >100 APIs tested, got {tested}");
-    assert!(
-        failures.is_empty(),
-        "{} of {tested} 64-bit APIs corrupted non-volatile regs:\n{}",
-        failures.len(),
-        failures.join("\n")
-    );
+                let r = emu.regs();
+                for (name, val) in [
+                    ("rbx", r.rbx),
+                    ("rbp", r.rbp),
+                    ("rsi", r.rsi),
+                    ("rdi", r.rdi),
+                    ("r12", r.r12),
+                    ("r13", r.r13),
+                    ("r14", r.r14),
+                    ("r15", r.r15),
+                ] {
+                    if val != SENTINEL {
+                        failures.push(format!(
+                            "{}!{}: {name} = 0x{val:x} (expected 0x{SENTINEL:x})",
+                            dll.name, api
+                        ));
+                    }
+                }
+                tested += 1;
+            }
+        }
+
+        assert!(tested > 100, "expected >100 APIs tested, got {tested}");
+        assert!(
+            failures.is_empty(),
+            "{} of {tested} 64-bit APIs corrupted non-volatile regs:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+    })
+    .unwrap();
 }
 
 #[test]
 #[ignore]
 fn winapi32_handlers_preserve_nonvolatile_regs() {
     setup();
-    let mut failures = Vec::new();
-    let mut tested = 0;
-    let mask = 0xFFFFFFFF_u64;
+    run_with_timeout(WINAPI_BUDGET, || {
+        let mut failures = Vec::new();
+        let mut tested = 0;
+        let mask = 0xFFFFFFFF_u64;
 
-    for dll in DLLS_32 {
-        let apis = extract_api_names(dll.source);
-        for api in &apis {
-            let mut emu = make_emu32_zeroed(dll.name, api);
-            set_sentinels_32(&mut emu);
+        for dll in DLLS_32 {
+            let apis = extract_api_names(dll.source);
+            let mut emu = emu32();
+            emu.cfg.console_enabled = false;
+            emu.running_script = true;
+            emu.init_stack32();
+            register_dll(&mut emu, dll.name, apis.first().map_or("_", |s| s), MODULE32);
+            let stack_base = emu.regs().get_esp() as u64;
 
-            if catch_unwind(AssertUnwindSafe(|| {
-                winapi32::gateway((MODULE32 + 0x100) as u32, dll.section, &mut emu);
-            }))
-            .is_err()
-            {
-                continue;
-            }
-
-            let r = emu.regs();
-            for (name, val) in [
-                ("ebx", r.rbx & mask),
-                ("ebp", r.rbp & mask),
-                ("esi", r.rsi & mask),
-                ("edi", r.rdi & mask),
-            ] {
-                let expected = SENTINEL & mask;
-                if val != expected {
-                    failures.push(format!(
-                        "{}!{}: {name} = 0x{val:x} (expected 0x{expected:x})",
-                        dll.name, api
-                    ));
+            for api in &apis {
+                emu.regs_mut().set_esp(stack_base);
+                for _ in 0..20 {
+                    emu.stack_push32(0);
                 }
-            }
-            tested += 1;
-        }
-    }
+                set_sentinels_32(&mut emu);
 
-    assert!(tested > 100, "expected >100 APIs tested, got {tested}");
-    assert!(
-        failures.is_empty(),
-        "{} of {tested} 32-bit APIs corrupted non-volatile regs:\n{}",
-        failures.len(),
-        failures.join("\n")
-    );
+                if catch_unwind(AssertUnwindSafe(|| {
+                    winapi32::gateway((MODULE32 + 0x100) as u32, dll.section, &mut emu);
+                }))
+                .is_err()
+                {
+                    continue;
+                }
+
+                let r = emu.regs();
+                for (name, val) in [
+                    ("ebx", r.rbx & mask),
+                    ("ebp", r.rbp & mask),
+                    ("esi", r.rsi & mask),
+                    ("edi", r.rdi & mask),
+                ] {
+                    let expected = SENTINEL & mask;
+                    if val != expected {
+                        failures.push(format!(
+                            "{}!{}: {name} = 0x{val:x} (expected 0x{expected:x})",
+                            dll.name, api
+                        ));
+                    }
+                }
+                tested += 1;
+            }
+        }
+
+        assert!(tested > 100, "expected >100 APIs tested, got {tested}");
+        assert!(
+            failures.is_empty(),
+            "{} of {tested} 32-bit APIs corrupted non-volatile regs:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+    })
+    .unwrap();
 }
 
 /// Spot-check that APIs known NOT to use rdx as an output pointer don't
