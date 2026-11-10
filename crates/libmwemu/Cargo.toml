@@ -13,6 +13,7 @@ repository = "https://github.com/mwemuorg/mwemu"
 
 [dependencies]
 mwemu-core = { path = "../mwemu-core" }
+mwemu-debug = { path = "../mwemu-debug" }
 mwemu-linux = { path = "../mwemu-linux" }
 mwemu-macos = { path = "../mwemu-macos" }
 mwemu-winapi32 = { path = "../mwemu-winapi32" }

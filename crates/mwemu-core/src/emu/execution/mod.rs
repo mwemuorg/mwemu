@@ -7,7 +7,6 @@ use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::emu_context;
 use crate::err::MwemuError;
-use crate::serialization;
 use crate::windows::peb::peb64;
 // Architecture precondition guards
 // ---------------------------------------------------------------------------
@@ -199,7 +198,7 @@ impl Emu {
             if self.cfg.dump_on_exit
                 && let Some(ref fname) = self.cfg.dump_filename
             {
-                serialization::Serialization::dump(self, fname);
+                crate::layers::debugger().dump(self, fname);
             }
 
             if self.cfg.trace_regs
@@ -346,7 +345,7 @@ impl Emu {
             if self.cfg.dump_on_exit
                 && let Some(ref fname) = self.cfg.dump_filename
             {
-                serialization::Serialization::dump(self, fname);
+                crate::layers::debugger().dump(self, fname);
             }
             if self.cfg.trace_regs
                 && let Some(ref mut tf) = self.trace_file

@@ -1,6 +1,5 @@
 use crate::emu;
 //use crate::windows::constants::*;
-use crate::serialization;
 use crate::winapi::winapi32::kernel32;
 
 mod __deregister_frame_info;
@@ -35,7 +34,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             }
 
             if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-                serialization::Serialization::dump(
+                crate::layers::debugger().dump(
                     emu,
                     emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
                 );

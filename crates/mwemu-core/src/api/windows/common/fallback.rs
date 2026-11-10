@@ -1,5 +1,4 @@
 use crate::emu::Emu;
-use crate::serialization::Serialization;
 
 /// Return a defined fallback value without touching argument buffers.
 /// Gateways have already consumed the return address. Only x86 stdcall
@@ -63,7 +62,7 @@ pub fn unimplemented(addr: impl Into<u64>, api: &str, emu: &mut Emu) -> String {
     if emu.cfg.dump_on_exit
         && let Some(filename) = emu.cfg.dump_filename.as_deref()
     {
-        Serialization::dump(emu, filename);
+        crate::layers::debugger().dump(emu, filename);
     }
     emu.stop();
     api.to_ascii_lowercase()

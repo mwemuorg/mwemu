@@ -11,13 +11,23 @@
 )]
 #![cfg_attr(test, allow(clippy::assertions_on_constants))]
 
-pub use mwemu_core::{arch, config, debug, emu, err, hooks, kernel, maps, serialization, utils};
+pub use mwemu_core::{arch, config, emu, err, hooks, kernel, maps, utils};
+pub use mwemu_debug::serialization;
+
+/// Breakpoints, definitions and the console prompts are in the core; the
+/// console's commands, the gdb server and the script runner are in
+/// `mwemu-debug`.
+pub mod debug {
+    pub use mwemu_core::debug::{breakpoint, console, definitions};
+    pub use mwemu_debug::debug::{commands, gdb, script, tracing};
+}
 
 // Backwards-compatible re-exports (arch)
 pub use mwemu_core::{context, eflags, flags, fpu, regs_aarch64, regs64};
 
 // Re-exports for external crates
-pub use mwemu_core::{color_enabled, console, disable_color, emu_context, gdb, script};
+pub use mwemu_core::{color_enabled, console, disable_color, emu_context};
+pub use mwemu_debug::debug::{gdb, script};
 
 // Macros
 pub use mwemu_core::{color, get_bit, log_orange, log_red, popn, set_bit, to32};
@@ -52,12 +62,13 @@ use arch::Arch;
 use emu::Emu;
 use mwemu_core::api::dispatch::{self, ApiDispatch};
 
-/// Register the Windows API handlers and the OS layers (`mwemu-linux`,
-/// `mwemu-macos`) with the emulator core. `emu32()`, `emu64()` and
+/// Register the Windows API handlers and the layers (`mwemu-linux`,
+/// `mwemu-macos`, `mwemu-debug`) with the emulator core. `emu32()`, `emu64()` and
 /// `emu_aarch64()` do it for you; call it yourself before running an emulator
 /// built another way (`Emu::new`, `Serialization::load`). Calling it more than
 /// once is harmless.
 pub fn register_api_handlers() {
+    mwemu_debug::register();
     mwemu_linux::register();
     mwemu_macos::register();
     dispatch::register(ApiDispatch {

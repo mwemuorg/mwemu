@@ -10,7 +10,6 @@ use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::execution::x86::decode::ensure_instruction_cache_populated_x86;
 use crate::engine;
 use crate::err::MwemuError;
-use crate::serialization;
 use crate::syscall::windows::syscall64::memory as win_syscall64_memory;
 use crate::utils::helpers::unlikely;
 
@@ -43,7 +42,7 @@ impl Emu {
             if self.cfg.dump_on_exit
                 && let Some(ref fname) = self.cfg.dump_filename
             {
-                serialization::Serialization::dump(self, fname);
+                crate::layers::debugger().dump(self, fname);
             }
 
             if self.cfg.trace_regs
@@ -321,7 +320,7 @@ impl Emu {
                         if self.cfg.dump_on_exit
                             && let Some(ref fname) = self.cfg.dump_filename
                         {
-                            serialization::Serialization::dump(self, fname);
+                            crate::layers::debugger().dump(self, fname);
                         }
 
                         if self.cfg.trace_regs

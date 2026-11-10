@@ -8,7 +8,6 @@ use crate::debug::console::Console;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::engine;
 use crate::err::MwemuError;
-use crate::serialization;
 
 use super::{Emu, assert_aarch64_arch};
 
@@ -160,7 +159,7 @@ impl Emu {
                         if self.cfg.dump_on_exit
                             && let Some(ref fname) = self.cfg.dump_filename
                         {
-                            serialization::Serialization::dump(self, fname);
+                            crate::layers::debugger().dump(self, fname);
                         }
 
                         if self.cfg.trace_regs

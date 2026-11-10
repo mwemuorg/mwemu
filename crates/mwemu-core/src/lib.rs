@@ -34,7 +34,6 @@ pub mod hooks;
 pub mod kernel;
 pub mod layers;
 pub mod maps;
-pub mod serialization;
 pub mod syscall;
 pub mod threading;
 pub mod windows;
@@ -51,8 +50,6 @@ pub use api::windows as winapi;
 pub use syscall::windows::ntapi;
 
 pub use debug::console;
-pub use debug::gdb;
-pub use debug::script;
 pub use emu::emu_context;
 pub use utils::color_enabled;
 pub use utils::disable_color;
