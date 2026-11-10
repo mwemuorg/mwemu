@@ -1392,6 +1392,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "mwemu-arch"
+version = "1.0.0"
+dependencies = [
+ "iced-x86",
+ "log",
+ "mwemu-maps",
+ "rand 0.9.5",
+ "serde",
+ "uint",
+]
+
+[[package]]
 name = "mwemu-core"
 version = "1.0.0"
 dependencies = [
@@ -1410,6 +1422,7 @@ dependencies = [
  "lazy_static",
  "log",
  "memmap2",
+ "mwemu-arch",
  "mwemu-maps",
  "rand 0.9.5",
  "rs-header",

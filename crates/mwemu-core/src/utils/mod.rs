@@ -1,6 +1,6 @@
 #[macro_use]
 pub mod macros;
-pub mod bits;
+pub use mwemu_arch::utils::bits;
 pub mod colors;
 pub mod helpers;
 

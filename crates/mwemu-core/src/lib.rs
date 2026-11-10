@@ -21,11 +21,15 @@
 // we cannot fix it inside the macro expansion.
 #![allow(clippy::manual_div_ceil)]
 
+// `get_bit!` and `set_bit!` are defined with the CPU state that uses them.
+#[macro_use]
+extern crate mwemu_arch;
+pub use mwemu_arch::{get_bit, set_bit};
+
 #[macro_use]
 pub mod utils;
 
 pub mod api;
-pub mod arch;
 pub mod config;
 pub mod debug;
 pub mod emu;
@@ -37,7 +41,9 @@ pub mod layers;
 pub mod threading;
 pub mod windows;
 
-// Guest memory is its own crate; it keeps its path here.
+// Guest memory and the CPU state are their own crates; they keep their
+// paths here.
+pub use mwemu_arch::arch;
 pub use mwemu_maps::maps;
 
 // Short names the code base uses for these modules.

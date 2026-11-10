@@ -14,7 +14,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         None => return false,
     };
 
-    let state = FPUState::load(addr, emu);
+    let state = FPUState::load(addr, &emu.maps);
 
     emu.fpu_mut().fxrstor(state);
     emu.sync_fpu_ip();

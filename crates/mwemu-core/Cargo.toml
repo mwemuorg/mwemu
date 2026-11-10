@@ -11,6 +11,7 @@ repository = "https://github.com/mwemuorg/mwemu"
 publish = false
 
 [dependencies]
+mwemu-arch = { path = "../mwemu-arch" }
 mwemu-maps = { path = "../mwemu-maps" }
 rs-header = { path = "../libmwemu/libraries/rs-header", version = "0.1.3" }
 iced-x86 = { version = "1.21.0", features = ["serde"] }

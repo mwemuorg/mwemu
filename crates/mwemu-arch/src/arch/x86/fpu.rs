@@ -1,7 +1,7 @@
 pub mod f80;
 pub mod fpu_stack;
 
-use crate::emu;
+use crate::maps::Maps;
 use f80::F80;
 use fpu_stack::FPUStack;
 use iced_x86::Register;
@@ -45,28 +45,28 @@ impl FPUState {
         }
     }
 
-    pub fn load(addr: u64, emu: &mut emu::Emu) -> FPUState {
+    pub fn load(addr: u64, maps: &Maps) -> FPUState {
         let mut state = FPUState::new();
-        state.fpu_control_word = emu.maps.read_word(addr).unwrap_or(0);
-        state.fpu_status_word = emu.maps.read_word(addr + 2).unwrap_or(0);
-        state.fpu_tag_word = emu.maps.read_word(addr + 4).unwrap_or(0);
-        state.fpu_opcode = emu.maps.read_word(addr + 6).unwrap_or(0);
-        state.rip = emu.maps.read_qword(addr + 8).unwrap_or(0);
-        state.rdp = emu.maps.read_qword(addr + 16).unwrap_or(0);
-        state.mxcsr = emu.maps.read_dword(addr + 24).unwrap_or(0);
-        state.mxcsr_mask = emu.maps.read_dword(addr + 28).unwrap_or(0);
+        state.fpu_control_word = maps.read_word(addr).unwrap_or(0);
+        state.fpu_status_word = maps.read_word(addr + 2).unwrap_or(0);
+        state.fpu_tag_word = maps.read_word(addr + 4).unwrap_or(0);
+        state.fpu_opcode = maps.read_word(addr + 6).unwrap_or(0);
+        state.rip = maps.read_qword(addr + 8).unwrap_or(0);
+        state.rdp = maps.read_qword(addr + 16).unwrap_or(0);
+        state.mxcsr = maps.read_dword(addr + 24).unwrap_or(0);
+        state.mxcsr_mask = maps.read_dword(addr + 28).unwrap_or(0);
         state
     }
 
-    pub fn save(&self, addr: u64, emu: &mut emu::Emu) {
-        emu.maps.write_word(addr, self.fpu_control_word); // FCW (offset 0)
-        emu.maps.write_word(addr + 2, self.fpu_status_word); // FSW (offset 2)
-        emu.maps.write_word(addr + 4, self.fpu_tag_word); // FTW (offset 4)
-        emu.maps.write_word(addr + 6, self.fpu_opcode); // FOP (offset 6)
-        emu.maps.write_qword(addr + 8, self.rip); // RIP (offset 8)
-        emu.maps.write_qword(addr + 16, self.rdp); // RDP (offset 16)
-        emu.maps.write_dword(addr + 24, self.mxcsr); // MXCSR (offset 24)
-        emu.maps.write_dword(addr + 28, self.mxcsr_mask); // MXCSR_MASK (offset 28)
+    pub fn save(&self, addr: u64, maps: &mut Maps) {
+        maps.write_word(addr, self.fpu_control_word); // FCW (offset 0)
+        maps.write_word(addr + 2, self.fpu_status_word); // FSW (offset 2)
+        maps.write_word(addr + 4, self.fpu_tag_word); // FTW (offset 4)
+        maps.write_word(addr + 6, self.fpu_opcode); // FOP (offset 6)
+        maps.write_qword(addr + 8, self.rip); // RIP (offset 8)
+        maps.write_qword(addr + 16, self.rdp); // RDP (offset 16)
+        maps.write_dword(addr + 24, self.mxcsr); // MXCSR (offset 24)
+        maps.write_dword(addr + 28, self.mxcsr_mask); // MXCSR_MASK (offset 28)
     }
 }
 
