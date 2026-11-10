@@ -3,25 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static COLOR_ENABLED: AtomicBool = AtomicBool::new(true);
 
-#[inline(always)]
-pub fn likely(b: bool) -> bool {
-    if b {
-        true
-    } else {
-        std::hint::cold_path();
-        false
-    }
-}
-
-#[inline(always)]
-pub fn unlikely(b: bool) -> bool {
-    if b {
-        std::hint::cold_path();
-        true
-    } else {
-        false
-    }
-}
+pub use mwemu_maps::hint::{likely, unlikely};
 
 // This array is for the get_operand_size in order to make it query faster
 //TODO: OpKind::Immediate8to64 could be 8

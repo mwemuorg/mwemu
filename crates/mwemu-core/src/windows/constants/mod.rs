@@ -2,7 +2,7 @@ pub mod crypto;
 pub mod errors;
 pub mod exceptions;
 pub mod files;
-pub mod memory;
+pub use mwemu_maps::windows::constants::memory;
 pub mod network;
 pub mod nls;
 pub mod process;

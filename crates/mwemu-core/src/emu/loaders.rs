@@ -17,7 +17,6 @@ use rs_header::pe::{
 
 mod elf;
 pub mod elf_constants;
-mod elf_loader;
 mod kext;
 mod ko;
 mod macho;

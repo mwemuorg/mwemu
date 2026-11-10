@@ -1398,7 +1398,6 @@ dependencies = [
  "aes",
  "ahash",
  "bitfield",
- "bytemuck",
  "byteorder",
  "chrono",
  "csv",
@@ -1410,14 +1409,12 @@ dependencies = [
  "iced-x86",
  "lazy_static",
  "log",
- "md5",
  "memmap2",
- "nohash-hasher",
+ "mwemu-maps",
  "rand 0.9.5",
  "rs-header",
  "scan_fmt",
  "serde",
- "serde_arrays",
  "serde_json",
  "serial_test",
  "slab",
@@ -1466,6 +1463,21 @@ version = "1.0.0"
 dependencies = [
  "log",
  "mwemu-core",
+]
+
+[[package]]
+name = "mwemu-maps"
+version = "1.0.0"
+dependencies = [
+ "ahash",
+ "bytemuck",
+ "log",
+ "md5",
+ "nohash-hasher",
+ "rs-header",
+ "serde",
+ "serde_arrays",
+ "slab",
 ]
 
 [[package]]

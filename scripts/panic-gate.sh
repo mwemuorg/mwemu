@@ -9,7 +9,7 @@
 declare -A DIRS=(
   [engine]="crates/mwemu-x86/src/engine crates/mwemu-aarch64/src/engine"
   [emu]="crates/mwemu-core/src/emu"
-  [maps]="crates/mwemu-core/src/maps"
+  [maps]="crates/mwemu-maps/src/maps"
 )
 
 # Baseline — update these when you intentionally reduce the counts.

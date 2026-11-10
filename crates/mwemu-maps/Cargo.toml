@@ -1,0 +1,28 @@
+[package]
+name = "mwemu-maps"
+version = "1.0.0"
+edition = "2024"
+authors = ["sha0coder"]
+license = "Apache-2.0"
+rust-version = "1.95"
+description = "Guest memory of libmwemu: the memory maps, their permissions and the heap allocator. Use libmwemu instead of depending on this directly."
+homepage = "https://mwemu.github.io/"
+repository = "https://github.com/mwemuorg/mwemu"
+publish = false
+
+[dependencies]
+rs-header = { path = "../libmwemu/libraries/rs-header", version = "0.1.3" }
+ahash = { version = "0.8.12", features = ["serde"] }
+bytemuck = { version = "1.23.1", features = ["extern_crate_alloc"] }
+log = "0.4.22"
+md5 = "0.7.0"
+nohash-hasher = "0.2.0"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_arrays = "0.2.0"
+slab = { version = "0.4.10", features = ["serde"] }
+
+[features]
+default = []
+# Log every guest memory read or write while tracing is on (see `mem_trace`).
+log_mem_read = []
+log_mem_write = []

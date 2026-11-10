@@ -34,9 +34,11 @@ pub mod exception;
 pub mod hooks;
 pub mod kernel;
 pub mod layers;
-pub mod maps;
 pub mod threading;
 pub mod windows;
+
+// Guest memory is its own crate; it keeps its path here.
+pub use mwemu_maps::maps;
 
 // Short names the code base uses for these modules.
 pub use arch::aarch64::regs as regs_aarch64;

@@ -495,7 +495,7 @@ impl Maps {
             .is_none()
     }
 
-    pub(crate) fn first_inaccessible_address(
+    pub fn first_inaccessible_address(
         &self,
         addr: u64,
         len: usize,
