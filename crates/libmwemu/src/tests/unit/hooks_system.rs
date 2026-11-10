@@ -346,7 +346,6 @@ pub fn test_post_instruction_hook() {
 
 #[test]
 pub fn test_winapi_hook() {
-    // inspired from os/winapi32_tests.rs test_virtual_alloc_32
     helpers::setup();
 
     let mut emu = emu64();

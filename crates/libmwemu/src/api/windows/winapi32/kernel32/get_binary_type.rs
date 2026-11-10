@@ -1,19 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetBinaryType(emu: &mut emu::Emu) {
-    let app_name_ptr = arg(emu, 0) as u64;
-    let binary_type_ptr = arg(emu, 1) as u64;
-    let app_name = emu.maps.read_string(app_name_ptr);
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetBinaryType '{}' ptr:0x{:x}",
-        app_name,
-        binary_type_ptr
+        "kernel32!GetBinaryType h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if binary_type_ptr != 0 {
-        emu.maps.write_dword(binary_type_ptr, 6);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

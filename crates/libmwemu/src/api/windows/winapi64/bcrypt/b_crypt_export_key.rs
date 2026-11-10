@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptExportKey(emu: &mut emu::Emu) {
     let _h_key = emu.regs().rcx;
@@ -19,5 +19,5 @@ pub fn BCryptExportKey(emu: &mut emu::Emu) {
         emu.maps.write_dword(pcb_result, 0);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

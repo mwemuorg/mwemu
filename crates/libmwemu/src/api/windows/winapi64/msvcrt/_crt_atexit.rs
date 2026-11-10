@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _crt_atexit(emu: &mut emu::Emu, api: &str) {
     let func_ptr = emu.regs().rcx;

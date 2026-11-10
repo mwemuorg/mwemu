@@ -1,3 +1,4 @@
+use crate::windows::constants::errors::*;
 use std::fs;
 use std::path::{MAIN_SEPARATOR, Path};
 
@@ -8,7 +9,7 @@ use crate::config::Config;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::syscall::windows::syscall64::memory::nt_open_section;
-use crate::windows::constants::{STATUS_OBJECT_NAME_NOT_FOUND, STATUS_SUCCESS};
+
 use crate::windows::peb::{peb32, peb64};
 use crate::{emu32, emu64};
 

@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _configure_narrow_argv(emu: &mut emu::Emu) {
     let mode = emu.regs().rcx;

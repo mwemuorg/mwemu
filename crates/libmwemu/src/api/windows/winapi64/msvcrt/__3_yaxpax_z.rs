@@ -1,5 +1,5 @@
-use super::release;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::release;
 
 pub fn __3_YAXPAX_Z(emu: &mut emu::Emu) {
     let ptr = emu.regs().rcx;

@@ -1,22 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetApplicationUserModelId(emu: &mut emu::Emu) {
-    let process = arg(emu, 0) as u64;
-    let length_ptr = arg(emu, 1) as u64;
-    let app_id_ptr = arg(emu, 2) as u64;
-
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetApplicationUserModelId proc:0x{:x} length_ptr:0x{:x}",
-        process,
-        length_ptr
+        "kernel32!GetApplicationUserModelId h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-
-    if length_ptr != 0 {
-        emu.maps.write_dword(length_ptr, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-
-    emu.regs_mut().rax = 0x80073D54; // APPMODEL_ERROR_NO_PACKAGE
-    stdcall_ret(emu, 3);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

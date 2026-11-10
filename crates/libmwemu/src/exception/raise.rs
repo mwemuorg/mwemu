@@ -18,7 +18,7 @@
 use crate::context::context64::Context64;
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 const BLOCK_SIZE: u64 = 0x1000;
 const RECORD_OFF: u64 = 0x10;
@@ -77,7 +77,7 @@ fn call_handlers(emu: &mut emu::Emu, handlers: &[u64], pointers: u64) -> bool {
     for &handler in handlers {
         match emu.call64(handler, &[pointers]) {
             Ok(disposition) => {
-                if disposition as u32 == constants::EXCEPTION_CONTINUE_EXECUTION32 {
+                if disposition as u32 == EXCEPTION_CONTINUE_EXECUTION32 {
                     return true;
                 }
             }

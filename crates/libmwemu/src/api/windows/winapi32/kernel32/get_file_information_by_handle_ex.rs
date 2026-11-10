@@ -1,31 +1,20 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetFileInformationByHandleEx(emu: &mut emu::Emu) {
-    let h_file = arg(emu, 0) as u64;
-    let info_class = arg(emu, 1);
-    let info_ptr = arg(emu, 2) as u64;
-    let info_len = arg(emu, 3) as u64;
-
+    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetFileInformationByHandleEx h:0x{:x} class:{} buf:0x{:x} len:{}",
-        h_file,
-        info_class,
-        info_ptr,
-        info_len
+        "kernel32!GetFileInformationByHandleEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+        p1,
+        p2,
+        p3
     );
-
-    if !helper::handler_exist(h_file) {
-        emu.set_last_error(6); // ERROR_INVALID_HANDLE
-        emu.regs_mut().rax = 0;
-        return;
+    for _ in 0..4 {
+        emu.stack_pop32(false);
     }
-
-    if info_ptr != 0 && info_len >= 8 {
-        emu.maps.memset(info_ptr, 0, info_len as usize);
-    }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

@@ -16,6 +16,7 @@ use crate::context::context32::Context32;
 use crate::context::context64::Context64;
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::windows::constants::errors::*;
 
 #[derive(Clone, Copy)]
 pub enum HandlerKind {
@@ -113,7 +114,7 @@ pub fn exit32(emu: &mut emu::Emu) {
     emu.force_reload = true;
     emu.maps.free("ctx");
 
-    if disposition == crate::windows::constants::EXCEPTION_CONTINUE_SEARCH {
+    if disposition == EXCEPTION_CONTINUE_SEARCH {
         // Continue search from next handler in chain (VEH -> SEH* -> UEF).
         if (handler_kind == HandlerKind::Veh.as_u32() || handler_kind == HandlerKind::Seh.as_u32())
             && (emu.seh() > 0 || emu.uef() > 0)
@@ -165,7 +166,7 @@ pub fn exit64(emu: &mut emu::Emu) {
     emu.force_reload = true;
     emu.maps.free("ctx");
 
-    if disposition == crate::windows::constants::EXCEPTION_CONTINUE_SEARCH {
+    if disposition == EXCEPTION_CONTINUE_SEARCH {
         // Continue search from next handler in chain (VEH -> UEF on x64 here).
         if (handler_kind == HandlerKind::Veh.as_u32() || handler_kind == HandlerKind::Seh.as_u32())
             && (emu.seh() > 0 || emu.uef() > 0)

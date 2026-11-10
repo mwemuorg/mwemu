@@ -1,3 +1,4 @@
+use crate::windows::constants::errors::*;
 use std::{env, fs};
 
 use itertools::iproduct;
@@ -10,7 +11,7 @@ use crate::syscall::windows::syscall64::memory::{
     nt_protect_virtual_memory, nt_query_virtual_memory,
 };
 use crate::winapi::common::virtual_protect::{ProtectError, protect};
-use crate::windows::constants::{STATUS_CONFLICTING_ADDRESSES, STATUS_SUCCESS};
+
 use crate::windows::structures::MemoryBasicInformation64;
 use crate::{emu32, emu64};
 

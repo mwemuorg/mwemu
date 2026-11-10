@@ -1,17 +1,26 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper;
+
 pub fn CreateUmsThreadContext(emu: &mut emu::Emu) {
-    let handle = arg(emu, 0) as u64;
-    let param2 = arg(emu, 1) as u64;
-    let param3 = arg(emu, 2) as u64;
-    let param4 = arg(emu, 3) as u64;
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let arg3 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let arg4 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
     log_red!(
         emu,
-        "kernel32!CreateUmsThreadContext handle:0x{:x} p2:0x{:x}",
-        handle,
-        param2
+        "kernel32!CreateUmsThreadContext arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
+        arg1,
+        arg2,
+        arg3,
+        arg4
     );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
+    let nparams = emu.banzai.get_params("CreateUmsThreadContext");
+    if nparams > 0 {
+        for _ in 0..nparams {
+            emu.stack_pop32(false);
+        }
+    }
+    let hndl = helper::handler_create("kernel32://CreateUmsThreadContext");
+    assert!(hndl < 0x00000001_00000000);
+    emu.regs_mut().rax = hndl;
 }

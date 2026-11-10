@@ -1,4 +1,6 @@
 mod close_key;
+
+use crate::windows::constants::errors::*;
 use close_key::close_key;
 mod create_key;
 use create_key::create_key;
@@ -35,7 +37,6 @@ use set_value::set_value;
 use crate::emu;
 use crate::winapi::helper;
 use crate::winapi::registry_store::{self as store, Value};
-use crate::windows::constants::*;
 
 const HANDLE_PREFIX: &str = "registry://";
 

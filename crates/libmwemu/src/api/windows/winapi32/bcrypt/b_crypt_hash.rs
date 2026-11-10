@@ -4,7 +4,7 @@ use crate::emu;
 use crate::winapi::helper;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptHash(emu: &mut emu::Emu) {
     let h_algorithm = arg(emu, 0) as u64;
@@ -40,6 +40,6 @@ pub(super) fn BCryptHash(emu: &mut emu::Emu) {
         helper::handler_close(temp_h);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 7);
 }

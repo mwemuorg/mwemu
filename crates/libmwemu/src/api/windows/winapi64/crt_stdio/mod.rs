@@ -1,4 +1,6 @@
 mod clearerr;
+
+use crate::windows::constants::security::*;
 use clearerr::clearerr;
 mod errno_location;
 use errno_location::errno_location;
@@ -56,7 +58,6 @@ use std::sync::Mutex;
 use super::wincrt::allocate_memory;
 use crate::emu;
 use crate::emu::object_handle::FileHandle;
-use crate::windows::constants::{GENERIC_READ, GENERIC_WRITE};
 
 const EOF: u64 = u32::MAX as u64; // (int)-1
 const INVALID_HANDLE_VALUE: u64 = u64::MAX;

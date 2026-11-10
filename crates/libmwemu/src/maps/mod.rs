@@ -16,7 +16,8 @@ use crate::maps::scalar::{LittleEndianScalar, ScalarKind};
 use crate::maps::shared::SharedStorage;
 use crate::maps::tlb::LPF_OF;
 use crate::maps::virtual_memory::{Allocation, MemoryKind};
-use crate::windows::constants;
+use crate::windows::constants::memory::*;
+
 use ahash::AHashMap;
 use mem64::Mem64;
 use serde::{Deserialize, Serialize};
@@ -996,26 +997,26 @@ impl Maps {
     }
 
     pub fn lib64_alloc(&self, sz: u64) -> Option<u64> {
-        self._alloc(sz, constants::LIBS64_MIN, constants::LIBS64_MAX, true)
+        self._alloc(sz, LIBS64_MIN, LIBS64_MAX, true)
     }
 
     /// Like `lib64_alloc` but the gap search honours the full `sz`, never the
     /// `max_alloc_size` cap: an mmap reservation must own its whole span even
     /// when the caller backs only part of it, or the next mapping lands inside.
     pub fn lib64_reserve(&self, sz: u64) -> Option<u64> {
-        self._alloc_uncapped(sz, constants::LIBS64_MIN, constants::LIBS64_MAX)
+        self._alloc_uncapped(sz, LIBS64_MIN, LIBS64_MAX)
     }
 
     pub fn lib32_alloc(&self, sz: u64) -> Option<u64> {
-        self._alloc(sz, constants::LIBS32_MIN, constants::LIBS32_MAX, true)
+        self._alloc(sz, LIBS32_MIN, LIBS32_MAX, true)
     }
 
     /// Find a free address for `sz` bytes. Returns the base address; the caller must create the map.
     pub fn alloc(&self, sz: u64) -> Option<u64> {
         if self.is_64bits {
-            self._alloc(sz, constants::ALLOC64_MIN, constants::ALLOC64_MAX, false)
+            self._alloc(sz, ALLOC64_MIN, ALLOC64_MAX, false)
         } else {
-            self._alloc(sz, constants::ALLOC32_MIN, constants::ALLOC32_MAX, false)
+            self._alloc(sz, ALLOC32_MIN, ALLOC32_MAX, false)
         }
     }
 

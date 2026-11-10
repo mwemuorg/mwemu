@@ -1,12 +1,7 @@
 use crate::emu;
-
-const PAGE_READONLY: u32 = 0x02;
-const PAGE_READWRITE: u32 = 0x04;
-const PAGE_WRITECOPY: u32 = 0x08;
-const PAGE_EXECUTE: u32 = 0x10;
-const PAGE_EXECUTE_READ: u32 = 0x20;
-const PAGE_EXECUTE_READWRITE: u32 = 0x40;
-const PAGE_EXECUTE_WRITECOPY: u32 = 0x80;
+use crate::windows::constants::crypto::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
 
 pub(crate) fn protect_to_rwx(protect_value: u32) -> (bool, bool, bool) {
     let can_read = (protect_value
@@ -102,9 +97,6 @@ pub(crate) fn stricmp(emu: &mut emu::Emu, str1_ptr: u64, str2_ptr: u64) {
     emu.regs_mut().rax = if str1 == str2 { 0 } else { 1 };
 }
 
-const COMPRESSION_FORMAT_LZNT1: u16 = 0x0002;
-const COMPRESSION_FORMAT_XPRESS: u16 = 0x0003;
-const COMPRESSION_FORMAT_XPRESS_HUFF: u16 = 0x0004;
 const COMPRESSION_ENGINE_MASK: u16 = 0xFF00;
 
 pub(crate) fn lznt1_decompress(input: &[u8], max_output: usize) -> Option<Vec<u8>> {
@@ -529,7 +521,7 @@ pub(crate) fn rtl_decompress_buffer(
             if final_uncompressed_size_ptr != 0 {
                 emu.maps.write_dword(final_uncompressed_size_ptr, 0);
             }
-            0xC0000242 // STATUS_BAD_COMPRESSION_BUFFER
+            STATUS_BAD_COMPRESSION_BUFFER
         }
     }
 }

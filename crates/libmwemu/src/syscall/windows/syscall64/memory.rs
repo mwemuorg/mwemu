@@ -4,7 +4,10 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::syscall::windows::syscall64::sync::next_handle;
 use crate::winapi::winapi64::kernel32::load_library;
-use crate::windows::constants::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::syscalls::*;
+
 use crate::windows::structures::MemoryBasicInformation64;
 use iced_x86::{Instruction, Mnemonic, OpKind, Register};
 
@@ -246,23 +249,7 @@ fn apply_pe_relocations(emu: &mut Emu, base: u64, raw: &[u8]) {
     emu.maps.write_qword(base + pe_off as u64 + 0x30, base);
 }
 
-fn nt_page_protection_to_permission(protect: u32) -> Permission {
-    match protect {
-        0x01 => Permission::NONE,                            // PAGE_NOACCESS
-        0x02 | 0x20 => Permission::READ,                     // PAGE_READONLY / PAGE_EXECUTE_READ
-        0x04 | 0x08 | 0x40 | 0x80 => Permission::READ_WRITE, // PAGE_READWRITE / PAGE_WRITECOPY / PAGE_EXECUTE_READWRITE / PAGE_EXECUTE_WRITECOPY
-        0x10 => Permission::EXECUTE,                         // PAGE_EXECUTE
-        _ => Permission::READ_WRITE,
-    }
-}
-
 fn permission_to_nt_page_protection(perm: Permission) -> u32 {
-    const PAGE_NOACCESS: u32 = 0x01;
-    const PAGE_READONLY: u32 = 0x02;
-    const PAGE_READWRITE: u32 = 0x04;
-    const PAGE_EXECUTE: u32 = 0x10;
-    const PAGE_EXECUTE_READ: u32 = 0x20;
-    const PAGE_EXECUTE_READWRITE: u32 = 0x40;
     let r = perm.contains(Permission::READ);
     let w = perm.contains(Permission::WRITE);
     let x = perm.contains(Permission::EXECUTE);
@@ -758,7 +745,7 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
     let base_addr_ptr = emu.regs().r8;
     let rsp = emu.regs().rsp;
     let view_size_ptr = emu.maps.read_qword(rsp + 0x38).unwrap_or(0);
-    let protect = emu.maps.read_dword(rsp + 0x50).unwrap_or(0x02);
+    let protect = emu.maps.read_dword(rsp + 0x50).unwrap_or(PAGE_READONLY);
 
     // Read requested base (0 = any) and requested size.
     let requested_base = if base_addr_ptr != 0 && emu.maps.is_mapped(base_addr_ptr) {
@@ -915,7 +902,7 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
         }
     }
 
-    let perm = nt_page_protection_to_permission(protect);
+    let perm = memory_api::permissions(protect).unwrap_or(Permission::READ_WRITE);
 
     let mapped_base = if requested_base >= 0x10000 && !emu.maps.is_mapped(requested_base) {
         let name = format!("section_view_{:x}", requested_base);

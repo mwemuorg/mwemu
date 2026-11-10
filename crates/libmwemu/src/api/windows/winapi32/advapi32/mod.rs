@@ -2,38 +2,545 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
 
+mod wmi_set_single_item;
+pub use wmi_set_single_item::*;
+
+mod wmi_set_single_instance;
+pub use wmi_set_single_instance::*;
+
+mod wmi_receive_notifications;
+pub use wmi_receive_notifications::*;
+
+mod wmi_query_single_instance_multiple;
+pub use wmi_query_single_instance_multiple::*;
+
+mod wmi_query_single_instance;
+pub use wmi_query_single_instance::*;
+
+mod wmi_query_all_data_multiple;
+pub use wmi_query_all_data_multiple::*;
+
+mod wmi_query_all_data;
+pub use wmi_query_all_data::*;
+
+mod wmi_notification_registration;
+pub use wmi_notification_registration::*;
+
+mod wmi_mof_enumerate_resources;
+pub use wmi_mof_enumerate_resources::*;
+
+mod wmi_file_handle_to_instance_name;
+pub use wmi_file_handle_to_instance_name::*;
+
+mod wmi_execute_method;
+pub use wmi_execute_method::*;
+
+mod wmi_dev_inst_to_instance_name;
+pub use wmi_dev_inst_to_instance_name::*;
+
+mod use_pin_for_encrypted_files;
+pub use use_pin_for_encrypted_files::*;
+
+mod update_trace;
+pub use update_trace::*;
+
+mod trustee_access_to_object;
+pub use trustee_access_to_object::*;
+
+mod tree_set_named_security_info;
+pub use tree_set_named_security_info::*;
+
+mod tree_reset_named_security_info;
+pub use tree_reset_named_security_info::*;
+
+mod stop_trace;
+pub use stop_trace::*;
+
+mod start_trace;
+pub use start_trace::*;
+
+mod start_service;
+pub use start_service::*;
+
+mod set_security_info_ex;
+pub use set_security_info_ex::*;
+
+mod set_named_security_info_ex;
+pub use set_named_security_info_ex::*;
+
+mod set_named_security_info;
+pub use set_named_security_info::*;
+
+mod set_file_security;
+pub use set_file_security::*;
+
+mod set_entries_in_audit_list;
+pub use set_entries_in_audit_list::*;
+
+mod set_entries_in_acl;
+pub use set_entries_in_acl::*;
+
+mod set_entries_in_access_list;
+pub use set_entries_in_access_list::*;
+
+mod report_event;
+pub use report_event::*;
+
+mod register_trace_guids;
+pub use register_trace_guids::*;
+
+mod register_service_ctrl_handler_ex;
+pub use register_service_ctrl_handler_ex::*;
+
+mod register_service_ctrl_handler;
+pub use register_service_ctrl_handler::*;
+
+mod register_event_source;
+pub use register_event_source::*;
+
+mod reg_un_load_key;
+pub use reg_un_load_key::*;
+
+mod reg_set_value_ex;
+pub use reg_set_value_ex::*;
+
+mod reg_set_value;
+pub use reg_set_value::*;
+
+mod reg_set_key_value;
+pub use reg_set_key_value::*;
+
+mod reg_save_key_ex;
+pub use reg_save_key_ex::*;
+
+mod reg_save_key;
+pub use reg_save_key::*;
+
+mod reg_restore_key;
+pub use reg_restore_key::*;
+
+mod reg_replace_key;
+pub use reg_replace_key::*;
+
+mod reg_query_value;
+pub use reg_query_value::*;
+
+mod reg_query_multiple_values;
+pub use reg_query_multiple_values::*;
+
+mod reg_query_info_key;
+pub use reg_query_info_key::*;
+
+mod reg_open_key_transacted;
+pub use reg_open_key_transacted::*;
+
+mod reg_open_key_ex;
+pub use reg_open_key_ex::*;
+
+mod reg_open_key;
+pub use reg_open_key::*;
+
+mod reg_load_mui_string;
+pub use reg_load_mui_string::*;
+
+mod reg_load_key;
+pub use reg_load_key::*;
+
+mod reg_load_app_key;
+pub use reg_load_app_key::*;
+
+mod reg_get_value;
+pub use reg_get_value::*;
+
+mod reg_enum_value;
+pub use reg_enum_value::*;
+
+mod reg_enum_key_ex;
+pub use reg_enum_key_ex::*;
+
+mod reg_enum_key;
+pub use reg_enum_key::*;
+
+mod reg_delete_value;
+pub use reg_delete_value::*;
+
+mod reg_delete_tree;
+pub use reg_delete_tree::*;
+
+mod reg_delete_key_value;
+pub use reg_delete_key_value::*;
+
+mod reg_delete_key_transacted;
+pub use reg_delete_key_transacted::*;
+
+mod reg_delete_key_ex;
+pub use reg_delete_key_ex::*;
+
+mod reg_delete_key;
+pub use reg_delete_key::*;
+
+mod reg_create_key_transacted;
+pub use reg_create_key_transacted::*;
+
+mod reg_create_key_ex;
+pub use reg_create_key_ex::*;
+
+mod reg_create_key;
+pub use reg_create_key::*;
+
+mod reg_copy_tree;
+pub use reg_copy_tree::*;
+
+mod reg_connect_registry_ex;
+pub use reg_connect_registry_ex::*;
+
+mod reg_connect_registry;
+pub use reg_connect_registry::*;
+
+mod read_event_log;
+pub use read_event_log::*;
+
+mod query_trace;
+pub use query_trace::*;
+
+mod query_service_lock_status;
+pub use query_service_lock_status::*;
+
+mod query_service_config;
+pub use query_service_config::*;
+
+mod query_service_config2;
+pub use query_service_config2::*;
+
+mod query_all_traces;
+pub use query_all_traces::*;
+
+mod privileged_service_audit_alarm;
+pub use privileged_service_audit_alarm::*;
+
+mod open_trace;
+pub use open_trace::*;
+
+mod open_service;
+pub use open_service::*;
+
+mod open_sc_manager;
+pub use open_sc_manager::*;
+
+mod open_event_log;
+pub use open_event_log::*;
+
+mod open_encrypted_file_raw;
+pub use open_encrypted_file_raw::*;
+
+mod open_backup_event_log;
+pub use open_backup_event_log::*;
+
+mod object_privilege_audit_alarm;
+pub use object_privilege_audit_alarm::*;
+
+mod object_open_audit_alarm;
+pub use object_open_audit_alarm::*;
+
+mod object_delete_audit_alarm;
+pub use object_delete_audit_alarm::*;
+
+mod object_close_audit_alarm;
+pub use object_close_audit_alarm::*;
+
+mod lookup_security_descriptor_parts;
+pub use lookup_security_descriptor_parts::*;
+
+mod lookup_privilege_name;
+pub use lookup_privilege_name::*;
+
+mod lookup_privilege_display_name;
+pub use lookup_privilege_display_name::*;
+
+mod lookup_account_sid;
+pub use lookup_account_sid::*;
+
+mod lookup_account_name;
+pub use lookup_account_name::*;
+
+mod logon_user_ex;
+pub use logon_user_ex::*;
+
+mod logon_user;
+pub use logon_user::*;
+
+mod initiate_system_shutdown_ex;
+pub use initiate_system_shutdown_ex::*;
+
+mod initiate_system_shutdown;
+pub use initiate_system_shutdown::*;
+
+mod initiate_shutdown;
+pub use initiate_shutdown::*;
+
+mod i_sc_set_service_bits;
+pub use i_sc_set_service_bits::*;
+
+mod get_trustee_type;
+pub use get_trustee_type::*;
+
+mod get_trustee_name;
+pub use get_trustee_name::*;
+
+mod get_trustee_form;
+pub use get_trustee_form::*;
+
+mod get_service_key_name;
+pub use get_service_key_name::*;
+
+mod get_service_display_name;
+pub use get_service_display_name::*;
+
+mod get_security_info_ex;
+pub use get_security_info_ex::*;
+
+mod get_named_security_info_ex;
+pub use get_named_security_info_ex::*;
+
+mod get_named_security_info;
+pub use get_named_security_info::*;
+
+mod get_multiple_trustee_operation;
+pub use get_multiple_trustee_operation::*;
+
+mod get_multiple_trustee;
+pub use get_multiple_trustee::*;
+
+mod get_inheritance_source;
+pub use get_inheritance_source::*;
+
+mod get_file_security;
+pub use get_file_security::*;
+
+mod get_explicit_entries_from_acl;
+pub use get_explicit_entries_from_acl::*;
+
+mod get_effective_rights_from_acl;
+pub use get_effective_rights_from_acl::*;
+
+mod get_current_hw_profile;
+pub use get_current_hw_profile::*;
+
+mod get_audited_permissions_from_acl;
+pub use get_audited_permissions_from_acl::*;
+
+mod get_access_permissions_for_object;
+pub use get_access_permissions_for_object::*;
+
+mod flush_trace;
+pub use flush_trace::*;
+
+mod file_encryption_status;
+pub use file_encryption_status::*;
+
+mod enum_services_status_ex;
+pub use enum_services_status_ex::*;
+
+mod enum_services_status;
+pub use enum_services_status::*;
+
+mod enum_dependent_services;
+pub use enum_dependent_services::*;
+
+mod encrypt_file;
+pub use encrypt_file::*;
+
+mod decrypt_file;
+pub use decrypt_file::*;
+
+mod crypt_verify_signature;
+pub use crypt_verify_signature::*;
+
+mod crypt_set_provider_ex;
+pub use crypt_set_provider_ex::*;
+
+mod crypt_set_provider;
+pub use crypt_set_provider::*;
+
+mod crypt_get_default_provider;
+pub use crypt_get_default_provider::*;
+
+mod crypt_enum_providers;
+pub use crypt_enum_providers::*;
+
+mod crypt_enum_provider_types;
+pub use crypt_enum_provider_types::*;
+
+mod cred_write_domain_credentials;
+pub use cred_write_domain_credentials::*;
+
+mod cred_write;
+pub use cred_write::*;
+
+mod cred_unprotect;
+pub use cred_unprotect::*;
+
+mod cred_unmarshal_credential;
+pub use cred_unmarshal_credential::*;
+
+mod cred_rename;
+pub use cred_rename::*;
+
+mod cred_read_domain_credentials;
+pub use cred_read_domain_credentials::*;
+
+mod cred_read;
+pub use cred_read::*;
+
+mod cred_protect;
+pub use cred_protect::*;
+
+mod cred_marshal_credential;
+pub use cred_marshal_credential::*;
+
+mod cred_is_protected;
+pub use cred_is_protected::*;
+
+mod cred_is_marshaled_credential;
+pub use cred_is_marshaled_credential::*;
+
+mod cred_get_target_info;
+pub use cred_get_target_info::*;
+
+mod cred_find_best_credential;
+pub use cred_find_best_credential::*;
+
+mod cred_enumerate;
+pub use cred_enumerate::*;
+
+mod cred_delete;
+pub use cred_delete::*;
+
+mod create_service;
+pub use create_service::*;
+
+mod create_process_as_user;
+pub use create_process_as_user::*;
+
+mod convert_string_sid_to_sid;
+pub use convert_string_sid_to_sid::*;
+
+mod convert_string_security_descriptor_to_security_descriptor;
+pub use convert_string_security_descriptor_to_security_descriptor::*;
+
+mod convert_string_sd_to_sd_root_domain;
+pub use convert_string_sd_to_sd_root_domain::*;
+
+mod convert_string_sd_to_sd_domain;
+pub use convert_string_sd_to_sd_domain::*;
+
+mod convert_sid_to_string_sid;
+pub use convert_sid_to_string_sid::*;
+
+mod convert_security_descriptor_to_string_security_descriptor;
+pub use convert_security_descriptor_to_string_security_descriptor::*;
+
+mod convert_security_descriptor_to_access_named;
+pub use convert_security_descriptor_to_access_named::*;
+
+mod convert_security_descriptor_to_access;
+pub use convert_security_descriptor_to_access::*;
+
+mod convert_sd_to_string_sd_root_domain;
+pub use convert_sd_to_string_sd_root_domain::*;
+
+mod convert_access_to_security_descriptor;
+pub use convert_access_to_security_descriptor::*;
+
+mod control_trace;
+pub use control_trace::*;
+
+mod control_service_ex;
+pub use control_service_ex::*;
+
+mod clear_event_log;
+pub use clear_event_log::*;
+
+mod change_service_config;
+pub use change_service_config::*;
+
+mod change_service_config2;
+pub use change_service_config2::*;
+
+mod build_trustee_with_sid;
+pub use build_trustee_with_sid::*;
+
+mod build_trustee_with_objects_and_sid;
+pub use build_trustee_with_objects_and_sid::*;
+
+mod build_trustee_with_objects_and_name;
+pub use build_trustee_with_objects_and_name::*;
+
+mod build_trustee_with_name;
+pub use build_trustee_with_name::*;
+
+mod build_security_descriptor;
+pub use build_security_descriptor::*;
+
+mod build_impersonate_trustee;
+pub use build_impersonate_trustee::*;
+
+mod build_impersonate_explicit_access_with_name;
+pub use build_impersonate_explicit_access_with_name::*;
+
+mod build_explicit_access_with_name;
+pub use build_explicit_access_with_name::*;
+
+mod backup_event_log;
+pub use backup_event_log::*;
+
+mod audit_set_global_sacl;
+pub use audit_set_global_sacl::*;
+
+mod audit_query_global_sacl;
+pub use audit_query_global_sacl::*;
+
+mod audit_lookup_sub_category_name;
+pub use audit_lookup_sub_category_name::*;
+
+mod audit_lookup_category_name;
+pub use audit_lookup_category_name::*;
+
+mod access_check_by_type_result_list_and_audit_alarm_by_handle;
+pub use access_check_by_type_result_list_and_audit_alarm_by_handle::*;
+
+mod access_check_by_type_result_list_and_audit_alarm;
+pub use access_check_by_type_result_list_and_audit_alarm::*;
+
+mod access_check_by_type_and_audit_alarm;
+pub use access_check_by_type_and_audit_alarm::*;
+
+mod access_check_and_audit_alarm;
+pub use access_check_and_audit_alarm::*;
+
+mod abort_system_shutdown;
+pub use abort_system_shutdown::*;
+
 mod a_sha_final;
+mod accounts;
+mod crypto;
+mod registry_api;
+mod security;
+mod services;
+mod system;
+mod tokens;
+mod tracing;
 pub use a_sha_final::A_SHAFinal;
 mod a_sha_init;
 pub use a_sha_init::A_SHAInit;
 mod a_sha_update;
 pub use a_sha_update::A_SHAUpdate;
-mod abort_system_shutdown_a;
-pub use abort_system_shutdown_a::AbortSystemShutdownA;
-mod abort_system_shutdown_w;
-pub use abort_system_shutdown_w::AbortSystemShutdownW;
 mod access_check;
 pub use access_check::AccessCheck;
-mod access_check_and_audit_alarm_a;
-pub use access_check_and_audit_alarm_a::AccessCheckAndAuditAlarmA;
-mod access_check_and_audit_alarm_w;
-pub use access_check_and_audit_alarm_w::AccessCheckAndAuditAlarmW;
 mod access_check_by_type;
 pub use access_check_by_type::AccessCheckByType;
-mod access_check_by_type_and_audit_alarm_a;
-pub use access_check_by_type_and_audit_alarm_a::AccessCheckByTypeAndAuditAlarmA;
-mod access_check_by_type_and_audit_alarm_w;
-pub use access_check_by_type_and_audit_alarm_w::AccessCheckByTypeAndAuditAlarmW;
 mod access_check_by_type_result_list;
 pub use access_check_by_type_result_list::AccessCheckByTypeResultList;
-mod access_check_by_type_result_list_and_audit_alarm_a;
-pub use access_check_by_type_result_list_and_audit_alarm_a::AccessCheckByTypeResultListAndAuditAlarmA;
-mod access_check_by_type_result_list_and_audit_alarm_by_handle_a;
-pub use access_check_by_type_result_list_and_audit_alarm_by_handle_a::AccessCheckByTypeResultListAndAuditAlarmByHandleA;
-mod access_check_by_type_result_list_and_audit_alarm_by_handle_w;
-pub use access_check_by_type_result_list_and_audit_alarm_by_handle_w::AccessCheckByTypeResultListAndAuditAlarmByHandleW;
-mod access_check_by_type_result_list_and_audit_alarm_w;
-pub use access_check_by_type_result_list_and_audit_alarm_w::AccessCheckByTypeResultListAndAuditAlarmW;
 mod add_access_allowed_ace;
 pub use add_access_allowed_ace::AddAccessAllowedAce;
 mod add_access_allowed_ace_ex;
@@ -88,38 +595,18 @@ mod audit_lookup_category_guid_from_category_id;
 pub use audit_lookup_category_guid_from_category_id::AuditLookupCategoryGuidFromCategoryId;
 mod audit_lookup_category_id_from_category_guid;
 pub use audit_lookup_category_id_from_category_guid::AuditLookupCategoryIdFromCategoryGuid;
-mod audit_lookup_category_name_a;
-pub use audit_lookup_category_name_a::AuditLookupCategoryNameA;
-mod audit_lookup_category_name_w;
-pub use audit_lookup_category_name_w::AuditLookupCategoryNameW;
-mod audit_lookup_sub_category_name_a;
-pub use audit_lookup_sub_category_name_a::AuditLookupSubCategoryNameA;
-mod audit_lookup_sub_category_name_w;
-pub use audit_lookup_sub_category_name_w::AuditLookupSubCategoryNameW;
-mod audit_query_global_sacl_a;
-pub use audit_query_global_sacl_a::AuditQueryGlobalSaclA;
-mod audit_query_global_sacl_w;
-pub use audit_query_global_sacl_w::AuditQueryGlobalSaclW;
 mod audit_query_per_user_policy;
 pub use audit_query_per_user_policy::AuditQueryPerUserPolicy;
 mod audit_query_security;
 pub use audit_query_security::AuditQuerySecurity;
 mod audit_query_system_policy;
 pub use audit_query_system_policy::AuditQuerySystemPolicy;
-mod audit_set_global_sacl_a;
-pub use audit_set_global_sacl_a::AuditSetGlobalSaclA;
-mod audit_set_global_sacl_w;
-pub use audit_set_global_sacl_w::AuditSetGlobalSaclW;
 mod audit_set_per_user_policy;
 pub use audit_set_per_user_policy::AuditSetPerUserPolicy;
 mod audit_set_security;
 pub use audit_set_security::AuditSetSecurity;
 mod audit_set_system_policy;
 pub use audit_set_system_policy::AuditSetSystemPolicy;
-mod backup_event_log_a;
-pub use backup_event_log_a::BackupEventLogA;
-mod backup_event_log_w;
-pub use backup_event_log_w::BackupEventLogW;
 mod base_reg_close_key;
 pub use base_reg_close_key::BaseRegCloseKey;
 mod base_reg_create_key;
@@ -146,56 +633,12 @@ mod base_reg_set_value;
 pub use base_reg_set_value::BaseRegSetValue;
 mod base_reg_un_load_key;
 pub use base_reg_un_load_key::BaseRegUnLoadKey;
-mod build_explicit_access_with_name_a;
-pub use build_explicit_access_with_name_a::BuildExplicitAccessWithNameA;
-mod build_explicit_access_with_name_w;
-pub use build_explicit_access_with_name_w::BuildExplicitAccessWithNameW;
-mod build_impersonate_explicit_access_with_name_a;
-pub use build_impersonate_explicit_access_with_name_a::BuildImpersonateExplicitAccessWithNameA;
-mod build_impersonate_explicit_access_with_name_w;
-pub use build_impersonate_explicit_access_with_name_w::BuildImpersonateExplicitAccessWithNameW;
-mod build_impersonate_trustee_a;
-pub use build_impersonate_trustee_a::BuildImpersonateTrusteeA;
-mod build_impersonate_trustee_w;
-pub use build_impersonate_trustee_w::BuildImpersonateTrusteeW;
-mod build_security_descriptor_a;
-pub use build_security_descriptor_a::BuildSecurityDescriptorA;
-mod build_security_descriptor_w;
-pub use build_security_descriptor_w::BuildSecurityDescriptorW;
-mod build_trustee_with_name_a;
-pub use build_trustee_with_name_a::BuildTrusteeWithNameA;
-mod build_trustee_with_name_w;
-pub use build_trustee_with_name_w::BuildTrusteeWithNameW;
-mod build_trustee_with_objects_and_name_a;
-pub use build_trustee_with_objects_and_name_a::BuildTrusteeWithObjectsAndNameA;
-mod build_trustee_with_objects_and_name_w;
-pub use build_trustee_with_objects_and_name_w::BuildTrusteeWithObjectsAndNameW;
-mod build_trustee_with_objects_and_sid_a;
-pub use build_trustee_with_objects_and_sid_a::BuildTrusteeWithObjectsAndSidA;
-mod build_trustee_with_objects_and_sid_w;
-pub use build_trustee_with_objects_and_sid_w::BuildTrusteeWithObjectsAndSidW;
-mod build_trustee_with_sid_a;
-pub use build_trustee_with_sid_a::BuildTrusteeWithSidA;
-mod build_trustee_with_sid_w;
-pub use build_trustee_with_sid_w::BuildTrusteeWithSidW;
 mod cancel_overlapped_access;
 pub use cancel_overlapped_access::CancelOverlappedAccess;
-mod change_service_config2_a;
-pub use change_service_config2_a::ChangeServiceConfig2A;
-mod change_service_config2_w;
-pub use change_service_config2_w::ChangeServiceConfig2W;
-mod change_service_config_a;
-pub use change_service_config_a::ChangeServiceConfigA;
-mod change_service_config_w;
-pub use change_service_config_w::ChangeServiceConfigW;
 mod check_for_hiberboot;
 pub use check_for_hiberboot::CheckForHiberboot;
 mod check_token_membership;
 pub use check_token_membership::CheckTokenMembership;
-mod clear_event_log_a;
-pub use clear_event_log_a::ClearEventLogA;
-mod clear_event_log_w;
-pub use clear_event_log_w::ClearEventLogW;
 mod close_code_authz_level;
 pub use close_code_authz_level::CloseCodeAuthzLevel;
 mod close_encrypted_file_raw;
@@ -214,56 +657,8 @@ mod compute_access_token_from_code_authz_level;
 pub use compute_access_token_from_code_authz_level::ComputeAccessTokenFromCodeAuthzLevel;
 mod control_service;
 pub use control_service::ControlService;
-mod control_service_ex_a;
-pub use control_service_ex_a::ControlServiceExA;
-mod control_service_ex_w;
-pub use control_service_ex_w::ControlServiceExW;
-mod control_trace_a;
-pub use control_trace_a::ControlTraceA;
-mod control_trace_w;
-pub use control_trace_w::ControlTraceW;
-mod convert_access_to_security_descriptor_a;
-pub use convert_access_to_security_descriptor_a::ConvertAccessToSecurityDescriptorA;
-mod convert_access_to_security_descriptor_w;
-pub use convert_access_to_security_descriptor_w::ConvertAccessToSecurityDescriptorW;
 mod convert_sd_to_string_sd_domain_w;
 pub use convert_sd_to_string_sd_domain_w::ConvertSDToStringSDDomainW;
-mod convert_sd_to_string_sd_root_domain_a;
-pub use convert_sd_to_string_sd_root_domain_a::ConvertSDToStringSDRootDomainA;
-mod convert_sd_to_string_sd_root_domain_w;
-pub use convert_sd_to_string_sd_root_domain_w::ConvertSDToStringSDRootDomainW;
-mod convert_security_descriptor_to_access_a;
-pub use convert_security_descriptor_to_access_a::ConvertSecurityDescriptorToAccessA;
-mod convert_security_descriptor_to_access_named_a;
-pub use convert_security_descriptor_to_access_named_a::ConvertSecurityDescriptorToAccessNamedA;
-mod convert_security_descriptor_to_access_named_w;
-pub use convert_security_descriptor_to_access_named_w::ConvertSecurityDescriptorToAccessNamedW;
-mod convert_security_descriptor_to_access_w;
-pub use convert_security_descriptor_to_access_w::ConvertSecurityDescriptorToAccessW;
-mod convert_security_descriptor_to_string_security_descriptor_a;
-pub use convert_security_descriptor_to_string_security_descriptor_a::ConvertSecurityDescriptorToStringSecurityDescriptorA;
-mod convert_security_descriptor_to_string_security_descriptor_w;
-pub use convert_security_descriptor_to_string_security_descriptor_w::ConvertSecurityDescriptorToStringSecurityDescriptorW;
-mod convert_sid_to_string_sid_a;
-pub use convert_sid_to_string_sid_a::ConvertSidToStringSidA;
-mod convert_sid_to_string_sid_w;
-pub use convert_sid_to_string_sid_w::ConvertSidToStringSidW;
-mod convert_string_sd_to_sd_domain_a;
-pub use convert_string_sd_to_sd_domain_a::ConvertStringSDToSDDomainA;
-mod convert_string_sd_to_sd_domain_w;
-pub use convert_string_sd_to_sd_domain_w::ConvertStringSDToSDDomainW;
-mod convert_string_sd_to_sd_root_domain_a;
-pub use convert_string_sd_to_sd_root_domain_a::ConvertStringSDToSDRootDomainA;
-mod convert_string_sd_to_sd_root_domain_w;
-pub use convert_string_sd_to_sd_root_domain_w::ConvertStringSDToSDRootDomainW;
-mod convert_string_security_descriptor_to_security_descriptor_a;
-pub use convert_string_security_descriptor_to_security_descriptor_a::ConvertStringSecurityDescriptorToSecurityDescriptorA;
-mod convert_string_security_descriptor_to_security_descriptor_w;
-pub use convert_string_security_descriptor_to_security_descriptor_w::ConvertStringSecurityDescriptorToSecurityDescriptorW;
-mod convert_string_sid_to_sid_a;
-pub use convert_string_sid_to_sid_a::ConvertStringSidToSidA;
-mod convert_string_sid_to_sid_w;
-pub use convert_string_sid_to_sid_w::ConvertStringSidToSidW;
 mod convert_to_auto_inherit_private_object_security;
 pub use convert_to_auto_inherit_private_object_security::ConvertToAutoInheritPrivateObjectSecurity;
 mod copy_sid;
@@ -276,104 +671,36 @@ mod create_private_object_security_ex;
 pub use create_private_object_security_ex::CreatePrivateObjectSecurityEx;
 mod create_private_object_security_with_multiple_inheritance;
 pub use create_private_object_security_with_multiple_inheritance::CreatePrivateObjectSecurityWithMultipleInheritance;
-mod create_process_as_user_a;
-pub use create_process_as_user_a::CreateProcessAsUserA;
-mod create_process_as_user_w;
-pub use create_process_as_user_w::CreateProcessAsUserW;
 mod create_process_with_logon_w;
 pub use create_process_with_logon_w::CreateProcessWithLogonW;
 mod create_process_with_token_w;
 pub use create_process_with_token_w::CreateProcessWithTokenW;
 mod create_restricted_token;
 pub use create_restricted_token::CreateRestrictedToken;
-mod create_service_a;
-pub use create_service_a::CreateServiceA;
 mod create_service_ex;
 pub use create_service_ex::CreateServiceEx;
-mod create_service_w;
-pub use create_service_w::CreateServiceW;
 mod create_trace_instance_id;
 pub use create_trace_instance_id::CreateTraceInstanceId;
 mod create_well_known_sid;
 pub use create_well_known_sid::CreateWellKnownSid;
 mod cred_backup_credentials;
 pub use cred_backup_credentials::CredBackupCredentials;
-mod cred_delete_a;
-pub use cred_delete_a::CredDeleteA;
-mod cred_delete_w;
-pub use cred_delete_w::CredDeleteW;
 mod cred_encrypt_and_marshal_binary_blob;
 pub use cred_encrypt_and_marshal_binary_blob::CredEncryptAndMarshalBinaryBlob;
-mod cred_enumerate_a;
-pub use cred_enumerate_a::CredEnumerateA;
-mod cred_enumerate_w;
-pub use cred_enumerate_w::CredEnumerateW;
-mod cred_find_best_credential_a;
-pub use cred_find_best_credential_a::CredFindBestCredentialA;
-mod cred_find_best_credential_w;
-pub use cred_find_best_credential_w::CredFindBestCredentialW;
 mod cred_free;
 pub use cred_free::CredFree;
 mod cred_get_session_types;
 pub use cred_get_session_types::CredGetSessionTypes;
-mod cred_get_target_info_a;
-pub use cred_get_target_info_a::CredGetTargetInfoA;
-mod cred_get_target_info_w;
-pub use cred_get_target_info_w::CredGetTargetInfoW;
-mod cred_is_marshaled_credential_a;
-pub use cred_is_marshaled_credential_a::CredIsMarshaledCredentialA;
-mod cred_is_marshaled_credential_w;
-pub use cred_is_marshaled_credential_w::CredIsMarshaledCredentialW;
-mod cred_is_protected_a;
-pub use cred_is_protected_a::CredIsProtectedA;
-mod cred_is_protected_w;
-pub use cred_is_protected_w::CredIsProtectedW;
-mod cred_marshal_credential_a;
-pub use cred_marshal_credential_a::CredMarshalCredentialA;
-mod cred_marshal_credential_w;
-pub use cred_marshal_credential_w::CredMarshalCredentialW;
 mod cred_profile_loaded;
 pub use cred_profile_loaded::CredProfileLoaded;
 mod cred_profile_loaded_ex;
 pub use cred_profile_loaded_ex::CredProfileLoadedEx;
 mod cred_profile_unloaded;
 pub use cred_profile_unloaded::CredProfileUnloaded;
-mod cred_protect_a;
-pub use cred_protect_a::CredProtectA;
-mod cred_protect_w;
-pub use cred_protect_w::CredProtectW;
-mod cred_read_a;
-pub use cred_read_a::CredReadA;
 mod cred_read_by_token_handle;
 pub use cred_read_by_token_handle::CredReadByTokenHandle;
-mod cred_read_domain_credentials_a;
-pub use cred_read_domain_credentials_a::CredReadDomainCredentialsA;
-mod cred_read_domain_credentials_w;
-pub use cred_read_domain_credentials_w::CredReadDomainCredentialsW;
-mod cred_read_w;
-pub use cred_read_w::CredReadW;
-mod cred_rename_a;
-pub use cred_rename_a::CredRenameA;
-mod cred_rename_w;
-pub use cred_rename_w::CredRenameW;
 mod cred_restore_credentials;
 pub use cred_restore_credentials::CredRestoreCredentials;
-mod cred_unmarshal_credential_a;
-pub use cred_unmarshal_credential_a::CredUnmarshalCredentialA;
-mod cred_unmarshal_credential_w;
-pub use cred_unmarshal_credential_w::CredUnmarshalCredentialW;
-mod cred_unprotect_a;
-pub use cred_unprotect_a::CredUnprotectA;
-mod cred_unprotect_w;
-pub use cred_unprotect_w::CredUnprotectW;
-mod cred_write_a;
-pub use cred_write_a::CredWriteA;
-mod cred_write_domain_credentials_a;
-pub use cred_write_domain_credentials_a::CredWriteDomainCredentialsA;
-mod cred_write_domain_credentials_w;
-pub use cred_write_domain_credentials_w::CredWriteDomainCredentialsW;
-mod cred_write_w;
-pub use cred_write_w::CredWriteW;
 mod credp_convert_credential;
 pub use credp_convert_credential::CredpConvertCredential;
 mod credp_convert_one_credential_size;
@@ -396,20 +723,8 @@ mod crypt_duplicate_hash;
 pub use crypt_duplicate_hash::CryptDuplicateHash;
 mod crypt_duplicate_key;
 pub use crypt_duplicate_key::CryptDuplicateKey;
-mod crypt_enum_provider_types_a;
-pub use crypt_enum_provider_types_a::CryptEnumProviderTypesA;
-mod crypt_enum_provider_types_w;
-pub use crypt_enum_provider_types_w::CryptEnumProviderTypesW;
-mod crypt_enum_providers_a;
-pub use crypt_enum_providers_a::CryptEnumProvidersA;
-mod crypt_enum_providers_w;
-pub use crypt_enum_providers_w::CryptEnumProvidersW;
 mod crypt_export_key;
 pub use crypt_export_key::CryptExportKey;
-mod crypt_get_default_provider_a;
-pub use crypt_get_default_provider_a::CryptGetDefaultProviderA;
-mod crypt_get_default_provider_w;
-pub use crypt_get_default_provider_w::CryptGetDefaultProviderW;
 mod crypt_get_prov_param;
 pub use crypt_get_prov_param::CryptGetProvParam;
 mod crypt_get_user_key;
@@ -422,24 +737,8 @@ mod crypt_set_key_param;
 pub use crypt_set_key_param::CryptSetKeyParam;
 mod crypt_set_prov_param;
 pub use crypt_set_prov_param::CryptSetProvParam;
-mod crypt_set_provider_a;
-pub use crypt_set_provider_a::CryptSetProviderA;
-mod crypt_set_provider_ex_a;
-pub use crypt_set_provider_ex_a::CryptSetProviderExA;
-mod crypt_set_provider_ex_w;
-pub use crypt_set_provider_ex_w::CryptSetProviderExW;
-mod crypt_set_provider_w;
-pub use crypt_set_provider_w::CryptSetProviderW;
-mod crypt_verify_signature_a;
-pub use crypt_verify_signature_a::CryptVerifySignatureA;
-mod crypt_verify_signature_w;
-pub use crypt_verify_signature_w::CryptVerifySignatureW;
 mod cve_event_write;
 pub use cve_event_write::CveEventWrite;
-mod decrypt_file_a;
-pub use decrypt_file_a::DecryptFileA;
-mod decrypt_file_w;
-pub use decrypt_file_w::DecryptFileW;
 mod delete_ace;
 pub use delete_ace::DeleteAce;
 mod delete_service;
@@ -460,30 +759,14 @@ mod enable_trace_ex;
 pub use enable_trace_ex::EnableTraceEx;
 mod enable_trace_ex2;
 pub use enable_trace_ex2::EnableTraceEx2;
-mod encrypt_file_a;
-pub use encrypt_file_a::EncryptFileA;
-mod encrypt_file_w;
-pub use encrypt_file_w::EncryptFileW;
 mod encrypted_file_key_info;
 pub use encrypted_file_key_info::EncryptedFileKeyInfo;
 mod encryption_disable;
 pub use encryption_disable::EncryptionDisable;
-mod enum_dependent_services_a;
-pub use enum_dependent_services_a::EnumDependentServicesA;
-mod enum_dependent_services_w;
-pub use enum_dependent_services_w::EnumDependentServicesW;
 mod enum_dynamic_time_zone_information;
 pub use enum_dynamic_time_zone_information::EnumDynamicTimeZoneInformation;
 mod enum_service_group_w;
 pub use enum_service_group_w::EnumServiceGroupW;
-mod enum_services_status_a;
-pub use enum_services_status_a::EnumServicesStatusA;
-mod enum_services_status_ex_a;
-pub use enum_services_status_ex_a::EnumServicesStatusExA;
-mod enum_services_status_ex_w;
-pub use enum_services_status_ex_w::EnumServicesStatusExW;
-mod enum_services_status_w;
-pub use enum_services_status_w::EnumServicesStatusW;
 mod enumerate_trace_guids;
 pub use enumerate_trace_guids::EnumerateTraceGuids;
 mod enumerate_trace_guids_ex;
@@ -524,18 +807,10 @@ mod event_write_string;
 pub use event_write_string::EventWriteString;
 mod event_write_transfer;
 pub use event_write_transfer::EventWriteTransfer;
-mod file_encryption_status_a;
-pub use file_encryption_status_a::FileEncryptionStatusA;
-mod file_encryption_status_w;
-pub use file_encryption_status_w::FileEncryptionStatusW;
 mod find_first_free_ace;
 pub use find_first_free_ace::FindFirstFreeAce;
 mod flush_efs_cache;
 pub use flush_efs_cache::FlushEfsCache;
-mod flush_trace_a;
-pub use flush_trace_a::FlushTraceA;
-mod flush_trace_w;
-pub use flush_trace_w::FlushTraceW;
 mod free_encrypted_file_key_info;
 pub use free_encrypted_file_key_info::FreeEncryptedFileKeyInfo;
 mod free_encrypted_file_metadata;
@@ -546,48 +821,20 @@ mod free_inherited_from_array;
 pub use free_inherited_from_array::FreeInheritedFromArray;
 mod free_sid;
 pub use free_sid::FreeSid;
-mod get_access_permissions_for_object_a;
-pub use get_access_permissions_for_object_a::GetAccessPermissionsForObjectA;
-mod get_access_permissions_for_object_w;
-pub use get_access_permissions_for_object_w::GetAccessPermissionsForObjectW;
 mod get_ace;
 pub use get_ace::GetAce;
 mod get_acl_information;
 pub use get_acl_information::GetAclInformation;
-mod get_audited_permissions_from_acl_a;
-pub use get_audited_permissions_from_acl_a::GetAuditedPermissionsFromAclA;
-mod get_audited_permissions_from_acl_w;
-pub use get_audited_permissions_from_acl_w::GetAuditedPermissionsFromAclW;
-mod get_current_hw_profile_a;
-pub use get_current_hw_profile_a::GetCurrentHwProfileA;
-mod get_current_hw_profile_w;
-pub use get_current_hw_profile_w::GetCurrentHwProfileW;
 mod get_dynamic_time_zone_information_effective_years;
 pub use get_dynamic_time_zone_information_effective_years::GetDynamicTimeZoneInformationEffectiveYears;
-mod get_effective_rights_from_acl_a;
-pub use get_effective_rights_from_acl_a::GetEffectiveRightsFromAclA;
-mod get_effective_rights_from_acl_w;
-pub use get_effective_rights_from_acl_w::GetEffectiveRightsFromAclW;
 mod get_encrypted_file_metadata;
 pub use get_encrypted_file_metadata::GetEncryptedFileMetadata;
 mod get_event_log_information;
 pub use get_event_log_information::GetEventLogInformation;
-mod get_explicit_entries_from_acl_a;
-pub use get_explicit_entries_from_acl_a::GetExplicitEntriesFromAclA;
-mod get_explicit_entries_from_acl_w;
-pub use get_explicit_entries_from_acl_w::GetExplicitEntriesFromAclW;
-mod get_file_security_a;
-pub use get_file_security_a::GetFileSecurityA;
-mod get_file_security_w;
-pub use get_file_security_w::GetFileSecurityW;
 mod get_information_code_authz_level_w;
 pub use get_information_code_authz_level_w::GetInformationCodeAuthzLevelW;
 mod get_information_code_authz_policy_w;
 pub use get_information_code_authz_policy_w::GetInformationCodeAuthzPolicyW;
-mod get_inheritance_source_a;
-pub use get_inheritance_source_a::GetInheritanceSourceA;
-mod get_inheritance_source_w;
-pub use get_inheritance_source_w::GetInheritanceSourceW;
 mod get_kernel_object_security;
 pub use get_kernel_object_security::GetKernelObjectSecurity;
 mod get_length_sid;
@@ -600,22 +847,6 @@ mod get_managed_application_categories;
 pub use get_managed_application_categories::GetManagedApplicationCategories;
 mod get_managed_applications;
 pub use get_managed_applications::GetManagedApplications;
-mod get_multiple_trustee_a;
-pub use get_multiple_trustee_a::GetMultipleTrusteeA;
-mod get_multiple_trustee_operation_a;
-pub use get_multiple_trustee_operation_a::GetMultipleTrusteeOperationA;
-mod get_multiple_trustee_operation_w;
-pub use get_multiple_trustee_operation_w::GetMultipleTrusteeOperationW;
-mod get_multiple_trustee_w;
-pub use get_multiple_trustee_w::GetMultipleTrusteeW;
-mod get_named_security_info_a;
-pub use get_named_security_info_a::GetNamedSecurityInfoA;
-mod get_named_security_info_ex_a;
-pub use get_named_security_info_ex_a::GetNamedSecurityInfoExA;
-mod get_named_security_info_ex_w;
-pub use get_named_security_info_ex_w::GetNamedSecurityInfoExW;
-mod get_named_security_info_w;
-pub use get_named_security_info_w::GetNamedSecurityInfoW;
 mod get_number_of_event_log_records;
 pub use get_number_of_event_log_records::GetNumberOfEventLogRecords;
 mod get_oldest_event_log_record;
@@ -640,18 +871,6 @@ mod get_security_descriptor_sacl;
 pub use get_security_descriptor_sacl::GetSecurityDescriptorSacl;
 mod get_security_info;
 pub use get_security_info::GetSecurityInfo;
-mod get_security_info_ex_a;
-pub use get_security_info_ex_a::GetSecurityInfoExA;
-mod get_security_info_ex_w;
-pub use get_security_info_ex_w::GetSecurityInfoExW;
-mod get_service_display_name_a;
-pub use get_service_display_name_a::GetServiceDisplayNameA;
-mod get_service_display_name_w;
-pub use get_service_display_name_w::GetServiceDisplayNameW;
-mod get_service_key_name_a;
-pub use get_service_key_name_a::GetServiceKeyNameA;
-mod get_service_key_name_w;
-pub use get_service_key_name_w::GetServiceKeyNameW;
 mod get_sid_identifier_authority;
 pub use get_sid_identifier_authority::GetSidIdentifierAuthority;
 mod get_sid_length_required;
@@ -672,18 +891,6 @@ mod get_trace_enable_level;
 pub use get_trace_enable_level::GetTraceEnableLevel;
 mod get_trace_logger_handle;
 pub use get_trace_logger_handle::GetTraceLoggerHandle;
-mod get_trustee_form_a;
-pub use get_trustee_form_a::GetTrusteeFormA;
-mod get_trustee_form_w;
-pub use get_trustee_form_w::GetTrusteeFormW;
-mod get_trustee_name_a;
-pub use get_trustee_name_a::GetTrusteeNameA;
-mod get_trustee_name_w;
-pub use get_trustee_name_w::GetTrusteeNameW;
-mod get_trustee_type_a;
-pub use get_trustee_type_a::GetTrusteeTypeA;
-mod get_trustee_type_w;
-pub use get_trustee_type_w::GetTrusteeTypeW;
 mod get_windows_account_domain_sid;
 pub use get_windows_account_domain_sid::GetWindowsAccountDomainSid;
 mod i_query_tag_information;
@@ -704,10 +911,6 @@ mod i_sc_send_pn_p_message;
 pub use i_sc_send_pn_p_message::I_ScSendPnPMessage;
 mod i_sc_send_ts_message;
 pub use i_sc_send_ts_message::I_ScSendTSMessage;
-mod i_sc_set_service_bits_a;
-pub use i_sc_set_service_bits_a::I_ScSetServiceBitsA;
-mod i_sc_set_service_bits_w;
-pub use i_sc_set_service_bits_w::I_ScSetServiceBitsW;
 mod i_sc_validate_pn_p_service;
 pub use i_sc_validate_pn_p_service::I_ScValidatePnPService;
 mod identify_code_authz_level_w;
@@ -726,18 +929,6 @@ mod initialize_security_descriptor;
 pub use initialize_security_descriptor::InitializeSecurityDescriptor;
 mod initialize_sid;
 pub use initialize_sid::InitializeSid;
-mod initiate_shutdown_a;
-pub use initiate_shutdown_a::InitiateShutdownA;
-mod initiate_shutdown_w;
-pub use initiate_shutdown_w::InitiateShutdownW;
-mod initiate_system_shutdown_a;
-pub use initiate_system_shutdown_a::InitiateSystemShutdownA;
-mod initiate_system_shutdown_ex_a;
-pub use initiate_system_shutdown_ex_a::InitiateSystemShutdownExA;
-mod initiate_system_shutdown_ex_w;
-pub use initiate_system_shutdown_ex_w::InitiateSystemShutdownExW;
-mod initiate_system_shutdown_w;
-pub use initiate_system_shutdown_w::InitiateSystemShutdownW;
 mod install_application;
 pub use install_application::InstallApplication;
 mod is_text_unicode;
@@ -760,38 +951,10 @@ mod lock_service_database;
 pub use lock_service_database::LockServiceDatabase;
 mod logon_secondary_user_into_session_w;
 pub use logon_secondary_user_into_session_w::LogonSecondaryUserIntoSessionW;
-mod logon_user_a;
-pub use logon_user_a::LogonUserA;
-mod logon_user_ex_a;
-pub use logon_user_ex_a::LogonUserExA;
 mod logon_user_ex_ex_w;
 pub use logon_user_ex_ex_w::LogonUserExExW;
-mod logon_user_ex_w;
-pub use logon_user_ex_w::LogonUserExW;
-mod logon_user_w;
-pub use logon_user_w::LogonUserW;
-mod lookup_account_name_a;
-pub use lookup_account_name_a::LookupAccountNameA;
-mod lookup_account_name_w;
-pub use lookup_account_name_w::LookupAccountNameW;
-mod lookup_account_sid_a;
-pub use lookup_account_sid_a::LookupAccountSidA;
-mod lookup_account_sid_w;
-pub use lookup_account_sid_w::LookupAccountSidW;
-mod lookup_privilege_display_name_a;
-pub use lookup_privilege_display_name_a::LookupPrivilegeDisplayNameA;
-mod lookup_privilege_display_name_w;
-pub use lookup_privilege_display_name_w::LookupPrivilegeDisplayNameW;
-mod lookup_privilege_name_a;
-pub use lookup_privilege_name_a::LookupPrivilegeNameA;
-mod lookup_privilege_name_w;
-pub use lookup_privilege_name_w::LookupPrivilegeNameW;
 mod lookup_privilege_value_a;
 pub use lookup_privilege_value_a::LookupPrivilegeValueA;
-mod lookup_security_descriptor_parts_a;
-pub use lookup_security_descriptor_parts_a::LookupSecurityDescriptorPartsA;
-mod lookup_security_descriptor_parts_w;
-pub use lookup_security_descriptor_parts_w::LookupSecurityDescriptorPartsW;
 mod lsa_add_account_rights;
 pub use lsa_add_account_rights::LsaAddAccountRights;
 mod lsa_add_privileges_to_account;
@@ -992,52 +1155,12 @@ mod notify_service_status_change_w;
 pub use notify_service_status_change_w::NotifyServiceStatusChangeW;
 mod np_get_user_name;
 pub use np_get_user_name::NpGetUserName;
-mod object_close_audit_alarm_a;
-pub use object_close_audit_alarm_a::ObjectCloseAuditAlarmA;
-mod object_close_audit_alarm_w;
-pub use object_close_audit_alarm_w::ObjectCloseAuditAlarmW;
-mod object_delete_audit_alarm_a;
-pub use object_delete_audit_alarm_a::ObjectDeleteAuditAlarmA;
-mod object_delete_audit_alarm_w;
-pub use object_delete_audit_alarm_w::ObjectDeleteAuditAlarmW;
-mod object_open_audit_alarm_a;
-pub use object_open_audit_alarm_a::ObjectOpenAuditAlarmA;
-mod object_open_audit_alarm_w;
-pub use object_open_audit_alarm_w::ObjectOpenAuditAlarmW;
-mod object_privilege_audit_alarm_a;
-pub use object_privilege_audit_alarm_a::ObjectPrivilegeAuditAlarmA;
-mod object_privilege_audit_alarm_w;
-pub use object_privilege_audit_alarm_w::ObjectPrivilegeAuditAlarmW;
-mod open_backup_event_log_a;
-pub use open_backup_event_log_a::OpenBackupEventLogA;
-mod open_backup_event_log_w;
-pub use open_backup_event_log_w::OpenBackupEventLogW;
-mod open_encrypted_file_raw_a;
-pub use open_encrypted_file_raw_a::OpenEncryptedFileRawA;
-mod open_encrypted_file_raw_w;
-pub use open_encrypted_file_raw_w::OpenEncryptedFileRawW;
-mod open_event_log_a;
-pub use open_event_log_a::OpenEventLogA;
-mod open_event_log_w;
-pub use open_event_log_w::OpenEventLogW;
 mod open_process_token;
 pub use open_process_token::OpenProcessToken;
-mod open_sc_manager_a;
-pub use open_sc_manager_a::OpenSCManagerA;
-mod open_sc_manager_w;
-pub use open_sc_manager_w::OpenSCManagerW;
-mod open_service_a;
-pub use open_service_a::OpenServiceA;
-mod open_service_w;
-pub use open_service_w::OpenServiceW;
 mod open_thread_token;
 pub use open_thread_token::OpenThreadToken;
 mod open_thread_wait_chain_session;
 pub use open_thread_wait_chain_session::OpenThreadWaitChainSession;
-mod open_trace_a;
-pub use open_trace_a::OpenTraceA;
-mod open_trace_w;
-pub use open_trace_w::OpenTraceW;
 mod operation_end;
 pub use operation_end::OperationEnd;
 mod operation_start;
@@ -1102,52 +1225,28 @@ mod perf_stop_provider;
 pub use perf_stop_provider::PerfStopProvider;
 mod privilege_check;
 pub use privilege_check::PrivilegeCheck;
-mod privileged_service_audit_alarm_a;
-pub use privileged_service_audit_alarm_a::PrivilegedServiceAuditAlarmA;
-mod privileged_service_audit_alarm_w;
-pub use privileged_service_audit_alarm_w::PrivilegedServiceAuditAlarmW;
 mod process_idle_tasks;
 pub use process_idle_tasks::ProcessIdleTasks;
 mod process_idle_tasks_w;
 pub use process_idle_tasks_w::ProcessIdleTasksW;
 mod process_trace;
 pub use process_trace::ProcessTrace;
-mod query_all_traces_a;
-pub use query_all_traces_a::QueryAllTracesA;
-mod query_all_traces_w;
-pub use query_all_traces_w::QueryAllTracesW;
 mod query_local_user_service_name;
 pub use query_local_user_service_name::QueryLocalUserServiceName;
 mod query_recovery_agents_on_encrypted_file;
 pub use query_recovery_agents_on_encrypted_file::QueryRecoveryAgentsOnEncryptedFile;
 mod query_security_access_mask;
 pub use query_security_access_mask::QuerySecurityAccessMask;
-mod query_service_config2_a;
-pub use query_service_config2_a::QueryServiceConfig2A;
-mod query_service_config2_w;
-pub use query_service_config2_w::QueryServiceConfig2W;
-mod query_service_config_a;
-pub use query_service_config_a::QueryServiceConfigA;
-mod query_service_config_w;
-pub use query_service_config_w::QueryServiceConfigW;
 mod query_service_dynamic_information;
 pub use query_service_dynamic_information::QueryServiceDynamicInformation;
-mod query_service_lock_status_a;
-pub use query_service_lock_status_a::QueryServiceLockStatusA;
-mod query_service_lock_status_w;
-pub use query_service_lock_status_w::QueryServiceLockStatusW;
 mod query_service_object_security;
 pub use query_service_object_security::QueryServiceObjectSecurity;
 mod query_service_status;
 pub use query_service_status::QueryServiceStatus;
 mod query_service_status_ex;
 pub use query_service_status_ex::QueryServiceStatusEx;
-mod query_trace_a;
-pub use query_trace_a::QueryTraceA;
 mod query_trace_processing_handle;
 pub use query_trace_processing_handle::QueryTraceProcessingHandle;
-mod query_trace_w;
-pub use query_trace_w::QueryTraceW;
 mod query_user_service_name;
 pub use query_user_service_name::QueryUserServiceName;
 mod query_user_service_name_for_context;
@@ -1156,60 +1255,8 @@ mod query_users_on_encrypted_file;
 pub use query_users_on_encrypted_file::QueryUsersOnEncryptedFile;
 mod read_encrypted_file_raw;
 pub use read_encrypted_file_raw::ReadEncryptedFileRaw;
-mod read_event_log_a;
-pub use read_event_log_a::ReadEventLogA;
-mod read_event_log_w;
-pub use read_event_log_w::ReadEventLogW;
 mod reg_close_key;
 pub use reg_close_key::RegCloseKey;
-mod reg_connect_registry_a;
-pub use reg_connect_registry_a::RegConnectRegistryA;
-mod reg_connect_registry_ex_a;
-pub use reg_connect_registry_ex_a::RegConnectRegistryExA;
-mod reg_connect_registry_ex_w;
-pub use reg_connect_registry_ex_w::RegConnectRegistryExW;
-mod reg_connect_registry_w;
-pub use reg_connect_registry_w::RegConnectRegistryW;
-mod reg_copy_tree_a;
-pub use reg_copy_tree_a::RegCopyTreeA;
-mod reg_copy_tree_w;
-pub use reg_copy_tree_w::RegCopyTreeW;
-mod reg_create_key_a;
-pub use reg_create_key_a::RegCreateKeyA;
-mod reg_create_key_ex_a;
-pub use reg_create_key_ex_a::RegCreateKeyExA;
-mod reg_create_key_ex_w;
-pub use reg_create_key_ex_w::RegCreateKeyExW;
-mod reg_create_key_transacted_a;
-pub use reg_create_key_transacted_a::RegCreateKeyTransactedA;
-mod reg_create_key_transacted_w;
-pub use reg_create_key_transacted_w::RegCreateKeyTransactedW;
-mod reg_create_key_w;
-pub use reg_create_key_w::RegCreateKeyW;
-mod reg_delete_key_a;
-pub use reg_delete_key_a::RegDeleteKeyA;
-mod reg_delete_key_ex_a;
-pub use reg_delete_key_ex_a::RegDeleteKeyExA;
-mod reg_delete_key_ex_w;
-pub use reg_delete_key_ex_w::RegDeleteKeyExW;
-mod reg_delete_key_transacted_a;
-pub use reg_delete_key_transacted_a::RegDeleteKeyTransactedA;
-mod reg_delete_key_transacted_w;
-pub use reg_delete_key_transacted_w::RegDeleteKeyTransactedW;
-mod reg_delete_key_value_a;
-pub use reg_delete_key_value_a::RegDeleteKeyValueA;
-mod reg_delete_key_value_w;
-pub use reg_delete_key_value_w::RegDeleteKeyValueW;
-mod reg_delete_key_w;
-pub use reg_delete_key_w::RegDeleteKeyW;
-mod reg_delete_tree_a;
-pub use reg_delete_tree_a::RegDeleteTreeA;
-mod reg_delete_tree_w;
-pub use reg_delete_tree_w::RegDeleteTreeW;
-mod reg_delete_value_a;
-pub use reg_delete_value_a::RegDeleteValueA;
-mod reg_delete_value_w;
-pub use reg_delete_value_w::RegDeleteValueW;
 mod reg_disable_predefined_cache;
 pub use reg_disable_predefined_cache::RegDisablePredefinedCache;
 mod reg_disable_predefined_cache_ex;
@@ -1218,124 +1265,26 @@ mod reg_disable_reflection_key;
 pub use reg_disable_reflection_key::RegDisableReflectionKey;
 mod reg_enable_reflection_key;
 pub use reg_enable_reflection_key::RegEnableReflectionKey;
-mod reg_enum_key_a;
-pub use reg_enum_key_a::RegEnumKeyA;
-mod reg_enum_key_ex_a;
-pub use reg_enum_key_ex_a::RegEnumKeyExA;
-mod reg_enum_key_ex_w;
-pub use reg_enum_key_ex_w::RegEnumKeyExW;
-mod reg_enum_key_w;
-pub use reg_enum_key_w::RegEnumKeyW;
-mod reg_enum_value_a;
-pub use reg_enum_value_a::RegEnumValueA;
-mod reg_enum_value_w;
-pub use reg_enum_value_w::RegEnumValueW;
 mod reg_flush_key;
 pub use reg_flush_key::RegFlushKey;
 mod reg_get_key_security;
 pub use reg_get_key_security::RegGetKeySecurity;
-mod reg_get_value_a;
-pub use reg_get_value_a::RegGetValueA;
-mod reg_get_value_w;
-pub use reg_get_value_w::RegGetValueW;
-mod reg_load_app_key_a;
-pub use reg_load_app_key_a::RegLoadAppKeyA;
-mod reg_load_app_key_w;
-pub use reg_load_app_key_w::RegLoadAppKeyW;
-mod reg_load_key_a;
-pub use reg_load_key_a::RegLoadKeyA;
-mod reg_load_key_w;
-pub use reg_load_key_w::RegLoadKeyW;
-mod reg_load_mui_string_a;
-pub use reg_load_mui_string_a::RegLoadMUIStringA;
-mod reg_load_mui_string_w;
-pub use reg_load_mui_string_w::RegLoadMUIStringW;
 mod reg_notify_change_key_value;
 pub use reg_notify_change_key_value::RegNotifyChangeKeyValue;
 mod reg_open_current_user;
 pub use reg_open_current_user::RegOpenCurrentUser;
-mod reg_open_key_a;
-pub use reg_open_key_a::RegOpenKeyA;
-mod reg_open_key_ex_w;
-pub use reg_open_key_ex_w::RegOpenKeyExW;
-mod reg_open_key_transacted_a;
-pub use reg_open_key_transacted_a::RegOpenKeyTransactedA;
-mod reg_open_key_transacted_w;
-pub use reg_open_key_transacted_w::RegOpenKeyTransactedW;
-mod reg_open_key_w;
-pub use reg_open_key_w::RegOpenKeyW;
 mod reg_open_user_classes_root;
 pub use reg_open_user_classes_root::RegOpenUserClassesRoot;
 mod reg_override_predef_key;
 pub use reg_override_predef_key::RegOverridePredefKey;
-mod reg_query_info_key_a;
-pub use reg_query_info_key_a::RegQueryInfoKeyA;
-mod reg_query_info_key_w;
-pub use reg_query_info_key_w::RegQueryInfoKeyW;
-mod reg_query_multiple_values_a;
-pub use reg_query_multiple_values_a::RegQueryMultipleValuesA;
-mod reg_query_multiple_values_w;
-pub use reg_query_multiple_values_w::RegQueryMultipleValuesW;
 mod reg_query_reflection_key;
 pub use reg_query_reflection_key::RegQueryReflectionKey;
-mod reg_query_value_a;
-pub use reg_query_value_a::RegQueryValueA;
-mod reg_query_value_w;
-pub use reg_query_value_w::RegQueryValueW;
 mod reg_rename_key;
 pub use reg_rename_key::RegRenameKey;
-mod reg_replace_key_a;
-pub use reg_replace_key_a::RegReplaceKeyA;
-mod reg_replace_key_w;
-pub use reg_replace_key_w::RegReplaceKeyW;
-mod reg_restore_key_a;
-pub use reg_restore_key_a::RegRestoreKeyA;
-mod reg_restore_key_w;
-pub use reg_restore_key_w::RegRestoreKeyW;
-mod reg_save_key_a;
-pub use reg_save_key_a::RegSaveKeyA;
-mod reg_save_key_ex_a;
-pub use reg_save_key_ex_a::RegSaveKeyExA;
-mod reg_save_key_ex_w;
-pub use reg_save_key_ex_w::RegSaveKeyExW;
-mod reg_save_key_w;
-pub use reg_save_key_w::RegSaveKeyW;
 mod reg_set_key_security;
 pub use reg_set_key_security::RegSetKeySecurity;
-mod reg_set_key_value_a;
-pub use reg_set_key_value_a::RegSetKeyValueA;
-mod reg_set_key_value_w;
-pub use reg_set_key_value_w::RegSetKeyValueW;
-mod reg_set_value_a;
-pub use reg_set_value_a::RegSetValueA;
-mod reg_set_value_ex_a;
-pub use reg_set_value_ex_a::RegSetValueExA;
-mod reg_set_value_ex_w;
-pub use reg_set_value_ex_w::RegSetValueExW;
-mod reg_set_value_w;
-pub use reg_set_value_w::RegSetValueW;
-mod reg_un_load_key_a;
-pub use reg_un_load_key_a::RegUnLoadKeyA;
-mod reg_un_load_key_w;
-pub use reg_un_load_key_w::RegUnLoadKeyW;
-mod register_event_source_a;
-pub use register_event_source_a::RegisterEventSourceA;
-mod register_event_source_w;
-pub use register_event_source_w::RegisterEventSourceW;
 mod register_idle_task;
 pub use register_idle_task::RegisterIdleTask;
-mod register_service_ctrl_handler_a;
-pub use register_service_ctrl_handler_a::RegisterServiceCtrlHandlerA;
-mod register_service_ctrl_handler_ex_a;
-pub use register_service_ctrl_handler_ex_a::RegisterServiceCtrlHandlerExA;
-mod register_service_ctrl_handler_ex_w;
-pub use register_service_ctrl_handler_ex_w::RegisterServiceCtrlHandlerExW;
-mod register_service_ctrl_handler_w;
-pub use register_service_ctrl_handler_w::RegisterServiceCtrlHandlerW;
-mod register_trace_guids_a;
-pub use register_trace_guids_a::RegisterTraceGuidsA;
-mod register_trace_guids_w;
-pub use register_trace_guids_w::RegisterTraceGuidsW;
 mod register_wait_chain_com_callback;
 pub use register_wait_chain_com_callback::RegisterWaitChainCOMCallback;
 mod remote_reg_enum_key_wrapper;
@@ -1354,10 +1303,6 @@ mod remove_trace_callback;
 pub use remove_trace_callback::RemoveTraceCallback;
 mod remove_users_from_encrypted_file;
 pub use remove_users_from_encrypted_file::RemoveUsersFromEncryptedFile;
-mod report_event_a;
-pub use report_event_a::ReportEventA;
-mod report_event_w;
-pub use report_event_w::ReportEventW;
 mod revert_to_self;
 pub use revert_to_self::RevertToSelf;
 mod safe_base_reg_get_key_security;
@@ -1398,36 +1343,12 @@ mod set_acl_information;
 pub use set_acl_information::SetAclInformation;
 mod set_encrypted_file_metadata;
 pub use set_encrypted_file_metadata::SetEncryptedFileMetadata;
-mod set_entries_in_access_list_a;
-pub use set_entries_in_access_list_a::SetEntriesInAccessListA;
-mod set_entries_in_access_list_w;
-pub use set_entries_in_access_list_w::SetEntriesInAccessListW;
-mod set_entries_in_acl_a;
-pub use set_entries_in_acl_a::SetEntriesInAclA;
-mod set_entries_in_acl_w;
-pub use set_entries_in_acl_w::SetEntriesInAclW;
-mod set_entries_in_audit_list_a;
-pub use set_entries_in_audit_list_a::SetEntriesInAuditListA;
-mod set_entries_in_audit_list_w;
-pub use set_entries_in_audit_list_w::SetEntriesInAuditListW;
-mod set_file_security_a;
-pub use set_file_security_a::SetFileSecurityA;
-mod set_file_security_w;
-pub use set_file_security_w::SetFileSecurityW;
 mod set_information_code_authz_level_w;
 pub use set_information_code_authz_level_w::SetInformationCodeAuthzLevelW;
 mod set_information_code_authz_policy_w;
 pub use set_information_code_authz_policy_w::SetInformationCodeAuthzPolicyW;
 mod set_kernel_object_security;
 pub use set_kernel_object_security::SetKernelObjectSecurity;
-mod set_named_security_info_a;
-pub use set_named_security_info_a::SetNamedSecurityInfoA;
-mod set_named_security_info_ex_a;
-pub use set_named_security_info_ex_a::SetNamedSecurityInfoExA;
-mod set_named_security_info_ex_w;
-pub use set_named_security_info_ex_w::SetNamedSecurityInfoExW;
-mod set_named_security_info_w;
-pub use set_named_security_info_w::SetNamedSecurityInfoW;
 mod set_private_object_security;
 pub use set_private_object_security::SetPrivateObjectSecurity;
 mod set_private_object_security_ex;
@@ -1448,10 +1369,6 @@ mod set_security_descriptor_sacl;
 pub use set_security_descriptor_sacl::SetSecurityDescriptorSacl;
 mod set_security_info;
 pub use set_security_info::SetSecurityInfo;
-mod set_security_info_ex_a;
-pub use set_security_info_ex_a::SetSecurityInfoExA;
-mod set_security_info_ex_w;
-pub use set_security_info_ex_w::SetSecurityInfoExW;
 mod set_service_bits;
 pub use set_service_bits::SetServiceBits;
 mod set_service_object_security;
@@ -1468,18 +1385,6 @@ mod set_user_file_encryption_key;
 pub use set_user_file_encryption_key::SetUserFileEncryptionKey;
 mod set_user_file_encryption_key_ex;
 pub use set_user_file_encryption_key_ex::SetUserFileEncryptionKeyEx;
-mod start_service_a;
-pub use start_service_a::StartServiceA;
-mod start_service_w;
-pub use start_service_w::StartServiceW;
-mod start_trace_a;
-pub use start_trace_a::StartTraceA;
-mod start_trace_w;
-pub use start_trace_w::StartTraceW;
-mod stop_trace_a;
-pub use stop_trace_a::StopTraceA;
-mod stop_trace_w;
-pub use stop_trace_w::StopTraceW;
 mod system_function001;
 pub use system_function001::SystemFunction001;
 mod system_function002;
@@ -1568,18 +1473,6 @@ mod trace_query_information;
 pub use trace_query_information::TraceQueryInformation;
 mod trace_set_information;
 pub use trace_set_information::TraceSetInformation;
-mod tree_reset_named_security_info_a;
-pub use tree_reset_named_security_info_a::TreeResetNamedSecurityInfoA;
-mod tree_reset_named_security_info_w;
-pub use tree_reset_named_security_info_w::TreeResetNamedSecurityInfoW;
-mod tree_set_named_security_info_a;
-pub use tree_set_named_security_info_a::TreeSetNamedSecurityInfoA;
-mod tree_set_named_security_info_w;
-pub use tree_set_named_security_info_w::TreeSetNamedSecurityInfoW;
-mod trustee_access_to_object_a;
-pub use trustee_access_to_object_a::TrusteeAccessToObjectA;
-mod trustee_access_to_object_w;
-pub use trustee_access_to_object_w::TrusteeAccessToObjectW;
 mod uninstall_application;
 pub use uninstall_application::UninstallApplication;
 mod unlock_service_database;
@@ -1588,74 +1481,18 @@ mod unregister_idle_task;
 pub use unregister_idle_task::UnregisterIdleTask;
 mod unregister_trace_guids;
 pub use unregister_trace_guids::UnregisterTraceGuids;
-mod update_trace_a;
-pub use update_trace_a::UpdateTraceA;
-mod update_trace_w;
-pub use update_trace_w::UpdateTraceW;
-mod use_pin_for_encrypted_files_a;
-pub use use_pin_for_encrypted_files_a::UsePinForEncryptedFilesA;
-mod use_pin_for_encrypted_files_w;
-pub use use_pin_for_encrypted_files_w::UsePinForEncryptedFilesW;
 mod wait_service_state;
 pub use wait_service_state::WaitServiceState;
 mod wmi_close_block;
 pub use wmi_close_block::WmiCloseBlock;
-mod wmi_dev_inst_to_instance_name_a;
-pub use wmi_dev_inst_to_instance_name_a::WmiDevInstToInstanceNameA;
-mod wmi_dev_inst_to_instance_name_w;
-pub use wmi_dev_inst_to_instance_name_w::WmiDevInstToInstanceNameW;
 mod wmi_enumerate_guids;
 pub use wmi_enumerate_guids::WmiEnumerateGuids;
-mod wmi_execute_method_a;
-pub use wmi_execute_method_a::WmiExecuteMethodA;
-mod wmi_execute_method_w;
-pub use wmi_execute_method_w::WmiExecuteMethodW;
-mod wmi_file_handle_to_instance_name_a;
-pub use wmi_file_handle_to_instance_name_a::WmiFileHandleToInstanceNameA;
-mod wmi_file_handle_to_instance_name_w;
-pub use wmi_file_handle_to_instance_name_w::WmiFileHandleToInstanceNameW;
 mod wmi_free_buffer;
 pub use wmi_free_buffer::WmiFreeBuffer;
-mod wmi_mof_enumerate_resources_a;
-pub use wmi_mof_enumerate_resources_a::WmiMofEnumerateResourcesA;
-mod wmi_mof_enumerate_resources_w;
-pub use wmi_mof_enumerate_resources_w::WmiMofEnumerateResourcesW;
-mod wmi_notification_registration_a;
-pub use wmi_notification_registration_a::WmiNotificationRegistrationA;
-mod wmi_notification_registration_w;
-pub use wmi_notification_registration_w::WmiNotificationRegistrationW;
 mod wmi_open_block;
 pub use wmi_open_block::WmiOpenBlock;
-mod wmi_query_all_data_a;
-pub use wmi_query_all_data_a::WmiQueryAllDataA;
-mod wmi_query_all_data_multiple_a;
-pub use wmi_query_all_data_multiple_a::WmiQueryAllDataMultipleA;
-mod wmi_query_all_data_multiple_w;
-pub use wmi_query_all_data_multiple_w::WmiQueryAllDataMultipleW;
-mod wmi_query_all_data_w;
-pub use wmi_query_all_data_w::WmiQueryAllDataW;
 mod wmi_query_guid_information;
 pub use wmi_query_guid_information::WmiQueryGuidInformation;
-mod wmi_query_single_instance_a;
-pub use wmi_query_single_instance_a::WmiQuerySingleInstanceA;
-mod wmi_query_single_instance_multiple_a;
-pub use wmi_query_single_instance_multiple_a::WmiQuerySingleInstanceMultipleA;
-mod wmi_query_single_instance_multiple_w;
-pub use wmi_query_single_instance_multiple_w::WmiQuerySingleInstanceMultipleW;
-mod wmi_query_single_instance_w;
-pub use wmi_query_single_instance_w::WmiQuerySingleInstanceW;
-mod wmi_receive_notifications_a;
-pub use wmi_receive_notifications_a::WmiReceiveNotificationsA;
-mod wmi_receive_notifications_w;
-pub use wmi_receive_notifications_w::WmiReceiveNotificationsW;
-mod wmi_set_single_instance_a;
-pub use wmi_set_single_instance_a::WmiSetSingleInstanceA;
-mod wmi_set_single_instance_w;
-pub use wmi_set_single_instance_w::WmiSetSingleInstanceW;
-mod wmi_set_single_item_a;
-pub use wmi_set_single_item_a::WmiSetSingleItemA;
-mod wmi_set_single_item_w;
-pub use wmi_set_single_item_w::WmiSetSingleItemW;
 mod write_encrypted_file_raw;
 pub use write_encrypted_file_raw::WriteEncryptedFileRaw;
 mod adjust_token_privileges;
@@ -1696,8 +1533,6 @@ mod get_user_name_w;
 use get_user_name_w::GetUserNameW;
 mod lookup_privilege_value_w;
 use lookup_privilege_value_w::LookupPrivilegeValueW;
-mod reg_open_key_ex_a;
-pub use reg_open_key_ex_a::RegOpenKeyExA;
 mod reg_query_value_ex_a;
 pub use reg_query_value_ex_a::RegQueryValueExA;
 mod reg_query_value_ex_w;
@@ -1710,887 +1545,19 @@ use start_service_ctrl_dispatcher_w::StartServiceCtrlDispatcherW;
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    match api {
-        "StartServiceCtrlDispatcherA" => StartServiceCtrlDispatcherA(emu),
-        "StartServiceCtrlDispatcherW" => StartServiceCtrlDispatcherW(emu),
-        "LookupPrivilegeValueW" => LookupPrivilegeValueW(emu),
-        "CryptAcquireContextA" => CryptAcquireContextA(emu),
-        "CryptAcquireContextW" => CryptAcquireContextW(emu),
-        "CryptEncrypt" => CryptEncrypt(emu),
-        "CryptDecrypt" => CryptDecrypt(emu),
-        "CryptCreateHash" => CryptCreateHash(emu),
-        "CryptGenKey" => CryptGenKey(emu),
-        "CryptGetHashParam" => CryptGetHashParam(emu),
-        "CryptGetKeyParam" => CryptGetKeyParam(emu),
-        "CryptImportKey" => CryptImportKey(emu),
-        "CryptSignHashA" => CryptSignHashA(emu),
-        "CryptSignHashW" => CryptSignHashW(emu),
-        "CryptReleaseContext" => CryptReleaseContext(emu),
-        "CryptHashData" => CryptHashData(emu),
-        "CryptDeriveKey" => CryptDeriveKey(emu),
-
-        "RegOpenKeyExA" => RegOpenKeyExA(emu),
-        "RegQueryValueExA" => RegQueryValueExA(emu),
-        "RegQueryValueExW" => RegQueryValueExW(emu),
-        "GetUserNameA" => GetUserNameA(emu),
-        "GetUserNameW" => GetUserNameW(emu),
-        "CryptGenRandom" => CryptGenRandom(emu),
-        "AdjustTokenPrivileges" => AdjustTokenPrivileges(emu),
-
-        "A_SHAFinal" => A_SHAFinal(emu),
-        "A_SHAInit" => A_SHAInit(emu),
-        "A_SHAUpdate" => A_SHAUpdate(emu),
-        "AbortSystemShutdownA" => AbortSystemShutdownA(emu),
-        "AbortSystemShutdownW" => AbortSystemShutdownW(emu),
-        "AccessCheck" => AccessCheck(emu),
-        "AccessCheckAndAuditAlarmA" => AccessCheckAndAuditAlarmA(emu),
-        "AccessCheckAndAuditAlarmW" => AccessCheckAndAuditAlarmW(emu),
-        "AccessCheckByType" => AccessCheckByType(emu),
-        "AccessCheckByTypeAndAuditAlarmA" => AccessCheckByTypeAndAuditAlarmA(emu),
-        "AccessCheckByTypeAndAuditAlarmW" => AccessCheckByTypeAndAuditAlarmW(emu),
-        "AccessCheckByTypeResultList" => AccessCheckByTypeResultList(emu),
-        "AccessCheckByTypeResultListAndAuditAlarmA" => {
-            AccessCheckByTypeResultListAndAuditAlarmA(emu)
-        }
-        "AccessCheckByTypeResultListAndAuditAlarmByHandleA" => {
-            AccessCheckByTypeResultListAndAuditAlarmByHandleA(emu)
-        }
-        "AccessCheckByTypeResultListAndAuditAlarmByHandleW" => {
-            AccessCheckByTypeResultListAndAuditAlarmByHandleW(emu)
-        }
-        "AccessCheckByTypeResultListAndAuditAlarmW" => {
-            AccessCheckByTypeResultListAndAuditAlarmW(emu)
-        }
-        "AddAccessAllowedAce" => AddAccessAllowedAce(emu),
-        "AddAccessAllowedAceEx" => AddAccessAllowedAceEx(emu),
-        "AddAccessAllowedObjectAce" => AddAccessAllowedObjectAce(emu),
-        "AddAccessDeniedAce" => AddAccessDeniedAce(emu),
-        "AddAccessDeniedAceEx" => AddAccessDeniedAceEx(emu),
-        "AddAccessDeniedObjectAce" => AddAccessDeniedObjectAce(emu),
-        "AddAce" => AddAce(emu),
-        "AddAuditAccessAce" => AddAuditAccessAce(emu),
-        "AddAuditAccessAceEx" => AddAuditAccessAceEx(emu),
-        "AddAuditAccessObjectAce" => AddAuditAccessObjectAce(emu),
-        "AddConditionalAce" => AddConditionalAce(emu),
-        "AddMandatoryAce" => AddMandatoryAce(emu),
-        "AddUsersToEncryptedFile" => AddUsersToEncryptedFile(emu),
-        "AddUsersToEncryptedFileEx" => AddUsersToEncryptedFileEx(emu),
-        "AdjustTokenGroups" => AdjustTokenGroups(emu),
-        "AllocateAndInitializeSid" => AllocateAndInitializeSid(emu),
-        "AllocateLocallyUniqueId" => AllocateLocallyUniqueId(emu),
-        "AreAllAccessesGranted" => AreAllAccessesGranted(emu),
-        "AreAnyAccessesGranted" => AreAnyAccessesGranted(emu),
-        "AuditComputeEffectivePolicyBySid" => AuditComputeEffectivePolicyBySid(emu),
-        "AuditComputeEffectivePolicyByToken" => AuditComputeEffectivePolicyByToken(emu),
-        "AuditEnumerateCategories" => AuditEnumerateCategories(emu),
-        "AuditEnumeratePerUserPolicy" => AuditEnumeratePerUserPolicy(emu),
-        "AuditEnumerateSubCategories" => AuditEnumerateSubCategories(emu),
-        "AuditFree" => AuditFree(emu),
-        "AuditLookupCategoryGuidFromCategoryId" => AuditLookupCategoryGuidFromCategoryId(emu),
-        "AuditLookupCategoryIdFromCategoryGuid" => AuditLookupCategoryIdFromCategoryGuid(emu),
-        "AuditLookupCategoryNameA" => AuditLookupCategoryNameA(emu),
-        "AuditLookupCategoryNameW" => AuditLookupCategoryNameW(emu),
-        "AuditLookupSubCategoryNameA" => AuditLookupSubCategoryNameA(emu),
-        "AuditLookupSubCategoryNameW" => AuditLookupSubCategoryNameW(emu),
-        "AuditQueryGlobalSaclA" => AuditQueryGlobalSaclA(emu),
-        "AuditQueryGlobalSaclW" => AuditQueryGlobalSaclW(emu),
-        "AuditQueryPerUserPolicy" => AuditQueryPerUserPolicy(emu),
-        "AuditQuerySecurity" => AuditQuerySecurity(emu),
-        "AuditQuerySystemPolicy" => AuditQuerySystemPolicy(emu),
-        "AuditSetGlobalSaclA" => AuditSetGlobalSaclA(emu),
-        "AuditSetGlobalSaclW" => AuditSetGlobalSaclW(emu),
-        "AuditSetPerUserPolicy" => AuditSetPerUserPolicy(emu),
-        "AuditSetSecurity" => AuditSetSecurity(emu),
-        "AuditSetSystemPolicy" => AuditSetSystemPolicy(emu),
-        "BackupEventLogA" => BackupEventLogA(emu),
-        "BackupEventLogW" => BackupEventLogW(emu),
-        "BaseRegCloseKey" => BaseRegCloseKey(emu),
-        "BaseRegCreateKey" => BaseRegCreateKey(emu),
-        "BaseRegDeleteKeyEx" => BaseRegDeleteKeyEx(emu),
-        "BaseRegDeleteValue" => BaseRegDeleteValue(emu),
-        "BaseRegFlushKey" => BaseRegFlushKey(emu),
-        "BaseRegGetVersion" => BaseRegGetVersion(emu),
-        "BaseRegLoadKey" => BaseRegLoadKey(emu),
-        "BaseRegOpenKey" => BaseRegOpenKey(emu),
-        "BaseRegRestoreKey" => BaseRegRestoreKey(emu),
-        "BaseRegSaveKeyEx" => BaseRegSaveKeyEx(emu),
-        "BaseRegSetKeySecurity" => BaseRegSetKeySecurity(emu),
-        "BaseRegSetValue" => BaseRegSetValue(emu),
-        "BaseRegUnLoadKey" => BaseRegUnLoadKey(emu),
-        "BuildExplicitAccessWithNameA" => BuildExplicitAccessWithNameA(emu),
-        "BuildExplicitAccessWithNameW" => BuildExplicitAccessWithNameW(emu),
-        "BuildImpersonateExplicitAccessWithNameA" => BuildImpersonateExplicitAccessWithNameA(emu),
-        "BuildImpersonateExplicitAccessWithNameW" => BuildImpersonateExplicitAccessWithNameW(emu),
-        "BuildImpersonateTrusteeA" => BuildImpersonateTrusteeA(emu),
-        "BuildImpersonateTrusteeW" => BuildImpersonateTrusteeW(emu),
-        "BuildSecurityDescriptorA" => BuildSecurityDescriptorA(emu),
-        "BuildSecurityDescriptorW" => BuildSecurityDescriptorW(emu),
-        "BuildTrusteeWithNameA" => BuildTrusteeWithNameA(emu),
-        "BuildTrusteeWithNameW" => BuildTrusteeWithNameW(emu),
-        "BuildTrusteeWithObjectsAndNameA" => BuildTrusteeWithObjectsAndNameA(emu),
-        "BuildTrusteeWithObjectsAndNameW" => BuildTrusteeWithObjectsAndNameW(emu),
-        "BuildTrusteeWithObjectsAndSidA" => BuildTrusteeWithObjectsAndSidA(emu),
-        "BuildTrusteeWithObjectsAndSidW" => BuildTrusteeWithObjectsAndSidW(emu),
-        "BuildTrusteeWithSidA" => BuildTrusteeWithSidA(emu),
-        "BuildTrusteeWithSidW" => BuildTrusteeWithSidW(emu),
-        "CancelOverlappedAccess" => CancelOverlappedAccess(emu),
-        "ChangeServiceConfig2A" => ChangeServiceConfig2A(emu),
-        "ChangeServiceConfig2W" => ChangeServiceConfig2W(emu),
-        "ChangeServiceConfigA" => ChangeServiceConfigA(emu),
-        "ChangeServiceConfigW" => ChangeServiceConfigW(emu),
-        "CheckForHiberboot" => CheckForHiberboot(emu),
-        "CheckTokenMembership" => CheckTokenMembership(emu),
-        "ClearEventLogA" => ClearEventLogA(emu),
-        "ClearEventLogW" => ClearEventLogW(emu),
-        "CloseCodeAuthzLevel" => CloseCodeAuthzLevel(emu),
-        "CloseEncryptedFileRaw" => CloseEncryptedFileRaw(emu),
-        "CloseEventLog" => CloseEventLog(emu),
-        "CloseServiceHandle" => CloseServiceHandle(emu),
-        "CloseThreadWaitChainSession" => CloseThreadWaitChainSession(emu),
-        "CloseTrace" => CloseTrace(emu),
-        "CommandLineFromMsiDescriptor" => CommandLineFromMsiDescriptor(emu),
-        "ComputeAccessTokenFromCodeAuthzLevel" => ComputeAccessTokenFromCodeAuthzLevel(emu),
-        "ControlService" => ControlService(emu),
-        "ControlServiceExA" => ControlServiceExA(emu),
-        "ControlServiceExW" => ControlServiceExW(emu),
-        "ControlTraceA" => ControlTraceA(emu),
-        "ControlTraceW" => ControlTraceW(emu),
-        "ConvertAccessToSecurityDescriptorA" => ConvertAccessToSecurityDescriptorA(emu),
-        "ConvertAccessToSecurityDescriptorW" => ConvertAccessToSecurityDescriptorW(emu),
-        "ConvertSDToStringSDDomainW" => ConvertSDToStringSDDomainW(emu),
-        "ConvertSDToStringSDRootDomainA" => ConvertSDToStringSDRootDomainA(emu),
-        "ConvertSDToStringSDRootDomainW" => ConvertSDToStringSDRootDomainW(emu),
-        "ConvertSecurityDescriptorToAccessA" => ConvertSecurityDescriptorToAccessA(emu),
-        "ConvertSecurityDescriptorToAccessNamedA" => ConvertSecurityDescriptorToAccessNamedA(emu),
-        "ConvertSecurityDescriptorToAccessNamedW" => ConvertSecurityDescriptorToAccessNamedW(emu),
-        "ConvertSecurityDescriptorToAccessW" => ConvertSecurityDescriptorToAccessW(emu),
-        "ConvertSecurityDescriptorToStringSecurityDescriptorA" => {
-            ConvertSecurityDescriptorToStringSecurityDescriptorA(emu)
-        }
-        "ConvertSecurityDescriptorToStringSecurityDescriptorW" => {
-            ConvertSecurityDescriptorToStringSecurityDescriptorW(emu)
-        }
-        "ConvertSidToStringSidA" => ConvertSidToStringSidA(emu),
-        "ConvertSidToStringSidW" => ConvertSidToStringSidW(emu),
-        "ConvertStringSDToSDDomainA" => ConvertStringSDToSDDomainA(emu),
-        "ConvertStringSDToSDDomainW" => ConvertStringSDToSDDomainW(emu),
-        "ConvertStringSDToSDRootDomainA" => ConvertStringSDToSDRootDomainA(emu),
-        "ConvertStringSDToSDRootDomainW" => ConvertStringSDToSDRootDomainW(emu),
-        "ConvertStringSecurityDescriptorToSecurityDescriptorA" => {
-            ConvertStringSecurityDescriptorToSecurityDescriptorA(emu)
-        }
-        "ConvertStringSecurityDescriptorToSecurityDescriptorW" => {
-            ConvertStringSecurityDescriptorToSecurityDescriptorW(emu)
-        }
-        "ConvertStringSidToSidA" => ConvertStringSidToSidA(emu),
-        "ConvertStringSidToSidW" => ConvertStringSidToSidW(emu),
-        "ConvertToAutoInheritPrivateObjectSecurity" => {
-            ConvertToAutoInheritPrivateObjectSecurity(emu)
-        }
-        "CopySid" => CopySid(emu),
-        "CreateCodeAuthzLevel" => CreateCodeAuthzLevel(emu),
-        "CreatePrivateObjectSecurity" => CreatePrivateObjectSecurity(emu),
-        "CreatePrivateObjectSecurityEx" => CreatePrivateObjectSecurityEx(emu),
-        "CreatePrivateObjectSecurityWithMultipleInheritance" => {
-            CreatePrivateObjectSecurityWithMultipleInheritance(emu)
-        }
-        "CreateProcessAsUserA" => CreateProcessAsUserA(emu),
-        "CreateProcessAsUserW" => CreateProcessAsUserW(emu),
-        "CreateProcessWithLogonW" => CreateProcessWithLogonW(emu),
-        "CreateProcessWithTokenW" => CreateProcessWithTokenW(emu),
-        "CreateRestrictedToken" => CreateRestrictedToken(emu),
-        "CreateServiceA" => CreateServiceA(emu),
-        "CreateServiceEx" => CreateServiceEx(emu),
-        "CreateServiceW" => CreateServiceW(emu),
-        "CreateTraceInstanceId" => CreateTraceInstanceId(emu),
-        "CreateWellKnownSid" => CreateWellKnownSid(emu),
-        "CredBackupCredentials" => CredBackupCredentials(emu),
-        "CredDeleteA" => CredDeleteA(emu),
-        "CredDeleteW" => CredDeleteW(emu),
-        "CredEncryptAndMarshalBinaryBlob" => CredEncryptAndMarshalBinaryBlob(emu),
-        "CredEnumerateA" => CredEnumerateA(emu),
-        "CredEnumerateW" => CredEnumerateW(emu),
-        "CredFindBestCredentialA" => CredFindBestCredentialA(emu),
-        "CredFindBestCredentialW" => CredFindBestCredentialW(emu),
-        "CredFree" => CredFree(emu),
-        "CredGetSessionTypes" => CredGetSessionTypes(emu),
-        "CredGetTargetInfoA" => CredGetTargetInfoA(emu),
-        "CredGetTargetInfoW" => CredGetTargetInfoW(emu),
-        "CredIsMarshaledCredentialA" => CredIsMarshaledCredentialA(emu),
-        "CredIsMarshaledCredentialW" => CredIsMarshaledCredentialW(emu),
-        "CredIsProtectedA" => CredIsProtectedA(emu),
-        "CredIsProtectedW" => CredIsProtectedW(emu),
-        "CredMarshalCredentialA" => CredMarshalCredentialA(emu),
-        "CredMarshalCredentialW" => CredMarshalCredentialW(emu),
-        "CredProfileLoaded" => CredProfileLoaded(emu),
-        "CredProfileLoadedEx" => CredProfileLoadedEx(emu),
-        "CredProfileUnloaded" => CredProfileUnloaded(emu),
-        "CredProtectA" => CredProtectA(emu),
-        "CredProtectW" => CredProtectW(emu),
-        "CredReadA" => CredReadA(emu),
-        "CredReadByTokenHandle" => CredReadByTokenHandle(emu),
-        "CredReadDomainCredentialsA" => CredReadDomainCredentialsA(emu),
-        "CredReadDomainCredentialsW" => CredReadDomainCredentialsW(emu),
-        "CredReadW" => CredReadW(emu),
-        "CredRenameA" => CredRenameA(emu),
-        "CredRenameW" => CredRenameW(emu),
-        "CredRestoreCredentials" => CredRestoreCredentials(emu),
-        "CredUnmarshalCredentialA" => CredUnmarshalCredentialA(emu),
-        "CredUnmarshalCredentialW" => CredUnmarshalCredentialW(emu),
-        "CredUnprotectA" => CredUnprotectA(emu),
-        "CredUnprotectW" => CredUnprotectW(emu),
-        "CredWriteA" => CredWriteA(emu),
-        "CredWriteDomainCredentialsA" => CredWriteDomainCredentialsA(emu),
-        "CredWriteDomainCredentialsW" => CredWriteDomainCredentialsW(emu),
-        "CredWriteW" => CredWriteW(emu),
-        "CredpConvertCredential" => CredpConvertCredential(emu),
-        "CredpConvertOneCredentialSize" => CredpConvertOneCredentialSize(emu),
-        "CredpConvertTargetInfo" => CredpConvertTargetInfo(emu),
-        "CredpDecodeCredential" => CredpDecodeCredential(emu),
-        "CredpEncodeCredential" => CredpEncodeCredential(emu),
-        "CredpEncodeSecret" => CredpEncodeSecret(emu),
-        "CryptContextAddRef" => CryptContextAddRef(emu),
-        "CryptDestroyHash" => CryptDestroyHash(emu),
-        "CryptDestroyKey" => CryptDestroyKey(emu),
-        "CryptDuplicateHash" => CryptDuplicateHash(emu),
-        "CryptDuplicateKey" => CryptDuplicateKey(emu),
-        "CryptEnumProviderTypesA" => CryptEnumProviderTypesA(emu),
-        "CryptEnumProviderTypesW" => CryptEnumProviderTypesW(emu),
-        "CryptEnumProvidersA" => CryptEnumProvidersA(emu),
-        "CryptEnumProvidersW" => CryptEnumProvidersW(emu),
-        "CryptExportKey" => CryptExportKey(emu),
-        "CryptGetDefaultProviderA" => CryptGetDefaultProviderA(emu),
-        "CryptGetDefaultProviderW" => CryptGetDefaultProviderW(emu),
-        "CryptGetProvParam" => CryptGetProvParam(emu),
-        "CryptGetUserKey" => CryptGetUserKey(emu),
-        "CryptHashSessionKey" => CryptHashSessionKey(emu),
-        "CryptSetHashParam" => CryptSetHashParam(emu),
-        "CryptSetKeyParam" => CryptSetKeyParam(emu),
-        "CryptSetProvParam" => CryptSetProvParam(emu),
-        "CryptSetProviderA" => CryptSetProviderA(emu),
-        "CryptSetProviderExA" => CryptSetProviderExA(emu),
-        "CryptSetProviderExW" => CryptSetProviderExW(emu),
-        "CryptSetProviderW" => CryptSetProviderW(emu),
-        "CryptVerifySignatureA" => CryptVerifySignatureA(emu),
-        "CryptVerifySignatureW" => CryptVerifySignatureW(emu),
-        "CveEventWrite" => CveEventWrite(emu),
-        "DecryptFileA" => DecryptFileA(emu),
-        "DecryptFileW" => DecryptFileW(emu),
-        "DeleteAce" => DeleteAce(emu),
-        "DeleteService" => DeleteService(emu),
-        "DeregisterEventSource" => DeregisterEventSource(emu),
-        "DestroyPrivateObjectSecurity" => DestroyPrivateObjectSecurity(emu),
-        "DuplicateEncryptionInfoFile" => DuplicateEncryptionInfoFile(emu),
-        "DuplicateToken" => DuplicateToken(emu),
-        "DuplicateTokenEx" => DuplicateTokenEx(emu),
-        "EnableTrace" => EnableTrace(emu),
-        "EnableTraceEx" => EnableTraceEx(emu),
-        "EnableTraceEx2" => EnableTraceEx2(emu),
-        "EncryptFileA" => EncryptFileA(emu),
-        "EncryptFileW" => EncryptFileW(emu),
-        "EncryptedFileKeyInfo" => EncryptedFileKeyInfo(emu),
-        "EncryptionDisable" => EncryptionDisable(emu),
-        "EnumDependentServicesA" => EnumDependentServicesA(emu),
-        "EnumDependentServicesW" => EnumDependentServicesW(emu),
-        "EnumDynamicTimeZoneInformation" => EnumDynamicTimeZoneInformation(emu),
-        "EnumServiceGroupW" => EnumServiceGroupW(emu),
-        "EnumServicesStatusA" => EnumServicesStatusA(emu),
-        "EnumServicesStatusExA" => EnumServicesStatusExA(emu),
-        "EnumServicesStatusExW" => EnumServicesStatusExW(emu),
-        "EnumServicesStatusW" => EnumServicesStatusW(emu),
-        "EnumerateTraceGuids" => EnumerateTraceGuids(emu),
-        "EnumerateTraceGuidsEx" => EnumerateTraceGuidsEx(emu),
-        "EqualDomainSid" => EqualDomainSid(emu),
-        "EqualPrefixSid" => EqualPrefixSid(emu),
-        "EqualSid" => EqualSid(emu),
-        "EventAccessControl" => EventAccessControl(emu),
-        "EventAccessQuery" => EventAccessQuery(emu),
-        "EventAccessRemove" => EventAccessRemove(emu),
-        "EventActivityIdControl" => EventActivityIdControl(emu),
-        "EventEnabled" => EventEnabled(emu),
-        "EventProviderEnabled" => EventProviderEnabled(emu),
-        "EventRegister" => EventRegister(emu),
-        "EventSetInformation" => EventSetInformation(emu),
-        "EventUnregister" => EventUnregister(emu),
-        "EventWrite" => EventWrite(emu),
-        "EventWriteEndScenario" => EventWriteEndScenario(emu),
-        "EventWriteEx" => EventWriteEx(emu),
-        "EventWriteStartScenario" => EventWriteStartScenario(emu),
-        "EventWriteString" => EventWriteString(emu),
-        "EventWriteTransfer" => EventWriteTransfer(emu),
-        "FileEncryptionStatusA" => FileEncryptionStatusA(emu),
-        "FileEncryptionStatusW" => FileEncryptionStatusW(emu),
-        "FindFirstFreeAce" => FindFirstFreeAce(emu),
-        "FlushEfsCache" => FlushEfsCache(emu),
-        "FlushTraceA" => FlushTraceA(emu),
-        "FlushTraceW" => FlushTraceW(emu),
-        "FreeEncryptedFileKeyInfo" => FreeEncryptedFileKeyInfo(emu),
-        "FreeEncryptedFileMetadata" => FreeEncryptedFileMetadata(emu),
-        "FreeEncryptionCertificateHashList" => FreeEncryptionCertificateHashList(emu),
-        "FreeInheritedFromArray" => FreeInheritedFromArray(emu),
-        "FreeSid" => FreeSid(emu),
-        "GetAccessPermissionsForObjectA" => GetAccessPermissionsForObjectA(emu),
-        "GetAccessPermissionsForObjectW" => GetAccessPermissionsForObjectW(emu),
-        "GetAce" => GetAce(emu),
-        "GetAclInformation" => GetAclInformation(emu),
-        "GetAuditedPermissionsFromAclA" => GetAuditedPermissionsFromAclA(emu),
-        "GetAuditedPermissionsFromAclW" => GetAuditedPermissionsFromAclW(emu),
-        "GetCurrentHwProfileA" => GetCurrentHwProfileA(emu),
-        "GetCurrentHwProfileW" => GetCurrentHwProfileW(emu),
-        "GetDynamicTimeZoneInformationEffectiveYears" => {
-            GetDynamicTimeZoneInformationEffectiveYears(emu)
-        }
-        "GetEffectiveRightsFromAclA" => GetEffectiveRightsFromAclA(emu),
-        "GetEffectiveRightsFromAclW" => GetEffectiveRightsFromAclW(emu),
-        "GetEncryptedFileMetadata" => GetEncryptedFileMetadata(emu),
-        "GetEventLogInformation" => GetEventLogInformation(emu),
-        "GetExplicitEntriesFromAclA" => GetExplicitEntriesFromAclA(emu),
-        "GetExplicitEntriesFromAclW" => GetExplicitEntriesFromAclW(emu),
-        "GetFileSecurityA" => GetFileSecurityA(emu),
-        "GetFileSecurityW" => GetFileSecurityW(emu),
-        "GetInformationCodeAuthzLevelW" => GetInformationCodeAuthzLevelW(emu),
-        "GetInformationCodeAuthzPolicyW" => GetInformationCodeAuthzPolicyW(emu),
-        "GetInheritanceSourceA" => GetInheritanceSourceA(emu),
-        "GetInheritanceSourceW" => GetInheritanceSourceW(emu),
-        "GetKernelObjectSecurity" => GetKernelObjectSecurity(emu),
-        "GetLengthSid" => GetLengthSid(emu),
-        "GetLocalManagedApplicationData" => GetLocalManagedApplicationData(emu),
-        "GetLocalManagedApplications" => GetLocalManagedApplications(emu),
-        "GetManagedApplicationCategories" => GetManagedApplicationCategories(emu),
-        "GetManagedApplications" => GetManagedApplications(emu),
-        "GetMultipleTrusteeA" => GetMultipleTrusteeA(emu),
-        "GetMultipleTrusteeOperationA" => GetMultipleTrusteeOperationA(emu),
-        "GetMultipleTrusteeOperationW" => GetMultipleTrusteeOperationW(emu),
-        "GetMultipleTrusteeW" => GetMultipleTrusteeW(emu),
-        "GetNamedSecurityInfoA" => GetNamedSecurityInfoA(emu),
-        "GetNamedSecurityInfoExA" => GetNamedSecurityInfoExA(emu),
-        "GetNamedSecurityInfoExW" => GetNamedSecurityInfoExW(emu),
-        "GetNamedSecurityInfoW" => GetNamedSecurityInfoW(emu),
-        "GetNumberOfEventLogRecords" => GetNumberOfEventLogRecords(emu),
-        "GetOldestEventLogRecord" => GetOldestEventLogRecord(emu),
-        "GetOverlappedAccessResults" => GetOverlappedAccessResults(emu),
-        "GetPrivateObjectSecurity" => GetPrivateObjectSecurity(emu),
-        "GetSecurityDescriptorControl" => GetSecurityDescriptorControl(emu),
-        "GetSecurityDescriptorDacl" => GetSecurityDescriptorDacl(emu),
-        "GetSecurityDescriptorGroup" => GetSecurityDescriptorGroup(emu),
-        "GetSecurityDescriptorLength" => GetSecurityDescriptorLength(emu),
-        "GetSecurityDescriptorOwner" => GetSecurityDescriptorOwner(emu),
-        "GetSecurityDescriptorRMControl" => GetSecurityDescriptorRMControl(emu),
-        "GetSecurityDescriptorSacl" => GetSecurityDescriptorSacl(emu),
-        "GetSecurityInfo" => GetSecurityInfo(emu),
-        "GetSecurityInfoExA" => GetSecurityInfoExA(emu),
-        "GetSecurityInfoExW" => GetSecurityInfoExW(emu),
-        "GetServiceDisplayNameA" => GetServiceDisplayNameA(emu),
-        "GetServiceDisplayNameW" => GetServiceDisplayNameW(emu),
-        "GetServiceKeyNameA" => GetServiceKeyNameA(emu),
-        "GetServiceKeyNameW" => GetServiceKeyNameW(emu),
-        "GetSidIdentifierAuthority" => GetSidIdentifierAuthority(emu),
-        "GetSidLengthRequired" => GetSidLengthRequired(emu),
-        "GetSidSubAuthority" => GetSidSubAuthority(emu),
-        "GetSidSubAuthorityCount" => GetSidSubAuthorityCount(emu),
-        "GetStringConditionFromBinary" => GetStringConditionFromBinary(emu),
-        "GetThreadWaitChain" => GetThreadWaitChain(emu),
-        "GetTokenInformation" => GetTokenInformation(emu),
-        "GetTraceEnableFlags" => GetTraceEnableFlags(emu),
-        "GetTraceEnableLevel" => GetTraceEnableLevel(emu),
-        "GetTraceLoggerHandle" => GetTraceLoggerHandle(emu),
-        "GetTrusteeFormA" => GetTrusteeFormA(emu),
-        "GetTrusteeFormW" => GetTrusteeFormW(emu),
-        "GetTrusteeNameA" => GetTrusteeNameA(emu),
-        "GetTrusteeNameW" => GetTrusteeNameW(emu),
-        "GetTrusteeTypeA" => GetTrusteeTypeA(emu),
-        "GetTrusteeTypeW" => GetTrusteeTypeW(emu),
-        "GetWindowsAccountDomainSid" => GetWindowsAccountDomainSid(emu),
-        "I_QueryTagInformation" => I_QueryTagInformation(emu),
-        "I_ScGetCurrentGroupStateW" => I_ScGetCurrentGroupStateW(emu),
-        "I_ScIsSecurityProcess" => I_ScIsSecurityProcess(emu),
-        "I_ScPnPGetServiceName" => I_ScPnPGetServiceName(emu),
-        "I_ScQueryServiceConfig" => I_ScQueryServiceConfig(emu),
-        "I_ScRegisterPreshutdownRestart" => I_ScRegisterPreshutdownRestart(emu),
-        "I_ScReparseServiceDatabase" => I_ScReparseServiceDatabase(emu),
-        "I_ScSendPnPMessage" => I_ScSendPnPMessage(emu),
-        "I_ScSendTSMessage" => I_ScSendTSMessage(emu),
-        "I_ScSetServiceBitsA" => I_ScSetServiceBitsA(emu),
-        "I_ScSetServiceBitsW" => I_ScSetServiceBitsW(emu),
-        "I_ScValidatePnPService" => I_ScValidatePnPService(emu),
-        "IdentifyCodeAuthzLevelW" => IdentifyCodeAuthzLevelW(emu),
-        "ImpersonateAnonymousToken" => ImpersonateAnonymousToken(emu),
-        "ImpersonateLoggedOnUser" => ImpersonateLoggedOnUser(emu),
-        "ImpersonateNamedPipeClient" => ImpersonateNamedPipeClient(emu),
-        "ImpersonateSelf" => ImpersonateSelf(emu),
-        "InitializeAcl" => InitializeAcl(emu),
-        "InitializeSecurityDescriptor" => InitializeSecurityDescriptor(emu),
-        "InitializeSid" => InitializeSid(emu),
-        "InitiateShutdownA" => InitiateShutdownA(emu),
-        "InitiateShutdownW" => InitiateShutdownW(emu),
-        "InitiateSystemShutdownA" => InitiateSystemShutdownA(emu),
-        "InitiateSystemShutdownExA" => InitiateSystemShutdownExA(emu),
-        "InitiateSystemShutdownExW" => InitiateSystemShutdownExW(emu),
-        "InitiateSystemShutdownW" => InitiateSystemShutdownW(emu),
-        "InstallApplication" => InstallApplication(emu),
-        "IsTextUnicode" => IsTextUnicode(emu),
-        "IsTokenRestricted" => IsTokenRestricted(emu),
-        "IsTokenUntrusted" => IsTokenUntrusted(emu),
-        "IsValidAcl" => IsValidAcl(emu),
-        "IsValidRelativeSecurityDescriptor" => IsValidRelativeSecurityDescriptor(emu),
-        "IsValidSecurityDescriptor" => IsValidSecurityDescriptor(emu),
-        "IsValidSid" => IsValidSid(emu),
-        "IsWellKnownSid" => IsWellKnownSid(emu),
-        "LockServiceDatabase" => LockServiceDatabase(emu),
-        "LogonSecondaryUserIntoSessionW" => LogonSecondaryUserIntoSessionW(emu),
-        "LogonUserA" => LogonUserA(emu),
-        "LogonUserExA" => LogonUserExA(emu),
-        "LogonUserExExW" => LogonUserExExW(emu),
-        "LogonUserExW" => LogonUserExW(emu),
-        "LogonUserW" => LogonUserW(emu),
-        "LookupAccountNameA" => LookupAccountNameA(emu),
-        "LookupAccountNameW" => LookupAccountNameW(emu),
-        "LookupAccountSidA" => LookupAccountSidA(emu),
-        "LookupAccountSidW" => LookupAccountSidW(emu),
-        "LookupPrivilegeDisplayNameA" => LookupPrivilegeDisplayNameA(emu),
-        "LookupPrivilegeDisplayNameW" => LookupPrivilegeDisplayNameW(emu),
-        "LookupPrivilegeNameA" => LookupPrivilegeNameA(emu),
-        "LookupPrivilegeNameW" => LookupPrivilegeNameW(emu),
-        "LookupPrivilegeValueA" => LookupPrivilegeValueA(emu),
-        "LookupSecurityDescriptorPartsA" => LookupSecurityDescriptorPartsA(emu),
-        "LookupSecurityDescriptorPartsW" => LookupSecurityDescriptorPartsW(emu),
-        "LsaAddAccountRights" => LsaAddAccountRights(emu),
-        "LsaAddPrivilegesToAccount" => LsaAddPrivilegesToAccount(emu),
-        "LsaClearAuditLog" => LsaClearAuditLog(emu),
-        "LsaClose" => LsaClose(emu),
-        "LsaConfigureAutoLogonCredentials" => LsaConfigureAutoLogonCredentials(emu),
-        "LsaCreateAccount" => LsaCreateAccount(emu),
-        "LsaCreateSecret" => LsaCreateSecret(emu),
-        "LsaCreateTrustedDomain" => LsaCreateTrustedDomain(emu),
-        "LsaCreateTrustedDomainEx" => LsaCreateTrustedDomainEx(emu),
-        "LsaDelete" => LsaDelete(emu),
-        "LsaDeleteTrustedDomain" => LsaDeleteTrustedDomain(emu),
-        "LsaDisableUserArso" => LsaDisableUserArso(emu),
-        "LsaEnableUserArso" => LsaEnableUserArso(emu),
-        "LsaEnumerateAccountRights" => LsaEnumerateAccountRights(emu),
-        "LsaEnumerateAccounts" => LsaEnumerateAccounts(emu),
-        "LsaEnumerateAccountsWithUserRight" => LsaEnumerateAccountsWithUserRight(emu),
-        "LsaEnumeratePrivileges" => LsaEnumeratePrivileges(emu),
-        "LsaEnumeratePrivilegesOfAccount" => LsaEnumeratePrivilegesOfAccount(emu),
-        "LsaEnumerateTrustedDomains" => LsaEnumerateTrustedDomains(emu),
-        "LsaEnumerateTrustedDomainsEx" => LsaEnumerateTrustedDomainsEx(emu),
-        "LsaFreeMemory" => LsaFreeMemory(emu),
-        "LsaGetAppliedCAPIDs" => LsaGetAppliedCAPIDs(emu),
-        "LsaGetDeviceRegistrationInfo" => LsaGetDeviceRegistrationInfo(emu),
-        "LsaGetQuotasForAccount" => LsaGetQuotasForAccount(emu),
-        "LsaGetRemoteUserName" => LsaGetRemoteUserName(emu),
-        "LsaGetSystemAccessAccount" => LsaGetSystemAccessAccount(emu),
-        "LsaGetUserName" => LsaGetUserName(emu),
-        "LsaICLookupNames" => LsaICLookupNames(emu),
-        "LsaICLookupNamesWithCreds" => LsaICLookupNamesWithCreds(emu),
-        "LsaICLookupSids" => LsaICLookupSids(emu),
-        "LsaICLookupSidsWithCreds" => LsaICLookupSidsWithCreds(emu),
-        "LsaInvokeTrustScanner" => LsaInvokeTrustScanner(emu),
-        "LsaIsUserArsoAllowed" => LsaIsUserArsoAllowed(emu),
-        "LsaIsUserArsoEnabled" => LsaIsUserArsoEnabled(emu),
-        "LsaLookupNames" => LsaLookupNames(emu),
-        "LsaLookupNames2" => LsaLookupNames2(emu),
-        "LsaLookupPrivilegeDisplayName" => LsaLookupPrivilegeDisplayName(emu),
-        "LsaLookupPrivilegeName" => LsaLookupPrivilegeName(emu),
-        "LsaLookupPrivilegeValue" => LsaLookupPrivilegeValue(emu),
-        "LsaLookupSids" => LsaLookupSids(emu),
-        "LsaLookupSids2" => LsaLookupSids2(emu),
-        "LsaManageSidNameMapping" => LsaManageSidNameMapping(emu),
-        "LsaNtStatusToWinError" => LsaNtStatusToWinError(emu),
-        "LsaOpenAccount" => LsaOpenAccount(emu),
-        "LsaOpenPolicy" => LsaOpenPolicy(emu),
-        "LsaOpenPolicySce" => LsaOpenPolicySce(emu),
-        "LsaOpenSecret" => LsaOpenSecret(emu),
-        "LsaOpenTrustedDomain" => LsaOpenTrustedDomain(emu),
-        "LsaOpenTrustedDomainByName" => LsaOpenTrustedDomainByName(emu),
-        "LsaProfileDeleted" => LsaProfileDeleted(emu),
-        "LsaPurgeLocalSystemAccessTable" => LsaPurgeLocalSystemAccessTable(emu),
-        "LsaQueryCAPs" => LsaQueryCAPs(emu),
-        "LsaQueryDomainInformationPolicy" => LsaQueryDomainInformationPolicy(emu),
-        "LsaQueryForestTrustInformation" => LsaQueryForestTrustInformation(emu),
-        "LsaQueryForestTrustInformation2" => LsaQueryForestTrustInformation2(emu),
-        "LsaQueryInfoTrustedDomain" => LsaQueryInfoTrustedDomain(emu),
-        "LsaQueryInformationPolicy" => LsaQueryInformationPolicy(emu),
-        "LsaQueryLocalSystemAccess" => LsaQueryLocalSystemAccess(emu),
-        "LsaQueryLocalSystemAccessAll" => LsaQueryLocalSystemAccessAll(emu),
-        "LsaQuerySecret" => LsaQuerySecret(emu),
-        "LsaQuerySecurityObject" => LsaQuerySecurityObject(emu),
-        "LsaQueryTrustedDomainInfo" => LsaQueryTrustedDomainInfo(emu),
-        "LsaQueryTrustedDomainInfoByName" => LsaQueryTrustedDomainInfoByName(emu),
-        "LsaRemoveAccountRights" => LsaRemoveAccountRights(emu),
-        "LsaRemovePrivilegesFromAccount" => LsaRemovePrivilegesFromAccount(emu),
-        "LsaRetrievePrivateData" => LsaRetrievePrivateData(emu),
-        "LsaSetCAPs" => LsaSetCAPs(emu),
-        "LsaSetDomainInformationPolicy" => LsaSetDomainInformationPolicy(emu),
-        "LsaSetForestTrustInformation" => LsaSetForestTrustInformation(emu),
-        "LsaSetForestTrustInformation2" => LsaSetForestTrustInformation2(emu),
-        "LsaSetInformationPolicy" => LsaSetInformationPolicy(emu),
-        "LsaSetInformationTrustedDomain" => LsaSetInformationTrustedDomain(emu),
-        "LsaSetLocalSystemAccess" => LsaSetLocalSystemAccess(emu),
-        "LsaSetQuotasForAccount" => LsaSetQuotasForAccount(emu),
-        "LsaSetSecret" => LsaSetSecret(emu),
-        "LsaSetSecurityObject" => LsaSetSecurityObject(emu),
-        "LsaSetSystemAccessAccount" => LsaSetSystemAccessAccount(emu),
-        "LsaSetTrustedDomainInfoByName" => LsaSetTrustedDomainInfoByName(emu),
-        "LsaSetTrustedDomainInformation" => LsaSetTrustedDomainInformation(emu),
-        "LsaStorePrivateData" => LsaStorePrivateData(emu),
-        "LsaValidateProcUniqueLuid" => LsaValidateProcUniqueLuid(emu),
-        "MD4Final" => MD4Final(emu),
-        "MD4Init" => MD4Init(emu),
-        "MD4Update" => MD4Update(emu),
-        "MD5Final" => MD5Final(emu),
-        "MD5Init" => MD5Init(emu),
-        "MD5Update" => MD5Update(emu),
-        "MIDL_user_free_Ext" => MIDL_user_free_Ext(emu),
-        "MSChapSrvChangePassword" => MSChapSrvChangePassword(emu),
-        "MSChapSrvChangePassword2" => MSChapSrvChangePassword2(emu),
-        "MakeAbsoluteSD" => MakeAbsoluteSD(emu),
-        "MakeAbsoluteSD2" => MakeAbsoluteSD2(emu),
-        "MakeSelfRelativeSD" => MakeSelfRelativeSD(emu),
-        "MapGenericMask" => MapGenericMask(emu),
-        "NotifyBootConfigStatus" => NotifyBootConfigStatus(emu),
-        "NotifyChangeEventLog" => NotifyChangeEventLog(emu),
-        "NotifyServiceStatusChange" => NotifyServiceStatusChange(emu),
-        "NotifyServiceStatusChangeA" => NotifyServiceStatusChangeA(emu),
-        "NotifyServiceStatusChangeW" => NotifyServiceStatusChangeW(emu),
-        "NpGetUserName" => NpGetUserName(emu),
-        "ObjectCloseAuditAlarmA" => ObjectCloseAuditAlarmA(emu),
-        "ObjectCloseAuditAlarmW" => ObjectCloseAuditAlarmW(emu),
-        "ObjectDeleteAuditAlarmA" => ObjectDeleteAuditAlarmA(emu),
-        "ObjectDeleteAuditAlarmW" => ObjectDeleteAuditAlarmW(emu),
-        "ObjectOpenAuditAlarmA" => ObjectOpenAuditAlarmA(emu),
-        "ObjectOpenAuditAlarmW" => ObjectOpenAuditAlarmW(emu),
-        "ObjectPrivilegeAuditAlarmA" => ObjectPrivilegeAuditAlarmA(emu),
-        "ObjectPrivilegeAuditAlarmW" => ObjectPrivilegeAuditAlarmW(emu),
-        "OpenBackupEventLogA" => OpenBackupEventLogA(emu),
-        "OpenBackupEventLogW" => OpenBackupEventLogW(emu),
-        "OpenEncryptedFileRawA" => OpenEncryptedFileRawA(emu),
-        "OpenEncryptedFileRawW" => OpenEncryptedFileRawW(emu),
-        "OpenEventLogA" => OpenEventLogA(emu),
-        "OpenEventLogW" => OpenEventLogW(emu),
-        "OpenProcessToken" => OpenProcessToken(emu),
-        "OpenSCManagerA" => OpenSCManagerA(emu),
-        "OpenSCManagerW" => OpenSCManagerW(emu),
-        "OpenServiceA" => OpenServiceA(emu),
-        "OpenServiceW" => OpenServiceW(emu),
-        "OpenThreadToken" => OpenThreadToken(emu),
-        "OpenThreadWaitChainSession" => OpenThreadWaitChainSession(emu),
-        "OpenTraceA" => OpenTraceA(emu),
-        "OpenTraceW" => OpenTraceW(emu),
-        "OperationEnd" => OperationEnd(emu),
-        "OperationStart" => OperationStart(emu),
-        "PerfAddCounters" => PerfAddCounters(emu),
-        "PerfCloseQueryHandle" => PerfCloseQueryHandle(emu),
-        "PerfCreateInstance" => PerfCreateInstance(emu),
-        "PerfDecrementULongCounterValue" => PerfDecrementULongCounterValue(emu),
-        "PerfDecrementULongLongCounterValue" => PerfDecrementULongLongCounterValue(emu),
-        "PerfDeleteCounters" => PerfDeleteCounters(emu),
-        "PerfDeleteInstance" => PerfDeleteInstance(emu),
-        "PerfEnumerateCounterSet" => PerfEnumerateCounterSet(emu),
-        "PerfEnumerateCounterSetInstances" => PerfEnumerateCounterSetInstances(emu),
-        "PerfIncrementULongCounterValue" => PerfIncrementULongCounterValue(emu),
-        "PerfIncrementULongLongCounterValue" => PerfIncrementULongLongCounterValue(emu),
-        "PerfOpenQueryHandle" => PerfOpenQueryHandle(emu),
-        "PerfQueryCounterData" => PerfQueryCounterData(emu),
-        "PerfQueryCounterInfo" => PerfQueryCounterInfo(emu),
-        "PerfQueryCounterSetRegistrationInfo" => PerfQueryCounterSetRegistrationInfo(emu),
-        "PerfQueryInstance" => PerfQueryInstance(emu),
-        "PerfRegCloseKey" => PerfRegCloseKey(emu),
-        "PerfRegEnumKey" => PerfRegEnumKey(emu),
-        "PerfRegEnumValue" => PerfRegEnumValue(emu),
-        "PerfRegQueryInfoKey" => PerfRegQueryInfoKey(emu),
-        "PerfRegQueryValue" => PerfRegQueryValue(emu),
-        "PerfRegSetValue" => PerfRegSetValue(emu),
-        "PerfSetCounterRefValue" => PerfSetCounterRefValue(emu),
-        "PerfSetCounterSetInfo" => PerfSetCounterSetInfo(emu),
-        "PerfSetULongCounterValue" => PerfSetULongCounterValue(emu),
-        "PerfSetULongLongCounterValue" => PerfSetULongLongCounterValue(emu),
-        "PerfStartProvider" => PerfStartProvider(emu),
-        "PerfStartProviderEx" => PerfStartProviderEx(emu),
-        "PerfStopProvider" => PerfStopProvider(emu),
-        "PrivilegeCheck" => PrivilegeCheck(emu),
-        "PrivilegedServiceAuditAlarmA" => PrivilegedServiceAuditAlarmA(emu),
-        "PrivilegedServiceAuditAlarmW" => PrivilegedServiceAuditAlarmW(emu),
-        "ProcessIdleTasks" => ProcessIdleTasks(emu),
-        "ProcessIdleTasksW" => ProcessIdleTasksW(emu),
-        "ProcessTrace" => ProcessTrace(emu),
-        "QueryAllTracesA" => QueryAllTracesA(emu),
-        "QueryAllTracesW" => QueryAllTracesW(emu),
-        "QueryLocalUserServiceName" => QueryLocalUserServiceName(emu),
-        "QueryRecoveryAgentsOnEncryptedFile" => QueryRecoveryAgentsOnEncryptedFile(emu),
-        "QuerySecurityAccessMask" => QuerySecurityAccessMask(emu),
-        "QueryServiceConfig2A" => QueryServiceConfig2A(emu),
-        "QueryServiceConfig2W" => QueryServiceConfig2W(emu),
-        "QueryServiceConfigA" => QueryServiceConfigA(emu),
-        "QueryServiceConfigW" => QueryServiceConfigW(emu),
-        "QueryServiceDynamicInformation" => QueryServiceDynamicInformation(emu),
-        "QueryServiceLockStatusA" => QueryServiceLockStatusA(emu),
-        "QueryServiceLockStatusW" => QueryServiceLockStatusW(emu),
-        "QueryServiceObjectSecurity" => QueryServiceObjectSecurity(emu),
-        "QueryServiceStatus" => QueryServiceStatus(emu),
-        "QueryServiceStatusEx" => QueryServiceStatusEx(emu),
-        "QueryTraceA" => QueryTraceA(emu),
-        "QueryTraceProcessingHandle" => QueryTraceProcessingHandle(emu),
-        "QueryTraceW" => QueryTraceW(emu),
-        "QueryUserServiceName" => QueryUserServiceName(emu),
-        "QueryUserServiceNameForContext" => QueryUserServiceNameForContext(emu),
-        "QueryUsersOnEncryptedFile" => QueryUsersOnEncryptedFile(emu),
-        "ReadEncryptedFileRaw" => ReadEncryptedFileRaw(emu),
-        "ReadEventLogA" => ReadEventLogA(emu),
-        "ReadEventLogW" => ReadEventLogW(emu),
-        "RegCloseKey" => RegCloseKey(emu),
-        "RegConnectRegistryA" => RegConnectRegistryA(emu),
-        "RegConnectRegistryExA" => RegConnectRegistryExA(emu),
-        "RegConnectRegistryExW" => RegConnectRegistryExW(emu),
-        "RegConnectRegistryW" => RegConnectRegistryW(emu),
-        "RegCopyTreeA" => RegCopyTreeA(emu),
-        "RegCopyTreeW" => RegCopyTreeW(emu),
-        "RegCreateKeyA" => RegCreateKeyA(emu),
-        "RegCreateKeyExA" => RegCreateKeyExA(emu),
-        "RegCreateKeyExW" => RegCreateKeyExW(emu),
-        "RegCreateKeyTransactedA" => RegCreateKeyTransactedA(emu),
-        "RegCreateKeyTransactedW" => RegCreateKeyTransactedW(emu),
-        "RegCreateKeyW" => RegCreateKeyW(emu),
-        "RegDeleteKeyA" => RegDeleteKeyA(emu),
-        "RegDeleteKeyExA" => RegDeleteKeyExA(emu),
-        "RegDeleteKeyExW" => RegDeleteKeyExW(emu),
-        "RegDeleteKeyTransactedA" => RegDeleteKeyTransactedA(emu),
-        "RegDeleteKeyTransactedW" => RegDeleteKeyTransactedW(emu),
-        "RegDeleteKeyValueA" => RegDeleteKeyValueA(emu),
-        "RegDeleteKeyValueW" => RegDeleteKeyValueW(emu),
-        "RegDeleteKeyW" => RegDeleteKeyW(emu),
-        "RegDeleteTreeA" => RegDeleteTreeA(emu),
-        "RegDeleteTreeW" => RegDeleteTreeW(emu),
-        "RegDeleteValueA" => RegDeleteValueA(emu),
-        "RegDeleteValueW" => RegDeleteValueW(emu),
-        "RegDisablePredefinedCache" => RegDisablePredefinedCache(emu),
-        "RegDisablePredefinedCacheEx" => RegDisablePredefinedCacheEx(emu),
-        "RegDisableReflectionKey" => RegDisableReflectionKey(emu),
-        "RegEnableReflectionKey" => RegEnableReflectionKey(emu),
-        "RegEnumKeyA" => RegEnumKeyA(emu),
-        "RegEnumKeyExA" => RegEnumKeyExA(emu),
-        "RegEnumKeyExW" => RegEnumKeyExW(emu),
-        "RegEnumKeyW" => RegEnumKeyW(emu),
-        "RegEnumValueA" => RegEnumValueA(emu),
-        "RegEnumValueW" => RegEnumValueW(emu),
-        "RegFlushKey" => RegFlushKey(emu),
-        "RegGetKeySecurity" => RegGetKeySecurity(emu),
-        "RegGetValueA" => RegGetValueA(emu),
-        "RegGetValueW" => RegGetValueW(emu),
-        "RegLoadAppKeyA" => RegLoadAppKeyA(emu),
-        "RegLoadAppKeyW" => RegLoadAppKeyW(emu),
-        "RegLoadKeyA" => RegLoadKeyA(emu),
-        "RegLoadKeyW" => RegLoadKeyW(emu),
-        "RegLoadMUIStringA" => RegLoadMUIStringA(emu),
-        "RegLoadMUIStringW" => RegLoadMUIStringW(emu),
-        "RegNotifyChangeKeyValue" => RegNotifyChangeKeyValue(emu),
-        "RegOpenCurrentUser" => RegOpenCurrentUser(emu),
-        "RegOpenKeyA" => RegOpenKeyA(emu),
-        "RegOpenKeyExW" => RegOpenKeyExW(emu),
-        "RegOpenKeyTransactedA" => RegOpenKeyTransactedA(emu),
-        "RegOpenKeyTransactedW" => RegOpenKeyTransactedW(emu),
-        "RegOpenKeyW" => RegOpenKeyW(emu),
-        "RegOpenUserClassesRoot" => RegOpenUserClassesRoot(emu),
-        "RegOverridePredefKey" => RegOverridePredefKey(emu),
-        "RegQueryInfoKeyA" => RegQueryInfoKeyA(emu),
-        "RegQueryInfoKeyW" => RegQueryInfoKeyW(emu),
-        "RegQueryMultipleValuesA" => RegQueryMultipleValuesA(emu),
-        "RegQueryMultipleValuesW" => RegQueryMultipleValuesW(emu),
-        "RegQueryReflectionKey" => RegQueryReflectionKey(emu),
-        "RegQueryValueA" => RegQueryValueA(emu),
-        "RegQueryValueW" => RegQueryValueW(emu),
-        "RegRenameKey" => RegRenameKey(emu),
-        "RegReplaceKeyA" => RegReplaceKeyA(emu),
-        "RegReplaceKeyW" => RegReplaceKeyW(emu),
-        "RegRestoreKeyA" => RegRestoreKeyA(emu),
-        "RegRestoreKeyW" => RegRestoreKeyW(emu),
-        "RegSaveKeyA" => RegSaveKeyA(emu),
-        "RegSaveKeyExA" => RegSaveKeyExA(emu),
-        "RegSaveKeyExW" => RegSaveKeyExW(emu),
-        "RegSaveKeyW" => RegSaveKeyW(emu),
-        "RegSetKeySecurity" => RegSetKeySecurity(emu),
-        "RegSetKeyValueA" => RegSetKeyValueA(emu),
-        "RegSetKeyValueW" => RegSetKeyValueW(emu),
-        "RegSetValueA" => RegSetValueA(emu),
-        "RegSetValueExA" => RegSetValueExA(emu),
-        "RegSetValueExW" => RegSetValueExW(emu),
-        "RegSetValueW" => RegSetValueW(emu),
-        "RegUnLoadKeyA" => RegUnLoadKeyA(emu),
-        "RegUnLoadKeyW" => RegUnLoadKeyW(emu),
-        "RegisterEventSourceA" => RegisterEventSourceA(emu),
-        "RegisterEventSourceW" => RegisterEventSourceW(emu),
-        "RegisterIdleTask" => RegisterIdleTask(emu),
-        "RegisterServiceCtrlHandlerA" => RegisterServiceCtrlHandlerA(emu),
-        "RegisterServiceCtrlHandlerExA" => RegisterServiceCtrlHandlerExA(emu),
-        "RegisterServiceCtrlHandlerExW" => RegisterServiceCtrlHandlerExW(emu),
-        "RegisterServiceCtrlHandlerW" => RegisterServiceCtrlHandlerW(emu),
-        "RegisterTraceGuidsA" => RegisterTraceGuidsA(emu),
-        "RegisterTraceGuidsW" => RegisterTraceGuidsW(emu),
-        "RegisterWaitChainCOMCallback" => RegisterWaitChainCOMCallback(emu),
-        "RemoteRegEnumKeyWrapper" => RemoteRegEnumKeyWrapper(emu),
-        "RemoteRegEnumValueWrapper" => RemoteRegEnumValueWrapper(emu),
-        "RemoteRegQueryInfoKeyWrapper" => RemoteRegQueryInfoKeyWrapper(emu),
-        "RemoteRegQueryMultipleValues2Wrapper" => RemoteRegQueryMultipleValues2Wrapper(emu),
-        "RemoteRegQueryMultipleValuesWrapper" => RemoteRegQueryMultipleValuesWrapper(emu),
-        "RemoteRegQueryValueWrapper" => RemoteRegQueryValueWrapper(emu),
-        "RemoveTraceCallback" => RemoveTraceCallback(emu),
-        "RemoveUsersFromEncryptedFile" => RemoveUsersFromEncryptedFile(emu),
-        "ReportEventA" => ReportEventA(emu),
-        "ReportEventW" => ReportEventW(emu),
-        "RevertToSelf" => RevertToSelf(emu),
-        "SafeBaseRegGetKeySecurity" => SafeBaseRegGetKeySecurity(emu),
-        "SaferCloseLevel" => SaferCloseLevel(emu),
-        "SaferComputeTokenFromLevel" => SaferComputeTokenFromLevel(emu),
-        "SaferCreateLevel" => SaferCreateLevel(emu),
-        "SaferGetLevelInformation" => SaferGetLevelInformation(emu),
-        "SaferGetPolicyInformation" => SaferGetPolicyInformation(emu),
-        "SaferIdentifyLevel" => SaferIdentifyLevel(emu),
-        "SaferRecordEventLogEntry" => SaferRecordEventLogEntry(emu),
-        "SaferSetLevelInformation" => SaferSetLevelInformation(emu),
-        "SaferSetPolicyInformation" => SaferSetPolicyInformation(emu),
-        "SaferiChangeRegistryScope" => SaferiChangeRegistryScope(emu),
-        "SaferiCompareTokenLevels" => SaferiCompareTokenLevels(emu),
-        "SaferiIsDllAllowed" => SaferiIsDllAllowed(emu),
-        "SaferiIsExecutableFileType" => SaferiIsExecutableFileType(emu),
-        "SaferiPopulateDefaultsInRegistry" => SaferiPopulateDefaultsInRegistry(emu),
-        "SaferiRecordEventLogEntry" => SaferiRecordEventLogEntry(emu),
-        "SaferiSearchMatchingHashRules" => SaferiSearchMatchingHashRules(emu),
-        "SetAclInformation" => SetAclInformation(emu),
-        "SetEncryptedFileMetadata" => SetEncryptedFileMetadata(emu),
-        "SetEntriesInAccessListA" => SetEntriesInAccessListA(emu),
-        "SetEntriesInAccessListW" => SetEntriesInAccessListW(emu),
-        "SetEntriesInAclA" => SetEntriesInAclA(emu),
-        "SetEntriesInAclW" => SetEntriesInAclW(emu),
-        "SetEntriesInAuditListA" => SetEntriesInAuditListA(emu),
-        "SetEntriesInAuditListW" => SetEntriesInAuditListW(emu),
-        "SetFileSecurityA" => SetFileSecurityA(emu),
-        "SetFileSecurityW" => SetFileSecurityW(emu),
-        "SetInformationCodeAuthzLevelW" => SetInformationCodeAuthzLevelW(emu),
-        "SetInformationCodeAuthzPolicyW" => SetInformationCodeAuthzPolicyW(emu),
-        "SetKernelObjectSecurity" => SetKernelObjectSecurity(emu),
-        "SetNamedSecurityInfoA" => SetNamedSecurityInfoA(emu),
-        "SetNamedSecurityInfoExA" => SetNamedSecurityInfoExA(emu),
-        "SetNamedSecurityInfoExW" => SetNamedSecurityInfoExW(emu),
-        "SetNamedSecurityInfoW" => SetNamedSecurityInfoW(emu),
-        "SetPrivateObjectSecurity" => SetPrivateObjectSecurity(emu),
-        "SetPrivateObjectSecurityEx" => SetPrivateObjectSecurityEx(emu),
-        "SetSecurityAccessMask" => SetSecurityAccessMask(emu),
-        "SetSecurityDescriptorControl" => SetSecurityDescriptorControl(emu),
-        "SetSecurityDescriptorDacl" => SetSecurityDescriptorDacl(emu),
-        "SetSecurityDescriptorGroup" => SetSecurityDescriptorGroup(emu),
-        "SetSecurityDescriptorOwner" => SetSecurityDescriptorOwner(emu),
-        "SetSecurityDescriptorRMControl" => SetSecurityDescriptorRMControl(emu),
-        "SetSecurityDescriptorSacl" => SetSecurityDescriptorSacl(emu),
-        "SetSecurityInfo" => SetSecurityInfo(emu),
-        "SetSecurityInfoExA" => SetSecurityInfoExA(emu),
-        "SetSecurityInfoExW" => SetSecurityInfoExW(emu),
-        "SetServiceBits" => SetServiceBits(emu),
-        "SetServiceObjectSecurity" => SetServiceObjectSecurity(emu),
-        "SetServiceStatus" => SetServiceStatus(emu),
-        "SetThreadToken" => SetThreadToken(emu),
-        "SetTokenInformation" => SetTokenInformation(emu),
-        "SetTraceCallback" => SetTraceCallback(emu),
-        "SetUserFileEncryptionKey" => SetUserFileEncryptionKey(emu),
-        "SetUserFileEncryptionKeyEx" => SetUserFileEncryptionKeyEx(emu),
-        "StartServiceA" => StartServiceA(emu),
-        "StartServiceW" => StartServiceW(emu),
-        "StartTraceA" => StartTraceA(emu),
-        "StartTraceW" => StartTraceW(emu),
-        "StopTraceA" => StopTraceA(emu),
-        "StopTraceW" => StopTraceW(emu),
-        "SystemFunction001" => SystemFunction001(emu),
-        "SystemFunction002" => SystemFunction002(emu),
-        "SystemFunction003" => SystemFunction003(emu),
-        "SystemFunction004" => SystemFunction004(emu),
-        "SystemFunction005" => SystemFunction005(emu),
-        "SystemFunction006" => SystemFunction006(emu),
-        "SystemFunction007" => SystemFunction007(emu),
-        "SystemFunction008" => SystemFunction008(emu),
-        "SystemFunction009" => SystemFunction009(emu),
-        "SystemFunction010" => SystemFunction010(emu),
-        "SystemFunction011" => SystemFunction011(emu),
-        "SystemFunction012" => SystemFunction012(emu),
-        "SystemFunction013" => SystemFunction013(emu),
-        "SystemFunction014" => SystemFunction014(emu),
-        "SystemFunction015" => SystemFunction015(emu),
-        "SystemFunction016" => SystemFunction016(emu),
-        "SystemFunction017" => SystemFunction017(emu),
-        "SystemFunction018" => SystemFunction018(emu),
-        "SystemFunction019" => SystemFunction019(emu),
-        "SystemFunction020" => SystemFunction020(emu),
-        "SystemFunction021" => SystemFunction021(emu),
-        "SystemFunction022" => SystemFunction022(emu),
-        "SystemFunction023" => SystemFunction023(emu),
-        "SystemFunction024" => SystemFunction024(emu),
-        "SystemFunction025" => SystemFunction025(emu),
-        "SystemFunction026" => SystemFunction026(emu),
-        "SystemFunction027" => SystemFunction027(emu),
-        "SystemFunction028" => SystemFunction028(emu),
-        "SystemFunction029" => SystemFunction029(emu),
-        "SystemFunction030" => SystemFunction030(emu),
-        "SystemFunction031" => SystemFunction031(emu),
-        "SystemFunction032" => SystemFunction032(emu),
-        "SystemFunction033" => SystemFunction033(emu),
-        "SystemFunction034" => SystemFunction034(emu),
-        "SystemFunction035" => SystemFunction035(emu),
-        "SystemFunction036" => SystemFunction036(emu),
-        "SystemFunction040" => SystemFunction040(emu),
-        "SystemFunction041" => SystemFunction041(emu),
-        "TraceEvent" => TraceEvent(emu),
-        "TraceEventInstance" => TraceEventInstance(emu),
-        "TraceMessage" => TraceMessage(emu),
-        "TraceMessageVa" => TraceMessageVa(emu),
-        "TraceQueryInformation" => TraceQueryInformation(emu),
-        "TraceSetInformation" => TraceSetInformation(emu),
-        "TreeResetNamedSecurityInfoA" => TreeResetNamedSecurityInfoA(emu),
-        "TreeResetNamedSecurityInfoW" => TreeResetNamedSecurityInfoW(emu),
-        "TreeSetNamedSecurityInfoA" => TreeSetNamedSecurityInfoA(emu),
-        "TreeSetNamedSecurityInfoW" => TreeSetNamedSecurityInfoW(emu),
-        "TrusteeAccessToObjectA" => TrusteeAccessToObjectA(emu),
-        "TrusteeAccessToObjectW" => TrusteeAccessToObjectW(emu),
-        "UninstallApplication" => UninstallApplication(emu),
-        "UnlockServiceDatabase" => UnlockServiceDatabase(emu),
-        "UnregisterIdleTask" => UnregisterIdleTask(emu),
-        "UnregisterTraceGuids" => UnregisterTraceGuids(emu),
-        "UpdateTraceA" => UpdateTraceA(emu),
-        "UpdateTraceW" => UpdateTraceW(emu),
-        "UsePinForEncryptedFilesA" => UsePinForEncryptedFilesA(emu),
-        "UsePinForEncryptedFilesW" => UsePinForEncryptedFilesW(emu),
-        "WaitServiceState" => WaitServiceState(emu),
-        "WmiCloseBlock" => WmiCloseBlock(emu),
-        "WmiDevInstToInstanceNameA" => WmiDevInstToInstanceNameA(emu),
-        "WmiDevInstToInstanceNameW" => WmiDevInstToInstanceNameW(emu),
-        "WmiEnumerateGuids" => WmiEnumerateGuids(emu),
-        "WmiExecuteMethodA" => WmiExecuteMethodA(emu),
-        "WmiExecuteMethodW" => WmiExecuteMethodW(emu),
-        "WmiFileHandleToInstanceNameA" => WmiFileHandleToInstanceNameA(emu),
-        "WmiFileHandleToInstanceNameW" => WmiFileHandleToInstanceNameW(emu),
-        "WmiFreeBuffer" => WmiFreeBuffer(emu),
-        "WmiMofEnumerateResourcesA" => WmiMofEnumerateResourcesA(emu),
-        "WmiMofEnumerateResourcesW" => WmiMofEnumerateResourcesW(emu),
-        "WmiNotificationRegistrationA" => WmiNotificationRegistrationA(emu),
-        "WmiNotificationRegistrationW" => WmiNotificationRegistrationW(emu),
-        "WmiOpenBlock" => WmiOpenBlock(emu),
-        "WmiQueryAllDataA" => WmiQueryAllDataA(emu),
-        "WmiQueryAllDataMultipleA" => WmiQueryAllDataMultipleA(emu),
-        "WmiQueryAllDataMultipleW" => WmiQueryAllDataMultipleW(emu),
-        "WmiQueryAllDataW" => WmiQueryAllDataW(emu),
-        "WmiQueryGuidInformation" => WmiQueryGuidInformation(emu),
-        "WmiQuerySingleInstanceA" => WmiQuerySingleInstanceA(emu),
-        "WmiQuerySingleInstanceMultipleA" => WmiQuerySingleInstanceMultipleA(emu),
-        "WmiQuerySingleInstanceMultipleW" => WmiQuerySingleInstanceMultipleW(emu),
-        "WmiQuerySingleInstanceW" => WmiQuerySingleInstanceW(emu),
-        "WmiReceiveNotificationsA" => WmiReceiveNotificationsA(emu),
-        "WmiReceiveNotificationsW" => WmiReceiveNotificationsW(emu),
-        "WmiSetSingleInstanceA" => WmiSetSingleInstanceA(emu),
-        "WmiSetSingleInstanceW" => WmiSetSingleInstanceW(emu),
-        "WmiSetSingleItemA" => WmiSetSingleItemA(emu),
-        "WmiSetSingleItemW" => WmiSetSingleItemW(emu),
-        "WriteEncryptedFileRaw" => WriteEncryptedFileRaw(emu),
-        _ => return fallback::unimplemented(addr, api, emu),
+    if accounts::dispatch(api, addr, emu)
+        || crypto::dispatch(api, addr, emu)
+        || registry_api::dispatch(api, addr, emu)
+        || security::dispatch(api, addr, emu)
+        || services::dispatch(api, addr, emu)
+        || system::dispatch(api, addr, emu)
+        || tokens::dispatch(api, addr, emu)
+        || tracing::dispatch(api, addr, emu)
+    {
+        return String::new();
     }
 
-    String::new()
+    fallback::unimplemented(addr, api, emu)
 }
 
 ///// CRYPTO API /////

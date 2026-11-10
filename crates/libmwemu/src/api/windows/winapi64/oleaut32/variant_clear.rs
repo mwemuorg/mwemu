@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn VariantClear(emu: &mut emu::Emu) {
     let pvarg = emu.regs().rcx;
@@ -10,7 +10,7 @@ pub fn VariantClear(emu: &mut emu::Emu) {
     if pvarg == 0 || !emu.maps.is_mapped(pvarg) {
         log_red!(emu, "VariantClear: Invalid pvarg pointer");
         emu.set_last_error(0);
-        emu.regs_mut().rax = constants::HRESULT_E_INVALID_ARG;
+        emu.regs_mut().rax = HRESULT_E_INVALID_ARG;
         return;
     }
 

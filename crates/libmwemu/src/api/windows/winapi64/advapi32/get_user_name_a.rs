@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::system::*;
 
 pub(super) fn GetUserNameA(emu: &mut emu::Emu) {
     let out_username = emu.regs().rcx; // LPSTR lpBuffer
@@ -15,7 +15,7 @@ pub(super) fn GetUserNameA(emu: &mut emu::Emu) {
     // Check if size pointer is valid
     if in_out_sz == 0 || !emu.maps.is_mapped(in_out_sz) {
         log_red!(emu, "GetUserNameA: Invalid pcbBuffer pointer");
-        emu.regs_mut().rax = constants::FALSE;
+        emu.regs_mut().rax = FALSE;
         return;
     }
 
@@ -32,7 +32,7 @@ pub(super) fn GetUserNameA(emu: &mut emu::Emu) {
     // Check if output buffer is valid
     if out_username == 0 || !emu.maps.is_mapped(out_username) {
         log_red!(emu, "GetUserNameA: Invalid lpBuffer pointer");
-        emu.regs_mut().rax = constants::FALSE;
+        emu.regs_mut().rax = FALSE;
         return;
     }
 
@@ -44,7 +44,7 @@ pub(super) fn GetUserNameA(emu: &mut emu::Emu) {
             required_size,
             buffer_size
         );
-        emu.regs_mut().rax = constants::FALSE;
+        emu.regs_mut().rax = FALSE;
         return;
     }
 
@@ -58,5 +58,5 @@ pub(super) fn GetUserNameA(emu: &mut emu::Emu) {
         required_size
     );
 
-    emu.regs_mut().rax = constants::TRUE;
+    emu.regs_mut().rax = TRUE;
 }

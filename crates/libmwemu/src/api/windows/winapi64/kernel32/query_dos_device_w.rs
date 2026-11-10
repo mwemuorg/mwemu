@@ -1,7 +1,8 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::files::*;
 
-const DOS_DEVICES: &[(&str, &str)] = &[("C:", constants::SYSTEM_VOLUME_DEVICE)];
+const DOS_DEVICES: &[(&str, &str)] = &[("C:", SYSTEM_VOLUME_DEVICE)];
 
 pub fn QueryDosDeviceW(emu: &mut emu::Emu) {
     let device_ptr = emu.regs().rcx;
@@ -30,7 +31,7 @@ pub fn QueryDosDeviceW(emu: &mut emu::Emu) {
         {
             Some((_, target)) => vec![*target],
             None => {
-                emu.set_last_error(constants::ERROR_FILE_NOT_FOUND);
+                emu.set_last_error(ERROR_FILE_NOT_FOUND);
                 emu.regs_mut().rax = 0;
                 return;
             }
@@ -44,7 +45,7 @@ pub fn QueryDosDeviceW(emu: &mut emu::Emu) {
     chars.push(0);
 
     if target_ptr == 0 || (chars.len() as u64) > max_chars {
-        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+        emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }

@@ -4,8 +4,7 @@ use super::stack_arg;
 use super::write_name;
 use crate::emu;
 use crate::winapi::registry_store as store;
-use crate::windows::constants::ERROR_NO_MORE_ITEMS;
-use crate::windows::constants::ERROR_SUCCESS;
+use crate::windows::constants::errors::*;
 
 pub(super) fn enum_key(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;

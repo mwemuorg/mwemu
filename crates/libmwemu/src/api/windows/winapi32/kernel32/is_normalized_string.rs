@@ -1,18 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+
 pub fn IsNormalizedString(emu: &mut emu::Emu) {
-    let norm_form = arg(emu, 0) as u64;
-    let lp_string = arg(emu, 1) as u64;
-    let cw_length = arg(emu, 2) as u64 as i64;
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!IsNormalizedString form:{} str:0x{:x} len:{}",
-        norm_form,
-        lp_string,
-        cw_length
+        "kernel32!IsNormalizedString arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
-    let h = arg(emu, 0) as u64;
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
 }

@@ -1,7 +1,9 @@
 use crate::utils::helpers::unlikely;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::*;
+
 use crate::{
-    console::Console, emu::Emu, exception::types::ExceptionType, winapi::winapi32,
-    winapi::winapi64, windows::constants,
+    console::Console, emu::Emu, exception::types::ExceptionType, winapi::winapi32, winapi::winapi64,
 };
 
 impl Emu {
@@ -80,7 +82,7 @@ impl Emu {
             return self.kernel_set_pc(addr);
         }
 
-        if unlikely(addr == constants::RETURN_THREAD as u64) {
+        if unlikely(addr == RETURN_THREAD as u64) {
             log::trace!("/!\\ Thread returned, continuing the main thread");
             self.regs_mut().rip = self.main_thread_cont;
             Console::spawn_console(self);
@@ -180,7 +182,7 @@ impl Emu {
         // Non-syscall mode: ntdll is mapped at its original base (below
         // LIBS64_MIN), but cross-module calls into it should be intercepted
         // just like high-address libraries.
-        let is_ntdll_cross_call = addr < constants::LIBS64_MIN
+        let is_ntdll_cross_call = addr < LIBS64_MIN
             && !self.cfg.emulate_winapi
             && self.os.is_windows()
             && name.starts_with("ntdll")
@@ -189,7 +191,7 @@ impl Emu {
                 !caller_name.starts_with("ntdll")
             };
 
-        if addr < constants::LIBS64_MIN && !is_ntdll_cross_call {
+        if addr < LIBS64_MIN && !is_ntdll_cross_call {
             // This is the normal case, no linux syscall or winapi to handle
             if self.cfg.verbose > 1 {
                 let rip = self.regs().rip;
@@ -330,7 +332,7 @@ impl Emu {
         }
 
         // If in user code range, just set PC
-        if addr < constants::LIBS64_MIN {
+        if addr < LIBS64_MIN {
             self.regs_aarch64_mut().pc = addr;
             return true;
         }
@@ -420,7 +422,7 @@ impl Emu {
     pub fn set_eip(&mut self, addr: u64, is_branch: bool) -> bool {
         self.force_reload = true;
 
-        if addr == constants::RETURN_THREAD as u64 {
+        if addr == RETURN_THREAD as u64 {
             log::trace!("/!\\ Thread returned, continuing the main thread");
             self.regs_mut().rip = self.main_thread_cont;
             Console::spawn_console(self);
@@ -476,7 +478,7 @@ impl Emu {
         // Non-syscall mode: ntdll is mapped at its original base (below
         // LIBS32_MIN), but cross-module calls into it should be intercepted
         // just like high-address libraries. Mirrors the 64-bit logic in set_rip.
-        let is_ntdll_cross_call = addr < constants::LIBS32_MIN
+        let is_ntdll_cross_call = addr < LIBS32_MIN
             && !self.cfg.emulate_winapi
             && self.os.is_windows()
             && name.starts_with("ntdll")
@@ -488,7 +490,7 @@ impl Emu {
                 !caller_name.starts_with("ntdll")
             };
 
-        if addr < constants::LIBS32_MIN && !is_ntdll_cross_call {
+        if addr < LIBS32_MIN && !is_ntdll_cross_call {
             if self.cfg.verbose > 1 {
                 let eip = self.regs().get_eip();
                 let prev = self.maps.get_addr_name(eip).unwrap_or("??");

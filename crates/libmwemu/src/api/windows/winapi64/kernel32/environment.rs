@@ -1,7 +1,8 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::environment_store;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::system::*;
 
 // Environment APIs over environment_store. Sizes are in characters.
 
@@ -60,7 +61,7 @@ fn get_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
     match value {
         Some(value) => emu.regs_mut().rax = write_text(emu, buffer, size, &value, wide),
         None => {
-            emu.set_last_error(constants::ERROR_ENVVAR_NOT_FOUND);
+            emu.set_last_error(ERROR_ENVVAR_NOT_FOUND);
             emu.regs_mut().rax = 0;
         }
     }
@@ -86,12 +87,12 @@ fn set_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
     let value = (value_ptr != 0).then(|| read_text(emu, value_ptr, wide));
     log_red!(emu, "kernel32!{} `{}` = {:?}", api, name, value);
     if name.is_empty() || name.contains('=') {
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = constants::FALSE;
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
+        emu.regs_mut().rax = FALSE;
         return;
     }
     environment_store::set(&emu.cfg, &name, value.as_deref());
-    emu.regs_mut().rax = constants::TRUE;
+    emu.regs_mut().rax = TRUE;
 }
 
 /*
@@ -144,7 +145,7 @@ fn environment_block(emu: &mut emu::Emu, api: &str, wide: bool) {
         text.into_bytes()
     };
     let Some(block) = emu.maps.alloc(bytes.len() as u64) else {
-        emu.set_last_error(constants::ERROR_NOT_ENOUGH_MEMORY);
+        emu.set_last_error(ERROR_NOT_ENOUGH_MEMORY);
         emu.regs_mut().rax = 0;
         return;
     };
@@ -167,5 +168,5 @@ pub fn FreeEnvironmentStrings(emu: &mut emu::Emu) {
     let ptr = emu.regs().rcx;
     log_red!(emu, "kernel32!FreeEnvironmentStrings 0x{:x}", ptr);
     emu.maps.dealloc(ptr);
-    emu.regs_mut().rax = constants::TRUE;
+    emu.regs_mut().rax = TRUE;
 }

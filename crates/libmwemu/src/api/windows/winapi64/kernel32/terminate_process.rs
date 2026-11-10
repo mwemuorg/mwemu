@@ -1,6 +1,7 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::process::*;
+
 pub fn TerminateProcess(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
     let code = emu.regs().rdx;
@@ -14,7 +15,7 @@ pub fn TerminateProcess(emu: &mut emu::Emu) {
     if helper::handler_exist(h) {
         helper::handler_close(h);
     }
-    if hndl == constants::CURRENT_PROCESS_HANDLE {
+    if hndl == CURRENT_PROCESS_HANDLE {
         emu.stop();
         return;
     }

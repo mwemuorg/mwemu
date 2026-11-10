@@ -5,7 +5,7 @@ use super::WSF_VISIBLE;
 use super::wide_z;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
     let hobj = emu.regs().rcx;
@@ -40,7 +40,7 @@ pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
         }
         UOI_TYPE => wide_z("WindowStation"),
         _ => {
-            emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+            emu.set_last_error(ERROR_INVALID_PARAMETER);
             emu.regs_mut().rax = 0;
             return;
         }
@@ -50,7 +50,7 @@ pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
         emu.maps.write_dword(needed_ptr, data.len() as u32);
     }
     if info == 0 || length < data.len() as u64 {
-        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+        emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }

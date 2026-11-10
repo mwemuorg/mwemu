@@ -1,21 +1,17 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+
 pub fn SortGetHandle(emu: &mut emu::Emu) {
-    let locale_name = arg(emu, 0) as u64;
-    let flags = arg(emu, 1) as u64;
-    let ph_sort = arg(emu, 2) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!SortGetHandle locale:0x{:x} flags:0x{:x} phSort:0x{:x}",
-        locale_name,
-        flags,
-        ph_sort
+        "kernel32!SortGetHandle h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    let handle = helper::handler_create("sort://");
-    if ph_sort != 0 {
-        emu.maps.write_qword(ph_sort, handle);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 3);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

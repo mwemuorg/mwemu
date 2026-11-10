@@ -1,0 +1,46 @@
+use crate::emu::Emu;
+use crate::winapi::winapi64::kernelbase;
+
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "GetProtocolAumid" => kernelbase::GetProtocolAumid(emu),
+        "GetProtocolProperty" => kernelbase::GetProtocolProperty(emu),
+        "InternetTimeFromSystemTimeA" => kernelbase::InternetTimeFromSystemTimeA(emu),
+        "InternetTimeFromSystemTimeW" => kernelbase::InternetTimeFromSystemTimeW(emu),
+        "InternetTimeToSystemTimeA" => kernelbase::InternetTimeToSystemTimeA(emu),
+        "InternetTimeToSystemTimeW" => kernelbase::InternetTimeToSystemTimeW(emu),
+        "IsInternetESCEnabled" => kernelbase::IsInternetESCEnabled(emu),
+        "ParseURLA" => kernelbase::ParseURLA(emu),
+        "ParseURLW" => kernelbase::ParseURLW(emu),
+        "SetProtocolProperty" => kernelbase::SetProtocolProperty(emu),
+        "UrlApplySchemeA" => kernelbase::UrlApplySchemeA(emu),
+        "UrlApplySchemeW" => kernelbase::UrlApplySchemeW(emu),
+        "UrlCanonicalizeA" => kernelbase::UrlCanonicalizeA(emu),
+        "UrlCanonicalizeW" => kernelbase::UrlCanonicalizeW(emu),
+        "UrlCombineA" => kernelbase::UrlCombineA(emu),
+        "UrlCombineW" => kernelbase::UrlCombineW(emu),
+        "UrlCompareA" => kernelbase::UrlCompareA(emu),
+        "UrlCompareW" => kernelbase::UrlCompareW(emu),
+        "UrlCreateFromPathA" => kernelbase::UrlCreateFromPathA(emu),
+        "UrlCreateFromPathW" => kernelbase::UrlCreateFromPathW(emu),
+        "UrlEscapeA" => kernelbase::UrlEscapeA(emu),
+        "UrlEscapeW" => kernelbase::UrlEscapeW(emu),
+        "UrlFixupW" => kernelbase::UrlFixupW(emu),
+        "UrlGetLocationA" => kernelbase::UrlGetLocationA(emu),
+        "UrlGetLocationW" => kernelbase::UrlGetLocationW(emu),
+        "UrlGetPartA" => kernelbase::UrlGetPartA(emu),
+        "UrlGetPartW" => kernelbase::UrlGetPartW(emu),
+        "UrlHashA" => kernelbase::UrlHashA(emu),
+        "UrlHashW" => kernelbase::UrlHashW(emu),
+        "UrlIsA" => kernelbase::UrlIsA(emu),
+        "UrlIsNoHistoryA" => kernelbase::UrlIsNoHistoryA(emu),
+        "UrlIsNoHistoryW" => kernelbase::UrlIsNoHistoryW(emu),
+        "UrlIsOpaqueA" => kernelbase::UrlIsOpaqueA(emu),
+        "UrlIsOpaqueW" => kernelbase::UrlIsOpaqueW(emu),
+        "UrlIsW" => kernelbase::UrlIsW(emu),
+        "UrlUnescapeA" => kernelbase::UrlUnescapeA(emu),
+        "UrlUnescapeW" => kernelbase::UrlUnescapeW(emu),
+        _ => return false,
+    }
+    true
+}

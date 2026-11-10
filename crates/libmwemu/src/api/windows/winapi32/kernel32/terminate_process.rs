@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::process::*;
 
 pub fn TerminateProcess(emu: &mut emu::Emu) {
     let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -15,7 +15,7 @@ pub fn TerminateProcess(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    if hndl == constants::CURRENT_PROCESS_HANDLE as u32 {
+    if hndl == CURRENT_PROCESS_HANDLE as u32 {
         emu.stop();
         return;
     }

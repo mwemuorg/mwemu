@@ -1,15 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn DeactivateActCtx(emu: &mut emu::Emu) {
-    let act_ctx = arg(emu, 0) as u64;
-    let cookie = arg(emu, 1) as u64;
-
-    log_red!(emu, "kernel32!DeactivateActCtx ctx:0x{:x}", act_ctx);
-
-    if cookie != 0 {
-        emu.maps.write_qword(cookie, 0x1234);
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    log_red!(
+        emu,
+        "kernel32!DeactivateActCtx arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
+    );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 1; // TRUE
-    stdcall_ret(emu, 2);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

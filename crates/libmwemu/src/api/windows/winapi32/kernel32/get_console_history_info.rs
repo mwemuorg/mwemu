@@ -1,15 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetConsoleHistoryInfo(emu: &mut emu::Emu) {
-    let info_ptr = arg(emu, 0) as u64;
-    log_red!(emu, "kernel32!GetConsoleHistoryInfo ptr:0x{:x}", info_ptr);
-    if info_ptr != 0 {
-        emu.maps.write_dword(info_ptr, 16);
-        emu.maps.write_dword(info_ptr + 4, 50);
-        emu.maps.write_dword(info_ptr + 8, 4);
-        emu.maps.write_dword(info_ptr + 12, 0);
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    log_red!(
+        emu,
+        "kernel32!GetConsoleHistoryInfo h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
+    );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
 }

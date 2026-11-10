@@ -7,18 +7,18 @@
 //! [`crate::winapi::common::virtual_alloc`].
 
 use crate::emu::Emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 /// Log a parameter-validation failure, set `ERROR_INVALID_PARAMETER`, return 0.
 pub fn fail(emu: &mut Emu, label: &str, ctx: &str, reason: &str) {
     log_red!(emu, "kernel32!{} {} = 0 reason: {}", label, ctx, reason);
-    emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+    emu.set_last_error(ERROR_INVALID_PARAMETER);
     emu.regs_mut().rax = 0;
 }
 
 /// Log an out-of-memory failure, set `ERROR_NOT_ENOUGH_MEMORY`, return 0.
 pub fn fail_oom(emu: &mut Emu, label: &str, ctx: &str) {
     log_red!(emu, "kernel32!{} {} = 0 reason: out of memory", label, ctx);
-    emu.set_last_error(constants::ERROR_NOT_ENOUGH_MEMORY);
+    emu.set_last_error(ERROR_NOT_ENOUGH_MEMORY);
     emu.regs_mut().rax = 0;
 }

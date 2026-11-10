@@ -4,22 +4,321 @@ use crate::emu;
 use crate::winapi::common::heap as heap_api;
 use crate::winapi::common::memory_ops;
 use crate::winapi::common::sections;
+use crate::winapi::common::{files, handles, modules, strings};
+
+mod write_console_output_character;
+pub use write_console_output_character::*;
+
+mod write_console_output;
+pub use write_console_output::*;
+
+mod write_console_input;
+pub use write_console_input::*;
+
+mod ver_language_name;
+pub use ver_language_name::*;
+
+mod termsrv_get_windows_directory;
+pub use termsrv_get_windows_directory::*;
+
+mod set_firmware_environment_variable_ex;
+pub use set_firmware_environment_variable_ex::*;
+
+mod set_console_title;
+pub use set_console_title::*;
+
+mod set_console_number_of_commands;
+pub use set_console_number_of_commands::*;
+
+mod set_console_input_exe_name;
+pub use set_console_input_exe_name::*;
+
+mod set_computer_name_ex;
+pub use set_computer_name_ex::*;
+
+mod set_computer_name;
+pub use set_computer_name::*;
+
+mod search_path;
+pub use search_path::*;
+
+mod scroll_console_screen_buffer;
+pub use scroll_console_screen_buffer::*;
+
+mod remove_directory2;
+pub use remove_directory2::*;
+
+mod reg_un_load_key;
+pub use reg_un_load_key::*;
+
+mod reg_save_key_ex;
+pub use reg_save_key_ex::*;
+
+mod reg_restore_key;
+pub use reg_restore_key::*;
+
+mod reg_query_value_ex;
+pub use reg_query_value_ex::*;
+
+mod reg_query_info_key;
+pub use reg_query_info_key::*;
+
+mod reg_load_mui_string;
+pub use reg_load_mui_string::*;
+
+mod reg_load_key;
+pub use reg_load_key::*;
+
+mod reg_get_value;
+pub use reg_get_value::*;
+
+mod reg_enum_value;
+pub use reg_enum_value::*;
+
+mod reg_enum_key_ex;
+pub use reg_enum_key_ex::*;
+
+mod reg_delete_value;
+pub use reg_delete_value::*;
+
+mod reg_delete_tree;
+pub use reg_delete_tree::*;
+
+mod reg_delete_key_ex;
+pub use reg_delete_key_ex::*;
+
+mod read_console_output_character;
+pub use read_console_output_character::*;
+
+mod read_console_output;
+pub use read_console_output::*;
+
+mod read_console_input_ex;
+pub use read_console_input_ex::*;
+
+mod read_console_input;
+pub use read_console_input::*;
+
+mod read_console;
+pub use read_console::*;
+
+mod query_full_process_image_name;
+pub use query_full_process_image_name::*;
+
+mod peek_console_input;
+pub use peek_console_input::*;
+
+mod open_waitable_timer;
+pub use open_waitable_timer::*;
+
+mod open_semaphore;
+pub use open_semaphore::*;
+
+mod open_event;
+pub use open_event::*;
+
+mod need_current_directory_for_exe_path;
+pub use need_current_directory_for_exe_path::*;
+
+mod move_file_with_progress;
+pub use move_file_with_progress::*;
+
+mod k32_get_process_image_file_name;
+pub use k32_get_process_image_file_name::*;
+
+mod k32_get_module_file_name_ex;
+pub use k32_get_module_file_name_ex::*;
+
+mod k32_get_module_base_name;
+pub use k32_get_module_base_name::*;
+
+mod k32_get_mapped_file_name;
+pub use k32_get_mapped_file_name::*;
+
+mod k32_get_device_driver_file_name;
+pub use k32_get_device_driver_file_name::*;
+
+mod k32_get_device_driver_base_name;
+pub use k32_get_device_driver_base_name::*;
+
+mod k32_enum_page_files;
+pub use k32_enum_page_files::*;
+
+mod get_volume_path_name;
+pub use get_volume_path_name::*;
+
+mod get_time_format;
+pub use get_time_format::*;
+
+mod get_temp_path2;
+pub use get_temp_path2::*;
+
+mod get_temp_file_name;
+pub use get_temp_file_name::*;
+
+mod get_system_wow64_directory;
+pub use get_system_wow64_directory::*;
+
+mod get_string_type_ex;
+pub use get_string_type_ex::*;
+
+mod get_long_path_name_transacted;
+pub use get_long_path_name_transacted::*;
+
+mod get_logical_drive_strings;
+pub use get_logical_drive_strings::*;
+
+mod get_firmware_environment_variable_ex;
+pub use get_firmware_environment_variable_ex::*;
+
+mod get_final_path_name_by_handle;
+pub use get_final_path_name_by_handle::*;
+
+mod get_file_attributes_ex;
+pub use get_file_attributes_ex::*;
+
+mod get_disk_space_information;
+pub use get_disk_space_information::*;
+
+mod get_date_format;
+pub use get_date_format::*;
+
+mod get_cp_info_ex;
+pub use get_cp_info_ex::*;
+
+mod get_console_title;
+pub use get_console_title::*;
+
+mod get_console_original_title;
+pub use get_console_original_title::*;
+
+mod get_console_input_exe_name;
+pub use get_console_input_exe_name::*;
+
+mod get_console_command_history_length;
+pub use get_console_command_history_length::*;
+
+mod get_console_command_history;
+pub use get_console_command_history::*;
+
+mod get_console_aliases_length;
+pub use get_console_aliases_length::*;
+
+mod get_console_aliases;
+pub use get_console_aliases::*;
+
+mod get_console_alias_exes_length;
+pub use get_console_alias_exes_length::*;
+
+mod get_console_alias_exes;
+pub use get_console_alias_exes::*;
+
+mod get_console_alias;
+pub use get_console_alias::*;
+
+mod get_computer_name_ex;
+pub use get_computer_name_ex::*;
+
+mod get_compressed_file_size;
+pub use get_compressed_file_size::*;
+
+mod find_resource_ex;
+pub use find_resource_ex::*;
+
+mod find_first_file_transacted;
+pub use find_first_file_transacted::*;
+
+mod find_first_file_ex;
+pub use find_first_file_ex::*;
+
+mod find_first_change_notification;
+pub use find_first_change_notification::*;
+
+mod fill_console_output_character;
+pub use fill_console_output_character::*;
+
+mod fatal_app_exit;
+pub use fatal_app_exit::*;
+
+mod expunge_console_command_history;
+pub use expunge_console_command_history::*;
+
+mod enum_system_locales;
+pub use enum_system_locales::*;
+
+mod enum_resource_types_ex;
+pub use enum_resource_types_ex::*;
+
+mod enum_resource_types;
+pub use enum_resource_types::*;
+
+mod enum_resource_names_ex;
+pub use enum_resource_names_ex::*;
+
+mod enum_resource_names;
+pub use enum_resource_names::*;
+
+mod enum_resource_languages_ex;
+pub use enum_resource_languages_ex::*;
+
+mod enum_resource_languages;
+pub use enum_resource_languages::*;
+
+mod delete_file2;
+pub use delete_file2::*;
+
+mod create_process_internal;
+pub use create_process_internal::*;
+
+mod create_process_as_user;
+pub use create_process_as_user::*;
+
+mod create_private_namespace;
+pub use create_private_namespace::*;
+
+mod create_mutex_ex;
+pub use create_mutex_ex::*;
+
+mod create_mailslot;
+pub use create_mailslot::*;
+
+mod create_job_object;
+pub use create_job_object::*;
+
+mod create_hard_link;
+pub use create_hard_link::*;
+
+mod create_file_transacted;
+pub use create_file_transacted::*;
+
+mod create_event_ex;
+pub use create_event_ex::*;
+
+mod create_directory2;
+pub use create_directory2::*;
+
+mod add_console_alias;
+pub use add_console_alias::*;
 
 mod appcompat;
 mod console;
+mod diagnostics;
 mod filesystem;
 mod legacy_compat;
 mod library_loader;
 mod loader;
 mod memory;
 mod misc;
+mod objects;
 mod process_thread;
 mod registry_profile;
 mod resolver;
+mod security;
 mod state;
 mod strings_nls;
 mod sync;
 mod system;
+mod time_date;
 
 pub use appcompat::*;
 pub use console::*;
@@ -37,1930 +336,1404 @@ pub use strings_nls::*;
 pub use sync::*;
 pub use system::*;
 
-mod activate_act_ctx_api;
-pub use activate_act_ctx_api::ActivateActCtx_api;
-mod activate_package_virtualization_context_api;
-pub use activate_package_virtualization_context_api::ActivatePackageVirtualizationContext_api;
-mod add_console_alias_a_api;
-pub use add_console_alias_a_api::AddConsoleAliasA_api;
-mod add_console_alias_w_api;
-pub use add_console_alias_w_api::AddConsoleAliasW_api;
-mod add_dll_directory_api;
-pub use add_dll_directory_api::AddDllDirectory_api;
-mod add_local_alternate_computer_name_a_api;
-pub use add_local_alternate_computer_name_a_api::AddLocalAlternateComputerNameA_api;
-mod add_ref_act_ctx_api;
-pub use add_ref_act_ctx_api::AddRefActCtx_api;
-mod add_ref_act_ctx_worker_api;
-pub use add_ref_act_ctx_worker_api::AddRefActCtxWorker_api;
-mod add_resource_attribute_ace_api;
-pub use add_resource_attribute_ace_api::AddResourceAttributeAce_api;
-mod add_sid_to_boundary_descriptor_api;
-pub use add_sid_to_boundary_descriptor_api::AddSIDToBoundaryDescriptor_api;
-mod add_scoped_policy_id_ace_api;
-pub use add_scoped_policy_id_ace_api::AddScopedPolicyIDAce_api;
-mod add_secure_memory_cache_callback_api;
-pub use add_secure_memory_cache_callback_api::AddSecureMemoryCacheCallback_api;
-mod add_vectored_continue_handler_api;
-pub use add_vectored_continue_handler_api::AddVectoredContinueHandler_api;
-mod alloc_console_api;
-pub use alloc_console_api::AllocConsole_api;
-mod alloc_console_with_options_api;
-pub use alloc_console_with_options_api::AllocConsoleWithOptions_api;
-mod allocate_user_physical_pages_api;
-pub use allocate_user_physical_pages_api::AllocateUserPhysicalPages_api;
-mod allocate_user_physical_pages_numa_api;
-pub use allocate_user_physical_pages_numa_api::AllocateUserPhysicalPagesNuma_api;
-mod app_policy_get_clr_compat_api;
-pub use app_policy_get_clr_compat_api::AppPolicyGetClrCompat_api;
-mod app_policy_get_create_file_access_api;
-pub use app_policy_get_create_file_access_api::AppPolicyGetCreateFileAccess_api;
-mod app_policy_get_lifecycle_management_api;
-pub use app_policy_get_lifecycle_management_api::AppPolicyGetLifecycleManagement_api;
-mod app_policy_get_media_foundation_codec_loading_api;
-pub use app_policy_get_media_foundation_codec_loading_api::AppPolicyGetMediaFoundationCodecLoading_api;
-mod app_policy_get_process_termination_method_api;
-pub use app_policy_get_process_termination_method_api::AppPolicyGetProcessTerminationMethod_api;
-mod app_policy_get_show_developer_diagnostic_api;
-pub use app_policy_get_show_developer_diagnostic_api::AppPolicyGetShowDeveloperDiagnostic_api;
-mod app_policy_get_thread_initialization_type_api;
-pub use app_policy_get_thread_initialization_type_api::AppPolicyGetThreadInitializationType_api;
-mod app_policy_get_windowing_model_api;
-pub use app_policy_get_windowing_model_api::AppPolicyGetWindowingModel_api;
-mod app_x_get_os_max_version_tested_api;
-pub use app_x_get_os_max_version_tested_api::AppXGetOSMaxVersionTested_api;
-mod are_short_names_enabled_api;
-pub use are_short_names_enabled_api::AreShortNamesEnabled_api;
-mod assign_process_to_job_object_api;
-pub use assign_process_to_job_object_api::AssignProcessToJobObject_api;
-mod attach_console_api;
-pub use attach_console_api::AttachConsole_api;
-mod backup_read_ex_api;
-pub use backup_read_ex_api::BackupReadEx_api;
-mod backup_write_ex_api;
-pub use backup_write_ex_api::BackupWriteEx_api;
-mod base_check_appcompat_cache_api;
-pub use base_check_appcompat_cache_api::BaseCheckAppcompatCache_api;
-mod base_check_appcompat_cache_ex_api;
-pub use base_check_appcompat_cache_ex_api::BaseCheckAppcompatCacheEx_api;
-mod base_cleanup_appcompat_cache_support_api;
-pub use base_cleanup_appcompat_cache_support_api::BaseCleanupAppcompatCacheSupport_api;
-mod base_dump_appcompat_cache_api;
-pub use base_dump_appcompat_cache_api::BaseDumpAppcompatCache_api;
-mod base_dump_appcompat_cache_worker_api;
-pub use base_dump_appcompat_cache_worker_api::BaseDumpAppcompatCacheWorker_api;
-mod base_elevation_post_processing_api;
-pub use base_elevation_post_processing_api::BaseElevationPostProcessing_api;
-mod base_flush_appcompat_cache_api;
-pub use base_flush_appcompat_cache_api::BaseFlushAppcompatCache_api;
-mod base_format_object_attributes_api;
-pub use base_format_object_attributes_api::BaseFormatObjectAttributes_api;
-mod base_format_time_out_api;
-pub use base_format_time_out_api::BaseFormatTimeOut_api;
-mod base_get_named_object_directory_api;
-pub use base_get_named_object_directory_api::BaseGetNamedObjectDirectory_api;
-mod base_init_appcompat_cache_support_api;
-pub use base_init_appcompat_cache_support_api::BaseInitAppcompatCacheSupport_api;
-mod base_init_appcompat_cache_support_worker_api;
-pub use base_init_appcompat_cache_support_worker_api::BaseInitAppcompatCacheSupportWorker_api;
-mod base_is_appcompat_infrastructure_disabled_api;
-pub use base_is_appcompat_infrastructure_disabled_api::BaseIsAppcompatInfrastructureDisabled_api;
-mod base_is_appcompat_infrastructure_disabled_worker_api;
-pub use base_is_appcompat_infrastructure_disabled_worker_api::BaseIsAppcompatInfrastructureDisabledWorker_api;
-mod base_query_module_data_api;
-pub use base_query_module_data_api::BaseQueryModuleData_api;
-mod base_thread_init_thunk_api;
-pub use base_thread_init_thunk_api::BaseThreadInitThunk_api;
-mod base_update_appcompat_cache_api;
-pub use base_update_appcompat_cache_api::BaseUpdateAppcompatCache_api;
-mod basep_check_ppl_support_api;
-pub use basep_check_ppl_support_api::BasepCheckPplSupport_api;
-mod basep_finish_package_activation_api;
-pub use basep_finish_package_activation_api::BasepFinishPackageActivation_api;
-mod basep_finish_package_activation_for_sx_s_api;
-pub use basep_finish_package_activation_for_sx_s_api::BasepFinishPackageActivationForSxS_api;
-mod basep_free_activation_token_info_api;
-pub use basep_free_activation_token_info_api::BasepFreeActivationTokenInfo_api;
-mod basep_get_app_compat_data_api;
-pub use basep_get_app_compat_data_api::BasepGetAppCompatData_api;
-mod basep_get_package_activation_token_for_file_path_api;
-pub use basep_get_package_activation_token_for_file_path_api::BasepGetPackageActivationTokenForFilePath_api;
-mod basep_get_package_activation_token_for_file_path2_api;
-pub use basep_get_package_activation_token_for_file_path2_api::BasepGetPackageActivationTokenForFilePath2_api;
-mod basep_get_package_activation_token_for_sx_s_api;
-pub use basep_get_package_activation_token_for_sx_s_api::BasepGetPackageActivationTokenForSxS_api;
-mod basep_get_package_activation_token_for_sx_s2_api;
-pub use basep_get_package_activation_token_for_sx_s2_api::BasepGetPackageActivationTokenForSxS2_api;
-mod basep_get_package_activation_token_for_sx_s3_api;
-pub use basep_get_package_activation_token_for_sx_s3_api::BasepGetPackageActivationTokenForSxS3_api;
-mod basep_get_packaged_app_info_for_file_api;
-pub use basep_get_packaged_app_info_for_file_api::BasepGetPackagedAppInfoForFile_api;
-mod basep_map_module_handle_api;
-pub use basep_map_module_handle_api::BasepMapModuleHandle_api;
-mod basep_query_module_chpe_settings_api;
-pub use basep_query_module_chpe_settings_api::BasepQueryModuleChpeSettings_api;
-mod basep_release_app_x_context_api;
-pub use basep_release_app_x_context_api::BasepReleaseAppXContext_api;
-mod basep_release_packaged_app_info_api;
-pub use basep_release_packaged_app_info_api::BasepReleasePackagedAppInfo_api;
+mod activate_act_ctx;
+pub use activate_act_ctx::ActivateActCtx;
+mod activate_package_virtualization_context;
+pub use activate_package_virtualization_context::ActivatePackageVirtualizationContext;
+mod add_dll_directory;
+pub use add_dll_directory::AddDllDirectory;
+mod add_ref_act_ctx;
+pub use add_ref_act_ctx::AddRefActCtx;
+mod add_ref_act_ctx_worker;
+pub use add_ref_act_ctx_worker::AddRefActCtxWorker;
+mod add_resource_attribute_ace;
+pub use add_resource_attribute_ace::AddResourceAttributeAce;
+mod add_sid_to_boundary_descriptor;
+pub use add_sid_to_boundary_descriptor::AddSIDToBoundaryDescriptor;
+mod add_scoped_policy_id_ace;
+pub use add_scoped_policy_id_ace::AddScopedPolicyIDAce;
+mod add_secure_memory_cache_callback;
+pub use add_secure_memory_cache_callback::AddSecureMemoryCacheCallback;
+mod add_vectored_continue_handler;
+pub use add_vectored_continue_handler::AddVectoredContinueHandler;
+mod alloc_console;
+pub use alloc_console::AllocConsole;
+mod alloc_console_with_options;
+pub use alloc_console_with_options::AllocConsoleWithOptions;
+mod allocate_user_physical_pages;
+pub use allocate_user_physical_pages::AllocateUserPhysicalPages;
+mod allocate_user_physical_pages_numa;
+pub use allocate_user_physical_pages_numa::AllocateUserPhysicalPagesNuma;
+mod app_policy_get_clr_compat;
+pub use app_policy_get_clr_compat::AppPolicyGetClrCompat;
+mod app_policy_get_create_file_access;
+pub use app_policy_get_create_file_access::AppPolicyGetCreateFileAccess;
+mod app_policy_get_lifecycle_management;
+pub use app_policy_get_lifecycle_management::AppPolicyGetLifecycleManagement;
+mod app_policy_get_media_foundation_codec_loading;
+pub use app_policy_get_media_foundation_codec_loading::AppPolicyGetMediaFoundationCodecLoading;
+mod app_policy_get_process_termination_method;
+pub use app_policy_get_process_termination_method::AppPolicyGetProcessTerminationMethod;
+mod app_policy_get_show_developer_diagnostic;
+pub use app_policy_get_show_developer_diagnostic::AppPolicyGetShowDeveloperDiagnostic;
+mod app_policy_get_thread_initialization_type;
+pub use app_policy_get_thread_initialization_type::AppPolicyGetThreadInitializationType;
+mod app_policy_get_windowing_model;
+pub use app_policy_get_windowing_model::AppPolicyGetWindowingModel;
+mod app_x_get_os_max_version_tested;
+pub use app_x_get_os_max_version_tested::AppXGetOSMaxVersionTested;
+mod are_short_names_enabled;
+pub use are_short_names_enabled::AreShortNamesEnabled;
+mod assign_process_to_job_object;
+pub use assign_process_to_job_object::AssignProcessToJobObject;
+mod attach_console;
+pub use attach_console::AttachConsole;
+mod backup_read_ex;
+pub use backup_read_ex::BackupReadEx;
+mod backup_write_ex;
+pub use backup_write_ex::BackupWriteEx;
+mod base_check_appcompat_cache;
+pub use base_check_appcompat_cache::BaseCheckAppcompatCache;
+mod base_check_appcompat_cache_ex;
+pub use base_check_appcompat_cache_ex::BaseCheckAppcompatCacheEx;
+mod base_cleanup_appcompat_cache_support;
+pub use base_cleanup_appcompat_cache_support::BaseCleanupAppcompatCacheSupport;
+mod base_dump_appcompat_cache;
+pub use base_dump_appcompat_cache::BaseDumpAppcompatCache;
+mod base_dump_appcompat_cache_worker;
+pub use base_dump_appcompat_cache_worker::BaseDumpAppcompatCacheWorker;
+mod base_elevation_post_processing;
+pub use base_elevation_post_processing::BaseElevationPostProcessing;
+mod base_flush_appcompat_cache;
+pub use base_flush_appcompat_cache::BaseFlushAppcompatCache;
+mod base_format_object_attributes;
+pub use base_format_object_attributes::BaseFormatObjectAttributes;
+mod base_format_time_out;
+pub use base_format_time_out::BaseFormatTimeOut;
+mod base_get_named_object_directory;
+pub use base_get_named_object_directory::BaseGetNamedObjectDirectory;
+mod base_init_appcompat_cache_support;
+pub use base_init_appcompat_cache_support::BaseInitAppcompatCacheSupport;
+mod base_init_appcompat_cache_support_worker;
+pub use base_init_appcompat_cache_support_worker::BaseInitAppcompatCacheSupportWorker;
+mod base_is_appcompat_infrastructure_disabled;
+pub use base_is_appcompat_infrastructure_disabled::BaseIsAppcompatInfrastructureDisabled;
+mod base_is_appcompat_infrastructure_disabled_worker;
+pub use base_is_appcompat_infrastructure_disabled_worker::BaseIsAppcompatInfrastructureDisabledWorker;
+mod base_query_module_data;
+pub use base_query_module_data::BaseQueryModuleData;
+mod base_thread_init_thunk;
+pub use base_thread_init_thunk::BaseThreadInitThunk;
+mod base_update_appcompat_cache;
+pub use base_update_appcompat_cache::BaseUpdateAppcompatCache;
+mod basep_check_ppl_support;
+pub use basep_check_ppl_support::BasepCheckPplSupport;
+mod basep_finish_package_activation;
+pub use basep_finish_package_activation::BasepFinishPackageActivation;
+mod basep_finish_package_activation_for_sx_s;
+pub use basep_finish_package_activation_for_sx_s::BasepFinishPackageActivationForSxS;
+mod basep_free_activation_token_info;
+pub use basep_free_activation_token_info::BasepFreeActivationTokenInfo;
+mod basep_get_app_compat_data;
+pub use basep_get_app_compat_data::BasepGetAppCompatData;
+mod basep_get_package_activation_token_for_file_path;
+pub use basep_get_package_activation_token_for_file_path::BasepGetPackageActivationTokenForFilePath;
+mod basep_get_package_activation_token_for_file_path2;
+pub use basep_get_package_activation_token_for_file_path2::BasepGetPackageActivationTokenForFilePath2;
+mod basep_get_package_activation_token_for_sx_s;
+pub use basep_get_package_activation_token_for_sx_s::BasepGetPackageActivationTokenForSxS;
+mod basep_get_package_activation_token_for_sx_s2;
+pub use basep_get_package_activation_token_for_sx_s2::BasepGetPackageActivationTokenForSxS2;
+mod basep_get_package_activation_token_for_sx_s3;
+pub use basep_get_package_activation_token_for_sx_s3::BasepGetPackageActivationTokenForSxS3;
+mod basep_get_packaged_app_info_for_file;
+pub use basep_get_packaged_app_info_for_file::BasepGetPackagedAppInfoForFile;
+mod basep_map_module_handle;
+pub use basep_map_module_handle::BasepMapModuleHandle;
+mod basep_query_module_chpe_settings;
+pub use basep_query_module_chpe_settings::BasepQueryModuleChpeSettings;
+mod basep_release_app_x_context;
+pub use basep_release_app_x_context::BasepReleaseAppXContext;
+mod basep_release_packaged_app_info;
+pub use basep_release_packaged_app_info::BasepReleasePackagedAppInfo;
 mod beep;
 pub use beep::Beep;
-mod build_io_ring_cancel_request_api;
-pub use build_io_ring_cancel_request_api::BuildIoRingCancelRequest_api;
-mod build_io_ring_flush_file_api;
-pub use build_io_ring_flush_file_api::BuildIoRingFlushFile_api;
-mod build_io_ring_read_file_api;
-pub use build_io_ring_read_file_api::BuildIoRingReadFile_api;
-mod build_io_ring_read_file_scatter_api;
-pub use build_io_ring_read_file_scatter_api::BuildIoRingReadFileScatter_api;
-mod build_io_ring_register_buffers_api;
-pub use build_io_ring_register_buffers_api::BuildIoRingRegisterBuffers_api;
-mod build_io_ring_register_file_handles_api;
-pub use build_io_ring_register_file_handles_api::BuildIoRingRegisterFileHandles_api;
-mod build_io_ring_write_file_api;
-pub use build_io_ring_write_file_api::BuildIoRingWriteFile_api;
-mod build_io_ring_write_file_gather_api;
-pub use build_io_ring_write_file_gather_api::BuildIoRingWriteFileGather_api;
-mod call_named_pipe_w_api;
-pub use call_named_pipe_w_api::CallNamedPipeW_api;
-mod callback_may_run_long_api;
-pub use callback_may_run_long_api::CallbackMayRunLong_api;
-mod cancel_device_wakeup_request_api;
-pub use cancel_device_wakeup_request_api::CancelDeviceWakeupRequest_api;
-mod cancel_io_api;
-pub use cancel_io_api::CancelIo_api;
-mod cancel_io_ex_api;
-pub use cancel_io_ex_api::CancelIoEx_api;
-mod cancel_synchronous_io_api;
-pub use cancel_synchronous_io_api::CancelSynchronousIo_api;
-mod cancel_threadpool_io_api;
-pub use cancel_threadpool_io_api::CancelThreadpoolIo_api;
-mod cancel_waitable_timer_api;
-pub use cancel_waitable_timer_api::CancelWaitableTimer_api;
+mod build_io_ring_cancel_request;
+pub use build_io_ring_cancel_request::BuildIoRingCancelRequest;
+mod build_io_ring_flush_file;
+pub use build_io_ring_flush_file::BuildIoRingFlushFile;
+mod build_io_ring_read_file;
+pub use build_io_ring_read_file::BuildIoRingReadFile;
+mod build_io_ring_read_file_scatter;
+pub use build_io_ring_read_file_scatter::BuildIoRingReadFileScatter;
+mod build_io_ring_register_buffers;
+pub use build_io_ring_register_buffers::BuildIoRingRegisterBuffers;
+mod build_io_ring_register_file_handles;
+pub use build_io_ring_register_file_handles::BuildIoRingRegisterFileHandles;
+mod build_io_ring_write_file;
+pub use build_io_ring_write_file::BuildIoRingWriteFile;
+mod build_io_ring_write_file_gather;
+pub use build_io_ring_write_file_gather::BuildIoRingWriteFileGather;
+mod callback_may_run_long;
+pub use callback_may_run_long::CallbackMayRunLong;
+mod cancel_device_wakeup_request;
+pub use cancel_device_wakeup_request::CancelDeviceWakeupRequest;
+mod cancel_io;
+pub use cancel_io::CancelIo;
+mod cancel_io_ex;
+pub use cancel_io_ex::CancelIoEx;
+mod cancel_synchronous_io;
+pub use cancel_synchronous_io::CancelSynchronousIo;
+mod cancel_threadpool_io;
+pub use cancel_threadpool_io::CancelThreadpoolIo;
+mod cancel_waitable_timer;
+pub use cancel_waitable_timer::CancelWaitableTimer;
 mod ceip_is_opted_in_2;
 pub use ceip_is_opted_in_2::CeipIsOptedIn;
-mod change_timer_queue_timer_api;
-pub use change_timer_queue_timer_api::ChangeTimerQueueTimer_api;
+mod change_timer_queue_timer;
+pub use change_timer_queue_timer::ChangeTimerQueueTimer;
 mod check_allow_decrypted_remote_destination_policy_2;
 pub use check_allow_decrypted_remote_destination_policy_2::CheckAllowDecryptedRemoteDestinationPolicy;
-mod check_elevation_enabled_api;
-pub use check_elevation_enabled_api::CheckElevationEnabled_api;
-mod check_for_read_only_resource_filter_api;
-pub use check_for_read_only_resource_filter_api::CheckForReadOnlyResourceFilter_api;
-mod check_remote_debugger_present_api;
-pub use check_remote_debugger_present_api::CheckRemoteDebuggerPresent_api;
-mod check_token_capability_api;
-pub use check_token_capability_api::CheckTokenCapability_api;
-mod check_token_membership_ex_api;
-pub use check_token_membership_ex_api::CheckTokenMembershipEx_api;
-mod clear_comm_break_api;
-pub use clear_comm_break_api::ClearCommBreak_api;
-mod clear_comm_error_api;
-pub use clear_comm_error_api::ClearCommError_api;
-mod close_io_ring_api;
-pub use close_io_ring_api::CloseIoRing_api;
-mod close_package_info_api;
-pub use close_package_info_api::ClosePackageInfo_api;
-mod close_private_namespace_api;
-pub use close_private_namespace_api::ClosePrivateNamespace_api;
+mod check_elevation_enabled;
+pub use check_elevation_enabled::CheckElevationEnabled;
+mod check_for_read_only_resource_filter;
+pub use check_for_read_only_resource_filter::CheckForReadOnlyResourceFilter;
+mod check_remote_debugger_present;
+pub use check_remote_debugger_present::CheckRemoteDebuggerPresent;
+mod check_token_capability;
+pub use check_token_capability::CheckTokenCapability;
+mod check_token_membership_ex;
+pub use check_token_membership_ex::CheckTokenMembershipEx;
+mod clear_comm_break;
+pub use clear_comm_break::ClearCommBreak;
+mod clear_comm_error;
+pub use clear_comm_error::ClearCommError;
+mod close_io_ring;
+pub use close_io_ring::CloseIoRing;
+mod close_package_info;
+pub use close_package_info::ClosePackageInfo;
+mod close_private_namespace;
+pub use close_private_namespace::ClosePrivateNamespace;
 mod close_profile_user_mapping_2;
 pub use close_profile_user_mapping_2::CloseProfileUserMapping;
-mod close_pseudo_console_api;
-pub use close_pseudo_console_api::ClosePseudoConsole_api;
-mod close_state_api;
-pub use close_state_api::CloseState_api;
-mod close_threadpool_api;
-pub use close_threadpool_api::CloseThreadpool_api;
-mod close_threadpool_cleanup_group_api;
-pub use close_threadpool_cleanup_group_api::CloseThreadpoolCleanupGroup_api;
-mod close_threadpool_cleanup_group_members_api;
-pub use close_threadpool_cleanup_group_members_api::CloseThreadpoolCleanupGroupMembers_api;
-mod close_threadpool_io_api;
-pub use close_threadpool_io_api::CloseThreadpoolIo_api;
-mod close_threadpool_timer_api;
-pub use close_threadpool_timer_api::CloseThreadpoolTimer_api;
-mod close_threadpool_wait_api;
-pub use close_threadpool_wait_api::CloseThreadpoolWait_api;
-mod close_threadpool_work_api;
-pub use close_threadpool_work_api::CloseThreadpoolWork_api;
-mod cmd_bat_notification_api;
-pub use cmd_bat_notification_api::CmdBatNotification_api;
-mod comm_config_dialog_w_api;
-pub use comm_config_dialog_w_api::CommConfigDialogW_api;
-mod compare_file_time_api;
-pub use compare_file_time_api::CompareFileTime_api;
-mod compare_string_a;
-pub use compare_string_a::CompareStringA;
-mod compare_string_ex_api;
-pub use compare_string_ex_api::CompareStringEx_api;
+mod close_pseudo_console;
+pub use close_pseudo_console::ClosePseudoConsole;
+mod close_state;
+pub use close_state::CloseState;
+mod close_threadpool;
+pub use close_threadpool::CloseThreadpool;
+mod close_threadpool_cleanup_group;
+pub use close_threadpool_cleanup_group::CloseThreadpoolCleanupGroup;
+mod close_threadpool_cleanup_group_members;
+pub use close_threadpool_cleanup_group_members::CloseThreadpoolCleanupGroupMembers;
+mod close_threadpool_io;
+pub use close_threadpool_io::CloseThreadpoolIo;
+mod close_threadpool_timer;
+pub use close_threadpool_timer::CloseThreadpoolTimer;
+mod close_threadpool_wait;
+pub use close_threadpool_wait::CloseThreadpoolWait;
+mod close_threadpool_work;
+pub use close_threadpool_work::CloseThreadpoolWork;
+mod cmd_bat_notification;
+pub use cmd_bat_notification::CmdBatNotification;
+mod compare_file_time;
+pub use compare_file_time::CompareFileTime;
+mod compare_string_ex;
+pub use compare_string_ex::CompareStringEx;
 mod compare_string_ordinal;
 pub use compare_string_ordinal::CompareStringOrdinal;
-mod continue_debug_event_api;
-pub use continue_debug_event_api::ContinueDebugEvent_api;
-mod convert_default_locale_api;
-pub use convert_default_locale_api::ConvertDefaultLocale_api;
+mod continue_debug_event;
+pub use continue_debug_event::ContinueDebugEvent;
+mod convert_default_locale;
+pub use convert_default_locale::ConvertDefaultLocale;
 mod convert_fiber_to_thread_2;
 pub use convert_fiber_to_thread_2::ConvertFiberToThread;
-mod convert_thread_to_fiber_api;
-pub use convert_thread_to_fiber_api::ConvertThreadToFiber_api;
-mod convert_thread_to_fiber_ex_api;
-pub use convert_thread_to_fiber_ex_api::ConvertThreadToFiberEx_api;
-mod copy_context_api;
-pub use copy_context_api::CopyContext_api;
-mod copy_file2_api;
-pub use copy_file2_api::CopyFile2_api;
-mod copy_file_ex_w;
-pub use copy_file_ex_w::CopyFileExW;
-mod create_act_ctx_w_api;
-pub use create_act_ctx_w_api::CreateActCtxW_api;
-mod create_boundary_descriptor_w_api;
-pub use create_boundary_descriptor_w_api::CreateBoundaryDescriptorW_api;
-mod create_console_screen_buffer_api;
-pub use create_console_screen_buffer_api::CreateConsoleScreenBuffer_api;
-mod create_directory2_a_api;
-pub use create_directory2_a_api::CreateDirectory2A_api;
-mod create_directory2_w_api;
-pub use create_directory2_w_api::CreateDirectory2W_api;
-mod create_directory_ex_w_api;
-pub use create_directory_ex_w_api::CreateDirectoryExW_api;
-mod create_enclave_api;
-pub use create_enclave_api::CreateEnclave_api;
-mod create_event_ex_a_api;
-pub use create_event_ex_a_api::CreateEventExA_api;
-mod create_event_ex_w_api;
-pub use create_event_ex_w_api::CreateEventExW_api;
-mod create_event_w_api;
-pub use create_event_w_api::CreateEventW_api;
-mod create_fiber_api;
-pub use create_fiber_api::CreateFiber_api;
-mod create_fiber_ex_api;
-pub use create_fiber_ex_api::CreateFiberEx_api;
-mod create_file2_api;
-pub use create_file2_api::CreateFile2_api;
-mod create_file3_api;
-pub use create_file3_api::CreateFile3_api;
-mod create_file_mapping_from_app_api;
-pub use create_file_mapping_from_app_api::CreateFileMappingFromApp_api;
-mod create_file_mapping_numa_w_api;
-pub use create_file_mapping_numa_w_api::CreateFileMappingNumaW_api;
-mod create_file_transacted_a_api;
-pub use create_file_transacted_a_api::CreateFileTransactedA_api;
-mod create_file_transacted_w_api;
-pub use create_file_transacted_w_api::CreateFileTransactedW_api;
-mod create_hard_link_a_api;
-pub use create_hard_link_a_api::CreateHardLinkA_api;
-mod create_hard_link_transacted_w_api;
-pub use create_hard_link_transacted_w_api::CreateHardLinkTransactedW_api;
-mod create_hard_link_w_api;
-pub use create_hard_link_w_api::CreateHardLinkW_api;
-mod create_io_completion_port_api;
-pub use create_io_completion_port_api::CreateIoCompletionPort_api;
-mod create_io_ring_api;
-pub use create_io_ring_api::CreateIoRing_api;
-mod create_job_object_a_api;
-pub use create_job_object_a_api::CreateJobObjectA_api;
-mod create_job_object_w_api;
-pub use create_job_object_w_api::CreateJobObjectW_api;
-mod create_job_set_api;
-pub use create_job_set_api::CreateJobSet_api;
-mod create_mailslot_a_api;
-pub use create_mailslot_a_api::CreateMailslotA_api;
-mod create_mailslot_w_api;
-pub use create_mailslot_w_api::CreateMailslotW_api;
-mod create_memory_resource_notification_api;
-pub use create_memory_resource_notification_api::CreateMemoryResourceNotification_api;
-mod create_mutex_ex_a_api;
-pub use create_mutex_ex_a_api::CreateMutexExA_api;
-mod create_mutex_ex_w_api;
-pub use create_mutex_ex_w_api::CreateMutexExW_api;
-mod create_named_pipe_w_api;
-pub use create_named_pipe_w_api::CreateNamedPipeW_api;
-mod create_package_virtualization_context_api;
-pub use create_package_virtualization_context_api::CreatePackageVirtualizationContext_api;
+mod convert_thread_to_fiber;
+pub use convert_thread_to_fiber::ConvertThreadToFiber;
+mod convert_thread_to_fiber_ex;
+pub use convert_thread_to_fiber_ex::ConvertThreadToFiberEx;
+mod copy_context;
+pub use copy_context::CopyContext;
+mod copy_file2;
+pub use copy_file2::CopyFile2;
+mod create_console_screen_buffer;
+pub use create_console_screen_buffer::CreateConsoleScreenBuffer;
+mod create_enclave;
+pub use create_enclave::CreateEnclave;
+mod create_fiber;
+pub use create_fiber::CreateFiber;
+mod create_fiber_ex;
+pub use create_fiber_ex::CreateFiberEx;
+mod create_file2;
+pub use create_file2::CreateFile2;
+mod create_file3;
+pub use create_file3::CreateFile3;
+mod create_file_mapping_from_app;
+pub use create_file_mapping_from_app::CreateFileMappingFromApp;
+mod create_io_completion_port;
+pub use create_io_completion_port::CreateIoCompletionPort;
+mod create_io_ring;
+pub use create_io_ring::CreateIoRing;
+mod create_job_set;
+pub use create_job_set::CreateJobSet;
+mod create_memory_resource_notification;
+pub use create_memory_resource_notification::CreateMemoryResourceNotification;
+mod create_package_virtualization_context;
+pub use create_package_virtualization_context::CreatePackageVirtualizationContext;
 mod create_pipe;
 pub use create_pipe::CreatePipe;
-mod create_private_namespace_a_api;
-pub use create_private_namespace_a_api::CreatePrivateNamespaceA_api;
-mod create_private_namespace_w_api;
-pub use create_private_namespace_w_api::CreatePrivateNamespaceW_api;
-mod create_process_as_user_a_api;
-pub use create_process_as_user_a_api::CreateProcessAsUserA_api;
-mod create_process_as_user_w_api;
-pub use create_process_as_user_w_api::CreateProcessAsUserW_api;
-mod create_process_internal_a_api;
-pub use create_process_internal_a_api::CreateProcessInternalA_api;
-mod create_process_internal_w_api;
-pub use create_process_internal_w_api::CreateProcessInternalW_api;
-mod create_pseudo_console_api;
-pub use create_pseudo_console_api::CreatePseudoConsole_api;
-mod create_remote_thread_ex_api;
-pub use create_remote_thread_ex_api::CreateRemoteThreadEx_api;
-mod create_semaphore_ex_w;
-pub use create_semaphore_ex_w::CreateSemaphoreExW;
-mod create_semaphore_w;
-pub use create_semaphore_w::CreateSemaphoreW;
-mod create_symbolic_link_w_api;
-pub use create_symbolic_link_w_api::CreateSymbolicLinkW_api;
-mod create_threadpool_api;
-pub use create_threadpool_api::CreateThreadpool_api;
-mod create_threadpool_cleanup_group_api;
-pub use create_threadpool_cleanup_group_api::CreateThreadpoolCleanupGroup_api;
-mod create_threadpool_io_api;
-pub use create_threadpool_io_api::CreateThreadpoolIo_api;
-mod create_threadpool_timer_api;
-pub use create_threadpool_timer_api::CreateThreadpoolTimer_api;
-mod create_threadpool_wait_api;
-pub use create_threadpool_wait_api::CreateThreadpoolWait_api;
-mod create_threadpool_work_api;
-pub use create_threadpool_work_api::CreateThreadpoolWork_api;
-mod create_timer_queue_api;
-pub use create_timer_queue_api::CreateTimerQueue_api;
-mod create_timer_queue_timer_api;
-pub use create_timer_queue_timer_api::CreateTimerQueueTimer_api;
-mod create_waitable_timer_ex_w;
-pub use create_waitable_timer_ex_w::CreateWaitableTimerExW;
-mod ctrl_routine_api;
-pub use ctrl_routine_api::CtrlRoutine_api;
-mod deactivate_act_ctx_api;
-pub use deactivate_act_ctx_api::DeactivateActCtx_api;
-mod deactivate_package_virtualization_context_api;
-pub use deactivate_package_virtualization_context_api::DeactivatePackageVirtualizationContext_api;
-mod debug_active_process_api;
-pub use debug_active_process_api::DebugActiveProcess_api;
-mod debug_active_process_stop_api;
-pub use debug_active_process_stop_api::DebugActiveProcessStop_api;
+mod create_pseudo_console;
+pub use create_pseudo_console::CreatePseudoConsole;
+mod create_remote_thread_ex;
+pub use create_remote_thread_ex::CreateRemoteThreadEx;
+mod create_threadpool;
+pub use create_threadpool::CreateThreadpool;
+mod create_threadpool_cleanup_group;
+pub use create_threadpool_cleanup_group::CreateThreadpoolCleanupGroup;
+mod create_threadpool_io;
+pub use create_threadpool_io::CreateThreadpoolIo;
+mod create_threadpool_timer;
+pub use create_threadpool_timer::CreateThreadpoolTimer;
+mod create_threadpool_wait;
+pub use create_threadpool_wait::CreateThreadpoolWait;
+mod create_threadpool_work;
+pub use create_threadpool_work::CreateThreadpoolWork;
+mod create_timer_queue;
+pub use create_timer_queue::CreateTimerQueue;
+mod create_timer_queue_timer;
+pub use create_timer_queue_timer::CreateTimerQueueTimer;
+mod ctrl_routine;
+pub use ctrl_routine::CtrlRoutine;
+mod deactivate_act_ctx;
+pub use deactivate_act_ctx::DeactivateActCtx;
+mod deactivate_package_virtualization_context;
+pub use deactivate_package_virtualization_context::DeactivatePackageVirtualizationContext;
+mod debug_active_process;
+pub use debug_active_process::DebugActiveProcess;
+mod debug_active_process_stop;
+pub use debug_active_process_stop::DebugActiveProcessStop;
 mod debug_break_2;
 pub use debug_break_2::DebugBreak;
-mod debug_break_process_api;
-pub use debug_break_process_api::DebugBreakProcess_api;
-mod decode_system_pointer_api;
-pub use decode_system_pointer_api::DecodeSystemPointer_api;
-mod define_dos_device_w_api;
-pub use define_dos_device_w_api::DefineDosDeviceW_api;
-mod delay_load_failure_hook_api;
-pub use delay_load_failure_hook_api::DelayLoadFailureHook_api;
-mod delete_boundary_descriptor_api;
-pub use delete_boundary_descriptor_api::DeleteBoundaryDescriptor_api;
+mod debug_break_process;
+pub use debug_break_process::DebugBreakProcess;
+mod decode_system_pointer;
+pub use decode_system_pointer::DecodeSystemPointer;
+mod delay_load_failure_hook;
+pub use delay_load_failure_hook::DelayLoadFailureHook;
+mod delete_boundary_descriptor;
+pub use delete_boundary_descriptor::DeleteBoundaryDescriptor;
 mod delete_critical_section;
 pub use delete_critical_section::DeleteCriticalSection;
-mod delete_fiber_api;
-pub use delete_fiber_api::DeleteFiber_api;
-mod delete_file2_a_api;
-pub use delete_file2_a_api::DeleteFile2A_api;
-mod delete_file2_w_api;
-pub use delete_file2_w_api::DeleteFile2W_api;
-mod delete_file_transacted_a_api;
-pub use delete_file_transacted_a_api::DeleteFileTransactedA_api;
-mod delete_proc_thread_attribute_list_api;
-pub use delete_proc_thread_attribute_list_api::DeleteProcThreadAttributeList_api;
-mod delete_synchronization_barrier_api;
-pub use delete_synchronization_barrier_api::DeleteSynchronizationBarrier_api;
-mod delete_timer_queue_ex_api;
-pub use delete_timer_queue_ex_api::DeleteTimerQueueEx_api;
-mod delete_timer_queue_timer_api;
-pub use delete_timer_queue_timer_api::DeleteTimerQueueTimer_api;
-mod delete_volume_mount_point_w_api;
-pub use delete_volume_mount_point_w_api::DeleteVolumeMountPointW_api;
+mod delete_fiber;
+pub use delete_fiber::DeleteFiber;
+mod delete_proc_thread_attribute_list;
+pub use delete_proc_thread_attribute_list::DeleteProcThreadAttributeList;
+mod delete_synchronization_barrier;
+pub use delete_synchronization_barrier::DeleteSynchronizationBarrier;
+mod delete_timer_queue_ex;
+pub use delete_timer_queue_ex::DeleteTimerQueueEx;
+mod delete_timer_queue_timer;
+pub use delete_timer_queue_timer::DeleteTimerQueueTimer;
 mod device_io_control_2;
 pub use device_io_control_2::DeviceIoControl;
-mod disable_thread_library_calls_api;
-pub use disable_thread_library_calls_api::DisableThreadLibraryCalls_api;
-mod disassociate_current_thread_from_callback_api;
-pub use disassociate_current_thread_from_callback_api::DisassociateCurrentThreadFromCallback_api;
-mod discard_virtual_memory_api;
-pub use discard_virtual_memory_api::DiscardVirtualMemory_api;
-mod dns_hostname_to_computer_name_ex_w_api;
-pub use dns_hostname_to_computer_name_ex_w_api::DnsHostnameToComputerNameExW_api;
-mod duplicate_console_handle_api;
-pub use duplicate_console_handle_api::DuplicateConsoleHandle_api;
-mod duplicate_package_virtualization_context_api;
-pub use duplicate_package_virtualization_context_api::DuplicatePackageVirtualizationContext_api;
-mod enable_process_optional_x_state_features_api;
-pub use enable_process_optional_x_state_features_api::EnableProcessOptionalXStateFeatures_api;
-mod encode_system_pointer_api;
-pub use encode_system_pointer_api::EncodeSystemPointer_api;
-mod enter_synchronization_barrier_api;
-pub use enter_synchronization_barrier_api::EnterSynchronizationBarrier_api;
-mod enum_calendar_info_ex_ex_api;
-pub use enum_calendar_info_ex_ex_api::EnumCalendarInfoExEx_api;
-mod enum_calendar_info_ex_w_api;
-pub use enum_calendar_info_ex_w_api::EnumCalendarInfoExW_api;
-mod enum_calendar_info_w_api;
-pub use enum_calendar_info_w_api::EnumCalendarInfoW_api;
-mod enum_date_formats_ex_ex_api;
-pub use enum_date_formats_ex_ex_api::EnumDateFormatsExEx_api;
-mod enum_date_formats_ex_w_api;
-pub use enum_date_formats_ex_w_api::EnumDateFormatsExW_api;
-mod enum_date_formats_w_api;
-pub use enum_date_formats_w_api::EnumDateFormatsW_api;
-mod enum_language_group_locales_w_api;
-pub use enum_language_group_locales_w_api::EnumLanguageGroupLocalesW_api;
-mod enum_resource_languages_a_api;
-pub use enum_resource_languages_a_api::EnumResourceLanguagesA_api;
-mod enum_resource_languages_ex_a_api;
-pub use enum_resource_languages_ex_a_api::EnumResourceLanguagesExA_api;
-mod enum_resource_languages_ex_w_api;
-pub use enum_resource_languages_ex_w_api::EnumResourceLanguagesExW_api;
-mod enum_resource_languages_w_api;
-pub use enum_resource_languages_w_api::EnumResourceLanguagesW_api;
-mod enum_resource_names_a_api;
-pub use enum_resource_names_a_api::EnumResourceNamesA_api;
-mod enum_resource_names_ex_a_api;
-pub use enum_resource_names_ex_a_api::EnumResourceNamesExA_api;
-mod enum_resource_names_ex_w_api;
-pub use enum_resource_names_ex_w_api::EnumResourceNamesExW_api;
-mod enum_resource_names_w_api;
-pub use enum_resource_names_w_api::EnumResourceNamesW_api;
-mod enum_resource_types_a_api;
-pub use enum_resource_types_a_api::EnumResourceTypesA_api;
-mod enum_resource_types_ex_a_api;
-pub use enum_resource_types_ex_a_api::EnumResourceTypesExA_api;
-mod enum_resource_types_ex_w_api;
-pub use enum_resource_types_ex_w_api::EnumResourceTypesExW_api;
-mod enum_resource_types_w_api;
-pub use enum_resource_types_w_api::EnumResourceTypesW_api;
-mod enum_system_code_pages_w_api;
-pub use enum_system_code_pages_w_api::EnumSystemCodePagesW_api;
-mod enum_system_firmware_tables_api;
-pub use enum_system_firmware_tables_api::EnumSystemFirmwareTables_api;
-mod enum_system_language_groups_w_api;
-pub use enum_system_language_groups_w_api::EnumSystemLanguageGroupsW_api;
-mod enum_system_locales_a_api;
-pub use enum_system_locales_a_api::EnumSystemLocalesA_api;
-mod enum_system_locales_ex_api;
-pub use enum_system_locales_ex_api::EnumSystemLocalesEx_api;
-mod enum_system_locales_w_api;
-pub use enum_system_locales_w_api::EnumSystemLocalesW_api;
-mod enum_time_formats_ex_api;
-pub use enum_time_formats_ex_api::EnumTimeFormatsEx_api;
-mod enum_time_formats_w_api;
-pub use enum_time_formats_w_api::EnumTimeFormatsW_api;
-mod enum_ui_languages_w_api;
-pub use enum_ui_languages_w_api::EnumUILanguagesW_api;
-mod escape_comm_function_api;
-pub use escape_comm_function_api::EscapeCommFunction_api;
-mod exit_vdm_api;
-pub use exit_vdm_api::ExitVDM_api;
-mod expunge_console_command_history_a_api;
-pub use expunge_console_command_history_a_api::ExpungeConsoleCommandHistoryA_api;
-mod expunge_console_command_history_w_api;
-pub use expunge_console_command_history_w_api::ExpungeConsoleCommandHistoryW_api;
-mod fatal_app_exit_a_api;
-pub use fatal_app_exit_a_api::FatalAppExitA_api;
-mod fatal_app_exit_w_api;
-pub use fatal_app_exit_w_api::FatalAppExitW_api;
-mod fill_console_output_attribute_api;
-pub use fill_console_output_attribute_api::FillConsoleOutputAttribute_api;
-mod fill_console_output_character_a_api;
-pub use fill_console_output_character_a_api::FillConsoleOutputCharacterA_api;
-mod fill_console_output_character_w_api;
-pub use fill_console_output_character_w_api::FillConsoleOutputCharacterW_api;
-mod find_act_ctx_section_guid_api;
-pub use find_act_ctx_section_guid_api::FindActCtxSectionGuid_api;
-mod find_act_ctx_section_string_w_api;
-pub use find_act_ctx_section_string_w_api::FindActCtxSectionStringW_api;
-mod find_close_change_notification_api;
-pub use find_close_change_notification_api::FindCloseChangeNotification_api;
-mod find_first_change_notification_a_api;
-pub use find_first_change_notification_a_api::FindFirstChangeNotificationA_api;
-mod find_first_change_notification_w_api;
-pub use find_first_change_notification_w_api::FindFirstChangeNotificationW_api;
-mod find_first_file_ex_a_api;
-pub use find_first_file_ex_a_api::FindFirstFileExA_api;
-mod find_first_file_ex_w_api;
-pub use find_first_file_ex_w_api::FindFirstFileExW_api;
-mod find_first_file_name_transacted_w_api;
-pub use find_first_file_name_transacted_w_api::FindFirstFileNameTransactedW_api;
-mod find_first_file_name_w_api;
-pub use find_first_file_name_w_api::FindFirstFileNameW_api;
-mod find_first_file_transacted_a_api;
-pub use find_first_file_transacted_a_api::FindFirstFileTransactedA_api;
-mod find_first_file_transacted_w_api;
-pub use find_first_file_transacted_w_api::FindFirstFileTransactedW_api;
-mod find_first_stream_transacted_w_api;
-pub use find_first_stream_transacted_w_api::FindFirstStreamTransactedW_api;
-mod find_first_stream_w_api;
-pub use find_first_stream_w_api::FindFirstStreamW_api;
-mod find_first_volume_w_api;
-pub use find_first_volume_w_api::FindFirstVolumeW_api;
-mod find_nls_string_api;
-pub use find_nls_string_api::FindNLSString_api;
-mod find_nls_string_ex_api;
-pub use find_nls_string_ex_api::FindNLSStringEx_api;
-mod find_next_change_notification_api;
-pub use find_next_change_notification_api::FindNextChangeNotification_api;
-mod find_next_file_name_w_api;
-pub use find_next_file_name_w_api::FindNextFileNameW_api;
-mod find_next_stream_w_api;
-pub use find_next_stream_w_api::FindNextStreamW_api;
-mod find_next_volume_w_api;
-pub use find_next_volume_w_api::FindNextVolumeW_api;
-mod find_packages_by_package_family_api;
-pub use find_packages_by_package_family_api::FindPackagesByPackageFamily_api;
-mod find_resource_ex_a_api;
-pub use find_resource_ex_a_api::FindResourceExA_api;
-mod find_resource_ex_w_api;
-pub use find_resource_ex_w_api::FindResourceExW_api;
-mod find_string_ordinal_api;
-pub use find_string_ordinal_api::FindStringOrdinal_api;
-mod find_volume_close_api;
-pub use find_volume_close_api::FindVolumeClose_api;
+mod disable_thread_library_calls;
+pub use disable_thread_library_calls::DisableThreadLibraryCalls;
+mod disassociate_current_thread_from_callback;
+pub use disassociate_current_thread_from_callback::DisassociateCurrentThreadFromCallback;
+mod discard_virtual_memory;
+pub use discard_virtual_memory::DiscardVirtualMemory;
+mod dns_hostname_to_computer_name_ex_w;
+pub use dns_hostname_to_computer_name_ex_w::DnsHostnameToComputerNameExW;
+mod duplicate_console_handle;
+pub use duplicate_console_handle::DuplicateConsoleHandle;
+mod duplicate_package_virtualization_context;
+pub use duplicate_package_virtualization_context::DuplicatePackageVirtualizationContext;
+mod enable_process_optional_x_state_features;
+pub use enable_process_optional_x_state_features::EnableProcessOptionalXStateFeatures;
+mod encode_system_pointer;
+pub use encode_system_pointer::EncodeSystemPointer;
+mod enter_synchronization_barrier;
+pub use enter_synchronization_barrier::EnterSynchronizationBarrier;
+mod enum_calendar_info_ex_ex;
+pub use enum_calendar_info_ex_ex::EnumCalendarInfoExEx;
+mod enum_date_formats_ex_ex;
+pub use enum_date_formats_ex_ex::EnumDateFormatsExEx;
+mod enum_system_firmware_tables;
+pub use enum_system_firmware_tables::EnumSystemFirmwareTables;
+mod enum_system_locales_ex;
+pub use enum_system_locales_ex::EnumSystemLocalesEx;
+mod enum_time_formats_ex;
+pub use enum_time_formats_ex::EnumTimeFormatsEx;
+mod escape_comm_function;
+pub use escape_comm_function::EscapeCommFunction;
+mod exit_vdm;
+pub use exit_vdm::ExitVDM;
+mod fill_console_output_attribute;
+pub use fill_console_output_attribute::FillConsoleOutputAttribute;
+mod find_act_ctx_section_guid;
+pub use find_act_ctx_section_guid::FindActCtxSectionGuid;
+mod find_close_change_notification;
+pub use find_close_change_notification::FindCloseChangeNotification;
+mod find_first_file_name_transacted_w;
+pub use find_first_file_name_transacted_w::FindFirstFileNameTransactedW;
+mod find_first_file_name_w;
+pub use find_first_file_name_w::FindFirstFileNameW;
+mod find_first_stream_transacted_w;
+pub use find_first_stream_transacted_w::FindFirstStreamTransactedW;
+mod find_first_stream_w;
+pub use find_first_stream_w::FindFirstStreamW;
+mod find_nls_string;
+pub use find_nls_string::FindNLSString;
+mod find_nls_string_ex;
+pub use find_nls_string_ex::FindNLSStringEx;
+mod find_next_change_notification;
+pub use find_next_change_notification::FindNextChangeNotification;
+mod find_next_file_name_w;
+pub use find_next_file_name_w::FindNextFileNameW;
+mod find_next_stream_w;
+pub use find_next_stream_w::FindNextStreamW;
+mod find_packages_by_package_family;
+pub use find_packages_by_package_family::FindPackagesByPackageFamily;
+mod find_string_ordinal;
+pub use find_string_ordinal::FindStringOrdinal;
+mod find_volume_close;
+pub use find_volume_close::FindVolumeClose;
 mod fls_free;
 pub use fls_free::FlsFree;
-mod fls_get_value2_api;
-pub use fls_get_value2_api::FlsGetValue2_api;
-mod flush_console_input_buffer_api;
-pub use flush_console_input_buffer_api::FlushConsoleInputBuffer_api;
-mod flush_file_buffers;
-pub use flush_file_buffers::FlushFileBuffers;
-mod flush_instruction_cache_api;
-pub use flush_instruction_cache_api::FlushInstructionCache_api;
-mod flush_process_write_buffers_api;
-pub use flush_process_write_buffers_api::FlushProcessWriteBuffers_api;
-mod flush_view_of_file_api;
-pub use flush_view_of_file_api::FlushViewOfFile_api;
-mod fold_string_w_api;
-pub use fold_string_w_api::FoldStringW_api;
-mod format_application_user_model_id_api;
-pub use format_application_user_model_id_api::FormatApplicationUserModelId_api;
-mod free_console_api;
-pub use free_console_api::FreeConsole_api;
-mod free_library_and_exit_thread_api;
-pub use free_library_and_exit_thread_api::FreeLibraryAndExitThread_api;
-mod free_library_when_callback_returns_api;
-pub use free_library_when_callback_returns_api::FreeLibraryWhenCallbackReturns_api;
-mod free_user_physical_pages_api;
-pub use free_user_physical_pages_api::FreeUserPhysicalPages_api;
-mod generate_console_ctrl_event_api;
-pub use generate_console_ctrl_event_api::GenerateConsoleCtrlEvent_api;
-mod get_app_container_ace_api;
-pub use get_app_container_ace_api::GetAppContainerAce_api;
-mod get_app_container_named_object_path_api;
-pub use get_app_container_named_object_path_api::GetAppContainerNamedObjectPath_api;
-mod get_application_recovery_callback_api;
-pub use get_application_recovery_callback_api::GetApplicationRecoveryCallback_api;
-mod get_application_recovery_callback_worker_api;
-pub use get_application_recovery_callback_worker_api::GetApplicationRecoveryCallbackWorker_api;
-mod get_application_restart_settings_api;
-pub use get_application_restart_settings_api::GetApplicationRestartSettings_api;
-mod get_application_user_model_id_api;
-pub use get_application_user_model_id_api::GetApplicationUserModelId_api;
-mod get_binary_type_api;
-pub use get_binary_type_api::GetBinaryType_api;
-mod get_binary_type_a_api;
-pub use get_binary_type_a_api::GetBinaryTypeA_api;
-mod get_cp_info_ex_a_api;
-pub use get_cp_info_ex_a_api::GetCPInfoExA_api;
-mod get_cp_info_ex_w_api;
-pub use get_cp_info_ex_w_api::GetCPInfoExW_api;
-mod get_cached_signing_level_api;
-pub use get_cached_signing_level_api::GetCachedSigningLevel_api;
-mod get_calendar_info_ex_api;
-pub use get_calendar_info_ex_api::GetCalendarInfoEx_api;
-mod get_calendar_info_w_api;
-pub use get_calendar_info_w_api::GetCalendarInfoW_api;
-mod get_comm_config_api;
-pub use get_comm_config_api::GetCommConfig_api;
-mod get_comm_mask_api;
-pub use get_comm_mask_api::GetCommMask_api;
-mod get_comm_modem_status_api;
-pub use get_comm_modem_status_api::GetCommModemStatus_api;
-mod get_comm_properties_api;
-pub use get_comm_properties_api::GetCommProperties_api;
-mod get_comm_state_api;
-pub use get_comm_state_api::GetCommState_api;
-mod get_comm_timeouts_api;
-pub use get_comm_timeouts_api::GetCommTimeouts_api;
-mod get_compressed_file_size_a_api;
-pub use get_compressed_file_size_a_api::GetCompressedFileSizeA_api;
-mod get_compressed_file_size_transacted_a_api;
-pub use get_compressed_file_size_transacted_a_api::GetCompressedFileSizeTransactedA_api;
-mod get_compressed_file_size_w_api;
-pub use get_compressed_file_size_w_api::GetCompressedFileSizeW_api;
-mod get_computer_name_ex_a_api;
-pub use get_computer_name_ex_a_api::GetComputerNameExA_api;
-mod get_computer_name_ex_w_api;
-pub use get_computer_name_ex_w_api::GetComputerNameExW_api;
-mod get_console_alias_a_api;
-pub use get_console_alias_a_api::GetConsoleAliasA_api;
-mod get_console_alias_exes_a_api;
-pub use get_console_alias_exes_a_api::GetConsoleAliasExesA_api;
-mod get_console_alias_exes_length_a_api;
-pub use get_console_alias_exes_length_a_api::GetConsoleAliasExesLengthA_api;
-mod get_console_alias_exes_length_w_api;
-pub use get_console_alias_exes_length_w_api::GetConsoleAliasExesLengthW_api;
-mod get_console_alias_exes_w_api;
-pub use get_console_alias_exes_w_api::GetConsoleAliasExesW_api;
-mod get_console_alias_w_api;
-pub use get_console_alias_w_api::GetConsoleAliasW_api;
-mod get_console_aliases_a_api;
-pub use get_console_aliases_a_api::GetConsoleAliasesA_api;
-mod get_console_aliases_length_a_api;
-pub use get_console_aliases_length_a_api::GetConsoleAliasesLengthA_api;
-mod get_console_aliases_length_w_api;
-pub use get_console_aliases_length_w_api::GetConsoleAliasesLengthW_api;
-mod get_console_aliases_w_api;
-pub use get_console_aliases_w_api::GetConsoleAliasesW_api;
-mod get_console_command_history_a_api;
-pub use get_console_command_history_a_api::GetConsoleCommandHistoryA_api;
-mod get_console_command_history_length_a_api;
-pub use get_console_command_history_length_a_api::GetConsoleCommandHistoryLengthA_api;
-mod get_console_command_history_length_w_api;
-pub use get_console_command_history_length_w_api::GetConsoleCommandHistoryLengthW_api;
-mod get_console_command_history_w_api;
-pub use get_console_command_history_w_api::GetConsoleCommandHistoryW_api;
-mod get_console_cursor_info_api;
-pub use get_console_cursor_info_api::GetConsoleCursorInfo_api;
-mod get_console_cursor_mode_api;
-pub use get_console_cursor_mode_api::GetConsoleCursorMode_api;
-mod get_console_display_mode_api;
-pub use get_console_display_mode_api::GetConsoleDisplayMode_api;
-mod get_console_font_size_api;
-pub use get_console_font_size_api::GetConsoleFontSize_api;
-mod get_console_history_info_api;
-pub use get_console_history_info_api::GetConsoleHistoryInfo_api;
-mod get_console_input_exe_name_a_api;
-pub use get_console_input_exe_name_a_api::GetConsoleInputExeNameA_api;
-mod get_console_input_exe_name_w_api;
-pub use get_console_input_exe_name_w_api::GetConsoleInputExeNameW_api;
-mod get_console_nls_mode_api;
-pub use get_console_nls_mode_api::GetConsoleNlsMode_api;
-mod get_console_original_title_a_api;
-pub use get_console_original_title_a_api::GetConsoleOriginalTitleA_api;
-mod get_console_original_title_w_api;
-pub use get_console_original_title_w_api::GetConsoleOriginalTitleW_api;
-mod get_console_process_list_api;
-pub use get_console_process_list_api::GetConsoleProcessList_api;
-mod get_console_screen_buffer_info_api;
-pub use get_console_screen_buffer_info_api::GetConsoleScreenBufferInfo_api;
-mod get_console_screen_buffer_info_ex_api;
-pub use get_console_screen_buffer_info_ex_api::GetConsoleScreenBufferInfoEx_api;
-mod get_console_selection_info_api;
-pub use get_console_selection_info_api::GetConsoleSelectionInfo_api;
-mod get_console_title_a_api;
-pub use get_console_title_a_api::GetConsoleTitleA_api;
-mod get_console_title_w_api;
-pub use get_console_title_w_api::GetConsoleTitleW_api;
+mod fls_get_value2;
+pub use fls_get_value2::FlsGetValue2;
+mod flush_console_input_buffer;
+pub use flush_console_input_buffer::FlushConsoleInputBuffer;
+mod flush_process_write_buffers;
+pub use flush_process_write_buffers::FlushProcessWriteBuffers;
+mod flush_view_of_file;
+pub use flush_view_of_file::FlushViewOfFile;
+mod format_application_user_model_id;
+pub use format_application_user_model_id::FormatApplicationUserModelId;
+mod free_console;
+pub use free_console::FreeConsole;
+mod free_library_and_exit_thread;
+pub use free_library_and_exit_thread::FreeLibraryAndExitThread;
+mod free_library_when_callback_returns;
+pub use free_library_when_callback_returns::FreeLibraryWhenCallbackReturns;
+mod free_user_physical_pages;
+pub use free_user_physical_pages::FreeUserPhysicalPages;
+mod generate_console_ctrl_event;
+pub use generate_console_ctrl_event::GenerateConsoleCtrlEvent;
+mod get_app_container_ace;
+pub use get_app_container_ace::GetAppContainerAce;
+mod get_app_container_named_object_path;
+pub use get_app_container_named_object_path::GetAppContainerNamedObjectPath;
+mod get_application_recovery_callback;
+pub use get_application_recovery_callback::GetApplicationRecoveryCallback;
+mod get_application_recovery_callback_worker;
+pub use get_application_recovery_callback_worker::GetApplicationRecoveryCallbackWorker;
+mod get_application_restart_settings;
+pub use get_application_restart_settings::GetApplicationRestartSettings;
+mod get_application_user_model_id;
+pub use get_application_user_model_id::GetApplicationUserModelId;
+mod get_binary_type;
+pub use get_binary_type::GetBinaryType;
+mod get_binary_type_a;
+pub use get_binary_type_a::GetBinaryTypeA;
+mod get_cached_signing_level;
+pub use get_cached_signing_level::GetCachedSigningLevel;
+mod get_calendar_info_ex;
+pub use get_calendar_info_ex::GetCalendarInfoEx;
+mod get_comm_config;
+pub use get_comm_config::GetCommConfig;
+mod get_comm_mask;
+pub use get_comm_mask::GetCommMask;
+mod get_comm_modem_status;
+pub use get_comm_modem_status::GetCommModemStatus;
+mod get_comm_properties;
+pub use get_comm_properties::GetCommProperties;
+mod get_comm_state;
+pub use get_comm_state::GetCommState;
+mod get_comm_timeouts;
+pub use get_comm_timeouts::GetCommTimeouts;
+mod get_console_cursor_info;
+pub use get_console_cursor_info::GetConsoleCursorInfo;
+mod get_console_cursor_mode;
+pub use get_console_cursor_mode::GetConsoleCursorMode;
+mod get_console_display_mode;
+pub use get_console_display_mode::GetConsoleDisplayMode;
+mod get_console_font_size;
+pub use get_console_font_size::GetConsoleFontSize;
+mod get_console_history_info;
+pub use get_console_history_info::GetConsoleHistoryInfo;
+mod get_console_nls_mode;
+pub use get_console_nls_mode::GetConsoleNlsMode;
+mod get_console_process_list;
+pub use get_console_process_list::GetConsoleProcessList;
+mod get_console_screen_buffer_info;
+pub use get_console_screen_buffer_info::GetConsoleScreenBufferInfo;
+mod get_console_screen_buffer_info_ex;
+pub use get_console_screen_buffer_info_ex::GetConsoleScreenBufferInfoEx;
+mod get_console_selection_info;
+pub use get_console_selection_info::GetConsoleSelectionInfo;
 mod get_console_window_2;
 pub use get_console_window_2::GetConsoleWindow;
-mod get_currency_format_ex_api;
-pub use get_currency_format_ex_api::GetCurrencyFormatEx_api;
-mod get_current_act_ctx_api;
-pub use get_current_act_ctx_api::GetCurrentActCtx_api;
-mod get_current_application_user_model_id_api;
-pub use get_current_application_user_model_id_api::GetCurrentApplicationUserModelId_api;
-mod get_current_console_font_api;
-pub use get_current_console_font_api::GetCurrentConsoleFont_api;
-mod get_current_console_font_ex_api;
-pub use get_current_console_font_ex_api::GetCurrentConsoleFontEx_api;
-mod get_current_package_family_name_api;
-pub use get_current_package_family_name_api::GetCurrentPackageFamilyName_api;
-mod get_current_package_full_name_api;
-pub use get_current_package_full_name_api::GetCurrentPackageFullName_api;
-mod get_current_package_id_api;
-pub use get_current_package_id_api::GetCurrentPackageId_api;
-mod get_current_package_info_api;
-pub use get_current_package_info_api::GetCurrentPackageInfo_api;
+mod get_currency_format_ex;
+pub use get_currency_format_ex::GetCurrencyFormatEx;
+mod get_current_act_ctx;
+pub use get_current_act_ctx::GetCurrentActCtx;
+mod get_current_application_user_model_id;
+pub use get_current_application_user_model_id::GetCurrentApplicationUserModelId;
+mod get_current_console_font;
+pub use get_current_console_font::GetCurrentConsoleFont;
+mod get_current_console_font_ex;
+pub use get_current_console_font_ex::GetCurrentConsoleFontEx;
+mod get_current_package_family_name;
+pub use get_current_package_family_name::GetCurrentPackageFamilyName;
+mod get_current_package_full_name;
+pub use get_current_package_full_name::GetCurrentPackageFullName;
+mod get_current_package_id;
+pub use get_current_package_id::GetCurrentPackageId;
+mod get_current_package_info;
+pub use get_current_package_info::GetCurrentPackageInfo;
 mod get_current_package_path;
 pub use get_current_package_path::GetCurrentPackagePath;
 mod get_current_package_virtualization_context_2;
 pub use get_current_package_virtualization_context_2::GetCurrentPackageVirtualizationContext;
 mod get_current_processor_number_2;
 pub use get_current_processor_number_2::GetCurrentProcessorNumber;
-mod get_current_processor_number_ex_api;
-pub use get_current_processor_number_ex_api::GetCurrentProcessorNumberEx_api;
-mod get_current_thread_stack_limits_api;
-pub use get_current_thread_stack_limits_api::GetCurrentThreadStackLimits_api;
-mod get_date_format_a_api;
-pub use get_date_format_a_api::GetDateFormatA_api;
-mod get_date_format_ex_api;
-pub use get_date_format_ex_api::GetDateFormatEx_api;
-mod get_date_format_w;
-pub use get_date_format_w::GetDateFormatW;
-mod get_disk_free_space_w_api;
-pub use get_disk_free_space_w_api::GetDiskFreeSpaceW_api;
-mod get_disk_space_information_a_api;
-pub use get_disk_space_information_a_api::GetDiskSpaceInformationA_api;
-mod get_disk_space_information_w_api;
-pub use get_disk_space_information_w_api::GetDiskSpaceInformationW_api;
-mod get_duration_format_ex_api;
-pub use get_duration_format_ex_api::GetDurationFormatEx_api;
-mod get_dynamic_time_zone_information_api;
-pub use get_dynamic_time_zone_information_api::GetDynamicTimeZoneInformation_api;
+mod get_current_processor_number_ex;
+pub use get_current_processor_number_ex::GetCurrentProcessorNumberEx;
+mod get_current_thread_stack_limits;
+pub use get_current_thread_stack_limits::GetCurrentThreadStackLimits;
+mod get_date_format_ex;
+pub use get_date_format_ex::GetDateFormatEx;
+mod get_duration_format_ex;
+pub use get_duration_format_ex::GetDurationFormatEx;
+mod get_dynamic_time_zone_information;
+pub use get_dynamic_time_zone_information::GetDynamicTimeZoneInformation;
 mod get_enabled_x_state_features_2;
 pub use get_enabled_x_state_features_2::GetEnabledXStateFeatures;
 mod get_environment_strings_a;
 pub use get_environment_strings_a::GetEnvironmentStringsA;
-mod get_environment_variable_a_api;
-pub use get_environment_variable_a_api::GetEnvironmentVariableA_api;
-mod get_era_name_counted_string_api;
-pub use get_era_name_counted_string_api::GetEraNameCountedString_api;
+mod get_era_name_counted_string;
+pub use get_era_name_counted_string::GetEraNameCountedString;
 mod get_error_mode_2;
 pub use get_error_mode_2::GetErrorMode;
 mod get_exit_code_process;
 pub use get_exit_code_process::GetExitCodeProcess;
 mod get_exit_code_thread;
 pub use get_exit_code_thread::GetExitCodeThread;
-mod get_file_attributes_ex_a_api;
-pub use get_file_attributes_ex_a_api::GetFileAttributesExA_api;
-mod get_file_attributes_ex_w_api;
-pub use get_file_attributes_ex_w_api::GetFileAttributesExW_api;
-mod get_file_attributes_transacted_w_api;
-pub use get_file_attributes_transacted_w_api::GetFileAttributesTransactedW_api;
-mod get_file_information_by_handle_api;
-pub use get_file_information_by_handle_api::GetFileInformationByHandle_api;
-mod get_file_information_by_handle_ex_api;
-pub use get_file_information_by_handle_ex_api::GetFileInformationByHandleEx_api;
-mod get_file_information_by_name_api;
-pub use get_file_information_by_name_api::GetFileInformationByName_api;
-mod get_file_mui_info_api;
-pub use get_file_mui_info_api::GetFileMUIInfo_api;
-mod get_file_mui_path_api;
-pub use get_file_mui_path_api::GetFileMUIPath_api;
-mod get_file_time_api;
-pub use get_file_time_api::GetFileTime_api;
-mod get_final_path_name_by_handle_a_api;
-pub use get_final_path_name_by_handle_a_api::GetFinalPathNameByHandleA_api;
-mod get_final_path_name_by_handle_w_api;
-pub use get_final_path_name_by_handle_w_api::GetFinalPathNameByHandleW_api;
-mod get_firmware_environment_variable_ex_a_api;
-pub use get_firmware_environment_variable_ex_a_api::GetFirmwareEnvironmentVariableExA_api;
-mod get_firmware_environment_variable_ex_w_api;
-pub use get_firmware_environment_variable_ex_w_api::GetFirmwareEnvironmentVariableExW_api;
-mod get_handle_information_api;
-pub use get_handle_information_api::GetHandleInformation_api;
-mod get_io_ring_info_api;
-pub use get_io_ring_info_api::GetIoRingInfo_api;
+mod get_file_information_by_handle;
+pub use get_file_information_by_handle::GetFileInformationByHandle;
+mod get_file_information_by_handle_ex;
+pub use get_file_information_by_handle_ex::GetFileInformationByHandleEx;
+mod get_file_information_by_name;
+pub use get_file_information_by_name::GetFileInformationByName;
+mod get_file_mui_info;
+pub use get_file_mui_info::GetFileMUIInfo;
+mod get_file_mui_path;
+pub use get_file_mui_path::GetFileMUIPath;
+mod get_file_time;
+pub use get_file_time::GetFileTime;
+mod get_handle_information;
+pub use get_handle_information::GetHandleInformation;
+mod get_io_ring_info;
+pub use get_io_ring_info::GetIoRingInfo;
 mod get_large_page_minimum_2;
 pub use get_large_page_minimum_2::GetLargePageMinimum;
-mod get_largest_console_window_size_api;
-pub use get_largest_console_window_size_api::GetLargestConsoleWindowSize_api;
+mod get_largest_console_window_size;
+pub use get_largest_console_window_size::GetLargestConsoleWindowSize;
 mod get_locale_info_ex;
 pub use get_locale_info_ex::GetLocaleInfoEx;
-mod get_logical_drive_strings_a_api;
-pub use get_logical_drive_strings_a_api::GetLogicalDriveStringsA_api;
-mod get_logical_drive_strings_w_api;
-pub use get_logical_drive_strings_w_api::GetLogicalDriveStringsW_api;
-mod get_logical_processor_information_api;
-pub use get_logical_processor_information_api::GetLogicalProcessorInformation_api;
-mod get_logical_processor_information_ex_api;
-pub use get_logical_processor_information_ex_api::GetLogicalProcessorInformationEx_api;
-mod get_long_path_name_transacted_a_api;
-pub use get_long_path_name_transacted_a_api::GetLongPathNameTransactedA_api;
-mod get_long_path_name_transacted_w_api;
-pub use get_long_path_name_transacted_w_api::GetLongPathNameTransactedW_api;
-mod get_machine_type_attributes_api;
-pub use get_machine_type_attributes_api::GetMachineTypeAttributes_api;
-mod get_memory_error_handling_capabilities_api;
-pub use get_memory_error_handling_capabilities_api::GetMemoryErrorHandlingCapabilities_api;
-mod get_module_handle_ex_a_api;
-pub use get_module_handle_ex_a_api::GetModuleHandleExA_api;
-mod get_nls_version_api;
-pub use get_nls_version_api::GetNLSVersion_api;
-mod get_nls_version_ex_api;
-pub use get_nls_version_ex_api::GetNLSVersionEx_api;
-mod get_named_pipe_attribute_api;
-pub use get_named_pipe_attribute_api::GetNamedPipeAttribute_api;
-mod get_named_pipe_client_computer_name_w_api;
-pub use get_named_pipe_client_computer_name_w_api::GetNamedPipeClientComputerNameW_api;
-mod get_named_pipe_handle_state_w_api;
-pub use get_named_pipe_handle_state_w_api::GetNamedPipeHandleStateW_api;
-mod get_named_pipe_info_api;
-pub use get_named_pipe_info_api::GetNamedPipeInfo_api;
-mod get_named_pipe_server_process_id_api;
-pub use get_named_pipe_server_process_id_api::GetNamedPipeServerProcessId_api;
-mod get_next_vdm_command_api;
-pub use get_next_vdm_command_api::GetNextVDMCommand_api;
-mod get_numa_highest_node_number_api;
-pub use get_numa_highest_node_number_api::GetNumaHighestNodeNumber_api;
-mod get_numa_node_processor_mask2_api;
-pub use get_numa_node_processor_mask2_api::GetNumaNodeProcessorMask2_api;
-mod get_numa_node_processor_mask_ex_api;
-pub use get_numa_node_processor_mask_ex_api::GetNumaNodeProcessorMaskEx_api;
-mod get_numa_proximity_node_ex_api;
-pub use get_numa_proximity_node_ex_api::GetNumaProximityNodeEx_api;
-mod get_number_format_ex_api;
-pub use get_number_format_ex_api::GetNumberFormatEx_api;
-mod get_number_of_console_input_events_api;
-pub use get_number_of_console_input_events_api::GetNumberOfConsoleInputEvents_api;
-mod get_number_of_console_mouse_buttons_api;
-pub use get_number_of_console_mouse_buttons_api::GetNumberOfConsoleMouseButtons_api;
-mod get_overlapped_result_api;
-pub use get_overlapped_result_api::GetOverlappedResult_api;
-mod get_overlapped_result_ex_api;
-pub use get_overlapped_result_ex_api::GetOverlappedResultEx_api;
-mod get_package_application_ids_api;
-pub use get_package_application_ids_api::GetPackageApplicationIds_api;
-mod get_package_family_name_api;
-pub use get_package_family_name_api::GetPackageFamilyName_api;
-mod get_package_full_name_api;
-pub use get_package_full_name_api::GetPackageFullName_api;
-mod get_package_id_api;
-pub use get_package_id_api::GetPackageId_api;
-mod get_package_info_api;
-pub use get_package_info_api::GetPackageInfo_api;
-mod get_package_path_api;
-pub use get_package_path_api::GetPackagePath_api;
-mod get_package_path_by_full_name_api;
-pub use get_package_path_by_full_name_api::GetPackagePathByFullName_api;
-mod get_packages_by_package_family_api;
-pub use get_packages_by_package_family_api::GetPackagesByPackageFamily_api;
-mod get_physically_installed_system_memory_api;
-pub use get_physically_installed_system_memory_api::GetPhysicallyInstalledSystemMemory_api;
-mod get_priority_class_api;
-pub use get_priority_class_api::GetPriorityClass_api;
-mod get_process_default_cpu_set_masks_api;
-pub use get_process_default_cpu_set_masks_api::GetProcessDefaultCpuSetMasks_api;
-mod get_process_default_cpu_sets_api;
-pub use get_process_default_cpu_sets_api::GetProcessDefaultCpuSets_api;
-mod get_process_group_affinity_api;
-pub use get_process_group_affinity_api::GetProcessGroupAffinity_api;
-mod get_process_handle_count_api;
-pub use get_process_handle_count_api::GetProcessHandleCount_api;
-mod get_process_heaps_api;
-pub use get_process_heaps_api::GetProcessHeaps_api;
+mod get_logical_processor_information;
+pub use get_logical_processor_information::GetLogicalProcessorInformation;
+mod get_logical_processor_information_ex;
+pub use get_logical_processor_information_ex::GetLogicalProcessorInformationEx;
+mod get_machine_type_attributes;
+pub use get_machine_type_attributes::GetMachineTypeAttributes;
+mod get_memory_error_handling_capabilities;
+pub use get_memory_error_handling_capabilities::GetMemoryErrorHandlingCapabilities;
+mod get_nls_version;
+pub use get_nls_version::GetNLSVersion;
+mod get_nls_version_ex;
+pub use get_nls_version_ex::GetNLSVersionEx;
+mod get_named_pipe_attribute;
+pub use get_named_pipe_attribute::GetNamedPipeAttribute;
+mod get_named_pipe_info;
+pub use get_named_pipe_info::GetNamedPipeInfo;
+mod get_named_pipe_server_process_id;
+pub use get_named_pipe_server_process_id::GetNamedPipeServerProcessId;
+mod get_next_vdm_command;
+pub use get_next_vdm_command::GetNextVDMCommand;
+mod get_numa_highest_node_number;
+pub use get_numa_highest_node_number::GetNumaHighestNodeNumber;
+mod get_numa_node_processor_mask2;
+pub use get_numa_node_processor_mask2::GetNumaNodeProcessorMask2;
+mod get_numa_node_processor_mask_ex;
+pub use get_numa_node_processor_mask_ex::GetNumaNodeProcessorMaskEx;
+mod get_numa_proximity_node_ex;
+pub use get_numa_proximity_node_ex::GetNumaProximityNodeEx;
+mod get_number_format_ex;
+pub use get_number_format_ex::GetNumberFormatEx;
+mod get_number_of_console_input_events;
+pub use get_number_of_console_input_events::GetNumberOfConsoleInputEvents;
+mod get_number_of_console_mouse_buttons;
+pub use get_number_of_console_mouse_buttons::GetNumberOfConsoleMouseButtons;
+mod get_overlapped_result;
+pub use get_overlapped_result::GetOverlappedResult;
+mod get_overlapped_result_ex;
+pub use get_overlapped_result_ex::GetOverlappedResultEx;
+mod get_package_application_ids;
+pub use get_package_application_ids::GetPackageApplicationIds;
+mod get_package_family_name;
+pub use get_package_family_name::GetPackageFamilyName;
+mod get_package_full_name;
+pub use get_package_full_name::GetPackageFullName;
+mod get_package_id;
+pub use get_package_id::GetPackageId;
+mod get_package_info;
+pub use get_package_info::GetPackageInfo;
+mod get_package_path;
+pub use get_package_path::GetPackagePath;
+mod get_package_path_by_full_name;
+pub use get_package_path_by_full_name::GetPackagePathByFullName;
+mod get_packages_by_package_family;
+pub use get_packages_by_package_family::GetPackagesByPackageFamily;
+mod get_physically_installed_system_memory;
+pub use get_physically_installed_system_memory::GetPhysicallyInstalledSystemMemory;
+mod get_priority_class;
+pub use get_priority_class::GetPriorityClass;
+mod get_process_default_cpu_set_masks;
+pub use get_process_default_cpu_set_masks::GetProcessDefaultCpuSetMasks;
+mod get_process_default_cpu_sets;
+pub use get_process_default_cpu_sets::GetProcessDefaultCpuSets;
+mod get_process_group_affinity;
+pub use get_process_group_affinity::GetProcessGroupAffinity;
+mod get_process_handle_count;
+pub use get_process_handle_count::GetProcessHandleCount;
+mod get_process_heaps;
+pub use get_process_heaps::GetProcessHeaps;
 mod get_process_id;
 pub use get_process_id::GetProcessId;
-mod get_process_id_of_thread_api;
-pub use get_process_id_of_thread_api::GetProcessIdOfThread_api;
-mod get_process_information_api;
-pub use get_process_information_api::GetProcessInformation_api;
-mod get_process_mitigation_policy_api;
-pub use get_process_mitigation_policy_api::GetProcessMitigationPolicy_api;
-mod get_process_preferred_ui_languages_api;
-pub use get_process_preferred_ui_languages_api::GetProcessPreferredUILanguages_api;
-mod get_process_priority_boost_api;
-pub use get_process_priority_boost_api::GetProcessPriorityBoost_api;
-mod get_process_shutdown_parameters_api;
-pub use get_process_shutdown_parameters_api::GetProcessShutdownParameters_api;
-mod get_process_times_api;
-pub use get_process_times_api::GetProcessTimes_api;
-mod get_process_version_api;
-pub use get_process_version_api::GetProcessVersion_api;
-mod get_process_working_set_size_ex_api;
-pub use get_process_working_set_size_ex_api::GetProcessWorkingSetSizeEx_api;
-mod get_processes_in_virtualization_context_api;
-pub use get_processes_in_virtualization_context_api::GetProcessesInVirtualizationContext_api;
-mod get_processor_system_cycle_time_api;
-pub use get_processor_system_cycle_time_api::GetProcessorSystemCycleTime_api;
-mod get_product_info_api;
-pub use get_product_info_api::GetProductInfo_api;
-mod get_queued_completion_status_api;
-pub use get_queued_completion_status_api::GetQueuedCompletionStatus_api;
-mod get_queued_completion_status_ex_api;
-pub use get_queued_completion_status_ex_api::GetQueuedCompletionStatusEx_api;
-mod get_staged_package_path_by_full_name_api;
-pub use get_staged_package_path_by_full_name_api::GetStagedPackagePathByFullName_api;
-mod get_state_folder_api;
-pub use get_state_folder_api::GetStateFolder_api;
-mod get_string_scripts_api;
-pub use get_string_scripts_api::GetStringScripts_api;
-mod get_string_type_a;
-pub use get_string_type_a::GetStringTypeA;
-mod get_string_type_ex_a_api;
-pub use get_string_type_ex_a_api::GetStringTypeExA_api;
-mod get_string_type_ex_w_api;
-pub use get_string_type_ex_w_api::GetStringTypeExW_api;
-mod get_system_app_data_key_api;
-pub use get_system_app_data_key_api::GetSystemAppDataKey_api;
-mod get_system_cpu_set_information_api;
-pub use get_system_cpu_set_information_api::GetSystemCpuSetInformation_api;
+mod get_process_id_of_thread;
+pub use get_process_id_of_thread::GetProcessIdOfThread;
+mod get_process_information;
+pub use get_process_information::GetProcessInformation;
+mod get_process_mitigation_policy;
+pub use get_process_mitigation_policy::GetProcessMitigationPolicy;
+mod get_process_preferred_ui_languages;
+pub use get_process_preferred_ui_languages::GetProcessPreferredUILanguages;
+mod get_process_priority_boost;
+pub use get_process_priority_boost::GetProcessPriorityBoost;
+mod get_process_shutdown_parameters;
+pub use get_process_shutdown_parameters::GetProcessShutdownParameters;
+mod get_process_times;
+pub use get_process_times::GetProcessTimes;
+mod get_process_version;
+pub use get_process_version::GetProcessVersion;
+mod get_process_working_set_size_ex;
+pub use get_process_working_set_size_ex::GetProcessWorkingSetSizeEx;
+mod get_processes_in_virtualization_context;
+pub use get_processes_in_virtualization_context::GetProcessesInVirtualizationContext;
+mod get_processor_system_cycle_time;
+pub use get_processor_system_cycle_time::GetProcessorSystemCycleTime;
+mod get_product_info;
+pub use get_product_info::GetProductInfo;
+mod get_queued_completion_status;
+pub use get_queued_completion_status::GetQueuedCompletionStatus;
+mod get_queued_completion_status_ex;
+pub use get_queued_completion_status_ex::GetQueuedCompletionStatusEx;
+mod get_staged_package_path_by_full_name;
+pub use get_staged_package_path_by_full_name::GetStagedPackagePathByFullName;
+mod get_state_folder;
+pub use get_state_folder::GetStateFolder;
+mod get_string_scripts;
+pub use get_string_scripts::GetStringScripts;
+mod get_system_app_data_key;
+pub use get_system_app_data_key::GetSystemAppDataKey;
+mod get_system_cpu_set_information;
+pub use get_system_cpu_set_information::GetSystemCpuSetInformation;
 mod get_system_default_lcid_2;
 pub use get_system_default_lcid_2::GetSystemDefaultLCID;
 mod get_system_default_lang_id_2;
 pub use get_system_default_lang_id_2::GetSystemDefaultLangID;
-mod get_system_default_locale_name_api;
-pub use get_system_default_locale_name_api::GetSystemDefaultLocaleName_api;
+mod get_system_default_locale_name;
+pub use get_system_default_locale_name::GetSystemDefaultLocaleName;
 mod get_system_default_ui_language_2;
 pub use get_system_default_ui_language_2::GetSystemDefaultUILanguage;
-mod get_system_file_cache_size_api;
-pub use get_system_file_cache_size_api::GetSystemFileCacheSize_api;
-mod get_system_firmware_table_api;
-pub use get_system_firmware_table_api::GetSystemFirmwareTable_api;
-mod get_system_preferred_ui_languages_api;
-pub use get_system_preferred_ui_languages_api::GetSystemPreferredUILanguages_api;
-mod get_system_time_adjustment_api;
-pub use get_system_time_adjustment_api::GetSystemTimeAdjustment_api;
-mod get_system_time_precise_as_file_time_api;
-pub use get_system_time_precise_as_file_time_api::GetSystemTimePreciseAsFileTime_api;
-mod get_system_times_api;
-pub use get_system_times_api::GetSystemTimes_api;
-mod get_system_wow64_directory_a_api;
-pub use get_system_wow64_directory_a_api::GetSystemWow64DirectoryA_api;
-mod get_system_wow64_directory_w_api;
-pub use get_system_wow64_directory_w_api::GetSystemWow64DirectoryW_api;
-mod get_temp_file_name_a_api;
-pub use get_temp_file_name_a_api::GetTempFileNameA_api;
-mod get_temp_file_name_w_api;
-pub use get_temp_file_name_w_api::GetTempFileNameW_api;
-mod get_temp_path2_a_api;
-pub use get_temp_path2_a_api::GetTempPath2A_api;
-mod get_temp_path2_w_api;
-pub use get_temp_path2_w_api::GetTempPath2W_api;
-mod get_thread_description_api;
-pub use get_thread_description_api::GetThreadDescription_api;
+mod get_system_file_cache_size;
+pub use get_system_file_cache_size::GetSystemFileCacheSize;
+mod get_system_firmware_table;
+pub use get_system_firmware_table::GetSystemFirmwareTable;
+mod get_system_preferred_ui_languages;
+pub use get_system_preferred_ui_languages::GetSystemPreferredUILanguages;
+mod get_system_time_adjustment;
+pub use get_system_time_adjustment::GetSystemTimeAdjustment;
+mod get_system_time_precise_as_file_time;
+pub use get_system_time_precise_as_file_time::GetSystemTimePreciseAsFileTime;
+mod get_system_times;
+pub use get_system_times::GetSystemTimes;
+mod get_thread_description;
+pub use get_thread_description::GetThreadDescription;
 mod get_thread_enabled_x_state_features_2;
 pub use get_thread_enabled_x_state_features_2::GetThreadEnabledXStateFeatures;
 mod get_thread_error_mode_2;
 pub use get_thread_error_mode_2::GetThreadErrorMode;
-mod get_thread_group_affinity_api;
-pub use get_thread_group_affinity_api::GetThreadGroupAffinity_api;
-mod get_thread_io_pending_flag_api;
-pub use get_thread_io_pending_flag_api::GetThreadIOPendingFlag_api;
-mod get_thread_ideal_processor_ex_api;
-pub use get_thread_ideal_processor_ex_api::GetThreadIdealProcessorEx_api;
-mod get_thread_information_api;
-pub use get_thread_information_api::GetThreadInformation_api;
-mod get_thread_priority_api;
-pub use get_thread_priority_api::GetThreadPriority_api;
-mod get_thread_priority_boost_api;
-pub use get_thread_priority_boost_api::GetThreadPriorityBoost_api;
-mod get_thread_selected_cpu_set_masks_api;
-pub use get_thread_selected_cpu_set_masks_api::GetThreadSelectedCpuSetMasks_api;
-mod get_thread_selected_cpu_sets_api;
-pub use get_thread_selected_cpu_sets_api::GetThreadSelectedCpuSets_api;
-mod get_thread_times_api;
-pub use get_thread_times_api::GetThreadTimes_api;
-mod get_time_format_a_api;
-pub use get_time_format_a_api::GetTimeFormatA_api;
-mod get_time_format_a_worker_api;
-pub use get_time_format_a_worker_api::GetTimeFormatAWorker_api;
-mod get_time_format_ex_api;
-pub use get_time_format_ex_api::GetTimeFormatEx_api;
-mod get_time_format_w;
-pub use get_time_format_w::GetTimeFormatW;
-mod get_time_zone_information_for_year_api;
-pub use get_time_zone_information_for_year_api::GetTimeZoneInformationForYear_api;
-mod get_ui_language_info_api;
-pub use get_ui_language_info_api::GetUILanguageInfo_api;
-mod get_user_default_locale_name_api;
-pub use get_user_default_locale_name_api::GetUserDefaultLocaleName_api;
-mod get_user_preferred_ui_languages_api;
-pub use get_user_preferred_ui_languages_api::GetUserPreferredUILanguages_api;
-mod get_vdm_current_directories_api;
-pub use get_vdm_current_directories_api::GetVDMCurrentDirectories_api;
-mod get_volume_information_by_handle_w_api;
-pub use get_volume_information_by_handle_w_api::GetVolumeInformationByHandleW_api;
-mod get_volume_name_for_volume_mount_point_w_api;
-pub use get_volume_name_for_volume_mount_point_w_api::GetVolumeNameForVolumeMountPointW_api;
-mod get_volume_path_name_a_api;
-pub use get_volume_path_name_a_api::GetVolumePathNameA_api;
-mod get_volume_path_name_w_api;
-pub use get_volume_path_name_w_api::GetVolumePathNameW_api;
-mod get_volume_path_names_for_volume_name_w_api;
-pub use get_volume_path_names_for_volume_name_w_api::GetVolumePathNamesForVolumeNameW_api;
-mod get_write_watch_api;
-pub use get_write_watch_api::GetWriteWatch_api;
-mod get_x_state_features_mask_api;
-pub use get_x_state_features_mask_api::GetXStateFeaturesMask_api;
-mod global_compact_api;
-pub use global_compact_api::GlobalCompact_api;
-mod global_memory_status_ex_api;
-pub use global_memory_status_ex_api::GlobalMemoryStatusEx_api;
-mod heap_compact_api;
-pub use heap_compact_api::HeapCompact_api;
-mod heap_lock_api;
-pub use heap_lock_api::HeapLock_api;
-mod heap_query_information_api;
-pub use heap_query_information_api::HeapQueryInformation_api;
-mod heap_summary_api;
-pub use heap_summary_api::HeapSummary_api;
-mod heap_unlock_api;
-pub use heap_unlock_api::HeapUnlock_api;
-mod heap_validate_api;
-pub use heap_validate_api::HeapValidate_api;
-mod heap_walk_api;
-pub use heap_walk_api::HeapWalk_api;
-mod idn_to_ascii_api;
-pub use idn_to_ascii_api::IdnToAscii_api;
-mod idn_to_nameprep_unicode_api;
-pub use idn_to_nameprep_unicode_api::IdnToNameprepUnicode_api;
-mod idn_to_unicode_api;
-pub use idn_to_unicode_api::IdnToUnicode_api;
-mod init_once_begin_initialize_api;
-pub use init_once_begin_initialize_api::InitOnceBeginInitialize_api;
-mod init_once_complete_api;
-pub use init_once_complete_api::InitOnceComplete_api;
-mod init_once_execute_once_api;
-pub use init_once_execute_once_api::InitOnceExecuteOnce_api;
-mod init_once_initialize_api;
-pub use init_once_initialize_api::InitOnceInitialize_api;
+mod get_thread_group_affinity;
+pub use get_thread_group_affinity::GetThreadGroupAffinity;
+mod get_thread_io_pending_flag;
+pub use get_thread_io_pending_flag::GetThreadIOPendingFlag;
+mod get_thread_ideal_processor_ex;
+pub use get_thread_ideal_processor_ex::GetThreadIdealProcessorEx;
+mod get_thread_information;
+pub use get_thread_information::GetThreadInformation;
+mod get_thread_priority;
+pub use get_thread_priority::GetThreadPriority;
+mod get_thread_priority_boost;
+pub use get_thread_priority_boost::GetThreadPriorityBoost;
+mod get_thread_selected_cpu_set_masks;
+pub use get_thread_selected_cpu_set_masks::GetThreadSelectedCpuSetMasks;
+mod get_thread_selected_cpu_sets;
+pub use get_thread_selected_cpu_sets::GetThreadSelectedCpuSets;
+mod get_thread_times;
+pub use get_thread_times::GetThreadTimes;
+mod get_time_format_a_worker;
+pub use get_time_format_a_worker::GetTimeFormatAWorker;
+mod get_time_format_ex;
+pub use get_time_format_ex::GetTimeFormatEx;
+mod get_time_zone_information_for_year;
+pub use get_time_zone_information_for_year::GetTimeZoneInformationForYear;
+mod get_ui_language_info;
+pub use get_ui_language_info::GetUILanguageInfo;
+mod get_user_default_locale_name;
+pub use get_user_default_locale_name::GetUserDefaultLocaleName;
+mod get_user_preferred_ui_languages;
+pub use get_user_preferred_ui_languages::GetUserPreferredUILanguages;
+mod get_vdm_current_directories;
+pub use get_vdm_current_directories::GetVDMCurrentDirectories;
+mod get_volume_information_by_handle_w;
+pub use get_volume_information_by_handle_w::GetVolumeInformationByHandleW;
+mod get_write_watch;
+pub use get_write_watch::GetWriteWatch;
+mod get_x_state_features_mask;
+pub use get_x_state_features_mask::GetXStateFeaturesMask;
+mod global_compact;
+pub use global_compact::GlobalCompact;
+mod global_memory_status_ex;
+pub use global_memory_status_ex::GlobalMemoryStatusEx;
+mod heap_compact;
+pub use heap_compact::HeapCompact;
+mod heap_lock;
+pub use heap_lock::HeapLock;
+mod heap_query_information;
+pub use heap_query_information::HeapQueryInformation;
+mod heap_summary;
+pub use heap_summary::HeapSummary;
+mod heap_unlock;
+pub use heap_unlock::HeapUnlock;
+mod heap_validate;
+pub use heap_validate::HeapValidate;
+mod heap_walk;
+pub use heap_walk::HeapWalk;
+mod idn_to_ascii;
+pub use idn_to_ascii::IdnToAscii;
+mod idn_to_nameprep_unicode;
+pub use idn_to_nameprep_unicode::IdnToNameprepUnicode;
+mod idn_to_unicode;
+pub use idn_to_unicode::IdnToUnicode;
+mod init_once_begin_initialize;
+pub use init_once_begin_initialize::InitOnceBeginInitialize;
+mod init_once_complete;
+pub use init_once_complete::InitOnceComplete;
+mod init_once_execute_once;
+pub use init_once_execute_once::InitOnceExecuteOnce;
+mod init_once_initialize;
+pub use init_once_initialize::InitOnceInitialize;
 mod initialize_condition_variable;
 pub use initialize_condition_variable::InitializeConditionVariable;
-mod initialize_context_api;
-pub use initialize_context_api::InitializeContext_api;
-mod initialize_context2_api;
-pub use initialize_context2_api::InitializeContext2_api;
-mod initialize_enclave_api;
-pub use initialize_enclave_api::InitializeEnclave_api;
-mod initialize_proc_thread_attribute_list_api;
-pub use initialize_proc_thread_attribute_list_api::InitializeProcThreadAttributeList_api;
-mod initialize_s_list_head_api;
-pub use initialize_s_list_head_api::InitializeSListHead_api;
-mod initialize_synchronization_barrier_api;
-pub use initialize_synchronization_barrier_api::InitializeSynchronizationBarrier_api;
-mod install_elam_certificate_info_api;
-pub use install_elam_certificate_info_api::InstallELAMCertificateInfo_api;
-mod interlocked_compare_exchange64_api;
-pub use interlocked_compare_exchange64_api::InterlockedCompareExchange64_api;
-mod interlocked_flush_s_list_api;
-pub use interlocked_flush_s_list_api::InterlockedFlushSList_api;
-mod interlocked_pop_entry_s_list_api;
-pub use interlocked_pop_entry_s_list_api::InterlockedPopEntrySList_api;
-mod interlocked_push_entry_s_list_api;
-pub use interlocked_push_entry_s_list_api::InterlockedPushEntrySList_api;
-mod interlocked_push_list_s_list_api;
-pub use interlocked_push_list_s_list_api::InterlockedPushListSList_api;
-mod interlocked_push_list_s_list_ex_api;
-pub use interlocked_push_list_s_list_ex_api::InterlockedPushListSListEx_api;
-mod is_dbcs_lead_byte_api;
-pub use is_dbcs_lead_byte_api::IsDBCSLeadByte_api;
-mod is_dbcs_lead_byte_ex_api;
-pub use is_dbcs_lead_byte_ex_api::IsDBCSLeadByteEx_api;
-mod is_enclave_type_supported_api;
-pub use is_enclave_type_supported_api::IsEnclaveTypeSupported_api;
-mod is_io_ring_op_supported_api;
-pub use is_io_ring_op_supported_api::IsIoRingOpSupported_api;
-mod is_nls_defined_string_api;
-pub use is_nls_defined_string_api::IsNLSDefinedString_api;
-mod is_native_vhd_boot_api;
-pub use is_native_vhd_boot_api::IsNativeVhdBoot_api;
-mod is_normalized_string_api;
-pub use is_normalized_string_api::IsNormalizedString_api;
-mod is_process_critical_api;
-pub use is_process_critical_api::IsProcessCritical_api;
-mod is_process_in_job_api;
-pub use is_process_in_job_api::IsProcessInJob_api;
-mod is_threadpool_timer_set_api;
-pub use is_threadpool_timer_set_api::IsThreadpoolTimerSet_api;
-mod is_user_cet_available_in_environment_api;
-pub use is_user_cet_available_in_environment_api::IsUserCetAvailableInEnvironment_api;
-mod is_valid_language_group_api;
-pub use is_valid_language_group_api::IsValidLanguageGroup_api;
-mod is_valid_locale_name_api;
-pub use is_valid_locale_name_api::IsValidLocaleName_api;
-mod is_valid_nls_version_api;
-pub use is_valid_nls_version_api::IsValidNLSVersion_api;
-mod is_wow64_guest_machine_supported_api;
-pub use is_wow64_guest_machine_supported_api::IsWow64GuestMachineSupported_api;
-mod is_wow64_process2_api;
-pub use is_wow64_process2_api::IsWow64Process2_api;
-mod k32_empty_working_set_api;
-pub use k32_empty_working_set_api::K32EmptyWorkingSet_api;
-mod k32_enum_device_drivers_api;
-pub use k32_enum_device_drivers_api::K32EnumDeviceDrivers_api;
-mod k32_enum_page_files_a_api;
-pub use k32_enum_page_files_a_api::K32EnumPageFilesA_api;
-mod k32_enum_page_files_w_api;
-pub use k32_enum_page_files_w_api::K32EnumPageFilesW_api;
-mod k32_enum_process_modules_api;
-pub use k32_enum_process_modules_api::K32EnumProcessModules_api;
-mod k32_enum_process_modules_ex_api;
-pub use k32_enum_process_modules_ex_api::K32EnumProcessModulesEx_api;
-mod k32_enum_processes_api;
-pub use k32_enum_processes_api::K32EnumProcesses_api;
-mod k32_get_device_driver_base_name_a_api;
-pub use k32_get_device_driver_base_name_a_api::K32GetDeviceDriverBaseNameA_api;
-mod k32_get_device_driver_base_name_w_api;
-pub use k32_get_device_driver_base_name_w_api::K32GetDeviceDriverBaseNameW_api;
-mod k32_get_device_driver_file_name_a_api;
-pub use k32_get_device_driver_file_name_a_api::K32GetDeviceDriverFileNameA_api;
-mod k32_get_device_driver_file_name_w_api;
-pub use k32_get_device_driver_file_name_w_api::K32GetDeviceDriverFileNameW_api;
-mod k32_get_mapped_file_name_a_api;
-pub use k32_get_mapped_file_name_a_api::K32GetMappedFileNameA_api;
-mod k32_get_mapped_file_name_w_api;
-pub use k32_get_mapped_file_name_w_api::K32GetMappedFileNameW_api;
-mod k32_get_module_base_name_a_api;
-pub use k32_get_module_base_name_a_api::K32GetModuleBaseNameA_api;
-mod k32_get_module_base_name_w_api;
-pub use k32_get_module_base_name_w_api::K32GetModuleBaseNameW_api;
-mod k32_get_module_file_name_ex_a_api;
-pub use k32_get_module_file_name_ex_a_api::K32GetModuleFileNameExA_api;
-mod k32_get_module_file_name_ex_w_api;
-pub use k32_get_module_file_name_ex_w_api::K32GetModuleFileNameExW_api;
-mod k32_get_module_information_api;
-pub use k32_get_module_information_api::K32GetModuleInformation_api;
-mod k32_get_performance_info_api;
-pub use k32_get_performance_info_api::K32GetPerformanceInfo_api;
-mod k32_get_process_image_file_name_a_api;
-pub use k32_get_process_image_file_name_a_api::K32GetProcessImageFileNameA_api;
-mod k32_get_process_image_file_name_w_api;
-pub use k32_get_process_image_file_name_w_api::K32GetProcessImageFileNameW_api;
-mod k32_get_process_memory_info_api;
-pub use k32_get_process_memory_info_api::K32GetProcessMemoryInfo_api;
-mod k32_get_ws_changes_api;
-pub use k32_get_ws_changes_api::K32GetWsChanges_api;
-mod k32_get_ws_changes_ex_api;
-pub use k32_get_ws_changes_ex_api::K32GetWsChangesEx_api;
-mod k32_initialize_process_for_ws_watch_api;
-pub use k32_initialize_process_for_ws_watch_api::K32InitializeProcessForWsWatch_api;
-mod k32_query_working_set_api;
-pub use k32_query_working_set_api::K32QueryWorkingSet_api;
-mod k32_query_working_set_ex_api;
-pub use k32_query_working_set_ex_api::K32QueryWorkingSetEx_api;
-mod lcid_to_locale_name_api;
-pub use lcid_to_locale_name_api::LCIDToLocaleName_api;
-mod lc_map_string_a_api;
-pub use lc_map_string_a_api::LCMapStringA_api;
-mod lc_map_string_ex_api;
-pub use lc_map_string_ex_api::LCMapStringEx_api;
-mod lz_close_file_api;
-pub use lz_close_file_api::LZCloseFile_api;
-mod lz_create_file_w_api;
-pub use lz_create_file_w_api::LZCreateFileW_api;
+mod initialize_context;
+pub use initialize_context::InitializeContext;
+mod initialize_context2;
+pub use initialize_context2::InitializeContext2;
+mod initialize_enclave;
+pub use initialize_enclave::InitializeEnclave;
+mod initialize_proc_thread_attribute_list;
+pub use initialize_proc_thread_attribute_list::InitializeProcThreadAttributeList;
+mod initialize_s_list_head;
+pub use initialize_s_list_head::InitializeSListHead;
+mod initialize_synchronization_barrier;
+pub use initialize_synchronization_barrier::InitializeSynchronizationBarrier;
+mod install_elam_certificate_info;
+pub use install_elam_certificate_info::InstallELAMCertificateInfo;
+mod interlocked_compare_exchange64;
+pub use interlocked_compare_exchange64::InterlockedCompareExchange64;
+mod interlocked_flush_s_list;
+pub use interlocked_flush_s_list::InterlockedFlushSList;
+mod interlocked_pop_entry_s_list;
+pub use interlocked_pop_entry_s_list::InterlockedPopEntrySList;
+mod interlocked_push_entry_s_list;
+pub use interlocked_push_entry_s_list::InterlockedPushEntrySList;
+mod interlocked_push_list_s_list;
+pub use interlocked_push_list_s_list::InterlockedPushListSList;
+mod interlocked_push_list_s_list_ex;
+pub use interlocked_push_list_s_list_ex::InterlockedPushListSListEx;
+mod is_enclave_type_supported;
+pub use is_enclave_type_supported::IsEnclaveTypeSupported;
+mod is_io_ring_op_supported;
+pub use is_io_ring_op_supported::IsIoRingOpSupported;
+mod is_nls_defined_string;
+pub use is_nls_defined_string::IsNLSDefinedString;
+mod is_native_vhd_boot;
+pub use is_native_vhd_boot::IsNativeVhdBoot;
+mod is_normalized_string;
+pub use is_normalized_string::IsNormalizedString;
+mod is_process_critical;
+pub use is_process_critical::IsProcessCritical;
+mod is_process_in_job;
+pub use is_process_in_job::IsProcessInJob;
+mod is_threadpool_timer_set;
+pub use is_threadpool_timer_set::IsThreadpoolTimerSet;
+mod is_user_cet_available_in_environment;
+pub use is_user_cet_available_in_environment::IsUserCetAvailableInEnvironment;
+mod is_valid_language_group;
+pub use is_valid_language_group::IsValidLanguageGroup;
+mod is_valid_locale_name;
+pub use is_valid_locale_name::IsValidLocaleName;
+mod is_valid_nls_version;
+pub use is_valid_nls_version::IsValidNLSVersion;
+mod is_wow64_guest_machine_supported;
+pub use is_wow64_guest_machine_supported::IsWow64GuestMachineSupported;
+mod is_wow64_process2;
+pub use is_wow64_process2::IsWow64Process2;
+mod k32_empty_working_set;
+pub use k32_empty_working_set::K32EmptyWorkingSet;
+mod k32_enum_device_drivers;
+pub use k32_enum_device_drivers::K32EnumDeviceDrivers;
+mod k32_enum_process_modules;
+pub use k32_enum_process_modules::K32EnumProcessModules;
+mod k32_enum_process_modules_ex;
+pub use k32_enum_process_modules_ex::K32EnumProcessModulesEx;
+mod k32_enum_processes;
+pub use k32_enum_processes::K32EnumProcesses;
+mod k32_get_module_information;
+pub use k32_get_module_information::K32GetModuleInformation;
+mod k32_get_performance_info;
+pub use k32_get_performance_info::K32GetPerformanceInfo;
+mod k32_get_process_memory_info;
+pub use k32_get_process_memory_info::K32GetProcessMemoryInfo;
+mod k32_get_ws_changes;
+pub use k32_get_ws_changes::K32GetWsChanges;
+mod k32_get_ws_changes_ex;
+pub use k32_get_ws_changes_ex::K32GetWsChangesEx;
+mod k32_initialize_process_for_ws_watch;
+pub use k32_initialize_process_for_ws_watch::K32InitializeProcessForWsWatch;
+mod k32_query_working_set;
+pub use k32_query_working_set::K32QueryWorkingSet;
+mod k32_query_working_set_ex;
+pub use k32_query_working_set_ex::K32QueryWorkingSetEx;
+mod lcid_to_locale_name;
+pub use lcid_to_locale_name::LCIDToLocaleName;
+mod lc_map_string_ex;
+pub use lc_map_string_ex::LCMapStringEx;
+mod lz_close_file;
+pub use lz_close_file::LZCloseFile;
+mod lz_create_file_w;
+pub use lz_create_file_w::LZCreateFileW;
 mod lz_done_2;
 pub use lz_done_2::LZDone;
-mod leave_critical_section_when_callback_returns_api;
-pub use leave_critical_section_when_callback_returns_api::LeaveCriticalSectionWhenCallbackReturns_api;
+mod leave_critical_section_when_callback_returns;
+pub use leave_critical_section_when_callback_returns::LeaveCriticalSectionWhenCallbackReturns;
 mod load_app_init_dlls_2;
 pub use load_app_init_dlls_2::LoadAppInitDlls;
-mod load_enclave_data_api;
-pub use load_enclave_data_api::LoadEnclaveData_api;
-mod load_module_api;
-pub use load_module_api::LoadModule_api;
-mod load_packaged_library_api;
-pub use load_packaged_library_api::LoadPackagedLibrary_api;
-mod load_string_base_ex_w_api;
-pub use load_string_base_ex_w_api::LoadStringBaseExW_api;
-mod local_file_time_to_file_time_api;
-pub use local_file_time_to_file_time_api::LocalFileTimeToFileTime_api;
-mod local_file_time_to_local_system_time_api;
-pub use local_file_time_to_local_system_time_api::LocalFileTimeToLocalSystemTime_api;
-mod local_lock_api;
-pub use local_lock_api::LocalLock_api;
-mod local_re_alloc_api;
-pub use local_re_alloc_api::LocalReAlloc_api;
-mod local_system_time_to_local_file_time_api;
-pub use local_system_time_to_local_file_time_api::LocalSystemTimeToLocalFileTime_api;
-mod local_unlock_api;
-pub use local_unlock_api::LocalUnlock_api;
-mod locale_name_to_lcid_api;
-pub use locale_name_to_lcid_api::LocaleNameToLCID_api;
-mod locate_x_state_feature_api;
-pub use locate_x_state_feature_api::LocateXStateFeature_api;
+mod load_enclave_data;
+pub use load_enclave_data::LoadEnclaveData;
+mod load_module;
+pub use load_module::LoadModule;
+mod load_packaged_library;
+pub use load_packaged_library::LoadPackagedLibrary;
+mod load_string_base_ex_w;
+pub use load_string_base_ex_w::LoadStringBaseExW;
+mod local_file_time_to_file_time;
+pub use local_file_time_to_file_time::LocalFileTimeToFileTime;
+mod local_file_time_to_local_system_time;
+pub use local_file_time_to_local_system_time::LocalFileTimeToLocalSystemTime;
+mod local_lock;
+pub use local_lock::LocalLock;
+mod local_re_alloc;
+pub use local_re_alloc::LocalReAlloc;
+mod local_system_time_to_local_file_time;
+pub use local_system_time_to_local_file_time::LocalSystemTimeToLocalFileTime;
+mod local_unlock;
+pub use local_unlock::LocalUnlock;
+mod locale_name_to_lcid;
+pub use locale_name_to_lcid::LocaleNameToLCID;
+mod locate_x_state_feature;
+pub use locate_x_state_feature::LocateXStateFeature;
 mod lock_file;
 pub use lock_file::LockFile;
-mod lock_file_ex_api;
-pub use lock_file_ex_api::LockFileEx_api;
-mod log_unexpected_codepath_api;
-pub use log_unexpected_codepath_api::LogUnexpectedCodepath_api;
-mod map_user_physical_pages_api;
-pub use map_user_physical_pages_api::MapUserPhysicalPages_api;
-mod map_user_physical_pages_scatter_api;
-pub use map_user_physical_pages_scatter_api::MapUserPhysicalPagesScatter_api;
-mod map_view_of_file_ex_api;
-pub use map_view_of_file_ex_api::MapViewOfFileEx_api;
-mod map_view_of_file_ex_numa_api;
-pub use map_view_of_file_ex_numa_api::MapViewOfFileExNuma_api;
-mod map_view_of_file_from_app_api;
-pub use map_view_of_file_from_app_api::MapViewOfFileFromApp_api;
-mod move_file_ex_w;
-pub use move_file_ex_w::MoveFileExW;
-mod move_file_with_progress_a_api;
-pub use move_file_with_progress_a_api::MoveFileWithProgressA_api;
-mod move_file_with_progress_w_api;
-pub use move_file_with_progress_w_api::MoveFileWithProgressW_api;
-mod need_current_directory_for_exe_path_a_api;
-pub use need_current_directory_for_exe_path_a_api::NeedCurrentDirectoryForExePathA_api;
-mod need_current_directory_for_exe_path_w_api;
-pub use need_current_directory_for_exe_path_w_api::NeedCurrentDirectoryForExePathW_api;
-mod nls_check_policy_api;
-pub use nls_check_policy_api::NlsCheckPolicy_api;
-mod nls_get_cache_update_count_api;
-pub use nls_get_cache_update_count_api::NlsGetCacheUpdateCount_api;
-mod nls_update_locale_api;
-pub use nls_update_locale_api::NlsUpdateLocale_api;
-mod nls_update_system_locale_api;
-pub use nls_update_system_locale_api::NlsUpdateSystemLocale_api;
-mod normalize_string_api;
-pub use normalize_string_api::NormalizeString_api;
-mod notify_mount_mgr_api;
-pub use notify_mount_mgr_api::NotifyMountMgr_api;
-mod offer_virtual_memory_api;
-pub use offer_virtual_memory_api::OfferVirtualMemory_api;
-mod open_console_w_api;
-pub use open_console_w_api::OpenConsoleW_api;
-mod open_console_w_stub_api;
-pub use open_console_w_stub_api::OpenConsoleWStub_api;
-mod open_event_a_api;
-pub use open_event_a_api::OpenEventA_api;
-mod open_event_w_api;
-pub use open_event_w_api::OpenEventW_api;
-mod open_file_by_id_api;
-pub use open_file_by_id_api::OpenFileById_api;
-mod open_file_mapping_w_api;
-pub use open_file_mapping_w_api::OpenFileMappingW_api;
-mod open_mutex_w;
-pub use open_mutex_w::OpenMutexW;
-mod open_package_info_by_full_name_api;
-pub use open_package_info_by_full_name_api::OpenPackageInfoByFullName_api;
-mod open_private_namespace_w_api;
-pub use open_private_namespace_w_api::OpenPrivateNamespaceW_api;
-mod open_profile_user_mapping_api;
-pub use open_profile_user_mapping_api::OpenProfileUserMapping_api;
-mod open_semaphore_a_api;
-pub use open_semaphore_a_api::OpenSemaphoreA_api;
-mod open_semaphore_w_api;
-pub use open_semaphore_w_api::OpenSemaphoreW_api;
-mod open_state_api;
-pub use open_state_api::OpenState_api;
-mod open_state_explicit_api;
-pub use open_state_explicit_api::OpenStateExplicit_api;
-mod open_thread_token_api;
-pub use open_thread_token_api::OpenThreadToken_api;
-mod open_waitable_timer_a_api;
-pub use open_waitable_timer_a_api::OpenWaitableTimerA_api;
-mod open_waitable_timer_w_api;
-pub use open_waitable_timer_w_api::OpenWaitableTimerW_api;
-mod package_family_name_from_full_name_api;
-pub use package_family_name_from_full_name_api::PackageFamilyNameFromFullName_api;
-mod package_family_name_from_id_api;
-pub use package_family_name_from_id_api::PackageFamilyNameFromId_api;
-mod package_full_name_from_id_api;
-pub use package_full_name_from_id_api::PackageFullNameFromId_api;
-mod package_id_from_full_name_api;
-pub use package_id_from_full_name_api::PackageIdFromFullName_api;
-mod package_name_and_publisher_id_from_family_name_api;
-pub use package_name_and_publisher_id_from_family_name_api::PackageNameAndPublisherIdFromFamilyName_api;
-mod parse_application_user_model_id_api;
-pub use parse_application_user_model_id_api::ParseApplicationUserModelId_api;
-mod peek_console_input_a_api;
-pub use peek_console_input_a_api::PeekConsoleInputA_api;
-mod peek_console_input_w_api;
-pub use peek_console_input_w_api::PeekConsoleInputW_api;
-mod peek_named_pipe_api;
-pub use peek_named_pipe_api::PeekNamedPipe_api;
-mod pop_io_ring_completion_api;
-pub use pop_io_ring_completion_api::PopIoRingCompletion_api;
-mod post_queued_completion_status_api;
-pub use post_queued_completion_status_api::PostQueuedCompletionStatus_api;
-mod prefetch_virtual_memory_api;
-pub use prefetch_virtual_memory_api::PrefetchVirtualMemory_api;
-mod priv_copy_file_ex_w_api;
-pub use priv_copy_file_ex_w_api::PrivCopyFileExW_api;
-mod process_id_to_session_id_api;
-pub use process_id_to_session_id_api::ProcessIdToSessionId_api;
-mod pss_capture_snapshot_api;
-pub use pss_capture_snapshot_api::PssCaptureSnapshot_api;
-mod pss_duplicate_snapshot_api;
-pub use pss_duplicate_snapshot_api::PssDuplicateSnapshot_api;
-mod pss_free_snapshot_api;
-pub use pss_free_snapshot_api::PssFreeSnapshot_api;
-mod pss_query_snapshot_api;
-pub use pss_query_snapshot_api::PssQuerySnapshot_api;
-mod pss_walk_marker_create_api;
-pub use pss_walk_marker_create_api::PssWalkMarkerCreate_api;
-mod pss_walk_marker_free_api;
-pub use pss_walk_marker_free_api::PssWalkMarkerFree_api;
-mod pss_walk_marker_get_position_api;
-pub use pss_walk_marker_get_position_api::PssWalkMarkerGetPosition_api;
-mod pss_walk_marker_rewind_api;
-pub use pss_walk_marker_rewind_api::PssWalkMarkerRewind_api;
-mod pss_walk_marker_seek_api;
-pub use pss_walk_marker_seek_api::PssWalkMarkerSeek_api;
-mod pss_walk_marker_seek_to_beginning_api;
-pub use pss_walk_marker_seek_to_beginning_api::PssWalkMarkerSeekToBeginning_api;
-mod pss_walk_marker_set_position_api;
-pub use pss_walk_marker_set_position_api::PssWalkMarkerSetPosition_api;
-mod pss_walk_marker_tell_api;
-pub use pss_walk_marker_tell_api::PssWalkMarkerTell_api;
-mod pss_walk_snapshot_api;
-pub use pss_walk_snapshot_api::PssWalkSnapshot_api;
-mod pulse_event_api;
-pub use pulse_event_api::PulseEvent_api;
-mod purge_comm_api;
-pub use purge_comm_api::PurgeComm_api;
-mod query_act_ctx_settings_w_api;
-pub use query_act_ctx_settings_w_api::QueryActCtxSettingsW_api;
-mod query_act_ctx_w_api;
-pub use query_act_ctx_w_api::QueryActCtxW_api;
-mod query_depth_s_list_api;
-pub use query_depth_s_list_api::QueryDepthSList_api;
-mod query_dos_device_w_api;
-pub use query_dos_device_w_api::QueryDosDeviceW_api;
-mod query_full_process_image_name_a_api;
-pub use query_full_process_image_name_a_api::QueryFullProcessImageNameA_api;
-mod query_full_process_image_name_w_api;
-pub use query_full_process_image_name_w_api::QueryFullProcessImageNameW_api;
-mod query_idle_processor_cycle_time_api;
-pub use query_idle_processor_cycle_time_api::QueryIdleProcessorCycleTime_api;
-mod query_idle_processor_cycle_time_ex_api;
-pub use query_idle_processor_cycle_time_ex_api::QueryIdleProcessorCycleTimeEx_api;
-mod query_io_ring_capabilities_api;
-pub use query_io_ring_capabilities_api::QueryIoRingCapabilities_api;
-mod query_memory_resource_notification_api;
-pub use query_memory_resource_notification_api::QueryMemoryResourceNotification_api;
-mod query_process_affinity_update_mode_api;
-pub use query_process_affinity_update_mode_api::QueryProcessAffinityUpdateMode_api;
-mod query_process_cycle_time_api;
-pub use query_process_cycle_time_api::QueryProcessCycleTime_api;
-mod query_protected_policy_api;
-pub use query_protected_policy_api::QueryProtectedPolicy_api;
-mod query_thread_cycle_time_api;
-pub use query_thread_cycle_time_api::QueryThreadCycleTime_api;
-mod query_threadpool_stack_information_api;
-pub use query_threadpool_stack_information_api::QueryThreadpoolStackInformation_api;
-mod query_unbiased_interrupt_time_api;
-pub use query_unbiased_interrupt_time_api::QueryUnbiasedInterruptTime_api;
-mod queue_user_apc_api;
-pub use queue_user_apc_api::QueueUserAPC_api;
-mod queue_user_apc2_api;
-pub use queue_user_apc2_api::QueueUserAPC2_api;
-mod queue_user_work_item_api;
-pub use queue_user_work_item_api::QueueUserWorkItem_api;
-mod quirk_get_data2_worker_api;
-pub use quirk_get_data2_worker_api::QuirkGetData2Worker_api;
-mod quirk_is_enabled3_worker_api;
-pub use quirk_is_enabled3_worker_api::QuirkIsEnabled3Worker_api;
-mod raise_fail_fast_exception_api;
-pub use raise_fail_fast_exception_api::RaiseFailFastException_api;
-mod re_open_file_api;
-pub use re_open_file_api::ReOpenFile_api;
-mod read_console_a_api;
-pub use read_console_a_api::ReadConsoleA_api;
-mod read_console_input_a_api;
-pub use read_console_input_a_api::ReadConsoleInputA_api;
-mod read_console_input_ex_a_api;
-pub use read_console_input_ex_a_api::ReadConsoleInputExA_api;
-mod read_console_input_ex_w_api;
-pub use read_console_input_ex_w_api::ReadConsoleInputExW_api;
-mod read_console_input_w_api;
-pub use read_console_input_w_api::ReadConsoleInputW_api;
-mod read_console_output_a_api;
-pub use read_console_output_a_api::ReadConsoleOutputA_api;
-mod read_console_output_attribute_api;
-pub use read_console_output_attribute_api::ReadConsoleOutputAttribute_api;
-mod read_console_output_character_a_api;
-pub use read_console_output_character_a_api::ReadConsoleOutputCharacterA_api;
-mod read_console_output_character_w_api;
-pub use read_console_output_character_w_api::ReadConsoleOutputCharacterW_api;
-mod read_console_output_w_api;
-pub use read_console_output_w_api::ReadConsoleOutputW_api;
-mod read_console_w_api;
-pub use read_console_w_api::ReadConsoleW_api;
-mod read_directory_changes_ex_w_api;
-pub use read_directory_changes_ex_w_api::ReadDirectoryChangesExW_api;
-mod read_directory_changes_w_api;
-pub use read_directory_changes_w_api::ReadDirectoryChangesW_api;
-mod read_file_ex_api;
-pub use read_file_ex_api::ReadFileEx_api;
-mod read_file_scatter_api;
-pub use read_file_scatter_api::ReadFileScatter_api;
-mod reclaim_virtual_memory_api;
-pub use reclaim_virtual_memory_api::ReclaimVirtualMemory_api;
-mod reg_copy_tree_w_api;
-pub use reg_copy_tree_w_api::RegCopyTreeW_api;
-mod reg_delete_key_ex_a_api;
-pub use reg_delete_key_ex_a_api::RegDeleteKeyExA_api;
-mod reg_delete_key_ex_w_api;
-pub use reg_delete_key_ex_w_api::RegDeleteKeyExW_api;
-mod reg_delete_tree_a_api;
-pub use reg_delete_tree_a_api::RegDeleteTreeA_api;
-mod reg_delete_tree_w_api;
-pub use reg_delete_tree_w_api::RegDeleteTreeW_api;
-mod reg_delete_value_a_api;
-pub use reg_delete_value_a_api::RegDeleteValueA_api;
-mod reg_delete_value_w_api;
-pub use reg_delete_value_w_api::RegDeleteValueW_api;
-mod reg_disable_predefined_cache_ex_api;
-pub use reg_disable_predefined_cache_ex_api::RegDisablePredefinedCacheEx_api;
-mod reg_enum_key_ex_a_api;
-pub use reg_enum_key_ex_a_api::RegEnumKeyExA_api;
-mod reg_enum_key_ex_w_api;
-pub use reg_enum_key_ex_w_api::RegEnumKeyExW_api;
-mod reg_enum_value_a_api;
-pub use reg_enum_value_a_api::RegEnumValueA_api;
-mod reg_enum_value_w_api;
-pub use reg_enum_value_w_api::RegEnumValueW_api;
-mod reg_flush_key_api;
-pub use reg_flush_key_api::RegFlushKey_api;
-mod reg_get_key_security_api;
-pub use reg_get_key_security_api::RegGetKeySecurity_api;
-mod reg_get_value_a_api;
-pub use reg_get_value_a_api::RegGetValueA_api;
-mod reg_get_value_w_api;
-pub use reg_get_value_w_api::RegGetValueW_api;
-mod reg_load_key_a_api;
-pub use reg_load_key_a_api::RegLoadKeyA_api;
-mod reg_load_key_w_api;
-pub use reg_load_key_w_api::RegLoadKeyW_api;
-mod reg_load_mui_string_a_api;
-pub use reg_load_mui_string_a_api::RegLoadMUIStringA_api;
-mod reg_load_mui_string_w_api;
-pub use reg_load_mui_string_w_api::RegLoadMUIStringW_api;
-mod reg_notify_change_key_value_api;
-pub use reg_notify_change_key_value_api::RegNotifyChangeKeyValue_api;
-mod reg_open_current_user_api;
-pub use reg_open_current_user_api::RegOpenCurrentUser_api;
-mod reg_open_key_ex_a_api;
-pub use reg_open_key_ex_a_api::RegOpenKeyExA_api;
-mod reg_open_user_classes_root_api;
-pub use reg_open_user_classes_root_api::RegOpenUserClassesRoot_api;
-mod reg_query_info_key_a_api;
-pub use reg_query_info_key_a_api::RegQueryInfoKeyA_api;
-mod reg_query_info_key_w_api;
-pub use reg_query_info_key_w_api::RegQueryInfoKeyW_api;
-mod reg_query_value_ex_a_api;
-pub use reg_query_value_ex_a_api::RegQueryValueExA_api;
-mod reg_query_value_ex_w_api;
-pub use reg_query_value_ex_w_api::RegQueryValueExW_api;
-mod reg_restore_key_a_api;
-pub use reg_restore_key_a_api::RegRestoreKeyA_api;
-mod reg_restore_key_w_api;
-pub use reg_restore_key_w_api::RegRestoreKeyW_api;
-mod reg_save_key_ex_a_api;
-pub use reg_save_key_ex_a_api::RegSaveKeyExA_api;
-mod reg_save_key_ex_w_api;
-pub use reg_save_key_ex_w_api::RegSaveKeyExW_api;
-mod reg_set_key_security_api;
-pub use reg_set_key_security_api::RegSetKeySecurity_api;
-mod reg_un_load_key_a_api;
-pub use reg_un_load_key_a_api::RegUnLoadKeyA_api;
-mod reg_un_load_key_w_api;
-pub use reg_un_load_key_w_api::RegUnLoadKeyW_api;
-mod register_bad_memory_notification_api;
-pub use register_bad_memory_notification_api::RegisterBadMemoryNotification_api;
-mod register_wait_for_single_object_api;
-pub use register_wait_for_single_object_api::RegisterWaitForSingleObject_api;
-mod register_wait_for_single_object_ex_api;
-pub use register_wait_for_single_object_ex_api::RegisterWaitForSingleObjectEx_api;
-mod register_wow_base_handlers_api;
-pub use register_wow_base_handlers_api::RegisterWowBaseHandlers_api;
-mod register_wow_exec_api;
-pub use register_wow_exec_api::RegisterWowExec_api;
-mod release_act_ctx_api;
-pub use release_act_ctx_api::ReleaseActCtx_api;
-mod release_act_ctx_worker_api;
-pub use release_act_ctx_worker_api::ReleaseActCtxWorker_api;
-mod release_mutex_api;
-pub use release_mutex_api::ReleaseMutex_api;
-mod release_mutex_when_callback_returns_api;
-pub use release_mutex_when_callback_returns_api::ReleaseMutexWhenCallbackReturns_api;
-mod release_package_virtualization_context_api;
-pub use release_package_virtualization_context_api::ReleasePackageVirtualizationContext_api;
-mod release_pseudo_console_api;
-pub use release_pseudo_console_api::ReleasePseudoConsole_api;
-mod release_semaphore_api;
-pub use release_semaphore_api::ReleaseSemaphore_api;
-mod release_semaphore_when_callback_returns_api;
-pub use release_semaphore_when_callback_returns_api::ReleaseSemaphoreWhenCallbackReturns_api;
-mod remove_directory2_a_api;
-pub use remove_directory2_a_api::RemoveDirectory2A_api;
-mod remove_directory2_w_api;
-pub use remove_directory2_w_api::RemoveDirectory2W_api;
-mod remove_directory_transacted_a_api;
-pub use remove_directory_transacted_a_api::RemoveDirectoryTransactedA_api;
-mod remove_dll_directory_api;
-pub use remove_dll_directory_api::RemoveDllDirectory_api;
-mod remove_local_alternate_computer_name_a_api;
-pub use remove_local_alternate_computer_name_a_api::RemoveLocalAlternateComputerNameA_api;
-mod remove_vectored_continue_handler_api;
-pub use remove_vectored_continue_handler_api::RemoveVectoredContinueHandler_api;
-mod remove_vectored_exception_handler_api;
-pub use remove_vectored_exception_handler_api::RemoveVectoredExceptionHandler_api;
-mod replace_file_api;
-pub use replace_file_api::ReplaceFile_api;
-mod replace_file_w_api;
-pub use replace_file_w_api::ReplaceFileW_api;
-mod request_device_wakeup_api;
-pub use request_device_wakeup_api::RequestDeviceWakeup_api;
-mod reset_write_watch_api;
-pub use reset_write_watch_api::ResetWriteWatch_api;
-mod resize_pseudo_console_api;
-pub use resize_pseudo_console_api::ResizePseudoConsole_api;
-mod resolve_delay_loaded_api_api;
-pub use resolve_delay_loaded_api_api::ResolveDelayLoadedAPI_api;
-mod resolve_delay_loads_from_dll_api;
-pub use resolve_delay_loads_from_dll_api::ResolveDelayLoadsFromDll_api;
-mod resolve_locale_name_api;
-pub use resolve_locale_name_api::ResolveLocaleName_api;
-mod restore_last_error_api;
-pub use restore_last_error_api::RestoreLastError_api;
-mod rtl_capture_context_api;
-pub use rtl_capture_context_api::RtlCaptureContext_api;
-mod rtl_capture_stack_back_trace_api;
-pub use rtl_capture_stack_back_trace_api::RtlCaptureStackBackTrace_api;
-mod rtl_fill_memory_api;
-pub use rtl_fill_memory_api::RtlFillMemory_api;
-mod rtl_move_memory_api;
-pub use rtl_move_memory_api::RtlMoveMemory_api;
-mod rtl_pc_to_file_header_api;
-pub use rtl_pc_to_file_header_api::RtlPcToFileHeader_api;
-mod rtl_unwind_api;
-pub use rtl_unwind_api::RtlUnwind_api;
-mod rtl_zero_memory_api;
-pub use rtl_zero_memory_api::RtlZeroMemory_api;
-mod scroll_console_screen_buffer_a_api;
-pub use scroll_console_screen_buffer_a_api::ScrollConsoleScreenBufferA_api;
-mod scroll_console_screen_buffer_w_api;
-pub use scroll_console_screen_buffer_w_api::ScrollConsoleScreenBufferW_api;
-mod search_path_a;
-pub use search_path_a::SearchPathA;
-mod search_path_w;
-pub use search_path_w::SearchPathW;
-mod set_cached_signing_level_api;
-pub use set_cached_signing_level_api::SetCachedSigningLevel_api;
-mod set_calendar_info_w_api;
-pub use set_calendar_info_w_api::SetCalendarInfoW_api;
-mod set_comm_break_api;
-pub use set_comm_break_api::SetCommBreak_api;
-mod set_comm_config_api;
-pub use set_comm_config_api::SetCommConfig_api;
-mod set_comm_mask_api;
-pub use set_comm_mask_api::SetCommMask_api;
-mod set_comm_state_api;
-pub use set_comm_state_api::SetCommState_api;
-mod set_comm_timeouts_api;
-pub use set_comm_timeouts_api::SetCommTimeouts_api;
-mod set_computer_name_a_api;
-pub use set_computer_name_a_api::SetComputerNameA_api;
-mod set_computer_name_ex2_w_api;
-pub use set_computer_name_ex2_w_api::SetComputerNameEx2W_api;
-mod set_computer_name_ex_a_api;
-pub use set_computer_name_ex_a_api::SetComputerNameExA_api;
-mod set_computer_name_ex_w_api;
-pub use set_computer_name_ex_w_api::SetComputerNameExW_api;
-mod set_computer_name_w_api;
-pub use set_computer_name_w_api::SetComputerNameW_api;
-mod set_console_active_screen_buffer_api;
-pub use set_console_active_screen_buffer_api::SetConsoleActiveScreenBuffer_api;
-mod set_console_cp_api;
-pub use set_console_cp_api::SetConsoleCP_api;
-mod set_console_ctrl_handler_api;
-pub use set_console_ctrl_handler_api::SetConsoleCtrlHandler_api;
-mod set_console_cursor_info_api;
-pub use set_console_cursor_info_api::SetConsoleCursorInfo_api;
-mod set_console_cursor_mode_api;
-pub use set_console_cursor_mode_api::SetConsoleCursorMode_api;
-mod set_console_cursor_position_api;
-pub use set_console_cursor_position_api::SetConsoleCursorPosition_api;
-mod set_console_display_mode_api;
-pub use set_console_display_mode_api::SetConsoleDisplayMode_api;
-mod set_console_history_info_api;
-pub use set_console_history_info_api::SetConsoleHistoryInfo_api;
-mod set_console_input_exe_name_a_api;
-pub use set_console_input_exe_name_a_api::SetConsoleInputExeNameA_api;
-mod set_console_input_exe_name_w_api;
-pub use set_console_input_exe_name_w_api::SetConsoleInputExeNameW_api;
-mod set_console_mode_api;
-pub use set_console_mode_api::SetConsoleMode_api;
-mod set_console_nls_mode_api;
-pub use set_console_nls_mode_api::SetConsoleNlsMode_api;
-mod set_console_number_of_commands_a_api;
-pub use set_console_number_of_commands_a_api::SetConsoleNumberOfCommandsA_api;
-mod set_console_number_of_commands_w_api;
-pub use set_console_number_of_commands_w_api::SetConsoleNumberOfCommandsW_api;
-mod set_console_output_cp_api;
-pub use set_console_output_cp_api::SetConsoleOutputCP_api;
-mod set_console_screen_buffer_info_ex_api;
-pub use set_console_screen_buffer_info_ex_api::SetConsoleScreenBufferInfoEx_api;
-mod set_console_screen_buffer_size_api;
-pub use set_console_screen_buffer_size_api::SetConsoleScreenBufferSize_api;
-mod set_console_text_attribute_api;
-pub use set_console_text_attribute_api::SetConsoleTextAttribute_api;
-mod set_console_title_a_api;
-pub use set_console_title_a_api::SetConsoleTitleA_api;
-mod set_console_title_w_api;
-pub use set_console_title_w_api::SetConsoleTitleW_api;
-mod set_console_window_info_api;
-pub use set_console_window_info_api::SetConsoleWindowInfo_api;
-mod set_critical_section_spin_count_api;
-pub use set_critical_section_spin_count_api::SetCriticalSectionSpinCount_api;
-mod set_current_console_font_ex_api;
-pub use set_current_console_font_ex_api::SetCurrentConsoleFontEx_api;
-mod set_current_directory_w_api;
-pub use set_current_directory_w_api::SetCurrentDirectoryW_api;
-mod set_default_comm_config_w_api;
-pub use set_default_comm_config_w_api::SetDefaultCommConfigW_api;
-mod set_default_dll_directories_api;
-pub use set_default_dll_directories_api::SetDefaultDllDirectories_api;
-mod set_dynamic_time_zone_information_api;
-pub use set_dynamic_time_zone_information_api::SetDynamicTimeZoneInformation_api;
-mod set_end_of_file;
-pub use set_end_of_file::SetEndOfFile;
-mod set_environment_strings_w_api;
-pub use set_environment_strings_w_api::SetEnvironmentStringsW_api;
+mod lock_file_ex;
+pub use lock_file_ex::LockFileEx;
+mod log_unexpected_codepath;
+pub use log_unexpected_codepath::LogUnexpectedCodepath;
+mod map_user_physical_pages;
+pub use map_user_physical_pages::MapUserPhysicalPages;
+mod map_user_physical_pages_scatter;
+pub use map_user_physical_pages_scatter::MapUserPhysicalPagesScatter;
+mod map_view_of_file_ex;
+pub use map_view_of_file_ex::MapViewOfFileEx;
+mod map_view_of_file_ex_numa;
+pub use map_view_of_file_ex_numa::MapViewOfFileExNuma;
+mod map_view_of_file_from_app;
+pub use map_view_of_file_from_app::MapViewOfFileFromApp;
+mod nls_check_policy;
+pub use nls_check_policy::NlsCheckPolicy;
+mod nls_get_cache_update_count;
+pub use nls_get_cache_update_count::NlsGetCacheUpdateCount;
+mod nls_update_locale;
+pub use nls_update_locale::NlsUpdateLocale;
+mod nls_update_system_locale;
+pub use nls_update_system_locale::NlsUpdateSystemLocale;
+mod normalize_string;
+pub use normalize_string::NormalizeString;
+mod notify_mount_mgr;
+pub use notify_mount_mgr::NotifyMountMgr;
+mod offer_virtual_memory;
+pub use offer_virtual_memory::OfferVirtualMemory;
+mod open_console_w;
+pub use open_console_w::OpenConsoleW;
+mod open_console_w_stub;
+pub use open_console_w_stub::OpenConsoleWStub;
+mod open_file_by_id;
+pub use open_file_by_id::OpenFileById;
+mod open_package_info_by_full_name;
+pub use open_package_info_by_full_name::OpenPackageInfoByFullName;
+mod open_profile_user_mapping;
+pub use open_profile_user_mapping::OpenProfileUserMapping;
+mod open_state;
+pub use open_state::OpenState;
+mod open_state_explicit;
+pub use open_state_explicit::OpenStateExplicit;
+mod open_thread_token;
+pub use open_thread_token::OpenThreadToken;
+mod package_family_name_from_full_name;
+pub use package_family_name_from_full_name::PackageFamilyNameFromFullName;
+mod package_family_name_from_id;
+pub use package_family_name_from_id::PackageFamilyNameFromId;
+mod package_full_name_from_id;
+pub use package_full_name_from_id::PackageFullNameFromId;
+mod package_id_from_full_name;
+pub use package_id_from_full_name::PackageIdFromFullName;
+mod package_name_and_publisher_id_from_family_name;
+pub use package_name_and_publisher_id_from_family_name::PackageNameAndPublisherIdFromFamilyName;
+mod parse_application_user_model_id;
+pub use parse_application_user_model_id::ParseApplicationUserModelId;
+mod peek_named_pipe;
+pub use peek_named_pipe::PeekNamedPipe;
+mod pop_io_ring_completion;
+pub use pop_io_ring_completion::PopIoRingCompletion;
+mod post_queued_completion_status;
+pub use post_queued_completion_status::PostQueuedCompletionStatus;
+mod prefetch_virtual_memory;
+pub use prefetch_virtual_memory::PrefetchVirtualMemory;
+mod priv_copy_file_ex_w;
+pub use priv_copy_file_ex_w::PrivCopyFileExW;
+mod process_id_to_session_id;
+pub use process_id_to_session_id::ProcessIdToSessionId;
+mod pss_capture_snapshot;
+pub use pss_capture_snapshot::PssCaptureSnapshot;
+mod pss_duplicate_snapshot;
+pub use pss_duplicate_snapshot::PssDuplicateSnapshot;
+mod pss_free_snapshot;
+pub use pss_free_snapshot::PssFreeSnapshot;
+mod pss_query_snapshot;
+pub use pss_query_snapshot::PssQuerySnapshot;
+mod pss_walk_marker_create;
+pub use pss_walk_marker_create::PssWalkMarkerCreate;
+mod pss_walk_marker_free;
+pub use pss_walk_marker_free::PssWalkMarkerFree;
+mod pss_walk_marker_get_position;
+pub use pss_walk_marker_get_position::PssWalkMarkerGetPosition;
+mod pss_walk_marker_rewind;
+pub use pss_walk_marker_rewind::PssWalkMarkerRewind;
+mod pss_walk_marker_seek;
+pub use pss_walk_marker_seek::PssWalkMarkerSeek;
+mod pss_walk_marker_seek_to_beginning;
+pub use pss_walk_marker_seek_to_beginning::PssWalkMarkerSeekToBeginning;
+mod pss_walk_marker_set_position;
+pub use pss_walk_marker_set_position::PssWalkMarkerSetPosition;
+mod pss_walk_marker_tell;
+pub use pss_walk_marker_tell::PssWalkMarkerTell;
+mod pss_walk_snapshot;
+pub use pss_walk_snapshot::PssWalkSnapshot;
+mod pulse_event;
+pub use pulse_event::PulseEvent;
+mod purge_comm;
+pub use purge_comm::PurgeComm;
+mod query_act_ctx_settings_w;
+pub use query_act_ctx_settings_w::QueryActCtxSettingsW;
+mod query_act_ctx_w;
+pub use query_act_ctx_w::QueryActCtxW;
+mod query_depth_s_list;
+pub use query_depth_s_list::QueryDepthSList;
+mod query_idle_processor_cycle_time;
+pub use query_idle_processor_cycle_time::QueryIdleProcessorCycleTime;
+mod query_idle_processor_cycle_time_ex;
+pub use query_idle_processor_cycle_time_ex::QueryIdleProcessorCycleTimeEx;
+mod query_io_ring_capabilities;
+pub use query_io_ring_capabilities::QueryIoRingCapabilities;
+mod query_memory_resource_notification;
+pub use query_memory_resource_notification::QueryMemoryResourceNotification;
+mod query_process_affinity_update_mode;
+pub use query_process_affinity_update_mode::QueryProcessAffinityUpdateMode;
+mod query_process_cycle_time;
+pub use query_process_cycle_time::QueryProcessCycleTime;
+mod query_protected_policy;
+pub use query_protected_policy::QueryProtectedPolicy;
+mod query_thread_cycle_time;
+pub use query_thread_cycle_time::QueryThreadCycleTime;
+mod query_threadpool_stack_information;
+pub use query_threadpool_stack_information::QueryThreadpoolStackInformation;
+mod query_unbiased_interrupt_time;
+pub use query_unbiased_interrupt_time::QueryUnbiasedInterruptTime;
+mod queue_user_apc;
+pub use queue_user_apc::QueueUserAPC;
+mod queue_user_apc2;
+pub use queue_user_apc2::QueueUserAPC2;
+mod queue_user_work_item;
+pub use queue_user_work_item::QueueUserWorkItem;
+mod quirk_get_data2_worker;
+pub use quirk_get_data2_worker::QuirkGetData2Worker;
+mod quirk_is_enabled3_worker;
+pub use quirk_is_enabled3_worker::QuirkIsEnabled3Worker;
+mod raise_fail_fast_exception;
+pub use raise_fail_fast_exception::RaiseFailFastException;
+mod re_open_file;
+pub use re_open_file::ReOpenFile;
+mod read_console_output_attribute;
+pub use read_console_output_attribute::ReadConsoleOutputAttribute;
+mod read_directory_changes_ex_w;
+pub use read_directory_changes_ex_w::ReadDirectoryChangesExW;
+mod read_directory_changes_w;
+pub use read_directory_changes_w::ReadDirectoryChangesW;
+mod read_file_ex;
+pub use read_file_ex::ReadFileEx;
+mod read_file_scatter;
+pub use read_file_scatter::ReadFileScatter;
+mod reclaim_virtual_memory;
+pub use reclaim_virtual_memory::ReclaimVirtualMemory;
+mod reg_copy_tree_w;
+pub use reg_copy_tree_w::RegCopyTreeW;
+mod reg_disable_predefined_cache_ex;
+pub use reg_disable_predefined_cache_ex::RegDisablePredefinedCacheEx;
+mod reg_flush_key;
+pub use reg_flush_key::RegFlushKey;
+mod reg_get_key_security;
+pub use reg_get_key_security::RegGetKeySecurity;
+mod reg_notify_change_key_value;
+pub use reg_notify_change_key_value::RegNotifyChangeKeyValue;
+mod reg_open_current_user;
+pub use reg_open_current_user::RegOpenCurrentUser;
+mod reg_open_user_classes_root;
+pub use reg_open_user_classes_root::RegOpenUserClassesRoot;
+mod reg_set_key_security;
+pub use reg_set_key_security::RegSetKeySecurity;
+mod register_bad_memory_notification;
+pub use register_bad_memory_notification::RegisterBadMemoryNotification;
+mod register_wait_for_single_object;
+pub use register_wait_for_single_object::RegisterWaitForSingleObject;
+mod register_wait_for_single_object_ex;
+pub use register_wait_for_single_object_ex::RegisterWaitForSingleObjectEx;
+mod register_wow_base_handlers;
+pub use register_wow_base_handlers::RegisterWowBaseHandlers;
+mod register_wow_exec;
+pub use register_wow_exec::RegisterWowExec;
+mod release_act_ctx;
+pub use release_act_ctx::ReleaseActCtx;
+mod release_act_ctx_worker;
+pub use release_act_ctx_worker::ReleaseActCtxWorker;
+mod release_mutex;
+pub use release_mutex::ReleaseMutex;
+mod release_mutex_when_callback_returns;
+pub use release_mutex_when_callback_returns::ReleaseMutexWhenCallbackReturns;
+mod release_package_virtualization_context;
+pub use release_package_virtualization_context::ReleasePackageVirtualizationContext;
+mod release_pseudo_console;
+pub use release_pseudo_console::ReleasePseudoConsole;
+mod release_semaphore;
+pub use release_semaphore::ReleaseSemaphore;
+mod release_semaphore_when_callback_returns;
+pub use release_semaphore_when_callback_returns::ReleaseSemaphoreWhenCallbackReturns;
+mod remove_dll_directory;
+pub use remove_dll_directory::RemoveDllDirectory;
+mod remove_vectored_continue_handler;
+pub use remove_vectored_continue_handler::RemoveVectoredContinueHandler;
+mod remove_vectored_exception_handler;
+pub use remove_vectored_exception_handler::RemoveVectoredExceptionHandler;
+mod replace_file;
+pub use replace_file::ReplaceFile;
+mod replace_file_w;
+pub use replace_file_w::ReplaceFileW;
+mod request_device_wakeup;
+pub use request_device_wakeup::RequestDeviceWakeup;
+mod reset_write_watch;
+pub use reset_write_watch::ResetWriteWatch;
+mod resize_pseudo_console;
+pub use resize_pseudo_console::ResizePseudoConsole;
+mod resolve_delay_loaded_api;
+pub use resolve_delay_loaded_api::ResolveDelayLoadedAPI;
+mod resolve_delay_loads_from_dll;
+pub use resolve_delay_loads_from_dll::ResolveDelayLoadsFromDll;
+mod resolve_locale_name;
+pub use resolve_locale_name::ResolveLocaleName;
+mod restore_last_error;
+pub use restore_last_error::RestoreLastError;
+mod rtl_capture_context;
+pub use rtl_capture_context::RtlCaptureContext;
+mod rtl_capture_stack_back_trace;
+pub use rtl_capture_stack_back_trace::RtlCaptureStackBackTrace;
+mod rtl_fill_memory;
+pub use rtl_fill_memory::RtlFillMemory;
+mod rtl_move_memory;
+pub use rtl_move_memory::RtlMoveMemory;
+mod rtl_pc_to_file_header;
+pub use rtl_pc_to_file_header::RtlPcToFileHeader;
+mod rtl_unwind;
+pub use rtl_unwind::RtlUnwind;
+mod rtl_zero_memory;
+pub use rtl_zero_memory::RtlZeroMemory;
+mod set_cached_signing_level;
+pub use set_cached_signing_level::SetCachedSigningLevel;
+mod set_comm_break;
+pub use set_comm_break::SetCommBreak;
+mod set_comm_config;
+pub use set_comm_config::SetCommConfig;
+mod set_comm_mask;
+pub use set_comm_mask::SetCommMask;
+mod set_comm_state;
+pub use set_comm_state::SetCommState;
+mod set_comm_timeouts;
+pub use set_comm_timeouts::SetCommTimeouts;
+mod set_computer_name_ex2_w;
+pub use set_computer_name_ex2_w::SetComputerNameEx2W;
+mod set_console_active_screen_buffer;
+pub use set_console_active_screen_buffer::SetConsoleActiveScreenBuffer;
+mod set_console_cp;
+pub use set_console_cp::SetConsoleCP;
+mod set_console_ctrl_handler;
+pub use set_console_ctrl_handler::SetConsoleCtrlHandler;
+mod set_console_cursor_info;
+pub use set_console_cursor_info::SetConsoleCursorInfo;
+mod set_console_cursor_mode;
+pub use set_console_cursor_mode::SetConsoleCursorMode;
+mod set_console_cursor_position;
+pub use set_console_cursor_position::SetConsoleCursorPosition;
+mod set_console_display_mode;
+pub use set_console_display_mode::SetConsoleDisplayMode;
+mod set_console_history_info;
+pub use set_console_history_info::SetConsoleHistoryInfo;
+mod set_console_mode;
+pub use set_console_mode::SetConsoleMode;
+mod set_console_nls_mode;
+pub use set_console_nls_mode::SetConsoleNlsMode;
+mod set_console_output_cp;
+pub use set_console_output_cp::SetConsoleOutputCP;
+mod set_console_screen_buffer_info_ex;
+pub use set_console_screen_buffer_info_ex::SetConsoleScreenBufferInfoEx;
+mod set_console_screen_buffer_size;
+pub use set_console_screen_buffer_size::SetConsoleScreenBufferSize;
+mod set_console_text_attribute;
+pub use set_console_text_attribute::SetConsoleTextAttribute;
+mod set_console_window_info;
+pub use set_console_window_info::SetConsoleWindowInfo;
+mod set_critical_section_spin_count;
+pub use set_critical_section_spin_count::SetCriticalSectionSpinCount;
+mod set_current_console_font_ex;
+pub use set_current_console_font_ex::SetCurrentConsoleFontEx;
+mod set_default_dll_directories;
+pub use set_default_dll_directories::SetDefaultDllDirectories;
+mod set_dynamic_time_zone_information;
+pub use set_dynamic_time_zone_information::SetDynamicTimeZoneInformation;
 mod set_event;
 pub use set_event::SetEvent;
-mod set_event_when_callback_returns_api;
-pub use set_event_when_callback_returns_api::SetEventWhenCallbackReturns_api;
-mod set_file_apis_to_ansi_api;
-pub use set_file_apis_to_ansi_api::SetFileApisToANSI_api;
-mod set_file_apis_to_oem_api;
-pub use set_file_apis_to_oem_api::SetFileApisToOEM_api;
-mod set_file_attributes_transacted_a_api;
-pub use set_file_attributes_transacted_a_api::SetFileAttributesTransactedA_api;
-mod set_file_completion_notification_modes_api;
-pub use set_file_completion_notification_modes_api::SetFileCompletionNotificationModes_api;
-mod set_file_information_by_handle_api;
-pub use set_file_information_by_handle_api::SetFileInformationByHandle_api;
-mod set_file_io_overlapped_range_api;
-pub use set_file_io_overlapped_range_api::SetFileIoOverlappedRange_api;
-mod set_file_pointer_ex;
-pub use set_file_pointer_ex::SetFilePointerEx;
-mod set_file_time_api;
-pub use set_file_time_api::SetFileTime_api;
-mod set_file_valid_data_api;
-pub use set_file_valid_data_api::SetFileValidData_api;
-mod set_firmware_environment_variable_ex_a_api;
-pub use set_firmware_environment_variable_ex_a_api::SetFirmwareEnvironmentVariableExA_api;
-mod set_firmware_environment_variable_ex_w_api;
-pub use set_firmware_environment_variable_ex_w_api::SetFirmwareEnvironmentVariableExW_api;
-mod set_handle_context_api;
-pub use set_handle_context_api::SetHandleContext_api;
-mod set_handle_information_api;
-pub use set_handle_information_api::SetHandleInformation_api;
-mod set_io_ring_completion_event_api;
-pub use set_io_ring_completion_event_api::SetIoRingCompletionEvent_api;
-mod set_last_console_event_active_api;
-pub use set_last_console_event_active_api::SetLastConsoleEventActive_api;
-mod set_local_primary_computer_name_a_api;
-pub use set_local_primary_computer_name_a_api::SetLocalPrimaryComputerNameA_api;
-mod set_local_time_api;
-pub use set_local_time_api::SetLocalTime_api;
-mod set_locale_info_w;
-pub use set_locale_info_w::SetLocaleInfoW;
-mod set_named_pipe_handle_state_api;
-pub use set_named_pipe_handle_state_api::SetNamedPipeHandleState_api;
-mod set_priority_class_api;
-pub use set_priority_class_api::SetPriorityClass_api;
-mod set_process_affinity_update_mode_api;
-pub use set_process_affinity_update_mode_api::SetProcessAffinityUpdateMode_api;
-mod set_process_default_cpu_set_masks_api;
-pub use set_process_default_cpu_set_masks_api::SetProcessDefaultCpuSetMasks_api;
-mod set_process_default_cpu_sets_api;
-pub use set_process_default_cpu_sets_api::SetProcessDefaultCpuSets_api;
-mod set_process_dynamic_eh_continuation_targets_api;
-pub use set_process_dynamic_eh_continuation_targets_api::SetProcessDynamicEHContinuationTargets_api;
-mod set_process_dynamic_enforced_cet_compatible_ranges_api;
-pub use set_process_dynamic_enforced_cet_compatible_ranges_api::SetProcessDynamicEnforcedCetCompatibleRanges_api;
-mod set_process_information_api;
-pub use set_process_information_api::SetProcessInformation_api;
-mod set_process_mitigation_policy_api;
-pub use set_process_mitigation_policy_api::SetProcessMitigationPolicy_api;
-mod set_process_preferred_ui_languages_api;
-pub use set_process_preferred_ui_languages_api::SetProcessPreferredUILanguages_api;
-mod set_process_priority_boost_api;
-pub use set_process_priority_boost_api::SetProcessPriorityBoost_api;
-mod set_process_shutdown_parameters_api;
-pub use set_process_shutdown_parameters_api::SetProcessShutdownParameters_api;
-mod set_process_working_set_size_ex_api;
-pub use set_process_working_set_size_ex_api::SetProcessWorkingSetSizeEx_api;
-mod set_protected_policy_api;
-pub use set_protected_policy_api::SetProtectedPolicy_api;
-mod set_search_path_mode_api;
-pub use set_search_path_mode_api::SetSearchPathMode_api;
-mod set_std_handle_api;
-pub use set_std_handle_api::SetStdHandle_api;
-mod set_std_handle_ex_api;
-pub use set_std_handle_ex_api::SetStdHandleEx_api;
-mod set_system_file_cache_size_api;
-pub use set_system_file_cache_size_api::SetSystemFileCacheSize_api;
-mod set_system_time_api;
-pub use set_system_time_api::SetSystemTime_api;
-mod set_termsrv_app_install_mode_api;
-pub use set_termsrv_app_install_mode_api::SetTermsrvAppInstallMode_api;
-mod set_thread_description_api;
-pub use set_thread_description_api::SetThreadDescription_api;
-mod set_thread_error_mode_api;
-pub use set_thread_error_mode_api::SetThreadErrorMode_api;
-mod set_thread_group_affinity_api;
-pub use set_thread_group_affinity_api::SetThreadGroupAffinity_api;
-mod set_thread_ideal_processor_api;
-pub use set_thread_ideal_processor_api::SetThreadIdealProcessor_api;
-mod set_thread_ideal_processor_ex_api;
-pub use set_thread_ideal_processor_ex_api::SetThreadIdealProcessorEx_api;
-mod set_thread_information_api;
-pub use set_thread_information_api::SetThreadInformation_api;
-mod set_thread_preferred_ui_languages_api;
-pub use set_thread_preferred_ui_languages_api::SetThreadPreferredUILanguages_api;
-mod set_thread_priority_api;
-pub use set_thread_priority_api::SetThreadPriority_api;
-mod set_thread_priority_boost_api;
-pub use set_thread_priority_boost_api::SetThreadPriorityBoost_api;
-mod set_thread_selected_cpu_set_masks_api;
-pub use set_thread_selected_cpu_set_masks_api::SetThreadSelectedCpuSetMasks_api;
-mod set_thread_selected_cpu_sets_api;
-pub use set_thread_selected_cpu_sets_api::SetThreadSelectedCpuSets_api;
-mod set_thread_stack_guarantee_api;
-pub use set_thread_stack_guarantee_api::SetThreadStackGuarantee_api;
-mod set_thread_token_api;
-pub use set_thread_token_api::SetThreadToken_api;
-mod set_thread_ui_language_api;
-pub use set_thread_ui_language_api::SetThreadUILanguage_api;
-mod set_threadpool_stack_information_api;
-pub use set_threadpool_stack_information_api::SetThreadpoolStackInformation_api;
-mod set_threadpool_thread_maximum_api;
-pub use set_threadpool_thread_maximum_api::SetThreadpoolThreadMaximum_api;
-mod set_threadpool_thread_minimum_api;
-pub use set_threadpool_thread_minimum_api::SetThreadpoolThreadMinimum_api;
-mod set_threadpool_timer_api;
-pub use set_threadpool_timer_api::SetThreadpoolTimer_api;
-mod set_threadpool_timer_ex_api;
-pub use set_threadpool_timer_ex_api::SetThreadpoolTimerEx_api;
-mod set_threadpool_wait_api;
-pub use set_threadpool_wait_api::SetThreadpoolWait_api;
-mod set_threadpool_wait_ex_api;
-pub use set_threadpool_wait_ex_api::SetThreadpoolWaitEx_api;
-mod set_time_zone_information_api;
-pub use set_time_zone_information_api::SetTimeZoneInformation_api;
-mod set_vdm_current_directories_api;
-pub use set_vdm_current_directories_api::SetVDMCurrentDirectories_api;
-mod set_volume_mount_point_w_stub_api;
-pub use set_volume_mount_point_w_stub_api::SetVolumeMountPointWStub_api;
-mod set_waitable_timer_api;
-pub use set_waitable_timer_api::SetWaitableTimer_api;
-mod set_waitable_timer_ex_api;
-pub use set_waitable_timer_ex_api::SetWaitableTimerEx_api;
-mod set_x_state_features_mask_api;
-pub use set_x_state_features_mask_api::SetXStateFeaturesMask_api;
-mod setup_comm_api;
-pub use setup_comm_api::SetupComm_api;
-mod signal_object_and_wait_api;
-pub use signal_object_and_wait_api::SignalObjectAndWait_api;
+mod set_event_when_callback_returns;
+pub use set_event_when_callback_returns::SetEventWhenCallbackReturns;
+mod set_file_apis_to_ansi;
+pub use set_file_apis_to_ansi::SetFileApisToANSI;
+mod set_file_apis_to_oem;
+pub use set_file_apis_to_oem::SetFileApisToOEM;
+mod set_file_completion_notification_modes;
+pub use set_file_completion_notification_modes::SetFileCompletionNotificationModes;
+mod set_file_information_by_handle;
+pub use set_file_information_by_handle::SetFileInformationByHandle;
+mod set_file_io_overlapped_range;
+pub use set_file_io_overlapped_range::SetFileIoOverlappedRange;
+mod set_file_time;
+pub use set_file_time::SetFileTime;
+mod set_file_valid_data;
+pub use set_file_valid_data::SetFileValidData;
+mod set_handle_context;
+pub use set_handle_context::SetHandleContext;
+mod set_handle_information;
+pub use set_handle_information::SetHandleInformation;
+mod set_io_ring_completion_event;
+pub use set_io_ring_completion_event::SetIoRingCompletionEvent;
+mod set_last_console_event_active;
+pub use set_last_console_event_active::SetLastConsoleEventActive;
+mod set_local_time;
+pub use set_local_time::SetLocalTime;
+mod set_named_pipe_handle_state;
+pub use set_named_pipe_handle_state::SetNamedPipeHandleState;
+mod set_priority_class;
+pub use set_priority_class::SetPriorityClass;
+mod set_process_affinity_update_mode;
+pub use set_process_affinity_update_mode::SetProcessAffinityUpdateMode;
+mod set_process_default_cpu_set_masks;
+pub use set_process_default_cpu_set_masks::SetProcessDefaultCpuSetMasks;
+mod set_process_default_cpu_sets;
+pub use set_process_default_cpu_sets::SetProcessDefaultCpuSets;
+mod set_process_dynamic_eh_continuation_targets;
+pub use set_process_dynamic_eh_continuation_targets::SetProcessDynamicEHContinuationTargets;
+mod set_process_dynamic_enforced_cet_compatible_ranges;
+pub use set_process_dynamic_enforced_cet_compatible_ranges::SetProcessDynamicEnforcedCetCompatibleRanges;
+mod set_process_information;
+pub use set_process_information::SetProcessInformation;
+mod set_process_mitigation_policy;
+pub use set_process_mitigation_policy::SetProcessMitigationPolicy;
+mod set_process_preferred_ui_languages;
+pub use set_process_preferred_ui_languages::SetProcessPreferredUILanguages;
+mod set_process_priority_boost;
+pub use set_process_priority_boost::SetProcessPriorityBoost;
+mod set_process_shutdown_parameters;
+pub use set_process_shutdown_parameters::SetProcessShutdownParameters;
+mod set_process_working_set_size_ex;
+pub use set_process_working_set_size_ex::SetProcessWorkingSetSizeEx;
+mod set_protected_policy;
+pub use set_protected_policy::SetProtectedPolicy;
+mod set_search_path_mode;
+pub use set_search_path_mode::SetSearchPathMode;
+mod set_std_handle;
+pub use set_std_handle::SetStdHandle;
+mod set_std_handle_ex;
+pub use set_std_handle_ex::SetStdHandleEx;
+mod set_system_file_cache_size;
+pub use set_system_file_cache_size::SetSystemFileCacheSize;
+mod set_system_time;
+pub use set_system_time::SetSystemTime;
+mod set_termsrv_app_install_mode;
+pub use set_termsrv_app_install_mode::SetTermsrvAppInstallMode;
+mod set_thread_description;
+pub use set_thread_description::SetThreadDescription;
+mod set_thread_error_mode;
+pub use set_thread_error_mode::SetThreadErrorMode;
+mod set_thread_group_affinity;
+pub use set_thread_group_affinity::SetThreadGroupAffinity;
+mod set_thread_ideal_processor;
+pub use set_thread_ideal_processor::SetThreadIdealProcessor;
+mod set_thread_ideal_processor_ex;
+pub use set_thread_ideal_processor_ex::SetThreadIdealProcessorEx;
+mod set_thread_information;
+pub use set_thread_information::SetThreadInformation;
+mod set_thread_preferred_ui_languages;
+pub use set_thread_preferred_ui_languages::SetThreadPreferredUILanguages;
+mod set_thread_priority;
+pub use set_thread_priority::SetThreadPriority;
+mod set_thread_priority_boost;
+pub use set_thread_priority_boost::SetThreadPriorityBoost;
+mod set_thread_selected_cpu_set_masks;
+pub use set_thread_selected_cpu_set_masks::SetThreadSelectedCpuSetMasks;
+mod set_thread_selected_cpu_sets;
+pub use set_thread_selected_cpu_sets::SetThreadSelectedCpuSets;
+mod set_thread_stack_guarantee;
+pub use set_thread_stack_guarantee::SetThreadStackGuarantee;
+mod set_thread_token;
+pub use set_thread_token::SetThreadToken;
+mod set_thread_ui_language;
+pub use set_thread_ui_language::SetThreadUILanguage;
+mod set_threadpool_stack_information;
+pub use set_threadpool_stack_information::SetThreadpoolStackInformation;
+mod set_threadpool_thread_maximum;
+pub use set_threadpool_thread_maximum::SetThreadpoolThreadMaximum;
+mod set_threadpool_thread_minimum;
+pub use set_threadpool_thread_minimum::SetThreadpoolThreadMinimum;
+mod set_threadpool_timer;
+pub use set_threadpool_timer::SetThreadpoolTimer;
+mod set_threadpool_timer_ex;
+pub use set_threadpool_timer_ex::SetThreadpoolTimerEx;
+mod set_threadpool_wait;
+pub use set_threadpool_wait::SetThreadpoolWait;
+mod set_threadpool_wait_ex;
+pub use set_threadpool_wait_ex::SetThreadpoolWaitEx;
+mod set_time_zone_information;
+pub use set_time_zone_information::SetTimeZoneInformation;
+mod set_vdm_current_directories;
+pub use set_vdm_current_directories::SetVDMCurrentDirectories;
+mod set_volume_mount_point_w_stub;
+pub use set_volume_mount_point_w_stub::SetVolumeMountPointWStub;
+mod set_waitable_timer;
+pub use set_waitable_timer::SetWaitableTimer;
+mod set_waitable_timer_ex;
+pub use set_waitable_timer_ex::SetWaitableTimerEx;
+mod set_x_state_features_mask;
+pub use set_x_state_features_mask::SetXStateFeaturesMask;
+mod setup_comm;
+pub use setup_comm::SetupComm;
+mod signal_object_and_wait;
+pub use signal_object_and_wait::SignalObjectAndWait;
 mod sleep_condition_variable_cs;
 pub use sleep_condition_variable_cs::SleepConditionVariableCS;
 mod sleep_condition_variable_srw;
 pub use sleep_condition_variable_srw::SleepConditionVariableSRW;
 mod sleep_ex;
 pub use sleep_ex::SleepEx;
-mod sort_close_handle_api;
-pub use sort_close_handle_api::SortCloseHandle_api;
-mod sort_get_handle_api;
-pub use sort_get_handle_api::SortGetHandle_api;
-mod start_threadpool_io_api;
-pub use start_threadpool_io_api::StartThreadpoolIo_api;
-mod submit_io_ring_api;
-pub use submit_io_ring_api::SubmitIoRing_api;
-mod submit_threadpool_work_api;
-pub use submit_threadpool_work_api::SubmitThreadpoolWork_api;
+mod sort_close_handle;
+pub use sort_close_handle::SortCloseHandle;
+mod sort_get_handle;
+pub use sort_get_handle::SortGetHandle;
+mod start_threadpool_io;
+pub use start_threadpool_io::StartThreadpoolIo;
+mod submit_io_ring;
+pub use submit_io_ring::SubmitIoRing;
+mod submit_threadpool_work;
+pub use submit_threadpool_work::SubmitThreadpoolWork;
 mod suspend_thread;
 pub use suspend_thread::SuspendThread;
-mod switch_to_fiber_api;
-pub use switch_to_fiber_api::SwitchToFiber_api;
-mod switch_to_thread_api;
-pub use switch_to_thread_api::SwitchToThread_api;
-mod system_time_to_tz_specific_local_time_ex_api;
-pub use system_time_to_tz_specific_local_time_ex_api::SystemTimeToTzSpecificLocalTimeEx_api;
-mod terminate_job_object_api;
-pub use terminate_job_object_api::TerminateJobObject_api;
-mod terminate_thread_api;
-pub use terminate_thread_api::TerminateThread_api;
-mod termsrv_app_install_mode_api;
-pub use termsrv_app_install_mode_api::TermsrvAppInstallMode_api;
-mod termsrv_get_windows_directory_a_api;
-pub use termsrv_get_windows_directory_a_api::TermsrvGetWindowsDirectoryA_api;
-mod termsrv_get_windows_directory_w_api;
-pub use termsrv_get_windows_directory_w_api::TermsrvGetWindowsDirectoryW_api;
-mod termsrv_set_key_security_api;
-pub use termsrv_set_key_security_api::TermsrvSetKeySecurity_api;
-mod tls_get_value2_api;
-pub use tls_get_value2_api::TlsGetValue2_api;
-mod toolhelp32_read_process_memory_api;
-pub use toolhelp32_read_process_memory_api::Toolhelp32ReadProcessMemory_api;
-mod transact_named_pipe_api;
-pub use transact_named_pipe_api::TransactNamedPipe_api;
-mod transmit_comm_char_api;
-pub use transmit_comm_char_api::TransmitCommChar_api;
-mod try_enter_critical_section_api;
-pub use try_enter_critical_section_api::TryEnterCriticalSection_api;
-mod try_submit_threadpool_callback_api;
-pub use try_submit_threadpool_callback_api::TrySubmitThreadpoolCallback_api;
-mod tz_specific_local_time_to_system_time_api;
-pub use tz_specific_local_time_to_system_time_api::TzSpecificLocalTimeToSystemTime_api;
-mod tz_specific_local_time_to_system_time_ex_api;
-pub use tz_specific_local_time_to_system_time_ex_api::TzSpecificLocalTimeToSystemTimeEx_api;
-mod ut_register_api;
-pub use ut_register_api::UTRegister_api;
-mod ut_un_register_api;
-pub use ut_un_register_api::UTUnRegister_api;
+mod switch_to_fiber;
+pub use switch_to_fiber::SwitchToFiber;
+mod switch_to_thread;
+pub use switch_to_thread::SwitchToThread;
+mod system_time_to_tz_specific_local_time_ex;
+pub use system_time_to_tz_specific_local_time_ex::SystemTimeToTzSpecificLocalTimeEx;
+mod terminate_job_object;
+pub use terminate_job_object::TerminateJobObject;
+mod terminate_thread;
+pub use terminate_thread::TerminateThread;
+mod termsrv_app_install_mode;
+pub use termsrv_app_install_mode::TermsrvAppInstallMode;
+mod termsrv_set_key_security;
+pub use termsrv_set_key_security::TermsrvSetKeySecurity;
+mod tls_get_value2;
+pub use tls_get_value2::TlsGetValue2;
+mod toolhelp32_read_process_memory;
+pub use toolhelp32_read_process_memory::Toolhelp32ReadProcessMemory;
+mod transact_named_pipe;
+pub use transact_named_pipe::TransactNamedPipe;
+mod transmit_comm_char;
+pub use transmit_comm_char::TransmitCommChar;
+mod try_enter_critical_section;
+pub use try_enter_critical_section::TryEnterCriticalSection;
+mod try_submit_threadpool_callback;
+pub use try_submit_threadpool_callback::TrySubmitThreadpoolCallback;
+mod tz_specific_local_time_to_system_time;
+pub use tz_specific_local_time_to_system_time::TzSpecificLocalTimeToSystemTime;
+mod tz_specific_local_time_to_system_time_ex;
+pub use tz_specific_local_time_to_system_time_ex::TzSpecificLocalTimeToSystemTimeEx;
+mod ut_register;
+pub use ut_register::UTRegister;
+mod ut_un_register;
+pub use ut_un_register::UTUnRegister;
 mod unlock_file;
 pub use unlock_file::UnlockFile;
-mod unlock_file_ex_api;
-pub use unlock_file_ex_api::UnlockFileEx_api;
-mod unmap_view_of_file_api;
-pub use unmap_view_of_file_api::UnmapViewOfFile_api;
-mod unmap_view_of_file_ex_api;
-pub use unmap_view_of_file_ex_api::UnmapViewOfFileEx_api;
-mod unregister_bad_memory_notification_api;
-pub use unregister_bad_memory_notification_api::UnregisterBadMemoryNotification_api;
-mod unregister_console_ime_api;
-pub use unregister_console_ime_api::UnregisterConsoleIME_api;
-mod unregister_wait_ex_api;
-pub use unregister_wait_ex_api::UnregisterWaitEx_api;
-mod update_proc_thread_attribute_api;
-pub use update_proc_thread_attribute_api::UpdateProcThreadAttribute_api;
-mod ver_language_name_a_api;
-pub use ver_language_name_a_api::VerLanguageNameA_api;
-mod ver_language_name_w_api;
-pub use ver_language_name_w_api::VerLanguageNameW_api;
+mod unlock_file_ex;
+pub use unlock_file_ex::UnlockFileEx;
+mod unmap_view_of_file;
+pub use unmap_view_of_file::UnmapViewOfFile;
+mod unmap_view_of_file_ex;
+pub use unmap_view_of_file_ex::UnmapViewOfFileEx;
+mod unregister_bad_memory_notification;
+pub use unregister_bad_memory_notification::UnregisterBadMemoryNotification;
+mod unregister_console_ime;
+pub use unregister_console_ime::UnregisterConsoleIME;
+mod unregister_wait_ex;
+pub use unregister_wait_ex::UnregisterWaitEx;
+mod update_proc_thread_attribute;
+pub use update_proc_thread_attribute::UpdateProcThreadAttribute;
 mod ver_set_condition_mask;
 pub use ver_set_condition_mask::VerSetConditionMask;
-mod verify_scripts_api;
-pub use verify_scripts_api::VerifyScripts_api;
-mod virtual_free_ex_api;
-pub use virtual_free_ex_api::VirtualFreeEx_api;
-mod virtual_unlock_api;
-pub use virtual_unlock_api::VirtualUnlock_api;
-mod wts_get_active_console_session_id_api;
-pub use wts_get_active_console_session_id_api::WTSGetActiveConsoleSessionId_api;
-mod wait_comm_event_api;
-pub use wait_comm_event_api::WaitCommEvent_api;
-mod wait_for_debug_event_api;
-pub use wait_for_debug_event_api::WaitForDebugEvent_api;
-mod wait_for_debug_event_ex_api;
-pub use wait_for_debug_event_ex_api::WaitForDebugEventEx_api;
+mod verify_scripts;
+pub use verify_scripts::VerifyScripts;
+mod virtual_free_ex;
+pub use virtual_free_ex::VirtualFreeEx;
+mod virtual_unlock;
+pub use virtual_unlock::VirtualUnlock;
+mod wts_get_active_console_session_id;
+pub use wts_get_active_console_session_id::WTSGetActiveConsoleSessionId;
+mod wait_comm_event;
+pub use wait_comm_event::WaitCommEvent;
+mod wait_for_debug_event;
+pub use wait_for_debug_event::WaitForDebugEvent;
+mod wait_for_debug_event_ex;
+pub use wait_for_debug_event_ex::WaitForDebugEventEx;
 mod wait_for_multiple_objects_ex;
 pub use wait_for_multiple_objects_ex::WaitForMultipleObjectsEx;
 mod wait_for_single_object_ex;
 pub use wait_for_single_object_ex::WaitForSingleObjectEx;
-mod wait_for_threadpool_io_callbacks_api;
-pub use wait_for_threadpool_io_callbacks_api::WaitForThreadpoolIoCallbacks_api;
-mod wait_for_threadpool_timer_callbacks_api;
-pub use wait_for_threadpool_timer_callbacks_api::WaitForThreadpoolTimerCallbacks_api;
-mod wait_for_threadpool_wait_callbacks_api;
-pub use wait_for_threadpool_wait_callbacks_api::WaitForThreadpoolWaitCallbacks_api;
-mod wait_for_threadpool_work_callbacks_api;
-pub use wait_for_threadpool_work_callbacks_api::WaitForThreadpoolWorkCallbacks_api;
-mod wait_named_pipe_w_api;
-pub use wait_named_pipe_w_api::WaitNamedPipeW_api;
+mod wait_for_threadpool_io_callbacks;
+pub use wait_for_threadpool_io_callbacks::WaitForThreadpoolIoCallbacks;
+mod wait_for_threadpool_timer_callbacks;
+pub use wait_for_threadpool_timer_callbacks::WaitForThreadpoolTimerCallbacks;
+mod wait_for_threadpool_wait_callbacks;
+pub use wait_for_threadpool_wait_callbacks::WaitForThreadpoolWaitCallbacks;
+mod wait_for_threadpool_work_callbacks;
+pub use wait_for_threadpool_work_callbacks::WaitForThreadpoolWorkCallbacks;
 mod wake_all_condition_variable;
 pub use wake_all_condition_variable::WakeAllConditionVariable;
 mod wake_condition_variable;
 pub use wake_condition_variable::WakeConditionVariable;
-mod wer_get_flags_api;
-pub use wer_get_flags_api::WerGetFlags_api;
-mod wer_register_additional_process_api;
-pub use wer_register_additional_process_api::WerRegisterAdditionalProcess_api;
-mod wer_register_app_local_dump_api;
-pub use wer_register_app_local_dump_api::WerRegisterAppLocalDump_api;
-mod wer_register_custom_metadata_api;
-pub use wer_register_custom_metadata_api::WerRegisterCustomMetadata_api;
-mod wer_register_excluded_memory_block_api;
-pub use wer_register_excluded_memory_block_api::WerRegisterExcludedMemoryBlock_api;
-mod wer_register_file_api;
-pub use wer_register_file_api::WerRegisterFile_api;
-mod wer_register_memory_block_api;
-pub use wer_register_memory_block_api::WerRegisterMemoryBlock_api;
-mod wer_register_memory_block_worker_api;
-pub use wer_register_memory_block_worker_api::WerRegisterMemoryBlockWorker_api;
-mod wer_register_runtime_exception_module_api;
-pub use wer_register_runtime_exception_module_api::WerRegisterRuntimeExceptionModule_api;
-mod wer_register_runtime_exception_module_worker_api;
-pub use wer_register_runtime_exception_module_worker_api::WerRegisterRuntimeExceptionModuleWorker_api;
-mod wer_set_flags_worker_api;
-pub use wer_set_flags_worker_api::WerSetFlagsWorker_api;
-mod wer_unregister_additional_process_api;
-pub use wer_unregister_additional_process_api::WerUnregisterAdditionalProcess_api;
-mod wer_unregister_app_local_dump_api;
-pub use wer_unregister_app_local_dump_api::WerUnregisterAppLocalDump_api;
-mod wer_unregister_custom_metadata_api;
-pub use wer_unregister_custom_metadata_api::WerUnregisterCustomMetadata_api;
-mod wer_unregister_excluded_memory_block_api;
-pub use wer_unregister_excluded_memory_block_api::WerUnregisterExcludedMemoryBlock_api;
-mod wer_unregister_file_api;
-pub use wer_unregister_file_api::WerUnregisterFile_api;
-mod wer_unregister_memory_block_api;
-pub use wer_unregister_memory_block_api::WerUnregisterMemoryBlock_api;
-mod wer_unregister_runtime_exception_module_api;
-pub use wer_unregister_runtime_exception_module_api::WerUnregisterRuntimeExceptionModule_api;
-mod wer_unregister_runtime_exception_module_worker_api;
-pub use wer_unregister_runtime_exception_module_worker_api::WerUnregisterRuntimeExceptionModuleWorker_api;
-mod werp_notify_load_string_resource_worker_api;
-pub use werp_notify_load_string_resource_worker_api::WerpNotifyLoadStringResourceWorker_api;
-mod wow64_disable_wow64_fs_redirection_api;
-pub use wow64_disable_wow64_fs_redirection_api::Wow64DisableWow64FsRedirection_api;
-mod wow64_get_thread_context_api;
-pub use wow64_get_thread_context_api::Wow64GetThreadContext_api;
-mod wow64_revert_wow64_fs_redirection_api;
-pub use wow64_revert_wow64_fs_redirection_api::Wow64RevertWow64FsRedirection_api;
-mod wow64_set_thread_context_api;
-pub use wow64_set_thread_context_api::Wow64SetThreadContext_api;
-mod wow64_transition_api;
-pub use wow64_transition_api::Wow64Transition_api;
-mod write_console_a_api;
-pub use write_console_a_api::WriteConsoleA_api;
-mod write_console_input_a_api;
-pub use write_console_input_a_api::WriteConsoleInputA_api;
-mod write_console_input_w_api;
-pub use write_console_input_w_api::WriteConsoleInputW_api;
-mod write_console_output_a_api;
-pub use write_console_output_a_api::WriteConsoleOutputA_api;
-mod write_console_output_attribute_api;
-pub use write_console_output_attribute_api::WriteConsoleOutputAttribute_api;
-mod write_console_output_character_a_api;
-pub use write_console_output_character_a_api::WriteConsoleOutputCharacterA_api;
-mod write_console_output_character_w_api;
-pub use write_console_output_character_w_api::WriteConsoleOutputCharacterW_api;
-mod write_console_output_w_api;
-pub use write_console_output_w_api::WriteConsoleOutputW_api;
-mod write_file_ex_api;
-pub use write_file_ex_api::WriteFileEx_api;
-mod write_file_gather_api;
-pub use write_file_gather_api::WriteFileGather_api;
-mod zombify_act_ctx_api;
-pub use zombify_act_ctx_api::ZombifyActCtx_api;
+mod wer_get_flags;
+pub use wer_get_flags::WerGetFlags;
+mod wer_register_additional_process;
+pub use wer_register_additional_process::WerRegisterAdditionalProcess;
+mod wer_register_app_local_dump;
+pub use wer_register_app_local_dump::WerRegisterAppLocalDump;
+mod wer_register_custom_metadata;
+pub use wer_register_custom_metadata::WerRegisterCustomMetadata;
+mod wer_register_excluded_memory_block;
+pub use wer_register_excluded_memory_block::WerRegisterExcludedMemoryBlock;
+mod wer_register_file;
+pub use wer_register_file::WerRegisterFile;
+mod wer_register_memory_block;
+pub use wer_register_memory_block::WerRegisterMemoryBlock;
+mod wer_register_memory_block_worker;
+pub use wer_register_memory_block_worker::WerRegisterMemoryBlockWorker;
+mod wer_register_runtime_exception_module;
+pub use wer_register_runtime_exception_module::WerRegisterRuntimeExceptionModule;
+mod wer_register_runtime_exception_module_worker;
+pub use wer_register_runtime_exception_module_worker::WerRegisterRuntimeExceptionModuleWorker;
+mod wer_set_flags_worker;
+pub use wer_set_flags_worker::WerSetFlagsWorker;
+mod wer_unregister_additional_process;
+pub use wer_unregister_additional_process::WerUnregisterAdditionalProcess;
+mod wer_unregister_app_local_dump;
+pub use wer_unregister_app_local_dump::WerUnregisterAppLocalDump;
+mod wer_unregister_custom_metadata;
+pub use wer_unregister_custom_metadata::WerUnregisterCustomMetadata;
+mod wer_unregister_excluded_memory_block;
+pub use wer_unregister_excluded_memory_block::WerUnregisterExcludedMemoryBlock;
+mod wer_unregister_file;
+pub use wer_unregister_file::WerUnregisterFile;
+mod wer_unregister_memory_block;
+pub use wer_unregister_memory_block::WerUnregisterMemoryBlock;
+mod wer_unregister_runtime_exception_module;
+pub use wer_unregister_runtime_exception_module::WerUnregisterRuntimeExceptionModule;
+mod wer_unregister_runtime_exception_module_worker;
+pub use wer_unregister_runtime_exception_module_worker::WerUnregisterRuntimeExceptionModuleWorker;
+mod werp_notify_load_string_resource_worker;
+pub use werp_notify_load_string_resource_worker::WerpNotifyLoadStringResourceWorker;
+mod wow64_disable_wow64_fs_redirection;
+pub use wow64_disable_wow64_fs_redirection::Wow64DisableWow64FsRedirection;
+mod wow64_get_thread_context;
+pub use wow64_get_thread_context::Wow64GetThreadContext;
+mod wow64_revert_wow64_fs_redirection;
+pub use wow64_revert_wow64_fs_redirection::Wow64RevertWow64FsRedirection;
+mod wow64_set_thread_context;
+pub use wow64_set_thread_context::Wow64SetThreadContext;
+mod wow64_transition;
+pub use wow64_transition::Wow64Transition;
+mod write_console_output_attribute;
+pub use write_console_output_attribute::WriteConsoleOutputAttribute;
+mod write_file_ex;
+pub use write_file_ex::WriteFileEx;
+mod write_file_gather;
+pub use write_file_gather::WriteFileGather;
+mod zombify_act_ctx;
+pub use zombify_act_ctx::ZombifyActCtx;
 mod _hread_api;
 pub use _hread_api::_hread_api;
 mod _hwrite_api;
@@ -1975,18 +1748,18 @@ mod lstrcpyn_w_api;
 pub use lstrcpyn_w_api::lstrcpynW_api;
 mod time_get_system_time_api;
 pub use time_get_system_time_api::timeGetSystemTime_api;
-mod create_ums_completion_list_api;
-pub use create_ums_completion_list_api::CreateUmsCompletionList_api;
-mod create_ums_thread_context_api;
-pub use create_ums_thread_context_api::CreateUmsThreadContext_api;
-mod delete_ums_completion_list_api;
-pub use delete_ums_completion_list_api::DeleteUmsCompletionList_api;
-mod delete_ums_thread_context_api;
-pub use delete_ums_thread_context_api::DeleteUmsThreadContext_api;
-mod dequeue_ums_completion_list_items_api;
-pub use dequeue_ums_completion_list_items_api::DequeueUmsCompletionListItems_api;
-mod enter_ums_scheduling_mode_api;
-pub use enter_ums_scheduling_mode_api::EnterUmsSchedulingMode_api;
+mod create_ums_completion_list;
+pub use create_ums_completion_list::CreateUmsCompletionList;
+mod create_ums_thread_context;
+pub use create_ums_thread_context::CreateUmsThreadContext;
+mod delete_ums_completion_list;
+pub use delete_ums_completion_list::DeleteUmsCompletionList;
+mod delete_ums_thread_context;
+pub use delete_ums_thread_context::DeleteUmsThreadContext;
+mod dequeue_ums_completion_list_items;
+pub use dequeue_ums_completion_list_items::DequeueUmsCompletionListItems;
+mod enter_ums_scheduling_mode;
+pub use enter_ums_scheduling_mode::EnterUmsSchedulingMode;
 mod etw_event_enabled;
 pub use etw_event_enabled::EtwEventEnabled;
 mod etw_event_register;
@@ -1995,54 +1768,54 @@ mod etw_event_set_information;
 pub use etw_event_set_information::EtwEventSetInformation;
 mod etw_event_write_transfer;
 pub use etw_event_write_transfer::EtwEventWriteTransfer;
-mod execute_ums_thread_api;
-pub use execute_ums_thread_api::ExecuteUmsThread_api;
+mod execute_ums_thread;
+pub use execute_ums_thread::ExecuteUmsThread;
 mod get_current_ums_thread_2;
 pub use get_current_ums_thread_2::GetCurrentUmsThread;
-mod get_next_ums_list_item_api;
-pub use get_next_ums_list_item_api::GetNextUmsListItem_api;
-mod get_ums_completion_list_event_api;
-pub use get_ums_completion_list_event_api::GetUmsCompletionListEvent_api;
-mod get_ums_system_thread_information_api;
-pub use get_ums_system_thread_information_api::GetUmsSystemThreadInformation_api;
+mod get_next_ums_list_item;
+pub use get_next_ums_list_item::GetNextUmsListItem;
+mod get_ums_completion_list_event;
+pub use get_ums_completion_list_event::GetUmsCompletionListEvent;
+mod get_ums_system_thread_information;
+pub use get_ums_system_thread_information::GetUmsSystemThreadInformation;
 mod get_user_default_lang_id_2;
 pub use get_user_default_lang_id_2::GetUserDefaultLangId;
-mod l_str_cmp_i_api;
-pub use l_str_cmp_i_api::LStrCmpI_api;
-mod l_str_cmp_iw_api;
-pub use l_str_cmp_iw_api::LStrCmpIW_api;
-mod query_ums_thread_information_api;
-pub use query_ums_thread_information_api::QueryUmsThreadInformation_api;
-mod rtl_add_function_table_api;
-pub use rtl_add_function_table_api::RtlAddFunctionTable_api;
-mod rtl_compare_memory_api;
-pub use rtl_compare_memory_api::RtlCompareMemory_api;
-mod rtl_copy_memory_api;
-pub use rtl_copy_memory_api::RtlCopyMemory_api;
-mod rtl_delete_function_table_api;
-pub use rtl_delete_function_table_api::RtlDeleteFunctionTable_api;
+mod l_str_cmp_i;
+pub use l_str_cmp_i::LStrCmpI;
+mod l_str_cmp_iw;
+pub use l_str_cmp_iw::LStrCmpIW;
+mod query_ums_thread_information;
+pub use query_ums_thread_information::QueryUmsThreadInformation;
+mod rtl_add_function_table;
+pub use rtl_add_function_table::RtlAddFunctionTable;
+mod rtl_compare_memory;
+pub use rtl_compare_memory::RtlCompareMemory;
+mod rtl_copy_memory;
+pub use rtl_copy_memory::RtlCopyMemory;
+mod rtl_delete_function_table;
+pub use rtl_delete_function_table::RtlDeleteFunctionTable;
 mod rtl_exit_user_process;
 pub use rtl_exit_user_process::RtlExitUserProcess;
-mod rtl_install_function_table_callback_api;
-pub use rtl_install_function_table_callback_api::RtlInstallFunctionTableCallback_api;
-mod rtl_is_ec_code_api;
-pub use rtl_is_ec_code_api::RtlIsEcCode_api;
-mod rtl_lookup_function_entry_api;
-pub use rtl_lookup_function_entry_api::RtlLookupFunctionEntry_api;
-mod rtl_raise_exception_api;
-pub use rtl_raise_exception_api::RtlRaiseException_api;
-mod rtl_restore_context_api;
-pub use rtl_restore_context_api::RtlRestoreContext_api;
-mod rtl_unwind_ex_api;
-pub use rtl_unwind_ex_api::RtlUnwindEx_api;
-mod rtl_virtual_unwind_api;
-pub use rtl_virtual_unwind_api::RtlVirtualUnwind_api;
-mod rtl_virtual_unwind2_api;
-pub use rtl_virtual_unwind2_api::RtlVirtualUnwind2_api;
-mod set_ums_thread_information_api;
-pub use set_ums_thread_information_api::SetUmsThreadInformation_api;
-mod ums_thread_yield_api;
-pub use ums_thread_yield_api::UmsThreadYield_api;
+mod rtl_install_function_table_callback;
+pub use rtl_install_function_table_callback::RtlInstallFunctionTableCallback;
+mod rtl_is_ec_code;
+pub use rtl_is_ec_code::RtlIsEcCode;
+mod rtl_lookup_function_entry;
+pub use rtl_lookup_function_entry::RtlLookupFunctionEntry;
+mod rtl_raise_exception;
+pub use rtl_raise_exception::RtlRaiseException;
+mod rtl_restore_context;
+pub use rtl_restore_context::RtlRestoreContext;
+mod rtl_unwind_ex;
+pub use rtl_unwind_ex::RtlUnwindEx;
+mod rtl_virtual_unwind;
+pub use rtl_virtual_unwind::RtlVirtualUnwind;
+mod rtl_virtual_unwind2;
+pub use rtl_virtual_unwind2::RtlVirtualUnwind2;
+mod set_ums_thread_information;
+pub use set_ums_thread_information::SetUmsThreadInformation;
+mod ums_thread_yield;
+pub use ums_thread_yield::UmsThreadYield;
 mod __c_specific_handler_api;
 pub use __c_specific_handler_api::__C_specific_handler_api;
 mod __chkstk_api;
@@ -2083,1875 +1856,31 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     if memory_api::dispatch(api, emu) {
         return String::new();
     }
-    match api {
-        "AddVectoredExceptionHandler" => AddVectoredExceptionHandler(emu),
-        "GlobalAlloc" => GlobalAlloc(emu),
-        "GlobalFree" => GlobalFree(emu),
-        "LocalFree" => LocalFree(emu),
-        "GetTickCount64" => GetTickCount64(emu),
-        "QueryPerformanceFrequency" => QueryPerformanceFrequency(emu),
-        "IsWow64Process" => IsWow64Process(emu),
-        "OutputDebugStringA" => OutputDebugStringA(emu),
-        "OutputDebugStringW" => OutputDebugStringW(emu),
-        "FormatMessageA" => FormatMessageA(emu),
-        "FormatMessageW" => FormatMessageW(emu),
-        "DuplicateHandle" => DuplicateHandle(emu),
-        "InitializeSRWLock" => InitializeSRWLock(emu),
-        "AcquireSRWLockExclusive" => AcquireSRWLockExclusive(emu),
-        "AcquireSRWLockShared" => AcquireSRWLockShared(emu),
-        "ReleaseSRWLockExclusive" => ReleaseSRWLockExclusive(emu),
-        "ReleaseSRWLockShared" => ReleaseSRWLockShared(emu),
-        "TryAcquireSRWLockExclusive" => TryAcquireSRWLockExclusive(emu),
-        "TryAcquireSRWLockShared" => TryAcquireSRWLockShared(emu),
-        "ResetEvent" => ResetEvent(emu),
-        "WaitForMultipleObjects" => WaitForMultipleObjects(emu),
-        "ExitThread" => ExitThread(emu),
-        "CreateProcessW" => CreateProcessW(emu),
-        "Process32First" => Process32First(emu),
-        "CreateDirectoryA" => CreateDirectoryA(emu),
-        "CreateDirectoryW" => CreateDirectoryW(emu),
-        "DeleteFileW" => DeleteFileW(emu),
-        "CreateFileA" => CreateFileA(emu),
-        "SetCurrentDirectoryA" => SetCurrentDirectoryA(emu),
-        "lstrlenW" => lstrlenW(emu),
-        "lstrcpyW" => lstrcpyW(emu),
-        "lstrcpyn" => lstrcpyn(emu),
-        "lstrcatW" => lstrcatW(emu),
-        "lstrcmpiW" => lstrcmpiW(emu),
-        "CompareStringW" => CompareStringW(emu),
-        "GetLocaleInfoA" => GetLocaleInfoA(emu),
-        "GetLocaleInfoW" => GetLocaleInfoW(emu),
-        "GetUserDefaultLCID" => GetUserDefaultLCID(emu),
-        "GetThreadLocale" => GetThreadLocale(emu),
-        "GetVersionExA" => GetVersionExA(emu),
-        "SystemTimeToFileTime" => SystemTimeToFileTime(emu),
-        "SetEnvironmentVariableA" => SetEnvironmentVariableA(emu),
-        "SetEnvironmentVariableW" => SetEnvironmentVariableW(emu),
-        "GetEnvironmentVariableW" => GetEnvironmentVariableW(emu),
-        "GetModuleHandleExW" => GetModuleHandleExW(emu),
-        "GetConsoleMode" => GetConsoleMode(emu),
-        "GetConsoleCP" => GetConsoleCP(emu),
-        "GetConsoleOutputCP" => GetConsoleOutputCP(emu),
-        "WriteConsoleW" => WriteConsoleW(emu),
-        "lstrlenA" => lstrlen(emu),
-        "lstrcatA" => lstrcat(emu),
-        "GetFileSize" => GetFileSize(emu),
-        "GetFileSizeEx" => GetFileSizeEx(emu),
-        "AreFileApiIsAnsi" | "AreFileApisANSI" => AreFileApisANSI(emu),
-        "CloseHandle" => CloseHandle(emu),
-        "ConnectNamedPipe" => ConnectNamedPipe(emu),
-        "DeleteFileA" => DeleteFileA(emu),
-        "CopyFileA" => CopyFileA(emu),
-        "CopyFileW" => CopyFileW(emu),
-        "CreateEventA" => CreateEventA(emu),
-        "CreateFileMappingA" => CreateFileMappingA(emu),
-        "CreateFileMappingW" => CreateFileMappingW(emu),
-        "CreateFileW" => CreateFileW(emu),
-        "CreateMutexA" => CreateMutexA(emu),
-        "CreateMutexW" => CreateMutexW(emu),
-        "CreateNamedPipeA" => CreateNamedPipeA(emu),
-        "CreateProcessA" => CreateProcessA(emu),
-        "CreateRemoteThread" => CreateRemoteThread(emu),
-        "CreateThread" => CreateThread(emu),
-        "CreateToolhelp32Snapshot" => CreateToolhelp32Snapshot(emu),
-        "CryptCreateHash" => CryptCreateHash(emu),
-        "DecodePointer" => DecodePointer(emu),
-        "DisconnectNamedPipe" => DisconnectNamedPipe(emu),
-        "EncodePointer" => EncodePointer(emu),
-        "EnterCriticalSection" => EnterCriticalSection(emu),
-        "ExitProcess" => ExitProcess(emu),
-        "ExpandEnvironmentStringsA" => ExpandEnvironmentStringsA(emu),
-        "ExpandEnvironmentStringsW" => ExpandEnvironmentStringsW(emu),
-        "FileTimeToDosDateTime" => FileTimeToDosDateTime(emu),
-        "FileTimeToLocalFileTime" => FileTimeToLocalFileTime(emu),
-        "FileTimeToSystemTime" => FileTimeToSystemTime(emu),
-        "FindClose" => FindClose(emu),
-        "FindFirstFileA" => FindFirstFileA(emu),
-        "FindFirstFileW" => FindFirstFileW(emu),
-        "FindNextFileA" => FindNextFileA(emu),
-        "FindNextFileW" => FindNextFileW(emu),
-        "FindResourceA" => FindResourceA(emu),
-        "FindResourceW" => FindResourceW(emu),
-        "FlsAlloc" => FlsAlloc(emu),
-        "FlsGetValue" => FlsGetValue(emu),
-        "FlsSetValue" => FlsSetValue(emu),
-        "FreeLibrary" => FreeLibrary(emu),
-        "FreeResource" => FreeResource(emu),
-        "GetACP" => GetACP(emu),
-        "GetThreadId" => GetThreadId(emu),
-        "GetCommandLineA" => GetCommandLineA(emu),
-        "GetCommandLineW" => GetCommandLineW(emu),
-        "GetComputerNameA" => GetComputerNameA(emu),
-        "GetCPInfo" => GetCPInfo(emu),
-        "GetCurrentDirectoryA" => GetCurrentDirectoryA(emu),
-        "GetCurrentDirectoryW" => GetCurrentDirectoryW(emu),
-        "GetCurrentProcess" => GetCurrentProcess(emu),
-        "GetCurrentProcessId" => GetCurrentProcessId(emu),
-        "GetDiskFreeSpaceA" => GetDiskFreeSpaceA(emu),
-        "GetDiskFreeSpaceExA" => GetDiskFreeSpaceExA(emu),
-        "GetDiskFreeSpaceExW" => GetDiskFreeSpaceExW(emu),
-        "GetDriveTypeA" => GetDriveTypeA(emu),
-        "GetDriveTypeW" => GetDriveTypeW(emu),
-        "GetCurrentThreadId" => GetCurrentThreadId(emu),
-        "FreeEnvironmentStringsA" => FreeEnvironmentStringsA(emu),
-        "FreeEnvironmentStringsW" => FreeEnvironmentStringsW(emu),
-        "GetEnvironmentStrings" => GetEnvironmentStrings(emu),
-        "GetEnvironmentStringsW" => GetEnvironmentStringsW(emu),
-        "GetFileAttributesA" => GetFileAttributesA(emu),
-        "GetFileAttributesW" => GetFileAttributesW(emu),
-        "GetFileType" => GetFileType(emu),
-        "GetFullPathNameA" => GetFullPathNameA(emu),
-        "GetFullPathNameW" => GetFullPathNameW(emu),
-        "GetLastError" => GetLastError(emu),
-        "GetLogicalDrives" => GetLogicalDrives(emu),
-        "GetLocalTime" => GetLocalTime(emu),
-        "GetLongPathNameW" => GetLongPathNameW(emu),
-        "GetModuleFileNameA" => GetModuleFileNameA(emu),
-        "GetModuleFileNameW" => GetModuleFileNameW(emu),
-        "GetModuleHandleA" => GetModuleHandleA(emu),
-        "GetModuleHandleW" => GetModuleHandleW(emu),
-        "GetNativeSystemInfo" => GetNativeSystemInfo(emu),
-        "GetOEMCP" => GetOEMCP(emu),
-        "GetProcAddress" => GetProcAddress(emu),
-        "GetProcessAffinityMask" => GetProcessAffinityMask(emu),
-        "GetProcessHeap" => GetProcessHeap(emu),
-        "GetStartupInfoA" => GetStartupInfoA(emu),
-        "GetStartupInfoW" => GetStartupInfoW(emu),
-        "GetStdHandle" => GetStdHandle(emu),
-        "GetStringTypeW" => GetStringTypeW(emu),
-        "GetSystemDirectoryA" => GetSystemDirectoryA(emu),
-        "GetSystemDirectoryW" => GetSystemDirectoryW(emu),
-        "GetSystemInfo" => GetSystemInfo(emu),
-        "GetSystemTime" => GetSystemTime(emu),
-        "GetSystemTimeAsFileTime" => GetSystemTimeAsFileTime(emu),
-        "GetSystemWindowsDirectoryA" => GetSystemWindowsDirectoryA(emu),
-        "GetSystemWindowsDirectoryW" => GetSystemWindowsDirectoryW(emu),
-        "GetTempPathA" => GetTempPathA(emu),
-        "GetTempPathW" => GetTempPathW(emu),
-        "GetThreadContext" => GetThreadContext(emu),
-        "GetThreadPreferredUILanguages" => GetThreadPreferredUILanguages(emu),
-        "GetThreadUILanguage" => GetThreadUILanguage(emu),
-        "GetTickCount" => GetTickCount(emu),
-        "GetTimeZoneInformation" => GetTimeZoneInformation(emu),
-        "GetUserDefaultLangID" => GetUserDefaultLangID(emu),
-        "GetUserDefaultUILanguage" => GetUserDefaultUILanguage(emu),
-        "GetVersion" => GetVersion(emu),
-        "GetVersionExW" => GetVersionExW(emu),
-        "GetVolumeInformationA" => GetVolumeInformationA(emu),
-        "GetVolumeInformationW" => GetVolumeInformationW(emu),
-        "GetWindowsDirectoryA" => GetWindowsDirectoryA(emu),
-        "GetWindowsDirectoryW" => GetWindowsDirectoryW(emu),
-        "GlobalAddAtomA" => GlobalAddAtomA(emu),
-        "HeapAlloc" => HeapAlloc(emu),
-        "HeapCreate" => HeapCreate(emu),
-        "HeapDestroy" => HeapDestroy(emu),
-        "HeapFree" => HeapFree(emu),
-        "HeapReAlloc" => HeapReAlloc(emu),
-        "HeapSetInformation" => HeapSetInformation(emu),
-        "HeapSize" => HeapSize(emu),
-        "InitializeCriticalSection" => InitializeCriticalSection(emu),
-        "InitializeCriticalSectionAndSpinCount" => InitializeCriticalSectionAndSpinCount(emu),
-        "InitializeCriticalSectionEx" => InitializeCriticalSectionEx(emu),
-        "InterlockedIncrement" => InterlockedIncrement(emu),
-        "IsDebuggerPresent" => IsDebuggerPresent(emu),
-        "IsProcessorFeaturePresent" => IsProcessorFeaturePresent(emu),
-        "IsValidCodePage" => IsValidCodePage(emu),
-        "IsValidLocale" => IsValidLocale(emu),
-        "LCMapStringW" => LCMapStringW(emu),
-        "LeaveCriticalSection" => LeaveCriticalSection(emu),
-        "LoadLibraryA" => LoadLibraryA(emu),
-        "LoadLibraryExA" => LoadLibraryExA(emu),
-        "LoadLibraryExW" => LoadLibraryExW(emu),
-        "LoadLibraryW" => LoadLibraryW(emu),
-        "LoadResource" => LoadResource(emu),
-        "LocalAlloc" => LocalAlloc(emu),
-        "LockResource" => LockResource(emu),
-        "lstrcat" => lstrcat(emu),
-        "lstrcpy" => lstrcpy(emu),
-        "lstrlen" => lstrlen(emu),
-        "MapViewOfFile" => MapViewOfFile(emu),
-        "Module32First" => Module32First(emu),
-        "Module32FirstW" => Module32FirstW(emu),
-        "Module32Next" => Module32Next(emu),
-        "Module32NextW" => Module32NextW(emu),
-        "MoveFileA" => MoveFileA(emu),
-        "MoveFileW" => MoveFileW(emu),
-        "MultiByteToWideChar" => MultiByteToWideChar(emu),
-        "OpenProcess" => OpenProcess(emu),
-        "OpenProcessToken" => OpenProcessToken(emu),
-        "OpenThread" => OpenThread(emu),
-        "QueryPerformanceCounter" => QueryPerformanceCounter(emu),
-        "RaiseException" => RaiseException(emu),
-        "ReadFile" => ReadFile(emu),
-        "ReadProcessMemory" => ReadProcessMemory(emu),
-        "RegCloseKey" => RegCloseKey(emu),
-        "RegCreateKeyExA" => RegCreateKeyExA(emu),
-        "RegCreateKeyExW" => RegCreateKeyExW(emu),
-        "RegOpenKeyA" => RegOpenKeyA(emu),
-        "RegOpenKeyExW" => RegOpenKeyExW(emu),
-        "RegOpenKeyW" => RegOpenKeyW(emu),
-        "RegSetValueExA" => RegSetValueExA(emu),
-        "RegSetValueExW" => RegSetValueExW(emu),
-        "RemoveDirectoryA" => RemoveDirectoryA(emu),
-        "RemoveDirectoryW" => RemoveDirectoryW(emu),
-        "ResumeThread" => ResumeThread(emu),
-        "SetErrorMode" => SetErrorMode(emu),
-        "SetFileAttributesA" => SetFileAttributesA(emu),
-        "SetFileAttributesW" => SetFileAttributesW(emu),
-        "SetFilePointer" => SetFilePointer(emu),
-        "SetHandleCount" => SetHandleCount(emu),
-        "SetLastError" => SetLastError(emu),
-        "SetThreadContext" => SetThreadContext(emu),
-        "SetThreadLocale" => SetThreadLocale(emu),
-        "SetUnhandledExceptionFilter" => SetUnhandledExceptionFilter(emu),
-        "SizeofResource" => SizeofResource(emu),
-        "Sleep" => Sleep(emu),
-        "SystemTimeToTzSpecificLocalTime" => SystemTimeToTzSpecificLocalTime(emu),
-        "TerminateProcess" => TerminateProcess(emu),
-        "Thread32First" => Thread32First(emu),
-        "Thread32Next" => Thread32Next(emu),
-        "TlsAlloc" => TlsAlloc(emu),
-        "TlsFree" => TlsFree(emu),
-        "TlsGetValue" => TlsGetValue(emu),
-        "TlsSetValue" => TlsSetValue(emu),
-        "UnhandledExceptionFilter" => UnhandledExceptionFilter(emu),
-        "VerifyVersionInfoW" => VerifyVersionInfoW(emu),
-        "VirtualAlloc" => VirtualAlloc(emu),
-        "VirtualAllocEx" => VirtualAllocEx(emu),
-        "VirtualAllocExNuma" => VirtualAllocExNuma(emu),
-        "VirtualLock" => VirtualLock(emu),
-        "VirtualFree" => VirtualFree(emu),
-
-        "VirtualProtect" => VirtualProtect(emu),
-        "VirtualProtectEx" => VirtualProtectEx(emu),
-        "VirtualQuery" => VirtualQuery(emu),
-        "VirtualQueryEx" => VirtualQueryEx(emu),
-        "WaitForSingleObject" => WaitForSingleObject(emu),
-        "WideCharToMultiByte" => WideCharToMultiByte(emu),
-        "WinExec" => WinExec(emu),
-        "WriteFile" => WriteFile(emu),
-        "WriteProcessMemory" => WriteProcessMemory(emu),
-        "_TlgCreateWsz" => _TlgCreateWsz(emu),
-        "_lclose" => _lclose(emu),
-        "_lcreat" => _lcreat(emu),
-        "_llseek" => _llseek(emu),
-        "_lopen" => _lopen(emu),
-        "_lread" => _lread(emu),
-        "_lwrite" => _lwrite(emu),
-        "ActivateActCtxWorker" => ActivateActCtxWorker(emu),
-        "AddAtomA" => AddAtomA(emu),
-        "AddAtomW" => AddAtomW(emu),
-        "AddIntegrityLabelToBoundaryDescriptor" => AddIntegrityLabelToBoundaryDescriptor(emu),
-        "AddLocalAlternateComputerNameW" => AddLocalAlternateComputerNameW(emu),
-        "AdjustCalendarDate" => AdjustCalendarDate(emu),
-        "ApplicationRecoveryFinished" => ApplicationRecoveryFinished(emu),
-        "ApplicationRecoveryInProgress" => ApplicationRecoveryInProgress(emu),
-        "BackupRead" => BackupRead(emu),
-        "BackupSeek" => BackupSeek(emu),
-        "BackupWrite" => BackupWrite(emu),
-        "BaseCheckAppcompatCacheExWorker" => BaseCheckAppcompatCacheExWorker(emu),
-        "BaseCheckAppcompatCacheWorker" => BaseCheckAppcompatCacheWorker(emu),
-        "BaseCheckElevation" => BaseCheckElevation(emu),
-        "BaseCleanupAppcompatCacheSupportWorker" => BaseCleanupAppcompatCacheSupportWorker(emu),
-        "BaseDestroyVDMEnvironment" => BaseDestroyVDMEnvironment(emu),
-        "BaseDllInitialize" => BaseDllInitialize(emu),
-        "BaseDllReadWriteIniFile" => BaseDllReadWriteIniFile(emu),
-        "BaseExitThreadPoolThread" => BaseExitThreadPoolThread(emu),
-        "BaseFlushAppcompatCacheWorker" => BaseFlushAppcompatCacheWorker(emu),
-        "BaseFreeAppCompatDataForProcessWorker" => BaseFreeAppCompatDataForProcessWorker(emu),
-        "BaseGenerateAppCompatData" => BaseGenerateAppCompatData(emu),
-        "BaseIsDosApplication" => BaseIsDosApplication(emu),
-        "BaseReadAppCompatDataForProcessWorker" => BaseReadAppCompatDataForProcessWorker(emu),
-        "BaseSetLastNTError" => BaseSetLastNTError(emu),
-        "BaseUpdateAppcompatCacheWorker" => BaseUpdateAppcompatCacheWorker(emu),
-        "BaseUpdateVDMEntry" => BaseUpdateVDMEntry(emu),
-        "BaseVerifyUnicodeString" => BaseVerifyUnicodeString(emu),
-        "BaseWriteErrorElevationRequiredEvent" => BaseWriteErrorElevationRequiredEvent(emu),
-        "Basep8BitStringToDynamicUnicodeString" => Basep8BitStringToDynamicUnicodeString(emu),
-        "BasepAccumulateIoRateControlInformationBufferSize" => {
-            BasepAccumulateIoRateControlInformationBufferSize(emu)
-        }
-        "BasepAllocateActivationContextActivationBlock" => {
-            BasepAllocateActivationContextActivationBlock(emu)
-        }
-        "BasepAnsiStringToDynamicUnicodeString" => BasepAnsiStringToDynamicUnicodeString(emu),
-        "BasepAppContainerEnvironmentExtension" => BasepAppContainerEnvironmentExtension(emu),
-        "BasepAppXExtension" => BasepAppXExtension(emu),
-        "BasepCheckAppCompat" => BasepCheckAppCompat(emu),
-        "BasepCheckWebBladeHashes" => BasepCheckWebBladeHashes(emu),
-        "BasepCheckWinSaferRestrictions" => BasepCheckWinSaferRestrictions(emu),
-        "BasepConfigureAppCertDlls" => BasepConfigureAppCertDlls(emu),
-        "BasepConstructSxsCreateProcessMessage" => BasepConstructSxsCreateProcessMessage(emu),
-        "BasepCopyEncryption" => BasepCopyEncryption(emu),
-        "BasepFreeActivationContextActivationBlock" => {
-            BasepFreeActivationContextActivationBlock(emu)
-        }
-        "BasepFreeAppCompatData" => BasepFreeAppCompatData(emu),
-        "BasepGetComputerNameFromNtPath" => BasepGetComputerNameFromNtPath(emu),
-        "BasepGetExeArchType" => BasepGetExeArchType(emu),
-        "BasepGetMiniVersionForCreate" => BasepGetMiniVersionForCreate(emu),
-        "BasepInitAppCompatData" => BasepInitAppCompatData(emu),
-        "BasepInitializeApphelpGlobals" => BasepInitializeApphelpGlobals(emu),
-        "BasepInitializeTermsrvFpns" => BasepInitializeTermsrvFpns(emu),
-        "BasepIsProcessAllowed" => BasepIsProcessAllowed(emu),
-        "BasepIsTestSigningEnabled" => BasepIsTestSigningEnabled(emu),
-        "BasepNotifyLoadStringResource" => BasepNotifyLoadStringResource(emu),
-        "BasepPostSuccessAppXExtension" => BasepPostSuccessAppXExtension(emu),
-        "BasepProcessInvalidImage" => BasepProcessInvalidImage(emu),
-        "BasepQueryAppCompat" => BasepQueryAppCompat(emu),
-        "BasepRegenerateActCtxWithLanguage" => BasepRegenerateActCtxWithLanguage(emu),
-        "BasepReleaseSxsCreateProcessUtilityStruct" => {
-            BasepReleaseSxsCreateProcessUtilityStruct(emu)
-        }
-        "BasepReportFault" => BasepReportFault(emu),
-        "BasepSetFileEncryptionCompression" => BasepSetFileEncryptionCompression(emu),
-        "BasepSxsCreateStreams" => BasepSxsCreateStreams(emu),
-        "BasepTpIoCallback" => BasepTpIoCallback(emu),
-        "BasepTpIoCleanupCallback" => BasepTpIoCleanupCallback(emu),
-        "BasepTpIoFinalizationCallback" => BasepTpIoFinalizationCallback(emu),
-        "BeepImplementation" => BeepImplementation(emu),
-        "BeginUpdateResourceA" => BeginUpdateResourceA(emu),
-        "BeginUpdateResourceW" => BeginUpdateResourceW(emu),
-        "BindIoCompletionCallback" => BindIoCompletionCallback(emu),
-        "BuildCommDCBAndTimeoutsA" => BuildCommDCBAndTimeoutsA(emu),
-        "BuildCommDCBAndTimeoutsW" => BuildCommDCBAndTimeoutsW(emu),
-        "BuildCommDCBA" => BuildCommDCBA(emu),
-        "BuildCommDCBW" => BuildCommDCBW(emu),
-        "ByteMatch" => ByteMatch(emu),
-        "CalibrateTimer" => CalibrateTimer(emu),
-        "CallNamedPipeA" => CallNamedPipeA(emu),
-        "CancelTimerQueueTimer" => CancelTimerQueueTimer(emu),
-        "CheckElevation" => CheckElevation(emu),
-        "CheckForReadOnlyResource" => CheckForReadOnlyResource(emu),
-        "CheckNameLegalDOS8Dot3A" => CheckNameLegalDOS8Dot3A(emu),
-        "CheckNameLegalDOS8Dot3W" => CheckNameLegalDOS8Dot3W(emu),
-        "CloseConsoleHandle" => CloseConsoleHandle(emu),
-        "CommConfigDialogA" => CommConfigDialogA(emu),
-        "CompareCalendarDates" => CompareCalendarDates(emu),
-        "CompatCacheLookupExe" => CompatCacheLookupExe(emu),
-        "ConsoleMenuControl" => ConsoleMenuControl(emu),
-        "ConvertCalDateTimeToSystemTime" => ConvertCalDateTimeToSystemTime(emu),
-        "ConvertNLSDayOfWeekToWin32DayOfWeek" => ConvertNLSDayOfWeekToWin32DayOfWeek(emu),
-        "ConvertSystemTimeToCalDateTime" => ConvertSystemTimeToCalDateTime(emu),
-        "CopyFileExA" => CopyFileExA(emu),
-        "CopyFileTransactedA" => CopyFileTransactedA(emu),
-        "CopyFileTransactedW" => CopyFileTransactedW(emu),
-        "CopyLZFile" => CopyLZFile(emu),
-        "CptpQuirksInitOnce" => CptpQuirksInitOnce(emu),
-        "CreateActCtxA" => CreateActCtxA(emu),
-        "CreateActCtxWWorker" => CreateActCtxWWorker(emu),
-        "CreateBoundaryDescriptorA" => CreateBoundaryDescriptorA(emu),
-        "CreateDirectoryExA" => CreateDirectoryExA(emu),
-        "CreateDirectoryTransactedA" => CreateDirectoryTransactedA(emu),
-        "CreateDirectoryTransactedW" => CreateDirectoryTransactedW(emu),
-        "CreateFileMappingNumaA" => CreateFileMappingNumaA(emu),
-        "CreateHardLinkTransactedA" => CreateHardLinkTransactedA(emu),
-        "CreateSemaphoreA" => CreateSemaphoreA(emu),
-        "CreateSemaphoreExA" => CreateSemaphoreExA(emu),
-        "CreateSocketHandle" => CreateSocketHandle(emu),
-        "CreateSymbolicLinkA" => CreateSymbolicLinkA(emu),
-        "CreateSymbolicLinkTransactedA" => CreateSymbolicLinkTransactedA(emu),
-        "CreateSymbolicLinkTransactedW" => CreateSymbolicLinkTransactedW(emu),
-        "CreateTapePartition" => CreateTapePartition(emu),
-        "CreateWaitableTimerA" => CreateWaitableTimerA(emu),
-        "CreateWaitableTimerExA" => CreateWaitableTimerExA(emu),
-        "CreateWaitableTimerW" => CreateWaitableTimerW(emu),
-        "DeactivateActCtxWorker" => DeactivateActCtxWorker(emu),
-        "DebugSetProcessKillOnExit" => DebugSetProcessKillOnExit(emu),
-        "DefineDosDeviceA" => DefineDosDeviceA(emu),
-        "DeleteAtom" => DeleteAtom(emu),
-        "DeleteFileTransactedW" => DeleteFileTransactedW(emu),
-        "DeleteTimerQueue" => DeleteTimerQueue(emu),
-        "DeleteVolumeMountPointA" => DeleteVolumeMountPointA(emu),
-        "DeviceIoControlImplementation" => DeviceIoControlImplementation(emu),
-        "DeviceNameCompare" => DeviceNameCompare(emu),
-        "DisableThreadProfiling" => DisableThreadProfiling(emu),
-        "DnsHostnameToComputerNameA" => DnsHostnameToComputerNameA(emu),
-        "DnsHostnameToComputerNameW" => DnsHostnameToComputerNameW(emu),
-        "DosDateTimeToFileTime" => DosDateTimeToFileTime(emu),
-        "DosPathToSessionPathA" => DosPathToSessionPathA(emu),
-        "DosPathToSessionPathW" => DosPathToSessionPathW(emu),
-        "DuplicateEncryptionInfoFileExt" => DuplicateEncryptionInfoFileExt(emu),
-        "EnableThreadProfiling" => EnableThreadProfiling(emu),
-        "EndUpdateResourceA" => EndUpdateResourceA(emu),
-        "EndUpdateResourceW" => EndUpdateResourceW(emu),
-        "EnumCalendarInfoA" => EnumCalendarInfoA(emu),
-        "EnumCalendarInfoExA" => EnumCalendarInfoExA(emu),
-        "EnumDateFormatsA" => EnumDateFormatsA(emu),
-        "EnumDateFormatsExA" => EnumDateFormatsExA(emu),
-        "EnumLanguageGroupLocalesA" => EnumLanguageGroupLocalesA(emu),
-        "EnumSystemCodePagesA" => EnumSystemCodePagesA(emu),
-        "EnumSystemGeoID" => EnumSystemGeoID(emu),
-        "EnumSystemGeoNames" => EnumSystemGeoNames(emu),
-        "EnumSystemLanguageGroupsA" => EnumSystemLanguageGroupsA(emu),
-        "EnumTimeFormatsA" => EnumTimeFormatsA(emu),
-        "EnumUILanguagesA" => EnumUILanguagesA(emu),
-        "EnumerateLocalComputerNamesA" => EnumerateLocalComputerNamesA(emu),
-        "EnumerateLocalComputerNamesW" => EnumerateLocalComputerNamesW(emu),
-        "EraseTape" => EraseTape(emu),
-        "FatalExit" => FatalExit(emu),
-        "FindActCtxSectionGuidWorker" => FindActCtxSectionGuidWorker(emu),
-        "FindActCtxSectionStringA" => FindActCtxSectionStringA(emu),
-        "FindActCtxSectionStringWWorker" => FindActCtxSectionStringWWorker(emu),
-        "FindAtomA" => FindAtomA(emu),
-        "FindAtomW" => FindAtomW(emu),
-        "FindFirstVolumeA" => FindFirstVolumeA(emu),
-        "FindFirstVolumeMountPointA" => FindFirstVolumeMountPointA(emu),
-        "FindFirstVolumeMountPointW" => FindFirstVolumeMountPointW(emu),
-        "FindNextVolumeA" => FindNextVolumeA(emu),
-        "FindNextVolumeMountPointA" => FindNextVolumeMountPointA(emu),
-        "FindNextVolumeMountPointW" => FindNextVolumeMountPointW(emu),
-        "FindVolumeMountPointClose" => FindVolumeMountPointClose(emu),
-        "FoldStringA" => FoldStringA(emu),
-        "FreeMemoryJobObject" => FreeMemoryJobObject(emu),
-        "GetActiveProcessorCount" => GetActiveProcessorCount(emu),
-        "GetActiveProcessorGroupCount" => GetActiveProcessorGroupCount(emu),
-        "GetApplicationRestartSettingsWorker" => GetApplicationRestartSettingsWorker(emu),
-        "GetAtomNameA" => GetAtomNameA(emu),
-        "GetAtomNameW" => GetAtomNameW(emu),
-        "GetBinaryTypeW" => GetBinaryTypeW(emu),
-        "GetCalendarDateFormat" => GetCalendarDateFormat(emu),
-        "GetCalendarDateFormatEx" => GetCalendarDateFormatEx(emu),
-        "GetCalendarDaysInMonth" => GetCalendarDaysInMonth(emu),
-        "GetCalendarDifferenceInDays" => GetCalendarDifferenceInDays(emu),
-        "GetCalendarInfoA" => GetCalendarInfoA(emu),
-        "GetCalendarMonthsInYear" => GetCalendarMonthsInYear(emu),
-        "GetCalendarSupportedDateRange" => GetCalendarSupportedDateRange(emu),
-        "GetCalendarWeekNumber" => GetCalendarWeekNumber(emu),
-        "GetComPlusPackageInstallStatus" => GetComPlusPackageInstallStatus(emu),
-        "GetCompatFlags" => GetCompatFlags(emu),
-        "GetCompressedFileSizeTransactedW" => GetCompressedFileSizeTransactedW(emu),
-        "GetComputerNameW" => GetComputerNameW(emu),
-        "GetConfigDialogName" => GetConfigDialogName(emu),
-        "GetConsoleCharType" => GetConsoleCharType(emu),
-        "GetConsoleFontInfo" => GetConsoleFontInfo(emu),
-        "GetConsoleHardwareState" => GetConsoleHardwareState(emu),
-        "GetConsoleInputWaitHandle" => GetConsoleInputWaitHandle(emu),
-        "GetConsoleKeyboardLayoutNameA" => GetConsoleKeyboardLayoutNameA(emu),
-        "GetConsoleKeyboardLayoutNameW" => GetConsoleKeyboardLayoutNameW(emu),
-        "GetCorruptDetectionState" => GetCorruptDetectionState(emu),
-        "GetCurrencyFormatA" => GetCurrencyFormatA(emu),
-        "GetCurrencyFormatW" => GetCurrencyFormatW(emu),
-        "GetCurrentActCtxWorker" => GetCurrentActCtxWorker(emu),
-        "GetCurrentJaEraIndex" => GetCurrentJaEraIndex(emu),
-        "GetCurrentThread" => GetCurrentThread(emu),
-        "GetDateFormatAWorker" => GetDateFormatAWorker(emu),
-        "GetDateFormatWWorker" => GetDateFormatWWorker(emu),
-        "GetDefaultCommConfigA" => GetDefaultCommConfigA(emu),
-        "GetDefaultCommConfigW" => GetDefaultCommConfigW(emu),
-        "GetDevicePowerState" => GetDevicePowerState(emu),
-        "GetDllDirectoryA" => GetDllDirectoryA(emu),
-        "GetDllDirectoryW" => GetDllDirectoryW(emu),
-        "GetDurationFormat" => GetDurationFormat(emu),
-        "GetEncryptedFileVersionExt" => GetEncryptedFileVersionExt(emu),
-        "GetExitCodeProcessImplementation" => GetExitCodeProcessImplementation(emu),
-        "GetExpandedNameA" => GetExpandedNameA(emu),
-        "GetExpandedNameW" => GetExpandedNameW(emu),
-        "GetFileAttributesTransactedA" => GetFileAttributesTransactedA(emu),
-        "GetFileBandwidthReservation" => GetFileBandwidthReservation(emu),
-        "GetFirmwareEnvironmentVariableA" => GetFirmwareEnvironmentVariableA(emu),
-        "GetFirmwareEnvironmentVariableW" => GetFirmwareEnvironmentVariableW(emu),
-        "GetFirmwareType" => GetFirmwareType(emu),
-        "GetFriendlyMatchComm" => GetFriendlyMatchComm(emu),
-        "GetFullPathNameTransactedA" => GetFullPathNameTransactedA(emu),
-        "GetFullPathNameTransactedW" => GetFullPathNameTransactedW(emu),
-        "GetGeoInfoA" => GetGeoInfoA(emu),
-        "GetGeoInfoEx" => GetGeoInfoEx(emu),
-        "GetGeoInfoW" => GetGeoInfoW(emu),
-        "GetHandleContext" => GetHandleContext(emu),
-        "GetJapaneseEraItems" => GetJapaneseEraItems(emu),
-        "GetKnownJapanEraCount" => GetKnownJapanEraCount(emu),
-        "GetLongPathNameA" => GetLongPathNameA(emu),
-        "GetMailslotInfo" => GetMailslotInfo(emu),
-        "GetMaxJapanEras" => GetMaxJapanEras(emu),
-        "GetMaxJapanYears" => GetMaxJapanYears(emu),
-        "GetMaximumProcessorCount" => GetMaximumProcessorCount(emu),
-        "GetMaximumProcessorGroupCount" => GetMaximumProcessorGroupCount(emu),
-        "GetNamedPipeClientComputerNameA" => GetNamedPipeClientComputerNameA(emu),
-        "GetNamedPipeClientProcessId" => GetNamedPipeClientProcessId(emu),
-        "GetNamedPipeClientSessionId" => GetNamedPipeClientSessionId(emu),
-        "GetNamedPipeHandleStateA" => GetNamedPipeHandleStateA(emu),
-        "GetNamedPipeServerSessionId" => GetNamedPipeServerSessionId(emu),
-        "GetNumaAvailableMemoryNode" => GetNumaAvailableMemoryNode(emu),
-        "GetNumaAvailableMemoryNodeEx" => GetNumaAvailableMemoryNodeEx(emu),
-        "GetNumaNodeNumberFromHandle" => GetNumaNodeNumberFromHandle(emu),
-        "GetNumaNodeProcessorMask" => GetNumaNodeProcessorMask(emu),
-        "GetNumaProcessorNode" => GetNumaProcessorNode(emu),
-        "GetNumaProcessorNodeEx" => GetNumaProcessorNodeEx(emu),
-        "GetNumaProximityNode" => GetNumaProximityNode(emu),
-        "GetNumberFormatA" => GetNumberFormatA(emu),
-        "GetNumberFormatW" => GetNumberFormatW(emu),
-        "GetNumberOfConsoleFonts" => GetNumberOfConsoleFonts(emu),
-        "GetPrivateProfileIntA" => GetPrivateProfileIntA(emu),
-        "GetPrivateProfileIntW" => GetPrivateProfileIntW(emu),
-        "GetPrivateProfileSectionA" => GetPrivateProfileSectionA(emu),
-        "GetPrivateProfileSectionNamesA" => GetPrivateProfileSectionNamesA(emu),
-        "GetPrivateProfileSectionNamesW" => GetPrivateProfileSectionNamesW(emu),
-        "GetPrivateProfileSectionW" => GetPrivateProfileSectionW(emu),
-        "GetPrivateProfileStringA" => GetPrivateProfileStringA(emu),
-        "GetPrivateProfileStringW" => GetPrivateProfileStringW(emu),
-        "GetPrivateProfileStructA" => GetPrivateProfileStructA(emu),
-        "GetPrivateProfileStructW" => GetPrivateProfileStructW(emu),
-        "GetProcessDEPPolicy" => GetProcessDEPPolicy(emu),
-        "GetProcessIoCounters" => GetProcessIoCounters(emu),
-        "GetProcessWorkingSetSize" => GetProcessWorkingSetSize(emu),
-        "GetProfileIntA" => GetProfileIntA(emu),
-        "GetProfileIntW" => GetProfileIntW(emu),
-        "GetProfileSectionA" => GetProfileSectionA(emu),
-        "GetProfileSectionW" => GetProfileSectionW(emu),
-        "GetProfileStringA" => GetProfileStringA(emu),
-        "GetProfileStringW" => GetProfileStringW(emu),
-        "GetShortPathNameA" => GetShortPathNameA(emu),
-        "GetShortPathNameW" => GetShortPathNameW(emu),
-        "GetSystemDEPPolicy" => GetSystemDEPPolicy(emu),
-        "GetSystemPowerStatus" => GetSystemPowerStatus(emu),
-        "GetSystemRegistryQuota" => GetSystemRegistryQuota(emu),
-        "GetTapeParameters" => GetTapeParameters(emu),
-        "GetTapePosition" => GetTapePosition(emu),
-        "GetTapeStatus" => GetTapeStatus(emu),
-        "GetThreadSelectorEntry" => GetThreadSelectorEntry(emu),
-        "GetTimeFormatWWorker" => GetTimeFormatWWorker(emu),
-        "GetUserDefaultGeoName" => GetUserDefaultGeoName(emu),
-        "GetUserGeoID" => GetUserGeoID(emu),
-        "GetVolumeNameForVolumeMountPointA" => GetVolumeNameForVolumeMountPointA(emu),
-        "GetVolumePathNamesForVolumeNameA" => GetVolumePathNamesForVolumeNameA(emu),
-        "GlobalAddAtomExA" => GlobalAddAtomExA(emu),
-        "GlobalAddAtomExW" => GlobalAddAtomExW(emu),
-        "GlobalAddAtomW" => GlobalAddAtomW(emu),
-        "GlobalDeleteAtom" => GlobalDeleteAtom(emu),
-        "GlobalFindAtomA" => GlobalFindAtomA(emu),
-        "GlobalFindAtomW" => GlobalFindAtomW(emu),
-        "GlobalFix" => GlobalFix(emu),
-        "GlobalFlags" => GlobalFlags(emu),
-        "GlobalGetAtomNameA" => GlobalGetAtomNameA(emu),
-        "GlobalGetAtomNameW" => GlobalGetAtomNameW(emu),
-        "GlobalHandle" => GlobalHandle(emu),
-        "GlobalLock" => GlobalLock(emu),
-        "GlobalMemoryStatus" => GlobalMemoryStatus(emu),
-        "GlobalReAlloc" => GlobalReAlloc(emu),
-        "GlobalSize" => GlobalSize(emu),
-        "GlobalUnWire" => GlobalUnWire(emu),
-        "GlobalUnfix" => GlobalUnfix(emu),
-        "GlobalUnlock" => GlobalUnlock(emu),
-        "GlobalWire" => GlobalWire(emu),
-        "Heap32First" => Heap32First(emu),
-        "Heap32ListFirst" => Heap32ListFirst(emu),
-        "Heap32ListNext" => Heap32ListNext(emu),
-        "Heap32Next" => Heap32Next(emu),
-        "InitAtomTable" => InitAtomTable(emu),
-        "InitOnceGetStringTableOffset" => InitOnceGetStringTableOffset(emu),
-        "Initialize16BitCriticalSection" => Initialize16BitCriticalSection(emu),
-        "InterlockedCompareExchange" => InterlockedCompareExchange(emu),
-        "InterlockedDecrement" => InterlockedDecrement(emu),
-        "InterlockedExchange" => InterlockedExchange(emu),
-        "InterlockedExchangeAdd" => InterlockedExchangeAdd(emu),
-        "InternalCoStdMarshalObject" => InternalCoStdMarshalObject(emu),
-        "InvalidateConsoleDIBits" => InvalidateConsoleDIBits(emu),
-        "IsBadCodePtr" => IsBadCodePtr(emu),
-        "IsBadHugeReadPtr" => IsBadHugeReadPtr(emu),
-        "IsBadHugeWritePtr" => IsBadHugeWritePtr(emu),
-        "IsBadReadPtr" => IsBadReadPtr(emu),
-        "IsBadStringPtrA" => IsBadStringPtrA(emu),
-        "IsBadStringPtrW" => IsBadStringPtrW(emu),
-        "IsBadWritePtr" => IsBadWritePtr(emu),
-        "IsCalendarLeapDay" => IsCalendarLeapDay(emu),
-        "IsCalendarLeapMonth" => IsCalendarLeapMonth(emu),
-        "IsCalendarLeapYear" => IsCalendarLeapYear(emu),
-        "IsCallerAdminOrSystem" => IsCallerAdminOrSystem(emu),
-        "IsFusionFullySupported" => IsFusionFullySupported(emu),
-        "IsOOBESupported" => IsOOBESupported(emu),
-        "IsSystemLUID" => IsSystemLUID(emu),
-        "IsSystemResumeAutomatic" => IsSystemResumeAutomatic(emu),
-        "IsTerminalServerCompatible" => IsTerminalServerCompatible(emu),
-        "IsThreadAFiber" => IsThreadAFiber(emu),
-        "IsValidCalDateTime" => IsValidCalDateTime(emu),
-        "LoadAppInitDllsImplementation" => LoadAppInitDllsImplementation(emu),
-        "LoadStringBaseW" => LoadStringBaseW(emu),
-        "LocalCompact" => LocalCompact(emu),
-        "LocalFlags" => LocalFlags(emu),
-        "LocalHandle" => LocalHandle(emu),
-        "LocalShrink" => LocalShrink(emu),
-        "LocalSize" => LocalSize(emu),
-        "lstrcmpA" => lstrcmpA(emu),
-        "lstrcmp" => lstrcmpA(emu),
-        "lstrcmpW" => lstrcmpW(emu),
-        "lstrcmpiA" => lstrcmpiA(emu),
-        "LZClose" => LZClose(emu),
-        "LZCopy" => LZCopy(emu),
-        "LZInit" => LZInit(emu),
-        "LZOpenFileA" => LZOpenFileA(emu),
-        "LZOpenFileW" => LZOpenFileW(emu),
-        "LZRead" => LZRead(emu),
-        "LZSeek" => LZSeek(emu),
-        "LZStart" => LZStart(emu),
-        "MachinePrefersNumericFirstYear" => MachinePrefersNumericFirstYear(emu),
-        "MoveFileExA" => MoveFileExA(emu),
-        "MoveFileTransactedA" => MoveFileTransactedA(emu),
-        "MoveFileTransactedW" => MoveFileTransactedW(emu),
-        "MulDiv" => MulDiv(emu),
-        "NonInstallerDefault" => NonInstallerDefault(emu),
-        "NotifyUILanguageChange" => NotifyUILanguageChange(emu),
-        "NtVdm64CreateProcessInternalW" => NtVdm64CreateProcessInternalW(emu),
-        "NtWow64ConsoleLaunchServerProcess" => NtWow64ConsoleLaunchServerProcess(emu),
-        "NtWow64CsrBaseCheckRunApp" => NtWow64CsrBaseCheckRunApp(emu),
-        "NtWow64CsrBasepCreateActCtx" => NtWow64CsrBasepCreateActCtx(emu),
-        "NtWow64CsrBasepCreateProcess" => NtWow64CsrBasepCreateProcess(emu),
-        "NtWow64CsrBasepDefineDosDevice" => NtWow64CsrBasepDefineDosDevice(emu),
-        "NtWow64CsrBasepGetProcessShutdownParam" => NtWow64CsrBasepGetProcessShutdownParam(emu),
-        "NtWow64CsrBasepNlsGetUserInfo" => NtWow64CsrBasepNlsGetUserInfo(emu),
-        "NtWow64CsrBasepNlsUpdateCacheCount" => NtWow64CsrBasepNlsUpdateCacheCount(emu),
-        "NtWow64CsrBasepRefreshIniFileMapping" => NtWow64CsrBasepRefreshIniFileMapping(emu),
-        "NtWow64CsrBasepSetClientTimeZoneInformation" => {
-            NtWow64CsrBasepSetClientTimeZoneInformation(emu)
-        }
-        "NtWow64CsrBasepSetProcessShutdownParam" => NtWow64CsrBasepSetProcessShutdownParam(emu),
-        "NtWow64CsrBasepSoundSentryNotification" => NtWow64CsrBasepSoundSentryNotification(emu),
-        "OOBEComplete" => OOBEComplete(emu),
-        "OOBECompleteWnfCallback" => OOBECompleteWnfCallback(emu),
-        "OOBECompleteWnfQueryCallback" => OOBECompleteWnfQueryCallback(emu),
-        "OOBECompleteWnfWaitCallback" => OOBECompleteWnfWaitCallback(emu),
-        "OpenFile" => OpenFile(emu),
-        "OpenFileMappingA" => OpenFileMappingA(emu),
-        "OpenJobObjectA" => OpenJobObjectA(emu),
-        "OpenJobObjectW" => OpenJobObjectW(emu),
-        "OpenMutexA" => OpenMutexA(emu),
-        "OpenPrivateNamespaceA" => OpenPrivateNamespaceA(emu),
-        "OpenSortIdKey" => OpenSortIdKey(emu),
-        "PowerClearRequest" => PowerClearRequest(emu),
-        "PowerCreateRequest" => PowerCreateRequest(emu),
-        "PowerSetRequest" => PowerSetRequest(emu),
-        "PrepareTape" => PrepareTape(emu),
-        "PrivMoveFileIdentityW" => PrivMoveFileIdentityW(emu),
-        "Process32FirstW" => Process32FirstW(emu),
-        "Process32Next" => Process32Next(emu),
-        "Process32NextW" => Process32NextW(emu),
-        "QueryActCtxSettingsWWorker" => QueryActCtxSettingsWWorker(emu),
-        "QueryActCtxWWorker" => QueryActCtxWWorker(emu),
-        "QueryDosDeviceA" => QueryDosDeviceA(emu),
-        "QueryInformationJobObject" => QueryInformationJobObject(emu),
-        "QueryIoRateControlInformationJobObject" => QueryIoRateControlInformationJobObject(emu),
-        "QueryThreadProfiling" => QueryThreadProfiling(emu),
-        "QuirkGetDataWorker" => QuirkGetDataWorker(emu),
-        "QuirkIsEnabled2Worker" => QuirkIsEnabled2Worker(emu),
-        "QuirkIsEnabledForPackage2Worker" => QuirkIsEnabledForPackage2Worker(emu),
-        "QuirkIsEnabledForPackage3Worker" => QuirkIsEnabledForPackage3Worker(emu),
-        "QuirkIsEnabledForPackage4Worker" => QuirkIsEnabledForPackage4Worker(emu),
-        "QuirkIsEnabledForPackageWorker" => QuirkIsEnabledForPackageWorker(emu),
-        "QuirkIsEnabledForProcessWorker" => QuirkIsEnabledForProcessWorker(emu),
-        "QuirkIsEnabledWorker" => QuirkIsEnabledWorker(emu),
-        "RaiseInvalid16BitExeError" => RaiseInvalid16BitExeError(emu),
-        "ReadThreadProfilingData" => ReadThreadProfilingData(emu),
-        "RegisterApplicationRecoveryCallback" => RegisterApplicationRecoveryCallback(emu),
-        "RegisterApplicationRestart" => RegisterApplicationRestart(emu),
-        "RegisterConsoleIME" => RegisterConsoleIME(emu),
-        "RegisterConsoleOS2" => RegisterConsoleOS2(emu),
-        "RegisterConsoleVDM" => RegisterConsoleVDM(emu),
-        "RegisterWaitForInputIdle" => RegisterWaitForInputIdle(emu),
-        "RegisterWaitUntilOOBECompleted" => RegisterWaitUntilOOBECompleted(emu),
-        "RemoveDirectoryTransactedW" => RemoveDirectoryTransactedW(emu),
-        "RemoveLocalAlternateComputerNameW" => RemoveLocalAlternateComputerNameW(emu),
-        "RemoveSecureMemoryCacheCallback" => RemoveSecureMemoryCacheCallback(emu),
-        "ReplaceFileA" => ReplaceFileA(emu),
-        "ReplacePartitionUnit" => ReplacePartitionUnit(emu),
-        "RequestWakeupLatency" => RequestWakeupLatency(emu),
-        "ResourceDataMatch" => ResourceDataMatch(emu),
-        "ReturnMem16Data" => ReturnMem16Data(emu),
-        "SbpIsTraceEnabled" => SbpIsTraceEnabled(emu),
-        "SdbpCheckFromVersion" => SdbpCheckFromVersion(emu),
-        "SdbpCheckMatchingDevice" => SdbpCheckMatchingDevice(emu),
-        "SdbpCheckMatchingDir" => SdbpCheckMatchingDir(emu),
-        "SdbpCheckMatchingFiles" => SdbpCheckMatchingFiles(emu),
-        "SdbpCheckMatchingRegistry" => SdbpCheckMatchingRegistry(emu),
-        "SdbpCheckMatchingText" => SdbpCheckMatchingText(emu),
-        "SdbpCheckMatchingWildcardFiles" => SdbpCheckMatchingWildcardFiles(emu),
-        "SdbpCheckMatchingWildcardRegistry" => SdbpCheckMatchingWildcardRegistry(emu),
-        "SdbpCheckOSKind" => SdbpCheckOSKind(emu),
-        "SdbpCheckPackageAttributes" => SdbpCheckPackageAttributes(emu),
-        "SdbpCheckRuntimePlatform" => SdbpCheckRuntimePlatform(emu),
-        "SdbpCheckUptoVersion" => SdbpCheckUptoVersion(emu),
-        "SdbpCheckVersion" => SdbpCheckVersion(emu),
-        "SdbpGetPathAppPatch" => SdbpGetPathAppPatch(emu),
-        "SdbpGetPathAppPatchPreRS3" => SdbpGetPathAppPatchPreRS3(emu),
-        "SdbpGetPathAppraiser" => SdbpGetPathAppraiser(emu),
-        "SdbpGetPathCustomSdb" => SdbpGetPathCustomSdb(emu),
-        "SdbpGetPathCustomSdbPreRS3" => SdbpGetPathCustomSdbPreRS3(emu),
-        "SdbpGetPathSystem" => SdbpGetPathSystem(emu),
-        "SetCalendarInfoA" => SetCalendarInfoA(emu),
-        "SetComPlusPackageInstallStatus" => SetComPlusPackageInstallStatus(emu),
-        "SetConsoleCursor" => SetConsoleCursor(emu),
-        "SetConsoleFont" => SetConsoleFont(emu),
-        "SetConsoleHardwareState" => SetConsoleHardwareState(emu),
-        "SetConsoleIcon" => SetConsoleIcon(emu),
-        "SetConsoleKeyShortcuts" => SetConsoleKeyShortcuts(emu),
-        "SetConsoleLocalEUDC" => SetConsoleLocalEUDC(emu),
-        "SetConsoleMaximumWindowSize" => SetConsoleMaximumWindowSize(emu),
-        "SetConsoleMenuClose" => SetConsoleMenuClose(emu),
-        "SetConsoleOS2OemFormat" => SetConsoleOS2OemFormat(emu),
-        "SetConsolePalette" => SetConsolePalette(emu),
-        "SetDefaultCommConfigA" => SetDefaultCommConfigA(emu),
-        "SetDllDirectoryA" => SetDllDirectoryA(emu),
-        "SetDllDirectoryW" => SetDllDirectoryW(emu),
-        "SetEnvironmentStringsA" => SetEnvironmentStringsA(emu),
-        "SetFileAttributesTransactedW" => SetFileAttributesTransactedW(emu),
-        "SetFileBandwidthReservation" => SetFileBandwidthReservation(emu),
-        "SetFileShortNameA" => SetFileShortNameA(emu),
-        "SetFileShortNameW" => SetFileShortNameW(emu),
-        "SetFirmwareEnvironmentVariableA" => SetFirmwareEnvironmentVariableA(emu),
-        "SetFirmwareEnvironmentVariableW" => SetFirmwareEnvironmentVariableW(emu),
-        "SetInformationJobObject" => SetInformationJobObject(emu),
-        "SetIoRateControlInformationJobObject" => SetIoRateControlInformationJobObject(emu),
-        "SetLocalPrimaryComputerNameW" => SetLocalPrimaryComputerNameW(emu),
-        "SetLocaleInfoA" => SetLocaleInfoA(emu),
-        "SetMailslotInfo" => SetMailslotInfo(emu),
-        "SetMessageWaitingIndicator" => SetMessageWaitingIndicator(emu),
-        "SetNamedPipeAttribute" => SetNamedPipeAttribute(emu),
-        "SetProcessAffinityMask" => SetProcessAffinityMask(emu),
-        "SetProcessDEPPolicy" => SetProcessDEPPolicy(emu),
-        "SetProcessWorkingSetSize" => SetProcessWorkingSetSize(emu),
-        "SetSystemPowerState" => SetSystemPowerState(emu),
-        "SetSystemTimeAdjustment" => SetSystemTimeAdjustment(emu),
-        "SetTapeParameters" => SetTapeParameters(emu),
-        "SetTapePosition" => SetTapePosition(emu),
-        "SetThreadAffinityMask" => SetThreadAffinityMask(emu),
-        "SetThreadExecutionState" => SetThreadExecutionState(emu),
-        "SetTimerQueueTimer" => SetTimerQueueTimer(emu),
-        "SetUserGeoID" => SetUserGeoID(emu),
-        "SetUserGeoName" => SetUserGeoName(emu),
-        "SetVolumeLabelA" => SetVolumeLabelA(emu),
-        "SetVolumeLabelW" => SetVolumeLabelW(emu),
-        "SetVolumeMountPointA" => SetVolumeMountPointA(emu),
-        "SetVolumeMountPointW" => SetVolumeMountPointW(emu),
-        "ShowConsoleCursor" => ShowConsoleCursor(emu),
-        "SortChangeCase" => SortChangeCase(emu),
-        "SortCompareString" => SortCompareString(emu),
-        "SortFindString" => SortFindString(emu),
-        "SortGetHashCode" => SortGetHashCode(emu),
-        "SortIsDefinedString" => SortIsDefinedString(emu),
-        "StringCbCatExW" => StringCbCatExW(emu),
-        "StringCbCopyExW" => StringCbCopyExW(emu),
-        "StringCbCopyW" => StringCbCopyW(emu),
-        "StringCchCatW" => StringCchCatW(emu),
-        "StringCchCopyExW" => StringCchCopyExW(emu),
-        "StringCchCopyNW" => StringCchCopyNW(emu),
-        "StringCchCopyW" => StringCchCopyW(emu),
-        "StringCchLengthW" => StringCchLengthW(emu),
-        "StringCopyWorkerA" => StringCopyWorkerA(emu),
-        "StringCopyWorkerW" => StringCopyWorkerW(emu),
-        "StringCopyWorkerW_2_0" => StringCopyWorkerW_2_0(emu),
-        "StringExValidateDestW" => StringExValidateDestW(emu),
-        "StringLengthWorkerA" => StringLengthWorkerA(emu),
-        "StringLengthWorkerW" => StringLengthWorkerW(emu),
-        "StringTable" => StringTable(emu),
-        "StringVPrintfWorkerW" => StringVPrintfWorkerW(emu),
-        "StringValidateDestAndLengthW" => StringValidateDestAndLengthW(emu),
-        "SXSManifest" => SXSManifest(emu),
-        "TermsrvConvertSysRootToUserDir" => TermsrvConvertSysRootToUserDir(emu),
-        "TermsrvCreateRegEntry" => TermsrvCreateRegEntry(emu),
-        "TermsrvDeleteKey" => TermsrvDeleteKey(emu),
-        "TermsrvDeleteValue" => TermsrvDeleteValue(emu),
-        "TermsrvGetPreSetValue" => TermsrvGetPreSetValue(emu),
-        "TermsrvOpenRegEntry" => TermsrvOpenRegEntry(emu),
-        "TermsrvOpenUserClasses" => TermsrvOpenUserClasses(emu),
-        "TermsrvRestoreKey" => TermsrvRestoreKey(emu),
-        "TermsrvSetValueKey" => TermsrvSetValueKey(emu),
-        "TermsrvSyncUserIniFile" => TermsrvSyncUserIniFile(emu),
-        "TermsrvSyncUserIniFileExt" => TermsrvSyncUserIniFileExt(emu),
-        "timeBeginPeriod" => timeEndPeriod(emu),
-        "timeEndPeriod" => timeEndPeriod(emu),
-        "timeGetDevCaps" => timeGetDevCaps(emu),
-        "timeGetTime" => timeGetTime(emu),
-        "TimeInit" => TimeInit(emu),
-        "TraceLoggingRegisterEx_EventRegister_EventSetInformation" => {
-            TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu)
-        }
-        "ULongAdd" => ULongAdd(emu),
-        "ULongLongToULong" => ULongLongToULong(emu),
-        "ULongMult" => ULongMult(emu),
-        "UnregisterApplicationRecoveryCallback" => UnregisterApplicationRecoveryCallback(emu),
-        "UnregisterApplicationRestart" => UnregisterApplicationRestart(emu),
-        "UnregisterWait" => UnregisterWait(emu),
-        "UnregisterWaitUntilOOBECompleted" => UnregisterWaitUntilOOBECompleted(emu),
-        "UpdateCalendarDayOfWeek" => UpdateCalendarDayOfWeek(emu),
-        "UpdateResourceA" => UpdateResourceA(emu),
-        "UpdateResourceW" => UpdateResourceW(emu),
-        "VDMConsoleOperation" => VDMConsoleOperation(emu),
-        "VDMOperationStarted" => VDMOperationStarted(emu),
-        "VerifyConsoleIoHandle" => VerifyConsoleIoHandle(emu),
-        "VerifyVersionInfoA" => VerifyVersionInfoA(emu),
-        "WaitNamedPipeA" => WaitNamedPipeA(emu),
-        "WerGetFlagsWorker" => WerGetFlagsWorker(emu),
-        "WerRegisterFileWorker" => WerRegisterFileWorker(emu),
-        "WerSetFlags" => WerSetFlags(emu),
-        "WerUnregisterFileWorker" => WerUnregisterFileWorker(emu),
-        "WerUnregisterMemoryBlockWorker" => WerUnregisterMemoryBlockWorker(emu),
-        "WerpAcquirePebLock" => WerpAcquirePebLock(emu),
-        "WerpCheckOkToRegister" => WerpCheckOkToRegister(emu),
-        "WerpGetDebugger" => WerpGetDebugger(emu),
-        "WerpInitPEBStore" => WerpInitPEBStore(emu),
-        "WerpInitiateRemoteRecovery" => WerpInitiateRemoteRecovery(emu),
-        "WerpLaunchAeDebug" => WerpLaunchAeDebug(emu),
-        "WerpMapProtectionLevel" => WerpMapProtectionLevel(emu),
-        "WerpNotifyUseStringResourceWorker" => WerpNotifyUseStringResourceWorker(emu),
-        "WerpRecoveryInvokedRemotely" => WerpRecoveryInvokedRemotely(emu),
-        "Wow64EnableWow64FsRedirection" => Wow64EnableWow64FsRedirection(emu),
-        "Wow64GetThreadSelectorEntry" => Wow64GetThreadSelectorEntry(emu),
-        "Wow64SuspendThread" => Wow64SuspendThread(emu),
-        "Wow64SystemServiceCall" => Wow64SystemServiceCall(emu),
-        "Wow64TransitionResolve" => Wow64TransitionResolve(emu),
-        "WriteConsoleInputVDMA" => WriteConsoleInputVDMA(emu),
-        "WriteConsoleInputVDMW" => WriteConsoleInputVDMW(emu),
-        "WritePrivateProfileSectionA" => WritePrivateProfileSectionA(emu),
-        "WritePrivateProfileSectionW" => WritePrivateProfileSectionW(emu),
-        "WritePrivateProfileStringA" => WritePrivateProfileStringA(emu),
-        "WritePrivateProfileStringW" => WritePrivateProfileStringW(emu),
-        "WritePrivateProfileStructA" => WritePrivateProfileStructA(emu),
-        "WritePrivateProfileStructW" => WritePrivateProfileStructW(emu),
-        "WriteProfileSectionA" => WriteProfileSectionA(emu),
-        "WriteProfileSectionW" => WriteProfileSectionW(emu),
-        "WriteProfileStringA" => WriteProfileStringA(emu),
-        "WriteProfileStringW" => WriteProfileStringW(emu),
-        "WriteTapemark" => WriteTapemark(emu),
-        "ZombifyActCtxWorker" => ZombifyActCtxWorker(emu),
-
-        // ---- auto-generated stubs from kernel32.dll export table ----
-        "ActivateActCtx" => ActivateActCtx_api(emu),
-        "ActivatePackageVirtualizationContext" => ActivatePackageVirtualizationContext_api(emu),
-        "AddConsoleAliasA" => AddConsoleAliasA_api(emu),
-        "AddConsoleAliasW" => AddConsoleAliasW_api(emu),
-        "AddDllDirectory" => AddDllDirectory_api(emu),
-        "AddLocalAlternateComputerNameA" => AddLocalAlternateComputerNameA_api(emu),
-        "AddRefActCtx" => AddRefActCtx_api(emu),
-        "AddRefActCtxWorker" => AddRefActCtxWorker_api(emu),
-        "AddResourceAttributeAce" => AddResourceAttributeAce_api(emu),
-        "AddSIDToBoundaryDescriptor" => AddSIDToBoundaryDescriptor_api(emu),
-        "AddScopedPolicyIDAce" => AddScopedPolicyIDAce_api(emu),
-        "AddSecureMemoryCacheCallback" => AddSecureMemoryCacheCallback_api(emu),
-        "AddVectoredContinueHandler" => AddVectoredContinueHandler_api(emu),
-        "AllocConsole" => AllocConsole_api(emu),
-        "AllocConsoleWithOptions" => AllocConsoleWithOptions_api(emu),
-        "AllocateUserPhysicalPages" => AllocateUserPhysicalPages_api(emu),
-        "AllocateUserPhysicalPagesNuma" => AllocateUserPhysicalPagesNuma_api(emu),
-        "AppPolicyGetClrCompat" => AppPolicyGetClrCompat_api(emu),
-        "AppPolicyGetCreateFileAccess" => AppPolicyGetCreateFileAccess_api(emu),
-        "AppPolicyGetLifecycleManagement" => AppPolicyGetLifecycleManagement_api(emu),
-        "AppPolicyGetMediaFoundationCodecLoading" => {
-            AppPolicyGetMediaFoundationCodecLoading_api(emu)
-        }
-        "AppPolicyGetProcessTerminationMethod" => AppPolicyGetProcessTerminationMethod_api(emu),
-        "AppPolicyGetShowDeveloperDiagnostic" => AppPolicyGetShowDeveloperDiagnostic_api(emu),
-        "AppPolicyGetThreadInitializationType" => AppPolicyGetThreadInitializationType_api(emu),
-        "AppPolicyGetWindowingModel" => AppPolicyGetWindowingModel_api(emu),
-        "AppXGetOSMaxVersionTested" => AppXGetOSMaxVersionTested_api(emu),
-        "AreShortNamesEnabled" => AreShortNamesEnabled_api(emu),
-        "AssignProcessToJobObject" => AssignProcessToJobObject_api(emu),
-        "AttachConsole" => AttachConsole_api(emu),
-        "BackupReadEx" => BackupReadEx_api(emu),
-        "BackupWriteEx" => BackupWriteEx_api(emu),
-        "BaseCheckAppcompatCache" => BaseCheckAppcompatCache_api(emu),
-        "BaseCheckAppcompatCacheEx" => BaseCheckAppcompatCacheEx_api(emu),
-        "BaseCleanupAppcompatCacheSupport" => BaseCleanupAppcompatCacheSupport_api(emu),
-        "BaseDumpAppcompatCache" => BaseDumpAppcompatCache_api(emu),
-        "BaseDumpAppcompatCacheWorker" => BaseDumpAppcompatCacheWorker_api(emu),
-        "BaseElevationPostProcessing" => BaseElevationPostProcessing_api(emu),
-        "BaseFlushAppcompatCache" => BaseFlushAppcompatCache_api(emu),
-        "BaseFormatObjectAttributes" => BaseFormatObjectAttributes_api(emu),
-        "BaseFormatTimeOut" => BaseFormatTimeOut_api(emu),
-        "BaseGetNamedObjectDirectory" => BaseGetNamedObjectDirectory_api(emu),
-        "BaseInitAppcompatCacheSupport" => BaseInitAppcompatCacheSupport_api(emu),
-        "BaseInitAppcompatCacheSupportWorker" => BaseInitAppcompatCacheSupportWorker_api(emu),
-        "BaseIsAppcompatInfrastructureDisabled" => BaseIsAppcompatInfrastructureDisabled_api(emu),
-        "BaseIsAppcompatInfrastructureDisabledWorker" => {
-            BaseIsAppcompatInfrastructureDisabledWorker_api(emu)
-        }
-        "BaseQueryModuleData" => BaseQueryModuleData_api(emu),
-        "BaseThreadInitThunk" => BaseThreadInitThunk_api(emu),
-        "BaseUpdateAppcompatCache" => BaseUpdateAppcompatCache_api(emu),
-        "BasepCheckPplSupport" => BasepCheckPplSupport_api(emu),
-        "BasepFinishPackageActivation" => BasepFinishPackageActivation_api(emu),
-        "BasepFinishPackageActivationForSxS" => BasepFinishPackageActivationForSxS_api(emu),
-        "BasepFreeActivationTokenInfo" => BasepFreeActivationTokenInfo_api(emu),
-        "BasepGetAppCompatData" => BasepGetAppCompatData_api(emu),
-        "BasepGetPackageActivationTokenForFilePath" => {
-            BasepGetPackageActivationTokenForFilePath_api(emu)
-        }
-        "BasepGetPackageActivationTokenForFilePath2" => {
-            BasepGetPackageActivationTokenForFilePath2_api(emu)
-        }
-        "BasepGetPackageActivationTokenForSxS" => BasepGetPackageActivationTokenForSxS_api(emu),
-        "BasepGetPackageActivationTokenForSxS2" => BasepGetPackageActivationTokenForSxS2_api(emu),
-        "BasepGetPackageActivationTokenForSxS3" => BasepGetPackageActivationTokenForSxS3_api(emu),
-        "BasepGetPackagedAppInfoForFile" => BasepGetPackagedAppInfoForFile_api(emu),
-        "BasepMapModuleHandle" => BasepMapModuleHandle_api(emu),
-        "BasepQueryModuleChpeSettings" => BasepQueryModuleChpeSettings_api(emu),
-        "BasepReleaseAppXContext" => BasepReleaseAppXContext_api(emu),
-        "BasepReleasePackagedAppInfo" => BasepReleasePackagedAppInfo_api(emu),
-        "Beep" => Beep(emu),
-        "BuildIoRingCancelRequest" => BuildIoRingCancelRequest_api(emu),
-        "BuildIoRingFlushFile" => BuildIoRingFlushFile_api(emu),
-        "BuildIoRingReadFile" => BuildIoRingReadFile_api(emu),
-        "BuildIoRingReadFileScatter" => BuildIoRingReadFileScatter_api(emu),
-        "BuildIoRingRegisterBuffers" => BuildIoRingRegisterBuffers_api(emu),
-        "BuildIoRingRegisterFileHandles" => BuildIoRingRegisterFileHandles_api(emu),
-        "BuildIoRingWriteFile" => BuildIoRingWriteFile_api(emu),
-        "BuildIoRingWriteFileGather" => BuildIoRingWriteFileGather_api(emu),
-        "CallNamedPipeW" => CallNamedPipeW_api(emu),
-        "CallbackMayRunLong" => CallbackMayRunLong_api(emu),
-        "CancelDeviceWakeupRequest" => CancelDeviceWakeupRequest_api(emu),
-        "CancelIo" => CancelIo_api(emu),
-        "CancelIoEx" => CancelIoEx_api(emu),
-        "CancelSynchronousIo" => CancelSynchronousIo_api(emu),
-        "CancelThreadpoolIo" => CancelThreadpoolIo_api(emu),
-        "CancelWaitableTimer" => CancelWaitableTimer_api(emu),
-        "CeipIsOptedIn" => CeipIsOptedIn(emu),
-        "ChangeTimerQueueTimer" => ChangeTimerQueueTimer_api(emu),
-        "CheckAllowDecryptedRemoteDestinationPolicy" => {
-            CheckAllowDecryptedRemoteDestinationPolicy(emu)
-        }
-        "CheckElevationEnabled" => CheckElevationEnabled_api(emu),
-        "CheckForReadOnlyResourceFilter" => CheckForReadOnlyResourceFilter_api(emu),
-        "CheckRemoteDebuggerPresent" => CheckRemoteDebuggerPresent_api(emu),
-        "CheckTokenCapability" => CheckTokenCapability_api(emu),
-        "CheckTokenMembershipEx" => CheckTokenMembershipEx_api(emu),
-        "ClearCommBreak" => ClearCommBreak_api(emu),
-        "ClearCommError" => ClearCommError_api(emu),
-        "CloseIoRing" => CloseIoRing_api(emu),
-        "ClosePackageInfo" => ClosePackageInfo_api(emu),
-        "ClosePrivateNamespace" => ClosePrivateNamespace_api(emu),
-        "CloseProfileUserMapping" => CloseProfileUserMapping(emu),
-        "ClosePseudoConsole" => ClosePseudoConsole_api(emu),
-        "CloseState" => CloseState_api(emu),
-        "CloseThreadpool" => CloseThreadpool_api(emu),
-        "CloseThreadpoolCleanupGroup" => CloseThreadpoolCleanupGroup_api(emu),
-        "CloseThreadpoolCleanupGroupMembers" => CloseThreadpoolCleanupGroupMembers_api(emu),
-        "CloseThreadpoolIo" => CloseThreadpoolIo_api(emu),
-        "CloseThreadpoolTimer" => CloseThreadpoolTimer_api(emu),
-        "CloseThreadpoolWait" => CloseThreadpoolWait_api(emu),
-        "CloseThreadpoolWork" => CloseThreadpoolWork_api(emu),
-        "CmdBatNotification" => CmdBatNotification_api(emu),
-        "CommConfigDialogW" => CommConfigDialogW_api(emu),
-        "CompareFileTime" => CompareFileTime_api(emu),
-        "CompareStringA" => CompareStringA(emu),
-        "CompareStringEx" => CompareStringEx_api(emu),
-        "CompareStringOrdinal" => CompareStringOrdinal(emu),
-        "ContinueDebugEvent" => ContinueDebugEvent_api(emu),
-        "ConvertDefaultLocale" => ConvertDefaultLocale_api(emu),
-        "ConvertFiberToThread" => ConvertFiberToThread(emu),
-        "ConvertThreadToFiber" => ConvertThreadToFiber_api(emu),
-        "ConvertThreadToFiberEx" => ConvertThreadToFiberEx_api(emu),
-        "CopyContext" => CopyContext_api(emu),
-        "CopyFile2" => CopyFile2_api(emu),
-        "CopyFileExW" => CopyFileExW(emu),
-        "CreateActCtxW" => CreateActCtxW_api(emu),
-        "CreateBoundaryDescriptorW" => CreateBoundaryDescriptorW_api(emu),
-        "CreateConsoleScreenBuffer" => CreateConsoleScreenBuffer_api(emu),
-        "CreateDirectory2A" => CreateDirectory2A_api(emu),
-        "CreateDirectory2W" => CreateDirectory2W_api(emu),
-        "CreateDirectoryExW" => CreateDirectoryExW_api(emu),
-        "CreateEnclave" => CreateEnclave_api(emu),
-        "CreateEventExA" => CreateEventExA_api(emu),
-        "CreateEventExW" => CreateEventExW_api(emu),
-        "CreateEventW" => CreateEventW_api(emu),
-        "CreateFiber" => CreateFiber_api(emu),
-        "CreateFiberEx" => CreateFiberEx_api(emu),
-        "CreateFile2" => CreateFile2_api(emu),
-        "CreateFile3" => CreateFile3_api(emu),
-        "CreateFileMappingFromApp" => CreateFileMappingFromApp_api(emu),
-        "CreateFileMappingNumaW" => CreateFileMappingNumaW_api(emu),
-        "CreateFileTransactedA" => CreateFileTransactedA_api(emu),
-        "CreateFileTransactedW" => CreateFileTransactedW_api(emu),
-        "CreateHardLinkA" => CreateHardLinkA_api(emu),
-        "CreateHardLinkTransactedW" => CreateHardLinkTransactedW_api(emu),
-        "CreateHardLinkW" => CreateHardLinkW_api(emu),
-        "CreateIoCompletionPort" => CreateIoCompletionPort_api(emu),
-        "CreateIoRing" => CreateIoRing_api(emu),
-        "CreateJobObjectA" => CreateJobObjectA_api(emu),
-        "CreateJobObjectW" => CreateJobObjectW_api(emu),
-        "CreateJobSet" => CreateJobSet_api(emu),
-        "CreateMailslotA" => CreateMailslotA_api(emu),
-        "CreateMailslotW" => CreateMailslotW_api(emu),
-        "CreateMemoryResourceNotification" => CreateMemoryResourceNotification_api(emu),
-        "CreateMutexExA" => CreateMutexExA_api(emu),
-        "CreateMutexExW" => CreateMutexExW_api(emu),
-        "CreateNamedPipeW" => CreateNamedPipeW_api(emu),
-        "CreatePackageVirtualizationContext" => CreatePackageVirtualizationContext_api(emu),
-        "CreatePipe" => CreatePipe(emu),
-        "CreatePrivateNamespaceA" => CreatePrivateNamespaceA_api(emu),
-        "CreatePrivateNamespaceW" => CreatePrivateNamespaceW_api(emu),
-        "CreateProcessAsUserA" => CreateProcessAsUserA_api(emu),
-        "CreateProcessAsUserW" => CreateProcessAsUserW_api(emu),
-        "CreateProcessInternalA" => CreateProcessInternalA_api(emu),
-        "CreateProcessInternalW" => CreateProcessInternalW_api(emu),
-        "CreatePseudoConsole" => CreatePseudoConsole_api(emu),
-        "CreateRemoteThreadEx" => CreateRemoteThreadEx_api(emu),
-        "CreateSemaphoreExW" => CreateSemaphoreExW(emu),
-        "CreateSemaphoreW" => CreateSemaphoreW(emu),
-        "CreateSymbolicLinkW" => CreateSymbolicLinkW_api(emu),
-        "CreateThreadpool" => CreateThreadpool_api(emu),
-        "CreateThreadpoolCleanupGroup" => CreateThreadpoolCleanupGroup_api(emu),
-        "CreateThreadpoolIo" => CreateThreadpoolIo_api(emu),
-        "CreateThreadpoolTimer" => CreateThreadpoolTimer_api(emu),
-        "CreateThreadpoolWait" => CreateThreadpoolWait_api(emu),
-        "CreateThreadpoolWork" => CreateThreadpoolWork_api(emu),
-        "CreateTimerQueue" => CreateTimerQueue_api(emu),
-        "CreateTimerQueueTimer" => CreateTimerQueueTimer_api(emu),
-        "CreateWaitableTimerExW" => CreateWaitableTimerExW(emu),
-        "CtrlRoutine" => CtrlRoutine_api(emu),
-        "DeactivateActCtx" => DeactivateActCtx_api(emu),
-        "DeactivatePackageVirtualizationContext" => DeactivatePackageVirtualizationContext_api(emu),
-        "DebugActiveProcess" => DebugActiveProcess_api(emu),
-        "DebugActiveProcessStop" => DebugActiveProcessStop_api(emu),
-        "DebugBreak" => DebugBreak(emu),
-        "DebugBreakProcess" => DebugBreakProcess_api(emu),
-        "DecodeSystemPointer" => DecodeSystemPointer_api(emu),
-        "DefineDosDeviceW" => DefineDosDeviceW_api(emu),
-        "DelayLoadFailureHook" => DelayLoadFailureHook_api(emu),
-        "DeleteBoundaryDescriptor" => DeleteBoundaryDescriptor_api(emu),
-        "DeleteCriticalSection" => DeleteCriticalSection(emu),
-        "DeleteFiber" => DeleteFiber_api(emu),
-        "DeleteFile2A" => DeleteFile2A_api(emu),
-        "DeleteFile2W" => DeleteFile2W_api(emu),
-        "DeleteFileTransactedA" => DeleteFileTransactedA_api(emu),
-        "DeleteProcThreadAttributeList" => DeleteProcThreadAttributeList_api(emu),
-        "DeleteSynchronizationBarrier" => DeleteSynchronizationBarrier_api(emu),
-        "DeleteTimerQueueEx" => DeleteTimerQueueEx_api(emu),
-        "DeleteTimerQueueTimer" => DeleteTimerQueueTimer_api(emu),
-        "DeleteVolumeMountPointW" => DeleteVolumeMountPointW_api(emu),
-        "DeviceIoControl" => DeviceIoControl(emu),
-        "DisableThreadLibraryCalls" => DisableThreadLibraryCalls_api(emu),
-        "DisassociateCurrentThreadFromCallback" => DisassociateCurrentThreadFromCallback_api(emu),
-        "DiscardVirtualMemory" => DiscardVirtualMemory_api(emu),
-        "DnsHostnameToComputerNameExW" => DnsHostnameToComputerNameExW_api(emu),
-        "DuplicateConsoleHandle" => DuplicateConsoleHandle_api(emu),
-        "DuplicatePackageVirtualizationContext" => DuplicatePackageVirtualizationContext_api(emu),
-        "EnableProcessOptionalXStateFeatures" => EnableProcessOptionalXStateFeatures_api(emu),
-        "EncodeSystemPointer" => EncodeSystemPointer_api(emu),
-        "EnterSynchronizationBarrier" => EnterSynchronizationBarrier_api(emu),
-        "EnumCalendarInfoExEx" => EnumCalendarInfoExEx_api(emu),
-        "EnumCalendarInfoExW" => EnumCalendarInfoExW_api(emu),
-        "EnumCalendarInfoW" => EnumCalendarInfoW_api(emu),
-        "EnumDateFormatsExEx" => EnumDateFormatsExEx_api(emu),
-        "EnumDateFormatsExW" => EnumDateFormatsExW_api(emu),
-        "EnumDateFormatsW" => EnumDateFormatsW_api(emu),
-        "EnumLanguageGroupLocalesW" => EnumLanguageGroupLocalesW_api(emu),
-        "EnumResourceLanguagesA" => EnumResourceLanguagesA_api(emu),
-        "EnumResourceLanguagesExA" => EnumResourceLanguagesExA_api(emu),
-        "EnumResourceLanguagesExW" => EnumResourceLanguagesExW_api(emu),
-        "EnumResourceLanguagesW" => EnumResourceLanguagesW_api(emu),
-        "EnumResourceNamesA" => EnumResourceNamesA_api(emu),
-        "EnumResourceNamesExA" => EnumResourceNamesExA_api(emu),
-        "EnumResourceNamesExW" => EnumResourceNamesExW_api(emu),
-        "EnumResourceNamesW" => EnumResourceNamesW_api(emu),
-        "EnumResourceTypesA" => EnumResourceTypesA_api(emu),
-        "EnumResourceTypesExA" => EnumResourceTypesExA_api(emu),
-        "EnumResourceTypesExW" => EnumResourceTypesExW_api(emu),
-        "EnumResourceTypesW" => EnumResourceTypesW_api(emu),
-        "EnumSystemCodePagesW" => EnumSystemCodePagesW_api(emu),
-        "EnumSystemFirmwareTables" => EnumSystemFirmwareTables_api(emu),
-        "EnumSystemLanguageGroupsW" => EnumSystemLanguageGroupsW_api(emu),
-        "EnumSystemLocalesA" => EnumSystemLocalesA_api(emu),
-        "EnumSystemLocalesEx" => EnumSystemLocalesEx_api(emu),
-        "EnumSystemLocalesW" => EnumSystemLocalesW_api(emu),
-        "EnumTimeFormatsEx" => EnumTimeFormatsEx_api(emu),
-        "EnumTimeFormatsW" => EnumTimeFormatsW_api(emu),
-        "EnumUILanguagesW" => EnumUILanguagesW_api(emu),
-        "EscapeCommFunction" => EscapeCommFunction_api(emu),
-        "ExitVDM" => ExitVDM_api(emu),
-        "ExpungeConsoleCommandHistoryA" => ExpungeConsoleCommandHistoryA_api(emu),
-        "ExpungeConsoleCommandHistoryW" => ExpungeConsoleCommandHistoryW_api(emu),
-        "FatalAppExitA" => FatalAppExitA_api(emu),
-        "FatalAppExitW" => FatalAppExitW_api(emu),
-        "FillConsoleOutputAttribute" => FillConsoleOutputAttribute_api(emu),
-        "FillConsoleOutputCharacterA" => FillConsoleOutputCharacterA_api(emu),
-        "FillConsoleOutputCharacterW" => FillConsoleOutputCharacterW_api(emu),
-        "FindActCtxSectionGuid" => FindActCtxSectionGuid_api(emu),
-        "FindActCtxSectionStringW" => FindActCtxSectionStringW_api(emu),
-        "FindCloseChangeNotification" => FindCloseChangeNotification_api(emu),
-        "FindFirstChangeNotificationA" => FindFirstChangeNotificationA_api(emu),
-        "FindFirstChangeNotificationW" => FindFirstChangeNotificationW_api(emu),
-        "FindFirstFileExA" => FindFirstFileExA_api(emu),
-        "FindFirstFileExW" => FindFirstFileExW_api(emu),
-        "FindFirstFileNameTransactedW" => FindFirstFileNameTransactedW_api(emu),
-        "FindFirstFileNameW" => FindFirstFileNameW_api(emu),
-        "FindFirstFileTransactedA" => FindFirstFileTransactedA_api(emu),
-        "FindFirstFileTransactedW" => FindFirstFileTransactedW_api(emu),
-        "FindFirstStreamTransactedW" => FindFirstStreamTransactedW_api(emu),
-        "FindFirstStreamW" => FindFirstStreamW_api(emu),
-        "FindFirstVolumeW" => FindFirstVolumeW_api(emu),
-        "FindNLSString" => FindNLSString_api(emu),
-        "FindNLSStringEx" => FindNLSStringEx_api(emu),
-        "FindNextChangeNotification" => FindNextChangeNotification_api(emu),
-        "FindNextFileNameW" => FindNextFileNameW_api(emu),
-        "FindNextStreamW" => FindNextStreamW_api(emu),
-        "FindNextVolumeW" => FindNextVolumeW_api(emu),
-        "FindPackagesByPackageFamily" => FindPackagesByPackageFamily_api(emu),
-        "FindResourceExA" => FindResourceExA_api(emu),
-        "FindResourceExW" => FindResourceExW_api(emu),
-        "FindStringOrdinal" => FindStringOrdinal_api(emu),
-        "FindVolumeClose" => FindVolumeClose_api(emu),
-        "FlsFree" => FlsFree(emu),
-        "FlsGetValue2" => FlsGetValue2_api(emu),
-        "FlushConsoleInputBuffer" => FlushConsoleInputBuffer_api(emu),
-        "FlushFileBuffers" => FlushFileBuffers(emu),
-        "FlushInstructionCache" => FlushInstructionCache_api(emu),
-        "FlushProcessWriteBuffers" => FlushProcessWriteBuffers_api(emu),
-        "FlushViewOfFile" => FlushViewOfFile_api(emu),
-        "FoldStringW" => FoldStringW_api(emu),
-        "FormatApplicationUserModelId" => FormatApplicationUserModelId_api(emu),
-        "FreeConsole" => FreeConsole_api(emu),
-        "FreeLibraryAndExitThread" => FreeLibraryAndExitThread_api(emu),
-        "FreeLibraryWhenCallbackReturns" => FreeLibraryWhenCallbackReturns_api(emu),
-        "FreeUserPhysicalPages" => FreeUserPhysicalPages_api(emu),
-        "GenerateConsoleCtrlEvent" => GenerateConsoleCtrlEvent_api(emu),
-        "GetAppContainerAce" => GetAppContainerAce_api(emu),
-        "GetAppContainerNamedObjectPath" => GetAppContainerNamedObjectPath_api(emu),
-        "GetApplicationRecoveryCallback" => GetApplicationRecoveryCallback_api(emu),
-        "GetApplicationRecoveryCallbackWorker" => GetApplicationRecoveryCallbackWorker_api(emu),
-        "GetApplicationRestartSettings" => GetApplicationRestartSettings_api(emu),
-        "GetApplicationUserModelId" => GetApplicationUserModelId_api(emu),
-        "GetBinaryType" => GetBinaryType_api(emu),
-        "GetBinaryTypeA" => GetBinaryTypeA_api(emu),
-        "GetCPInfoExA" => GetCPInfoExA_api(emu),
-        "GetCPInfoExW" => GetCPInfoExW_api(emu),
-        "GetCachedSigningLevel" => GetCachedSigningLevel_api(emu),
-        "GetCalendarInfoEx" => GetCalendarInfoEx_api(emu),
-        "GetCalendarInfoW" => GetCalendarInfoW_api(emu),
-        "GetCommConfig" => GetCommConfig_api(emu),
-        "GetCommMask" => GetCommMask_api(emu),
-        "GetCommModemStatus" => GetCommModemStatus_api(emu),
-        "GetCommProperties" => GetCommProperties_api(emu),
-        "GetCommState" => GetCommState_api(emu),
-        "GetCommTimeouts" => GetCommTimeouts_api(emu),
-        "GetCompressedFileSizeA" => GetCompressedFileSizeA_api(emu),
-        "GetCompressedFileSizeTransactedA" => GetCompressedFileSizeTransactedA_api(emu),
-        "GetCompressedFileSizeW" => GetCompressedFileSizeW_api(emu),
-        "GetComputerNameExA" => GetComputerNameExA_api(emu),
-        "GetComputerNameExW" => GetComputerNameExW_api(emu),
-        "GetConsoleAliasA" => GetConsoleAliasA_api(emu),
-        "GetConsoleAliasExesA" => GetConsoleAliasExesA_api(emu),
-        "GetConsoleAliasExesLengthA" => GetConsoleAliasExesLengthA_api(emu),
-        "GetConsoleAliasExesLengthW" => GetConsoleAliasExesLengthW_api(emu),
-        "GetConsoleAliasExesW" => GetConsoleAliasExesW_api(emu),
-        "GetConsoleAliasW" => GetConsoleAliasW_api(emu),
-        "GetConsoleAliasesA" => GetConsoleAliasesA_api(emu),
-        "GetConsoleAliasesLengthA" => GetConsoleAliasesLengthA_api(emu),
-        "GetConsoleAliasesLengthW" => GetConsoleAliasesLengthW_api(emu),
-        "GetConsoleAliasesW" => GetConsoleAliasesW_api(emu),
-        "GetConsoleCommandHistoryA" => GetConsoleCommandHistoryA_api(emu),
-        "GetConsoleCommandHistoryLengthA" => GetConsoleCommandHistoryLengthA_api(emu),
-        "GetConsoleCommandHistoryLengthW" => GetConsoleCommandHistoryLengthW_api(emu),
-        "GetConsoleCommandHistoryW" => GetConsoleCommandHistoryW_api(emu),
-        "GetConsoleCursorInfo" => GetConsoleCursorInfo_api(emu),
-        "GetConsoleCursorMode" => GetConsoleCursorMode_api(emu),
-        "GetConsoleDisplayMode" => GetConsoleDisplayMode_api(emu),
-        "GetConsoleFontSize" => GetConsoleFontSize_api(emu),
-        "GetConsoleHistoryInfo" => GetConsoleHistoryInfo_api(emu),
-        "GetConsoleInputExeNameA" => GetConsoleInputExeNameA_api(emu),
-        "GetConsoleInputExeNameW" => GetConsoleInputExeNameW_api(emu),
-        "GetConsoleNlsMode" => GetConsoleNlsMode_api(emu),
-        "GetConsoleOriginalTitleA" => GetConsoleOriginalTitleA_api(emu),
-        "GetConsoleOriginalTitleW" => GetConsoleOriginalTitleW_api(emu),
-        "GetConsoleProcessList" => GetConsoleProcessList_api(emu),
-        "GetConsoleScreenBufferInfo" => GetConsoleScreenBufferInfo_api(emu),
-        "GetConsoleScreenBufferInfoEx" => GetConsoleScreenBufferInfoEx_api(emu),
-        "GetConsoleSelectionInfo" => GetConsoleSelectionInfo_api(emu),
-        "GetConsoleTitleA" => GetConsoleTitleA_api(emu),
-        "GetConsoleTitleW" => GetConsoleTitleW_api(emu),
-        "GetConsoleWindow" => GetConsoleWindow(emu),
-        "GetCurrencyFormatEx" => GetCurrencyFormatEx_api(emu),
-        "GetCurrentActCtx" => GetCurrentActCtx_api(emu),
-        "GetCurrentApplicationUserModelId" => GetCurrentApplicationUserModelId_api(emu),
-        "GetCurrentConsoleFont" => GetCurrentConsoleFont_api(emu),
-        "GetCurrentConsoleFontEx" => GetCurrentConsoleFontEx_api(emu),
-        "GetCurrentPackageFamilyName" => GetCurrentPackageFamilyName_api(emu),
-        "GetCurrentPackageFullName" => GetCurrentPackageFullName_api(emu),
-        "GetCurrentPackageId" => GetCurrentPackageId_api(emu),
-        "GetCurrentPackageInfo" => GetCurrentPackageInfo_api(emu),
-        "GetCurrentPackagePath" => GetCurrentPackagePath(emu),
-        "GetCurrentPackageVirtualizationContext" => GetCurrentPackageVirtualizationContext(emu),
-        "GetCurrentProcessorNumber" => GetCurrentProcessorNumber(emu),
-        "GetCurrentProcessorNumberEx" => GetCurrentProcessorNumberEx_api(emu),
-        "GetCurrentThreadStackLimits" => GetCurrentThreadStackLimits_api(emu),
-        "GetDateFormatA" => GetDateFormatA_api(emu),
-        "GetDateFormatEx" => GetDateFormatEx_api(emu),
-        "GetDateFormatW" => GetDateFormatW(emu),
-        "GetDiskFreeSpaceW" => GetDiskFreeSpaceW_api(emu),
-        "GetDiskSpaceInformationA" => GetDiskSpaceInformationA_api(emu),
-        "GetDiskSpaceInformationW" => GetDiskSpaceInformationW_api(emu),
-        "GetDurationFormatEx" => GetDurationFormatEx_api(emu),
-        "GetDynamicTimeZoneInformation" => GetDynamicTimeZoneInformation_api(emu),
-        "GetEnabledXStateFeatures" => GetEnabledXStateFeatures(emu),
-        "GetEnvironmentStringsA" => GetEnvironmentStringsA(emu),
-        "GetEnvironmentVariableA" => GetEnvironmentVariableA_api(emu),
-        "GetEraNameCountedString" => GetEraNameCountedString_api(emu),
-        "GetErrorMode" => GetErrorMode(emu),
-        "GetExitCodeProcess" => GetExitCodeProcess(emu),
-        "GetExitCodeThread" => GetExitCodeThread(emu),
-        "GetFileAttributesExA" => GetFileAttributesExA_api(emu),
-        "GetFileAttributesExW" => GetFileAttributesExW_api(emu),
-        "GetFileAttributesTransactedW" => GetFileAttributesTransactedW_api(emu),
-        "GetFileInformationByHandle" => GetFileInformationByHandle_api(emu),
-        "GetFileInformationByHandleEx" => GetFileInformationByHandleEx_api(emu),
-        "GetFileInformationByName" => GetFileInformationByName_api(emu),
-        "GetFileMUIInfo" => GetFileMUIInfo_api(emu),
-        "GetFileMUIPath" => GetFileMUIPath_api(emu),
-        "GetFileTime" => GetFileTime_api(emu),
-        "GetFinalPathNameByHandleA" => GetFinalPathNameByHandleA_api(emu),
-        "GetFinalPathNameByHandleW" => GetFinalPathNameByHandleW_api(emu),
-        "GetFirmwareEnvironmentVariableExA" => GetFirmwareEnvironmentVariableExA_api(emu),
-        "GetFirmwareEnvironmentVariableExW" => GetFirmwareEnvironmentVariableExW_api(emu),
-        "GetHandleInformation" => GetHandleInformation_api(emu),
-        "GetIoRingInfo" => GetIoRingInfo_api(emu),
-        "GetLargePageMinimum" => GetLargePageMinimum(emu),
-        "GetLargestConsoleWindowSize" => GetLargestConsoleWindowSize_api(emu),
-        "GetLocaleInfoEx" => GetLocaleInfoEx(emu),
-        "GetLogicalDriveStringsA" => GetLogicalDriveStringsA_api(emu),
-        "GetLogicalDriveStringsW" => GetLogicalDriveStringsW_api(emu),
-        "GetLogicalProcessorInformation" => GetLogicalProcessorInformation_api(emu),
-        "GetLogicalProcessorInformationEx" => GetLogicalProcessorInformationEx_api(emu),
-        "GetLongPathNameTransactedA" => GetLongPathNameTransactedA_api(emu),
-        "GetLongPathNameTransactedW" => GetLongPathNameTransactedW_api(emu),
-        "GetMachineTypeAttributes" => GetMachineTypeAttributes_api(emu),
-        "GetMemoryErrorHandlingCapabilities" => GetMemoryErrorHandlingCapabilities_api(emu),
-        "GetModuleHandleExA" => GetModuleHandleExA_api(emu),
-        "GetNLSVersion" => GetNLSVersion_api(emu),
-        "GetNLSVersionEx" => GetNLSVersionEx_api(emu),
-        "GetNamedPipeAttribute" => GetNamedPipeAttribute_api(emu),
-        "GetNamedPipeClientComputerNameW" => GetNamedPipeClientComputerNameW_api(emu),
-        "GetNamedPipeHandleStateW" => GetNamedPipeHandleStateW_api(emu),
-        "GetNamedPipeInfo" => GetNamedPipeInfo_api(emu),
-        "GetNamedPipeServerProcessId" => GetNamedPipeServerProcessId_api(emu),
-        "GetNextVDMCommand" => GetNextVDMCommand_api(emu),
-        "GetNumaHighestNodeNumber" => GetNumaHighestNodeNumber_api(emu),
-        "GetNumaNodeProcessorMask2" => GetNumaNodeProcessorMask2_api(emu),
-        "GetNumaNodeProcessorMaskEx" => GetNumaNodeProcessorMaskEx_api(emu),
-        "GetNumaProximityNodeEx" => GetNumaProximityNodeEx_api(emu),
-        "GetNumberFormatEx" => GetNumberFormatEx_api(emu),
-        "GetNumberOfConsoleInputEvents" => GetNumberOfConsoleInputEvents_api(emu),
-        "GetNumberOfConsoleMouseButtons" => GetNumberOfConsoleMouseButtons_api(emu),
-        "GetOverlappedResult" => GetOverlappedResult_api(emu),
-        "GetOverlappedResultEx" => GetOverlappedResultEx_api(emu),
-        "GetPackageApplicationIds" => GetPackageApplicationIds_api(emu),
-        "GetPackageFamilyName" => GetPackageFamilyName_api(emu),
-        "GetPackageFullName" => GetPackageFullName_api(emu),
-        "GetPackageId" => GetPackageId_api(emu),
-        "GetPackageInfo" => GetPackageInfo_api(emu),
-        "GetPackagePath" => GetPackagePath_api(emu),
-        "GetPackagePathByFullName" => GetPackagePathByFullName_api(emu),
-        "GetPackagesByPackageFamily" => GetPackagesByPackageFamily_api(emu),
-        "GetPhysicallyInstalledSystemMemory" => GetPhysicallyInstalledSystemMemory_api(emu),
-        "GetPriorityClass" => GetPriorityClass_api(emu),
-        "GetProcessDefaultCpuSetMasks" => GetProcessDefaultCpuSetMasks_api(emu),
-        "GetProcessDefaultCpuSets" => GetProcessDefaultCpuSets_api(emu),
-        "GetProcessGroupAffinity" => GetProcessGroupAffinity_api(emu),
-        "GetProcessHandleCount" => GetProcessHandleCount_api(emu),
-        "GetProcessHeaps" => GetProcessHeaps_api(emu),
-        "GetProcessId" => GetProcessId(emu),
-        "GetProcessIdOfThread" => GetProcessIdOfThread_api(emu),
-        "GetProcessInformation" => GetProcessInformation_api(emu),
-        "GetProcessMitigationPolicy" => GetProcessMitigationPolicy_api(emu),
-        "GetProcessPreferredUILanguages" => GetProcessPreferredUILanguages_api(emu),
-        "GetProcessPriorityBoost" => GetProcessPriorityBoost_api(emu),
-        "GetProcessShutdownParameters" => GetProcessShutdownParameters_api(emu),
-        "GetProcessTimes" => GetProcessTimes_api(emu),
-        "GetProcessVersion" => GetProcessVersion_api(emu),
-        "GetProcessWorkingSetSizeEx" => GetProcessWorkingSetSizeEx_api(emu),
-        "GetProcessesInVirtualizationContext" => GetProcessesInVirtualizationContext_api(emu),
-        "GetProcessorSystemCycleTime" => GetProcessorSystemCycleTime_api(emu),
-        "GetProductInfo" => GetProductInfo_api(emu),
-        "GetQueuedCompletionStatus" => GetQueuedCompletionStatus_api(emu),
-        "GetQueuedCompletionStatusEx" => GetQueuedCompletionStatusEx_api(emu),
-        "GetStagedPackagePathByFullName" => GetStagedPackagePathByFullName_api(emu),
-        "GetStateFolder" => GetStateFolder_api(emu),
-        "GetStringScripts" => GetStringScripts_api(emu),
-        "GetStringTypeA" => GetStringTypeA(emu),
-        "GetStringTypeExA" => GetStringTypeExA_api(emu),
-        "GetStringTypeExW" => GetStringTypeExW_api(emu),
-        "GetSystemAppDataKey" => GetSystemAppDataKey_api(emu),
-        "GetSystemCpuSetInformation" => GetSystemCpuSetInformation_api(emu),
-        "GetSystemDefaultLCID" => GetSystemDefaultLCID(emu),
-        "GetSystemDefaultLangID" => GetSystemDefaultLangID(emu),
-        "GetSystemDefaultLocaleName" => GetSystemDefaultLocaleName_api(emu),
-        "GetSystemDefaultUILanguage" => GetSystemDefaultUILanguage(emu),
-        "GetSystemFileCacheSize" => GetSystemFileCacheSize_api(emu),
-        "GetSystemFirmwareTable" => GetSystemFirmwareTable_api(emu),
-        "GetSystemPreferredUILanguages" => GetSystemPreferredUILanguages_api(emu),
-        "GetSystemTimeAdjustment" => GetSystemTimeAdjustment_api(emu),
-        "GetSystemTimePreciseAsFileTime" => GetSystemTimePreciseAsFileTime_api(emu),
-        "GetSystemTimes" => GetSystemTimes_api(emu),
-        "GetSystemWow64DirectoryA" => GetSystemWow64DirectoryA_api(emu),
-        "GetSystemWow64DirectoryW" => GetSystemWow64DirectoryW_api(emu),
-        "GetTempFileNameA" => GetTempFileNameA_api(emu),
-        "GetTempFileNameW" => GetTempFileNameW_api(emu),
-        "GetTempPath2A" => GetTempPath2A_api(emu),
-        "GetTempPath2W" => GetTempPath2W_api(emu),
-        "GetThreadDescription" => GetThreadDescription_api(emu),
-        "GetThreadEnabledXStateFeatures" => GetThreadEnabledXStateFeatures(emu),
-        "GetThreadErrorMode" => GetThreadErrorMode(emu),
-        "GetThreadGroupAffinity" => GetThreadGroupAffinity_api(emu),
-        "GetThreadIOPendingFlag" => GetThreadIOPendingFlag_api(emu),
-        "GetThreadIdealProcessorEx" => GetThreadIdealProcessorEx_api(emu),
-        "GetThreadInformation" => GetThreadInformation_api(emu),
-        "GetThreadPriority" => GetThreadPriority_api(emu),
-        "GetThreadPriorityBoost" => GetThreadPriorityBoost_api(emu),
-        "GetThreadSelectedCpuSetMasks" => GetThreadSelectedCpuSetMasks_api(emu),
-        "GetThreadSelectedCpuSets" => GetThreadSelectedCpuSets_api(emu),
-        "GetThreadTimes" => GetThreadTimes_api(emu),
-        "GetTimeFormatA" => GetTimeFormatA_api(emu),
-        "GetTimeFormatAWorker" => GetTimeFormatAWorker_api(emu),
-        "GetTimeFormatEx" => GetTimeFormatEx_api(emu),
-        "GetTimeFormatW" => GetTimeFormatW(emu),
-        "GetTimeZoneInformationForYear" => GetTimeZoneInformationForYear_api(emu),
-        "GetUILanguageInfo" => GetUILanguageInfo_api(emu),
-        "GetUserDefaultLocaleName" => GetUserDefaultLocaleName_api(emu),
-        "GetUserPreferredUILanguages" => GetUserPreferredUILanguages_api(emu),
-        "GetVDMCurrentDirectories" => GetVDMCurrentDirectories_api(emu),
-        "GetVolumeInformationByHandleW" => GetVolumeInformationByHandleW_api(emu),
-        "GetVolumeNameForVolumeMountPointW" => GetVolumeNameForVolumeMountPointW_api(emu),
-        "GetVolumePathNameA" => GetVolumePathNameA_api(emu),
-        "GetVolumePathNameW" => GetVolumePathNameW_api(emu),
-        "GetVolumePathNamesForVolumeNameW" => GetVolumePathNamesForVolumeNameW_api(emu),
-        "GetWriteWatch" => GetWriteWatch_api(emu),
-        "GetXStateFeaturesMask" => GetXStateFeaturesMask_api(emu),
-        "GlobalCompact" => GlobalCompact_api(emu),
-        "GlobalMemoryStatusEx" => GlobalMemoryStatusEx_api(emu),
-        "HeapCompact" => HeapCompact_api(emu),
-        "HeapLock" => HeapLock_api(emu),
-        "HeapQueryInformation" => HeapQueryInformation_api(emu),
-        "HeapSummary" => HeapSummary_api(emu),
-        "HeapUnlock" => HeapUnlock_api(emu),
-        "HeapValidate" => HeapValidate_api(emu),
-        "HeapWalk" => HeapWalk_api(emu),
-        "IdnToAscii" => IdnToAscii_api(emu),
-        "IdnToNameprepUnicode" => IdnToNameprepUnicode_api(emu),
-        "IdnToUnicode" => IdnToUnicode_api(emu),
-        "InitOnceBeginInitialize" => InitOnceBeginInitialize_api(emu),
-        "InitOnceComplete" => InitOnceComplete_api(emu),
-        "InitOnceExecuteOnce" => InitOnceExecuteOnce_api(emu),
-        "InitOnceInitialize" => InitOnceInitialize_api(emu),
-        "InitializeConditionVariable" => InitializeConditionVariable(emu),
-        "InitializeContext" => InitializeContext_api(emu),
-        "InitializeContext2" => InitializeContext2_api(emu),
-        "InitializeEnclave" => InitializeEnclave_api(emu),
-        "InitializeProcThreadAttributeList" => InitializeProcThreadAttributeList_api(emu),
-        "InitializeSListHead" => InitializeSListHead_api(emu),
-        "InitializeSynchronizationBarrier" => InitializeSynchronizationBarrier_api(emu),
-        "InstallELAMCertificateInfo" => InstallELAMCertificateInfo_api(emu),
-        "InterlockedCompareExchange64" => InterlockedCompareExchange64_api(emu),
-        "InterlockedFlushSList" => InterlockedFlushSList_api(emu),
-        "InterlockedPopEntrySList" => InterlockedPopEntrySList_api(emu),
-        "InterlockedPushEntrySList" => InterlockedPushEntrySList_api(emu),
-        "InterlockedPushListSList" => InterlockedPushListSList_api(emu),
-        "InterlockedPushListSListEx" => InterlockedPushListSListEx_api(emu),
-        "IsDBCSLeadByte" => IsDBCSLeadByte_api(emu),
-        "IsDBCSLeadByteEx" => IsDBCSLeadByteEx_api(emu),
-        "IsEnclaveTypeSupported" => IsEnclaveTypeSupported_api(emu),
-        "IsIoRingOpSupported" => IsIoRingOpSupported_api(emu),
-        "IsNLSDefinedString" => IsNLSDefinedString_api(emu),
-        "IsNativeVhdBoot" => IsNativeVhdBoot_api(emu),
-        "IsNormalizedString" => IsNormalizedString_api(emu),
-        "IsProcessCritical" => IsProcessCritical_api(emu),
-        "IsProcessInJob" => IsProcessInJob_api(emu),
-        "IsThreadpoolTimerSet" => IsThreadpoolTimerSet_api(emu),
-        "IsUserCetAvailableInEnvironment" => IsUserCetAvailableInEnvironment_api(emu),
-        "IsValidLanguageGroup" => IsValidLanguageGroup_api(emu),
-        "IsValidLocaleName" => IsValidLocaleName_api(emu),
-        "IsValidNLSVersion" => IsValidNLSVersion_api(emu),
-        "IsWow64GuestMachineSupported" => IsWow64GuestMachineSupported_api(emu),
-        "IsWow64Process2" => IsWow64Process2_api(emu),
-        "K32EmptyWorkingSet" => K32EmptyWorkingSet_api(emu),
-        "K32EnumDeviceDrivers" => K32EnumDeviceDrivers_api(emu),
-        "K32EnumPageFilesA" => K32EnumPageFilesA_api(emu),
-        "K32EnumPageFilesW" => K32EnumPageFilesW_api(emu),
-        "K32EnumProcessModules" => K32EnumProcessModules_api(emu),
-        "K32EnumProcessModulesEx" => K32EnumProcessModulesEx_api(emu),
-        "K32EnumProcesses" => K32EnumProcesses_api(emu),
-        "K32GetDeviceDriverBaseNameA" => K32GetDeviceDriverBaseNameA_api(emu),
-        "K32GetDeviceDriverBaseNameW" => K32GetDeviceDriverBaseNameW_api(emu),
-        "K32GetDeviceDriverFileNameA" => K32GetDeviceDriverFileNameA_api(emu),
-        "K32GetDeviceDriverFileNameW" => K32GetDeviceDriverFileNameW_api(emu),
-        "K32GetMappedFileNameA" => K32GetMappedFileNameA_api(emu),
-        "K32GetMappedFileNameW" => K32GetMappedFileNameW_api(emu),
-        "K32GetModuleBaseNameA" => K32GetModuleBaseNameA_api(emu),
-        "K32GetModuleBaseNameW" => K32GetModuleBaseNameW_api(emu),
-        "K32GetModuleFileNameExA" => K32GetModuleFileNameExA_api(emu),
-        "K32GetModuleFileNameExW" => K32GetModuleFileNameExW_api(emu),
-        "K32GetModuleInformation" => K32GetModuleInformation_api(emu),
-        "K32GetPerformanceInfo" => K32GetPerformanceInfo_api(emu),
-        "K32GetProcessImageFileNameA" => K32GetProcessImageFileNameA_api(emu),
-        "K32GetProcessImageFileNameW" => K32GetProcessImageFileNameW_api(emu),
-        "K32GetProcessMemoryInfo" => K32GetProcessMemoryInfo_api(emu),
-        "K32GetWsChanges" => K32GetWsChanges_api(emu),
-        "K32GetWsChangesEx" => K32GetWsChangesEx_api(emu),
-        "K32InitializeProcessForWsWatch" => K32InitializeProcessForWsWatch_api(emu),
-        "K32QueryWorkingSet" => K32QueryWorkingSet_api(emu),
-        "K32QueryWorkingSetEx" => K32QueryWorkingSetEx_api(emu),
-        "LCIDToLocaleName" => LCIDToLocaleName_api(emu),
-        "LCMapStringA" => LCMapStringA_api(emu),
-        "LCMapStringEx" => LCMapStringEx_api(emu),
-        "LZCloseFile" => LZCloseFile_api(emu),
-        "LZCreateFileW" => LZCreateFileW_api(emu),
-        "LZDone" => LZDone(emu),
-        "LeaveCriticalSectionWhenCallbackReturns" => {
-            LeaveCriticalSectionWhenCallbackReturns_api(emu)
-        }
-        "LoadAppInitDlls" => LoadAppInitDlls(emu),
-        "LoadEnclaveData" => LoadEnclaveData_api(emu),
-        "LoadModule" => LoadModule_api(emu),
-        "LoadPackagedLibrary" => LoadPackagedLibrary_api(emu),
-        "LoadStringBaseExW" => LoadStringBaseExW_api(emu),
-        "LocalFileTimeToFileTime" => LocalFileTimeToFileTime_api(emu),
-        "LocalFileTimeToLocalSystemTime" => LocalFileTimeToLocalSystemTime_api(emu),
-        "LocalLock" => LocalLock_api(emu),
-        "LocalReAlloc" => LocalReAlloc_api(emu),
-        "LocalSystemTimeToLocalFileTime" => LocalSystemTimeToLocalFileTime_api(emu),
-        "LocalUnlock" => LocalUnlock_api(emu),
-        "LocaleNameToLCID" => LocaleNameToLCID_api(emu),
-        "LocateXStateFeature" => LocateXStateFeature_api(emu),
-        "LockFile" => LockFile(emu),
-        "LockFileEx" => LockFileEx_api(emu),
-        "LogUnexpectedCodepath" => LogUnexpectedCodepath_api(emu),
-        "MapUserPhysicalPages" => MapUserPhysicalPages_api(emu),
-        "MapUserPhysicalPagesScatter" => MapUserPhysicalPagesScatter_api(emu),
-        "MapViewOfFileEx" => MapViewOfFileEx_api(emu),
-        "MapViewOfFileExNuma" => MapViewOfFileExNuma_api(emu),
-        "MapViewOfFileFromApp" => MapViewOfFileFromApp_api(emu),
-        "MoveFileExW" => MoveFileExW(emu),
-        "MoveFileWithProgressA" => MoveFileWithProgressA_api(emu),
-        "MoveFileWithProgressW" => MoveFileWithProgressW_api(emu),
-        "NeedCurrentDirectoryForExePathA" => NeedCurrentDirectoryForExePathA_api(emu),
-        "NeedCurrentDirectoryForExePathW" => NeedCurrentDirectoryForExePathW_api(emu),
-        "NlsCheckPolicy" => NlsCheckPolicy_api(emu),
-        "NlsGetCacheUpdateCount" => NlsGetCacheUpdateCount_api(emu),
-        "NlsUpdateLocale" => NlsUpdateLocale_api(emu),
-        "NlsUpdateSystemLocale" => NlsUpdateSystemLocale_api(emu),
-        "NormalizeString" => NormalizeString_api(emu),
-        "NotifyMountMgr" => NotifyMountMgr_api(emu),
-        "OfferVirtualMemory" => OfferVirtualMemory_api(emu),
-        "OpenConsoleW" => OpenConsoleW_api(emu),
-        "OpenConsoleWStub" => OpenConsoleWStub_api(emu),
-        "OpenEventA" => OpenEventA_api(emu),
-        "OpenEventW" => OpenEventW_api(emu),
-        "OpenFileById" => OpenFileById_api(emu),
-        "OpenFileMappingW" => OpenFileMappingW_api(emu),
-        "OpenMutexW" => OpenMutexW(emu),
-        "OpenPackageInfoByFullName" => OpenPackageInfoByFullName_api(emu),
-        "OpenPrivateNamespaceW" => OpenPrivateNamespaceW_api(emu),
-        "OpenProfileUserMapping" => OpenProfileUserMapping_api(emu),
-        "OpenSemaphoreA" => OpenSemaphoreA_api(emu),
-        "OpenSemaphoreW" => OpenSemaphoreW_api(emu),
-        "OpenState" => OpenState_api(emu),
-        "OpenStateExplicit" => OpenStateExplicit_api(emu),
-        "OpenThreadToken" => OpenThreadToken_api(emu),
-        "OpenWaitableTimerA" => OpenWaitableTimerA_api(emu),
-        "OpenWaitableTimerW" => OpenWaitableTimerW_api(emu),
-        "PackageFamilyNameFromFullName" => PackageFamilyNameFromFullName_api(emu),
-        "PackageFamilyNameFromId" => PackageFamilyNameFromId_api(emu),
-        "PackageFullNameFromId" => PackageFullNameFromId_api(emu),
-        "PackageIdFromFullName" => PackageIdFromFullName_api(emu),
-        "PackageNameAndPublisherIdFromFamilyName" => {
-            PackageNameAndPublisherIdFromFamilyName_api(emu)
-        }
-        "ParseApplicationUserModelId" => ParseApplicationUserModelId_api(emu),
-        "PeekConsoleInputA" => PeekConsoleInputA_api(emu),
-        "PeekConsoleInputW" => PeekConsoleInputW_api(emu),
-        "PeekNamedPipe" => PeekNamedPipe_api(emu),
-        "PopIoRingCompletion" => PopIoRingCompletion_api(emu),
-        "PostQueuedCompletionStatus" => PostQueuedCompletionStatus_api(emu),
-        "PrefetchVirtualMemory" => PrefetchVirtualMemory_api(emu),
-        "PrivCopyFileExW" => PrivCopyFileExW_api(emu),
-        "ProcessIdToSessionId" => ProcessIdToSessionId_api(emu),
-        "PssCaptureSnapshot" => PssCaptureSnapshot_api(emu),
-        "PssDuplicateSnapshot" => PssDuplicateSnapshot_api(emu),
-        "PssFreeSnapshot" => PssFreeSnapshot_api(emu),
-        "PssQuerySnapshot" => PssQuerySnapshot_api(emu),
-        "PssWalkMarkerCreate" => PssWalkMarkerCreate_api(emu),
-        "PssWalkMarkerFree" => PssWalkMarkerFree_api(emu),
-        "PssWalkMarkerGetPosition" => PssWalkMarkerGetPosition_api(emu),
-        "PssWalkMarkerRewind" => PssWalkMarkerRewind_api(emu),
-        "PssWalkMarkerSeek" => PssWalkMarkerSeek_api(emu),
-        "PssWalkMarkerSeekToBeginning" => PssWalkMarkerSeekToBeginning_api(emu),
-        "PssWalkMarkerSetPosition" => PssWalkMarkerSetPosition_api(emu),
-        "PssWalkMarkerTell" => PssWalkMarkerTell_api(emu),
-        "PssWalkSnapshot" => PssWalkSnapshot_api(emu),
-        "PulseEvent" => PulseEvent_api(emu),
-        "PurgeComm" => PurgeComm_api(emu),
-        "QueryActCtxSettingsW" => QueryActCtxSettingsW_api(emu),
-        "QueryActCtxW" => QueryActCtxW_api(emu),
-        "QueryDepthSList" => QueryDepthSList_api(emu),
-        "QueryDosDeviceW" => QueryDosDeviceW_api(emu),
-        "QueryFullProcessImageNameA" => QueryFullProcessImageNameA_api(emu),
-        "QueryFullProcessImageNameW" => QueryFullProcessImageNameW_api(emu),
-        "QueryIdleProcessorCycleTime" => QueryIdleProcessorCycleTime_api(emu),
-        "QueryIdleProcessorCycleTimeEx" => QueryIdleProcessorCycleTimeEx_api(emu),
-        "QueryIoRingCapabilities" => QueryIoRingCapabilities_api(emu),
-        "QueryMemoryResourceNotification" => QueryMemoryResourceNotification_api(emu),
-        "QueryProcessAffinityUpdateMode" => QueryProcessAffinityUpdateMode_api(emu),
-        "QueryProcessCycleTime" => QueryProcessCycleTime_api(emu),
-        "QueryProtectedPolicy" => QueryProtectedPolicy_api(emu),
-        "QueryThreadCycleTime" => QueryThreadCycleTime_api(emu),
-        "QueryThreadpoolStackInformation" => QueryThreadpoolStackInformation_api(emu),
-        "QueryUnbiasedInterruptTime" => QueryUnbiasedInterruptTime_api(emu),
-        "QueueUserAPC" => QueueUserAPC_api(emu),
-        "QueueUserAPC2" => QueueUserAPC2_api(emu),
-        "QueueUserWorkItem" => QueueUserWorkItem_api(emu),
-        "QuirkGetData2Worker" => QuirkGetData2Worker_api(emu),
-        "QuirkIsEnabled3Worker" => QuirkIsEnabled3Worker_api(emu),
-        "RaiseFailFastException" => RaiseFailFastException_api(emu),
-        "ReOpenFile" => ReOpenFile_api(emu),
-        "ReadConsoleA" => ReadConsoleA_api(emu),
-        "ReadConsoleInputA" => ReadConsoleInputA_api(emu),
-        "ReadConsoleInputExA" => ReadConsoleInputExA_api(emu),
-        "ReadConsoleInputExW" => ReadConsoleInputExW_api(emu),
-        "ReadConsoleInputW" => ReadConsoleInputW_api(emu),
-        "ReadConsoleOutputA" => ReadConsoleOutputA_api(emu),
-        "ReadConsoleOutputAttribute" => ReadConsoleOutputAttribute_api(emu),
-        "ReadConsoleOutputCharacterA" => ReadConsoleOutputCharacterA_api(emu),
-        "ReadConsoleOutputCharacterW" => ReadConsoleOutputCharacterW_api(emu),
-        "ReadConsoleOutputW" => ReadConsoleOutputW_api(emu),
-        "ReadConsoleW" => ReadConsoleW_api(emu),
-        "ReadDirectoryChangesExW" => ReadDirectoryChangesExW_api(emu),
-        "ReadDirectoryChangesW" => ReadDirectoryChangesW_api(emu),
-        "ReadFileEx" => ReadFileEx_api(emu),
-        "ReadFileScatter" => ReadFileScatter_api(emu),
-        "ReclaimVirtualMemory" => ReclaimVirtualMemory_api(emu),
-        "RegCopyTreeW" => RegCopyTreeW_api(emu),
-        "RegDeleteKeyExA" => RegDeleteKeyExA_api(emu),
-        "RegDeleteKeyExW" => RegDeleteKeyExW_api(emu),
-        "RegDeleteTreeA" => RegDeleteTreeA_api(emu),
-        "RegDeleteTreeW" => RegDeleteTreeW_api(emu),
-        "RegDeleteValueA" => RegDeleteValueA_api(emu),
-        "RegDeleteValueW" => RegDeleteValueW_api(emu),
-        "RegDisablePredefinedCacheEx" => RegDisablePredefinedCacheEx_api(emu),
-        "RegEnumKeyExA" => RegEnumKeyExA_api(emu),
-        "RegEnumKeyExW" => RegEnumKeyExW_api(emu),
-        "RegEnumValueA" => RegEnumValueA_api(emu),
-        "RegEnumValueW" => RegEnumValueW_api(emu),
-        "RegFlushKey" => RegFlushKey_api(emu),
-        "RegGetKeySecurity" => RegGetKeySecurity_api(emu),
-        "RegGetValueA" => RegGetValueA_api(emu),
-        "RegGetValueW" => RegGetValueW_api(emu),
-        "RegLoadKeyA" => RegLoadKeyA_api(emu),
-        "RegLoadKeyW" => RegLoadKeyW_api(emu),
-        "RegLoadMUIStringA" => RegLoadMUIStringA_api(emu),
-        "RegLoadMUIStringW" => RegLoadMUIStringW_api(emu),
-        "RegNotifyChangeKeyValue" => RegNotifyChangeKeyValue_api(emu),
-        "RegOpenCurrentUser" => RegOpenCurrentUser_api(emu),
-        "RegOpenKeyExA" => RegOpenKeyExA_api(emu),
-        "RegOpenUserClassesRoot" => RegOpenUserClassesRoot_api(emu),
-        "RegQueryInfoKeyA" => RegQueryInfoKeyA_api(emu),
-        "RegQueryInfoKeyW" => RegQueryInfoKeyW_api(emu),
-        "RegQueryValueExA" => RegQueryValueExA_api(emu),
-        "RegQueryValueExW" => RegQueryValueExW_api(emu),
-        "RegRestoreKeyA" => RegRestoreKeyA_api(emu),
-        "RegRestoreKeyW" => RegRestoreKeyW_api(emu),
-        "RegSaveKeyExA" => RegSaveKeyExA_api(emu),
-        "RegSaveKeyExW" => RegSaveKeyExW_api(emu),
-        "RegSetKeySecurity" => RegSetKeySecurity_api(emu),
-        "RegUnLoadKeyA" => RegUnLoadKeyA_api(emu),
-        "RegUnLoadKeyW" => RegUnLoadKeyW_api(emu),
-        "RegisterBadMemoryNotification" => RegisterBadMemoryNotification_api(emu),
-        "RegisterWaitForSingleObject" => RegisterWaitForSingleObject_api(emu),
-        "RegisterWaitForSingleObjectEx" => RegisterWaitForSingleObjectEx_api(emu),
-        "RegisterWowBaseHandlers" => RegisterWowBaseHandlers_api(emu),
-        "RegisterWowExec" => RegisterWowExec_api(emu),
-        "ReleaseActCtx" => ReleaseActCtx_api(emu),
-        "ReleaseActCtxWorker" => ReleaseActCtxWorker_api(emu),
-        "ReleaseMutex" => ReleaseMutex_api(emu),
-        "ReleaseMutexWhenCallbackReturns" => ReleaseMutexWhenCallbackReturns_api(emu),
-        "ReleasePackageVirtualizationContext" => ReleasePackageVirtualizationContext_api(emu),
-        "ReleasePseudoConsole" => ReleasePseudoConsole_api(emu),
-        "ReleaseSemaphore" => ReleaseSemaphore_api(emu),
-        "ReleaseSemaphoreWhenCallbackReturns" => ReleaseSemaphoreWhenCallbackReturns_api(emu),
-        "RemoveDirectory2A" => RemoveDirectory2A_api(emu),
-        "RemoveDirectory2W" => RemoveDirectory2W_api(emu),
-        "RemoveDirectoryTransactedA" => RemoveDirectoryTransactedA_api(emu),
-        "RemoveDllDirectory" => RemoveDllDirectory_api(emu),
-        "RemoveLocalAlternateComputerNameA" => RemoveLocalAlternateComputerNameA_api(emu),
-        "RemoveVectoredContinueHandler" => RemoveVectoredContinueHandler_api(emu),
-        "RemoveVectoredExceptionHandler" => RemoveVectoredExceptionHandler_api(emu),
-        "ReplaceFile" => ReplaceFile_api(emu),
-        "ReplaceFileW" => ReplaceFileW_api(emu),
-        "RequestDeviceWakeup" => RequestDeviceWakeup_api(emu),
-        "ResetWriteWatch" => ResetWriteWatch_api(emu),
-        "ResizePseudoConsole" => ResizePseudoConsole_api(emu),
-        "ResolveDelayLoadedAPI" => ResolveDelayLoadedAPI_api(emu),
-        "ResolveDelayLoadsFromDll" => ResolveDelayLoadsFromDll_api(emu),
-        "ResolveLocaleName" => ResolveLocaleName_api(emu),
-        "RestoreLastError" => RestoreLastError_api(emu),
-        "RtlCaptureContext" => RtlCaptureContext_api(emu),
-        "RtlCaptureStackBackTrace" => RtlCaptureStackBackTrace_api(emu),
-        "RtlFillMemory" => RtlFillMemory_api(emu),
-        "RtlMoveMemory" => RtlMoveMemory_api(emu),
-        "RtlPcToFileHeader" => RtlPcToFileHeader_api(emu),
-        "RtlUnwind" => RtlUnwind_api(emu),
-        "RtlZeroMemory" => RtlZeroMemory_api(emu),
-        "ScrollConsoleScreenBufferA" => ScrollConsoleScreenBufferA_api(emu),
-        "ScrollConsoleScreenBufferW" => ScrollConsoleScreenBufferW_api(emu),
-        "SearchPathA" => SearchPathA(emu),
-        "SearchPathW" => SearchPathW(emu),
-        "SetCachedSigningLevel" => SetCachedSigningLevel_api(emu),
-        "SetCalendarInfoW" => SetCalendarInfoW_api(emu),
-        "SetCommBreak" => SetCommBreak_api(emu),
-        "SetCommConfig" => SetCommConfig_api(emu),
-        "SetCommMask" => SetCommMask_api(emu),
-        "SetCommState" => SetCommState_api(emu),
-        "SetCommTimeouts" => SetCommTimeouts_api(emu),
-        "SetComputerNameA" => SetComputerNameA_api(emu),
-        "SetComputerNameEx2W" => SetComputerNameEx2W_api(emu),
-        "SetComputerNameExA" => SetComputerNameExA_api(emu),
-        "SetComputerNameExW" => SetComputerNameExW_api(emu),
-        "SetComputerNameW" => SetComputerNameW_api(emu),
-        "SetConsoleActiveScreenBuffer" => SetConsoleActiveScreenBuffer_api(emu),
-        "SetConsoleCP" => SetConsoleCP_api(emu),
-        "SetConsoleCtrlHandler" => SetConsoleCtrlHandler_api(emu),
-        "SetConsoleCursorInfo" => SetConsoleCursorInfo_api(emu),
-        "SetConsoleCursorMode" => SetConsoleCursorMode_api(emu),
-        "SetConsoleCursorPosition" => SetConsoleCursorPosition_api(emu),
-        "SetConsoleDisplayMode" => SetConsoleDisplayMode_api(emu),
-        "SetConsoleHistoryInfo" => SetConsoleHistoryInfo_api(emu),
-        "SetConsoleInputExeNameA" => SetConsoleInputExeNameA_api(emu),
-        "SetConsoleInputExeNameW" => SetConsoleInputExeNameW_api(emu),
-        "SetConsoleMode" => SetConsoleMode_api(emu),
-        "SetConsoleNlsMode" => SetConsoleNlsMode_api(emu),
-        "SetConsoleNumberOfCommandsA" => SetConsoleNumberOfCommandsA_api(emu),
-        "SetConsoleNumberOfCommandsW" => SetConsoleNumberOfCommandsW_api(emu),
-        "SetConsoleOutputCP" => SetConsoleOutputCP_api(emu),
-        "SetConsoleScreenBufferInfoEx" => SetConsoleScreenBufferInfoEx_api(emu),
-        "SetConsoleScreenBufferSize" => SetConsoleScreenBufferSize_api(emu),
-        "SetConsoleTextAttribute" => SetConsoleTextAttribute_api(emu),
-        "SetConsoleTitleA" => SetConsoleTitleA_api(emu),
-        "SetConsoleTitleW" => SetConsoleTitleW_api(emu),
-        "SetConsoleWindowInfo" => SetConsoleWindowInfo_api(emu),
-        "SetCriticalSectionSpinCount" => SetCriticalSectionSpinCount_api(emu),
-        "SetCurrentConsoleFontEx" => SetCurrentConsoleFontEx_api(emu),
-        "SetCurrentDirectoryW" => SetCurrentDirectoryW_api(emu),
-        "SetDefaultCommConfigW" => SetDefaultCommConfigW_api(emu),
-        "SetDefaultDllDirectories" => SetDefaultDllDirectories_api(emu),
-        "SetDynamicTimeZoneInformation" => SetDynamicTimeZoneInformation_api(emu),
-        "SetEndOfFile" => SetEndOfFile(emu),
-        "SetEnvironmentStringsW" => SetEnvironmentStringsW_api(emu),
-        "SetEvent" => SetEvent(emu),
-        "SetEventWhenCallbackReturns" => SetEventWhenCallbackReturns_api(emu),
-        "SetFileApisToANSI" => SetFileApisToANSI_api(emu),
-        "SetFileApisToOEM" => SetFileApisToOEM_api(emu),
-        "SetFileAttributesTransactedA" => SetFileAttributesTransactedA_api(emu),
-        "SetFileCompletionNotificationModes" => SetFileCompletionNotificationModes_api(emu),
-        "SetFileInformationByHandle" => SetFileInformationByHandle_api(emu),
-        "SetFileIoOverlappedRange" => SetFileIoOverlappedRange_api(emu),
-        "SetFilePointerEx" => SetFilePointerEx(emu),
-        "SetFileTime" => SetFileTime_api(emu),
-        "SetFileValidData" => SetFileValidData_api(emu),
-        "SetFirmwareEnvironmentVariableExA" => SetFirmwareEnvironmentVariableExA_api(emu),
-        "SetFirmwareEnvironmentVariableExW" => SetFirmwareEnvironmentVariableExW_api(emu),
-        "SetHandleContext" => SetHandleContext_api(emu),
-        "SetHandleInformation" => SetHandleInformation_api(emu),
-        "SetIoRingCompletionEvent" => SetIoRingCompletionEvent_api(emu),
-        "SetLastConsoleEventActive" => SetLastConsoleEventActive_api(emu),
-        "SetLocalPrimaryComputerNameA" => SetLocalPrimaryComputerNameA_api(emu),
-        "SetLocalTime" => SetLocalTime_api(emu),
-        "SetLocaleInfoW" => SetLocaleInfoW(emu),
-        "SetNamedPipeHandleState" => SetNamedPipeHandleState_api(emu),
-        "SetPriorityClass" => SetPriorityClass_api(emu),
-        "SetProcessAffinityUpdateMode" => SetProcessAffinityUpdateMode_api(emu),
-        "SetProcessDefaultCpuSetMasks" => SetProcessDefaultCpuSetMasks_api(emu),
-        "SetProcessDefaultCpuSets" => SetProcessDefaultCpuSets_api(emu),
-        "SetProcessDynamicEHContinuationTargets" => SetProcessDynamicEHContinuationTargets_api(emu),
-        "SetProcessDynamicEnforcedCetCompatibleRanges" => {
-            SetProcessDynamicEnforcedCetCompatibleRanges_api(emu)
-        }
-        "SetProcessInformation" => SetProcessInformation_api(emu),
-        "SetProcessMitigationPolicy" => SetProcessMitigationPolicy_api(emu),
-        "SetProcessPreferredUILanguages" => SetProcessPreferredUILanguages_api(emu),
-        "SetProcessPriorityBoost" => SetProcessPriorityBoost_api(emu),
-        "SetProcessShutdownParameters" => SetProcessShutdownParameters_api(emu),
-        "SetProcessWorkingSetSizeEx" => SetProcessWorkingSetSizeEx_api(emu),
-        "SetProtectedPolicy" => SetProtectedPolicy_api(emu),
-        "SetSearchPathMode" => SetSearchPathMode_api(emu),
-        "SetStdHandle" => SetStdHandle_api(emu),
-        "SetStdHandleEx" => SetStdHandleEx_api(emu),
-        "SetSystemFileCacheSize" => SetSystemFileCacheSize_api(emu),
-        "SetSystemTime" => SetSystemTime_api(emu),
-        "SetTermsrvAppInstallMode" => SetTermsrvAppInstallMode_api(emu),
-        "SetThreadDescription" => SetThreadDescription_api(emu),
-        "SetThreadErrorMode" => SetThreadErrorMode_api(emu),
-        "SetThreadGroupAffinity" => SetThreadGroupAffinity_api(emu),
-        "SetThreadIdealProcessor" => SetThreadIdealProcessor_api(emu),
-        "SetThreadIdealProcessorEx" => SetThreadIdealProcessorEx_api(emu),
-        "SetThreadInformation" => SetThreadInformation_api(emu),
-        "SetThreadPreferredUILanguages" => SetThreadPreferredUILanguages_api(emu),
-        "SetThreadPriority" => SetThreadPriority_api(emu),
-        "SetThreadPriorityBoost" => SetThreadPriorityBoost_api(emu),
-        "SetThreadSelectedCpuSetMasks" => SetThreadSelectedCpuSetMasks_api(emu),
-        "SetThreadSelectedCpuSets" => SetThreadSelectedCpuSets_api(emu),
-        "SetThreadStackGuarantee" => SetThreadStackGuarantee_api(emu),
-        "SetThreadToken" => SetThreadToken_api(emu),
-        "SetThreadUILanguage" => SetThreadUILanguage_api(emu),
-        "SetThreadpoolStackInformation" => SetThreadpoolStackInformation_api(emu),
-        "SetThreadpoolThreadMaximum" => SetThreadpoolThreadMaximum_api(emu),
-        "SetThreadpoolThreadMinimum" => SetThreadpoolThreadMinimum_api(emu),
-        "SetThreadpoolTimer" => SetThreadpoolTimer_api(emu),
-        "SetThreadpoolTimerEx" => SetThreadpoolTimerEx_api(emu),
-        "SetThreadpoolWait" => SetThreadpoolWait_api(emu),
-        "SetThreadpoolWaitEx" => SetThreadpoolWaitEx_api(emu),
-        "SetTimeZoneInformation" => SetTimeZoneInformation_api(emu),
-        "SetVDMCurrentDirectories" => SetVDMCurrentDirectories_api(emu),
-        "SetVolumeMountPointWStub" => SetVolumeMountPointWStub_api(emu),
-        "SetWaitableTimer" => SetWaitableTimer_api(emu),
-        "SetWaitableTimerEx" => SetWaitableTimerEx_api(emu),
-        "SetXStateFeaturesMask" => SetXStateFeaturesMask_api(emu),
-        "SetupComm" => SetupComm_api(emu),
-        "SignalObjectAndWait" => SignalObjectAndWait_api(emu),
-        "SleepConditionVariableCS" => SleepConditionVariableCS(emu),
-        "SleepConditionVariableSRW" => SleepConditionVariableSRW(emu),
-        "SleepEx" => SleepEx(emu),
-        "SortCloseHandle" => SortCloseHandle_api(emu),
-        "SortGetHandle" => SortGetHandle_api(emu),
-        "StartThreadpoolIo" => StartThreadpoolIo_api(emu),
-        "SubmitIoRing" => SubmitIoRing_api(emu),
-        "SubmitThreadpoolWork" => SubmitThreadpoolWork_api(emu),
-        "SuspendThread" => SuspendThread(emu),
-        "SwitchToFiber" => SwitchToFiber_api(emu),
-        "SwitchToThread" => SwitchToThread_api(emu),
-        "SystemTimeToTzSpecificLocalTimeEx" => SystemTimeToTzSpecificLocalTimeEx_api(emu),
-        "TerminateJobObject" => TerminateJobObject_api(emu),
-        "TerminateThread" => TerminateThread_api(emu),
-        "TermsrvAppInstallMode" => TermsrvAppInstallMode_api(emu),
-        "TermsrvGetWindowsDirectoryA" => TermsrvGetWindowsDirectoryA_api(emu),
-        "TermsrvGetWindowsDirectoryW" => TermsrvGetWindowsDirectoryW_api(emu),
-        "TermsrvSetKeySecurity" => TermsrvSetKeySecurity_api(emu),
-        "TlsGetValue2" => TlsGetValue2_api(emu),
-        "Toolhelp32ReadProcessMemory" => Toolhelp32ReadProcessMemory_api(emu),
-        "TransactNamedPipe" => TransactNamedPipe_api(emu),
-        "TransmitCommChar" => TransmitCommChar_api(emu),
-        "TryEnterCriticalSection" => TryEnterCriticalSection_api(emu),
-        "TrySubmitThreadpoolCallback" => TrySubmitThreadpoolCallback_api(emu),
-        "TzSpecificLocalTimeToSystemTime" => TzSpecificLocalTimeToSystemTime_api(emu),
-        "TzSpecificLocalTimeToSystemTimeEx" => TzSpecificLocalTimeToSystemTimeEx_api(emu),
-        "UTRegister" => UTRegister_api(emu),
-        "UTUnRegister" => UTUnRegister_api(emu),
-        "UnlockFile" => UnlockFile(emu),
-        "UnlockFileEx" => UnlockFileEx_api(emu),
-        "UnmapViewOfFile" => UnmapViewOfFile_api(emu),
-        "UnmapViewOfFileEx" => UnmapViewOfFileEx_api(emu),
-        "UnregisterBadMemoryNotification" => UnregisterBadMemoryNotification_api(emu),
-        "UnregisterConsoleIME" => UnregisterConsoleIME_api(emu),
-        "UnregisterWaitEx" => UnregisterWaitEx_api(emu),
-        "UpdateProcThreadAttribute" => UpdateProcThreadAttribute_api(emu),
-        "VerLanguageNameA" => VerLanguageNameA_api(emu),
-        "VerLanguageNameW" => VerLanguageNameW_api(emu),
-        "VerSetConditionMask" => VerSetConditionMask(emu),
-        "VerifyScripts" => VerifyScripts_api(emu),
-        "VirtualFreeEx" => VirtualFreeEx_api(emu),
-        "VirtualUnlock" => VirtualUnlock_api(emu),
-        "WTSGetActiveConsoleSessionId" => WTSGetActiveConsoleSessionId_api(emu),
-        "WaitCommEvent" => WaitCommEvent_api(emu),
-        "WaitForDebugEvent" => WaitForDebugEvent_api(emu),
-        "WaitForDebugEventEx" => WaitForDebugEventEx_api(emu),
-        "WaitForMultipleObjectsEx" => WaitForMultipleObjectsEx(emu),
-        "WaitForSingleObjectEx" => WaitForSingleObjectEx(emu),
-        "WaitForThreadpoolIoCallbacks" => WaitForThreadpoolIoCallbacks_api(emu),
-        "WaitForThreadpoolTimerCallbacks" => WaitForThreadpoolTimerCallbacks_api(emu),
-        "WaitForThreadpoolWaitCallbacks" => WaitForThreadpoolWaitCallbacks_api(emu),
-        "WaitForThreadpoolWorkCallbacks" => WaitForThreadpoolWorkCallbacks_api(emu),
-        "WaitNamedPipeW" => WaitNamedPipeW_api(emu),
-        "WakeAllConditionVariable" => WakeAllConditionVariable(emu),
-        "WakeConditionVariable" => WakeConditionVariable(emu),
-        "WerGetFlags" => WerGetFlags_api(emu),
-        "WerRegisterAdditionalProcess" => WerRegisterAdditionalProcess_api(emu),
-        "WerRegisterAppLocalDump" => WerRegisterAppLocalDump_api(emu),
-        "WerRegisterCustomMetadata" => WerRegisterCustomMetadata_api(emu),
-        "WerRegisterExcludedMemoryBlock" => WerRegisterExcludedMemoryBlock_api(emu),
-        "WerRegisterFile" => WerRegisterFile_api(emu),
-        "WerRegisterMemoryBlock" => WerRegisterMemoryBlock_api(emu),
-        "WerRegisterMemoryBlockWorker" => WerRegisterMemoryBlockWorker_api(emu),
-        "WerRegisterRuntimeExceptionModule" => WerRegisterRuntimeExceptionModule_api(emu),
-        "WerRegisterRuntimeExceptionModuleWorker" => {
-            WerRegisterRuntimeExceptionModuleWorker_api(emu)
-        }
-        "WerSetFlagsWorker" => WerSetFlagsWorker_api(emu),
-        "WerUnregisterAdditionalProcess" => WerUnregisterAdditionalProcess_api(emu),
-        "WerUnregisterAppLocalDump" => WerUnregisterAppLocalDump_api(emu),
-        "WerUnregisterCustomMetadata" => WerUnregisterCustomMetadata_api(emu),
-        "WerUnregisterExcludedMemoryBlock" => WerUnregisterExcludedMemoryBlock_api(emu),
-        "WerUnregisterFile" => WerUnregisterFile_api(emu),
-        "WerUnregisterMemoryBlock" => WerUnregisterMemoryBlock_api(emu),
-        "WerUnregisterRuntimeExceptionModule" => WerUnregisterRuntimeExceptionModule_api(emu),
-        "WerUnregisterRuntimeExceptionModuleWorker" => {
-            WerUnregisterRuntimeExceptionModuleWorker_api(emu)
-        }
-        "WerpNotifyLoadStringResourceWorker" => WerpNotifyLoadStringResourceWorker_api(emu),
-        "Wow64DisableWow64FsRedirection" => Wow64DisableWow64FsRedirection_api(emu),
-        "Wow64GetThreadContext" => Wow64GetThreadContext_api(emu),
-        "Wow64RevertWow64FsRedirection" => Wow64RevertWow64FsRedirection_api(emu),
-        "Wow64SetThreadContext" => Wow64SetThreadContext_api(emu),
-        "Wow64Transition" => Wow64Transition_api(emu),
-        "WriteConsoleA" => WriteConsoleA_api(emu),
-        "WriteConsoleInputA" => WriteConsoleInputA_api(emu),
-        "WriteConsoleInputW" => WriteConsoleInputW_api(emu),
-        "WriteConsoleOutputA" => WriteConsoleOutputA_api(emu),
-        "WriteConsoleOutputAttribute" => WriteConsoleOutputAttribute_api(emu),
-        "WriteConsoleOutputCharacterA" => WriteConsoleOutputCharacterA_api(emu),
-        "WriteConsoleOutputCharacterW" => WriteConsoleOutputCharacterW_api(emu),
-        "WriteConsoleOutputW" => WriteConsoleOutputW_api(emu),
-        "WriteFileEx" => WriteFileEx_api(emu),
-        "WriteFileGather" => WriteFileGather_api(emu),
-        "ZombifyActCtx" => ZombifyActCtx_api(emu),
-        "_hread" => _hread_api(emu),
-        "_hwrite" => _hwrite_api(emu),
-        "lstrcmpi" => lstrcmpi(emu),
-        "lstrcpyA" => lstrcpyA_api(emu),
-        "lstrcpynA" => lstrcpynA_api(emu),
-        "lstrcpynW" => lstrcpynW_api(emu),
-        "timeGetSystemTime" => timeGetSystemTime_api(emu),
-        "CreateUmsCompletionList" => CreateUmsCompletionList_api(emu),
-        "CreateUmsThreadContext" => CreateUmsThreadContext_api(emu),
-        "DeleteUmsCompletionList" => DeleteUmsCompletionList_api(emu),
-        "DeleteUmsThreadContext" => DeleteUmsThreadContext_api(emu),
-        "DequeueUmsCompletionListItems" => DequeueUmsCompletionListItems_api(emu),
-        "EnterUmsSchedulingMode" => EnterUmsSchedulingMode_api(emu),
-        "EtwEventEnabled" | "EventEnabled" => EtwEventEnabled(emu),
-        "EtwEventRegister" | "EventRegister" => EtwEventRegister(emu),
-        "EtwEventSetInformation" | "EventSetInformation" => EtwEventSetInformation(emu),
-        "EtwEventWriteTransfer" | "EventWriteTransfer" => EtwEventWriteTransfer(emu),
-        "ExecuteUmsThread" => ExecuteUmsThread_api(emu),
-        "GetCurrentUmsThread" => GetCurrentUmsThread(emu),
-        "GetNextUmsListItem" => GetNextUmsListItem_api(emu),
-        "GetUmsCompletionListEvent" => GetUmsCompletionListEvent_api(emu),
-        "GetUmsSystemThreadInformation" => GetUmsSystemThreadInformation_api(emu),
-        "GetUserDefaultLangId" => GetUserDefaultLangId(emu),
-        "LStrCmpI" => LStrCmpI_api(emu),
-        "LStrCmpIW" => LStrCmpIW_api(emu),
-        "QueryUmsThreadInformation" => QueryUmsThreadInformation_api(emu),
-        "RtlAddFunctionTable" => RtlAddFunctionTable_api(emu),
-        "RtlCompareMemory" => RtlCompareMemory_api(emu),
-        "RtlCopyMemory" => RtlCopyMemory_api(emu),
-        "RtlDeleteFunctionTable" => RtlDeleteFunctionTable_api(emu),
-        "RtlExitUserProcess" => RtlExitUserProcess(emu),
-        "RtlInstallFunctionTableCallback" => RtlInstallFunctionTableCallback_api(emu),
-        "RtlIsEcCode" => RtlIsEcCode_api(emu),
-        "RtlLookupFunctionEntry" => RtlLookupFunctionEntry_api(emu),
-        "RtlRaiseException" => RtlRaiseException_api(emu),
-        "RtlRestoreContext" => RtlRestoreContext_api(emu),
-        "RtlUnwindEx" => RtlUnwindEx_api(emu),
-        "RtlVirtualUnwind" => RtlVirtualUnwind_api(emu),
-        "RtlVirtualUnwind2" => RtlVirtualUnwind2_api(emu),
-        "SetUmsThreadInformation" => SetUmsThreadInformation_api(emu),
-        "UmsThreadYield" => UmsThreadYield_api(emu),
-        "__C_specific_handler" => __C_specific_handler_api(emu),
-        "__chkstk" => __chkstk_api(emu),
-        "__misaligned_access" => __misaligned_access_api(emu),
-        "_local_unwind" => _local_unwind_api(emu),
-        "uaw_lstrcmpW" => uaw_lstrcmpW_api(emu),
-        "uaw_lstrcmpiW" => uaw_lstrcmpiW_api(emu),
-        "uaw_lstrlenW" => uaw_lstrlenW_api(emu),
-        "uaw_wcschr" => uaw_wcschr_api(emu),
-        "uaw_wcscpy" => uaw_wcscpy_api(emu),
-        "uaw_wcsicmp" => uaw_wcsicmp_api(emu),
-        "uaw_wcslen" => uaw_wcslen_api(emu),
-        "uaw_wcsrchr" => uaw_wcsrchr_api(emu),
-
-        _ => return fallback::unimplemented(addr, api, emu),
+    if modules::dispatch(api, "kernel32", emu)
+        || files::dispatch(api, "kernel32", emu)
+        || strings::dispatch(api, "kernel32", emu)
+        || handles::dispatch(api, "kernel32", emu)
+    {
+        return String::new();
+    }
+    if appcompat::dispatch(api, addr, emu)
+        || console::dispatch(api, addr, emu)
+        || diagnostics::dispatch(api, addr, emu)
+        || filesystem::dispatch(api, addr, emu)
+        || legacy_compat::dispatch(api, addr, emu)
+        || library_loader::dispatch(api, addr, emu)
+        || memory::dispatch(api, addr, emu)
+        || objects::dispatch(api, addr, emu)
+        || process_thread::dispatch(api, addr, emu)
+        || registry_profile::dispatch(api, addr, emu)
+        || security::dispatch(api, addr, emu)
+        || strings_nls::dispatch(api, addr, emu)
+        || sync::dispatch(api, addr, emu)
+        || system::dispatch(api, addr, emu)
+        || time_date::dispatch(api, addr, emu)
+    {
+        return String::new();
     }
 
-    String::new()
+    fallback::unimplemented(addr, api, emu)
 }

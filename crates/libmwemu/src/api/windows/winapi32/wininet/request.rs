@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::network::*;
 
 use super::{
     pop_stack32, read_ansi_string_if_present, read_stack_dword, read_wide_string_if_present,
@@ -40,7 +40,7 @@ pub(super) fn http_open_request_a(emu: &mut emu::Emu) {
         log::trace!("\tinvalid handle.");
     }
 
-    if flags & constants::INTERNET_FLAG_SECURE != 0 {
+    if flags & INTERNET_FLAG_SECURE != 0 {
         log::trace!("\tssl communication.");
     }
 
@@ -84,7 +84,7 @@ pub(super) fn http_open_request_w(emu: &mut emu::Emu) {
         log::trace!("\tinvalid handle.");
     }
 
-    if flags & constants::INTERNET_FLAG_SECURE != 0 {
+    if flags & INTERNET_FLAG_SECURE != 0 {
         log::trace!("\tssl communication.");
     }
 

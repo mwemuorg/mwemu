@@ -1,4 +1,5 @@
-use crate::{emu, windows::constants};
+use crate::emu;
+use crate::windows::constants::process::*;
 
 pub fn WaitForMultipleObjects(emu: &mut emu::Emu) {
     let count = emu.regs().rcx;
@@ -24,5 +25,5 @@ pub fn WaitForMultipleObjects(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = constants::WAIT_OBJECT_0;
+    emu.regs_mut().rax = WAIT_OBJECT_0;
 }

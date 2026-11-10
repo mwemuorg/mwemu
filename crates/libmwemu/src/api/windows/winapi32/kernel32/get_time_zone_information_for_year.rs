@@ -1,26 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetTimeZoneInformationForYear(emu: &mut emu::Emu) {
-    let year = arg(emu, 0) as u64 as u16;
-    let dti_ptr = arg(emu, 1) as u64;
-    let tzi_ptr = arg(emu, 2) as u64;
-
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetTimeZoneInformationForYear year:{} dti:0x{:x} tzi:0x{:x}",
-        year,
-        dti_ptr,
-        tzi_ptr
+        "kernel32!GetTimeZoneInformationForYear h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-
-    if tzi_ptr != 0 {
-        // TIME_ZONE_INFORMATION: Bias=0 (UTC), rest zeroed (172 bytes total)
-        for i in 0..22 {
-            emu.maps.write_qword(tzi_ptr + i * 8, 0);
-        }
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-
-    emu.regs_mut().rax = 1; // TRUE
-    stdcall_ret(emu, 3);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

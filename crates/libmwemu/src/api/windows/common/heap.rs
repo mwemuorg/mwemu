@@ -6,7 +6,8 @@ use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::memory::Call;
 use crate::winapi::common::trace;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
 
 pub(crate) fn alloc_context(emu: &Emu, handle: u64) -> Option<(usize, u64)> {
     let context = if handle == 0 {
@@ -70,7 +71,7 @@ pub(crate) fn allocate(emu: &mut Emu, handle: u64, size: u64, flags: u64) -> Opt
             size as u64,
             "heap",
             "HeapAlloc",
-            flags & constants::HEAP_ZERO_MEMORY != 0,
+            flags & HEAP_ZERO_MEMORY != 0,
         );
         if address == 0 {
             return None;
@@ -87,9 +88,7 @@ pub(crate) fn allocate(emu: &mut Emu, handle: u64, size: u64, flags: u64) -> Opt
     let valid = emu
         .maps
         .can_access_range(address, size, Permission::READ_WRITE);
-    if !valid
-        || (flags & constants::HEAP_ZERO_MEMORY != 0 && !emu.maps.fill_range(address, 0, size))
-    {
+    if !valid || (flags & HEAP_ZERO_MEMORY != 0 && !emu.maps.fill_range(address, 0, size)) {
         emu.heap_arena_mut(arena)?.free(address);
         return None;
     }
@@ -145,7 +144,7 @@ pub(crate) fn reallocate(
     let old_size = owned_size(emu, handle, address)?;
     let copied = old_size.min(size);
     if emu.cfg.memory_guard {
-        if flags & constants::HEAP_REALLOC_IN_PLACE_ONLY != 0 {
+        if flags & HEAP_REALLOC_IN_PLACE_ONLY != 0 {
             return None;
         }
         let new_address = allocate(emu, handle, size as u64, flags)?;
@@ -164,7 +163,7 @@ pub(crate) fn reallocate(
     }
     let result = candidate.reallocate(address, padded)?;
     candidate.record_request(result.new_addr, size);
-    if flags & constants::HEAP_REALLOC_IN_PLACE_ONLY != 0 && result.new_addr != address {
+    if flags & HEAP_REALLOC_IN_PLACE_ONLY != 0 && result.new_addr != address {
         return None;
     }
     if !emu
@@ -176,7 +175,7 @@ pub(crate) fn reallocate(
     if result.new_addr != address && !emu.maps.copy_range(result.new_addr, address, copied) {
         return None;
     }
-    if flags & constants::HEAP_ZERO_MEMORY != 0 && size > old_size {
+    if flags & HEAP_ZERO_MEMORY != 0 && size > old_size {
         // The destination was validated before copying; zero only the newly requested tail.
         assert!(
             emu.maps
@@ -188,7 +187,7 @@ pub(crate) fn reallocate(
 }
 
 pub(crate) fn fail_allocation(emu: &mut Emu, flags: u64) {
-    if flags & constants::HEAP_GENERATE_EXCEPTIONS != 0 {
+    if flags & HEAP_GENERATE_EXCEPTIONS != 0 {
         emu.exception(ExceptionType::HeapNoMemory);
     }
 }
@@ -302,7 +301,7 @@ pub(crate) fn local_size_api(emu: &mut Emu) {
     let address = call.arg(emu, 0);
     let size = owned_size(emu, 0, address);
     if size.is_none() {
-        emu.set_last_error(constants::ERROR_INVALID_HANDLE);
+        emu.set_last_error(ERROR_INVALID_HANDLE);
     }
     call.finish(emu, size.unwrap_or(0) as u64, 1);
 }
@@ -312,7 +311,7 @@ pub(crate) fn local_alloc_api(emu: &mut Emu) {
     let flags = call.arg(emu, 0);
     let size = call.arg(emu, 1);
     let flags = if flags & 0x40 != 0 {
-        constants::HEAP_ZERO_MEMORY
+        HEAP_ZERO_MEMORY
     } else {
         0
     };
@@ -337,7 +336,7 @@ pub(crate) fn local_realloc_api(emu: &mut Emu) {
     let size = call.arg(emu, 1);
     let flags = call.arg(emu, 2);
     let flags = if flags & 0x40 != 0 {
-        constants::HEAP_ZERO_MEMORY
+        HEAP_ZERO_MEMORY
     } else {
         0
     };

@@ -13,9 +13,7 @@
 
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::windows::constants::{
-    STATUS_FILE_INVALID, STATUS_NOT_SUPPORTED, STATUS_OBJECT_NAME_NOT_FOUND, STATUS_SUCCESS,
-};
+use crate::windows::constants::errors::*;
 
 /// Default LCID we report — `0x407` is `de-DE`, but every Windows we've seen
 /// here works with `0x409` (en-US).

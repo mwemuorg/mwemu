@@ -1,7 +1,7 @@
 use crate::emu;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptSignHash(emu: &mut emu::Emu) {
     let _h_key = arg(emu, 0) as u64;
@@ -42,6 +42,6 @@ pub(super) fn BCryptSignHash(emu: &mut emu::Emu) {
         emu.maps.write_dword(pcb_result, out_len as u32);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 8);
 }

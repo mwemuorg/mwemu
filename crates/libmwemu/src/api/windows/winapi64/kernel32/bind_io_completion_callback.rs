@@ -1,6 +1,8 @@
+
+use crate::windows::constants::errors::*;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+
 pub fn BindIoCompletionCallback(emu: &mut emu::Emu) {
     let _FileHandle = emu.regs().rcx as u32;
     let _Function = emu.regs().rdx as u32;
@@ -12,5 +14,5 @@ pub fn BindIoCompletionCallback(emu: &mut emu::Emu) {
         emu.maps.write_qword(out_ptr, handle);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.regs_mut().rax = ERROR_SUCCESS;
 }

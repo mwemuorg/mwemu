@@ -7,9 +7,7 @@ use super::read_name;
 use super::stack_arg;
 use crate::emu;
 use crate::winapi::registry_store as store;
-use crate::windows::constants::ERROR_ACCESS_DENIED;
-use crate::windows::constants::ERROR_INVALID_PARAMETER;
-use crate::windows::constants::ERROR_SUCCESS;
+use crate::windows::constants::errors::*;
 
 pub(super) fn create_key(emu: &mut emu::Emu, api: &str, wide: bool, ex: bool) {
     let hkey = emu.regs().rcx;

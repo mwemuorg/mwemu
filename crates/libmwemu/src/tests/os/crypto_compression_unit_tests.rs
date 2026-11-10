@@ -1,3 +1,10 @@
+use crate::emu64;
+use crate::maps::mem64::Permission;
+use crate::tests::helpers;
+use crate::winapi::winapi64;
+use crate::windows::constants::crypto::*;
+use crate::windows::constants::memory::*;
+
 use crate::api::windows::common::{crypto_state, ntdll as ntdll_common};
 use crate::winapi::helper;
 
@@ -5,15 +12,8 @@ use crate::winapi::helper;
 //  crypto_state: hash lifecycle
 // ═══════════════════════════════════════════════════════════════════════
 
-const CALG_MD5: u32 = 0x00008003;
-const CALG_SHA1: u32 = 0x00008004;
-const CALG_SHA_256: u32 = 0x0000800c;
-const CALG_RC4: u32 = 0x00006801;
-const CALG_AES_128: u32 = 0x0000660e;
-const CALG_AES_256: u32 = 0x00006610;
-
 #[test]
-fn test_crypto_state_md5_empty() {
+fn crypto_state_md5_empty() {
     let h = helper::handler_create("test://md5_empty");
     assert!(crypto_state::create_hash(h, CALG_MD5));
 
@@ -28,7 +28,7 @@ fn test_crypto_state_md5_empty() {
 }
 
 #[test]
-fn test_crypto_state_md5_hello() {
+fn crypto_state_md5_hello() {
     let h = helper::handler_create("test://md5_hello");
     assert!(crypto_state::create_hash(h, CALG_MD5));
     assert!(crypto_state::hash_data(h, b"Hello"));
@@ -44,7 +44,7 @@ fn test_crypto_state_md5_hello() {
 }
 
 #[test]
-fn test_crypto_state_md5_incremental() {
+fn crypto_state_md5_incremental() {
     let h = helper::handler_create("test://md5_incr");
     assert!(crypto_state::create_hash(h, CALG_MD5));
     assert!(crypto_state::hash_data(h, b"Hel"));
@@ -59,7 +59,7 @@ fn test_crypto_state_md5_incremental() {
 }
 
 #[test]
-fn test_crypto_state_sha1_empty() {
+fn crypto_state_sha1_empty() {
     let h = helper::handler_create("test://sha1_empty");
     assert!(crypto_state::create_hash(h, CALG_SHA1));
 
@@ -73,7 +73,7 @@ fn test_crypto_state_sha1_empty() {
 }
 
 #[test]
-fn test_crypto_state_sha1_abc() {
+fn crypto_state_sha1_abc() {
     let h = helper::handler_create("test://sha1_abc");
     assert!(crypto_state::create_hash(h, CALG_SHA1));
     assert!(crypto_state::hash_data(h, b"abc"));
@@ -89,7 +89,7 @@ fn test_crypto_state_sha1_abc() {
 }
 
 #[test]
-fn test_crypto_state_sha256_empty() {
+fn crypto_state_sha256_empty() {
     let h = helper::handler_create("test://sha256_empty");
     assert!(crypto_state::create_hash(h, CALG_SHA_256));
 
@@ -104,7 +104,7 @@ fn test_crypto_state_sha256_empty() {
 }
 
 #[test]
-fn test_crypto_state_sha256_hello_world() {
+fn crypto_state_sha256_hello_world() {
     let h = helper::handler_create("test://sha256_hw");
     assert!(crypto_state::create_hash(h, CALG_SHA_256));
     assert!(crypto_state::hash_data(h, b"hello world"));
@@ -120,7 +120,7 @@ fn test_crypto_state_sha256_hello_world() {
 }
 
 #[test]
-fn test_crypto_state_sha256_incremental() {
+fn crypto_state_sha256_incremental() {
     let h = helper::handler_create("test://sha256_incr");
     assert!(crypto_state::create_hash(h, CALG_SHA_256));
     assert!(crypto_state::hash_data(h, b"hello "));
@@ -134,7 +134,7 @@ fn test_crypto_state_sha256_incremental() {
 }
 
 #[test]
-fn test_crypto_state_hash_param_size() {
+fn crypto_state_hash_param_size() {
     let h = helper::handler_create("test://hp_size");
     assert!(crypto_state::create_hash(h, CALG_SHA_256));
 
@@ -146,7 +146,7 @@ fn test_crypto_state_hash_param_size() {
 }
 
 #[test]
-fn test_crypto_state_hash_param_algid() {
+fn crypto_state_hash_param_algid() {
     let h = helper::handler_create("test://hp_algid");
     assert!(crypto_state::create_hash(h, CALG_MD5));
 
@@ -158,13 +158,13 @@ fn test_crypto_state_hash_param_algid() {
 }
 
 #[test]
-fn test_crypto_state_invalid_algo() {
+fn crypto_state_invalid_algo() {
     let h = helper::handler_create("test://invalid_algo");
     assert!(!crypto_state::create_hash(h, 0xDEAD));
 }
 
 #[test]
-fn test_crypto_state_hash_data_after_finalize_fails() {
+fn crypto_state_hash_data_after_finalize_fails() {
     let h = helper::handler_create("test://finalize_then_data");
     assert!(crypto_state::create_hash(h, CALG_MD5));
     assert!(crypto_state::hash_data(h, b"test"));
@@ -178,22 +178,22 @@ fn test_crypto_state_hash_data_after_finalize_fails() {
 }
 
 #[test]
-fn test_crypto_state_destroy_nonexistent() {
+fn crypto_state_destroy_nonexistent() {
     assert!(!crypto_state::destroy_hash(0xDEAD_BEEF));
 }
 
 #[test]
-fn test_crypto_state_hash_data_nonexistent() {
+fn crypto_state_hash_data_nonexistent() {
     assert!(!crypto_state::hash_data(0xDEAD_BEEF, b"data"));
 }
 
 #[test]
-fn test_crypto_state_get_param_nonexistent() {
+fn crypto_state_get_param_nonexistent() {
     assert!(crypto_state::get_hash_param(0xDEAD_BEEF, crypto_state::HP_HASHVAL).is_none());
 }
 
 #[test]
-fn test_crypto_state_get_param_invalid_param() {
+fn crypto_state_get_param_invalid_param() {
     let h = helper::handler_create("test://invalid_param");
     assert!(crypto_state::create_hash(h, CALG_MD5));
 
@@ -207,7 +207,7 @@ fn test_crypto_state_get_param_invalid_param() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_crypto_state_create_key_rc4() {
+fn crypto_state_create_key_rc4() {
     let h = helper::handler_create("test://key_rc4");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
 
@@ -219,7 +219,7 @@ fn test_crypto_state_create_key_rc4() {
 }
 
 #[test]
-fn test_crypto_state_create_key_aes128() {
+fn crypto_state_create_key_aes128() {
     let h = helper::handler_create("test://key_aes128");
     assert!(crypto_state::create_key(h, CALG_AES_128, 128));
 
@@ -235,7 +235,7 @@ fn test_crypto_state_create_key_aes128() {
 }
 
 #[test]
-fn test_crypto_state_create_key_aes256() {
+fn crypto_state_create_key_aes256() {
     let h = helper::handler_create("test://key_aes256");
     assert!(crypto_state::create_key(h, CALG_AES_256, 256));
 
@@ -247,7 +247,7 @@ fn test_crypto_state_create_key_aes256() {
 }
 
 #[test]
-fn test_crypto_state_create_key_default_size() {
+fn crypto_state_create_key_default_size() {
     let h = helper::handler_create("test://key_default");
     assert!(crypto_state::create_key(h, CALG_RC4, 0));
 
@@ -259,7 +259,7 @@ fn test_crypto_state_create_key_default_size() {
 }
 
 #[test]
-fn test_crypto_state_encrypt_decrypt_roundtrip() {
+fn crypto_state_encrypt_decrypt_roundtrip() {
     let h = helper::handler_create("test://key_enc_dec");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
 
@@ -276,7 +276,7 @@ fn test_crypto_state_encrypt_decrypt_roundtrip() {
 }
 
 #[test]
-fn test_crypto_state_encrypt_empty() {
+fn crypto_state_encrypt_empty() {
     let h = helper::handler_create("test://key_enc_empty");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
 
@@ -288,24 +288,24 @@ fn test_crypto_state_encrypt_empty() {
 }
 
 #[test]
-fn test_crypto_state_encrypt_nonexistent_key() {
+fn crypto_state_encrypt_nonexistent_key() {
     let mut data = b"test".to_vec();
     assert!(!crypto_state::encrypt_data(0xDEADBEEF, &mut data));
     assert_eq!(&data, b"test", "data unchanged on failure");
 }
 
 #[test]
-fn test_crypto_state_destroy_key_nonexistent() {
+fn crypto_state_destroy_key_nonexistent() {
     assert!(!crypto_state::destroy_key(0xDEADBEEF));
 }
 
 #[test]
-fn test_crypto_state_get_key_param_nonexistent() {
+fn crypto_state_get_key_param_nonexistent() {
     assert!(crypto_state::get_key_param(0xDEADBEEF, crypto_state::KP_KEYLEN).is_none());
 }
 
 #[test]
-fn test_crypto_state_get_key_param_invalid() {
+fn crypto_state_get_key_param_invalid() {
     let h = helper::handler_create("test://key_invalid_param");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
     assert!(crypto_state::get_key_param(h, 0xFF).is_none());
@@ -313,7 +313,7 @@ fn test_crypto_state_get_key_param_invalid() {
 }
 
 #[test]
-fn test_crypto_state_rc4_blocklen_zero() {
+fn crypto_state_rc4_blocklen_zero() {
     let h = helper::handler_create("test://rc4_block");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
 
@@ -329,7 +329,7 @@ fn test_crypto_state_rc4_blocklen_zero() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_crypto_state_rc4_known_vector() {
+fn crypto_state_rc4_known_vector() {
     // RC4 with key = [0x01, 0x02, 0x03, 0x04, 0x05] encrypting [0x00; 8]
     // Known output: 0xb2 0x39 0x63 0x05 0xf0 0x3d 0xc0 0x27
     let h = helper::handler_create("test://rc4_known");
@@ -351,7 +351,7 @@ fn test_crypto_state_rc4_known_vector() {
 }
 
 #[test]
-fn test_crypto_state_rc4_roundtrip_long() {
+fn crypto_state_rc4_roundtrip_long() {
     let h = helper::handler_create("test://rc4_long");
     assert!(crypto_state::create_key(h, CALG_RC4, 128));
     crypto_state::set_key_data(h, b"SecretKey1234567");
@@ -379,7 +379,7 @@ fn test_crypto_state_rc4_roundtrip_long() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_crypto_state_aes128_roundtrip() {
+fn crypto_state_aes128_roundtrip() {
     let h = helper::handler_create("test://aes128_rt");
     assert!(crypto_state::create_key(h, CALG_AES_128, 128));
     crypto_state::set_key_data(
@@ -411,7 +411,7 @@ fn test_crypto_state_aes128_roundtrip() {
 }
 
 #[test]
-fn test_crypto_state_aes128_known_vector() {
+fn crypto_state_aes128_known_vector() {
     // NIST FIPS-197 Appendix B test vector
     let h = helper::handler_create("test://aes128_nist");
     assert!(crypto_state::create_key(h, CALG_AES_128, 128));
@@ -439,7 +439,7 @@ fn test_crypto_state_aes128_known_vector() {
 }
 
 #[test]
-fn test_crypto_state_aes256_roundtrip() {
+fn crypto_state_aes256_roundtrip() {
     let h = helper::handler_create("test://aes256_rt");
     assert!(crypto_state::create_key(h, CALG_AES_256, 256));
     crypto_state::set_key_data(
@@ -471,7 +471,7 @@ fn test_crypto_state_aes256_roundtrip() {
 }
 
 #[test]
-fn test_crypto_state_aes256_known_vector() {
+fn crypto_state_aes256_known_vector() {
     // NIST FIPS-197 AES-256 test vector
     let h = helper::handler_create("test://aes256_nist");
     assert!(crypto_state::create_key(h, CALG_AES_256, 256));
@@ -499,7 +499,7 @@ fn test_crypto_state_aes256_known_vector() {
 }
 
 #[test]
-fn test_crypto_state_derive_key_from_hash() {
+fn crypto_state_derive_key_from_hash() {
     let hh = helper::handler_create("test://derive_hash");
     assert!(crypto_state::create_hash(hh, CALG_MD5));
     assert!(crypto_state::hash_data(hh, b"password"));
@@ -529,7 +529,7 @@ fn test_crypto_state_derive_key_from_hash() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_crypto_state_concurrent_hashes() {
+fn crypto_state_concurrent_hashes() {
     let h_md5 = helper::handler_create("test://concurrent_md5");
     let h_sha1 = helper::handler_create("test://concurrent_sha1");
     let h_sha256 = helper::handler_create("test://concurrent_sha256");
@@ -567,7 +567,7 @@ fn test_crypto_state_concurrent_hashes() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_lznt1_empty_stream() {
+fn lznt1_empty_stream() {
     // two zero bytes = terminator
     let input = [0x00u8, 0x00];
     let result = ntdll_common::lznt1_decompress(&input, 4096);
@@ -576,7 +576,7 @@ fn test_lznt1_empty_stream() {
 }
 
 #[test]
-fn test_lznt1_uncompressed_chunk() {
+fn lznt1_uncompressed_chunk() {
     // header = 0x0004 (uncompressed, 5 bytes: 5-1=4)
     // payload = "Hello"
     // terminator = 0x0000
@@ -586,7 +586,7 @@ fn test_lznt1_uncompressed_chunk() {
 }
 
 #[test]
-fn test_lznt1_uncompressed_chunk_single_byte() {
+fn lznt1_uncompressed_chunk_single_byte() {
     // header = 0x0000 means 1 byte (0+1=1)... wait, 0x0000 is terminator
     // header = 0x0001 => uncompressed, 2 bytes
     // But for 1 byte: header = 0x0000 is the terminator. Let's use 2 bytes instead.
@@ -596,7 +596,7 @@ fn test_lznt1_uncompressed_chunk_single_byte() {
 }
 
 #[test]
-fn test_lznt1_compressed_all_literals() {
+fn lznt1_compressed_all_literals() {
     // chunk header: 0x8008 (compressed, 9 bytes: 9-1=8)
     // flag byte: 0x00 (all 8 bits = literal)
     // 8 literal bytes
@@ -610,7 +610,7 @@ fn test_lznt1_compressed_all_literals() {
 }
 
 #[test]
-fn test_lznt1_compressed_with_backreference() {
+fn lznt1_compressed_with_backreference() {
     // Produce "AAAA": 1 literal 'A' + backreference(offset=1, length=3)
     // At output pos=1 within chunk, shift=12 (cur_pos <= 0x10)
     // tag: offset_field=(1-1)=0 << 12 = 0, length_field=(3-3)=0 → tag=0x0000
@@ -629,7 +629,7 @@ fn test_lznt1_compressed_with_backreference() {
 }
 
 #[test]
-fn test_lznt1_two_uncompressed_chunks() {
+fn lznt1_two_uncompressed_chunks() {
     // First chunk: "AB" (header=0x0001)
     // Second chunk: "CD" (header=0x0001)
     // Terminator: 0x0000
@@ -643,7 +643,7 @@ fn test_lznt1_two_uncompressed_chunks() {
 }
 
 #[test]
-fn test_lznt1_max_output_limit() {
+fn lznt1_max_output_limit() {
     // Uncompressed chunk with 5 bytes, but limit to 3
     let input = [0x04, 0x00, b'H', b'e', b'l', b'l', b'o', 0x00, 0x00];
     let result = ntdll_common::lznt1_decompress(&input, 3);
@@ -652,13 +652,13 @@ fn test_lznt1_max_output_limit() {
 }
 
 #[test]
-fn test_lznt1_empty_input() {
+fn lznt1_empty_input() {
     let result = ntdll_common::lznt1_decompress(&[], 4096);
     assert!(result.is_none());
 }
 
 #[test]
-fn test_lznt1_truncated_header() {
+fn lznt1_truncated_header() {
     // Only 1 byte — can't read 2-byte header
     let result = ntdll_common::lznt1_decompress(&[0x01], 4096);
     // The loop condition is pos+2 <= len, so with 1 byte it exits cleanly
@@ -671,7 +671,7 @@ fn test_lznt1_truncated_header() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_xpress_all_literals() {
+fn xpress_all_literals() {
     // indicator = 0x00000000 (all 32 bits = literal)
     // 4 literal bytes
     let input = [0x00, 0x00, 0x00, 0x00, b'A', b'B', b'C', b'D'];
@@ -680,7 +680,7 @@ fn test_xpress_all_literals() {
 }
 
 #[test]
-fn test_xpress_with_backreference() {
+fn xpress_with_backreference() {
     // indicator = 0x00000002 (bit1 = match, bit0 = literal)
     // literal: 'A'
     // match hint: offset_field = (1-1)=0, shifted<<3 = 0; length_field = (3-3)=0
@@ -692,7 +692,7 @@ fn test_xpress_with_backreference() {
 }
 
 #[test]
-fn test_xpress_32_literals() {
+fn xpress_32_literals() {
     // indicator = 0x00000000
     // Exactly 32 literal bytes
     let mut input = vec![0x00, 0x00, 0x00, 0x00];
@@ -703,20 +703,20 @@ fn test_xpress_32_literals() {
 }
 
 #[test]
-fn test_xpress_short_input() {
+fn xpress_short_input() {
     // Less than 4 bytes = can't even read the indicator
     let result = ntdll_common::xpress_decompress(&[0x00, 0x00], 4096);
     assert!(result.is_none());
 }
 
 #[test]
-fn test_xpress_empty_input() {
+fn xpress_empty_input() {
     let result = ntdll_common::xpress_decompress(&[], 4096);
     assert!(result.is_none());
 }
 
 #[test]
-fn test_xpress_max_output_limit() {
+fn xpress_max_output_limit() {
     // 32 literals but limit output to 4
     let mut input = vec![0x00, 0x00, 0x00, 0x00];
     input.extend_from_slice(&[b'Z'; 32]);
@@ -726,7 +726,7 @@ fn test_xpress_max_output_limit() {
 }
 
 #[test]
-fn test_xpress_match_with_extra_length_byte() {
+fn xpress_match_with_extra_length_byte() {
     // indicator: bit0=literal, bit1=match
     // literal: 'B'
     // match hint: length_field=7 (triggers extra byte read)
@@ -749,13 +749,13 @@ fn test_xpress_match_with_extra_length_byte() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_xpress_huff_empty_input() {
+fn xpress_huff_empty_input() {
     let result = ntdll_common::xpress_huff_decompress(&[], 4096);
     assert!(result.is_none());
 }
 
 #[test]
-fn test_xpress_huff_short_table() {
+fn xpress_huff_short_table() {
     // Less than 256 bytes = can't read the Huffman table
     let input = [0u8; 100];
     let result = ntdll_common::xpress_huff_decompress(&input, 4096);
@@ -763,7 +763,7 @@ fn test_xpress_huff_short_table() {
 }
 
 #[test]
-fn test_xpress_huff_all_zero_table() {
+fn xpress_huff_all_zero_table() {
     // 256-byte table of zeros = all symbols have length 0 → no valid codes
     // + some data bytes
     let input = vec![0u8; 256 + 16];
@@ -774,7 +774,7 @@ fn test_xpress_huff_all_zero_table() {
 }
 
 #[test]
-fn test_xpress_huff_single_symbol_stream() {
+fn xpress_huff_single_symbol_stream() {
     // Build a Huffman table where only symbol 0x41 ('A') has a code,
     // with bit length 1. All other symbols have length 0.
     //
@@ -811,47 +811,47 @@ fn test_xpress_huff_single_symbol_stream() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
-fn test_protect_to_rwx_readonly() {
-    let (r, w, x) = ntdll_common::protect_to_rwx(0x02); // PAGE_READONLY
+fn protect_to_rwx_readonly() {
+    let (r, w, x) = ntdll_common::protect_to_rwx(PAGE_READONLY);
     assert!(r);
     assert!(!w);
     assert!(!x);
 }
 
 #[test]
-fn test_protect_to_rwx_readwrite() {
-    let (r, w, x) = ntdll_common::protect_to_rwx(0x04); // PAGE_READWRITE
+fn protect_to_rwx_readwrite() {
+    let (r, w, x) = ntdll_common::protect_to_rwx(PAGE_READWRITE);
     assert!(r);
     assert!(w);
     assert!(!x);
 }
 
 #[test]
-fn test_protect_to_rwx_execute_read() {
-    let (r, w, x) = ntdll_common::protect_to_rwx(0x20); // PAGE_EXECUTE_READ
+fn protect_to_rwx_execute_read() {
+    let (r, w, x) = ntdll_common::protect_to_rwx(PAGE_EXECUTE_READ);
     assert!(r);
     assert!(!w);
     assert!(x);
 }
 
 #[test]
-fn test_protect_to_rwx_execute_readwrite() {
-    let (r, w, x) = ntdll_common::protect_to_rwx(0x40); // PAGE_EXECUTE_READWRITE
+fn protect_to_rwx_execute_readwrite() {
+    let (r, w, x) = ntdll_common::protect_to_rwx(PAGE_EXECUTE_READWRITE);
     assert!(r);
     assert!(w);
     assert!(x);
 }
 
 #[test]
-fn test_protect_to_rwx_execute_only() {
-    let (r, w, x) = ntdll_common::protect_to_rwx(0x10); // PAGE_EXECUTE
+fn protect_to_rwx_execute_only() {
+    let (r, w, x) = ntdll_common::protect_to_rwx(PAGE_EXECUTE);
     assert!(!r);
     assert!(!w);
     assert!(x);
 }
 
 #[test]
-fn test_protect_to_rwx_none() {
+fn protect_to_rwx_none() {
     let (r, w, x) = ntdll_common::protect_to_rwx(0x00);
     assert!(!r);
     assert!(!w);
@@ -859,17 +859,361 @@ fn test_protect_to_rwx_none() {
 }
 
 #[test]
-fn test_protect_to_rwx_writecopy() {
-    let (r, w, x) = ntdll_common::protect_to_rwx(0x08); // PAGE_WRITECOPY
+fn protect_to_rwx_writecopy() {
+    let (r, w, x) = ntdll_common::protect_to_rwx(PAGE_WRITECOPY);
     assert!(r);
     assert!(w);
     assert!(!x);
 }
 
 #[test]
-fn test_protect_to_rwx_execute_writecopy() {
-    let (r, w, x) = ntdll_common::protect_to_rwx(0x80); // PAGE_EXECUTE_WRITECOPY
+fn protect_to_rwx_execute_writecopy() {
+    let (r, w, x) = ntdll_common::protect_to_rwx(PAGE_EXECUTE_WRITECOPY);
     assert!(r);
     assert!(w);
     assert!(x);
+}
+
+#[test]
+fn crypt_lifecycle_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let prov_addr = 0x100000u64;
+    let buf_addr = 0x100100u64;
+    emu.maps
+        .create_map("crypt_io", 0x100000, 0x1000, Permission::READ_WRITE);
+
+    let container_addr = 0x200000u64;
+    let provider_addr = 0x200100u64;
+    emu.maps
+        .create_map("crypt_str", 0x200000, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(container_addr, "TestContainer");
+    emu.maps
+        .write_string(provider_addr, "Microsoft Base Cryptographic Provider v1.0");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptAcquireContextA,
+        &[prov_addr, container_addr, provider_addr, 1, 0],
+    );
+    assert_eq!(ret, 1, "CryptAcquireContextA must return TRUE");
+    let hprov = emu.maps.read_qword(prov_addr).unwrap();
+    assert_ne!(hprov, 0, "hProv must be non-zero");
+
+    // CryptGenRandom(hProv, dwLen, pbBuffer)
+    for i in 0..16u64 {
+        emu.maps.write_byte(buf_addr + i, 0);
+    }
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptGenRandom,
+        &[hprov, 16, buf_addr],
+    );
+    assert_eq!(ret, 1, "CryptGenRandom must return TRUE");
+
+    // CryptReleaseContext(hProv, dwFlags)
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptReleaseContext,
+        &[hprov, 0],
+    );
+    assert_eq!(ret, 1, "CryptReleaseContext must return TRUE");
+}
+
+#[test]
+fn crypt_hash_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let prov_addr = 0x100000u64;
+    let hash_addr = 0x100010u64;
+    let data_addr = 0x100100u64;
+    emu.maps
+        .create_map("hash_io", 0x100000, 0x1000, Permission::READ_WRITE);
+
+    let container_addr = 0x200000u64;
+    emu.maps
+        .create_map("hash_str", 0x200000, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(container_addr, "test");
+
+    // Acquire context first
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptAcquireContextA,
+        &[prov_addr, container_addr, 0, 1, 0],
+    );
+    assert_eq!(ret, 1);
+    let hprov = emu.maps.read_qword(prov_addr).unwrap();
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptCreateHash,
+        &[hprov, CALG_MD5 as u64, 0, 0, hash_addr],
+    );
+    assert_eq!(ret, 1, "CryptCreateHash must return TRUE");
+    let hhash = emu.maps.read_qword(hash_addr).unwrap();
+    assert_ne!(hhash, 0, "hHash must be non-zero");
+
+    // CryptHashData(hHash, pbData, dwDataLen, dwFlags)
+    emu.maps.write_string(data_addr, "hello world");
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptHashData,
+        &[hhash, data_addr, 11, 0],
+    );
+    assert_eq!(ret, 1, "CryptHashData must return TRUE");
+}
+
+#[test]
+fn bcrypt_lifecycle_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let handle_addr = 0x100000u64;
+    let buf_addr = 0x100100u64;
+    let algo_addr = 0x200000u64;
+    emu.maps
+        .create_map("bcrypt_io", 0x100000, 0x1000, Permission::READ_WRITE);
+    emu.maps
+        .create_map("bcrypt_str", 0x200000, 0x1000, Permission::READ_WRITE);
+
+    // Write L"AES" (wide)
+    let aes: [u8; 8] = [b'A', 0, b'E', 0, b'S', 0, 0, 0];
+    for (i, &b) in aes.iter().enumerate() {
+        emu.maps.write_byte(algo_addr + i as u64, b);
+    }
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptOpenAlgorithmProvider,
+        &[handle_addr, algo_addr, 0, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptOpenAlgorithmProvider must return STATUS_SUCCESS"
+    );
+    let h_algo = emu.maps.read_qword(handle_addr).unwrap();
+    assert_ne!(h_algo, 0, "algorithm handle must be non-zero");
+
+    // BCryptGenRandom: fill 32 bytes
+    for i in 0..32u64 {
+        emu.maps.write_byte(buf_addr + i, 0);
+    }
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptGenRandom,
+        &[h_algo, buf_addr, 32, 0],
+    );
+    assert_eq!(ret, 0, "BCryptGenRandom must return STATUS_SUCCESS");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptCloseAlgorithmProvider,
+        &[h_algo, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptCloseAlgorithmProvider must return STATUS_SUCCESS"
+    );
+}
+
+#[test]
+fn rtl_decompress_buffer() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    // LZNT1 with null/empty compressed buffer returns STATUS_BAD_COMPRESSION_BUFFER
+    let status = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ntdll::RtlDecompressBuffer,
+        &[COMPRESSION_FORMAT_LZNT1 as u64, 0, 0, 0],
+    );
+    assert_ne!(
+        status, 0,
+        "RtlDecompressBuffer with null buffers should not succeed"
+    );
+}
+
+#[test]
+fn crypt_acquire_release_context() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let out_addr = 0x100000u64;
+    emu.maps
+        .create_map("crypt", out_addr, 0x1000, Permission::READ_WRITE);
+
+    emu.maps
+        .write_qword(emu.regs().rsp + 0x20, CRYPT_VERIFYCONTEXT as u64);
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptAcquireContextA,
+        &[out_addr, 0, 0, PROV_RSA_FULL as u64],
+    );
+    assert_eq!(ret, 1, "CryptAcquireContextA should return TRUE");
+
+    let handle = emu.maps.read_qword(out_addr).unwrap();
+    assert_ne!(handle, 0, "crypto handle should be non-zero");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptReleaseContext,
+        &[handle, 0],
+    );
+    assert_eq!(ret, 1, "CryptReleaseContext should return TRUE");
+}
+
+#[test]
+fn crypt_gen_random() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let buf_addr = 0x100000u64;
+    emu.maps
+        .create_map("rng", buf_addr, 0x1000, Permission::READ_WRITE);
+
+    for i in 0..16u64 {
+        emu.maps.write_byte(buf_addr + i, 0);
+    }
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptGenRandom,
+        &[0x1234, 16, buf_addr],
+    );
+    assert_eq!(ret, 1, "CryptGenRandom should return TRUE");
+
+    let mut all_zero = true;
+    for i in 0..16u64 {
+        if emu.maps.read_byte(buf_addr + i).unwrap() != 0 {
+            all_zero = false;
+            break;
+        }
+    }
+    assert!(
+        !all_zero,
+        "CryptGenRandom should fill buffer with non-zero data"
+    );
+}
+
+#[test]
+fn crypt_create_hash() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let hash_out = 0x100000u64;
+    emu.maps
+        .create_map("hash", hash_out, 0x1000, Permission::READ_WRITE);
+
+    // phHash is the 5th argument (at rsp+0x20)
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptCreateHash,
+        &[0x1234, CALG_MD5 as u64, 0, 0, hash_out],
+    );
+    assert_eq!(ret, 1, "CryptCreateHash should return TRUE");
+
+    let hash_handle = emu.maps.read_qword(hash_out).unwrap();
+    assert_ne!(hash_handle, 0, "hash handle should be non-zero");
+}
+
+#[test]
+fn crypt_gen_key() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let key_out = 0x100000u64;
+    emu.maps
+        .create_map("genkey", key_out, 0x1000, Permission::READ_WRITE);
+
+    // CryptGenKey(hProv, ALG_ID, flags, phKey)
+    // phKey is r9 (4th arg)
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptGenKey,
+        &[0x1234, CALG_RC4 as u64, 0, key_out],
+    );
+    assert_eq!(ret, 1, "CryptGenKey should return TRUE");
+
+    let key_handle = emu.maps.read_qword(key_out).unwrap();
+    assert_ne!(key_handle, 0, "key handle should be non-zero");
+}
+
+#[test]
+fn crypt_encrypt_decrypt() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let data_addr = 0x100000u64;
+    let len_addr = 0x100100u64;
+    emu.maps
+        .create_map("crypted", data_addr, 0x1000, Permission::READ_WRITE);
+
+    emu.maps.write_qword(emu.regs().rsp + 0x20, data_addr);
+    emu.maps.write_qword(emu.regs().rsp + 0x28, len_addr);
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptEncrypt,
+        &[0x1234, 0, 1, 0],
+    );
+    assert_eq!(ret, 1, "CryptEncrypt should return TRUE");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::advapi32::CryptDecrypt,
+        &[0x1234, 0, 1, 0],
+    );
+    assert_eq!(ret, 1, "CryptDecrypt should return TRUE");
+}
+
+#[test]
+fn bcrypt_lifecycle() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let handle_addr = 0x100000u64;
+    let algo_addr = 0x100100u64;
+    let buf_addr = 0x100200u64;
+    emu.maps
+        .create_map("bcrypt_data", handle_addr, 0x1000, Permission::READ_WRITE);
+
+    emu.maps.write_wide_string(algo_addr, "AES");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptOpenAlgorithmProvider,
+        &[handle_addr, algo_addr, 0, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptOpenAlgorithmProvider should return STATUS_SUCCESS"
+    );
+
+    let handle = emu.maps.read_qword(handle_addr).unwrap();
+    assert_ne!(handle, 0, "bcrypt handle should be non-zero");
+
+    // BCryptGenRandom
+    for i in 0..16u64 {
+        emu.maps.write_byte(buf_addr + i, 0);
+    }
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptGenRandom,
+        &[handle, buf_addr, 16, 0],
+    );
+    assert_eq!(ret, 0, "BCryptGenRandom should return STATUS_SUCCESS");
+
+    // BCryptCloseAlgorithmProvider
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::bcrypt::BCryptCloseAlgorithmProvider,
+        &[handle, 0],
+    );
+    assert_eq!(
+        ret, 0,
+        "BCryptCloseAlgorithmProvider should return STATUS_SUCCESS"
+    );
 }

@@ -1,7 +1,10 @@
+use crate::windows::constants::errors::*;
+use crate::windows::constants::process::*;
+use crate::windows::constants::syscalls::*;
 use std::sync::atomic::Ordering;
 
 use crate::emu::Emu;
-use crate::windows::constants::*;
+
 use crate::windows::structures::ProcessBasicInformation64;
 
 fn is_current_process_handle(h: u64) -> bool {

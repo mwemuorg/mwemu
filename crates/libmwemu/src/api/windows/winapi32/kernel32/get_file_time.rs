@@ -1,29 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetFileTime(emu: &mut emu::Emu) {
-    let h_file = arg(emu, 0) as u64;
-    let creation_ptr = arg(emu, 1) as u64;
-    let access_ptr = arg(emu, 2) as u64;
-    let write_ptr = arg(emu, 3) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetFileTime h:0x{:x} creation:0x{:x} access:0x{:x} write:0x{:x}",
-        h_file,
-        creation_ptr,
-        access_ptr,
-        write_ptr
+        "kernel32!GetFileTime h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    let filetime: u64 = 132514560000000000;
-    if creation_ptr != 0 {
-        emu.maps.write_qword(creation_ptr, filetime);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    if access_ptr != 0 {
-        emu.maps.write_qword(access_ptr, filetime);
-    }
-    if write_ptr != 0 {
-        emu.maps.write_qword(write_ptr, filetime);
-    }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

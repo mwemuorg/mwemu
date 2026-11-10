@@ -2,7 +2,7 @@ use crate::api::windows::helper;
 use crate::emu;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::winapi::winapi64::kernel32::InitializeCriticalSection;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -110,7 +110,7 @@ fn NtDelayExecution(emu: &mut emu::Emu) {
     let millis = interval.unsigned_abs() / 10_000;
     log_red!(emu, "ntdll!NtDelayExecution interval: {} ms", millis);
     helper::advance_tick(emu, millis);
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 2);
 }
 fn NtWaitForSingleObject(emu: &mut emu::Emu) {
@@ -122,7 +122,7 @@ fn NtWaitForSingleObject(emu: &mut emu::Emu) {
         handle,
         timeout
     );
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 3);
 }
 fn RtlQueueWorkItem(emu: &mut emu::Emu) {
@@ -136,7 +136,7 @@ fn RtlQueueWorkItem(emu: &mut emu::Emu) {
         ctx,
         flags
     );
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 3);
 }
 
@@ -169,10 +169,10 @@ fn RtlTlsGetValue(emu: &mut emu::Emu) {
     let index = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as usize;
     emu.stack_pop32(false);
     let val = if index < emu.tls32().len() {
-        emu.set_last_error(constants::ERROR_SUCCESS);
+        emu.set_last_error(ERROR_SUCCESS);
         emu.tls32()[index] as u64
     } else {
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
         0
     };
     log_red!(emu, "ntdll!RtlTlsGetValue index: {} =0x{:x}", index, val);

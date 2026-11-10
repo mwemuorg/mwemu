@@ -1,0 +1,31 @@
+use crate::emu;
+
+pub fn DeleteFileA(emu: &mut emu::Emu) {
+    let filename_ptr = emu.regs().rcx;
+
+    let filename = emu.maps.read_string(filename_ptr);
+
+    log_red!(
+        emu,
+        "kernel32!DeleteFileA `{}` (stub: not deleting)",
+        filename
+    );
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1; // Success
+}
+
+pub fn DeleteFileW(emu: &mut emu::Emu) {
+    let filename_ptr = emu.regs().rcx;
+
+    let filename = emu.maps.read_wide_string(filename_ptr);
+
+    log_red!(
+        emu,
+        "kernel32!DeleteFileW `{}` (stub: not deleting)",
+        filename
+    );
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
+}

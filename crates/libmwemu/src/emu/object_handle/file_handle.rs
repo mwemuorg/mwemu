@@ -1,4 +1,21 @@
 use crate::emu::object_handle::windows_path::WindowsPath;
+use crate::windows::constants::files::*;
+pub use crate::windows::constants::files::{
+    CREATE_ALWAYS, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE, FILE_ATTRIBUTE_COMPRESSED,
+    FILE_ATTRIBUTE_DIRECTORY, FILE_ATTRIBUTE_ENCRYPTED, FILE_ATTRIBUTE_HIDDEN,
+    FILE_ATTRIBUTE_NORMAL, FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, FILE_ATTRIBUTE_OFFLINE,
+    FILE_ATTRIBUTE_READONLY, FILE_ATTRIBUTE_SYSTEM, FILE_ATTRIBUTE_TEMPORARY,
+    FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_DELETE_ON_CLOSE, FILE_FLAG_FIRST_PIPE_INSTANCE,
+    FILE_FLAG_NO_BUFFERING, FILE_FLAG_OPEN_NO_RECALL, FILE_FLAG_OPEN_REPARSE_POINT,
+    FILE_FLAG_OVERLAPPED, FILE_FLAG_POSIX_SEMANTICS, FILE_FLAG_RANDOM_ACCESS,
+    FILE_FLAG_SEQUENTIAL_SCAN, FILE_FLAG_WRITE_THROUGH, OPEN_ALWAYS, OPEN_EXISTING,
+    TRUNCATE_EXISTING,
+};
+pub use crate::windows::constants::process::INVALID_HANDLE_VALUE;
+pub use crate::windows::constants::security::{
+    GENERIC_ALL, GENERIC_EXECUTE, GENERIC_READ, GENERIC_WRITE,
+};
+
 use ahash::{AHashMap, HashMap, HashSet, HashSetExt};
 use dunce::canonicalize;
 use soft_canonicalize::soft_canonicalize;
@@ -46,42 +63,6 @@ pub mod utils {
 Here we initialize and then set the FILE_SYSTEM static structure in the main when emulate.
  */
 
-// --- WinAPI Constants (Commonly Used) ---
-pub const INVALID_HANDLE_VALUE: usize = !0; // -1 as usize
-pub const GENERIC_READ: u32 = 0x80000000;
-pub const GENERIC_WRITE: u32 = 0x40000000;
-pub const GENERIC_EXECUTE: u32 = 0x20000000;
-pub const GENERIC_ALL: u32 = 0x10000000;
-
-pub const CREATE_NEW: usize = 1;
-pub const CREATE_ALWAYS: usize = 2;
-pub const OPEN_EXISTING: usize = 3;
-pub const OPEN_ALWAYS: usize = 4;
-pub const TRUNCATE_EXISTING: usize = 5;
-
-pub const FILE_ATTRIBUTE_READONLY: usize = 0x1;
-pub const FILE_ATTRIBUTE_HIDDEN: usize = 0x2;
-pub const FILE_ATTRIBUTE_SYSTEM: usize = 0x4;
-pub const FILE_ATTRIBUTE_DIRECTORY: usize = 0x10;
-pub const FILE_ATTRIBUTE_ARCHIVE: usize = 0x20;
-pub const FILE_ATTRIBUTE_NORMAL: usize = 0x80;
-pub const FILE_ATTRIBUTE_TEMPORARY: usize = 0x100;
-pub const FILE_ATTRIBUTE_COMPRESSED: usize = 0x800;
-pub const FILE_ATTRIBUTE_OFFLINE: usize = 0x1000;
-pub const FILE_ATTRIBUTE_NOT_CONTENT_INDEXED: usize = 0x2000;
-pub const FILE_ATTRIBUTE_ENCRYPTED: usize = 0x4000;
-
-pub const FILE_FLAG_WRITE_THROUGH: usize = 0x80000000;
-pub const FILE_FLAG_OVERLAPPED: usize = 0x40000000;
-pub const FILE_FLAG_NO_BUFFERING: usize = 0x20000000;
-pub const FILE_FLAG_RANDOM_ACCESS: usize = 0x10000000;
-pub const FILE_FLAG_SEQUENTIAL_SCAN: usize = 0x8000000;
-pub const FILE_FLAG_DELETE_ON_CLOSE: usize = 0x4000000;
-pub const FILE_FLAG_BACKUP_SEMANTICS: usize = 0x2000000;
-pub const FILE_FLAG_POSIX_SEMANTICS: usize = 0x1000000;
-pub const FILE_FLAG_OPEN_REPARSE_POINT: usize = 0x200000;
-pub const FILE_FLAG_OPEN_NO_RECALL: usize = 0x100000;
-pub const FILE_FLAG_FIRST_PIPE_INSTANCE: usize = 0x80000;
 struct FileHandleManagement {
     handle_management: HashMap<u32, FileHandle>, // Fixed typo: handleMagemement -> handle_management
 }
@@ -181,8 +162,6 @@ pub struct FileHandle {
     pub file_size: u64,
 }
 
-// Corrected function signature and implementation
-
 impl FileHandle {
     // Creates a new FileHandle instance based on a Windows path and parameters
     // This would typically be called from an emulated CreateFile function
@@ -193,8 +172,6 @@ impl FileHandle {
         flags_and_attributes: u32,
         sharing_mode: u32,
     ) -> Result<FileHandle, Box<dyn std::error::Error>> {
-        // Return Result for better error handling
-
         let windows_path = WindowsPath::from_path(&name)?;
         let resolved_path = FILE_SYSTEM
             .get()
@@ -207,25 +184,31 @@ impl FileHandle {
             })?;
 
         // For creation modes that may create a new file, ensure parent directory exists
-        if matches!(creation_disposition, 1 | 2 | 4)
-            && let Some(parent) = resolved_path.parent()
+        if matches!(
+            creation_disposition as usize,
+            CREATE_NEW | CREATE_ALWAYS | OPEN_ALWAYS
+        ) && let Some(parent) = resolved_path.parent()
         {
             let _ = fs::create_dir_all(parent);
         }
 
         // Reading is always allowed on the host side; writing needs a write
         // access right or a disposition that creates or truncates.
-        const WRITE_ACCESS: u32 = 0x4000_0000 | 0x1000_0000 | 0x2 | 0x4; // GENERIC_WRITE, GENERIC_ALL, FILE_WRITE_DATA, FILE_APPEND_DATA
+        const WRITE_ACCESS: u32 = GENERIC_WRITE | GENERIC_ALL | FILE_WRITE_DATA | FILE_APPEND_DATA;
         let mut options = File::options();
         options.read(true).write(
-            access_mode & WRITE_ACCESS != 0 || matches!(creation_disposition, 1 | 2 | 4 | 5),
+            access_mode & WRITE_ACCESS != 0
+                || matches!(
+                    creation_disposition as usize,
+                    CREATE_NEW | CREATE_ALWAYS | OPEN_ALWAYS | TRUNCATE_EXISTING
+                ),
         );
-        match creation_disposition {
-            1 => options.create_new(true),            // CREATE_NEW
-            2 => options.create(true).truncate(true), // CREATE_ALWAYS
-            3 => &mut options,                        // OPEN_EXISTING
-            4 => options.create(true),                // OPEN_ALWAYS
-            5 => options.truncate(true),              // TRUNCATE_EXISTING
+        match creation_disposition as usize {
+            CREATE_NEW => options.create_new(true),
+            CREATE_ALWAYS => options.create(true).truncate(true),
+            OPEN_EXISTING => &mut options,
+            OPEN_ALWAYS => options.create(true),
+            TRUNCATE_EXISTING => options.truncate(true),
             _ => {
                 return Err(Box::new(io::Error::new(
                     ErrorKind::InvalidInput,
@@ -262,7 +245,6 @@ impl FileHandle {
         })
     }
 
-    // Example methods that might be called by emulated WinAPI functions
     /// Read backing bytes without changing the guest file position.
     pub fn mapping_bytes(&self, size: usize) -> io::Result<Vec<u8>> {
         if !self.is_valid || self.is_dir {
@@ -295,6 +277,7 @@ impl FileHandle {
     }
 
     pub fn read(&mut self, buffer: &mut [u8]) -> Result<usize, io::Error> {
+        self.require_access(GENERIC_READ | GENERIC_ALL | FILE_READ_DATA)?;
         if !self.is_valid {
             return Err(io::Error::new(
                 ErrorKind::InvalidInput,
@@ -316,6 +299,7 @@ impl FileHandle {
     }
 
     pub fn write(&mut self, buffer: &[u8]) -> Result<usize, io::Error> {
+        self.require_access(GENERIC_WRITE | GENERIC_ALL | FILE_WRITE_DATA)?;
         if !self.is_valid || self.is_dir {
             return Err(io::Error::new(
                 ErrorKind::InvalidInput,
@@ -325,6 +309,7 @@ impl FileHandle {
         if let Some(ref mut f) = self.file {
             let bytes_written = f.write(buffer)?;
             self.file_position += bytes_written as u64;
+            self.file_size = self.file_size.max(self.file_position);
             self.is_eof = false; // Writing typically means not at EOF
             Ok(bytes_written)
         } else {
@@ -367,6 +352,30 @@ impl FileHandle {
             .as_ref()
             .filter(|_| self.is_valid)
             .ok_or_else(|| io::Error::new(ErrorKind::InvalidInput, "No file object associated"))
+    }
+
+    fn require_access(&self, access: u32) -> io::Result<()> {
+        if self.access_mode & access == 0 {
+            Err(io::Error::new(
+                ErrorKind::PermissionDenied,
+                "File access was not granted",
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn flush(&self) -> io::Result<()> {
+        self.require_access(GENERIC_WRITE | GENERIC_ALL | FILE_WRITE_DATA)?;
+        self.open_file()?.sync_all()
+    }
+
+    pub fn set_end_of_file(&mut self) -> io::Result<()> {
+        self.require_access(GENERIC_WRITE | GENERIC_ALL | FILE_WRITE_DATA)?;
+        self.open_file()?.set_len(self.file_position)?;
+        self.file_size = self.file_position;
+        self.is_eof = true;
+        Ok(())
     }
 
     /// Current size of the file.
@@ -760,6 +769,7 @@ impl FileSystemBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tests::file_system_root;
     use tempfile::tempdir;
     // Add to Cargo.toml: serial_test = "3.0"
     use serial_test::serial;
@@ -831,16 +841,11 @@ mod tests {
     #[test]
     #[serial] // Prevents parallel execution due to global OnceLock
     fn test_init_with_absolute_path() {
-        let temp_dir = tempdir().unwrap();
-        let root_path = temp_dir.path().join("vfs_absolute");
-        assert!(!root_path.exists());
-
-        // First initialization should succeed (creates root if missing)
-        assert!(init_file_system(Some(&root_path)).is_ok());
+        let root_path = file_system_root();
 
         // Verify global state
         let fs = FILE_SYSTEM.get().expect("FS should be set");
-        assert_eq!(fs.root(), &canonicalize(&root_path).unwrap());
+        assert_eq!(fs.root(), &canonicalize(root_path).unwrap());
 
         // Second initialization should fail (OnceLock already set)
         let result = init_file_system(Some(&root_path));

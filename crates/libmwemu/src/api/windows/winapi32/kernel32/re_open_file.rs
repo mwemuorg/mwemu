@@ -1,25 +1,17 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn ReOpenFile(emu: &mut emu::Emu) {
-    let orig_handle = arg(emu, 0) as u64;
-    let desired_access = arg(emu, 1) as u64;
-    let share_mode = arg(emu, 2) as u64;
-    let flags = arg(emu, 3) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!ReOpenFile h:0x{:x} access:0x{:x} share:0x{:x} flags:0x{:x}",
-        orig_handle,
-        desired_access,
-        share_mode,
-        flags
+        "kernel32!ReOpenFile h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if helper::handler_exist(orig_handle) {
-        let uri = helper::handler_get_uri(orig_handle);
-        emu.regs_mut().rax = helper::handler_create(&uri);
-    } else {
-        emu.regs_mut().rax = u64::MAX; // INVALID_HANDLE_VALUE
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    stdcall_ret(emu, 4);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

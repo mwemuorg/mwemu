@@ -1,18 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn IsWow64GuestMachineSupported(emu: &mut emu::Emu) {
-    let machine = arg(emu, 0) as u64;
-    let p_supported = arg(emu, 1) as u64;
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!IsWow64GuestMachineSupported machine:0x{:x} pSupported:0x{:x}",
-        machine,
-        p_supported
+        "kernel32!IsWow64GuestMachineSupported arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-    if p_supported != 0 {
-        emu.maps.write_dword(p_supported, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

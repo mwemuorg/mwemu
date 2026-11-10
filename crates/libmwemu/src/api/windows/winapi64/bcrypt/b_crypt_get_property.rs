@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptGetProperty(emu: &mut emu::Emu) {
     let h_object = emu.regs().rcx;
@@ -50,5 +50,5 @@ pub fn BCryptGetProperty(emu: &mut emu::Emu) {
         value
     );
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
