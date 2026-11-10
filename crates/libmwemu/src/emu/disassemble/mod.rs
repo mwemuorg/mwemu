@@ -69,14 +69,44 @@ impl<T: Copy + Default> Default for InstructionCache<T> {
 }
 
 impl<T: Copy + Default> InstructionCache<T> {
+    /// An empty cache. The lookup table and the decoded slots are allocated
+    /// by the first insertion: filled eagerly they are about 56 MB, every
+    /// `run` starts from a fresh cache, and an emulator that never executes
+    /// an instruction (one that only calls API handlers, say) needs neither.
     pub fn new() -> Self {
         InstructionCache {
-            cache_entries: vec![CachedInstruction::default(); CACHE_SIZE],
-            instructions: vec![T::default(); INSTRUCTION_ARRAY_SIZE],
+            cache_entries: Vec::new(),
+            instructions: Vec::new(),
             next_instruction_slot: 0,
             current_decode_len: 0,
             current_instruction_slot: 0,
             current_decode_idx: 0,
+        }
+    }
+
+    /// Allocate the lookup table and reserve the decoded slots, before the
+    /// first insertion.
+    #[inline]
+    fn ensure_allocated(&mut self) {
+        if self.cache_entries.is_empty() {
+            self.cache_entries = vec![CachedInstruction::default(); CACHE_SIZE];
+            self.instructions.reserve_exact(INSTRUCTION_ARRAY_SIZE);
+        }
+    }
+
+    /// Store a decoded instruction in `slot`. Slots are handed out in order,
+    /// so the array grows by one element at a time, up to the high-water mark
+    /// of the slots used.
+    #[inline]
+    fn store(&mut self, slot: usize, instruction: T) {
+        let len = self.instructions.len();
+        if slot < len {
+            self.instructions[slot] = instruction;
+        } else {
+            if slot > len {
+                self.instructions.resize(slot, T::default());
+            }
+            self.instructions.push(instruction);
         }
     }
 
@@ -96,6 +126,9 @@ impl<T: Copy + Default> InstructionCache<T> {
     /// The decoded slots are left alone: the block being executed keeps
     /// decoding from them until the run loop decides to refetch.
     pub fn invalidate_range(&mut self, addr: u64, len: u64, block_len: u64) {
+        if self.cache_entries.is_empty() {
+            return;
+        }
         let end = addr.saturating_add(len); // exclusive
         let first = crate::maps::tlb::LPF_OF(addr.saturating_sub(block_len.saturating_sub(1)));
         let last = crate::maps::tlb::LPF_OF(end.saturating_sub(1).max(addr));
@@ -124,12 +157,18 @@ impl<T: Copy + Default> InstructionCache<T> {
 
     #[inline]
     pub fn flush_cache_line(&mut self, idx: usize) {
+        if self.cache_entries.is_empty() {
+            return;
+        }
         for i in 0..MAX_CACHE_PER_LINE {
             self.cache_entries[idx + i].lpf = INVALID_LPF_ADDR;
         }
     }
 
     pub fn lookup_entry(&mut self, addr: u64, len: u64) -> bool {
+        if self.cache_entries.is_empty() {
+            return false;
+        }
         let lpf = crate::maps::tlb::LPF_OF(addr);
         let idx = self.get_index_of(lpf, len);
 
@@ -190,6 +229,7 @@ impl<T: Copy + Default> InstructionCache<T> {
     /// Insert a single instruction at the given address.
     /// Used by the aarch64 path which decodes one instruction at a time.
     pub fn insert_single(&mut self, addr: u64, instruction: T) {
+        self.ensure_allocated();
         let lpf = crate::maps::tlb::LPF_OF(addr);
         let idx = self.get_index_of(lpf, 0);
 
@@ -198,7 +238,7 @@ impl<T: Copy + Default> InstructionCache<T> {
             self.flush_cache();
         }
 
-        self.instructions[self.next_instruction_slot] = instruction;
+        self.store(self.next_instruction_slot, instruction);
         self.next_instruction_slot += 1;
 
         for i in 0..MAX_CACHE_PER_LINE {
@@ -237,6 +277,7 @@ impl InstructionCache<DecodedInstruction> {
         addition: usize,
         rip_addr: u64,
     ) {
+        self.ensure_allocated();
         let lpf = crate::maps::tlb::LPF_OF(rip_addr);
         let idx = self.get_index_of(lpf, 0);
         let slot = self.next_instruction_slot;
@@ -249,7 +290,7 @@ impl InstructionCache<DecodedInstruction> {
             let mut native = Instruction::default();
             decoder.decode_out(&mut native);
             let ins = DecodedInstruction::X86(native);
-            self.instructions[slot + count] = ins;
+            self.store(slot + count, ins);
             let temp = native;
             if temp.is_jmp_short_or_near()
                 || temp.is_jmp_near_indirect()
@@ -282,6 +323,7 @@ impl InstructionCache<DecodedInstruction> {
     /// Decode a basic block of aarch64 instructions from the given byte
     /// slice and insert them as `DecodedInstruction::AArch64(_)`.
     pub fn insert_aarch64_from_block(&mut self, block: &[u8], pc_addr: u64) {
+        self.ensure_allocated();
         let lpf = crate::maps::tlb::LPF_OF(pc_addr);
         let idx = self.get_index_of(lpf, 0);
         let slot = self.next_instruction_slot;
@@ -299,7 +341,7 @@ impl InstructionCache<DecodedInstruction> {
                 Ok(ins) => ins,
                 Err(_) => break,
             };
-            self.instructions[slot + count] = DecodedInstruction::AArch64(native);
+            self.store(slot + count, DecodedInstruction::AArch64(native));
             count += 1;
             offset += 4;
             use yaxpeax_arm::armv8::a64::Opcode;

@@ -385,11 +385,11 @@ impl Mem64 {
             .checked_add(size)
             .ok_or("memory range overflow")?;
         let len = usize::try_from(size).map_err(|_| "memory size overflow")?;
-        let mut bytes = Vec::new();
-        bytes
-            .try_reserve_exact(len)
-            .map_err(|_| "backing allocation failed")?;
-        bytes.resize(len, 0);
+        // One zeroed allocation: the allocator returns untouched zero pages.
+        // Reserving and then `resize`-ing writes every byte instead, which for
+        // a 1 MB stack costs milliseconds in a debug build.
+        let bytes: Vec<u8> =
+            bytemuck::try_zeroed_vec(len).map_err(|_| "backing allocation failed")?;
         self.view = None;
         self.shared = None;
         self.mem = bytes;
