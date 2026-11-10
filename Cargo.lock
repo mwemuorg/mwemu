@@ -1452,6 +1452,7 @@ dependencies = [
  "log",
  "minidump",
  "mwemu-core",
+ "mwemu-windows",
  "rand 0.9.5",
  "rs-header",
  "serde",
@@ -1569,13 +1570,17 @@ name = "mwemu-windows"
 version = "1.0.0"
 dependencies = [
  "aes",
+ "bitfield",
  "des",
+ "flate2",
+ "goblin",
  "iced-x86",
  "lazy_static",
  "log",
  "md5",
  "mwemu-core",
  "pbkdf2",
+ "rs-header",
  "sha1",
  "sha2",
 ]

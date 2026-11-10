@@ -3,8 +3,7 @@ use crate::windows::constants::exceptions::*;
 use crate::{
     console::Console,
     emu::Emu,
-    exception::handlers::{self, HandlerKind},
-    exception::types::{ExceptionRecord, ExceptionType, MemoryAccess},
+    exception::types::{ExceptionRecord, ExceptionType, HandlerKind, MemoryAccess},
     maps::mem64::Permission,
     threading::context::ArchThreadState,
 };
@@ -224,11 +223,13 @@ impl Emu {
             self.stop();
             return;
         }
-        record.nested = handlers::active_record(self).unwrap_or(0);
+        record.nested = crate::layers::windows()
+            .active_exception_record(self)
+            .unwrap_or(0);
         self.dispatch_vectored_exception(&record, 0);
     }
 
-    pub(crate) fn dispatch_vectored_exception(&mut self, record: &ExceptionRecord, index: usize) {
+    pub fn dispatch_vectored_exception(&mut self, record: &ExceptionRecord, index: usize) {
         if let Some(&address) = self.veh_list().get(index) {
             self.call_exception_handler(record, address, HandlerKind::Veh, index);
         } else {
@@ -269,7 +270,7 @@ impl Emu {
         self.call_exception_handler(record, address as u64, HandlerKind::Seh, 0);
     }
 
-    pub(crate) fn dispatch_unhandled_exception(&mut self, record: &ExceptionRecord) {
+    pub fn dispatch_unhandled_exception(&mut self, record: &ExceptionRecord) {
         if self.uef() != 0 {
             self.call_exception_handler(record, self.uef(), HandlerKind::Uef, 0);
         } else {
@@ -298,7 +299,7 @@ impl Emu {
             self.stop();
             return;
         }
-        handlers::enter_record(self, record, kind, veh_index);
+        crate::layers::windows().enter_exception_record(self, record, kind, veh_index);
         if !self.process_terminated {
             self.regs_mut().rip = address;
             self.force_reload = true;

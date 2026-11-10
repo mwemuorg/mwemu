@@ -3,8 +3,7 @@ use crate::{
     api::dispatch,
     emu::{API_CALL_LOG_CAP, ApiCallLogEntry, Emu},
     exception::types::ExceptionType,
-    windows::peb::{peb32, peb64},
-    windows::{loader32, loader64, native_crt},
+    windows::native_crt,
 };
 
 impl Emu {
@@ -65,27 +64,27 @@ impl Emu {
     /// For an existing linked DLL, this funcion allows to modify the base address on LDR entry.
     pub fn update_ldr_entry_base(&mut self, libname: &str, base: u64) {
         if self.cfg.arch.is_64bits() {
-            peb64::update_ldr_entry_base(libname, base, self);
+            crate::layers::windows().update_ldr_entry_base(self, libname, base, true);
         } else {
-            peb32::update_ldr_entry_base(libname, base, self);
+            crate::layers::windows().update_ldr_entry_base(self, libname, base, false);
         }
     }
 
     /// Dynamic link a windows DLL from emu.cfg.maps_folder.
     pub fn link_library(&mut self, libname: &str) -> u64 {
         if self.cfg.arch.is_64bits() {
-            loader64::load_library(self, libname)
+            crate::layers::windows().load_library(self, libname, true)
         } else {
-            loader32::load_library(self, libname)
+            crate::layers::windows().load_library(self, libname, false)
         }
     }
 
     /// Resolve the winapi name having an address.
     pub fn api_addr_to_name(&mut self, addr: u64) -> String {
         let name: String = if self.cfg.arch.is_64bits() {
-            loader64::resolve_api_addr_to_name(self, addr)
+            crate::layers::windows().resolve_api_addr_to_name(self, addr, true)
         } else {
-            loader32::resolve_api_addr_to_name(self, addr)
+            crate::layers::windows().resolve_api_addr_to_name(self, addr, false)
         };
 
         name
@@ -94,10 +93,10 @@ impl Emu {
     /// Resolve the address of an api name keyword.
     pub fn api_name_to_addr(&mut self, kw: &str) -> u64 {
         if self.cfg.arch.is_64bits() {
-            let (addr, lib, name) = loader64::search_api_name(self, kw);
+            let (addr, lib, name) = crate::layers::windows().search_api_name(self, kw, true);
             addr
         } else {
-            let (addr, lib, name) = loader32::search_api_name(self, kw);
+            let (addr, lib, name) = crate::layers::windows().search_api_name(self, kw, false);
             addr
         }
     }

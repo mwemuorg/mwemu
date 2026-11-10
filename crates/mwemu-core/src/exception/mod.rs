@@ -1,4 +1,4 @@
-pub mod handlers;
-pub mod raise;
-pub mod seh32;
+//! Exception types. The Windows exception dispatch (SEH, VEH, UEF) is in
+//! `mwemu-windows`, reached through `layers::windows()`.
+
 pub mod types;

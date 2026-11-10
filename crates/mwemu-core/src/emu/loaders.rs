@@ -6,9 +6,7 @@ use crate::emu::Emu;
 use crate::emu::loaders::macho64::Macho64;
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
-use crate::windows::loader64;
 
-use crate::windows::peb::{peb32, peb64};
 use rs_header::elf::elf32::Elf32;
 use rs_header::elf::elf64::Elf64;
 use rs_header::pe::{
@@ -19,11 +17,9 @@ mod kext;
 mod ko;
 pub mod macho64;
 pub mod macho_sentinels;
-mod pe;
 mod pe_loader;
-pub use pe::{MappedPe64, PeLoadInfo};
-mod pe_stub;
-pub mod pe_stub_exports;
+mod pe_types;
+pub use pe_types::{MappedPe64, PeLoadInfo};
 
 impl Emu {
     /// Classify a target the way `load_code` will, reporting whether it is a
@@ -452,8 +448,12 @@ impl Emu {
             }
             // Optional SSDT loader bootstrap: call ntdll!LdrInitializeThunk to perform loader init.
             if self.cfg.emulate_winapi {
-                let ldr_init =
-                    loader64::resolve_api_name_in_module(self, "ntdll.dll", "LdrInitializeThunk");
+                let ldr_init = crate::layers::windows().resolve_api_name_in_module(
+                    self,
+                    "ntdll.dll",
+                    "LdrInitializeThunk",
+                    true,
+                );
                 if ldr_init != 0 {
                     // Arrange return to entrypoint so execution continues normally.
                     self.regs_mut().rip = ep;
@@ -492,7 +492,7 @@ impl Emu {
                     // Rip: entry point — NtContinue will redirect execution here
                     let _ = self.maps.write_qword(ctx_addr + 0xF8, ep);
 
-                    crate::windows::peb::peb64::ensure_ntdll_loader_globals(self);
+                    crate::layers::windows().ensure_ntdll_loader_globals(self);
                     crate::layers::windows().patch_ntdll_load_reason_checks(self);
                     let _ = self.call64(ldr_init, &[ctx_addr, ntdll_base, 0]);
                     self.ldr_init_done = true;
@@ -565,9 +565,8 @@ impl Emu {
                                         continue;
                                     }
                                     let pe_off = self.maps.read_dword(base + 0x3c).unwrap_or(0);
-                                    crate::windows::peb::peb64::dynamic_link_module(
-                                        base, pe_off, &name, self,
-                                    );
+                                    crate::layers::windows()
+                                        .dynamic_link_module64(self, base, pe_off, &name);
                                     log::trace!(
                                         "  repopulated LDR entry {} base=0x{:x}",
                                         name,
@@ -583,7 +582,7 @@ impl Emu {
                     // under emulation, leaving FullDllName/BaseDllName pointing at
                     // uninitialized (later freed) heap. Patch it with a stable
                     // mwemu-owned buffer so PEB-walking code reads the real name.
-                    crate::windows::peb::peb64::fix_exe_module_name(self);
+                    crate::layers::windows().fix_exe_module_name(self);
 
                     // DEBUG: dump InMemoryOrder chain so we can verify a PEB-walking
                     // shellcode finds the expected DllBase at the expected index.
@@ -697,12 +696,14 @@ impl Emu {
             let exe_path = self.cfg.get_maps_folder(&exe_name);
             if self.cfg.is_x64() {
                 match self.load_pe64(&exe_path, false, 0) {
-                    Ok(image) => peb64::update_ldr_entry_base(&exe_name, image.base, self),
+                    Ok(image) => crate::layers::windows()
+                        .update_ldr_entry_base(self, &exe_name, image.base, true),
                     Err(error) => log::warn!("cannot load shellcode process image: {error}"),
                 }
             } else {
                 match self.load_pe32(&exe_path, false, 0) {
-                    Ok(image) => peb32::update_ldr_entry_base(&exe_name, image.base, self),
+                    Ok(image) => crate::layers::windows()
+                        .update_ldr_entry_base(self, &exe_name, image.base, false),
                     Err(error) => log::warn!("cannot load shellcode process image: {error}"),
                 }
             }
@@ -775,8 +776,18 @@ impl Emu {
     }
 
     fn init_msvcrt_cmdln_globals(&mut self) {
-        let wcmdln_addr = loader64::resolve_api_name_in_module(self, "msvcrt.dll", "_wcmdln");
-        let acmdln_addr = loader64::resolve_api_name_in_module(self, "msvcrt.dll", "_acmdln");
+        let wcmdln_addr = crate::layers::windows().resolve_api_name_in_module(
+            self,
+            "msvcrt.dll",
+            "_wcmdln",
+            true,
+        );
+        let acmdln_addr = crate::layers::windows().resolve_api_name_in_module(
+            self,
+            "msvcrt.dll",
+            "_acmdln",
+            true,
+        );
 
         if wcmdln_addr == 0 && acmdln_addr == 0 {
             return;

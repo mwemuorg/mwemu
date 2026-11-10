@@ -14,6 +14,9 @@
 use std::sync::OnceLock;
 
 use crate::emu::Emu;
+use crate::emu::loaders::{MappedPe64, PeLoadInfo};
+use crate::err::MwemuError;
+use crate::exception::types::{ExceptionRecord, HandlerKind};
 use crate::kernel::KernelOs;
 
 /// The x86 and x86-64 engine (`mwemu-x86`).
@@ -76,7 +79,8 @@ pub trait MacosLayer: Sync {
 }
 
 /// The Windows layer (`mwemu-windows`): the NT syscalls and the fix-ups they
-/// need on a real ntdll.
+/// need on a real ntdll, the PE loader, the PEB and loader data, the set-up
+/// of an emulator as a Windows process and the exception dispatch.
 pub trait WindowsLayer: Sync {
     /// x86-64 `syscall` and `int`.
     fn syscall64(&self, emu: &mut Emu);
@@ -93,6 +97,84 @@ pub trait WindowsLayer: Sync {
     /// Called before each instruction while the real ntdll runs (`--ssdt`),
     /// to redirect its heap-list walks.
     fn ntdll_heap_list_walk_fixup(&self, emu: &mut Emu, ins: &iced_x86::Instruction, rip: u64);
+
+    /// The name of the API at `addr`, or an empty string. `is64` selects the
+    /// 64-bit loader; the other name and library look-ups below take it too.
+    fn guess_api_name(&self, emu: &mut Emu, addr: u64, is64: bool) -> String;
+    /// The name of the export at `addr`.
+    fn resolve_api_addr_to_name(&self, emu: &mut Emu, addr: u64, is64: bool) -> String;
+    /// Find an export by name in the loaded modules: its address, library and name.
+    fn search_api_name(&self, emu: &mut Emu, name: &str, is64: bool) -> (u64, String, String);
+    /// The address of the export `name` in any loaded module, or 0.
+    fn resolve_api_name(&self, emu: &mut Emu, name: &str, is64: bool) -> u64;
+    /// The address of the export `name` of `module`, or 0.
+    fn resolve_api_name_in_module(
+        &self,
+        emu: &mut Emu,
+        module: &str,
+        name: &str,
+        is64: bool,
+    ) -> u64;
+    /// Map the DLL `libname` and link it into the loader lists. Returns its base, or 0.
+    fn load_library(&self, emu: &mut Emu, libname: &str, is64: bool) -> u64;
+    /// Set the base address of the loader entry of `libname`.
+    fn update_ldr_entry_base(&self, emu: &mut Emu, libname: &str, base: u64, is64: bool);
+    /// Add a module to the 64-bit loader lists.
+    fn dynamic_link_module64(&self, emu: &mut Emu, base: u64, pe_off: u32, libname: &str);
+    /// Give the main image its real name in the 64-bit loader lists.
+    fn fix_exe_module_name(&self, emu: &mut Emu);
+    /// Initialise the loader globals of the mapped ntdll (`--ssdt`).
+    fn ensure_ntdll_loader_globals(&self, emu: &mut Emu);
+    /// Fill `PEB.SystemDependent07` before `LdrInitializeThunk` runs (`--ssdt`).
+    fn ensure_peb_system_dependent_07(&self, emu: &mut Emu);
+    /// The guest address of the exception record of the handler that is
+    /// running, if one is.
+    fn active_exception_record(&self, emu: &Emu) -> Option<u64>;
+    /// Save the context and build the guest frame for calling a SEH, VEH or
+    /// UEF handler with `record`. The caller sets the instruction pointer.
+    fn enter_exception_record(
+        &self,
+        emu: &mut Emu,
+        record: &ExceptionRecord,
+        kind: HandlerKind,
+        veh_index: usize,
+    );
+    /// A `ret` reached `return_address`: finish the exception handler if that
+    /// is where it returns to. Returns whether it did.
+    fn exception_handle_return(&self, emu: &mut Emu, return_address: u64) -> bool;
+    /// If `addr` is inside an export whose first instructions the guest copied
+    /// and skipped, the address to continue at.
+    fn stolen_prologue_unwind(&self, emu: &mut Emu, addr: u64) -> Option<u64>;
+    /// Set `emu` up as a Windows process (`Emu::init_win32`).
+    fn init(
+        &self,
+        emu: &mut Emu,
+        clear_registers: bool,
+        clear_flags: bool,
+    ) -> Result<(), MwemuError>;
+    /// Load and bind a PE32 image (`Emu::load_pe32`).
+    fn load_pe32(
+        &self,
+        emu: &mut Emu,
+        filename: &str,
+        main_image: bool,
+        force_base: u32,
+    ) -> Result<PeLoadInfo, MwemuError>;
+    /// Load and bind a PE64 image (`Emu::load_pe64`).
+    fn load_pe64(
+        &self,
+        emu: &mut Emu,
+        filename: &str,
+        main_image: bool,
+        force_base: u64,
+    ) -> Result<PeLoadInfo, MwemuError>;
+    /// Map and relocate a PE64 DLL without binding its imports
+    /// (`Emu::map_dll_pe64`).
+    fn map_dll_pe64(&self, emu: &mut Emu, filename: &str) -> Result<MappedPe64, MwemuError>;
+    /// Build and map a stub PE32 DLL (`Emu::create_stub_pe32`).
+    fn create_stub_pe32(&self, emu: &mut Emu, dll_name: &str, exports: &[&str]) -> u32;
+    /// Build and map a stub PE64 DLL (`Emu::create_stub_pe64`).
+    fn create_stub_pe64(&self, emu: &mut Emu, dll_name: &str, exports: &[&str]) -> u64;
 }
 
 /// The kernel API surfaces (`mwemu-kernel`): the kernel functions an emulated
@@ -222,6 +304,12 @@ impl Missing {
         );
         emu.stop();
     }
+
+    /// `stop()`, for the entry points that report failure as an error.
+    fn error(&self, emu: &mut Emu) -> MwemuError {
+        self.stop(emu);
+        MwemuError::new(&format!("the {} is not registered", self.0))
+    }
 }
 
 impl X86Engine for Missing {
@@ -307,6 +395,108 @@ impl WindowsLayer for Missing {
     }
     fn ntdll_heap_list_walk_fixup(&self, emu: &mut Emu, _ins: &iced_x86::Instruction, _rip: u64) {
         self.stop(emu);
+    }
+    fn guess_api_name(&self, emu: &mut Emu, _addr: u64, _is64: bool) -> String {
+        self.stop(emu);
+        String::new()
+    }
+    fn resolve_api_addr_to_name(&self, emu: &mut Emu, _addr: u64, _is64: bool) -> String {
+        self.stop(emu);
+        String::new()
+    }
+    fn search_api_name(&self, emu: &mut Emu, _name: &str, _is64: bool) -> (u64, String, String) {
+        self.stop(emu);
+        (0, String::new(), String::new())
+    }
+    fn resolve_api_name(&self, emu: &mut Emu, _name: &str, _is64: bool) -> u64 {
+        self.stop(emu);
+        0
+    }
+    fn resolve_api_name_in_module(
+        &self,
+        emu: &mut Emu,
+        _module: &str,
+        _name: &str,
+        _is64: bool,
+    ) -> u64 {
+        self.stop(emu);
+        0
+    }
+    fn load_library(&self, emu: &mut Emu, _libname: &str, _is64: bool) -> u64 {
+        self.stop(emu);
+        0
+    }
+    fn update_ldr_entry_base(&self, emu: &mut Emu, _libname: &str, _base: u64, _is64: bool) {
+        self.stop(emu);
+    }
+    fn dynamic_link_module64(&self, emu: &mut Emu, _base: u64, _pe_off: u32, _libname: &str) {
+        self.stop(emu);
+    }
+    fn fix_exe_module_name(&self, emu: &mut Emu) {
+        self.stop(emu);
+    }
+    fn ensure_ntdll_loader_globals(&self, emu: &mut Emu) {
+        self.stop(emu);
+    }
+    fn ensure_peb_system_dependent_07(&self, emu: &mut Emu) {
+        self.stop(emu);
+    }
+    fn active_exception_record(&self, _emu: &Emu) -> Option<u64> {
+        None
+    }
+    fn enter_exception_record(
+        &self,
+        emu: &mut Emu,
+        _record: &ExceptionRecord,
+        _kind: HandlerKind,
+        _veh_index: usize,
+    ) {
+        self.stop(emu);
+    }
+    fn exception_handle_return(&self, emu: &mut Emu, _return_address: u64) -> bool {
+        self.stop(emu);
+        false
+    }
+    fn stolen_prologue_unwind(&self, emu: &mut Emu, _addr: u64) -> Option<u64> {
+        self.stop(emu);
+        None
+    }
+    fn init(
+        &self,
+        emu: &mut Emu,
+        _clear_registers: bool,
+        _clear_flags: bool,
+    ) -> Result<(), MwemuError> {
+        Err(self.error(emu))
+    }
+    fn load_pe32(
+        &self,
+        emu: &mut Emu,
+        _filename: &str,
+        _main_image: bool,
+        _force_base: u32,
+    ) -> Result<PeLoadInfo, MwemuError> {
+        Err(self.error(emu))
+    }
+    fn load_pe64(
+        &self,
+        emu: &mut Emu,
+        _filename: &str,
+        _main_image: bool,
+        _force_base: u64,
+    ) -> Result<PeLoadInfo, MwemuError> {
+        Err(self.error(emu))
+    }
+    fn map_dll_pe64(&self, emu: &mut Emu, _filename: &str) -> Result<MappedPe64, MwemuError> {
+        Err(self.error(emu))
+    }
+    fn create_stub_pe32(&self, emu: &mut Emu, _dll_name: &str, _exports: &[&str]) -> u32 {
+        self.stop(emu);
+        0
+    }
+    fn create_stub_pe64(&self, emu: &mut Emu, _dll_name: &str, _exports: &[&str]) -> u64 {
+        self.stop(emu);
+        0
     }
 }
 

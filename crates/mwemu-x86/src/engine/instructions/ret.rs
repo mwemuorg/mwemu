@@ -1,10 +1,8 @@
 use crate::debug::console::Console;
 use crate::emu::Emu;
-use crate::exception::seh32;
 use crate::windows::constants::memory::*;
-use crate::windows::{loader32, loader64};
 
-use crate::{color, exception::handlers as exception};
+use crate::color;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
@@ -22,9 +20,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     if emu.cfg.trace_calls {
         let dest_sym = if emu.cfg.is_x64() {
-            loader64::guess_api_name(emu, ret_addr)
+            crate::layers::windows().guess_api_name(emu, ret_addr, true)
         } else {
-            loader32::guess_api_name(emu, ret_addr as u32)
+            crate::layers::windows().guess_api_name(emu, ret_addr as u32 as u64, false)
         };
         let dest_note = if dest_sym.is_empty() {
             String::new()
@@ -79,9 +77,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     }
 
-    if emu.eh_ctx() != 0
-        && (seh32::handle_return(emu, ret_addr) || exception::handle_return(emu, ret_addr))
-    {
+    if emu.eh_ctx() != 0 && crate::layers::windows().exception_handle_return(emu, ret_addr) {
         return true;
     }
 

@@ -1,6 +1,7 @@
 use goblin::pe::section_table::{IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE};
 
 use crate::emu::Emu;
+use crate::emu::loaders::{MappedPe64, PeLoadInfo};
 use crate::err::MwemuError;
 use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
@@ -17,21 +18,66 @@ use rs_header::pe::shared::{IMAGE_DIRECTORY_ENTRY_EXPORT, ImageDataDirectory};
 
 const INITIAL_LDR_PREVIOUS_LINK: u32 = 0x2c1950;
 
-/// Location of a successfully loaded PE image in guest memory.
-#[derive(Debug, Clone, Copy)]
-pub struct PeLoadInfo {
-    pub base: u64,
-    pub header_offset: u32,
+/// Mapping PE32 and PE64 images into the emulator.
+pub(crate) trait PeLoading {
+    fn read_pe_raw(filename: &str) -> Result<Vec<u8>, MwemuError>;
+
+    // Register exports before binding imports, including recursively loaded DLLs.
+    // Absent or malformed export directories leave the registry unchanged.
+    fn register_pe_exports(
+        &mut self,
+        module_name: &str,
+        base: u64,
+        raw: &[u8],
+        layout: ImageLayout<'_>,
+        directories: &[ImageDataDirectory],
+    );
+
+    /// PE images use allocation granularity; other library buffers retain the
+    /// page-aligned generic allocator. The caller maps the chosen range.
+    fn alloc_pe_image(&self, size: u64, bottom: u64, top: u64) -> Option<u64>;
+
+    fn pe_base_available(&self, base: u64, span: u64, limit: u64) -> bool;
+
+    fn pick_pe32_base(&self, pe: &PE32, span: u64, main_image: bool) -> Option<u64>;
+
+    fn pick_pe64_base(&self, pe: &PE64, span: u64, main_image: bool) -> Option<u64>;
+
+    fn set_pe_entry_point(&mut self, base: u64, entry_rva: u32);
+
+    /// Load and bind a PE32 image. Only the main image owns process metadata,
+    /// the initial instruction pointer and TLS state.
+    fn load_pe32(
+        &mut self,
+        filename: &str,
+        main_image: bool,
+        force_base: u32,
+    ) -> Result<PeLoadInfo, MwemuError>;
+
+    /// Map and relocate a PE64 DLL without binding its imports.
+    fn map_dll_pe64(&mut self, filename: &str) -> Result<MappedPe64, MwemuError>;
+
+    fn map_pe64_image(
+        &mut self,
+        filename: &str,
+        main_image: bool,
+        force_base: u64,
+    ) -> Result<MappedPe64, MwemuError>;
+
+    /// Load and bind a PE64 image. Dependency loading preserves main-image state.
+    fn load_pe64(
+        &mut self,
+        filename: &str,
+        main_image: bool,
+        force_base: u64,
+    ) -> Result<PeLoadInfo, MwemuError>;
+
+    fn initialize_pe32_tls(&mut self, pe32: &PE32, raw: &[u8], base: u32);
+
+    fn initialize_pe64_tls(&mut self, pe64: &PE64, raw: &[u8], base: u64);
 }
 
-/// A relocated PE64 image whose imports can be bound after mapping dependencies.
-pub struct MappedPe64 {
-    pub base: u64,
-    pub image: PE64,
-    pub raw: Vec<u8>,
-}
-
-impl Emu {
+impl PeLoading for Emu {
     fn read_pe_raw(filename: &str) -> Result<Vec<u8>, MwemuError> {
         std::fs::read(filename)
             .map_err(|error| MwemuError::new(&format!("cannot read PE file '{filename}': {error}")))
@@ -67,7 +113,7 @@ impl Emu {
 
     /// PE images use allocation granularity; other library buffers retain the
     /// page-aligned generic allocator. The caller maps the chosen range.
-    pub(super) fn alloc_pe_image(&self, size: u64, bottom: u64, top: u64) -> Option<u64> {
+    fn alloc_pe_image(&self, size: u64, bottom: u64, top: u64) -> Option<u64> {
         if size > self.maps.max_alloc_size {
             return None;
         }
@@ -126,7 +172,7 @@ impl Emu {
 
     /// Load and bind a PE32 image. Only the main image owns process metadata,
     /// the initial instruction pointer and TLS state.
-    pub fn load_pe32(
+    fn load_pe32(
         &mut self,
         filename: &str,
         main_image: bool,
@@ -230,7 +276,7 @@ impl Emu {
     }
 
     /// Map and relocate a PE64 DLL without binding its imports.
-    pub fn map_dll_pe64(&mut self, filename: &str) -> Result<MappedPe64, MwemuError> {
+    fn map_dll_pe64(&mut self, filename: &str) -> Result<MappedPe64, MwemuError> {
         self.map_pe64_image(filename, false, 0)
     }
 
@@ -280,7 +326,7 @@ impl Emu {
     }
 
     /// Load and bind a PE64 image. Dependency loading preserves main-image state.
-    pub fn load_pe64(
+    fn load_pe64(
         &mut self,
         filename: &str,
         main_image: bool,

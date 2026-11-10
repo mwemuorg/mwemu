@@ -5,7 +5,6 @@
 use rs_header::pe::PeLoader;
 
 use crate::emu::Emu;
-use crate::windows::{loader32, loader64};
 
 impl PeLoader for Emu {
     fn is_mapped(&self, addr: u64) -> bool {
@@ -37,27 +36,18 @@ impl PeLoader for Emu {
     }
 
     fn load_library(&mut self, libname: &str) -> u64 {
-        if self.cfg.is_x64() {
-            loader64::load_library(self, libname)
-        } else {
-            loader32::load_library(self, libname)
-        }
+        let is64 = self.cfg.is_x64();
+        crate::layers::windows().load_library(self, libname, is64)
     }
 
     fn resolve_api_name(&mut self, name: &str) -> u64 {
-        if self.cfg.is_x64() {
-            loader64::resolve_api_name(self, name)
-        } else {
-            loader32::resolve_api_name(self, name)
-        }
+        let is64 = self.cfg.is_x64();
+        crate::layers::windows().resolve_api_name(self, name, is64)
     }
 
     fn resolve_api_name_in_module(&mut self, module: &str, name: &str) -> u64 {
-        if self.cfg.is_x64() {
-            loader64::resolve_api_name_in_module(self, module, name)
-        } else {
-            loader32::resolve_api_name_in_module(self, module, name)
-        }
+        let is64 = self.cfg.is_x64();
+        crate::layers::windows().resolve_api_name_in_module(self, module, name, is64)
     }
 
     fn resolve_api_ordinal_in_module(&mut self, module: &str, ordinal: u16) -> u64 {
@@ -71,10 +61,7 @@ impl PeLoader for Emu {
     }
 
     fn search_api_name(&mut self, name: &str) -> (u64, String, String) {
-        if self.cfg.is_x64() {
-            loader64::search_api_name(self, name)
-        } else {
-            loader32::search_api_name(self, name)
-        }
+        let is64 = self.cfg.is_x64();
+        crate::layers::windows().search_api_name(self, name, is64)
     }
 }

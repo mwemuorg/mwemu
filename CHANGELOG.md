@@ -135,6 +135,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its first instruction until they are registered. `FPUState::load()` and
   `save()`, `VS_VERSIONINFO::write()` and `VS_FIXEDFILEINFO::write()` take
   `Maps` instead of `Emu`.
+- **OS loading and set-up leave mwemu-core** (#236): the ELF, Mach-O and PE
+  loaders, the PEB and loader data, the Windows exception dispatch and the
+  per-OS process set-up are in `mwemu-linux`, `mwemu-macos` and
+  `mwemu-windows`. mwemu-core is 19.1k lines. `Emu::init_win32()`,
+  `load_pe32()`, `load_pe64()`, `map_dll_pe64()`, `load_elf64()`,
+  `load_macho64()` and the other public entry points are unchanged.
 - **`05_bench` example**: three small loops reported in instructions per
   second, to compare emulation speed before and after a change.
 - **`libmwemu::register_api_handlers()`**: the core no longer names the

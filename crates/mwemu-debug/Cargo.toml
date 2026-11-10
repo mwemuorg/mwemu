@@ -12,6 +12,7 @@ publish = false
 
 [dependencies]
 mwemu-core = { path = "../mwemu-core" }
+mwemu-windows = { path = "../mwemu-windows" }
 rs-header = { path = "../libmwemu/libraries/rs-header", version = "0.1.3" }
 iced-x86 = { version = "1.21.0", features = ["serde"] }
 log = "0.4.22"

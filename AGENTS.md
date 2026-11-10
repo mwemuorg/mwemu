@@ -123,7 +123,7 @@ rustup target add x86_64-apple-darwin
 ```
 crates/
   libmwemu/         The library people depend on: re-exports the crates below, registers the layers and the WinAPI handlers, holds the test suite
-  mwemu-core/       Emulator core: `Emu`, its methods, the run loop, the loaders (the module layout below)
+  mwemu-core/       Emulator core: `Emu`, its methods, the run loop (the module layout below)
   mwemu-maps/       Guest memory: maps/ (memory regions, heap allocation, TLB, permissions)
   mwemu-arch/       CPU state: arch/ (Arch enum, x86 regs/flags/FPU/eflags/context, aarch64 regs)
   mwemu-wintypes/   Windows data types: windows/structures, windows/constants, windows/export_index
@@ -131,9 +131,9 @@ crates/
   mwemu-x86/        x86 engine: engine/ (mnemonic -> handler), engine/instructions, engine/logic
   mwemu-aarch64/    AArch64 engine: engine/aarch64
   mwemu-kernel/     Kernel API surfaces a driver can call: kernel/linux, kernel/windows, kernel/macos
-  mwemu-linux/      Linux layer: syscall/linux, api/linux (libc hooks)
-  mwemu-macos/      macOS layer: syscall/macos, api/macos (libSystem hooks)
-  mwemu-windows/    Windows layer: syscall/windows (NT syscalls), api/windows/common (helpers shared by the handlers), emulated registry/environment/profile/window state
+  mwemu-linux/      Linux layer: syscall/linux, api/linux (libc hooks), emu/loaders/elf (ELF loader), emu/initialization (process set-up)
+  mwemu-macos/      macOS layer: syscall/macos, api/macos (libSystem hooks), emu/loaders/macho (Mach-O loader), emu/initialization
+  mwemu-windows/    Windows layer: syscall/windows (NT syscalls), api/windows/common (helpers shared by the handlers), windows/peb + loader32 + loader64 (PEB, LDR, LoadLibrary, export resolution), exception/ (SEH/VEH/UEF), emu/loaders/pe* (PE loader), emu/initialization, emulated registry/environment/profile/window state
   mwemu-debug/      Debugger layer: console commands, script interpreter, GDB server, tracing, serialization/ (snapshots, minidump)
   mwemu-winapi32/   32-bit Windows API handlers, one module per DLL, one file per API
   mwemu-winapi64/   64-bit Windows API handlers, same layout
@@ -163,6 +163,14 @@ syscall, an API hook or the debugger then recompiles one small crate instead
 of the core and everything built on it. When the core needs something new from
 a crate above it, add a method to that crate's trait.
 
+Loading a binary and setting `Emu` up for an OS were methods of `Emu`. They
+are in the OS crates as crate-private traits implemented for `Emu`
+(`ElfLoading`, `MachoLoading`, `PeLoading`, `LinuxInit`, ...), so the method
+bodies still say `self`. The public ones (`init_win32`, `load_pe64`,
+`init_linux64`, ...) stay on `Emu` in `emu/os.rs` as one-line calls into the
+layer. To add such a method: put it in the OS crate's trait, and add the
+wrapper and a layer method only if code outside that crate calls it.
+
 All these crates keep the module paths their code had in mwemu-core
 (`mwemu_x86::engine::instructions`, `mwemu_linux::syscall::linux`,
 `mwemu_maps::maps`, ...).
@@ -176,13 +184,13 @@ before and after touching them.
 
 ```
 threading/      Thread scheduler, thread context, crit_state, global_locks
-exception/      Exception handlers (SEH/VEH/UEF), exception types
-windows/        Windows internals: peb/, kuser_shared, loader32/ + loader64/ (LoadLibrary, export resolution), module_names (structures, constants and the export index are re-exported from mwemu-wintypes)
+exception/      Exception types (the SEH/VEH/UEF dispatch is in mwemu-windows)
+windows/        module_names, native_crt (structures, constants and the export index are re-exported from mwemu-wintypes; the PEB and loaders are in mwemu-windows)
 debug/          Breakpoints, definitions, console prompts (`Console::spawn_console` opens the console in mwemu-debug)
 utils/          Macros, ANSI colors, helper utilities
 api/            Platform API interception: dispatch (entry points into the WinAPI handler crates), windows/helper (handle table shared by all layers), banzai (unimplemented API stubs), abi, printf, strconv
 layers.rs       Traits the layer crates implement, and their registration
-emu/            Core emulator state machine, execution (the run loop), memory, registers, emu_context, loaders/ (PE, ELF, Mach-O, .ko/.kext)
+emu/            Core emulator state machine, execution (the run loop), memory, registers, emu_context, loaders.rs (`load_code`: detects the format, calls the OS layer), loaders/ (Mach-O parser, .ko/.kext), os.rs (the methods that call the OS layers)
 kernel/         Kernel-mode machinery: driver linker, import stubs, allocator with its guard (the API tables are in mwemu-kernel)
 config.rs       Emulation configuration
 err.rs          Custom error type

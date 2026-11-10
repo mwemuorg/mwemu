@@ -2,7 +2,6 @@ use crate::color;
 use crate::emu::Emu;
 use crate::utils::helpers::unlikely;
 use crate::windows::constants::memory::*;
-use crate::windows::{loader32, loader64};
 
 use iced_x86::Instruction;
 
@@ -19,9 +18,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     if emu.cfg.trace_calls {
         let callee_sym = if emu.cfg.is_x64() {
-            loader64::guess_api_name(emu, addr)
+            crate::layers::windows().guess_api_name(emu, addr, true)
         } else {
-            loader32::guess_api_name(emu, addr as u32)
+            crate::layers::windows().guess_api_name(emu, addr as u32 as u64, false)
         };
         let callee_note = if callee_sym.is_empty() {
             String::new()

@@ -41,7 +41,9 @@ pub use mwemu_core::{color, get_bit, log_orange, log_red, popn, set_bit, to32};
 // The tests were written inside the single-crate libmwemu and reach its
 // internals as `crate::…`; keep those paths valid for them.
 #[cfg(test)]
-pub(crate) use mwemu_core::{exception, threading};
+pub(crate) use mwemu_core::threading;
+#[cfg(test)]
+pub(crate) use mwemu_windows::exception;
 #[cfg(test)]
 pub(crate) use mwemu_windows::windows;
 #[cfg(test)]

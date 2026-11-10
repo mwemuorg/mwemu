@@ -103,7 +103,7 @@ const RECORD_INFORMATION64: u64 = 32;
 
 #[derive(Clone, Copy, Debug)]
 #[repr(u64)]
-pub(crate) enum MemoryAccess {
+pub enum MemoryAccess {
     Read = EXCEPTION_READ_FAULT,
     Write = EXCEPTION_WRITE_FAULT,
     Execute = EXCEPTION_EXECUTE_FAULT,
@@ -111,7 +111,7 @@ pub(crate) enum MemoryAccess {
 
 /// Guest-visible exception data, independent of the diagnostic hook's ExceptionType.
 #[derive(Clone, Debug)]
-pub(crate) struct ExceptionRecord {
+pub struct ExceptionRecord {
     pub code: u32,
     pub flags: u32,
     pub nested: u64,
@@ -214,5 +214,23 @@ impl ExceptionRecord {
             address: fault_pc,
             information: values,
         })
+    }
+}
+
+/// Which kind of Windows exception handler the emulator is about to enter.
+#[derive(Clone, Copy, PartialEq)]
+pub enum HandlerKind {
+    Seh,
+    Veh,
+    Uef,
+}
+
+impl HandlerKind {
+    pub fn as_u32(self) -> u32 {
+        match self {
+            Self::Seh => 1,
+            Self::Veh => 2,
+            Self::Uef => 3,
+        }
     }
 }

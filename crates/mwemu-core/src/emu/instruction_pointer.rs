@@ -7,7 +7,7 @@ use crate::{
     console::Console,
     emu::Emu,
     exception::types::{ExceptionType, MemoryAccess},
-    windows::{loader32, loader64, native_crt, stolen_prologue},
+    windows::native_crt,
 };
 
 impl Emu {
@@ -120,7 +120,8 @@ impl Emu {
                     // Other imports still flow through `gateway_by_import`, which
                     // sets `rax` for emulated APIs (api-ms-win-crt → wincrt, etc.).
                     if dll.trim().eq_ignore_ascii_case("msvcrt.dll") {
-                        let resolved = loader64::resolve_api_name_in_module(self, dll, api);
+                        let resolved = crate::layers::windows()
+                            .resolve_api_name_in_module(self, dll, api, true);
                         let native_target = if resolved != 0 {
                             self.maps
                                 .get_addr_name(resolved)
@@ -248,7 +249,7 @@ impl Emu {
             // to emulate the real DLLs and only implement the kernel syscall
             // surface.
             if unlikely(self.cfg.emulate_winapi) {
-                let api_name = loader64::guess_api_name(self, addr);
+                let api_name = crate::layers::windows().guess_api_name(self, addr, true);
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
                 }
@@ -263,8 +264,12 @@ impl Emu {
             // and jump to API+N. Undo that prologue and serve the export with
             // its winapi stub; library code is never executed for real here.
             let in_code_section = name.ends_with(".text");
-            let addr = if in_code_section && loader64::guess_api_name(self, addr).is_empty() {
-                match stolen_prologue::unwind(self, addr) {
+            let addr = if in_code_section
+                && crate::layers::windows()
+                    .guess_api_name(self, addr, true)
+                    .is_empty()
+            {
+                match crate::layers::windows().stolen_prologue_unwind(self, addr) {
                     Some(entry) => {
                         log::trace!(
                             "jump to 0x{:x} skips the prologue of the API at 0x{:x}",
@@ -388,7 +393,7 @@ impl Emu {
         } else if self.os.is_windows() {
             // emulate winapi mode
             if self.cfg.emulate_winapi {
-                let api_name = loader64::guess_api_name(self, addr);
+                let api_name = crate::layers::windows().guess_api_name(self, addr, true);
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
                 }
@@ -451,7 +456,11 @@ impl Emu {
                 return if !api_name.is_empty() {
                     // winapi emulation case
                     if self.cfg.emulate_winapi {
-                        let api_name = loader32::guess_api_name(self, addr as u32);
+                        let api_name = crate::layers::windows().guess_api_name(
+                            self,
+                            addr as u32 as u64,
+                            false,
+                        );
                         if self.cfg.verbose >= 1 {
                             log_red!(self, "emulating {}", api_name);
                         }
@@ -520,7 +529,8 @@ impl Emu {
 
             // winapi emulation case
             if self.cfg.emulate_winapi {
-                let api_name = loader32::guess_api_name(self, addr as u32);
+                let api_name =
+                    crate::layers::windows().guess_api_name(self, addr as u32 as u64, false);
                 if !api_name.is_empty() && self.cfg.verbose >= 1 {
                     log_red!(self, "emulating {}", api_name);
                 }

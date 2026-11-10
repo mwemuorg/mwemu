@@ -1,4 +1,5 @@
 use crate::emu::Emu;
+use crate::emu::loaders::pe::PeLoading;
 use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
 use crate::windows::constants::memory::*;
@@ -16,7 +17,8 @@ fn align_page(sz: u32) -> u32 {
     (sz + PAGE - 1) & !(PAGE - 1)
 }
 
-impl Emu {
+/// Building stub DLL images for libraries that are not on disk.
+pub(crate) trait PeStubs {
     /// Create a minimal in-memory PE32 stub for a system DLL that is missing
     /// from disk. The stub has valid PE headers and an export directory so that
     /// PEB-walking shellcode (ReflectiveLoader, etc.) can resolve API names by
@@ -24,7 +26,20 @@ impl Emu {
     /// mwemu's WinAPI gateway intercepts calls to them.
     ///
     /// Returns the base address of the stub (0 on failure).
-    pub fn create_stub_pe32(&mut self, dll_name: &str, exports: &[&str]) -> u32 {
+    fn create_stub_pe32(&mut self, dll_name: &str, exports: &[&str]) -> u32;
+
+    fn create_stub_pe64(&mut self, dll_name: &str, exports: &[&str]) -> u64;
+}
+
+impl PeStubs for Emu {
+    /// Create a minimal in-memory PE32 stub for a system DLL that is missing
+    /// from disk. The stub has valid PE headers and an export directory so that
+    /// PEB-walking shellcode (ReflectiveLoader, etc.) can resolve API names by
+    /// hash against it. The .text section addresses are in lib32 space so
+    /// mwemu's WinAPI gateway intercepts calls to them.
+    ///
+    /// Returns the base address of the stub (0 on failure).
+    fn create_stub_pe32(&mut self, dll_name: &str, exports: &[&str]) -> u32 {
         let n = exports.len() as u32;
 
         let map_name = dll_name
@@ -242,7 +257,7 @@ impl Emu {
         base
     }
 
-    pub fn create_stub_pe64(&mut self, dll_name: &str, exports: &[&str]) -> u64 {
+    fn create_stub_pe64(&mut self, dll_name: &str, exports: &[&str]) -> u64 {
         let n = exports.len() as u32;
 
         let map_name = dll_name

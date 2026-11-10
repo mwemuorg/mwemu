@@ -23,8 +23,10 @@ use mwemu_core::layers::{self, DebugLayer};
 // of mwemu-core. Keep those paths valid.
 pub(crate) use mwemu_core::{
     api, arch, config, eflags, emu, flags, fpu, hooks, kernel, maps, regs_aarch64, regs64,
-    threading, utils, windows,
+    threading, utils,
 };
+// The Windows loader and PEB code the console inspects is in mwemu-windows.
+pub(crate) use mwemu_windows::windows;
 pub mod debug {
     pub(crate) use mwemu_core::debug::{breakpoint, console};
 

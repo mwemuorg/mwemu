@@ -7,7 +7,6 @@ use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::emu_context;
 use crate::err::MwemuError;
-use crate::windows::peb::peb64;
 // Architecture precondition guards
 // ---------------------------------------------------------------------------
 //
@@ -310,7 +309,7 @@ impl Emu {
             && self.cfg.ssdt_use_ldr_initialize_thunk
             && self.maps.get_map_by_name("peb").is_some()
         {
-            peb64::ensure_peb_system_dependent_07(self);
+            crate::layers::windows().ensure_peb_system_dependent_07(self);
         }
         Ok(())
     }
@@ -329,7 +328,7 @@ impl Emu {
             && self.cfg.arch.is_64bits()
             && self.cfg.ssdt_use_ldr_initialize_thunk
         {
-            peb64::ensure_peb_system_dependent_07(self);
+            crate::layers::windows().ensure_peb_system_dependent_07(self);
         }
 
         // Multi-threaded dispatch (uses scheduler which calls decode_and_execute internally)

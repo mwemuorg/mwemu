@@ -24,22 +24,7 @@ const RETURN_COOKIE_OFFSET: u64 = 0xf00;
 const SHADOW_SPACE: u64 = 32;
 const STACK_ALIGNMENT: u64 = 16;
 
-#[derive(Clone, Copy, PartialEq)]
-pub enum HandlerKind {
-    Seh,
-    Veh,
-    Uef,
-}
-
-impl HandlerKind {
-    pub fn as_u32(self) -> u32 {
-        match self {
-            Self::Seh => 1,
-            Self::Veh => 2,
-            Self::Uef => 3,
-        }
-    }
-}
+pub use super::types::HandlerKind;
 
 #[derive(Clone, Copy)]
 struct Frame {

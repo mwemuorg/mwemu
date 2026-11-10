@@ -1,5 +1,4 @@
-//! The mwemu emulator core: `Emu`, its methods, the run loop and the loaders
-//! (PE, ELF, Mach-O).
+//! The mwemu emulator core: `Emu`, its methods and the run loop.
 //!
 //! This is an internal crate. Use `libmwemu`, which re-exports the supported
 //! API and adds the crates built on the core: the CPU engines (`mwemu-x86`,
@@ -7,7 +6,9 @@
 //! `mwemu-windows`), the kernel API surfaces (`mwemu-kernel`), the debugger
 //! (`mwemu-debug`) and the Windows API handlers (`mwemu-winapi32`,
 //! `mwemu-winapi64`). The core reaches them through [`layers`] and
-//! [`api::dispatch`].
+//! [`api::dispatch`]. Loading a binary and setting the emulator up for its
+//! operating system is in the OS layers too: `Emu::load_code()` finds out
+//! what the file is and calls the layer for it.
 //!
 //! The data `Emu` holds that does not need `Emu` is in crates below this one,
 //! re-exported here at the paths it always had: guest memory ([`maps`], from
