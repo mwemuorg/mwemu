@@ -7,8 +7,8 @@ inside each function body. CC = 1 + branch_points.
 Usage:
     python3 scripts/complexity.py [--threshold N] [--top N] [path ...]
 
-Defaults to scanning the library crates: mwemu-core, the layer crates built
-on it and libmwemu.
+Defaults to scanning the library crates: mwemu-core, the crates below and
+above it, and libmwemu.
 Exit code 1 if any function exceeds the threshold (default: 40).
 """
 

@@ -1,10 +1,12 @@
 //! libmwemu: an x86, x86-64 and AArch64 emulator for malware analysis.
 //!
 //! This crate is the public face of the internal ones: the emulator core
-//! (`mwemu-core`), the OS layers (`mwemu-linux`, `mwemu-macos`,
-//! `mwemu-windows`), the debugger (`mwemu-debug`) and the Windows API handlers
-//! (`mwemu-winapi32`, `mwemu-winapi64`). It re-exports their API and plugs the
-//! layers and the handlers into the core.
+//! (`mwemu-core`, with `mwemu-maps`, `mwemu-arch`, `mwemu-wintypes` and
+//! `mwemu-handles` under it), the CPU engines (`mwemu-x86`, `mwemu-aarch64`),
+//! the OS layers (`mwemu-linux`, `mwemu-macos`, `mwemu-windows`), the kernel
+//! API surfaces (`mwemu-kernel`), the debugger (`mwemu-debug`) and the Windows
+//! API handlers (`mwemu-winapi32`, `mwemu-winapi64`). It re-exports their API
+//! and plugs the engines, the layers and the handlers into the core.
 
 // Lints the test suite was written under.
 #![cfg_attr(
@@ -70,11 +72,13 @@ use arch::Arch;
 use emu::Emu;
 use mwemu_core::api::dispatch::{self, ApiDispatch};
 
-/// Register the Windows API handlers and the layers (`mwemu-linux`,
-/// `mwemu-macos`, `mwemu-windows`, `mwemu-debug`) with the emulator core. `emu32()`, `emu64()` and
-/// `emu_aarch64()` do it for you; call it yourself before running an emulator
-/// built another way (`Emu::new`, `Serialization::load`). Calling it more than
-/// once is harmless.
+/// Register the CPU engines (`mwemu-x86`, `mwemu-aarch64`), the layers
+/// (`mwemu-linux`, `mwemu-macos`, `mwemu-windows`, `mwemu-kernel`,
+/// `mwemu-debug`) and the Windows API handlers with the emulator core.
+/// `emu32()`, `emu64()` and `emu_aarch64()` do it for you; call it yourself
+/// before running an emulator built another way (`Emu::new`,
+/// `Serialization::load`): without it, it stops at its first instruction.
+/// Calling it more than once is harmless.
 pub fn register_api_handlers() {
     mwemu_x86::register();
     mwemu_aarch64::register();

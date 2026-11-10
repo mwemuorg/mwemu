@@ -210,7 +210,7 @@ heap arena via a dummy allocation at init time.
 
 ## _HEAP structure definition
 
-The `Heap64` struct in `crates/mwemu-core/src/windows/structures/heap64.rs`
+The `Heap64` struct in `crates/mwemu-wintypes/src/windows/structures/heap64.rs`
 models the fields documented above. It follows the same load/save pattern
 as PEB64, TEB64 etc — every field is read/written individually through
 `Mem64` accessors (safe Rust, no raw pointer arithmetic).
@@ -228,7 +228,7 @@ segment limit for a selector. ntdll uses it to check if the current thread
 is running inside a fiber (`IsThreadAFiber` equivalent).
 
 **Status:** Fixed — `LSL` is implemented in the x86 engine
-(`engine/instructions/lsl.rs`, dispatched at `engine/mod.rs`). The Enigma
+(`engine/instructions/lsl.rs`, dispatched at `engine/mod.rs`, both in `crates/mwemu-x86/src`). The Enigma
 sample no longer crashes here.
 
 ### Blocker 2: BlocksIndex at `+0x2C0` (large-alloc path) — not on the current hit path

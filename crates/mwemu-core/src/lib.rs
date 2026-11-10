@@ -1,12 +1,23 @@
-//! The mwemu emulator core: CPU engines, memory maps, the run loop and the
-//! loaders (PE, ELF, Mach-O).
+//! The mwemu emulator core: `Emu`, its methods, the run loop and the loaders
+//! (PE, ELF, Mach-O).
 //!
 //! This is an internal crate. Use `libmwemu`, which re-exports the supported
-//! API and adds the layers built on the core: the OS layers (`mwemu-linux`,
-//! `mwemu-macos`, `mwemu-windows`), the debugger (`mwemu-debug`) and the
-//! Windows API handlers (`mwemu-winapi32`, `mwemu-winapi64`). The core reaches
-//! them through [`layers`] and [`api::dispatch`]. Everything here is `pub` so
-//! those crates can reach it; none of it is a stability promise.
+//! API and adds the crates built on the core: the CPU engines (`mwemu-x86`,
+//! `mwemu-aarch64`), the OS layers (`mwemu-linux`, `mwemu-macos`,
+//! `mwemu-windows`), the kernel API surfaces (`mwemu-kernel`), the debugger
+//! (`mwemu-debug`) and the Windows API handlers (`mwemu-winapi32`,
+//! `mwemu-winapi64`). The core reaches them through [`layers`] and
+//! [`api::dispatch`].
+//!
+//! The data `Emu` holds that does not need `Emu` is in crates below this one,
+//! re-exported here at the paths it always had: guest memory ([`maps`], from
+//! `mwemu-maps`), the CPU state ([`arch`], from `mwemu-arch`), the Windows
+//! structures and constants ([`windows::structures`], [`windows::constants`],
+//! from `mwemu-wintypes`) and the handle tables ([`emu::object_handle`], from
+//! `mwemu-handles`).
+//!
+//! Everything here is `pub` so those crates can reach it; none of it is a
+//! stability promise.
 
 #![allow(non_snake_case)]
 #![allow(dead_code)]

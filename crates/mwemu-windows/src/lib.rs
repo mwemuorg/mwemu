@@ -5,7 +5,8 @@
 //! [`register`] plugs the syscalls into the emulator core
 //! (`mwemu_core::layers`). `libmwemu` registers it for you. The API handlers
 //! themselves are `mwemu-winapi32` and `mwemu-winapi64`; the PE loader and
-//! the PEB/TEB structures are still in the core.
+//! the PEB/TEB setup are still in the core, and the structures and constants
+//! are in `mwemu-wintypes`.
 //!
 //! The modules keep the paths they had inside `mwemu-core`, so the files
 //! moved here unchanged. Each module also re-exports what the core has under

@@ -121,6 +121,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   syscall or the debugger no longer re-checks the core and both handler crates.
   `Console::help` and `Console::spawn_radare2` moved to
   `debug::commands::Commands`.
+- **mwemu-core is reduced to `Emu`, its methods and the run loop** (#236):
+  75.5k lines become 26.6k. The instruction semantics are `mwemu-x86` and
+  `mwemu-aarch64`, and the kernel API tables are `mwemu-kernel`, on top of the
+  core. Guest memory (`mwemu-maps`), the CPU state (`mwemu-arch`), the Windows
+  structures and constants (`mwemu-wintypes`) and the handle tables
+  (`mwemu-handles`) are below it. `libmwemu` re-exports the same public paths
+  as before. Editing an instruction no longer re-checks the core and both
+  handler crates.
+- **`Emu::new()` needs `libmwemu::register_api_handlers()` to run anything**
+  (#236): the CPU engines are registered like the OS layers, so an emulator
+  that was not created with `emu32()`, `emu64()` or `emu_aarch64()` stops at
+  its first instruction until they are registered. `FPUState::load()` and
+  `save()`, `VS_VERSIONINFO::write()` and `VS_FIXEDFILEINFO::write()` take
+  `Maps` instead of `Emu`.
+- **`05_bench` example**: three small loops reported in instructions per
+  second, to compare emulation speed before and after a change.
 - **`libmwemu::register_api_handlers()`**: the core no longer names the
   handlers, so they are registered at run time. `emu32()`, `emu64()` and
   `emu_aarch64()` do it; call it once yourself if you build the emulator with
