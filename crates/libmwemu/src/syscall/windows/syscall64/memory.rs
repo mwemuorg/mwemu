@@ -56,7 +56,6 @@ pub fn patch_ntdll_load_reason_checks(emu: &mut Emu) {
         emu.maps.write_byte(tp_bypass, 0xEB);
         log::trace!("ntdll: patched TpPostWork bypass at RVA 0x6ECA1 (je→jmp)");
     }
-
 }
 
 /// Read SizeOfImage from a PE file's optional header.
@@ -249,10 +248,10 @@ fn apply_pe_relocations(emu: &mut Emu, base: u64, raw: &[u8]) {
 
 fn nt_page_protection_to_permission(protect: u32) -> Permission {
     match protect {
-        0x01 => Permission::NONE,                         // PAGE_NOACCESS
-        0x02 | 0x20 => Permission::READ,                  // PAGE_READONLY / PAGE_EXECUTE_READ
+        0x01 => Permission::NONE,                            // PAGE_NOACCESS
+        0x02 | 0x20 => Permission::READ,                     // PAGE_READONLY / PAGE_EXECUTE_READ
         0x04 | 0x08 | 0x40 | 0x80 => Permission::READ_WRITE, // PAGE_READWRITE / PAGE_WRITECOPY / PAGE_EXECUTE_READWRITE / PAGE_EXECUTE_WRITECOPY
-        0x10 => Permission::EXECUTE,                      // PAGE_EXECUTE
+        0x10 => Permission::EXECUTE,                         // PAGE_EXECUTE
         _ => Permission::READ_WRITE,
     }
 }
@@ -889,18 +888,14 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
             let view_addr = emu.maps.lib64_alloc(soi).unwrap_or(0);
             if view_addr != 0 {
                 let view_name = format!("section_view_{:x}", view_addr);
-                let _ = emu.maps.create_map(
-                    &view_name,
-                    view_addr,
-                    soi,
-                    Permission::READ_WRITE,
-                );
+                let _ = emu
+                    .maps
+                    .create_map(&view_name, view_addr, soi, Permission::READ_WRITE);
                 for off in (0..soi).step_by(8) {
                     let val = emu.maps.read_qword(dll_base + off).unwrap_or(0);
                     let _ = emu.maps.write_qword(view_addr + off, val);
                 }
-                emu.section_view_dll
-                    .insert(view_addr, dll_name.to_string());
+                emu.section_view_dll.insert(view_addr, dll_name.to_string());
                 log_orange!(
                     emu,
                     "NtMapViewOfSection: file-backed {} → temp copy at 0x{:x} (0x{:x} bytes)",
