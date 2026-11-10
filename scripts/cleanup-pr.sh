@@ -11,7 +11,8 @@ WORKTREE="/tmp/mwemu-pr-${PR}"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ ! -d "$WORKTREE" ]; then
-    echo "No worktree at $WORKTREE"
+    echo "No worktree at $WORKTREE, pruning stale entries..."
+    git -C "$REPO_ROOT" worktree prune
 else
     echo "==> Removing worktree ${WORKTREE}..."
     git -C "$REPO_ROOT" worktree remove --force "$WORKTREE"
