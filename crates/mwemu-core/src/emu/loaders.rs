@@ -15,8 +15,6 @@ use rs_header::pe::{
     IMAGE_FILE_MACHINE_AMD64, IMAGE_FILE_MACHINE_ARM64, IMAGE_FILE_MACHINE_I386, pe_machine_type,
 };
 
-mod elf;
-pub mod elf_constants;
 mod kext;
 mod ko;
 mod macho;

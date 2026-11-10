@@ -47,6 +47,14 @@ pub trait LinuxLayer: Sync {
     fn syscall_aarch64(&self, emu: &mut Emu);
     /// The guest called the libc hook at `addr`, in the map named `section`.
     fn api_call(&self, addr: u64, section: &str, symbol: &str, emu: &mut Emu);
+    /// Load the ELF64 executable `filename` and its libraries
+    /// (`Emu::load_elf64`).
+    fn load_elf64(&self, emu: &mut Emu, filename: &str);
+    /// Set `emu` up as an x86-64 Linux process (`Emu::init_linux64`).
+    fn init64(&self, emu: &mut Emu, dyn_link: bool);
+    /// Set `emu` up as an AArch64 Linux process
+    /// (`Emu::init_linux64_aarch64`).
+    fn init_aarch64(&self, emu: &mut Emu);
 }
 
 /// The macOS layer (`mwemu-macos`): syscalls and the libSystem hooks.
@@ -239,6 +247,15 @@ impl LinuxLayer for Missing {
         self.stop(emu);
     }
     fn api_call(&self, _addr: u64, _section: &str, _symbol: &str, emu: &mut Emu) {
+        self.stop(emu);
+    }
+    fn load_elf64(&self, emu: &mut Emu, _filename: &str) {
+        self.stop(emu);
+    }
+    fn init64(&self, emu: &mut Emu, _dyn_link: bool) {
+        self.stop(emu);
+    }
+    fn init_aarch64(&self, emu: &mut Emu) {
         self.stop(emu);
     }
 }

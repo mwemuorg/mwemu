@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::emu::Emu;
+use crate::emu::initialization::LinuxInit;
 
 use rs_header::elf::ElfError;
 use rs_header::elf::elf64::Elf64;
@@ -16,10 +17,51 @@ fn parse_elf64_file(path: &str) -> Result<Elf64, ElfError> {
     Elf64::parse(&raw)
 }
 
-impl Emu {
+/// Loading an ELF64 executable and its libraries into the emulator.
+pub(crate) trait ElfLoading {
     /// Loads an ELF64 parsing sections etc, powered by elf64.rs
     /// This is called from load_code() if the sample is ELF64
-    pub fn load_elf64(&mut self, filename: &str) {
+    fn load_elf64(&mut self, filename: &str);
+
+    /// Load dynamic libraries for an ELF64 binary.
+    /// Loads real stub ELFs from disk, then applies relocations.
+    fn load_elf64_dynamic_libs(&mut self, elf64: &mut Elf64);
+
+    /// Execute each ifunc resolver and patch its relocation slot with the
+    /// returned implementation address. Resolvers are tiny (they read the CPU
+    /// feature globals and pick an implementation), so running them in the
+    /// emulator is cheap; results are cached per resolver address.
+    fn resolve_ifunc_relocations(&mut self, irelative: Vec<(u64, u64)>);
+
+    /// Resolve a library/interpreter path to an existing host file.
+    fn resolve_host_lib(&self, path: &str) -> Option<String>;
+
+    /// Map the real program interpreter (ld.so) and set up the initial process
+    /// stack with a full auxiliary vector, then start execution at ld.so's entry
+    /// point — exactly like the Linux kernel does. ld.so then maps libc, applies
+    /// every relocation, resolves ifuncs and sets up TLS by itself.
+    fn setup_ld_so_bootstrap(&mut self, elf64: &mut Elf64, interp_path: &str);
+
+    /// Build the System V initial process stack for the ld.so entry:
+    /// `[argc][argv..][NULL][envp..][NULL][auxv..][AT_NULL]`, with strings and
+    /// the AT_RANDOM bytes placed in a scratch area above it.
+    fn write_linux_ld_stack(
+        &mut self,
+        prog_entry: u64,
+        prog_phdr: u64,
+        phent: u16,
+        phnum: u16,
+        ld_base: u64,
+        execfn: &str,
+    );
+
+    fn resolve_linux_stub_path(&self, lib_name: &str) -> Option<String>;
+}
+
+impl ElfLoading for Emu {
+    /// Loads an ELF64 parsing sections etc, powered by elf64.rs
+    /// This is called from load_code() if the sample is ELF64
+    fn load_elf64(&mut self, filename: &str) {
         let mut elf64 = match parse_elf64_file(filename) {
             Ok(e) => e,
             Err(err) => {

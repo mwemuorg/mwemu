@@ -1491,6 +1491,7 @@ version = "1.0.0"
 dependencies = [
  "log",
  "mwemu-core",
+ "rs-header",
 ]
 
 [[package]]

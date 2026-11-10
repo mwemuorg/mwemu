@@ -94,6 +94,7 @@ pub mod loaders;
 mod maps;
 mod memory;
 mod operands;
+mod os;
 mod registers;
 mod stack;
 mod thread_context;
