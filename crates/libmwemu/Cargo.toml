@@ -61,3 +61,7 @@ required-features = ["examples"]
 [[example]]
 name = "04_load_binary"
 required-features = ["examples"]
+
+[[example]]
+name = "05_bench"
+required-features = ["examples"]

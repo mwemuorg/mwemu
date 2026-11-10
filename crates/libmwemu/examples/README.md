@@ -24,6 +24,7 @@ error: target `01_shellcode` in package `libmwemu` requires the features: `examp
 | `02_memory` | map memory, read/write scalars and strings, search for patterns |
 | `03_hooks` | instrument execution: count instructions, trace memory access |
 | `04_load_binary` | load a real ELF/Mach-O/PE from disk and run it under a step budget |
+| `05_bench` | time three small loops, to compare emulation speed before and after a change (run with `--release`) |
 
 `04_load_binary` takes arguments:
 
