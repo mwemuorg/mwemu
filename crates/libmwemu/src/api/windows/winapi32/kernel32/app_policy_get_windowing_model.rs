@@ -1,20 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn AppPolicyGetWindowingModel(emu: &mut emu::Emu) {
-    let token = arg(emu, 0) as u64;
-    let p_policy = arg(emu, 1) as u64;
-
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!AppPolicyGetWindowingModel token:0x{:x} pPolicy:0x{:x}",
-        token,
-        p_policy
+        "kernel32!AppPolicyGetWindowingModel arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-
-    if p_policy != 0 {
-        emu.maps.write_dword(p_policy, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

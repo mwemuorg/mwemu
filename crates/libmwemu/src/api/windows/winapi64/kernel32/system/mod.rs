@@ -1,3 +1,10 @@
+use crate::emu::Emu;
+use crate::winapi::winapi64::kernel32;
+
+#[path = "../get_version_ex.rs"]
+mod get_version_ex;
+pub use get_version_ex::*;
+
 #[path = "../get_acp.rs"]
 mod get_acp;
 pub use get_acp::*;
@@ -54,14 +61,6 @@ pub use get_user_default_lang_id::*;
 mod get_version;
 pub use get_version::*;
 
-#[path = "../get_version_ex_a.rs"]
-mod get_version_ex_a;
-pub use get_version_ex_a::*;
-
-#[path = "../get_version_ex_w.rs"]
-mod get_version_ex_w;
-pub use get_version_ex_w::*;
-
 #[path = "../system_time_to_tz_specific_local_time.rs"]
 mod system_time_to_tz_specific_local_time;
 pub use system_time_to_tz_specific_local_time::*;
@@ -73,3 +72,24 @@ pub use get_tick_count64::*;
 #[path = "../query_performance_frequency.rs"]
 mod query_performance_frequency;
 pub use query_performance_frequency::*;
+
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "FormatMessageA" => kernel32::FormatMessageA(emu),
+        "FormatMessageW" => kernel32::FormatMessageW(emu),
+        "GetLastError" => kernel32::GetLastError(emu),
+        "GetNativeSystemInfo" => kernel32::GetNativeSystemInfo(emu),
+        "GetSystemFirmwareTable" => kernel32::GetSystemFirmwareTable(emu),
+        "GetSystemInfo" => kernel32::GetSystemInfo(emu),
+        "GetVersion" => kernel32::GetVersion(emu),
+        "GetVersionExA" => kernel32::GetVersionExA(emu),
+        "GetVersionExW" => kernel32::GetVersionExW(emu),
+        "SetErrorMode" => kernel32::SetErrorMode(emu),
+        "SetLastError" => kernel32::SetLastError(emu),
+        "VerifyVersionInfoA" | "VerifyVersionInfoW" => kernel32::VerifyVersionInfoA(emu, api),
+        "VerSetConditionMask" => kernel32::VerSetConditionMask(emu),
+        "Beep" => kernel32::Beep(emu),
+        _ => return false,
+    }
+    true
+}

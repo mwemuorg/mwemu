@@ -1,28 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn K32GetPerformanceInfo(emu: &mut emu::Emu) {
-    let p_perf_info = arg(emu, 0) as u64;
-    let cb = arg(emu, 1) as u64;
-
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!K32GetPerformanceInfo pInfo:0x{:x} cb:{}",
-        p_perf_info,
-        cb
+        "kernel32!K32GetPerformanceInfo arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-
-    if p_perf_info != 0 && cb >= 104 {
-        emu.maps.write_dword(p_perf_info, 104);
-        emu.maps.write_qword(p_perf_info + 8, 0x100000);
-        emu.maps.write_qword(p_perf_info + 16, 0x80000);
-        emu.maps.write_qword(p_perf_info + 24, 0x200000);
-        emu.maps.write_qword(p_perf_info + 32, 0x100000);
-        emu.maps.write_dword(p_perf_info + 40, 100);
-        emu.maps.write_dword(p_perf_info + 44, 1000);
-        emu.maps.write_dword(p_perf_info + 48, 200);
-        emu.maps.write_dword(p_perf_info + 52, 4096);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

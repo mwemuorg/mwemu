@@ -3,7 +3,7 @@
 use crate::context::context32::Context32;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::windows::constants::STATUS_ACCESS_VIOLATION;
+use crate::windows::constants::errors::*;
 
 use super::{handlers, types};
 

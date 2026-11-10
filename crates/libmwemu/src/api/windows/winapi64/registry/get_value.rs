@@ -8,8 +8,7 @@ use super::type_flag;
 use super::write_data;
 use crate::emu;
 use crate::winapi::registry_store as store;
-use crate::windows::constants::ERROR_FILE_NOT_FOUND;
-use crate::windows::constants::ERROR_UNSUPPORTED_TYPE;
+use crate::windows::constants::errors::*;
 
 pub(super) fn get_value(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;

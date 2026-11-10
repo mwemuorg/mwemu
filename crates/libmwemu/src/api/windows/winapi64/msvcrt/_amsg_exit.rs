@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _amsg_exit(emu: &mut emu::Emu) {
     let code = emu.regs().rcx as u32;

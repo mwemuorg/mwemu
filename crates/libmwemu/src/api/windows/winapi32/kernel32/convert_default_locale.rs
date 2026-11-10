@@ -1,22 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn ConvertDefaultLocale(emu: &mut emu::Emu) {
-    let locale = arg(emu, 0) as u64;
-
-    log_red!(emu, "kernel32!ConvertDefaultLocale locale:0x{:x}", locale);
-    let src = arg(emu, 0) as u64;
-    if src != 0 && emu.maps.is_mapped(src) {
-        let _input = emu.maps.read_string(src);
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    log_red!(
+        emu,
+        "kernel32!ConvertDefaultLocale arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
+    );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-
-    let result = match locale {
-        0x0800 => 0x0409,
-        0x0400 => 0x0409,
-        0x0C00 => 0x0409,
-        other => other,
-    };
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
-    stdcall_ret(emu, 1);
+    emu.regs_mut().rax = 0;
 }

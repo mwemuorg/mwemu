@@ -1,7 +1,8 @@
 //! Allocation identity and page state shared by virtual-memory APIs.
 use crate::maps::Maps;
 use crate::maps::mem64::Permission;
-use crate::windows::constants;
+use crate::windows::constants::memory::*;
+
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -417,9 +418,9 @@ impl Maps {
             .chain(next_allocation)
             .min()
             .unwrap_or(if self.is_64bits {
-                constants::USER64_ADDRESS_LIMIT
+                USER64_ADDRESS_LIMIT
             } else {
-                constants::USER32_ADDRESS_LIMIT
+                USER32_ADDRESS_LIMIT
             });
         MemoryInfo {
             base,

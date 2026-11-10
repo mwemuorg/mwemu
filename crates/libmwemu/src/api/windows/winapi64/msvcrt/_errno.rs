@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _errno(emu: &mut emu::Emu) {
     let errno_addr = match emu.maps.get_map_by_name("msvcrt_errno") {

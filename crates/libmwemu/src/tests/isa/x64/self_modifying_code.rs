@@ -4,7 +4,11 @@
 //! they decrypt a buffer with `rep movs`/`movdqu`/an API call and jump into it.
 //! Every store path that can land in executable memory is covered here.
 
+use crate::tests::helpers::{call_winapi_export as call, prepare_winapi as prepare};
+use crate::winapi::helper;
 use crate::*;
+use iced_x86::{Decoder, DecoderOptions};
+use itertools::iproduct;
 
 fn run_code(code: &[u8]) -> Emu {
     let mut emu = emu64();
@@ -142,4 +146,37 @@ fn instruction_cache_high_page_index_does_not_panic() {
     emu.load_code_bytes(&code);
     emu.run(None).unwrap();
     assert_eq!(emu.regs().get_eax(), 1);
+}
+
+#[test]
+fn flushing_instruction_cache_preserves_handles_and_invalidates_decoded_code() {
+    for (is64, library, all) in iproduct!(
+        [false, true],
+        ["kernel32.dll", "kernelbase.dll"],
+        [false, true]
+    ) {
+        let (mut emu, data) = prepare(is64);
+        let process = helper::handler_create("process://flush-cache-regression");
+        let mut decoder = Decoder::with_ip(
+            if is64 { 64 } else { 32 },
+            &[0x90],
+            data,
+            DecoderOptions::NONE,
+        );
+        emu.instruction_cache()
+            .insert_x86_from_decoder(&mut decoder, 1, data);
+        assert!(emu.instruction_cache().lookup_entry(data, 0));
+        assert_eq!(
+            call(
+                &mut emu,
+                library,
+                "FlushInstructionCache",
+                &[process, if all { 0 } else { data }, 1]
+            ),
+            1
+        );
+        assert!(helper::handler_exist(process));
+        assert!(!emu.instruction_cache().lookup_entry(data, 0));
+        assert!(helper::handler_close(process));
+    }
 }

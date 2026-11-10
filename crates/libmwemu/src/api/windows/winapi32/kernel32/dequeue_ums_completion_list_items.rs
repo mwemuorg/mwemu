@@ -1,22 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn DequeueUmsCompletionListItems(emu: &mut emu::Emu) {
-    let ums_completion_list = arg(emu, 0) as u64;
-    let wait_time_out = arg(emu, 1) as u64;
-    let pp_ums_thread_list = arg(emu, 2) as u64;
-
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!DequeueUmsCompletionListItems list:0x{:x} timeout:{} ppThread:0x{:x}",
-        ums_completion_list,
-        wait_time_out,
-        pp_ums_thread_list
+        "kernel32!DequeueUmsCompletionListItems arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-
-    if pp_ums_thread_list != 0 {
-        emu.maps.write_qword(pp_ums_thread_list, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 3);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

@@ -1,23 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn FormatApplicationUserModelId(emu: &mut emu::Emu) {
-    let p_family_name = arg(emu, 0) as u64;
-    let p_app_id = arg(emu, 1) as u64;
-    let p_app_model_id_len = arg(emu, 2) as u64;
-    let p_app_model_id = arg(emu, 3) as u64;
-
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!FormatApplicationUserModelId family:0x{:x} appId:0x{:x}",
-        p_family_name,
-        p_app_id
+        "kernel32!FormatApplicationUserModelId arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-    let src = arg(emu, 0) as u64;
-    if src != 0 && emu.maps.is_mapped(src) {
-        let _input = emu.maps.read_string(src);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 4);
+    emu.regs_mut().rax = 1;
 }

@@ -1,9 +1,0 @@
-use crate::emu;
-use crate::winapi::helper;
-
-pub fn RegCloseKey_api(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    helper::handler_close(hkey);
-    log_red!(emu, "advapi32!RegCloseKey 0x{:x}", hkey);
-    emu.regs_mut().rax = 0;
-}

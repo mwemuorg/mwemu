@@ -1,3 +1,4 @@
+use crate::windows::constants::nls::*;
 use iced_x86::{Instruction, OpKind, Register};
 
 use crate::maps::mem64::Permission;
@@ -7,7 +8,6 @@ use crate::{
     emu::Emu,
     exception::types::ExceptionType,
     regs64,
-    windows::constants,
     windows::structures::{self, MemoryOperation},
 };
 
@@ -192,7 +192,7 @@ impl Emu {
                         log::trace!("Reading local ");
                     }
                     let locale = self.alloc("locale", 100, Permission::READ_WRITE);
-                    self.maps.write_dword(locale, constants::EN_US_LOCALE);
+                    self.maps.write_dword(locale, EN_US_LOCALE);
                     //TODO: return a table of locales
                     /*
                     13071 0x41026e: mov   eax,[edx+eax*4]

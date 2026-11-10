@@ -3,8 +3,7 @@ use super::finish;
 use crate::emu;
 use crate::winapi::helper;
 use crate::winapi::registry_store as store;
-use crate::windows::constants::ERROR_INVALID_HANDLE;
-use crate::windows::constants::ERROR_SUCCESS;
+use crate::windows::constants::errors::*;
 
 pub(super) fn close_key(emu: &mut emu::Emu) {
     let hkey = emu.regs().rcx;

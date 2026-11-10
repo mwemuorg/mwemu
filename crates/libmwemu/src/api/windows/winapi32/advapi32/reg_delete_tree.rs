@@ -1,0 +1,23 @@
+use crate::emu;
+
+pub fn RegDeleteTreeA(emu: &mut emu::Emu) {
+    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let name = emu.maps.read_string(name_ptr);
+    log_red!(emu, "advapi32!RegDeleteTreeA hkey:0x{:x} '{}'", hkey, name);
+    emu.regs_mut().rax = 0;
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+}
+
+pub fn RegDeleteTreeW(emu: &mut emu::Emu) {
+    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let name = emu.maps.read_wide_string(name_ptr);
+    log_red!(emu, "advapi32!RegDeleteTreeW hkey:0x{:x} '{}'", hkey, name);
+    emu.regs_mut().rax = 0;
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+}

@@ -2,7 +2,8 @@ use crate::context::context32::Context32;
 use crate::debug::console::Console;
 use crate::emu;
 use crate::winapi::winapi32::{arg, stdcall_ret};
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+
 use crate::windows::structures;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -67,7 +68,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
                 handle,
                 apc_routine
             );
-            emu.regs_mut().rax = constants::STATUS_SUCCESS;
+            emu.regs_mut().rax = STATUS_SUCCESS;
             stdcall_ret(emu, 5);
         }
         _ => return false,
@@ -130,7 +131,7 @@ fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn RtlGetVersion(emu: &mut emu::Emu) {
@@ -188,7 +189,7 @@ fn NtQueryInformationProcess(emu: &mut emu::Emu) {
     if return_length_ptr != 0 {
         emu.maps.write_dword(return_length_ptr, fill as u32);
     }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 5);
 }
 fn NtQuerySystemInformation(emu: &mut emu::Emu) {
@@ -208,7 +209,7 @@ fn NtQuerySystemInformation(emu: &mut emu::Emu) {
     if return_length_ptr != 0 {
         emu.maps.write_dword(return_length_ptr, fill as u32);
     }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 4);
 }
 fn NtSetInformationThread(emu: &mut emu::Emu) {
@@ -220,14 +221,14 @@ fn NtSetInformationThread(emu: &mut emu::Emu) {
         handle,
         info_class
     );
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 4);
 }
 fn NtTerminateThread(emu: &mut emu::Emu) {
     let handle = arg(emu, 0);
     let status = arg(emu, 1);
     log_red!(emu, "ntdll!NtTerminateThread 0x{:x} {}", handle, status);
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 2);
 }
 fn RtlEncodePointer(emu: &mut emu::Emu) {

@@ -1,4 +1,5 @@
-use crate::{emu, windows::constants};
+use crate::emu;
+use crate::windows::constants::process::*;
 
 pub fn WaitForSingleObject(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
@@ -25,5 +26,5 @@ pub fn WaitForSingleObject(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = constants::WAIT_TIMEOUT;
+    emu.regs_mut().rax = WAIT_TIMEOUT;
 }

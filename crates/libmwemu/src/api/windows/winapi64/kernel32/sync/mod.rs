@@ -1,18 +1,13 @@
-#[path = "../create_event_a.rs"]
-mod create_event_a;
-pub use create_event_a::*;
+use crate::emu::Emu;
+use crate::winapi::winapi64::kernel32;
 
-#[path = "../create_event_w.rs"]
-mod create_event_w;
-pub use create_event_w::*;
+#[path = "../create_mutex.rs"]
+mod create_mutex;
+pub use create_mutex::*;
 
-#[path = "../create_mutex_a.rs"]
-mod create_mutex_a;
-pub use create_mutex_a::*;
-
-#[path = "../create_mutex_w.rs"]
-mod create_mutex_w;
-pub use create_mutex_w::*;
+#[path = "../create_event.rs"]
+mod create_event;
+pub use create_event::*;
 
 #[path = "../enter_critical_section.rs"]
 mod enter_critical_section;
@@ -113,3 +108,54 @@ pub use try_acquire_srw_lock_exclusive::*;
 #[path = "../try_acquire_srw_lock_shared.rs"]
 mod try_acquire_srw_lock_shared;
 pub use try_acquire_srw_lock_shared::*;
+
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "AcquireSRWLockExclusive" => kernel32::AcquireSRWLockExclusive(emu),
+        "AcquireSRWLockShared" => kernel32::AcquireSRWLockShared(emu),
+        "CreateEventA" => kernel32::CreateEventA(emu),
+        "CreateEventW" => kernel32::CreateEventW(emu),
+        "CreateMutexA" => kernel32::CreateMutexA(emu),
+        "CreateMutexW" => kernel32::CreateMutexW(emu),
+        "EnterCriticalSection" => kernel32::EnterCriticalSection(emu),
+        "InitializeCriticalSection" => kernel32::InitializeCriticalSection(emu),
+        "InitializeCriticalSectionAndSpinCount" => {
+            kernel32::InitializeCriticalSectionAndSpinCount(emu)
+        }
+        "InitializeCriticalSectionEx" => kernel32::InitializeCriticalSectionEx(emu),
+        "InitializeSRWLock" => kernel32::InitializeSRWLock(emu),
+        "InitOnceBeginInitialize" => kernel32::InitOnceBeginInitialize(emu),
+        "LeaveCriticalSection" => kernel32::LeaveCriticalSection(emu),
+        "ResetEvent" => kernel32::ResetEvent(emu),
+        "SetEvent" => kernel32::SetEvent(emu),
+        "ReleaseSRWLockExclusive" => kernel32::ReleaseSRWLockExclusive(emu),
+        "ReleaseSRWLockShared" => kernel32::ReleaseSRWLockShared(emu),
+        "Sleep" => kernel32::Sleep(emu),
+        "TryAcquireSRWLockExclusive" => kernel32::TryAcquireSRWLockExclusive(emu),
+        "TryAcquireSRWLockShared" => kernel32::TryAcquireSRWLockShared(emu),
+        "WaitForMultipleObjects" => kernel32::WaitForMultipleObjects(emu),
+        "WaitForSingleObject" => kernel32::WaitForSingleObject(emu),
+        "CreateSemaphoreA" | "CreateSemaphoreW" => kernel32::CreateSemaphoreA(emu, api),
+        "CreateSemaphoreExW" => kernel32::CreateSemaphoreExW(emu),
+        "CreateWaitableTimerA" | "CreateWaitableTimerW" => kernel32::CreateWaitableTimerA(emu, api),
+        "CreateWaitableTimerExW" => kernel32::CreateWaitableTimerExW(emu),
+        "OpenMutexA" => kernel32::OpenMutexA(emu),
+        "OpenMutexW" => kernel32::OpenMutexW(emu),
+        "InterlockedIncrement" => kernel32::InterlockedIncrement(emu, addr),
+        "InterlockedDecrement" => kernel32::InterlockedDecrement(emu, addr),
+        "InterlockedExchange" => kernel32::InterlockedExchange(emu, addr),
+        "InterlockedCompareExchange" => kernel32::InterlockedCompareExchange(emu, addr),
+        "DeleteCriticalSection" => kernel32::DeleteCriticalSection(emu),
+        "InitializeConditionVariable" => kernel32::InitializeConditionVariable(emu),
+        "WakeConditionVariable" | "WakeAllConditionVariable" => {
+            kernel32::WakeConditionVariable(emu, api)
+        }
+        "SleepConditionVariableSRW" => kernel32::SleepConditionVariableSRW(emu),
+        "SleepConditionVariableCS" => kernel32::SleepConditionVariableCS(emu),
+        "SleepEx" => kernel32::SleepEx(emu),
+        "WaitForSingleObjectEx" => kernel32::WaitForSingleObjectEx(emu),
+        "WaitForMultipleObjectsEx" => kernel32::WaitForMultipleObjectsEx(emu),
+        _ => return false,
+    }
+    true
+}

@@ -1,22 +1,20 @@
 use crate::emu;
 
-pub fn InterlockedCompareExchange(emu: &mut emu::Emu) {
-    let destination = emu.regs().rcx;
+pub fn InterlockedCompareExchange(emu: &mut emu::Emu, addr: u64) {
+    let addr = emu.regs().rcx;
     let exchange = emu.regs().rdx as u32;
     let comparand = emu.regs().r8 as u32;
-
-    let old_val = emu.maps.read_dword(destination).unwrap_or(0);
+    let current = emu.maps.read_dword(addr).unwrap_or(0);
+    if current == comparand {
+        emu.maps.write_dword(addr, exchange);
+    }
     log_red!(
         emu,
-        "kernel32!InterlockedCompareExchange dest:0x{:x} exchange:{} comparand:{} old:{}",
-        destination,
+        "kernel32!InterlockedCompareExchange 0x{:x} exch:{} cmp:{} cur:{}",
+        addr,
         exchange,
         comparand,
-        old_val
+        current
     );
-
-    if old_val == comparand {
-        emu.maps.write_dword(destination, exchange);
-    }
-    emu.regs_mut().rax = old_val as u64;
+    emu.regs_mut().rax = current as u64;
 }

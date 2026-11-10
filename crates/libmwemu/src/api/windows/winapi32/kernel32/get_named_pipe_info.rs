@@ -1,34 +1,21 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetNamedPipeInfo(emu: &mut emu::Emu) {
-    let h_pipe = arg(emu, 0) as u64;
-    let flags_ptr = arg(emu, 1) as u64;
-    let out_buf_size_ptr = arg(emu, 2) as u64;
-    let in_buf_size_ptr = arg(emu, 3) as u64;
-    let max_instances_ptr = arg(emu, 4) as u64;
-
-    log_red!(emu, "kernel32!GetNamedPipeInfo h:0x{:x}", h_pipe);
-
-    if !helper::handler_exist(h_pipe) {
-        emu.set_last_error(6);
-        emu.regs_mut().rax = 0;
-        return;
+    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    log_red!(
+        emu,
+        "kernel32!GetNamedPipeInfo p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+        p1,
+        p2,
+        p3
+    );
+    for _ in 0..5 {
+        emu.stack_pop32(false);
     }
-
-    if flags_ptr != 0 {
-        emu.maps.write_dword(flags_ptr, 0x00000001); // PIPE_SERVER_END
-    }
-    if out_buf_size_ptr != 0 {
-        emu.maps.write_dword(out_buf_size_ptr, 4096);
-    }
-    if in_buf_size_ptr != 0 {
-        emu.maps.write_dword(in_buf_size_ptr, 4096);
-    }
-    if max_instances_ptr != 0 {
-        emu.maps.write_dword(max_instances_ptr, 1);
-    }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 5);
 }

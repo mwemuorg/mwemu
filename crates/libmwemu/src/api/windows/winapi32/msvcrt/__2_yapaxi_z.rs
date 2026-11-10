@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi32::msvcrt::allocate_memory;
 
 pub fn __2_YAPAXI_Z(emu: &mut emu::Emu, addr: u32) {
     // operator new(unsigned int)

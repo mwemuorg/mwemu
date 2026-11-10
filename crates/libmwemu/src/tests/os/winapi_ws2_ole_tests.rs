@@ -1,12 +1,16 @@
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 use crate::winapi::{winapi32, winapi64};
+use crate::windows::constants::errors::*;
+use crate::windows::constants::network::*;
+use crate::windows::constants::system::*;
+
 use crate::*;
 
 // ─── ws2_32 64-bit ───
 
 #[test]
-fn test_wsa_startup_64() {
+fn wsa_startup_64() {
     helpers::setup();
     let mut emu = emu64();
     let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::WsaStartup, &[0x0202, 0]);
@@ -14,15 +18,19 @@ fn test_wsa_startup_64() {
 }
 
 #[test]
-fn test_socket_create_64() {
+fn socket_create_64() {
     helpers::setup();
     let mut emu = emu64();
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
     assert_ne!(sock, 0, "socket() should return a non-zero handle");
 }
 
 #[test]
-fn test_htons_64() {
+fn htons_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -38,28 +46,36 @@ fn test_htons_64() {
 }
 
 #[test]
-fn test_closesocket_64() {
+fn closesocket_64() {
     helpers::setup();
     let mut emu = emu64();
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
     let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::closesocket, &[sock]);
     assert_eq!(ret, 0, "closesocket should return 0");
 }
 
 #[test]
-fn test_connect_valid_socket_64() {
+fn connect_valid_socket_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
 
     let sockaddr_base = 0x30000u64;
     emu.maps
         .create_map("sockaddr", sockaddr_base, 0x1000, Permission::READ_WRITE);
-    // AF_INET=2, port=80 (big-endian=0x5000), ip=127.0.0.1
-    emu.maps.write_word(sockaddr_base, 2); // family
+    emu.maps.write_word(sockaddr_base, AF_INET as u16); // family
     emu.maps.write_word(sockaddr_base + 2, 80u16.to_be()); // port
-    emu.maps.write_dword(sockaddr_base + 4, 0x0100007f); // 127.0.0.1
+    emu.maps
+        .write_dword(sockaddr_base + 4, u32::from_le_bytes([127, 0, 0, 1]));
 
     let ret = helpers::call_winapi64(
         &mut emu,
@@ -70,11 +86,15 @@ fn test_connect_valid_socket_64() {
 }
 
 #[test]
-fn test_bind_valid_socket_64() {
+fn bind_valid_socket_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
 
     let addr = 0x30000u64;
     emu.maps
@@ -88,21 +108,29 @@ fn test_bind_valid_socket_64() {
 }
 
 #[test]
-fn test_listen_valid_socket_64() {
+fn listen_valid_socket_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
     let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::listen, &[sock, 5]);
     assert_eq!(ret, 0, "listen on valid socket should return 0");
 }
 
 #[test]
-fn test_accept_valid_socket_64() {
+fn accept_valid_socket_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
 
     let addr = 0x30000u64;
     emu.maps
@@ -117,11 +145,15 @@ fn test_accept_valid_socket_64() {
 }
 
 #[test]
-fn test_setsockopt_valid_socket_64() {
+fn setsockopt_valid_socket_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
 
     let optval_addr = 0x30000u64;
     emu.maps
@@ -137,11 +169,15 @@ fn test_setsockopt_valid_socket_64() {
 }
 
 #[test]
-fn test_getsockopt_valid_socket_64() {
+fn getsockopt_valid_socket_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let sock = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
 
     let optval_addr = 0x30000u64;
     emu.maps
@@ -158,12 +194,20 @@ fn test_getsockopt_valid_socket_64() {
 }
 
 #[test]
-fn test_socket_lifecycle_64() {
+fn socket_lifecycle_64() {
     helpers::setup();
     let mut emu = emu64();
 
-    let s1 = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
-    let s2 = helpers::call_winapi64(&mut emu, winapi64::ws2_32::socket, &[2, 1, 6]);
+    let s1 = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
+    let s2 = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ws2_32::socket,
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
+    );
     assert_ne!(s1, s2, "two sockets should have different handles");
 
     let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::closesocket, &[s1]);
@@ -175,7 +219,7 @@ fn test_socket_lifecycle_64() {
 // ─── ws2_32 32-bit ───
 
 #[test]
-fn test_wsa_startup_32() {
+fn wsa_startup_32() {
     helpers::setup();
     let mut emu = emu32();
     let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::WsaStartup, &[0x0202, 0]);
@@ -183,15 +227,19 @@ fn test_wsa_startup_32() {
 }
 
 #[test]
-fn test_socket_create_32() {
+fn socket_create_32() {
     helpers::setup();
     let mut emu = emu32();
-    let sock = helpers::call_winapi32(&mut emu, winapi32::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi32(
+        &mut emu,
+        winapi32::ws2_32::socket,
+        &[AF_INET, SOCK_STREAM, IPPROTO_TCP],
+    );
     assert_ne!(sock, 0, "socket() 32-bit should return a non-zero handle");
 }
 
 #[test]
-fn test_htons_32() {
+fn htons_32() {
     helpers::setup();
     let mut emu = emu32();
     let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::htons, &[80]);
@@ -203,11 +251,15 @@ fn test_htons_32() {
 }
 
 #[test]
-fn test_connect_valid_socket_32() {
+fn connect_valid_socket_32() {
     helpers::setup();
     let mut emu = emu32();
 
-    let sock = helpers::call_winapi32(&mut emu, winapi32::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi32(
+        &mut emu,
+        winapi32::ws2_32::socket,
+        &[AF_INET, SOCK_STREAM, IPPROTO_TCP],
+    );
 
     let addr = 0x30000u32;
     emu.maps
@@ -221,10 +273,14 @@ fn test_connect_valid_socket_32() {
 }
 
 #[test]
-fn test_closesocket_32() {
+fn closesocket_32() {
     helpers::setup();
     let mut emu = emu32();
-    let sock = helpers::call_winapi32(&mut emu, winapi32::ws2_32::socket, &[2, 1, 6]);
+    let sock = helpers::call_winapi32(
+        &mut emu,
+        winapi32::ws2_32::socket,
+        &[AF_INET, SOCK_STREAM, IPPROTO_TCP],
+    );
     let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::closesocket, &[sock]);
     assert_eq!(ret, 0, "closesocket 32-bit should return 0");
 }
@@ -232,7 +288,7 @@ fn test_closesocket_32() {
 // ─── ole32 64-bit ───
 
 #[test]
-fn test_co_initialize_ex_64() {
+fn co_initialize_ex_64() {
     helpers::setup();
     let mut emu = emu64();
     let ret = helpers::call_winapi64(&mut emu, winapi64::ole32::CoInitializeEx, &[0, 0]);
@@ -240,7 +296,7 @@ fn test_co_initialize_ex_64() {
 }
 
 #[test]
-fn test_co_create_instance_class_not_reg_64() {
+fn co_create_instance_class_not_reg_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -255,7 +311,7 @@ fn test_co_create_instance_class_not_reg_64() {
         &[buf, 0, 0x17, buf + 0x10, buf + 0x100],
     );
     assert_eq!(
-        ret, 0x80040154,
+        ret, REGDB_E_CLASSNOTREG,
         "CoCreateInstance should return REGDB_E_CLASSNOTREG"
     );
     let ppv = emu.maps.read_qword(buf + 0x100).unwrap();
@@ -263,7 +319,7 @@ fn test_co_create_instance_class_not_reg_64() {
 }
 
 #[test]
-fn test_co_task_mem_alloc_64() {
+fn co_task_mem_alloc_64() {
     helpers::setup();
     let mut emu = emu64();
     let ptr = helpers::call_winapi64(&mut emu, winapi64::ole32::CoTaskMemAlloc, &[0x200]);
@@ -275,7 +331,7 @@ fn test_co_task_mem_alloc_64() {
 }
 
 #[test]
-fn test_co_task_mem_free_64() {
+fn co_task_mem_free_64() {
     helpers::setup();
     let mut emu = emu64();
     let ptr = helpers::call_winapi64(&mut emu, winapi64::ole32::CoTaskMemAlloc, &[0x100]);
@@ -285,7 +341,7 @@ fn test_co_task_mem_free_64() {
 }
 
 #[test]
-fn test_co_task_mem_free_null_64() {
+fn co_task_mem_free_null_64() {
     helpers::setup();
     let mut emu = emu64();
     let ret = helpers::call_winapi64(&mut emu, winapi64::ole32::CoTaskMemFree, &[0]);
@@ -293,7 +349,7 @@ fn test_co_task_mem_free_null_64() {
 }
 
 #[test]
-fn test_co_uninitialize_64() {
+fn co_uninitialize_64() {
     helpers::setup();
     let mut emu = emu64();
     let ret = helpers::call_winapi64(&mut emu, winapi64::ole32::CoUninitialize, &[]);
@@ -301,7 +357,7 @@ fn test_co_uninitialize_64() {
 }
 
 #[test]
-fn test_co_task_mem_alloc_free_cycle_64() {
+fn co_task_mem_alloc_free_cycle_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -321,7 +377,7 @@ fn test_co_task_mem_alloc_free_cycle_64() {
 // ─── oleaut32 64-bit ───
 
 #[test]
-fn test_sys_alloc_string_len_64() {
+fn sys_alloc_string_len_64() {
     helpers::setup();
     let mut emu = emu64();
     let bstr = helpers::call_winapi64(&mut emu, winapi64::oleaut32::SysAllocStringLen, &[0, 32]);
@@ -330,7 +386,7 @@ fn test_sys_alloc_string_len_64() {
 }
 
 #[test]
-fn test_sys_free_string_64() {
+fn sys_free_string_64() {
     helpers::setup();
     let mut emu = emu64();
     let bstr = helpers::call_winapi64(&mut emu, winapi64::oleaut32::SysAllocStringLen, &[0, 16]);
@@ -339,7 +395,7 @@ fn test_sys_free_string_64() {
 }
 
 #[test]
-fn test_variant_clear_64() {
+fn variant_clear_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -360,7 +416,7 @@ fn test_variant_clear_64() {
 // ─── oleaut32 new functions 64-bit ───
 
 #[test]
-fn test_sys_alloc_string_64() {
+fn sys_alloc_string_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -384,7 +440,7 @@ fn test_sys_alloc_string_64() {
 }
 
 #[test]
-fn test_sys_string_len_64() {
+fn sys_string_len_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -398,7 +454,7 @@ fn test_sys_string_len_64() {
 }
 
 #[test]
-fn test_sys_string_byte_len_64() {
+fn sys_string_byte_len_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -413,7 +469,7 @@ fn test_sys_string_byte_len_64() {
 }
 
 #[test]
-fn test_variant_init_64() {
+fn variant_init_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -432,4 +488,54 @@ fn test_variant_init_64() {
         let b = emu.maps.read_byte(variant + i).unwrap();
         assert_eq!(b, 0, "VariantInit should zero byte at offset {}", i);
     }
+}
+
+#[test]
+fn com_lifecycle_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ole32::CoInitializeEx,
+        &[0, COINIT_APARTMENTTHREADED as u64],
+    );
+    assert_eq!(ret, 0, "CoInitializeEx must return S_OK");
+
+    let ptr = helpers::call_winapi64(&mut emu, winapi64::ole32::CoTaskMemAlloc, &[0x200]);
+    assert_ne!(ptr, 0, "CoTaskMemAlloc returned NULL");
+    assert!(emu.maps.is_mapped(ptr), "CoTaskMemAlloc pointer not mapped");
+
+    emu.maps.write_dword(ptr, 0xBAADF00D);
+    assert_eq!(emu.maps.read_dword(ptr).unwrap(), 0xBAADF00D);
+
+    helpers::call_winapi64(&mut emu, winapi64::ole32::CoTaskMemFree, &[ptr]);
+
+    helpers::call_winapi64(&mut emu, winapi64::ole32::CoUninitialize, &[]);
+}
+
+#[test]
+fn co_create_instance_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let clsid_addr = 0x100000u64;
+    let iid_addr = 0x100020u64;
+    let ppv_addr = 0x100040u64;
+    emu.maps
+        .create_map("com_io", 0x100000, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_qword(ppv_addr, 0xDEAD);
+
+    // CoCreateInstance(rclsid, pUnkOuter, dwClsContext, riid, ppv)
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ole32::CoCreateInstance,
+        &[clsid_addr, 0, 1, iid_addr, ppv_addr],
+    );
+    assert_eq!(
+        ret, REGDB_E_CLASSNOTREG,
+        "CoCreateInstance must return REGDB_E_CLASSNOTREG"
+    );
+    let ppv = emu.maps.read_qword(ppv_addr).unwrap();
+    assert_eq!(ppv, 0, "ppv must be set to NULL");
 }

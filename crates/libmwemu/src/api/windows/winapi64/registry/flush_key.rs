@@ -1,7 +1,7 @@
 use super::finish;
 use super::key_path;
 use crate::emu;
-use crate::windows::constants::ERROR_SUCCESS;
+use crate::windows::constants::errors::*;
 
 pub(super) fn flush_key(emu: &mut emu::Emu) {
     let hkey = emu.regs().rcx;

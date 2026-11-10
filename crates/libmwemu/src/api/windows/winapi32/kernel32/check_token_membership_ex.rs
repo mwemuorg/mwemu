@@ -1,22 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn CheckTokenMembershipEx(emu: &mut emu::Emu) {
-    let token_handle = arg(emu, 0) as u64;
-    let sid_to_check = arg(emu, 1) as u64;
-    let flags = arg(emu, 2) as u64;
-    let is_member = arg(emu, 3) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!CheckTokenMembershipEx token:0x{:x} sid:0x{:x} flags:0x{:x} isMember:0x{:x}",
-        token_handle,
-        sid_to_check,
-        flags,
-        is_member
+        "kernel32!CheckTokenMembershipEx h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if is_member != 0 {
-        emu.maps.write_dword(is_member, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

@@ -1,4 +1,6 @@
-use crate::{emu, windows::constants};
+use crate::emu;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::nls::*;
 
 pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     let code_page = emu.regs().rcx;
@@ -28,18 +30,18 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     // 1. Input validation
     if lp_wide_char_str == 0 {
         log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return;
     }
 
     // 2. Handle special code pages
-    if (code_page == constants::CP_UTF7 || code_page == constants::CP_UTF8)
+    if (code_page == CP_UTF7 || code_page == CP_UTF8)
         && (lp_default_char != 0 || lp_used_default_char != 0)
     {
         // Set last error to ERROR_INVALID_PARAMETER
         log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -68,7 +70,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
             cb_multi_byte,
             input_len
         );
-        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+        emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }

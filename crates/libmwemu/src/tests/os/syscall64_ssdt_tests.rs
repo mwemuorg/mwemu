@@ -1,9 +1,13 @@
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::*;
+use crate::windows::constants::syscalls::*;
 use std::sync::atomic::Ordering;
 
 use crate::maps::mem64::Permission;
 use crate::syscall::windows::syscall64;
 use crate::tests::helpers;
-use crate::windows::constants::*;
+
 use crate::*;
 
 fn setup_emu64_syscall() -> emu::Emu {

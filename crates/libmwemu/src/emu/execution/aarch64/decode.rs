@@ -2,7 +2,7 @@ use crate::debug::console::Console;
 use crate::emu::Emu;
 use crate::engine;
 use crate::err::MwemuError;
-use crate::windows::constants;
+use crate::windows::constants::memory::*;
 
 /// AArch64 cache fill. Performs the cache hit/miss check, reads a block
 /// of code from the maps, and inserts the fixed-width decoded instructions
@@ -52,7 +52,7 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
         }
     };
 
-    let block_slice = code.read_code(pc, constants::BLOCK_LEN);
+    let block_slice = code.read_code(pc, BLOCK_LEN);
     if block_slice.len() != block.len() {
         block.resize(block_slice.len(), 0);
     }

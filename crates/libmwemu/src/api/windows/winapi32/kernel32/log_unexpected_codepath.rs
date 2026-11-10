@@ -1,9 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn LogUnexpectedCodepath(emu: &mut emu::Emu) {
-    let msg_ptr = arg(emu, 0) as u64;
-    let msg = emu.maps.read_string(msg_ptr);
-    log_red!(emu, "kernel32!LogUnexpectedCodepath '{}'", msg);
-    stdcall_ret(emu, 1);
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    log_red!(
+        emu,
+        "kernel32!LogUnexpectedCodepath arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
+    );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

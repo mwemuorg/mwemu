@@ -1,5 +1,6 @@
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::process::*;
+
 use crate::{console, emu};
 
 pub fn CreateThread(emu: &mut emu::Emu) {
@@ -20,7 +21,7 @@ pub fn CreateThread(emu: &mut emu::Emu) {
         emu.stack_pop32(false);
     }
 
-    if flags == constants::CREATE_SUSPENDED {
+    if flags == CREATE_SUSPENDED {
         log::trace!("\tcreated suspended!");
     }
 
@@ -37,7 +38,7 @@ pub fn CreateThread(emu: &mut emu::Emu) {
             emu.regs_mut().set_ecx(param as u64);
             emu.main_thread_cont = emu.gateway_return;
             emu.stack_push32(param);
-            emu.stack_push32(constants::RETURN_THREAD);
+            emu.stack_push32(RETURN_THREAD);
 
             // alloc a stack vs reusing stack.
             return;

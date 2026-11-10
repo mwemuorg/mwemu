@@ -1,21 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetNLSVersion(emu: &mut emu::Emu) {
-    let function = arg(emu, 0);
-    let locale = arg(emu, 1);
-    let version_ptr = arg(emu, 2) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetNLSVersion func:{} locale:0x{:x} ver:0x{:x}",
-        function,
-        locale,
-        version_ptr
+        "kernel32!GetNLSVersion h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if version_ptr != 0 {
-        emu.maps.write_dword(version_ptr, 32);
-        emu.maps.write_dword(version_ptr + 4, 1);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
 }

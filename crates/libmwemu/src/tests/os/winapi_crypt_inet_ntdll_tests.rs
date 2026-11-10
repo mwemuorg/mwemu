@@ -1,6 +1,11 @@
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 use crate::winapi::{winapi32, winapi64};
+use crate::windows::constants::crypto::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::network::*;
+use crate::windows::constants::system::*;
+
 use crate::*;
 
 /// Call a 64-bit WinAPI that reads stack args at rsp+0x28, rsp+0x30, ...
@@ -29,14 +34,20 @@ fn call_winapi64_stack(emu: &mut emu::Emu, func: fn(&mut emu::Emu), args: &[u64]
 // ─── crypt32 64-bit: CertOpenStore ───
 
 #[test]
-fn test_cert_open_store_64() {
+fn cert_open_store_64() {
     helpers::setup();
     let mut emu = emu64();
 
     let handle = call_winapi64_stack(
         &mut emu,
         winapi64::crypt32::CertOpenStore,
-        &[0x0A, 0x10001, 0, 0, 0], // CERT_STORE_PROV_MEMORY, PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+        &[
+            CERT_STORE_PROV_SYSTEM_W,
+            (PKCS_7_ASN_ENCODING | X509_ASN_ENCODING) as u64,
+            0,
+            0,
+            0,
+        ],
     );
     assert_ne!(handle, 0, "CertOpenStore should return non-zero handle");
 }
@@ -44,7 +55,7 @@ fn test_cert_open_store_64() {
 // ─── crypt32 64-bit: CertOpenSystemStoreA ───
 
 #[test]
-fn test_cert_open_system_store_a_64() {
+fn cert_open_system_store_a_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -68,7 +79,7 @@ fn test_cert_open_system_store_a_64() {
 // ─── crypt32 64-bit: CertOpenSystemStoreW ───
 
 #[test]
-fn test_cert_open_system_store_w_64() {
+fn cert_open_system_store_w_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -92,7 +103,7 @@ fn test_cert_open_system_store_w_64() {
 // ─── crypt32 64-bit: CertCloseStore ───
 
 #[test]
-fn test_cert_close_store_64() {
+fn cert_close_store_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -110,7 +121,7 @@ fn test_cert_close_store_64() {
 // ─── crypt32 64-bit: CertFindCertificateInStore (empty store) ───
 
 #[test]
-fn test_cert_find_certificate_empty_store_64() {
+fn cert_find_certificate_empty_store_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -131,7 +142,7 @@ fn test_cert_find_certificate_empty_store_64() {
 // ─── crypt32 64-bit: CertFreeCertificateContext ───
 
 #[test]
-fn test_cert_free_certificate_context_64() {
+fn cert_free_certificate_context_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -146,7 +157,7 @@ fn test_cert_free_certificate_context_64() {
 // ─── crypt32 64-bit: CryptStringToBinaryA ───
 
 #[test]
-fn test_crypt_string_to_binary_a_64() {
+fn crypt_string_to_binary_a_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -163,7 +174,7 @@ fn test_crypt_string_to_binary_a_64() {
     let ret = call_winapi64_stack(
         &mut emu,
         winapi64::crypt32::CryptStringToBinaryA,
-        &[str_addr, 8, 0x01, out_ptr, out_sz_ptr, 0, 0], // CRYPT_STRING_BASE64
+        &[str_addr, 8, CRYPT_STRING_BASE64, out_ptr, out_sz_ptr, 0, 0],
     );
     assert_eq!(ret, 1, "CryptStringToBinaryA should return TRUE (success)");
 }
@@ -171,7 +182,7 @@ fn test_crypt_string_to_binary_a_64() {
 // ─── crypt32 64-bit: full open/find/close cycle ───
 
 #[test]
-fn test_cert_store_lifecycle_64() {
+fn cert_store_lifecycle_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -202,7 +213,7 @@ fn test_cert_store_lifecycle_64() {
 // ─── crypt32 32-bit: CertOpenStore ───
 
 #[test]
-fn test_cert_open_store_32() {
+fn cert_open_store_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -217,7 +228,7 @@ fn test_cert_open_store_32() {
 // ─── crypt32 32-bit: CertOpenSystemStoreA ───
 
 #[test]
-fn test_cert_open_system_store_a_32() {
+fn cert_open_system_store_a_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -238,7 +249,7 @@ fn test_cert_open_system_store_a_32() {
 // ─── crypt32 32-bit: CertCloseStore ───
 
 #[test]
-fn test_cert_close_store_32() {
+fn cert_close_store_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -256,7 +267,7 @@ fn test_cert_close_store_32() {
 // ─── crypt32 32-bit: CertFindCertificateInStore ───
 
 #[test]
-fn test_cert_find_certificate_empty_store_32() {
+fn cert_find_certificate_empty_store_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -278,7 +289,7 @@ fn test_cert_find_certificate_empty_store_32() {
 // ─── crypt32 32-bit: CertFreeCertificateContext ───
 
 #[test]
-fn test_cert_free_certificate_context_32() {
+fn cert_free_certificate_context_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -293,7 +304,7 @@ fn test_cert_free_certificate_context_32() {
 // ─── crypt32 32-bit: CryptStringToBinaryA ───
 
 #[test]
-fn test_crypt_string_to_binary_a_32() {
+fn crypt_string_to_binary_a_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -318,7 +329,7 @@ fn test_crypt_string_to_binary_a_32() {
 // ─── ntdll 64-bit: RtlDecompressBuffer — empty LZNT1 stream ───
 
 #[test]
-fn test_rtl_decompress_buffer_empty_stream_64() {
+fn rtl_decompress_buffer_empty_stream_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -354,7 +365,7 @@ fn test_rtl_decompress_buffer_empty_stream_64() {
 // ─── ntdll 64-bit: RtlDecompressBuffer — uncompressed LZNT1 chunk ───
 
 #[test]
-fn test_rtl_decompress_buffer_uncompressed_chunk_64() {
+fn rtl_decompress_buffer_uncompressed_chunk_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -407,7 +418,7 @@ fn test_rtl_decompress_buffer_uncompressed_chunk_64() {
 // ─── ntdll 64-bit: RtlDecompressBuffer — compressed LZNT1 chunk with all literals ───
 
 #[test]
-fn test_rtl_decompress_buffer_compressed_literals_64() {
+fn rtl_decompress_buffer_compressed_literals_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -462,7 +473,7 @@ fn test_rtl_decompress_buffer_compressed_literals_64() {
 // ─── ntdll 64-bit: RtlDecompressBuffer — unknown format ───
 
 #[test]
-fn test_rtl_decompress_buffer_unknown_format_64() {
+fn rtl_decompress_buffer_unknown_format_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -487,7 +498,7 @@ fn test_rtl_decompress_buffer_unknown_format_64() {
         &[0x00FF, decomp_addr, 0x1000, comp_addr, 2, final_sz_addr],
     );
     assert_eq!(
-        status, 0xC0000242,
+        status, STATUS_BAD_COMPRESSION_BUFFER,
         "unknown format should fail with BAD_COMPRESSION_BUFFER"
     );
 }
@@ -495,7 +506,7 @@ fn test_rtl_decompress_buffer_unknown_format_64() {
 // ─── ntdll 32-bit: RtlDecompressBuffer — uncompressed LZNT1 chunk ───
 
 #[test]
-fn test_rtl_decompress_buffer_uncompressed_chunk_32() {
+fn rtl_decompress_buffer_uncompressed_chunk_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -526,7 +537,7 @@ fn test_rtl_decompress_buffer_uncompressed_chunk_32() {
         &mut emu,
         winapi32::ntdll::RtlDecompressBuffer,
         &[
-            0x0002,               // COMPRESSION_FORMAT_LZNT1
+            COMPRESSION_FORMAT_LZNT1 as u32,
             decomp_addr as u32,   // uncompressed buffer
             0x1000,               // uncompressed buffer size
             comp_addr as u32,     // compressed buffer
@@ -546,7 +557,7 @@ fn test_rtl_decompress_buffer_uncompressed_chunk_32() {
 // ─── ntdll 32-bit: RtlDecompressBuffer — XPRESS fails ───
 
 #[test]
-fn test_rtl_decompress_buffer_xpress_literals_32() {
+fn rtl_decompress_buffer_xpress_literals_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -594,7 +605,7 @@ fn test_rtl_decompress_buffer_xpress_literals_32() {
 // ─── ws2_32 64-bit: socket lifecycle ───
 
 #[test]
-fn test_ws2_32_wsa_startup_64() {
+fn ws2_32_wsa_startup_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -603,14 +614,14 @@ fn test_ws2_32_wsa_startup_64() {
 }
 
 #[test]
-fn test_ws2_32_socket_create_close_64() {
+fn ws2_32_socket_create_close_64() {
     helpers::setup();
     let mut emu = emu64();
 
     let sock = helpers::call_winapi64(
         &mut emu,
         winapi64::ws2_32::socket,
-        &[2, 1, 6], // AF_INET, SOCK_STREAM, IPPROTO_TCP
+        &[AF_INET as u64, SOCK_STREAM as u64, IPPROTO_TCP as u64],
     );
     assert_ne!(sock, 0, "socket() should return non-zero handle");
     assert_ne!(sock, u64::MAX, "socket() should not return INVALID_SOCKET");
@@ -620,7 +631,7 @@ fn test_ws2_32_socket_create_close_64() {
 }
 
 #[test]
-fn test_ws2_32_htons_64() {
+fn ws2_32_htons_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -629,7 +640,7 @@ fn test_ws2_32_htons_64() {
 }
 
 #[test]
-fn test_ws2_32_htons_443_64() {
+fn ws2_32_htons_443_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -641,7 +652,7 @@ fn test_ws2_32_htons_443_64() {
 // ─── ws2_32 32-bit ───
 
 #[test]
-fn test_ws2_32_wsa_startup_32() {
+fn ws2_32_wsa_startup_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -650,7 +661,7 @@ fn test_ws2_32_wsa_startup_32() {
 }
 
 #[test]
-fn test_ws2_32_socket_create_close_32() {
+fn ws2_32_socket_create_close_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -662,7 +673,7 @@ fn test_ws2_32_socket_create_close_32() {
 }
 
 #[test]
-fn test_ws2_32_htons_32() {
+fn ws2_32_htons_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -674,20 +685,20 @@ fn test_ws2_32_htons_32() {
 // ─── ole32 64-bit: CoInitializeEx / CoTaskMemAlloc / CoTaskMemFree ───
 
 #[test]
-fn test_co_initialize_ex_64() {
+fn co_initialize_ex_64() {
     helpers::setup();
     let mut emu = emu64();
 
     let ret = helpers::call_winapi64(
         &mut emu,
         winapi64::ole32::CoInitializeEx,
-        &[0, 0x02], // COINIT_APARTMENTTHREADED
+        &[0, COINIT_APARTMENTTHREADED as u64],
     );
     assert_eq!(ret, 0, "CoInitializeEx returns S_OK");
 }
 
 #[test]
-fn test_co_task_mem_alloc_free_64() {
+fn co_task_mem_alloc_free_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -703,7 +714,7 @@ fn test_co_task_mem_alloc_free_64() {
 }
 
 #[test]
-fn test_co_uninitialize_64() {
+fn co_uninitialize_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -715,7 +726,7 @@ fn test_co_uninitialize_64() {
 // ─── oleaut32 64-bit: SysAllocStringLen / SysFreeString / VariantClear ───
 
 #[test]
-fn test_sys_alloc_string_len_64() {
+fn sys_alloc_string_len_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -729,7 +740,7 @@ fn test_sys_alloc_string_len_64() {
 }
 
 #[test]
-fn test_sys_free_string_64() {
+fn sys_free_string_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -741,7 +752,7 @@ fn test_sys_free_string_64() {
 }
 
 #[test]
-fn test_variant_clear_64() {
+fn variant_clear_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -761,7 +772,7 @@ fn test_variant_clear_64() {
 // ─── gdi32 64-bit: CreateCompatibleDC / SelectObject / DeleteDC ───
 
 #[test]
-fn test_create_compatible_dc_64() {
+fn create_compatible_dc_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -773,7 +784,7 @@ fn test_create_compatible_dc_64() {
 }
 
 #[test]
-fn test_create_compatible_bitmap_64() {
+fn create_compatible_bitmap_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -786,7 +797,7 @@ fn test_create_compatible_bitmap_64() {
 }
 
 #[test]
-fn test_select_delete_object_64() {
+fn select_delete_object_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -801,7 +812,7 @@ fn test_select_delete_object_64() {
 }
 
 #[test]
-fn test_delete_dc_64() {
+fn delete_dc_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -811,14 +822,14 @@ fn test_delete_dc_64() {
 }
 
 #[test]
-fn test_get_device_caps_64() {
+fn get_device_caps_64() {
     helpers::setup();
     let mut emu = emu64();
 
     let width = helpers::call_winapi64(
         &mut emu,
         winapi64::gdi32::GetDeviceCaps,
-        &[0x1337, 8], // HORZRES
+        &[0x1337, HORZRES as u64],
     );
     assert!(width > 0, "GetDeviceCaps(HORZRES) should return >0");
 }
@@ -826,7 +837,7 @@ fn test_get_device_caps_64() {
 // ─── shell32 64-bit: ShellExecuteA ───
 
 #[test]
-fn test_shell_execute_a_64() {
+fn shell_execute_a_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -848,7 +859,7 @@ fn test_shell_execute_a_64() {
 // ─── ntdll 64-bit: LZNT1 compressed chunk with back-reference ───
 
 #[test]
-fn test_rtl_decompress_buffer_lznt1_backreference_64() {
+fn rtl_decompress_buffer_lznt1_backreference_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -921,7 +932,7 @@ fn test_rtl_decompress_buffer_lznt1_backreference_64() {
 // ─── ntdll 64-bit: LZNT1 with ENGINE flag in format (should be masked) ───
 
 #[test]
-fn test_rtl_decompress_buffer_lznt1_engine_flag_masked_64() {
+fn rtl_decompress_buffer_lznt1_engine_flag_masked_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -939,7 +950,7 @@ fn test_rtl_decompress_buffer_lznt1_engine_flag_masked_64() {
         .create_map("final_sz", final_sz_addr, 0x1000, Permission::READ_WRITE)
         .expect("map");
 
-    // Same uncompressed chunk as before, but format = 0x0102 (LZNT1 + COMPRESSION_ENGINE_STANDARD)
+    // Compression engine bits must not change the selected format.
     let data: &[u8] = &[
         0x02, 0x00, // header: uncompressed, 3 bytes
         b'X', b'Y', b'Z', 0x00, 0x00,
@@ -952,7 +963,7 @@ fn test_rtl_decompress_buffer_lznt1_engine_flag_masked_64() {
         &mut emu,
         winapi64::ntdll::RtlDecompressBuffer,
         &[
-            0x0102,
+            (COMPRESSION_FORMAT_LZNT1 | COMPRESSION_ENGINE_MAXIMUM) as u64,
             decomp_addr,
             0x1000,
             comp_addr,
@@ -972,7 +983,7 @@ fn test_rtl_decompress_buffer_lznt1_engine_flag_masked_64() {
 // ─── Xpress plain: all-literals decompression (64-bit) ───
 
 #[test]
-fn test_rtl_decompress_buffer_xpress_literals_64() {
+fn rtl_decompress_buffer_xpress_literals_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1020,7 +1031,7 @@ fn test_rtl_decompress_buffer_xpress_literals_64() {
 // ─── Xpress plain: back-reference decompression (64-bit) ───
 
 #[test]
-fn test_rtl_decompress_buffer_xpress_backref_64() {
+fn rtl_decompress_buffer_xpress_backref_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1072,7 +1083,7 @@ fn test_rtl_decompress_buffer_xpress_backref_64() {
 // ─── Xpress plain: short input returns error (64-bit) ───
 
 #[test]
-fn test_rtl_decompress_buffer_xpress_short_input_64() {
+fn rtl_decompress_buffer_xpress_short_input_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1100,7 +1111,7 @@ fn test_rtl_decompress_buffer_xpress_short_input_64() {
         &[0x0003, decomp_addr, 0x1000, comp_addr, 2, final_sz_addr],
     );
     assert_eq!(
-        status, 0xC0000242,
+        status, STATUS_BAD_COMPRESSION_BUFFER,
         "short Xpress input returns BAD_COMPRESSION_BUFFER"
     );
 }
@@ -1108,7 +1119,7 @@ fn test_rtl_decompress_buffer_xpress_short_input_64() {
 // ─── CryptStringToBinaryA: real base64 decode (64-bit) ───
 
 #[test]
-fn test_crypt_string_to_binary_a_base64_real_decode_64() {
+fn crypt_string_to_binary_a_base64_real_decode_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1134,7 +1145,7 @@ fn test_crypt_string_to_binary_a_base64_real_decode_64() {
     let ret = call_winapi64_stack(
         &mut emu,
         winapi64::crypt32::CryptStringToBinaryA,
-        &[str_addr, 8, 0x01, out_addr, sz_addr, 0, 0], // CRYPT_STRING_BASE64
+        &[str_addr, 8, CRYPT_STRING_BASE64, out_addr, sz_addr, 0, 0],
     );
     assert_eq!(ret, 1, "CryptStringToBinaryA should succeed");
 
@@ -1150,7 +1161,7 @@ fn test_crypt_string_to_binary_a_base64_real_decode_64() {
 }
 
 #[test]
-fn test_crypt_string_to_binary_a_hex_decode_64() {
+fn crypt_string_to_binary_a_hex_decode_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1176,7 +1187,7 @@ fn test_crypt_string_to_binary_a_hex_decode_64() {
     let ret = call_winapi64_stack(
         &mut emu,
         winapi64::crypt32::CryptStringToBinaryA,
-        &[str_addr, 4, 0x04, out_addr, sz_addr, 0, 0], // CRYPT_STRING_HEX
+        &[str_addr, 4, CRYPT_STRING_HEX, out_addr, sz_addr, 0, 0],
     );
     assert_eq!(ret, 1);
 
@@ -1190,7 +1201,7 @@ fn test_crypt_string_to_binary_a_hex_decode_64() {
 // ─── CryptHashCertificate: real SHA-256 hash (64-bit) ───
 
 #[test]
-fn test_crypt_hash_certificate_sha256_64() {
+fn crypt_hash_certificate_sha256_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1223,7 +1234,14 @@ fn test_crypt_hash_certificate_sha256_64() {
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );
         },
-        &[0, 0x800c, data_addr, 0, hash_addr, hash_len_addr], // CALG_SHA_256
+        &[
+            0,
+            CALG_SHA_256 as u64,
+            data_addr,
+            0,
+            hash_addr,
+            hash_len_addr,
+        ],
     );
     assert_eq!(ret, 1, "CryptHashCertificate should succeed");
 
@@ -1238,7 +1256,7 @@ fn test_crypt_hash_certificate_sha256_64() {
 }
 
 #[test]
-fn test_crypt_hash_certificate_sha1_64() {
+fn crypt_hash_certificate_sha1_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1270,7 +1288,7 @@ fn test_crypt_hash_certificate_sha1_64() {
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );
         },
-        &[0, 0x8004, data_addr, 0, hash_addr, hash_len_addr], // CALG_SHA1
+        &[0, CALG_SHA1 as u64, data_addr, 0, hash_addr, hash_len_addr],
     );
     assert_eq!(ret, 1, "CryptHashCertificate SHA-1 should succeed");
 
@@ -1285,7 +1303,7 @@ fn test_crypt_hash_certificate_sha1_64() {
 }
 
 #[test]
-fn test_crypt_hash_certificate_size_query_64() {
+fn crypt_hash_certificate_size_query_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1306,7 +1324,7 @@ fn test_crypt_hash_certificate_size_query_64() {
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );
         },
-        &[0, 0x800c, 0, 0, 0, hash_len_addr], // hash_ptr=0 → size query
+        &[0, CALG_SHA_256 as u64, 0, 0, 0, hash_len_addr], // hash_ptr=0 → size query
     );
     assert_eq!(ret, 1);
 
@@ -1315,7 +1333,7 @@ fn test_crypt_hash_certificate_size_query_64() {
 }
 
 #[test]
-fn test_crypt_hash_certificate_md5_64() {
+fn crypt_hash_certificate_md5_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -1347,7 +1365,7 @@ fn test_crypt_hash_certificate_md5_64() {
                 emu, alg_id, cert_ptr, cert_len, hp, hlp,
             );
         },
-        &[0, 0x8003, data_addr, 0, hash_addr, hash_len_addr], // CALG_MD5
+        &[0, CALG_MD5 as u64, data_addr, 0, hash_addr, hash_len_addr],
     );
     assert_eq!(ret, 1);
 
@@ -1358,4 +1376,123 @@ fn test_crypt_hash_certificate_md5_64() {
     let hash = emu.maps.read_bytes(hash_addr, 16);
     assert_eq!(hash[0], 0xd4, "MD5 empty first byte");
     assert_eq!(hash[15], 0x7e, "MD5 empty last byte");
+}
+
+#[test]
+fn winhttp_full_flow_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let agent_addr = 0x100000u64;
+    let server_addr = 0x100100u64;
+    let verb_addr = 0x100200u64;
+    let path_addr = 0x100300u64;
+    let bytes_read_addr = 0x100400u64;
+    let buffer_addr = 0x100500u64;
+    emu.maps
+        .create_map("http_io", 0x100000, 0x1000, Permission::READ_WRITE);
+
+    // Write L"TestAgent"
+    let agent: [u8; 20] = [
+        b'T', 0, b'e', 0, b's', 0, b't', 0, b'A', 0, b'g', 0, b'e', 0, b'n', 0, b't', 0, 0, 0,
+    ];
+    for (i, &b) in agent.iter().enumerate() {
+        emu.maps.write_byte(agent_addr + i as u64, b);
+    }
+    // Write L"example.com"
+    let server: [u8; 24] = [
+        b'e', 0, b'x', 0, b'a', 0, b'm', 0, b'p', 0, b'l', 0, b'e', 0, b'.', 0, b'c', 0, b'o', 0,
+        b'm', 0, 0, 0,
+    ];
+    for (i, &b) in server.iter().enumerate() {
+        emu.maps.write_byte(server_addr + i as u64, b);
+    }
+    // Write L"GET"
+    let get: [u8; 8] = [b'G', 0, b'E', 0, b'T', 0, 0, 0];
+    for (i, &b) in get.iter().enumerate() {
+        emu.maps.write_byte(verb_addr + i as u64, b);
+    }
+    // Write L"/api"
+    let path: [u8; 10] = [b'/', 0, b'a', 0, b'p', 0, b'i', 0, 0, 0];
+    for (i, &b) in path.iter().enumerate() {
+        emu.maps.write_byte(path_addr + i as u64, b);
+    }
+
+    // WinHttpOpen(agent, accessType, proxy, bypass, flags)
+    let h_session = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpOpen,
+        &[agent_addr, 0, 0, 0, 0],
+    );
+    assert_ne!(h_session, 0, "WinHttpOpen must return a session handle");
+
+    // WinHttpConnect(session, server, port, reserved)
+    let h_connect = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpConnect,
+        &[h_session, server_addr, 443, 0],
+    );
+    assert_ne!(
+        h_connect, 0,
+        "WinHttpConnect must return a connection handle"
+    );
+
+    // WinHttpOpenRequest(connect, verb, objectName, version, referrer, acceptTypes, flags)
+    let h_request = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpOpenRequest,
+        &[h_connect, verb_addr, path_addr, 0, 0, 0, 0x00800000],
+    );
+    assert_ne!(
+        h_request, 0,
+        "WinHttpOpenRequest must return a request handle"
+    );
+
+    // WinHttpSendRequest
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpSendRequest,
+        &[h_request, 0, 0, 0, 0, 0, 0],
+    );
+    assert_eq!(ret, 1, "WinHttpSendRequest must return TRUE");
+
+    // WinHttpReceiveResponse
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpReceiveResponse,
+        &[h_request, 0],
+    );
+    assert_eq!(ret, 1, "WinHttpReceiveResponse must return TRUE");
+
+    // WinHttpReadData
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpReadData,
+        &[h_request, buffer_addr, 0x100, bytes_read_addr],
+    );
+    assert_eq!(ret, 1, "WinHttpReadData must return TRUE");
+    let bytes = emu.maps.read_dword(bytes_read_addr).unwrap();
+    assert_eq!(bytes, 0, "bytes read must be 0 (stub)");
+
+    // WinHttpCloseHandle — close all in reverse order
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpCloseHandle,
+        &[h_request],
+    );
+    assert_eq!(ret, 1, "WinHttpCloseHandle(request) must return TRUE");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpCloseHandle,
+        &[h_connect],
+    );
+    assert_eq!(ret, 1, "WinHttpCloseHandle(connect) must return TRUE");
+
+    let ret = helpers::call_winapi64(
+        &mut emu,
+        winapi64::winhttp::WinHttpCloseHandle,
+        &[h_session],
+    );
+    assert_eq!(ret, 1, "WinHttpCloseHandle(session) must return TRUE");
 }

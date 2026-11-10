@@ -17,6 +17,7 @@
 //! Cached layout: `maps/winver/<build>/x86_64/<dll>`, mirroring the `--iso`
 //! cache so the rest of the emulator is unchanged — it just sees a maps folder.
 
+use crate::windows::constants::system::*;
 use std::error::Error;
 use std::fs;
 use std::io::Read;
@@ -359,7 +360,7 @@ fn seed_data_files(cache: &Path, is_x64: bool) {
 /// a symbol-server artifact) that shellcode loading uses as the PEB's main
 /// image; without it the PEB ImageBase would point at a missing file.
 fn seed_loader_exe(cache: &Path, is_x64: bool) {
-    let dest = cache.join(crate::windows::constants::EXE_NAME);
+    let dest = cache.join(EXE_NAME);
     if dest.is_file() {
         return;
     }
@@ -371,7 +372,7 @@ fn seed_loader_exe(cache: &Path, is_x64: bool) {
         format!("../../maps/windows/{}", arch),
     ];
     for src_dir in &candidates {
-        let src = Path::new(src_dir).join(crate::windows::constants::EXE_NAME);
+        let src = Path::new(src_dir).join(EXE_NAME);
         if src.is_file() {
             let _ = fs::copy(&src, &dest);
             return;

@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn Heap32First(emu: &mut emu::Emu) {
     let _lphe = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -8,7 +8,7 @@ pub fn Heap32First(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!Heap32First");
 
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.regs_mut().rax = ERROR_SUCCESS;
 
     for _ in 0..3 {
         emu.stack_pop32(false);

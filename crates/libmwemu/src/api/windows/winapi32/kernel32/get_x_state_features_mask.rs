@@ -1,18 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetXStateFeaturesMask(emu: &mut emu::Emu) {
-    let context_ptr = arg(emu, 0) as u64;
-    let mask_ptr = arg(emu, 1) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetXStateFeaturesMask ctx:0x{:x} mask:0x{:x}",
-        context_ptr,
-        mask_ptr
+        "kernel32!GetXStateFeaturesMask h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if mask_ptr != 0 {
-        emu.maps.write_qword(mask_ptr, 0x7);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

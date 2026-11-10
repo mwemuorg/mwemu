@@ -2,7 +2,8 @@ use crate::debug::console::Console;
 use crate::emu::Emu;
 use crate::exception::seh32;
 use crate::winapi::{winapi32, winapi64};
-use crate::windows::constants::LIBS64_MIN;
+use crate::windows::constants::memory::*;
+
 use crate::{color, exception::handlers as exception};
 use iced_x86::Instruction;
 

@@ -3,7 +3,7 @@ use crate::emu::Emu;
 use crate::maps::Maps;
 use crate::maps::virtual_memory::{MemoryError, page_range as checked_page_range};
 use crate::winapi::common::memory::permissions;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum ProtectError {
@@ -15,16 +15,16 @@ pub(crate) enum ProtectError {
 impl ProtectError {
     pub(crate) fn win32_error(&self) -> u64 {
         match self {
-            Self::InvalidParameter | Self::InvalidProtection => constants::ERROR_INVALID_PARAMETER,
-            Self::Unmapped => constants::ERROR_INVALID_ADDRESS,
+            Self::InvalidParameter | Self::InvalidProtection => ERROR_INVALID_PARAMETER,
+            Self::Unmapped => ERROR_INVALID_ADDRESS,
         }
     }
 
     pub(crate) fn nt_status(&self) -> u64 {
         match self {
-            Self::InvalidParameter => constants::STATUS_INVALID_PARAMETER,
+            Self::InvalidParameter => STATUS_INVALID_PARAMETER,
             Self::InvalidProtection => 0xc0000045,
-            Self::Unmapped => constants::STATUS_CONFLICTING_ADDRESSES,
+            Self::Unmapped => STATUS_CONFLICTING_ADDRESSES,
         }
     }
 }
@@ -73,7 +73,7 @@ pub(crate) fn protect_winapi(
     old_pointer: u64,
 ) -> bool {
     if !emu.maps.validate_write_range(old_pointer, 4) {
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return false;
     }

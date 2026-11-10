@@ -5,87 +5,19 @@ use crate::winapi::common::buffers;
 use crate::winapi::common::crt;
 use crate::winapi::helper;
 use crate::winapi::winapi64;
+use crate::winapi::winapi64::crt_stdio;
 
-mod __setusermatherr;
-pub use __setusermatherr::__setusermatherr;
-mod __2_yapeax_k_z;
-pub use __2_yapeax_k_z::__2_YAPEAX_K_Z;
-mod _eh_prolog3;
-pub use _eh_prolog3::_EH_prolog3;
-mod _fgetchar;
-pub use _fgetchar::_fgetchar;
-mod _open;
-pub use _open::_open;
-mod _putenv;
-pub use _putenv::_putenv;
-mod _wputenv;
-pub use _wputenv::_wputenv;
-mod _snprintf_s;
-pub use _snprintf_s::_snprintf_s;
-mod _sscanf_s_l;
-pub use _sscanf_s_l::_sscanf_s_l;
-mod _wrename;
-pub use _wrename::_wrename;
-mod putc;
-pub use putc::putc;
-mod mbstowcs;
-pub use mbstowcs::mbstowcs;
-mod wcstombs;
-pub use wcstombs::wcstombs;
-mod atan;
-pub use atan::atan;
-mod strncat;
-pub use strncat::strncat;
-mod wcsncat;
-pub use wcsncat::wcsncat;
-mod swprintf;
-pub use swprintf::swprintf;
-mod _sprintf_p;
-pub use _sprintf_p::_sprintf_p;
-mod sscanf_s;
-pub use sscanf_s::sscanf_s;
-mod str_cmp_ca;
-pub use str_cmp_ca::StrCmpCA;
-mod _wcsnicmp;
-pub use _wcsnicmp::_wcsnicmp;
-mod _itow;
-pub use _itow::_itow;
-mod _wtol;
-pub use _wtol::_wtol;
-mod _mbstowcs_l;
-pub use _mbstowcs_l::_mbstowcs_l;
-mod _wcstombs_l;
-pub use _wcstombs_l::_wcstombs_l;
-mod fgets;
-pub use fgets::fgets;
-mod fputs;
-pub use fputs::fputs;
-mod getchar;
-pub use getchar::getchar;
-mod _close;
-pub use _close::_close;
-mod _read;
-pub use _read::_read;
-mod _write;
-pub use _write::_write;
-mod _wopen;
-pub use _wopen::_wopen;
-mod _fileno;
-pub use _fileno::_fileno;
-mod _setmode;
-pub use _setmode::_setmode;
-mod _putch;
-pub use _putch::_putch;
-mod ispunct;
-pub use ispunct::ispunct;
-mod isxdigit;
-pub use isxdigit::isxdigit;
-mod _eh_prolog;
-pub use _eh_prolog::_EH_prolog;
-mod _putenv_s;
-pub use _putenv_s::_putenv_s;
-mod system;
-pub use system::system;
+mod runtime;
+pub use runtime::*;
+mod memory;
+pub use memory::*;
+mod io;
+pub use io::*;
+mod strings;
+pub use strings::*;
+mod math;
+pub use math::*;
+
 mod __acrt_iob_func;
 use __acrt_iob_func::__acrt_iob_func;
 mod __p___argc;
@@ -260,8 +192,6 @@ mod memcpy;
 use memcpy::memcpy;
 mod puts;
 use puts::puts;
-mod realloc;
-pub use realloc::realloc;
 mod set_invalid_parameter_handler;
 use set_invalid_parameter_handler::set_invalid_parameter_handler;
 mod setvbuf;
@@ -318,191 +248,22 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
-    if super::crt_stdio::gateway(api, emu) {
+    if crt_stdio::gateway(api, emu) {
         return String::new();
     }
     if crt::dispatch(api, emu) {
         return String::new();
     }
-    match api {
-        "_initialize_onexit_table" => _initialize_onexit_table(emu),
-        "_register_onexit_function" => _register_onexit_function(emu),
-        "_get_initial_narrow_environment" => _get_initial_narrow_environment(emu),
-        "_initialize_narrow_environment" => _initialize_narrow_environment(emu),
-        "_configure_narrow_argv" => _configure_narrow_argv(emu),
-        "_set_invalid_parameter_handler" => set_invalid_parameter_handler(emu),
-        "_set_app_type" => _set_app_type(emu),
-        "malloc" => malloc(emu),
-        "calloc" => calloc(emu),
-        "free" => free(emu),
-        "realloc" => realloc(emu),
-        "_crt_atexit" => _crt_atexit(emu),
-        "__p___argv" => __p___argv(emu),
-        "__p___argc" => __p___argc(emu),
-        "__p__environ" => __p__environ(emu),
-        "__acrt_iob_func" => __acrt_iob_func(emu),
-        "__p__commode" => __p__commode(emu),
-        "__p__fmode" => __p__fmode(emu),
-        "_set_new_mode" => _set_new_mode(emu),
-        "setvbuf" => setvbuf(emu),
-        "__stdio_common_vfprintf" => __stdio_common_vfprintf(emu),
-        "puts" => puts(emu),
-        "strlen" => strlen(emu),
-        "strncmp" => strncmp(emu),
-        "memcpy" => memcpy(emu),
-        "memset" => crt_memset(emu),
-        "memmove" => crt_memmove(emu),
-        "memcmp" => crt_memcmp(emu),
-        "memchr" => crt_memchr(emu),
-        "abort" => abort(emu),
-        "signal" => signal(emu),
-        "strcmp" => crt_strcmp(emu),
-        "strncpy" => crt_strncpy(emu),
-        "strcpy" => crt_strcpy(emu),
-        "strcat" => crt_strcat(emu),
-        "strstr" => crt_strstr(emu),
-        "strchr" => crt_strchr(emu),
-        "strrchr" => crt_strrchr(emu),
-        "_stricmp" | "_strcmpi" => crt_stricmp(emu),
-        "_strnicmp" => crt_strnicmp(emu),
-        "strtol" => crt_strtol(emu),
-        "strtoul" => crt_strtoul(emu),
-        "atoi" => crt_atoi(emu),
-        "atol" => crt_atoi(emu),
-        "_itoa" => crt_itoa(emu),
-        "wcslen" => crt_wcslen(emu),
-        "wcscpy" => crt_wcscpy(emu),
-        "wcscat" => crt_wcscat(emu),
-        "wcscmp" => crt_wcscmp(emu),
-        "_wcsicmp" => crt_wcsicmp(emu),
-        "wcsncpy" => crt_wcsncpy(emu),
-        "_wtoi" => crt_wtoi(emu),
-        "towupper" => crt_towupper(emu),
-        "towlower" => crt_towlower(emu),
-        "toupper" => crt_toupper(emu),
-        "tolower" => crt_tolower(emu),
-        "isalpha" => crt_isalpha(emu),
-        "isdigit" => crt_isdigit(emu),
-        "isspace" => crt_isspace(emu),
-        "isalnum" => crt_isalnum(emu),
-        "isupper" => crt_isupper(emu),
-        "islower" => crt_islower(emu),
-        "_msize" => crt_msize(emu),
-        "_aligned_malloc" => crt_aligned_malloc(emu),
-        "_aligned_free" => crt_aligned_free(emu),
-        "fprintf"
-        | "sprintf"
-        | "snprintf"
-        | "sscanf"
-        | "_snprintf"
-        | "_sprintf_l"
-        | "__stdio_common_vsprintf"
-        | "__stdio_common_vsscanf"
-        | "__stdio_common_vsprintf_s" => crt_format_stub(emu, api),
-        "printf" | "vprintf" | "vfprintf" | "vsprintf" | "vsnprintf" | "_vsnprintf" | "wprintf"
-        | "vwprintf" => crt_print_stub(emu, api),
-        "exit" | "_exit" | "_cexit" => crt_exit(emu, api),
-        "getenv" | "_wgetenv" => crt_getenv(emu, api),
-        "__getmainargs" => crt_getmainargs(emu),
-        "__wgetmainargs" => crt_getmainargs(emu),
-        "_initterm" => crt_initterm(emu),
-        "_initterm_e" => crt_initterm_e(emu),
-        "abs" | "labs" => crt_abs(emu),
-        "rand" => crt_rand(emu),
-        "srand" => crt_srand(emu),
-        "_ftol" | "_ftol2" | "_ftol2_sse" => crt_ftol(emu),
-        "_except_handler3"
-        | "_except_handler4"
-        | "_except_handler4_common"
-        | "__CxxFrameHandler"
-        | "__CxxFrameHandler3"
-        | "__CxxFrameHandler4" => crt_except_handler(emu, api),
-        "_CxxThrowException" => crt_cxx_throw(emu),
-        "_XcptFilter" | "__CppXcptFilter" => crt_xcpt_filter(emu, api),
-        "_controlfp" => crt_controlfp(emu),
-        "_controlfp_s" => crt_controlfp_s(emu),
-        "__dllonexit" => crt_dllonexit(emu),
-        "_onexit" => crt_onexit(emu),
-        "clock" => crt_clock(emu),
-        "time" | "_time64" | "_time32" => crt_time(emu),
-        "_lock" | "_unlock" => crt_lock_noop(emu, api),
-        "_beginthread" => crt_beginthread(emu),
-        "_beginthreadex" => crt_beginthreadex(emu),
-        "_endthread" | "_endthreadex" => crt_endthread(emu, api),
-        "strtok" | "strtok_s" => crt_strtok(emu),
-        "_iob" | "__iob_func" => crt_iob(emu),
-        "localtime" | "_localtime64" => crt_localtime(emu),
-        "strftime" | "wcsftime" => crt_strftime(emu),
-        "__setusermatherr"
-        | "_set_error_mode"
-        | "__set_app_type"
-        | "_configthreadlocale"
-        | "_set_fmode"
-        | "__lconv_init"
-        | "_amsg_exit"
-        | "__setlc_active"
-        | "__unguarded_readlc_active"
-        | "_set_new_handler"
-        | "_set_se_translator"
-        | "set_terminate"
-        | "_set_thread_local_invalid_parameter_handler" => __setusermatherr(emu, api),
-        "_acmdln" | "__p__acmdln" | "_wcmdln" | "__p__wcmdln" => crt_acmdln(emu, api),
-        "??2@YAPEAX_K@Z"
-        | "??3@YAXPEAX@Z"
-        | "??_V@YAXPEAX@Z"
-        | "??0exception@@QEAA@AEBV0@@Z"
-        | "??1type_info@@UEAA@XZ" => __2_YAPEAX_K_Z(emu, api),
-        "_EH_prolog3" | "_EH_prolog3_catch" => _EH_prolog3(emu, api),
-        "_fgetchar" | "fgetc" | "getc" => _fgetchar(emu, api),
-        "_open" | "freopen" => _open(emu, api),
-        "_putenv" => _putenv(emu),
-        "_wputenv" => _wputenv(emu),
-        "_snprintf_s" | "sprintf_s" => _snprintf_s(emu, api),
-        "_sscanf_s_l" => _sscanf_s_l(emu),
-        "_wrename" => _wrename(emu),
-        "putc" | "putchar" => putc(emu, api),
-        "mbstowcs" => mbstowcs(emu),
-        "wcstombs" => wcstombs(emu),
-        // --- Math stubs ---
-        "atan" | "atan2" | "cos" | "sin" | "tan" | "exp" | "log" | "log10" | "pow" | "sqrt"
-        | "ceil" | "floor" | "fabs" | "fmod" => atan(emu, api),
-        // --- String stubs ---
-        "strncat" => strncat(emu),
-        "wcsncat" => wcsncat(emu),
-        "swprintf" => swprintf(emu),
-        "_sprintf_p" => _sprintf_p(emu),
-        "sscanf_s" => sscanf_s(emu),
-        "StrCmpCA" => StrCmpCA(emu),
-        "_wcsnicmp" => _wcsnicmp(emu),
-        "_itow" => _itow(emu),
-        "_wtol" => _wtol(emu),
-        "_mbstowcs_l" => _mbstowcs_l(emu),
-        "_wcstombs_l" => _wcstombs_l(emu),
-        // --- I/O ---
-        "fgets" => fgets(emu),
-        "fputs" => fputs(emu),
-        "getchar" => getchar(emu),
-        "_close" => _close(emu),
-        "_read" => _read(emu),
-        "_write" => _write(emu),
-        "_wopen" => _wopen(emu),
-        "_fileno" => _fileno(emu),
-        "_setmode" => _setmode(emu),
-        "_putch" => _putch(emu),
-        // --- Char classification ---
-        "ispunct" => ispunct(emu),
-        "isxdigit" => isxdigit(emu),
-        // --- CRT setup / EH stubs ---
-        "_EH_prolog" | "_EH_prolog3_GS" | "_adjust_fdiv" | "set_unexpected" | "_c_exit" => {
-            _EH_prolog(emu, api)
-        }
-        // --- Environment / system ---
-        "_putenv_s" => _putenv_s(emu),
-        "system" | "_wsystem" => system(emu, api),
-        _ => return fallback::unimplemented(0u64, api, emu),
+    if runtime::dispatch(api, emu)
+        || memory::dispatch(api, emu)
+        || io::dispatch(api, emu)
+        || strings::dispatch(api, emu)
+        || math::dispatch(api, emu)
+    {
+        return String::new();
     }
 
-    String::new()
+    fallback::unimplemented(0u64, api, emu)
 }
 
 /*

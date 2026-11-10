@@ -1,4 +1,5 @@
-use crate::{emu, windows::constants};
+use crate::emu;
+use crate::windows::constants::errors::*;
 
 pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
     let code_page = emu.regs().rcx;
@@ -67,11 +68,11 @@ pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
             }
             emu.regs_mut().rax = wide.len() as u64;
         } else {
-            emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+            emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
             emu.regs_mut().rax = 0;
         }
     } else {
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
     }
 }

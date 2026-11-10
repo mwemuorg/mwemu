@@ -4,7 +4,11 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::syscall::windows::syscall64::sync::next_handle;
 use crate::winapi::winapi64::kernel32::load_library;
-use crate::windows::constants::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory as memory_constants;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::syscalls::*;
+
 use crate::windows::structures::MemoryBasicInformation64;
 use iced_x86::{Instruction, Mnemonic, OpKind, Register};
 
@@ -21,13 +25,13 @@ fn permission_to_nt_page_protection(perm: Permission) -> u32 {
     let w = perm.contains(Permission::WRITE);
     let x = perm.contains(Permission::EXECUTE);
     match (r, w, x) {
-        (false, false, false) => PAGE_NOACCESS,
-        (true, false, false) => PAGE_READONLY,
-        (true, true, false) => PAGE_READWRITE,
-        (false, false, true) => PAGE_EXECUTE,
-        (true, false, true) => PAGE_EXECUTE_READ,
-        (true, true, true) => PAGE_EXECUTE_READWRITE,
-        _ => PAGE_NOACCESS,
+        (false, false, false) => memory_constants::PAGE_NOACCESS,
+        (true, false, false) => memory_constants::PAGE_READONLY,
+        (true, true, false) => memory_constants::PAGE_READWRITE,
+        (false, false, true) => memory_constants::PAGE_EXECUTE,
+        (true, false, true) => memory_constants::PAGE_EXECUTE_READ,
+        (true, true, true) => memory_constants::PAGE_EXECUTE_READWRITE,
+        _ => memory_constants::PAGE_NOACCESS,
     }
 }
 
@@ -200,7 +204,7 @@ pub fn nt_query_virtual_memory(emu: &mut Emu) {
             reserved: 0,
             region_size,
             state: MEM_FREE,
-            protect: PAGE_NOACCESS,
+            protect: memory_constants::PAGE_NOACCESS,
             typ: 0,
         }
     } else {

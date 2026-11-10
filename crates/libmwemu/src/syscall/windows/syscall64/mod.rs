@@ -1,5 +1,7 @@
 use crate::emu::Emu;
-use crate::windows::constants::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::files::*;
+use crate::windows::constants::syscalls::*;
 
 mod alpc;
 pub(crate) mod memory;
@@ -50,7 +52,6 @@ pub(crate) fn resolve_maps_dll(emu: &Emu, basename: &str) -> Option<std::path::P
 /// the mapping. `gateway()` then translates the incoming `nr` via this map
 /// so cross-build ntdlls Just Work without rewriting every `WIN64_*` const.
 pub fn build_syscall_translation_table(emu: &mut Emu) {
-    use crate::windows::constants::*;
     let ntdll_pe = match emu.maps.get_map_by_name("ntdll.pe") {
         Some(m) => m,
         None => return,
@@ -343,14 +344,13 @@ pub fn gateway(emu: &mut Emu) {
                     // loader only checks them against its own cache, so a fixed
                     // recent value is good enough for any single emulation.
                     const FAKE_FILETIME: u64 = 0x01DA_0000_0000_0000; // ~2023
-                    const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
                     let _ = emu.maps.write_qword(file_info_ptr, FAKE_FILETIME);
                     let _ = emu.maps.write_qword(file_info_ptr + 0x08, FAKE_FILETIME);
                     let _ = emu.maps.write_qword(file_info_ptr + 0x10, FAKE_FILETIME);
                     let _ = emu.maps.write_qword(file_info_ptr + 0x18, FAKE_FILETIME);
                     let _ = emu
                         .maps
-                        .write_dword(file_info_ptr + 0x20, FILE_ATTRIBUTE_NORMAL);
+                        .write_dword(file_info_ptr + 0x20, FILE_ATTRIBUTE_NORMAL as u32);
                 }
                 log_orange!(
                     emu,

@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu: &mut emu::Emu) {
     let _hProvider = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -11,7 +11,7 @@ pub fn TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu: &mut emu::E
         "kernel32!TraceLoggingRegisterEx_EventRegister_EventSetInformation"
     );
 
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.regs_mut().rax = ERROR_SUCCESS;
 
     for _ in 0..3 {
         emu.stack_pop32(false);

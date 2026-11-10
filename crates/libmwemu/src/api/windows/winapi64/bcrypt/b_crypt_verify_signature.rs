@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptVerifySignature(emu: &mut emu::Emu) {
     let h_key = emu.regs().rcx;
@@ -19,5 +19,5 @@ pub fn BCryptVerifySignature(emu: &mut emu::Emu) {
         pb_signature,
         cb_signature
     );
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

@@ -1,7 +1,7 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
     let h_prf = emu.regs().rcx;
@@ -46,5 +46,5 @@ pub fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
         cb_derived_key
     );
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

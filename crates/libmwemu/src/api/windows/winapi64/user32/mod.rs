@@ -1,10 +1,330 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::winapi::winapi64;
 use crate::winapi::window_table;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+
+mod wvsprintf;
+pub use wvsprintf::*;
+
+mod wsprintf;
+pub use wsprintf::*;
+
+mod win_help;
+pub use win_help::*;
+
+mod vk_key_scan_ex;
+pub use vk_key_scan_ex::*;
+
+mod vk_key_scan;
+pub use vk_key_scan::*;
+
+mod tabbed_text_out;
+pub use tabbed_text_out::*;
+
+mod set_windows_hook_ex;
+pub use set_windows_hook_ex::*;
+
+mod set_windows_hook;
+pub use set_windows_hook::*;
+
+mod set_user_object_information;
+pub use set_user_object_information::*;
+
+mod set_prop;
+pub use set_prop::*;
+
+mod set_menu_item_info;
+pub use set_menu_item_info::*;
+
+mod set_dlg_item_text;
+pub use set_dlg_item_text::*;
+
+mod set_class_long_ptr;
+pub use set_class_long_ptr::*;
+
+mod set_class_long;
+pub use set_class_long::*;
+
+mod send_notify_message;
+pub use send_notify_message::*;
+
+mod send_message_timeout;
+pub use send_message_timeout::*;
+
+mod send_message_callback;
+pub use send_message_callback::*;
+
+mod send_ime_message_ex;
+pub use send_ime_message_ex::*;
+
+mod send_dlg_item_message;
+pub use send_dlg_item_message::*;
+
+mod remove_prop;
+pub use remove_prop::*;
+
+mod register_window_message;
+pub use register_window_message::*;
+
+mod register_device_notification;
+pub use register_device_notification::*;
+
+mod register_clipboard_format;
+pub use register_clipboard_format::*;
+
+mod private_extract_icons;
+pub use private_extract_icons::*;
+
+mod private_extract_icon_ex;
+pub use private_extract_icon_ex::*;
+
+mod post_thread_message;
+pub use post_thread_message::*;
+
+mod open_window_station;
+pub use open_window_station::*;
+
+mod open_desktop;
+pub use open_desktop::*;
+
+mod oem_to_char_buff;
+pub use oem_to_char_buff::*;
+
+mod oem_to_char;
+pub use oem_to_char::*;
+
+mod modify_menu;
+pub use modify_menu::*;
+
+mod message_box_timeout;
+pub use message_box_timeout::*;
+
+mod message_box_indirect;
+pub use message_box_indirect::*;
+
+mod message_box_ex;
+pub use message_box_ex::*;
+
+mod menu_window_proc;
+pub use menu_window_proc::*;
+
+mod load_menu_indirect;
+pub use load_menu_indirect::*;
+
+mod load_menu;
+pub use load_menu::*;
+
+mod load_keyboard_layout;
+pub use load_keyboard_layout::*;
+
+mod load_image;
+pub use load_image::*;
+
+mod load_cursor_from_file;
+pub use load_cursor_from_file::*;
+
+mod load_bitmap;
+pub use load_bitmap::*;
+
+mod load_accelerators;
+pub use load_accelerators::*;
+
+mod insert_menu_item;
+pub use insert_menu_item::*;
+
+mod insert_menu;
+pub use insert_menu::*;
+
+mod gray_string;
+pub use gray_string::*;
+
+mod get_window_text_length;
+pub use get_window_text_length::*;
+
+mod get_tabbed_text_extent;
+pub use get_tabbed_text_extent::*;
+
+mod get_raw_input_device_info;
+pub use get_raw_input_device_info::*;
+
+mod get_prop;
+pub use get_prop::*;
+
+mod get_monitor_info;
+pub use get_monitor_info::*;
+
+mod get_menu_string;
+pub use get_menu_string::*;
+
+mod get_menu_item_info;
+pub use get_menu_item_info::*;
+
+mod get_keyboard_layout_name;
+pub use get_keyboard_layout_name::*;
+
+mod get_key_name_text;
+pub use get_key_name_text::*;
+
+mod get_icon_info_ex;
+pub use get_icon_info_ex::*;
+
+mod get_dlg_item_text;
+pub use get_dlg_item_text::*;
+
+mod get_clipboard_format_name;
+pub use get_clipboard_format_name::*;
+
+mod get_class_name;
+pub use get_class_name::*;
+
+mod get_class_long_ptr;
+pub use get_class_long_ptr::*;
+
+mod get_class_long;
+pub use get_class_long::*;
+
+mod get_class_info;
+pub use get_class_info::*;
+
+mod find_window_ex;
+pub use find_window_ex::*;
+
+mod find_window;
+pub use find_window::*;
+
+mod enum_window_stations;
+pub use enum_window_stations::*;
+
+mod enum_props_ex;
+pub use enum_props_ex::*;
+
+mod enum_props;
+pub use enum_props::*;
+
+mod enum_display_settings_ex;
+pub use enum_display_settings_ex::*;
+
+mod enum_display_settings;
+pub use enum_display_settings::*;
+
+mod enum_display_devices;
+pub use enum_display_devices::*;
+
+mod enum_desktops;
+pub use enum_desktops::*;
+
+mod draw_text_ex;
+pub use draw_text_ex::*;
+
+mod draw_state;
+pub use draw_state::*;
+
+mod draw_caption_temp;
+pub use draw_caption_temp::*;
+
+mod dlg_dir_select_ex;
+pub use dlg_dir_select_ex::*;
+
+mod dlg_dir_select_combo_box_ex;
+pub use dlg_dir_select_combo_box_ex::*;
+
+mod dlg_dir_list_combo_box;
+pub use dlg_dir_list_combo_box::*;
+
+mod dlg_dir_list;
+pub use dlg_dir_list::*;
+
+mod dialog_box_param;
+pub use dialog_box_param::*;
+
+mod dialog_box_indirect_param;
+pub use dialog_box_indirect_param::*;
+
+mod def_mdi_child_proc;
+pub use def_mdi_child_proc::*;
+
+mod def_frame_proc;
+pub use def_frame_proc::*;
+
+mod def_dlg_proc;
+pub use def_dlg_proc::*;
+
+mod dde_query_string;
+pub use dde_query_string::*;
+
+mod dde_initialize;
+pub use dde_initialize::*;
+
+mod dde_create_string_handle;
+pub use dde_create_string_handle::*;
+
+mod create_window_station;
+pub use create_window_station::*;
+
+mod create_mdi_window;
+pub use create_mdi_window::*;
+
+mod create_dialog_param;
+pub use create_dialog_param::*;
+
+mod create_dialog_indirect_param;
+pub use create_dialog_indirect_param::*;
+
+mod create_desktop_ex;
+pub use create_desktop_ex::*;
+
+mod create_desktop;
+pub use create_desktop::*;
+
+mod create_accelerator_table;
+pub use create_accelerator_table::*;
+
+mod copy_accelerator_table;
+pub use copy_accelerator_table::*;
+
+mod char_upper;
+pub use char_upper::*;
+
+mod char_to_oem_buff;
+pub use char_to_oem_buff::*;
+
+mod char_to_oem;
+pub use char_to_oem::*;
+
+mod char_lower;
+pub use char_lower::*;
+
+mod change_menu;
+pub use change_menu::*;
+
+mod change_display_settings_ex;
+pub use change_display_settings_ex::*;
+
+mod change_display_settings;
+pub use change_display_settings::*;
+
+mod call_window_proc;
+pub use call_window_proc::*;
+
+mod broadcast_system_message_ex;
+pub use broadcast_system_message_ex::*;
+
+mod append_menu;
+pub use append_menu::*;
 
 mod activate_keyboard_layout;
+mod clipboard;
+mod dde;
+mod dialogs;
+mod graphics;
+mod input;
+mod menus;
+mod messages;
+mod strings_format;
+mod system;
+mod windowing;
 pub use activate_keyboard_layout::ActivateKeyboardLayout;
 mod add_clipboard_format_listener;
 pub use add_clipboard_format_listener::AddClipboardFormatListener;
@@ -22,10 +342,6 @@ mod animate_window;
 pub use animate_window::AnimateWindow;
 mod any_popup;
 pub use any_popup::AnyPopup;
-mod append_menu_a;
-pub use append_menu_a::AppendMenuA;
-mod append_menu_w;
-pub use append_menu_w::AppendMenuW;
 mod apply_window_action;
 pub use apply_window_action::ApplyWindowAction;
 mod are_dpi_awareness_contexts_equal;
@@ -44,10 +360,6 @@ mod broadcast_system_message;
 pub use broadcast_system_message::BroadcastSystemMessage;
 mod broadcast_system_message_a;
 pub use broadcast_system_message_a::BroadcastSystemMessageA;
-mod broadcast_system_message_ex_a;
-pub use broadcast_system_message_ex_a::BroadcastSystemMessageExA;
-mod broadcast_system_message_ex_w;
-pub use broadcast_system_message_ex_w::BroadcastSystemMessageExW;
 mod broadcast_system_message_w;
 pub use broadcast_system_message_w::BroadcastSystemMessageW;
 mod build_reason_array;
@@ -64,10 +376,6 @@ mod call_msg_filter_w;
 pub use call_msg_filter_w::CallMsgFilterW;
 mod call_next_hook_ex;
 pub use call_next_hook_ex::CallNextHookEx;
-mod call_window_proc_a;
-pub use call_window_proc_a::CallWindowProcA;
-mod call_window_proc_w;
-pub use call_window_proc_w::CallWindowProcW;
 mod cancel_shutdown;
 pub use cancel_shutdown::CancelShutdown;
 mod cascade_child_windows;
@@ -76,52 +384,12 @@ mod cascade_windows;
 pub use cascade_windows::CascadeWindows;
 mod change_clipboard_chain;
 pub use change_clipboard_chain::ChangeClipboardChain;
-mod change_display_settings_a;
-pub use change_display_settings_a::ChangeDisplaySettingsA;
-mod change_display_settings_ex_a;
-pub use change_display_settings_ex_a::ChangeDisplaySettingsExA;
-mod change_display_settings_ex_w;
-pub use change_display_settings_ex_w::ChangeDisplaySettingsExW;
-mod change_display_settings_w;
-pub use change_display_settings_w::ChangeDisplaySettingsW;
-mod change_menu_a;
-pub use change_menu_a::ChangeMenuA;
-mod change_menu_w;
-pub use change_menu_w::ChangeMenuW;
 mod change_window_message_filter;
 pub use change_window_message_filter::ChangeWindowMessageFilter;
 mod change_window_message_filter_ex;
 pub use change_window_message_filter_ex::ChangeWindowMessageFilterEx;
-mod char_lower_a;
-pub use char_lower_a::CharLowerA;
-mod char_lower_w;
-pub use char_lower_w::CharLowerW;
-mod char_next_a;
-pub use char_next_a::CharNextA;
-mod char_next_ex_a;
-pub use char_next_ex_a::CharNextExA;
-mod char_next_w;
-pub use char_next_w::CharNextW;
-mod char_prev_a;
-pub use char_prev_a::CharPrevA;
-mod char_prev_ex_a;
-pub use char_prev_ex_a::CharPrevExA;
-mod char_prev_w;
-pub use char_prev_w::CharPrevW;
-mod char_to_oem_a;
-pub use char_to_oem_a::CharToOemA;
-mod char_to_oem_buff_a;
-pub use char_to_oem_buff_a::CharToOemBuffA;
-mod char_to_oem_buff_w;
-pub use char_to_oem_buff_w::CharToOemBuffW;
-mod char_to_oem_w;
-pub use char_to_oem_w::CharToOemW;
-mod char_upper_a;
-pub use char_upper_a::CharUpperA;
-mod char_upper_w;
-pub use char_upper_w::CharUpperW;
-mod check_banned_one_core_transform_api;
-pub use check_banned_one_core_transform_api::CheckBannedOneCoreTransformApi;
+mod check_banned_one_core_transform;
+pub use check_banned_one_core_transform::CheckBannedOneCoreTransformApi;
 mod check_dbcs_enabled_ext;
 pub use check_dbcs_enabled_ext::CheckDBCSEnabledExt;
 mod check_dlg_button;
@@ -170,10 +438,6 @@ mod convert_primary_pointer_to_mouse_drag;
 pub use convert_primary_pointer_to_mouse_drag::ConvertPrimaryPointerToMouseDrag;
 mod convert_to_intercept_window;
 pub use convert_to_intercept_window::ConvertToInterceptWindow;
-mod copy_accelerator_table_a;
-pub use copy_accelerator_table_a::CopyAcceleratorTableA;
-mod copy_accelerator_table_w;
-pub use copy_accelerator_table_w::CopyAcceleratorTableW;
 mod copy_icon;
 pub use copy_icon::CopyIcon;
 mod copy_image;
@@ -182,34 +446,14 @@ mod copy_rect;
 pub use copy_rect::CopyRect;
 mod count_clipboard_formats;
 pub use count_clipboard_formats::CountClipboardFormats;
-mod create_accelerator_table_a;
-pub use create_accelerator_table_a::CreateAcceleratorTableA;
-mod create_accelerator_table_w;
-pub use create_accelerator_table_w::CreateAcceleratorTableW;
 mod create_caret;
 pub use create_caret::CreateCaret;
 mod create_cursor;
 pub use create_cursor::CreateCursor;
 mod create_d_composition_hwnd_target;
 pub use create_d_composition_hwnd_target::CreateDCompositionHwndTarget;
-mod create_desktop_a;
-pub use create_desktop_a::CreateDesktopA;
-mod create_desktop_ex_a;
-pub use create_desktop_ex_a::CreateDesktopExA;
-mod create_desktop_ex_w;
-pub use create_desktop_ex_w::CreateDesktopExW;
-mod create_desktop_w;
-pub use create_desktop_w::CreateDesktopW;
-mod create_dialog_indirect_param_a;
-pub use create_dialog_indirect_param_a::CreateDialogIndirectParamA;
 mod create_dialog_indirect_param_aor_w;
 pub use create_dialog_indirect_param_aor_w::CreateDialogIndirectParamAorW;
-mod create_dialog_indirect_param_w;
-pub use create_dialog_indirect_param_w::CreateDialogIndirectParamW;
-mod create_dialog_param_a;
-pub use create_dialog_param_a::CreateDialogParamA;
-mod create_dialog_param_w;
-pub use create_dialog_param_w::CreateDialogParamW;
 mod create_icon;
 pub use create_icon::CreateIcon;
 mod create_icon_from_resource;
@@ -218,10 +462,6 @@ mod create_icon_from_resource_ex;
 pub use create_icon_from_resource_ex::CreateIconFromResourceEx;
 mod create_icon_indirect;
 pub use create_icon_indirect::CreateIconIndirect;
-mod create_mdi_window_a;
-pub use create_mdi_window_a::CreateMDIWindowA;
-mod create_mdi_window_w;
-pub use create_mdi_window_w::CreateMDIWindowW;
 mod create_menu;
 pub use create_menu::CreateMenu;
 mod create_popup_menu;
@@ -238,10 +478,6 @@ mod create_window_in_band_ex;
 pub use create_window_in_band_ex::CreateWindowInBandEx;
 mod create_window_indirect;
 pub use create_window_indirect::CreateWindowIndirect;
-mod create_window_station_a;
-pub use create_window_station_a::CreateWindowStationA;
-mod create_window_station_w;
-pub use create_window_station_w::CreateWindowStationW;
 mod csr_broadcast_system_message_ex_w;
 pub use csr_broadcast_system_message_ex_w::CsrBroadcastSystemMessageExW;
 mod ctx_init_user32;
@@ -262,10 +498,6 @@ mod dde_connect_list;
 pub use dde_connect_list::DdeConnectList;
 mod dde_create_data_handle;
 pub use dde_create_data_handle::DdeCreateDataHandle;
-mod dde_create_string_handle_a;
-pub use dde_create_string_handle_a::DdeCreateStringHandleA;
-mod dde_create_string_handle_w;
-pub use dde_create_string_handle_w::DdeCreateStringHandleW;
 mod dde_disconnect;
 pub use dde_disconnect::DdeDisconnect;
 mod dde_disconnect_list;
@@ -284,10 +516,6 @@ mod dde_get_quality_of_service;
 pub use dde_get_quality_of_service::DdeGetQualityOfService;
 mod dde_impersonate_client;
 pub use dde_impersonate_client::DdeImpersonateClient;
-mod dde_initialize_a;
-pub use dde_initialize_a::DdeInitializeA;
-mod dde_initialize_w;
-pub use dde_initialize_w::DdeInitializeW;
 mod dde_keep_string_handle;
 pub use dde_keep_string_handle::DdeKeepStringHandle;
 mod dde_name_service;
@@ -298,10 +526,6 @@ mod dde_query_conv_info;
 pub use dde_query_conv_info::DdeQueryConvInfo;
 mod dde_query_next_server;
 pub use dde_query_next_server::DdeQueryNextServer;
-mod dde_query_string_a;
-pub use dde_query_string_a::DdeQueryStringA;
-mod dde_query_string_w;
-pub use dde_query_string_w::DdeQueryStringW;
 mod dde_reconnect;
 pub use dde_reconnect::DdeReconnect;
 mod dde_set_quality_of_service;
@@ -312,18 +536,6 @@ mod dde_unaccess_data;
 pub use dde_unaccess_data::DdeUnaccessData;
 mod dde_uninitialize;
 pub use dde_uninitialize::DdeUninitialize;
-mod def_dlg_proc_a;
-pub use def_dlg_proc_a::DefDlgProcA;
-mod def_dlg_proc_w;
-pub use def_dlg_proc_w::DefDlgProcW;
-mod def_frame_proc_a;
-pub use def_frame_proc_a::DefFrameProcA;
-mod def_frame_proc_w;
-pub use def_frame_proc_w::DefFrameProcW;
-mod def_mdi_child_proc_a;
-pub use def_mdi_child_proc_a::DefMDIChildProcA;
-mod def_mdi_child_proc_w;
-pub use def_mdi_child_proc_w::DefMDIChildProcW;
 mod def_raw_input_proc;
 pub use def_raw_input_proc::DefRawInputProc;
 mod defer_window_pos;
@@ -352,16 +564,8 @@ mod destroy_reasons;
 pub use destroy_reasons::DestroyReasons;
 mod destroy_synthetic_pointer_device;
 pub use destroy_synthetic_pointer_device::DestroySyntheticPointerDevice;
-mod dialog_box_indirect_param_a;
-pub use dialog_box_indirect_param_a::DialogBoxIndirectParamA;
 mod dialog_box_indirect_param_aor_w;
 pub use dialog_box_indirect_param_aor_w::DialogBoxIndirectParamAorW;
-mod dialog_box_indirect_param_w;
-pub use dialog_box_indirect_param_w::DialogBoxIndirectParamW;
-mod dialog_box_param_a;
-pub use dialog_box_param_a::DialogBoxParamA;
-mod dialog_box_param_w;
-pub use dialog_box_param_w::DialogBoxParamW;
 mod disable_process_windows_ghosting;
 pub use disable_process_windows_ghosting::DisableProcessWindowsGhosting;
 mod display_config_get_device_info;
@@ -370,22 +574,6 @@ mod display_config_set_device_info;
 pub use display_config_set_device_info::DisplayConfigSetDeviceInfo;
 mod display_exit_windows_warnings;
 pub use display_exit_windows_warnings::DisplayExitWindowsWarnings;
-mod dlg_dir_list_a;
-pub use dlg_dir_list_a::DlgDirListA;
-mod dlg_dir_list_combo_box_a;
-pub use dlg_dir_list_combo_box_a::DlgDirListComboBoxA;
-mod dlg_dir_list_combo_box_w;
-pub use dlg_dir_list_combo_box_w::DlgDirListComboBoxW;
-mod dlg_dir_list_w;
-pub use dlg_dir_list_w::DlgDirListW;
-mod dlg_dir_select_combo_box_ex_a;
-pub use dlg_dir_select_combo_box_ex_a::DlgDirSelectComboBoxExA;
-mod dlg_dir_select_combo_box_ex_w;
-pub use dlg_dir_select_combo_box_ex_w::DlgDirSelectComboBoxExW;
-mod dlg_dir_select_ex_a;
-pub use dlg_dir_select_ex_a::DlgDirSelectExA;
-mod dlg_dir_select_ex_w;
-pub use dlg_dir_select_ex_w::DlgDirSelectExW;
 mod do_sound_connect;
 pub use do_sound_connect::DoSoundConnect;
 mod do_sound_disconnect;
@@ -398,10 +586,6 @@ mod draw_animated_rects;
 pub use draw_animated_rects::DrawAnimatedRects;
 mod draw_caption;
 pub use draw_caption::DrawCaption;
-mod draw_caption_temp_a;
-pub use draw_caption_temp_a::DrawCaptionTempA;
-mod draw_caption_temp_w;
-pub use draw_caption_temp_w::DrawCaptionTempW;
 mod draw_edge;
 pub use draw_edge::DrawEdge;
 mod draw_focus_rect;
@@ -418,14 +602,6 @@ mod draw_menu_bar;
 pub use draw_menu_bar::DrawMenuBar;
 mod draw_menu_bar_temp;
 pub use draw_menu_bar_temp::DrawMenuBarTemp;
-mod draw_state_a;
-pub use draw_state_a::DrawStateA;
-mod draw_state_w;
-pub use draw_state_w::DrawStateW;
-mod draw_text_ex_a;
-pub use draw_text_ex_a::DrawTextExA;
-mod draw_text_ex_w;
-pub use draw_text_ex_w::DrawTextExW;
 mod dwm_get_dx_rgn;
 pub use dwm_get_dx_rgn::DwmGetDxRgn;
 mod dwm_get_dx_shared_surface;
@@ -482,38 +658,10 @@ mod enum_clipboard_formats;
 pub use enum_clipboard_formats::EnumClipboardFormats;
 mod enum_desktop_windows;
 pub use enum_desktop_windows::EnumDesktopWindows;
-mod enum_desktops_a;
-pub use enum_desktops_a::EnumDesktopsA;
-mod enum_desktops_w;
-pub use enum_desktops_w::EnumDesktopsW;
-mod enum_display_devices_a;
-pub use enum_display_devices_a::EnumDisplayDevicesA;
-mod enum_display_devices_w;
-pub use enum_display_devices_w::EnumDisplayDevicesW;
 mod enum_display_monitors;
 pub use enum_display_monitors::EnumDisplayMonitors;
-mod enum_display_settings_a;
-pub use enum_display_settings_a::EnumDisplaySettingsA;
-mod enum_display_settings_ex_a;
-pub use enum_display_settings_ex_a::EnumDisplaySettingsExA;
-mod enum_display_settings_ex_w;
-pub use enum_display_settings_ex_w::EnumDisplaySettingsExW;
-mod enum_display_settings_w;
-pub use enum_display_settings_w::EnumDisplaySettingsW;
-mod enum_props_a;
-pub use enum_props_a::EnumPropsA;
-mod enum_props_ex_a;
-pub use enum_props_ex_a::EnumPropsExA;
-mod enum_props_ex_w;
-pub use enum_props_ex_w::EnumPropsExW;
-mod enum_props_w;
-pub use enum_props_w::EnumPropsW;
 mod enum_thread_windows;
 pub use enum_thread_windows::EnumThreadWindows;
-mod enum_window_stations_a;
-pub use enum_window_stations_a::EnumWindowStationsA;
-mod enum_window_stations_w;
-pub use enum_window_stations_w::EnumWindowStationsW;
 mod equal_rect;
 pub use equal_rect::EqualRect;
 mod evaluate_proximity_to_polygon;
@@ -560,22 +708,6 @@ mod get_caret_blink_time;
 pub use get_caret_blink_time::GetCaretBlinkTime;
 mod get_caret_pos;
 pub use get_caret_pos::GetCaretPos;
-mod get_class_info_a;
-pub use get_class_info_a::GetClassInfoA;
-mod get_class_info_w;
-pub use get_class_info_w::GetClassInfoW;
-mod get_class_long_a;
-pub use get_class_long_a::GetClassLongA;
-mod get_class_long_ptr_a;
-pub use get_class_long_ptr_a::GetClassLongPtrA;
-mod get_class_long_ptr_w;
-pub use get_class_long_ptr_w::GetClassLongPtrW;
-mod get_class_long_w;
-pub use get_class_long_w::GetClassLongW;
-mod get_class_name_a;
-pub use get_class_name_a::GetClassNameA;
-mod get_class_name_w;
-pub use get_class_name_w::GetClassNameW;
 mod get_class_word;
 pub use get_class_word::GetClassWord;
 mod get_clip_cursor;
@@ -584,10 +716,6 @@ mod get_clipboard_access_token;
 pub use get_clipboard_access_token::GetClipboardAccessToken;
 mod get_clipboard_data;
 pub use get_clipboard_data::GetClipboardData;
-mod get_clipboard_format_name_a;
-pub use get_clipboard_format_name_a::GetClipboardFormatNameA;
-mod get_clipboard_format_name_w;
-pub use get_clipboard_format_name_w::GetClipboardFormatNameW;
 mod get_clipboard_metadata;
 pub use get_clipboard_metadata::GetClipboardMetadata;
 mod get_clipboard_owner;
@@ -630,10 +758,6 @@ mod get_dlg_item;
 pub use get_dlg_item::GetDlgItem;
 mod get_dlg_item_int;
 pub use get_dlg_item_int::GetDlgItemInt;
-mod get_dlg_item_text_a;
-pub use get_dlg_item_text_a::GetDlgItemTextA;
-mod get_dlg_item_text_w;
-pub use get_dlg_item_text_w::GetDlgItemTextW;
 mod get_double_click_time;
 pub use get_double_click_time::GetDoubleClickTime;
 mod get_dpi_awareness_context_for_process;
@@ -660,10 +784,6 @@ mod get_gui_resources;
 pub use get_gui_resources::GetGuiResources;
 mod get_icon_info;
 pub use get_icon_info::GetIconInfo;
-mod get_icon_info_ex_a;
-pub use get_icon_info_ex_a::GetIconInfoExA;
-mod get_icon_info_ex_w;
-pub use get_icon_info_ex_w::GetIconInfoExW;
 mod get_input_desktop;
 pub use get_input_desktop::GetInputDesktop;
 mod get_input_locale_info;
@@ -674,16 +794,8 @@ mod get_internal_window_pos;
 pub use get_internal_window_pos::GetInternalWindowPos;
 mod get_kb_code_page;
 pub use get_kb_code_page::GetKBCodePage;
-mod get_key_name_text_a;
-pub use get_key_name_text_a::GetKeyNameTextA;
-mod get_key_name_text_w;
-pub use get_key_name_text_w::GetKeyNameTextW;
 mod get_keyboard_layout_list;
 pub use get_keyboard_layout_list::GetKeyboardLayoutList;
-mod get_keyboard_layout_name_a;
-pub use get_keyboard_layout_name_a::GetKeyboardLayoutNameA;
-mod get_keyboard_layout_name_w;
-pub use get_keyboard_layout_name_w::GetKeyboardLayoutNameW;
 mod get_keyboard_state;
 pub use get_keyboard_state::GetKeyboardState;
 mod get_last_active_popup;
@@ -718,28 +830,16 @@ mod get_menu_item_count;
 pub use get_menu_item_count::GetMenuItemCount;
 mod get_menu_item_id;
 pub use get_menu_item_id::GetMenuItemID;
-mod get_menu_item_info_a;
-pub use get_menu_item_info_a::GetMenuItemInfoA;
-mod get_menu_item_info_w;
-pub use get_menu_item_info_w::GetMenuItemInfoW;
 mod get_menu_item_rect;
 pub use get_menu_item_rect::GetMenuItemRect;
 mod get_menu_state;
 pub use get_menu_state::GetMenuState;
-mod get_menu_string_a;
-pub use get_menu_string_a::GetMenuStringA;
-mod get_menu_string_w;
-pub use get_menu_string_w::GetMenuStringW;
 mod get_message_extra_info;
 pub use get_message_extra_info::GetMessageExtraInfo;
 mod get_message_pos;
 pub use get_message_pos::GetMessagePos;
 mod get_message_time;
 pub use get_message_time::GetMessageTime;
-mod get_monitor_info_a;
-pub use get_monitor_info_a::GetMonitorInfoA;
-mod get_monitor_info_w;
-pub use get_monitor_info_w::GetMonitorInfoW;
 mod get_mouse_move_points_ex;
 pub use get_mouse_move_points_ex::GetMouseMovePointsEx;
 mod get_next_dlg_group_item;
@@ -816,20 +916,12 @@ mod get_process_ui_context_information;
 pub use get_process_ui_context_information::GetProcessUIContextInformation;
 mod get_progman_window;
 pub use get_progman_window::GetProgmanWindow;
-mod get_prop_a;
-pub use get_prop_a::GetPropA;
-mod get_prop_w;
-pub use get_prop_w::GetPropW;
 mod get_queue_status;
 pub use get_queue_status::GetQueueStatus;
 mod get_raw_input_buffer;
 pub use get_raw_input_buffer::GetRawInputBuffer;
 mod get_raw_input_data;
 pub use get_raw_input_data::GetRawInputData;
-mod get_raw_input_device_info_a;
-pub use get_raw_input_device_info_a::GetRawInputDeviceInfoA;
-mod get_raw_input_device_info_w;
-pub use get_raw_input_device_info_w::GetRawInputDeviceInfoW;
 mod get_raw_input_device_list;
 pub use get_raw_input_device_list::GetRawInputDeviceList;
 mod get_raw_pointer_device_data;
@@ -864,10 +956,6 @@ mod get_system_menu;
 pub use get_system_menu::GetSystemMenu;
 mod get_system_metrics_for_dpi;
 pub use get_system_metrics_for_dpi::GetSystemMetricsForDpi;
-mod get_tabbed_text_extent_a;
-pub use get_tabbed_text_extent_a::GetTabbedTextExtentA;
-mod get_tabbed_text_extent_w;
-pub use get_tabbed_text_extent_w::GetTabbedTextExtentW;
 mod get_taskman_window;
 pub use get_taskman_window::GetTaskmanWindow;
 mod get_thread_desktop;
@@ -938,20 +1026,12 @@ mod get_window_rgn_box;
 pub use get_window_rgn_box::GetWindowRgnBox;
 mod get_window_rgn_ex;
 pub use get_window_rgn_ex::GetWindowRgnEx;
-mod get_window_text_length_a;
-pub use get_window_text_length_a::GetWindowTextLengthA;
-mod get_window_text_length_w;
-pub use get_window_text_length_w::GetWindowTextLengthW;
 mod get_window_thread_process_id;
 pub use get_window_thread_process_id::GetWindowThreadProcessId;
 mod get_window_word;
 pub use get_window_word::GetWindowWord;
 mod ghost_window_from_hung_window;
 pub use ghost_window_from_hung_window::GhostWindowFromHungWindow;
-mod gray_string_a;
-pub use gray_string_a::GrayStringA;
-mod gray_string_w;
-pub use gray_string_w::GrayStringW;
 mod handle_delegated_input;
 pub use handle_delegated_input::HandleDelegatedInput;
 mod hide_caret;
@@ -1012,14 +1092,6 @@ mod inject_touch_input;
 pub use inject_touch_input::InjectTouchInput;
 mod input_space_region_from_point;
 pub use input_space_region_from_point::InputSpaceRegionFromPoint;
-mod insert_menu_a;
-pub use insert_menu_a::InsertMenuA;
-mod insert_menu_item_a;
-pub use insert_menu_item_a::InsertMenuItemA;
-mod insert_menu_item_w;
-pub use insert_menu_item_w::InsertMenuItemW;
-mod insert_menu_w;
-pub use insert_menu_w::InsertMenuW;
 mod internal_get_window_icon;
 pub use internal_get_window_icon::InternalGetWindowIcon;
 mod internal_get_window_text;
@@ -1030,22 +1102,6 @@ mod invalidate_rgn;
 pub use invalidate_rgn::InvalidateRgn;
 mod invert_rect;
 pub use invert_rect::InvertRect;
-mod is_char_alpha_a;
-pub use is_char_alpha_a::IsCharAlphaA;
-mod is_char_alpha_numeric_a;
-pub use is_char_alpha_numeric_a::IsCharAlphaNumericA;
-mod is_char_alpha_numeric_w;
-pub use is_char_alpha_numeric_w::IsCharAlphaNumericW;
-mod is_char_alpha_w;
-pub use is_char_alpha_w::IsCharAlphaW;
-mod is_char_lower_a;
-pub use is_char_lower_a::IsCharLowerA;
-mod is_char_lower_w;
-pub use is_char_lower_w::IsCharLowerW;
-mod is_char_upper_a;
-pub use is_char_upper_a::IsCharUpperA;
-mod is_char_upper_w;
-pub use is_char_upper_w::IsCharUpperW;
 mod is_child;
 pub use is_child::IsChild;
 mod is_clipboard_format_available;
@@ -1116,42 +1172,14 @@ mod is_zoomed;
 pub use is_zoomed::IsZoomed;
 mod kill_timer;
 pub use kill_timer::KillTimer;
-mod load_accelerators_a;
-pub use load_accelerators_a::LoadAcceleratorsA;
-mod load_accelerators_w;
-pub use load_accelerators_w::LoadAcceleratorsW;
-mod load_bitmap_a;
-pub use load_bitmap_a::LoadBitmapA;
-mod load_bitmap_w;
-pub use load_bitmap_w::LoadBitmapW;
-mod load_cursor_from_file_a;
-pub use load_cursor_from_file_a::LoadCursorFromFileA;
-mod load_cursor_from_file_w;
-pub use load_cursor_from_file_w::LoadCursorFromFileW;
 mod load_cursor_w;
 pub use load_cursor_w::LoadCursorW;
 mod load_icon_w;
 pub use load_icon_w::LoadIconW;
-mod load_image_a;
-pub use load_image_a::LoadImageA;
-mod load_image_w;
-pub use load_image_w::LoadImageW;
-mod load_keyboard_layout_a;
-pub use load_keyboard_layout_a::LoadKeyboardLayoutA;
 mod load_keyboard_layout_ex;
 pub use load_keyboard_layout_ex::LoadKeyboardLayoutEx;
-mod load_keyboard_layout_w;
-pub use load_keyboard_layout_w::LoadKeyboardLayoutW;
 mod load_local_fonts;
 pub use load_local_fonts::LoadLocalFonts;
-mod load_menu_a;
-pub use load_menu_a::LoadMenuA;
-mod load_menu_indirect_a;
-pub use load_menu_indirect_a::LoadMenuIndirectA;
-mod load_menu_indirect_w;
-pub use load_menu_indirect_w::LoadMenuIndirectW;
-mod load_menu_w;
-pub use load_menu_w::LoadMenuW;
 mod load_remote_fonts;
 pub use load_remote_fonts::LoadRemoteFonts;
 mod lock_set_foreground_window;
@@ -1196,28 +1224,8 @@ mod map_window_points;
 pub use map_window_points::MapWindowPoints;
 mod menu_item_from_point;
 pub use menu_item_from_point::MenuItemFromPoint;
-mod menu_window_proc_a;
-pub use menu_window_proc_a::MenuWindowProcA;
-mod menu_window_proc_w;
-pub use menu_window_proc_w::MenuWindowProcW;
 mod message_beep;
 pub use message_beep::MessageBeep;
-mod message_box_ex_a;
-pub use message_box_ex_a::MessageBoxExA;
-mod message_box_ex_w;
-pub use message_box_ex_w::MessageBoxExW;
-mod message_box_indirect_a;
-pub use message_box_indirect_a::MessageBoxIndirectA;
-mod message_box_indirect_w;
-pub use message_box_indirect_w::MessageBoxIndirectW;
-mod message_box_timeout_a;
-pub use message_box_timeout_a::MessageBoxTimeoutA;
-mod message_box_timeout_w;
-pub use message_box_timeout_w::MessageBoxTimeoutW;
-mod modify_menu_a;
-pub use modify_menu_a::ModifyMenuA;
-mod modify_menu_w;
-pub use modify_menu_w::ModifyMenuW;
 mod monitor_from_point;
 pub use monitor_from_point::MonitorFromPoint;
 mod monitor_from_rect;
@@ -1236,32 +1244,16 @@ mod notify_win_event;
 pub use notify_win_event::NotifyWinEvent;
 mod oem_key_scan;
 pub use oem_key_scan::OemKeyScan;
-mod oem_to_char_a;
-pub use oem_to_char_a::OemToCharA;
-mod oem_to_char_buff_a;
-pub use oem_to_char_buff_a::OemToCharBuffA;
-mod oem_to_char_buff_w;
-pub use oem_to_char_buff_w::OemToCharBuffW;
-mod oem_to_char_w;
-pub use oem_to_char_w::OemToCharW;
 mod offset_rect;
 pub use offset_rect::OffsetRect;
 mod open_clipboard;
 pub use open_clipboard::OpenClipboard;
-mod open_desktop_a;
-pub use open_desktop_a::OpenDesktopA;
-mod open_desktop_w;
-pub use open_desktop_w::OpenDesktopW;
 mod open_icon;
 pub use open_icon::OpenIcon;
 mod open_input_desktop;
 pub use open_input_desktop::OpenInputDesktop;
 mod open_thread_desktop;
 pub use open_thread_desktop::OpenThreadDesktop;
-mod open_window_station_a;
-pub use open_window_station_a::OpenWindowStationA;
-mod open_window_station_w;
-pub use open_window_station_w::OpenWindowStationW;
 mod pack_dd_el_param;
 pub use pack_dd_el_param::PackDDElParam;
 mod pack_touch_hit_testing_proximity_evaluation;
@@ -1276,20 +1268,8 @@ mod physical_to_logical_point;
 pub use physical_to_logical_point::PhysicalToLogicalPoint;
 mod physical_to_logical_point_for_per_monitor_dpi;
 pub use physical_to_logical_point_for_per_monitor_dpi::PhysicalToLogicalPointForPerMonitorDPI;
-mod post_thread_message_a;
-pub use post_thread_message_a::PostThreadMessageA;
-mod post_thread_message_w;
-pub use post_thread_message_w::PostThreadMessageW;
 mod print_window;
 pub use print_window::PrintWindow;
-mod private_extract_icon_ex_a;
-pub use private_extract_icon_ex_a::PrivateExtractIconExA;
-mod private_extract_icon_ex_w;
-pub use private_extract_icon_ex_w::PrivateExtractIconExW;
-mod private_extract_icons_a;
-pub use private_extract_icons_a::PrivateExtractIconsA;
-mod private_extract_icons_w;
-pub use private_extract_icons_w::PrivateExtractIconsW;
 mod private_register_ics_proc;
 pub use private_register_ics_proc::PrivateRegisterICSProc;
 mod pt_in_rect;
@@ -1368,18 +1348,10 @@ mod redraw_window;
 pub use redraw_window::RedrawWindow;
 mod register_bsdr_window;
 pub use register_bsdr_window::RegisterBSDRWindow;
-mod register_clipboard_format_a;
-pub use register_clipboard_format_a::RegisterClipboardFormatA;
-mod register_clipboard_format_w;
-pub use register_clipboard_format_w::RegisterClipboardFormatW;
 mod register_cloaked_notification;
 pub use register_cloaked_notification::RegisterCloakedNotification;
 mod register_d_manip_hook;
 pub use register_d_manip_hook::RegisterDManipHook;
-mod register_device_notification_a;
-pub use register_device_notification_a::RegisterDeviceNotificationA;
-mod register_device_notification_w;
-pub use register_device_notification_w::RegisterDeviceNotificationW;
 mod register_error_reporting_dialog;
 pub use register_error_reporting_dialog::RegisterErrorReportingDialog;
 mod register_for_custom_dock_targets;
@@ -1428,10 +1400,6 @@ mod register_touchpad_capable_window;
 pub use register_touchpad_capable_window::RegisterTouchpadCapableWindow;
 mod register_user_api_hook;
 pub use register_user_api_hook::RegisterUserApiHook;
-mod register_window_message_a;
-pub use register_window_message_a::RegisterWindowMessageA;
-mod register_window_message_w;
-pub use register_window_message_w::RegisterWindowMessageW;
 mod release_capture;
 pub use release_capture::ReleaseCapture;
 mod release_dwm_hit_test_waiters;
@@ -1442,10 +1410,6 @@ mod remove_injection_device;
 pub use remove_injection_device::RemoveInjectionDevice;
 mod remove_menu;
 pub use remove_menu::RemoveMenu;
-mod remove_prop_a;
-pub use remove_prop_a::RemovePropA;
-mod remove_prop_w;
-pub use remove_prop_w::RemovePropW;
 mod remove_thread_tsf_event_awareness;
 pub use remove_thread_tsf_event_awareness::RemoveThreadTSFEventAwareness;
 mod remove_visual_identifier;
@@ -1468,28 +1432,8 @@ mod scroll_window;
 pub use scroll_window::ScrollWindow;
 mod scroll_window_ex;
 pub use scroll_window_ex::ScrollWindowEx;
-mod send_dlg_item_message_a;
-pub use send_dlg_item_message_a::SendDlgItemMessageA;
-mod send_dlg_item_message_w;
-pub use send_dlg_item_message_w::SendDlgItemMessageW;
-mod send_ime_message_ex_a;
-pub use send_ime_message_ex_a::SendIMEMessageExA;
-mod send_ime_message_ex_w;
-pub use send_ime_message_ex_w::SendIMEMessageExW;
 mod send_input;
 pub use send_input::SendInput;
-mod send_message_callback_a;
-pub use send_message_callback_a::SendMessageCallbackA;
-mod send_message_callback_w;
-pub use send_message_callback_w::SendMessageCallbackW;
-mod send_message_timeout_a;
-pub use send_message_timeout_a::SendMessageTimeoutA;
-mod send_message_timeout_w;
-pub use send_message_timeout_w::SendMessageTimeoutW;
-mod send_notify_message_a;
-pub use send_notify_message_a::SendNotifyMessageA;
-mod send_notify_message_w;
-pub use send_notify_message_w::SendNotifyMessageW;
 mod set_active_window;
 pub use set_active_window::SetActiveWindow;
 mod set_additional_foreground_boost_processes;
@@ -1500,14 +1444,6 @@ mod set_caret_blink_time;
 pub use set_caret_blink_time::SetCaretBlinkTime;
 mod set_caret_pos;
 pub use set_caret_pos::SetCaretPos;
-mod set_class_long_a;
-pub use set_class_long_a::SetClassLongA;
-mod set_class_long_ptr_a;
-pub use set_class_long_ptr_a::SetClassLongPtrA;
-mod set_class_long_ptr_w;
-pub use set_class_long_ptr_w::SetClassLongPtrW;
-mod set_class_long_w;
-pub use set_class_long_w::SetClassLongW;
 mod set_class_word;
 pub use set_class_word::SetClassWord;
 mod set_clipboard_data;
@@ -1538,10 +1474,6 @@ mod set_display_config;
 pub use set_display_config::SetDisplayConfig;
 mod set_dlg_item_int;
 pub use set_dlg_item_int::SetDlgItemInt;
-mod set_dlg_item_text_a;
-pub use set_dlg_item_text_a::SetDlgItemTextA;
-mod set_dlg_item_text_w;
-pub use set_dlg_item_text_w::SetDlgItemTextW;
 mod set_double_click_time;
 pub use set_double_click_time::SetDoubleClickTime;
 mod set_feature_report_response;
@@ -1582,10 +1514,6 @@ mod set_menu_info;
 pub use set_menu_info::SetMenuInfo;
 mod set_menu_item_bitmaps;
 pub use set_menu_item_bitmaps::SetMenuItemBitmaps;
-mod set_menu_item_info_a;
-pub use set_menu_item_info_a::SetMenuItemInfoA;
-mod set_menu_item_info_w;
-pub use set_menu_item_info_w::SetMenuItemInfoW;
 mod set_message_extra_info;
 pub use set_message_extra_info::SetMessageExtraInfo;
 mod set_message_queue;
@@ -1614,10 +1542,6 @@ mod set_process_window_station;
 pub use set_process_window_station::SetProcessWindowStation;
 mod set_progman_window;
 pub use set_progman_window::SetProgmanWindow;
-mod set_prop_a;
-pub use set_prop_a::SetPropA;
-mod set_prop_w;
-pub use set_prop_w::SetPropW;
 mod set_rect;
 pub use set_rect::SetRect;
 mod set_rect_empty;
@@ -1658,10 +1582,6 @@ mod set_timer;
 pub use set_timer::SetTimer;
 mod set_user_object_capability;
 pub use set_user_object_capability::SetUserObjectCapability;
-mod set_user_object_information_a;
-pub use set_user_object_information_a::SetUserObjectInformationA;
-mod set_user_object_information_w;
-pub use set_user_object_information_w::SetUserObjectInformationW;
 mod set_user_object_security;
 pub use set_user_object_security::SetUserObjectSecurity;
 mod set_win_event_hook;
@@ -1690,14 +1610,8 @@ mod set_window_station_user;
 pub use set_window_station_user::SetWindowStationUser;
 mod set_window_word;
 pub use set_window_word::SetWindowWord;
-mod set_windows_hook_a;
-pub use set_windows_hook_a::SetWindowsHookA;
 mod set_windows_hook_ex_aw;
 pub use set_windows_hook_ex_aw::SetWindowsHookExAW;
-mod set_windows_hook_ex_w;
-pub use set_windows_hook_ex_w::SetWindowsHookExW;
-mod set_windows_hook_w;
-pub use set_windows_hook_w::SetWindowsHookW;
 mod shell_foreground_boost_process;
 pub use shell_foreground_boost_process::ShellForegroundBoostProcess;
 mod shell_handwriting_delegate_input;
@@ -1754,10 +1668,6 @@ mod system_parameters_info_for_dpi;
 pub use system_parameters_info_for_dpi::SystemParametersInfoForDpi;
 mod system_parameters_info_w;
 pub use system_parameters_info_w::SystemParametersInfoW;
-mod tabbed_text_out_a;
-pub use tabbed_text_out_a::TabbedTextOutA;
-mod tabbed_text_out_w;
-pub use tabbed_text_out_w::TabbedTextOutW;
 mod tile_child_windows;
 pub use tile_child_windows::TileChildWindows;
 mod tile_windows;
@@ -1854,14 +1764,6 @@ mod validate_rect;
 pub use validate_rect::ValidateRect;
 mod validate_rgn;
 pub use validate_rgn::ValidateRgn;
-mod vk_key_scan_a;
-pub use vk_key_scan_a::VkKeyScanA;
-mod vk_key_scan_ex_a;
-pub use vk_key_scan_ex_a::VkKeyScanExA;
-mod vk_key_scan_ex_w;
-pub use vk_key_scan_ex_w::VkKeyScanExW;
-mod vk_key_scan_w;
-pub use vk_key_scan_w::VkKeyScanW;
 mod wcs_to_mb_ex;
 pub use wcs_to_mb_ex::WCSToMBEx;
 mod winnls_enable_ime;
@@ -1876,10 +1778,6 @@ mod wait_for_redirection_start_complete;
 pub use wait_for_redirection_start_complete::WaitForRedirectionStartComplete;
 mod wait_message;
 pub use wait_message::WaitMessage;
-mod win_help_a;
-pub use win_help_a::WinHelpA;
-mod win_help_w;
-pub use win_help_w::WinHelpW;
 mod window_from_dc;
 pub use window_from_dc::WindowFromDC;
 mod window_from_physical_point;
@@ -1896,10 +1794,6 @@ mod keybd_event;
 pub use keybd_event::keybd_event;
 mod mouse_event;
 pub use mouse_event::mouse_event;
-mod wvsprintf_a;
-pub use wvsprintf_a::wvsprintfA;
-mod wvsprintf_w;
-pub use wvsprintf_w::wvsprintfW;
 mod wow64_transition;
 pub use wow64_transition::Wow64Transition;
 mod adjust_window_rect;
@@ -1942,14 +1836,6 @@ mod enum_windows;
 use enum_windows::EnumWindows;
 mod fill_rect;
 use fill_rect::FillRect;
-mod find_window_a;
-pub use find_window_a::FindWindowA;
-mod find_window_ex_a;
-pub use find_window_ex_a::FindWindowExA;
-mod find_window_ex_w;
-pub use find_window_ex_w::FindWindowExW;
-mod find_window_w;
-pub use find_window_w::FindWindowW;
 mod get_async_key_state;
 pub use get_async_key_state::GetAsyncKeyState;
 mod get_class_info_ex_a;
@@ -2068,8 +1954,6 @@ mod set_window_text_a;
 use set_window_text_a::SetWindowTextA;
 mod set_window_text_w;
 use set_window_text_w::SetWindowTextW;
-mod set_windows_hook_ex_a;
-pub use set_windows_hook_ex_a::SetWindowsHookExA;
 mod show_cursor;
 use show_cursor::ShowCursor;
 mod show_window;
@@ -2084,1067 +1968,28 @@ mod unregister_class_w;
 use unregister_class_w::UnregisterClassW;
 mod update_window;
 use update_window::UpdateWindow;
-mod wsprintf_a;
-pub use wsprintf_a::wsprintfA;
-mod wsprintf_w;
-pub use wsprintf_w::wsprintfW;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    match api {
-        "MessageBoxA" => MessageBoxA(emu),
-        "MessageBoxW" => MessageBoxW(emu),
-        "GetDesktopWindow" => GetDesktopWindow(emu),
-        "GetSystemMetrics" => GetSystemMetrics(emu),
-        "SystemParametersInfoA" => SystemParametersInfoA(emu),
-        "LoadIconA" => LoadIconA(emu),
-        "LoadCursorA" => LoadCursorA(emu),
-        "RegisterClassA" => RegisterClassA(emu),
-        "RegisterClassW" => RegisterClassW(emu),
-        "RegisterClassExA" => RegisterClassExA(emu),
-        "RegisterClassExW" => RegisterClassExW(emu),
-        "UnregisterClassA" => UnregisterClassA(emu),
-        "UnregisterClassW" => UnregisterClassW(emu),
-        "EnumWindows" => EnumWindows(emu),
-        "GetProcessWindowStation" => GetProcessWindowStation(emu),
-        "GetUserObjectInformationW" => GetUserObjectInformationW(emu),
-        "GetDC" => GetDC(emu),
-        "ReleaseDC" => ReleaseDC(emu),
-        "CharLowerBuffW" => CharLowerBuffW(emu),
-        "CharLowerBuffA" => CharLowerBuffA(emu),
-        "CharUpperBuffW" => CharUpperBuffW(emu),
-        "CharUpperBuffA" => CharUpperBuffA(emu),
-        "FindWindowA" => FindWindowA(emu),
-        "FindWindowW" => FindWindowW(emu),
-        "FindWindowExA" => FindWindowExA(emu),
-        "FindWindowExW" => FindWindowExW(emu),
-        "GetKeyState" => GetKeyState(emu),
-        "GetAsyncKeyState" => GetAsyncKeyState(emu),
-        "SetWindowsHookExA" => SetWindowsHookExA(emu),
-        "wsprintfA" => wsprintfA(emu),
-        "wsprintfW" => wsprintfW(emu),
-        "AdjustWindowRect" => AdjustWindowRect(emu),
-        "AdjustWindowRectEx" => AdjustWindowRectEx(emu),
-        "CreateWindowExA" => CreateWindowExA(emu),
-        "CreateWindowExW" => CreateWindowExW(emu),
-        "ShowWindow" => ShowWindow(emu),
-        "UpdateWindow" => UpdateWindow(emu),
-        "DestroyWindow" => DestroyWindow(emu),
-        "PostMessageA" => PostMessageA(emu),
-        "PostMessageW" => PostMessageW(emu),
-        "SendMessageA" => SendMessageA(emu),
-        "SendMessageW" => SendMessageW(emu),
-        "DefWindowProcA" => DefWindowProcA(emu),
-        "DefWindowProcW" => DefWindowProcW(emu),
-        "GetWindowRect" => GetWindowRect(emu),
-        "GetClientRect" => GetClientRect(emu),
-        "SetWindowPos" => SetWindowPos(emu),
-        "SetWindowTextA" => SetWindowTextA(emu),
-        "SetWindowTextW" => SetWindowTextW(emu),
-        "GetWindowTextA" => GetWindowTextA(emu),
-        "GetWindowTextW" => GetWindowTextW(emu),
-        "GetWindowLongA" => GetWindowLongA(emu),
-        "GetWindowLongW" => GetWindowLongW(emu),
-        "SetWindowLongA" => SetWindowLongA(emu),
-        "SetWindowLongW" => SetWindowLongW(emu),
-        "GetWindowLongPtrA" => GetWindowLongPtrA(emu),
-        "GetWindowLongPtrW" => GetWindowLongPtrW(emu),
-        "SetWindowLongPtrA" => SetWindowLongPtrA(emu),
-        "SetWindowLongPtrW" => SetWindowLongPtrW(emu),
-        "PeekMessageA" => PeekMessageA(emu),
-        "PeekMessageW" => PeekMessageW(emu),
-        "GetMessageA" => GetMessageA(emu),
-        "GetMessageW" => GetMessageW(emu),
-        "TranslateMessage" => TranslateMessage(emu),
-        "DispatchMessageA" => DispatchMessageA(emu),
-        "DispatchMessageW" => DispatchMessageW(emu),
-        "PostQuitMessage" => PostQuitMessage(emu),
-        "IsWindow" => IsWindow(emu),
-        "IsWindowVisible" => IsWindowVisible(emu),
-        "EnableWindow" => EnableWindow(emu),
-        "SetFocus" => SetFocus(emu),
-        "GetFocus" => GetFocus(emu),
-        "GetForegroundWindow" => GetForegroundWindow(emu),
-        "SetForegroundWindow" => SetForegroundWindow(emu),
-        "GetCursorPos" => GetCursorPos(emu),
-        "GetPhysicalCursorPos" => GetPhysicalCursorPos(emu),
-        "SetCursorPos" => SetCursorPos(emu),
-        "SetCursor" => SetCursor(emu),
-        "ShowCursor" => ShowCursor(emu),
-        "LoadStringA" => LoadStringA(emu),
-        "LoadStringW" => LoadStringW(emu),
-        "GetClassInfoExA" => GetClassInfoExA(emu),
-        "GetClassInfoExW" => GetClassInfoExW(emu),
-        "MapVirtualKeyA" => MapVirtualKeyA(emu),
-        "MapVirtualKeyW" => MapVirtualKeyW(emu),
-        "GetKeyboardLayout" => GetKeyboardLayout(emu),
-        "GetKeyboardType" => GetKeyboardType(emu),
-        "BeginPaint" => BeginPaint(emu),
-        "EndPaint" => EndPaint(emu),
-        "InvalidateRect" => InvalidateRect(emu),
-        "FillRect" => FillRect(emu),
-        "DrawTextA" => DrawTextA(emu),
-        "DrawTextW" => DrawTextW(emu),
-        "ActivateKeyboardLayout" => ActivateKeyboardLayout(emu),
-        "AddClipboardFormatListener" => AddClipboardFormatListener(emu),
-        "AddVisualIdentifier" => AddVisualIdentifier(emu),
-        "AdjustWindowRectExForDpi" => AdjustWindowRectExForDpi(emu),
-        "AlignRects" => AlignRects(emu),
-        "AllowForegroundActivation" => AllowForegroundActivation(emu),
-        "AllowSetForegroundWindow" => AllowSetForegroundWindow(emu),
-        "AnimateWindow" => AnimateWindow(emu),
-        "AnyPopup" => AnyPopup(emu),
-        "AppendMenuA" => AppendMenuA(emu),
-        "AppendMenuW" => AppendMenuW(emu),
-        "ApplyWindowAction" => ApplyWindowAction(emu),
-        "AreDpiAwarenessContextsEqual" => AreDpiAwarenessContextsEqual(emu),
-        "ArrangeIconicWindows" => ArrangeIconicWindows(emu),
-        "AttachThreadInput" => AttachThreadInput(emu),
-        "BeginDeferWindowPos" => BeginDeferWindowPos(emu),
-        "BlockInput" => BlockInput(emu),
-        "BringWindowToTop" => BringWindowToTop(emu),
-        "BroadcastSystemMessage" => BroadcastSystemMessage(emu),
-        "BroadcastSystemMessageA" => BroadcastSystemMessageA(emu),
-        "BroadcastSystemMessageExA" => BroadcastSystemMessageExA(emu),
-        "BroadcastSystemMessageExW" => BroadcastSystemMessageExW(emu),
-        "BroadcastSystemMessageW" => BroadcastSystemMessageW(emu),
-        "BuildReasonArray" => BuildReasonArray(emu),
-        "CalcMenuBar" => CalcMenuBar(emu),
-        "CalculatePopupWindowPosition" => CalculatePopupWindowPosition(emu),
-        "CallMsgFilter" => CallMsgFilter(emu),
-        "CallMsgFilterA" => CallMsgFilterA(emu),
-        "CallMsgFilterW" => CallMsgFilterW(emu),
-        "CallNextHookEx" => CallNextHookEx(emu),
-        "CallWindowProcA" => CallWindowProcA(emu),
-        "CallWindowProcW" => CallWindowProcW(emu),
-        "CancelShutdown" => CancelShutdown(emu),
-        "CascadeChildWindows" => CascadeChildWindows(emu),
-        "CascadeWindows" => CascadeWindows(emu),
-        "ChangeClipboardChain" => ChangeClipboardChain(emu),
-        "ChangeDisplaySettingsA" => ChangeDisplaySettingsA(emu),
-        "ChangeDisplaySettingsExA" => ChangeDisplaySettingsExA(emu),
-        "ChangeDisplaySettingsExW" => ChangeDisplaySettingsExW(emu),
-        "ChangeDisplaySettingsW" => ChangeDisplaySettingsW(emu),
-        "ChangeMenuA" => ChangeMenuA(emu),
-        "ChangeMenuW" => ChangeMenuW(emu),
-        "ChangeWindowMessageFilter" => ChangeWindowMessageFilter(emu),
-        "ChangeWindowMessageFilterEx" => ChangeWindowMessageFilterEx(emu),
-        "CharLowerA" => CharLowerA(emu),
-        "CharLowerW" => CharLowerW(emu),
-        "CharNextA" => CharNextA(emu),
-        "CharNextExA" => CharNextExA(emu),
-        "CharNextW" => CharNextW(emu),
-        "CharPrevA" => CharPrevA(emu),
-        "CharPrevExA" => CharPrevExA(emu),
-        "CharPrevW" => CharPrevW(emu),
-        "CharToOemA" => CharToOemA(emu),
-        "CharToOemBuffA" => CharToOemBuffA(emu),
-        "CharToOemBuffW" => CharToOemBuffW(emu),
-        "CharToOemW" => CharToOemW(emu),
-        "CharUpperA" => CharUpperA(emu),
-        "CharUpperW" => CharUpperW(emu),
-        "CheckBannedOneCoreTransformApi" => CheckBannedOneCoreTransformApi(emu),
-        "CheckDBCSEnabledExt" => CheckDBCSEnabledExt(emu),
-        "CheckDlgButton" => CheckDlgButton(emu),
-        "CheckMenuItem" => CheckMenuItem(emu),
-        "CheckMenuRadioItem" => CheckMenuRadioItem(emu),
-        "CheckProcessForClipboardAccess" => CheckProcessForClipboardAccess(emu),
-        "CheckProcessSession" => CheckProcessSession(emu),
-        "CheckRadioButton" => CheckRadioButton(emu),
-        "CheckWindowThreadDesktop" => CheckWindowThreadDesktop(emu),
-        "ChildWindowFromPoint" => ChildWindowFromPoint(emu),
-        "ChildWindowFromPointEx" => ChildWindowFromPointEx(emu),
-        "CliImmSetHotKey" => CliImmSetHotKey(emu),
-        "ClientThreadSetup" => ClientThreadSetup(emu),
-        "ClientToScreen" => ClientToScreen(emu),
-        "ClipCursor" => ClipCursor(emu),
-        "CloseClipboard" => CloseClipboard(emu),
-        "CloseDesktop" => CloseDesktop(emu),
-        "CloseGestureInfoHandle" => CloseGestureInfoHandle(emu),
-        "CloseTouchInputHandle" => CloseTouchInputHandle(emu),
-        "CloseWindow" => CloseWindow(emu),
-        "CloseWindowStation" => CloseWindowStation(emu),
-        "ConsoleControl" => ConsoleControl(emu),
-        "ControlMagnification" => ControlMagnification(emu),
-        "ConvertPrimaryPointerToMouseDrag" => ConvertPrimaryPointerToMouseDrag(emu),
-        "ConvertToInterceptWindow" => ConvertToInterceptWindow(emu),
-        "CopyAcceleratorTableA" => CopyAcceleratorTableA(emu),
-        "CopyAcceleratorTableW" => CopyAcceleratorTableW(emu),
-        "CopyIcon" => CopyIcon(emu),
-        "CopyImage" => CopyImage(emu),
-        "CopyRect" => CopyRect(emu),
-        "CountClipboardFormats" => CountClipboardFormats(emu),
-        "CreateAcceleratorTableA" => CreateAcceleratorTableA(emu),
-        "CreateAcceleratorTableW" => CreateAcceleratorTableW(emu),
-        "CreateCaret" => CreateCaret(emu),
-        "CreateCursor" => CreateCursor(emu),
-        "CreateDCompositionHwndTarget" => CreateDCompositionHwndTarget(emu),
-        "CreateDesktopA" => CreateDesktopA(emu),
-        "CreateDesktopExA" => CreateDesktopExA(emu),
-        "CreateDesktopExW" => CreateDesktopExW(emu),
-        "CreateDesktopW" => CreateDesktopW(emu),
-        "CreateDialogIndirectParamA" => CreateDialogIndirectParamA(emu),
-        "CreateDialogIndirectParamAorW" => CreateDialogIndirectParamAorW(emu),
-        "CreateDialogIndirectParamW" => CreateDialogIndirectParamW(emu),
-        "CreateDialogParamA" => CreateDialogParamA(emu),
-        "CreateDialogParamW" => CreateDialogParamW(emu),
-        "CreateIcon" => CreateIcon(emu),
-        "CreateIconFromResource" => CreateIconFromResource(emu),
-        "CreateIconFromResourceEx" => CreateIconFromResourceEx(emu),
-        "CreateIconIndirect" => CreateIconIndirect(emu),
-        "CreateMDIWindowA" => CreateMDIWindowA(emu),
-        "CreateMDIWindowW" => CreateMDIWindowW(emu),
-        "CreateMenu" => CreateMenu(emu),
-        "CreatePopupMenu" => CreatePopupMenu(emu),
-        "CreateSyntheticPointerDevice" => CreateSyntheticPointerDevice(emu),
-        "CreateSyntheticPointerDevice2" => CreateSyntheticPointerDevice2(emu),
-        "CreateSystemThreads" => CreateSystemThreads(emu),
-        "CreateWindowInBand" => CreateWindowInBand(emu),
-        "CreateWindowInBandEx" => CreateWindowInBandEx(emu),
-        "CreateWindowIndirect" => CreateWindowIndirect(emu),
-        "CreateWindowStationA" => CreateWindowStationA(emu),
-        "CreateWindowStationW" => CreateWindowStationW(emu),
-        "CsrBroadcastSystemMessageExW" => CsrBroadcastSystemMessageExW(emu),
-        "CtxInitUser32" => CtxInitUser32(emu),
-        "DdeAbandonTransaction" => DdeAbandonTransaction(emu),
-        "DdeAccessData" => DdeAccessData(emu),
-        "DdeAddData" => DdeAddData(emu),
-        "DdeClientTransaction" => DdeClientTransaction(emu),
-        "DdeCmpStringHandles" => DdeCmpStringHandles(emu),
-        "DdeConnect" => DdeConnect(emu),
-        "DdeConnectList" => DdeConnectList(emu),
-        "DdeCreateDataHandle" => DdeCreateDataHandle(emu),
-        "DdeCreateStringHandleA" => DdeCreateStringHandleA(emu),
-        "DdeCreateStringHandleW" => DdeCreateStringHandleW(emu),
-        "DdeDisconnect" => DdeDisconnect(emu),
-        "DdeDisconnectList" => DdeDisconnectList(emu),
-        "DdeEnableCallback" => DdeEnableCallback(emu),
-        "DdeFreeDataHandle" => DdeFreeDataHandle(emu),
-        "DdeFreeStringHandle" => DdeFreeStringHandle(emu),
-        "DdeGetData" => DdeGetData(emu),
-        "DdeGetLastError" => DdeGetLastError(emu),
-        "DdeGetQualityOfService" => DdeGetQualityOfService(emu),
-        "DdeImpersonateClient" => DdeImpersonateClient(emu),
-        "DdeInitializeA" => DdeInitializeA(emu),
-        "DdeInitializeW" => DdeInitializeW(emu),
-        "DdeKeepStringHandle" => DdeKeepStringHandle(emu),
-        "DdeNameService" => DdeNameService(emu),
-        "DdePostAdvise" => DdePostAdvise(emu),
-        "DdeQueryConvInfo" => DdeQueryConvInfo(emu),
-        "DdeQueryNextServer" => DdeQueryNextServer(emu),
-        "DdeQueryStringA" => DdeQueryStringA(emu),
-        "DdeQueryStringW" => DdeQueryStringW(emu),
-        "DdeReconnect" => DdeReconnect(emu),
-        "DdeSetQualityOfService" => DdeSetQualityOfService(emu),
-        "DdeSetUserHandle" => DdeSetUserHandle(emu),
-        "DdeUnaccessData" => DdeUnaccessData(emu),
-        "DdeUninitialize" => DdeUninitialize(emu),
-        "DefDlgProcA" => DefDlgProcA(emu),
-        "DefDlgProcW" => DefDlgProcW(emu),
-        "DefFrameProcA" => DefFrameProcA(emu),
-        "DefFrameProcW" => DefFrameProcW(emu),
-        "DefMDIChildProcA" => DefMDIChildProcA(emu),
-        "DefMDIChildProcW" => DefMDIChildProcW(emu),
-        "DefRawInputProc" => DefRawInputProc(emu),
-        "DeferWindowPos" => DeferWindowPos(emu),
-        "DeferWindowPosAndBand" => DeferWindowPosAndBand(emu),
-        "DelegateInput" => DelegateInput(emu),
-        "DeleteMenu" => DeleteMenu(emu),
-        "DeregisterShellHookWindow" => DeregisterShellHookWindow(emu),
-        "DestroyAcceleratorTable" => DestroyAcceleratorTable(emu),
-        "DestroyCaret" => DestroyCaret(emu),
-        "DestroyCursor" => DestroyCursor(emu),
-        "DestroyDCompositionHwndTarget" => DestroyDCompositionHwndTarget(emu),
-        "DestroyIcon" => DestroyIcon(emu),
-        "DestroyMenu" => DestroyMenu(emu),
-        "DestroyReasons" => DestroyReasons(emu),
-        "DestroySyntheticPointerDevice" => DestroySyntheticPointerDevice(emu),
-        "DialogBoxIndirectParamA" => DialogBoxIndirectParamA(emu),
-        "DialogBoxIndirectParamAorW" => DialogBoxIndirectParamAorW(emu),
-        "DialogBoxIndirectParamW" => DialogBoxIndirectParamW(emu),
-        "DialogBoxParamA" => DialogBoxParamA(emu),
-        "DialogBoxParamW" => DialogBoxParamW(emu),
-        "DisableProcessWindowsGhosting" => DisableProcessWindowsGhosting(emu),
-        "DisplayConfigGetDeviceInfo" => DisplayConfigGetDeviceInfo(emu),
-        "DisplayConfigSetDeviceInfo" => DisplayConfigSetDeviceInfo(emu),
-        "DisplayExitWindowsWarnings" => DisplayExitWindowsWarnings(emu),
-        "DlgDirListA" => DlgDirListA(emu),
-        "DlgDirListComboBoxA" => DlgDirListComboBoxA(emu),
-        "DlgDirListComboBoxW" => DlgDirListComboBoxW(emu),
-        "DlgDirListW" => DlgDirListW(emu),
-        "DlgDirSelectComboBoxExA" => DlgDirSelectComboBoxExA(emu),
-        "DlgDirSelectComboBoxExW" => DlgDirSelectComboBoxExW(emu),
-        "DlgDirSelectExA" => DlgDirSelectExA(emu),
-        "DlgDirSelectExW" => DlgDirSelectExW(emu),
-        "DoSoundConnect" => DoSoundConnect(emu),
-        "DoSoundDisconnect" => DoSoundDisconnect(emu),
-        "DragDetect" => DragDetect(emu),
-        "DragObject" => DragObject(emu),
-        "DrawAnimatedRects" => DrawAnimatedRects(emu),
-        "DrawCaption" => DrawCaption(emu),
-        "DrawCaptionTempA" => DrawCaptionTempA(emu),
-        "DrawCaptionTempW" => DrawCaptionTempW(emu),
-        "DrawEdge" => DrawEdge(emu),
-        "DrawFocusRect" => DrawFocusRect(emu),
-        "DrawFrame" => DrawFrame(emu),
-        "DrawFrameControl" => DrawFrameControl(emu),
-        "DrawIcon" => DrawIcon(emu),
-        "DrawIconEx" => DrawIconEx(emu),
-        "DrawMenuBar" => DrawMenuBar(emu),
-        "DrawMenuBarTemp" => DrawMenuBarTemp(emu),
-        "DrawStateA" => DrawStateA(emu),
-        "DrawStateW" => DrawStateW(emu),
-        "DrawTextExA" => DrawTextExA(emu),
-        "DrawTextExW" => DrawTextExW(emu),
-        "DwmGetDxRgn" => DwmGetDxRgn(emu),
-        "DwmGetDxSharedSurface" => DwmGetDxSharedSurface(emu),
-        "DwmGetRemoteSessionOcclusionEvent" => DwmGetRemoteSessionOcclusionEvent(emu),
-        "DwmGetRemoteSessionOcclusionState" => DwmGetRemoteSessionOcclusionState(emu),
-        "DwmKernelShutdown" => DwmKernelShutdown(emu),
-        "DwmKernelStartup" => DwmKernelStartup(emu),
-        "DwmLockScreenUpdates" => DwmLockScreenUpdates(emu),
-        "DwmValidateWindow" => DwmValidateWindow(emu),
-        "DwmWindowNotificationsEnabled" => DwmWindowNotificationsEnabled(emu),
-        "EditWndProc" => EditWndProc(emu),
-        "EmptyClipboard" => EmptyClipboard(emu),
-        "EnableMenuItem" => EnableMenuItem(emu),
-        "EnableMouseInPointer" => EnableMouseInPointer(emu),
-        "EnableNonClientDpiScaling" => EnableNonClientDpiScaling(emu),
-        "EnableOneCoreTransformMode" => EnableOneCoreTransformMode(emu),
-        "EnableScrollBar" => EnableScrollBar(emu),
-        "EnableSessionForMMCSS" => EnableSessionForMMCSS(emu),
-        "EnableWindowShellWindowManagementBehavior" => {
-            EnableWindowShellWindowManagementBehavior(emu)
-        }
-        "EndDeferWindowPos" => EndDeferWindowPos(emu),
-        "EndDeferWindowPosEx" => EndDeferWindowPosEx(emu),
-        "EndDialog" => EndDialog(emu),
-        "EndMenu" => EndMenu(emu),
-        "EndTask" => EndTask(emu),
-        "EnterMoveSizeLoop" => EnterMoveSizeLoop(emu),
-        "EnterReaderModeHelper" => EnterReaderModeHelper(emu),
-        "EnumChildWindows" => EnumChildWindows(emu),
-        "EnumClipboardFormats" => EnumClipboardFormats(emu),
-        "EnumDesktopWindows" => EnumDesktopWindows(emu),
-        "EnumDesktopsA" => EnumDesktopsA(emu),
-        "EnumDesktopsW" => EnumDesktopsW(emu),
-        "EnumDisplayDevicesA" => EnumDisplayDevicesA(emu),
-        "EnumDisplayDevicesW" => EnumDisplayDevicesW(emu),
-        "EnumDisplayMonitors" => EnumDisplayMonitors(emu),
-        "EnumDisplaySettingsA" => EnumDisplaySettingsA(emu),
-        "EnumDisplaySettingsExA" => EnumDisplaySettingsExA(emu),
-        "EnumDisplaySettingsExW" => EnumDisplaySettingsExW(emu),
-        "EnumDisplaySettingsW" => EnumDisplaySettingsW(emu),
-        "EnumPropsA" => EnumPropsA(emu),
-        "EnumPropsExA" => EnumPropsExA(emu),
-        "EnumPropsExW" => EnumPropsExW(emu),
-        "EnumPropsW" => EnumPropsW(emu),
-        "EnumThreadWindows" => EnumThreadWindows(emu),
-        "EnumWindowStationsA" => EnumWindowStationsA(emu),
-        "EnumWindowStationsW" => EnumWindowStationsW(emu),
-        "EqualRect" => EqualRect(emu),
-        "EvaluateProximityToPolygon" => EvaluateProximityToPolygon(emu),
-        "EvaluateProximityToRect" => EvaluateProximityToRect(emu),
-        "ExcludeUpdateRgn" => ExcludeUpdateRgn(emu),
-        "ExitWindowsEx" => ExitWindowsEx(emu),
-        "FlashWindow" => FlashWindow(emu),
-        "FlashWindowEx" => FlashWindowEx(emu),
-        "FrameRect" => FrameRect(emu),
-        "FreeDDElParam" => FreeDDElParam(emu),
-        "FrostCrashedWindow" => FrostCrashedWindow(emu),
-        "GetActiveWindow" => GetActiveWindow(emu),
-        "GetAltTabInfo" => GetAltTabInfo(emu),
-        "GetAltTabInfoA" => GetAltTabInfoA(emu),
-        "GetAltTabInfoW" => GetAltTabInfoW(emu),
-        "GetAncestor" => GetAncestor(emu),
-        "GetAppCompatFlags" => GetAppCompatFlags(emu),
-        "GetAppCompatFlags2" => GetAppCompatFlags2(emu),
-        "GetAutoRotationState" => GetAutoRotationState(emu),
-        "GetAwarenessFromDpiAwarenessContext" => GetAwarenessFromDpiAwarenessContext(emu),
-        "GetCIMSSM" => GetCIMSSM(emu),
-        "GetCapture" => GetCapture(emu),
-        "GetCaretBlinkTime" => GetCaretBlinkTime(emu),
-        "GetCaretPos" => GetCaretPos(emu),
-        "GetClassInfoA" => GetClassInfoA(emu),
-        "GetClassInfoW" => GetClassInfoW(emu),
-        "GetClassLongA" => GetClassLongA(emu),
-        "GetClassLongPtrA" => GetClassLongPtrA(emu),
-        "GetClassLongPtrW" => GetClassLongPtrW(emu),
-        "GetClassLongW" => GetClassLongW(emu),
-        "GetClassNameA" => GetClassNameA(emu),
-        "GetClassNameW" => GetClassNameW(emu),
-        "GetClassWord" => GetClassWord(emu),
-        "GetClipCursor" => GetClipCursor(emu),
-        "GetClipboardAccessToken" => GetClipboardAccessToken(emu),
-        "GetClipboardData" => GetClipboardData(emu),
-        "GetClipboardFormatNameA" => GetClipboardFormatNameA(emu),
-        "GetClipboardFormatNameW" => GetClipboardFormatNameW(emu),
-        "GetClipboardMetadata" => GetClipboardMetadata(emu),
-        "GetClipboardOwner" => GetClipboardOwner(emu),
-        "GetClipboardSequenceNumber" => GetClipboardSequenceNumber(emu),
-        "GetClipboardViewer" => GetClipboardViewer(emu),
-        "GetComboBoxInfo" => GetComboBoxInfo(emu),
-        "GetCurrentInputMessageSource" => GetCurrentInputMessageSource(emu),
-        "GetCurrentMonitorTopologyId" => GetCurrentMonitorTopologyId(emu),
-        "GetCursor" => GetCursor(emu),
-        "GetCursorFrameInfo" => GetCursorFrameInfo(emu),
-        "GetCursorInfo" => GetCursorInfo(emu),
-        "GetDCEx" => GetDCEx(emu),
-        "GetDCompositionHwndBitmap" => GetDCompositionHwndBitmap(emu),
-        "GetDesktopID" => GetDesktopID(emu),
-        "GetDialogBaseUnits" => GetDialogBaseUnits(emu),
-        "GetDialogControlDpiChangeBehavior" => GetDialogControlDpiChangeBehavior(emu),
-        "GetDialogDpiChangeBehavior" => GetDialogDpiChangeBehavior(emu),
-        "GetDisplayAutoRotationPreferences" => GetDisplayAutoRotationPreferences(emu),
-        "GetDisplayConfigBufferSizes" => GetDisplayConfigBufferSizes(emu),
-        "GetDlgCtrlID" => GetDlgCtrlID(emu),
-        "GetDlgItem" => GetDlgItem(emu),
-        "GetDlgItemInt" => GetDlgItemInt(emu),
-        "GetDlgItemTextA" => GetDlgItemTextA(emu),
-        "GetDlgItemTextW" => GetDlgItemTextW(emu),
-        "GetDoubleClickTime" => GetDoubleClickTime(emu),
-        "GetDpiAwarenessContextForProcess" => GetDpiAwarenessContextForProcess(emu),
-        "GetDpiForMonitorInternal" => GetDpiForMonitorInternal(emu),
-        "GetDpiForSystem" => GetDpiForSystem(emu),
-        "GetDpiForWindow" => GetDpiForWindow(emu),
-        "GetDpiFromDpiAwarenessContext" => GetDpiFromDpiAwarenessContext(emu),
-        "GetExtendedPointerDeviceProperty" => GetExtendedPointerDeviceProperty(emu),
-        "GetGUIThreadInfo" => GetGUIThreadInfo(emu),
-        "GetGestureConfig" => GetGestureConfig(emu),
-        "GetGestureExtraArgs" => GetGestureExtraArgs(emu),
-        "GetGestureInfo" => GetGestureInfo(emu),
-        "GetGuiResources" => GetGuiResources(emu),
-        "GetIconInfo" => GetIconInfo(emu),
-        "GetIconInfoExA" => GetIconInfoExA(emu),
-        "GetIconInfoExW" => GetIconInfoExW(emu),
-        "GetInputDesktop" => GetInputDesktop(emu),
-        "GetInputLocaleInfo" => GetInputLocaleInfo(emu),
-        "GetInputState" => GetInputState(emu),
-        "GetInternalWindowPos" => GetInternalWindowPos(emu),
-        "GetKBCodePage" => GetKBCodePage(emu),
-        "GetKeyNameTextA" => GetKeyNameTextA(emu),
-        "GetKeyNameTextW" => GetKeyNameTextW(emu),
-        "GetKeyboardLayoutList" => GetKeyboardLayoutList(emu),
-        "GetKeyboardLayoutNameA" => GetKeyboardLayoutNameA(emu),
-        "GetKeyboardLayoutNameW" => GetKeyboardLayoutNameW(emu),
-        "GetKeyboardState" => GetKeyboardState(emu),
-        "GetLastActivePopup" => GetLastActivePopup(emu),
-        "GetLastInputInfo" => GetLastInputInfo(emu),
-        "GetLayeredWindowAttributes" => GetLayeredWindowAttributes(emu),
-        "GetListBoxInfo" => GetListBoxInfo(emu),
-        "GetMagnificationDesktopColorEffect" => GetMagnificationDesktopColorEffect(emu),
-        "GetMagnificationDesktopMagnification" => GetMagnificationDesktopMagnification(emu),
-        "GetMagnificationDesktopSamplingMode" => GetMagnificationDesktopSamplingMode(emu),
-        "GetMagnificationLensCtxInformation" => GetMagnificationLensCtxInformation(emu),
-        "GetMenu" => GetMenu(emu),
-        "GetMenuBarInfo" => GetMenuBarInfo(emu),
-        "GetMenuCheckMarkDimensions" => GetMenuCheckMarkDimensions(emu),
-        "GetMenuContextHelpId" => GetMenuContextHelpId(emu),
-        "GetMenuDefaultItem" => GetMenuDefaultItem(emu),
-        "GetMenuInfo" => GetMenuInfo(emu),
-        "GetMenuItemCount" => GetMenuItemCount(emu),
-        "GetMenuItemID" => GetMenuItemID(emu),
-        "GetMenuItemInfoA" => GetMenuItemInfoA(emu),
-        "GetMenuItemInfoW" => GetMenuItemInfoW(emu),
-        "GetMenuItemRect" => GetMenuItemRect(emu),
-        "GetMenuState" => GetMenuState(emu),
-        "GetMenuStringA" => GetMenuStringA(emu),
-        "GetMenuStringW" => GetMenuStringW(emu),
-        "GetMessageExtraInfo" => GetMessageExtraInfo(emu),
-        "GetMessagePos" => GetMessagePos(emu),
-        "GetMessageTime" => GetMessageTime(emu),
-        "GetMonitorInfoA" => GetMonitorInfoA(emu),
-        "GetMonitorInfoW" => GetMonitorInfoW(emu),
-        "GetMouseMovePointsEx" => GetMouseMovePointsEx(emu),
-        "GetNextDlgGroupItem" => GetNextDlgGroupItem(emu),
-        "GetNextDlgTabItem" => GetNextDlgTabItem(emu),
-        "GetOpenClipboardWindow" => GetOpenClipboardWindow(emu),
-        "GetParent" => GetParent(emu),
-        "GetPointerCursorId" => GetPointerCursorId(emu),
-        "GetPointerDevice" => GetPointerDevice(emu),
-        "GetPointerDeviceCursors" => GetPointerDeviceCursors(emu),
-        "GetPointerDeviceInputSpace" => GetPointerDeviceInputSpace(emu),
-        "GetPointerDeviceOrientation" => GetPointerDeviceOrientation(emu),
-        "GetPointerDeviceProperties" => GetPointerDeviceProperties(emu),
-        "GetPointerDeviceRects" => GetPointerDeviceRects(emu),
-        "GetPointerDevices" => GetPointerDevices(emu),
-        "GetPointerFrameArrivalTimes" => GetPointerFrameArrivalTimes(emu),
-        "GetPointerFrameInfo" => GetPointerFrameInfo(emu),
-        "GetPointerFrameInfoHistory" => GetPointerFrameInfoHistory(emu),
-        "GetPointerFramePenInfo" => GetPointerFramePenInfo(emu),
-        "GetPointerFramePenInfoHistory" => GetPointerFramePenInfoHistory(emu),
-        "GetPointerFrameTimes" => GetPointerFrameTimes(emu),
-        "GetPointerFrameTouchInfo" => GetPointerFrameTouchInfo(emu),
-        "GetPointerFrameTouchInfoHistory" => GetPointerFrameTouchInfoHistory(emu),
-        "GetPointerFrameTouchpadInfo" => GetPointerFrameTouchpadInfo(emu),
-        "GetPointerFrameTouchpadInfoHistory" => GetPointerFrameTouchpadInfoHistory(emu),
-        "GetPointerInfo" => GetPointerInfo(emu),
-        "GetPointerInfoHistory" => GetPointerInfoHistory(emu),
-        "GetPointerInputTransform" => GetPointerInputTransform(emu),
-        "GetPointerPenInfo" => GetPointerPenInfo(emu),
-        "GetPointerPenInfoHistory" => GetPointerPenInfoHistory(emu),
-        "GetPointerTouchInfo" => GetPointerTouchInfo(emu),
-        "GetPointerTouchInfoHistory" => GetPointerTouchInfoHistory(emu),
-        "GetPointerTouchpadInfo" => GetPointerTouchpadInfo(emu),
-        "GetPointerTouchpadInfoHistory" => GetPointerTouchpadInfoHistory(emu),
-        "GetPointerType" => GetPointerType(emu),
-        "GetPriorityClipboardFormat" => GetPriorityClipboardFormat(emu),
-        "GetProcessDefaultLayout" => GetProcessDefaultLayout(emu),
-        "GetProcessDpiAwarenessInternal" => GetProcessDpiAwarenessInternal(emu),
-        "GetProcessUIContextInformation" => GetProcessUIContextInformation(emu),
-        "GetProgmanWindow" => GetProgmanWindow(emu),
-        "GetPropA" => GetPropA(emu),
-        "GetPropW" => GetPropW(emu),
-        "GetQueueStatus" => GetQueueStatus(emu),
-        "GetRawInputBuffer" => GetRawInputBuffer(emu),
-        "GetRawInputData" => GetRawInputData(emu),
-        "GetRawInputDeviceInfoA" => GetRawInputDeviceInfoA(emu),
-        "GetRawInputDeviceInfoW" => GetRawInputDeviceInfoW(emu),
-        "GetRawInputDeviceList" => GetRawInputDeviceList(emu),
-        "GetRawPointerDeviceData" => GetRawPointerDeviceData(emu),
-        "GetReasonTitleFromReasonCode" => GetReasonTitleFromReasonCode(emu),
-        "GetRegisteredRawInputDevices" => GetRegisteredRawInputDevices(emu),
-        "GetScrollBarInfo" => GetScrollBarInfo(emu),
-        "GetScrollInfo" => GetScrollInfo(emu),
-        "GetScrollPos" => GetScrollPos(emu),
-        "GetScrollRange" => GetScrollRange(emu),
-        "GetSendMessageReceiver" => GetSendMessageReceiver(emu),
-        "GetShellChangeNotifyWindow" => GetShellChangeNotifyWindow(emu),
-        "GetShellWindow" => GetShellWindow(emu),
-        "GetSubMenu" => GetSubMenu(emu),
-        "GetSysColor" => GetSysColor(emu),
-        "GetSysColorBrush" => GetSysColorBrush(emu),
-        "GetSystemDpiForProcess" => GetSystemDpiForProcess(emu),
-        "GetSystemMenu" => GetSystemMenu(emu),
-        "GetSystemMetricsForDpi" => GetSystemMetricsForDpi(emu),
-        "GetTabbedTextExtentA" => GetTabbedTextExtentA(emu),
-        "GetTabbedTextExtentW" => GetTabbedTextExtentW(emu),
-        "GetTaskmanWindow" => GetTaskmanWindow(emu),
-        "GetThreadDesktop" => GetThreadDesktop(emu),
-        "GetThreadDpiAwarenessContext" => GetThreadDpiAwarenessContext(emu),
-        "GetThreadDpiHostingBehavior" => GetThreadDpiHostingBehavior(emu),
-        "GetTitleBarInfo" => GetTitleBarInfo(emu),
-        "GetTopLevelWindow" => GetTopLevelWindow(emu),
-        "GetTopWindow" => GetTopWindow(emu),
-        "GetTouchInputInfo" => GetTouchInputInfo(emu),
-        "GetUnpredictedMessagePos" => GetUnpredictedMessagePos(emu),
-        "GetUpdateRect" => GetUpdateRect(emu),
-        "GetUpdateRgn" => GetUpdateRgn(emu),
-        "GetUpdatedClipboardFormats" => GetUpdatedClipboardFormats(emu),
-        "GetUserObjectInformationA" => GetUserObjectInformationA(emu),
-        "GetUserObjectSecurity" => GetUserObjectSecurity(emu),
-        "GetWinStationInfo" => GetWinStationInfo(emu),
-        "GetWindow" => GetWindow(emu),
-        "GetWindowBand" => GetWindowBand(emu),
-        "GetWindowCompositionAttribute" => GetWindowCompositionAttribute(emu),
-        "GetWindowCompositionInfo" => GetWindowCompositionInfo(emu),
-        "GetWindowContextHelpId" => GetWindowContextHelpId(emu),
-        "GetWindowDC" => GetWindowDC(emu),
-        "GetWindowDisplayAffinity" => GetWindowDisplayAffinity(emu),
-        "GetWindowDpiAwarenessContext" => GetWindowDpiAwarenessContext(emu),
-        "GetWindowDpiHostingBehavior" => GetWindowDpiHostingBehavior(emu),
-        "GetWindowFeedbackSetting" => GetWindowFeedbackSetting(emu),
-        "GetWindowInfo" => GetWindowInfo(emu),
-        "GetWindowMinimizeRect" => GetWindowMinimizeRect(emu),
-        "GetWindowModuleFileName" => GetWindowModuleFileName(emu),
-        "GetWindowModuleFileNameA" => GetWindowModuleFileNameA(emu),
-        "GetWindowModuleFileNameW" => GetWindowModuleFileNameW(emu),
-        "GetWindowPlacement" => GetWindowPlacement(emu),
-        "GetWindowProcessHandle" => GetWindowProcessHandle(emu),
-        "GetWindowRgn" => GetWindowRgn(emu),
-        "GetWindowRgnBox" => GetWindowRgnBox(emu),
-        "GetWindowRgnEx" => GetWindowRgnEx(emu),
-        "GetWindowTextLengthA" => GetWindowTextLengthA(emu),
-        "GetWindowTextLengthW" => GetWindowTextLengthW(emu),
-        "GetWindowThreadProcessId" => GetWindowThreadProcessId(emu),
-        "GetWindowWord" => GetWindowWord(emu),
-        "GhostWindowFromHungWindow" => GhostWindowFromHungWindow(emu),
-        "GrayStringA" => GrayStringA(emu),
-        "GrayStringW" => GrayStringW(emu),
-        "HandleDelegatedInput" => HandleDelegatedInput(emu),
-        "HideCaret" => HideCaret(emu),
-        "HiliteMenuItem" => HiliteMenuItem(emu),
-        "HungWindowFromGhostWindow" => HungWindowFromGhostWindow(emu),
-        "IMPGetIMEA" => IMPGetIMEA(emu),
-        "IMPGetIMEW" => IMPGetIMEW(emu),
-        "IMPQueryIMEA" => IMPQueryIMEA(emu),
-        "IMPQueryIMEW" => IMPQueryIMEW(emu),
-        "IMPSetIMEA" => IMPSetIMEA(emu),
-        "IMPSetIMEW" => IMPSetIMEW(emu),
-        "ImpersonateDdeClientWindow" => ImpersonateDdeClientWindow(emu),
-        "InSendMessage" => InSendMessage(emu),
-        "InSendMessageEx" => InSendMessageEx(emu),
-        "InflateRect" => InflateRect(emu),
-        "InheritWindowMonitor" => InheritWindowMonitor(emu),
-        "InitDManipHook" => InitDManipHook(emu),
-        "InitializeGenericHidInjection" => InitializeGenericHidInjection(emu),
-        "InitializeInputDeviceInjection" => InitializeInputDeviceInjection(emu),
-        "InitializeLpkHooks" => InitializeLpkHooks(emu),
-        "InitializePointerDeviceInjection" => InitializePointerDeviceInjection(emu),
-        "InitializePointerDeviceInjectionEx" => InitializePointerDeviceInjectionEx(emu),
-        "InitializeTouchInjection" => InitializeTouchInjection(emu),
-        "InjectDeviceInput" => InjectDeviceInput(emu),
-        "InjectGenericHidInput" => InjectGenericHidInput(emu),
-        "InjectKeyboardInput" => InjectKeyboardInput(emu),
-        "InjectMouseInput" => InjectMouseInput(emu),
-        "InjectPointerInput" => InjectPointerInput(emu),
-        "InjectSyntheticPointerInput" => InjectSyntheticPointerInput(emu),
-        "InjectTouchInput" => InjectTouchInput(emu),
-        "InputSpaceRegionFromPoint" => InputSpaceRegionFromPoint(emu),
-        "InsertMenuA" => InsertMenuA(emu),
-        "InsertMenuItemA" => InsertMenuItemA(emu),
-        "InsertMenuItemW" => InsertMenuItemW(emu),
-        "InsertMenuW" => InsertMenuW(emu),
-        "InternalGetWindowIcon" => InternalGetWindowIcon(emu),
-        "InternalGetWindowText" => InternalGetWindowText(emu),
-        "IntersectRect" => IntersectRect(emu),
-        "InvalidateRgn" => InvalidateRgn(emu),
-        "InvertRect" => InvertRect(emu),
-        "IsCharAlphaA" => IsCharAlphaA(emu),
-        "IsCharAlphaNumericA" => IsCharAlphaNumericA(emu),
-        "IsCharAlphaNumericW" => IsCharAlphaNumericW(emu),
-        "IsCharAlphaW" => IsCharAlphaW(emu),
-        "IsCharLowerA" => IsCharLowerA(emu),
-        "IsCharLowerW" => IsCharLowerW(emu),
-        "IsCharUpperA" => IsCharUpperA(emu),
-        "IsCharUpperW" => IsCharUpperW(emu),
-        "IsChild" => IsChild(emu),
-        "IsClipboardFormatAvailable" => IsClipboardFormatAvailable(emu),
-        "IsDialogMessage" => IsDialogMessage(emu),
-        "IsDialogMessageA" => IsDialogMessageA(emu),
-        "IsDialogMessageW" => IsDialogMessageW(emu),
-        "IsDlgButtonChecked" => IsDlgButtonChecked(emu),
-        "IsGUIThread" => IsGUIThread(emu),
-        "IsHungAppWindow" => IsHungAppWindow(emu),
-        "IsIconic" => IsIconic(emu),
-        "IsImmersiveProcess" => IsImmersiveProcess(emu),
-        "IsInDesktopWindowBand" => IsInDesktopWindowBand(emu),
-        "IsInterceptWindow" => IsInterceptWindow(emu),
-        "IsMenu" => IsMenu(emu),
-        "IsMouseInPointerEnabled" => IsMouseInPointerEnabled(emu),
-        "IsOneCoreTransformMode" => IsOneCoreTransformMode(emu),
-        "IsProcessDPIAware" => IsProcessDPIAware(emu),
-        "IsRectEmpty" => IsRectEmpty(emu),
-        "IsSETEnabled" => IsSETEnabled(emu),
-        "IsServerSideWindow" => IsServerSideWindow(emu),
-        "IsThreadDesktopComposited" => IsThreadDesktopComposited(emu),
-        "IsThreadMessageQueueAttached" => IsThreadMessageQueueAttached(emu),
-        "IsThreadTSFEventAware" => IsThreadTSFEventAware(emu),
-        "IsTopLevelWindow" => IsTopLevelWindow(emu),
-        "IsTouchWindow" => IsTouchWindow(emu),
-        "IsValidDpiAwarenessContext" => IsValidDpiAwarenessContext(emu),
-        "IsWinEventHookInstalled" => IsWinEventHookInstalled(emu),
-        "IsWindowArranged" => IsWindowArranged(emu),
-        "IsWindowDisplayChangeSuppressed" => IsWindowDisplayChangeSuppressed(emu),
-        "IsWindowEnabled" => IsWindowEnabled(emu),
-        "IsWindowInDestroy" => IsWindowInDestroy(emu),
-        "IsWindowRedirectedForPrint" => IsWindowRedirectedForPrint(emu),
-        "IsWindowUnicode" => IsWindowUnicode(emu),
-        "IsWow64Message" => IsWow64Message(emu),
-        "IsZoomed" => IsZoomed(emu),
-        "KillTimer" => KillTimer(emu),
-        "LoadAcceleratorsA" => LoadAcceleratorsA(emu),
-        "LoadAcceleratorsW" => LoadAcceleratorsW(emu),
-        "LoadBitmapA" => LoadBitmapA(emu),
-        "LoadBitmapW" => LoadBitmapW(emu),
-        "LoadCursorFromFileA" => LoadCursorFromFileA(emu),
-        "LoadCursorFromFileW" => LoadCursorFromFileW(emu),
-        "LoadCursorW" => LoadCursorW(emu),
-        "LoadIconW" => LoadIconW(emu),
-        "LoadImageA" => LoadImageA(emu),
-        "LoadImageW" => LoadImageW(emu),
-        "LoadKeyboardLayoutA" => LoadKeyboardLayoutA(emu),
-        "LoadKeyboardLayoutEx" => LoadKeyboardLayoutEx(emu),
-        "LoadKeyboardLayoutW" => LoadKeyboardLayoutW(emu),
-        "LoadLocalFonts" => LoadLocalFonts(emu),
-        "LoadMenuA" => LoadMenuA(emu),
-        "LoadMenuIndirectA" => LoadMenuIndirectA(emu),
-        "LoadMenuIndirectW" => LoadMenuIndirectW(emu),
-        "LoadMenuW" => LoadMenuW(emu),
-        "LoadRemoteFonts" => LoadRemoteFonts(emu),
-        "LockSetForegroundWindow" => LockSetForegroundWindow(emu),
-        "LockWindowStation" => LockWindowStation(emu),
-        "LockWindowUpdate" => LockWindowUpdate(emu),
-        "LockWorkStation" => LockWorkStation(emu),
-        "LogicalToPhysicalPoint" => LogicalToPhysicalPoint(emu),
-        "LogicalToPhysicalPointForPerMonitorDPI" => LogicalToPhysicalPointForPerMonitorDPI(emu),
-        "LookupIconIdFromDirectory" => LookupIconIdFromDirectory(emu),
-        "LookupIconIdFromDirectoryEx" => LookupIconIdFromDirectoryEx(emu),
-        "MBToWCSEx" => MBToWCSEx(emu),
-        "MBToWCSExt" => MBToWCSExt(emu),
-        "MB_GetString" => MB_GetString(emu),
-        "MITGetCursorUpdateHandle" => MITGetCursorUpdateHandle(emu),
-        "MITSetLastInputRecipient" => MITSetLastInputRecipient(emu),
-        "MITSynthesizeTouchInput" => MITSynthesizeTouchInput(emu),
-        "MakeThreadTSFEventAware" => MakeThreadTSFEventAware(emu),
-        "MapDialogRect" => MapDialogRect(emu),
-        "MapPointsByVisualIdentifier" => MapPointsByVisualIdentifier(emu),
-        "MapVirtualKeyExA" | "MapVirtualKeyExW" => MapVirtualKeyExA(emu),
-        "MapVisualRelativePoints" => MapVisualRelativePoints(emu),
-        "MapWindowPoints" => MapWindowPoints(emu),
-        "MenuItemFromPoint" => MenuItemFromPoint(emu),
-        "MenuWindowProcA" => MenuWindowProcA(emu),
-        "MenuWindowProcW" => MenuWindowProcW(emu),
-        "MessageBeep" => MessageBeep(emu),
-        "MessageBoxExA" => MessageBoxExA(emu),
-        "MessageBoxExW" => MessageBoxExW(emu),
-        "MessageBoxIndirectA" => MessageBoxIndirectA(emu),
-        "MessageBoxIndirectW" => MessageBoxIndirectW(emu),
-        "MessageBoxTimeoutA" => MessageBoxTimeoutA(emu),
-        "MessageBoxTimeoutW" => MessageBoxTimeoutW(emu),
-        "ModifyMenuA" => ModifyMenuA(emu),
-        "ModifyMenuW" => ModifyMenuW(emu),
-        "MonitorFromPoint" => MonitorFromPoint(emu),
-        "MonitorFromRect" => MonitorFromRect(emu),
-        "MonitorFromWindow" => MonitorFromWindow(emu),
-        "MoveWindow" => MoveWindow(emu),
-        "MsgWaitForMultipleObjects" => MsgWaitForMultipleObjects(emu),
-        "MsgWaitForMultipleObjectsEx" => MsgWaitForMultipleObjectsEx(emu),
-        "NotifyOverlayWindow" => NotifyOverlayWindow(emu),
-        "NotifyWinEvent" => NotifyWinEvent(emu),
-        "OemKeyScan" => OemKeyScan(emu),
-        "OemToCharA" => OemToCharA(emu),
-        "OemToCharBuffA" => OemToCharBuffA(emu),
-        "OemToCharBuffW" => OemToCharBuffW(emu),
-        "OemToCharW" => OemToCharW(emu),
-        "OffsetRect" => OffsetRect(emu),
-        "OpenClipboard" => OpenClipboard(emu),
-        "OpenDesktopA" => OpenDesktopA(emu),
-        "OpenDesktopW" => OpenDesktopW(emu),
-        "OpenIcon" => OpenIcon(emu),
-        "OpenInputDesktop" => OpenInputDesktop(emu),
-        "OpenThreadDesktop" => OpenThreadDesktop(emu),
-        "OpenWindowStationA" => OpenWindowStationA(emu),
-        "OpenWindowStationW" => OpenWindowStationW(emu),
-        "PackDDElParam" => PackDDElParam(emu),
-        "PackTouchHitTestingProximityEvaluation" => PackTouchHitTestingProximityEvaluation(emu),
-        "PaintDesktop" => PaintDesktop(emu),
-        "PaintMenuBar" => PaintMenuBar(emu),
-        "PaintMonitor" => PaintMonitor(emu),
-        "PhysicalToLogicalPoint" => PhysicalToLogicalPoint(emu),
-        "PhysicalToLogicalPointForPerMonitorDPI" => PhysicalToLogicalPointForPerMonitorDPI(emu),
-        "PostThreadMessageA" => PostThreadMessageA(emu),
-        "PostThreadMessageW" => PostThreadMessageW(emu),
-        "PrintWindow" => PrintWindow(emu),
-        "PrivateExtractIconExA" => PrivateExtractIconExA(emu),
-        "PrivateExtractIconExW" => PrivateExtractIconExW(emu),
-        "PrivateExtractIconsA" => PrivateExtractIconsA(emu),
-        "PrivateExtractIconsW" => PrivateExtractIconsW(emu),
-        "PrivateRegisterICSProc" => PrivateRegisterICSProc(emu),
-        "PtInRect" => PtInRect(emu),
-        "QueryBSDRWindow" => QueryBSDRWindow(emu),
-        "QueryDisplayConfig" => QueryDisplayConfig(emu),
-        "QuerySendMessage" => QuerySendMessage(emu),
-        "RIMAddInputObserver" => RIMAddInputObserver(emu),
-        "RIMAreSiblingDevices" => RIMAreSiblingDevices(emu),
-        "RIMDeviceIoControl" => RIMDeviceIoControl(emu),
-        "RIMEnableMonitorMappingForDevice" => RIMEnableMonitorMappingForDevice(emu),
-        "RIMFreeInputBuffer" => RIMFreeInputBuffer(emu),
-        "RIMGetDevicePreparsedData" => RIMGetDevicePreparsedData(emu),
-        "RIMGetDevicePreparsedDataLockfree" => RIMGetDevicePreparsedDataLockfree(emu),
-        "RIMGetDeviceProperties" => RIMGetDeviceProperties(emu),
-        "RIMGetDevicePropertiesLockfree" => RIMGetDevicePropertiesLockfree(emu),
-        "RIMGetPhysicalDeviceRect" => RIMGetPhysicalDeviceRect(emu),
-        "RIMGetSourceProcessId" => RIMGetSourceProcessId(emu),
-        "RIMObserveNextInput" => RIMObserveNextInput(emu),
-        "RIMOnAsyncPnpWorkNotification" => RIMOnAsyncPnpWorkNotification(emu),
-        "RIMOnPnpNotification" => RIMOnPnpNotification(emu),
-        "RIMOnTimerNotification" => RIMOnTimerNotification(emu),
-        "RIMQueryDevicePath" => RIMQueryDevicePath(emu),
-        "RIMReadInput" => RIMReadInput(emu),
-        "RIMRegisterForInput" => RIMRegisterForInput(emu),
-        "RIMRegisterForInputEx" => RIMRegisterForInputEx(emu),
-        "RIMRemoveInputObserver" => RIMRemoveInputObserver(emu),
-        "RIMSetExtendedDeviceProperty" => RIMSetExtendedDeviceProperty(emu),
-        "RIMSetTestModeStatus" => RIMSetTestModeStatus(emu),
-        "RIMUnregisterForInput" => RIMUnregisterForInput(emu),
-        "RIMUpdateInputObserverRegistration" => RIMUpdateInputObserverRegistration(emu),
-        "RaiseLowerShellWindow" => RaiseLowerShellWindow(emu),
-        "RealChildWindowFromPoint" => RealChildWindowFromPoint(emu),
-        "RealGetWindowClass" => RealGetWindowClass(emu),
-        "RealGetWindowClassA" => RealGetWindowClassA(emu),
-        "RealGetWindowClassW" => RealGetWindowClassW(emu),
-        "ReasonCodeNeedsBugID" => ReasonCodeNeedsBugID(emu),
-        "ReasonCodeNeedsComment" => ReasonCodeNeedsComment(emu),
-        "RecordShutdownReason" => RecordShutdownReason(emu),
-        "RedrawWindow" => RedrawWindow(emu),
-        "RegisterBSDRWindow" => RegisterBSDRWindow(emu),
-        "RegisterClipboardFormatA" => RegisterClipboardFormatA(emu),
-        "RegisterClipboardFormatW" => RegisterClipboardFormatW(emu),
-        "RegisterCloakedNotification" => RegisterCloakedNotification(emu),
-        "RegisterDManipHook" => RegisterDManipHook(emu),
-        "RegisterDeviceNotificationA" => RegisterDeviceNotificationA(emu),
-        "RegisterDeviceNotificationW" => RegisterDeviceNotificationW(emu),
-        "RegisterErrorReportingDialog" => RegisterErrorReportingDialog(emu),
-        "RegisterForCustomDockTargets" => RegisterForCustomDockTargets(emu),
-        "RegisterForTooltipDismissNotification" => RegisterForTooltipDismissNotification(emu),
-        "RegisterFrostWindow" => RegisterFrostWindow(emu),
-        "RegisterGhostWindow" => RegisterGhostWindow(emu),
-        "RegisterHotKey" => RegisterHotKey(emu),
-        "RegisterLogonProcess" => RegisterLogonProcess(emu),
-        "RegisterMessagePumpHook" => RegisterMessagePumpHook(emu),
-        "RegisterPointerDeviceNotifications" => RegisterPointerDeviceNotifications(emu),
-        "RegisterPointerInputTarget" => RegisterPointerInputTarget(emu),
-        "RegisterPointerInputTargetEx" => RegisterPointerInputTargetEx(emu),
-        "RegisterPowerSettingNotification" => RegisterPowerSettingNotification(emu),
-        "RegisterRawInputDevices" => RegisterRawInputDevices(emu),
-        "RegisterServicesProcess" => RegisterServicesProcess(emu),
-        "RegisterSessionPort" => RegisterSessionPort(emu),
-        "RegisterShellHookWindow" => RegisterShellHookWindow(emu),
-        "RegisterSuspendResumeNotification" => RegisterSuspendResumeNotification(emu),
-        "RegisterSystemThread" => RegisterSystemThread(emu),
-        "RegisterTasklist" => RegisterTasklist(emu),
-        "RegisterTouchHitTestingWindow" => RegisterTouchHitTestingWindow(emu),
-        "RegisterTouchWindow" => RegisterTouchWindow(emu),
-        "RegisterTouchpadCapableThread" => RegisterTouchpadCapableThread(emu),
-        "RegisterTouchpadCapableWindow" => RegisterTouchpadCapableWindow(emu),
-        "RegisterUserApiHook" => RegisterUserApiHook(emu),
-        "RegisterWindowMessageA" => RegisterWindowMessageA(emu),
-        "RegisterWindowMessageW" => RegisterWindowMessageW(emu),
-        "ReleaseCapture" => ReleaseCapture(emu),
-        "ReleaseDwmHitTestWaiters" => ReleaseDwmHitTestWaiters(emu),
-        "RemoveClipboardFormatListener" => RemoveClipboardFormatListener(emu),
-        "RemoveInjectionDevice" => RemoveInjectionDevice(emu),
-        "RemoveMenu" => RemoveMenu(emu),
-        "RemovePropA" => RemovePropA(emu),
-        "RemovePropW" => RemovePropW(emu),
-        "RemoveThreadTSFEventAwareness" => RemoveThreadTSFEventAwareness(emu),
-        "RemoveVisualIdentifier" => RemoveVisualIdentifier(emu),
-        "ReplyMessage" => ReplyMessage(emu),
-        "ReportInertia" => ReportInertia(emu),
-        "ResolveDesktopForWOW" => ResolveDesktopForWOW(emu),
-        "ReuseDDElParam" => ReuseDDElParam(emu),
-        "ScreenToClient" => ScreenToClient(emu),
-        "ScrollChildren" => ScrollChildren(emu),
-        "ScrollDC" => ScrollDC(emu),
-        "ScrollWindow" => ScrollWindow(emu),
-        "ScrollWindowEx" => ScrollWindowEx(emu),
-        "SendDlgItemMessageA" => SendDlgItemMessageA(emu),
-        "SendDlgItemMessageW" => SendDlgItemMessageW(emu),
-        "SendIMEMessageExA" => SendIMEMessageExA(emu),
-        "SendIMEMessageExW" => SendIMEMessageExW(emu),
-        "SendInput" => SendInput(emu),
-        "SendMessageCallbackA" => SendMessageCallbackA(emu),
-        "SendMessageCallbackW" => SendMessageCallbackW(emu),
-        "SendMessageTimeoutA" => SendMessageTimeoutA(emu),
-        "SendMessageTimeoutW" => SendMessageTimeoutW(emu),
-        "SendNotifyMessageA" => SendNotifyMessageA(emu),
-        "SendNotifyMessageW" => SendNotifyMessageW(emu),
-        "SetActiveWindow" => SetActiveWindow(emu),
-        "SetAdditionalForegroundBoostProcesses" => SetAdditionalForegroundBoostProcesses(emu),
-        "SetCapture" => SetCapture(emu),
-        "SetCaretBlinkTime" => SetCaretBlinkTime(emu),
-        "SetCaretPos" => SetCaretPos(emu),
-        "SetClassLongA" => SetClassLongA(emu),
-        "SetClassLongPtrA" => SetClassLongPtrA(emu),
-        "SetClassLongPtrW" => SetClassLongPtrW(emu),
-        "SetClassLongW" => SetClassLongW(emu),
-        "SetClassWord" => SetClassWord(emu),
-        "SetClipboardData" => SetClipboardData(emu),
-        "SetClipboardViewer" => SetClipboardViewer(emu),
-        "SetCoalescableTimer" => SetCoalescableTimer(emu),
-        "SetCoreWindow" => SetCoreWindow(emu),
-        "SetCoveredWindowStates" => SetCoveredWindowStates(emu),
-        "SetCursorContents" => SetCursorContents(emu),
-        "SetDebugErrorLevel" => SetDebugErrorLevel(emu),
-        "SetDeskWallpaper" => SetDeskWallpaper(emu),
-        "SetDesktopColorTransform" => SetDesktopColorTransform(emu),
-        "SetDialogControlDpiChangeBehavior" => SetDialogControlDpiChangeBehavior(emu),
-        "SetDialogDpiChangeBehavior" => SetDialogDpiChangeBehavior(emu),
-        "SetDisplayAutoRotationPreferences" => SetDisplayAutoRotationPreferences(emu),
-        "SetDisplayConfig" => SetDisplayConfig(emu),
-        "SetDlgItemInt" => SetDlgItemInt(emu),
-        "SetDlgItemTextA" => SetDlgItemTextA(emu),
-        "SetDlgItemTextW" => SetDlgItemTextW(emu),
-        "SetDoubleClickTime" => SetDoubleClickTime(emu),
-        "SetFeatureReportResponse" => SetFeatureReportResponse(emu),
-        "SetForegroundRedirectionForActivationObject" => {
-            SetForegroundRedirectionForActivationObject(emu)
-        }
-        "SetFullscreenMagnifierOffsetsDWMUpdated" => SetFullscreenMagnifierOffsetsDWMUpdated(emu),
-        "SetGestureConfig" => SetGestureConfig(emu),
-        "SetInternalWindowPos" => SetInternalWindowPos(emu),
-        "SetKeyboardState" => SetKeyboardState(emu),
-        "SetLastErrorEx" => SetLastErrorEx(emu),
-        "SetLayeredWindowAttributes" => SetLayeredWindowAttributes(emu),
-        "SetMagnificationDesktopColorEffect" => SetMagnificationDesktopColorEffect(emu),
-        "SetMagnificationDesktopMagnification" => SetMagnificationDesktopMagnification(emu),
-        "SetMagnificationDesktopMagnifierOffsetsDWMUpdated" => {
-            SetMagnificationDesktopMagnifierOffsetsDWMUpdated(emu)
-        }
-        "SetMagnificationDesktopSamplingMode" => SetMagnificationDesktopSamplingMode(emu),
-        "SetMagnificationLensCtxInformation" => SetMagnificationLensCtxInformation(emu),
-        "SetMaxTouchpadSensitivity" => SetMaxTouchpadSensitivity(emu),
-        "SetMenu" => SetMenu(emu),
-        "SetMenuContextHelpId" => SetMenuContextHelpId(emu),
-        "SetMenuDefaultItem" => SetMenuDefaultItem(emu),
-        "SetMenuInfo" => SetMenuInfo(emu),
-        "SetMenuItemBitmaps" => SetMenuItemBitmaps(emu),
-        "SetMenuItemInfoA" => SetMenuItemInfoA(emu),
-        "SetMenuItemInfoW" => SetMenuItemInfoW(emu),
-        "SetMessageExtraInfo" => SetMessageExtraInfo(emu),
-        "SetMessageQueue" => SetMessageQueue(emu),
-        "SetMirrorRendering" => SetMirrorRendering(emu),
-        "SetParent" => SetParent(emu),
-        "SetPhysicalCursorPos" => SetPhysicalCursorPos(emu),
-        "SetPointerDeviceInputSpace" => SetPointerDeviceInputSpace(emu),
-        "SetProcessDPIAware" => SetProcessDPIAware(emu),
-        "SetProcessDefaultLayout" => SetProcessDefaultLayout(emu),
-        "SetProcessDpiAwarenessContext" => SetProcessDpiAwarenessContext(emu),
-        "SetProcessDpiAwarenessInternal" => SetProcessDpiAwarenessInternal(emu),
-        "SetProcessLaunchForegroundPolicy" => SetProcessLaunchForegroundPolicy(emu),
-        "SetProcessRestrictionExemption" => SetProcessRestrictionExemption(emu),
-        "SetProcessWindowStation" => SetProcessWindowStation(emu),
-        "SetProgmanWindow" => SetProgmanWindow(emu),
-        "SetPropA" => SetPropA(emu),
-        "SetPropW" => SetPropW(emu),
-        "SetRect" => SetRect(emu),
-        "SetRectEmpty" => SetRectEmpty(emu),
-        "SetScrollInfo" => SetScrollInfo(emu),
-        "SetScrollPos" => SetScrollPos(emu),
-        "SetScrollRange" => SetScrollRange(emu),
-        "SetShellChangeNotifyWindow" => SetShellChangeNotifyWindow(emu),
-        "SetShellWindow" => SetShellWindow(emu),
-        "SetShellWindowEx" => SetShellWindowEx(emu),
-        "SetSysColors" => SetSysColors(emu),
-        "SetSysColorsTemp" => SetSysColorsTemp(emu),
-        "SetSystemCursor" => SetSystemCursor(emu),
-        "SetSystemMenu" => SetSystemMenu(emu),
-        "SetTaskmanWindow" => SetTaskmanWindow(emu),
-        "SetThreadCursorCreationScaling" => SetThreadCursorCreationScaling(emu),
-        "SetThreadDesktop" => SetThreadDesktop(emu),
-        "SetThreadDpiAwarenessContext" => SetThreadDpiAwarenessContext(emu),
-        "SetThreadDpiHostingBehavior" => SetThreadDpiHostingBehavior(emu),
-        "SetThreadInputBlocked" => SetThreadInputBlocked(emu),
-        "SetTimer" => SetTimer(emu),
-        "SetUserObjectCapability" => SetUserObjectCapability(emu),
-        "SetUserObjectInformationA" => SetUserObjectInformationA(emu),
-        "SetUserObjectInformationW" => SetUserObjectInformationW(emu),
-        "SetUserObjectSecurity" => SetUserObjectSecurity(emu),
-        "SetWinEventHook" => SetWinEventHook(emu),
-        "SetWindowBand" => SetWindowBand(emu),
-        "SetWindowCompositionAttribute" => SetWindowCompositionAttribute(emu),
-        "SetWindowCompositionTransition" => SetWindowCompositionTransition(emu),
-        "SetWindowContextHelpId" => SetWindowContextHelpId(emu),
-        "SetWindowDisplayAffinity" => SetWindowDisplayAffinity(emu),
-        "SetWindowFeedbackSetting" => SetWindowFeedbackSetting(emu),
-        "SetWindowMessageCapability" => SetWindowMessageCapability(emu),
-        "SetWindowPlacement" => SetWindowPlacement(emu),
-        "SetWindowRgn" => SetWindowRgn(emu),
-        "SetWindowRgnEx" => SetWindowRgnEx(emu),
-        "SetWindowStationUser" => SetWindowStationUser(emu),
-        "SetWindowWord" => SetWindowWord(emu),
-        "SetWindowsHookA" => SetWindowsHookA(emu),
-        "SetWindowsHookExAW" => SetWindowsHookExAW(emu),
-        "SetWindowsHookExW" => SetWindowsHookExW(emu),
-        "SetWindowsHookW" => SetWindowsHookW(emu),
-        "ShellForegroundBoostProcess" => ShellForegroundBoostProcess(emu),
-        "ShellHandwritingDelegateInput" => ShellHandwritingDelegateInput(emu),
-        "ShellHandwritingHandleDelegatedInput" => ShellHandwritingHandleDelegatedInput(emu),
-        "ShellHandwritingUndelegateInput" => ShellHandwritingUndelegateInput(emu),
-        "ShellMigrateWindow" => ShellMigrateWindow(emu),
-        "ShellRegisterHotKey" => ShellRegisterHotKey(emu),
-        "ShellSetWindowPos" => ShellSetWindowPos(emu),
-        "ShowCaret" => ShowCaret(emu),
-        "ShowOwnedPopups" => ShowOwnedPopups(emu),
-        "ShowScrollBar" => ShowScrollBar(emu),
-        "ShowStartGlass" => ShowStartGlass(emu),
-        "ShowSystemCursor" => ShowSystemCursor(emu),
-        "ShowWindowAsync" => ShowWindowAsync(emu),
-        "ShutdownBlockReasonCreate" => ShutdownBlockReasonCreate(emu),
-        "ShutdownBlockReasonDestroy" => ShutdownBlockReasonDestroy(emu),
-        "ShutdownBlockReasonQuery" => ShutdownBlockReasonQuery(emu),
-        "SignalRedirectionStartComplete" => SignalRedirectionStartComplete(emu),
-        "SkipPointerFrameMessages" => SkipPointerFrameMessages(emu),
-        "SoftModalMessageBox" => SoftModalMessageBox(emu),
-        "SoundSentry" => SoundSentry(emu),
-        "SubtractRect" => SubtractRect(emu),
-        "SuppressWindowDisplayChange" => SuppressWindowDisplayChange(emu),
-        "SwapMouseButton" => SwapMouseButton(emu),
-        "SwitchDesktop" => SwitchDesktop(emu),
-        "SwitchDesktopWithFade" => SwitchDesktopWithFade(emu),
-        "SwitchToThisWindow" => SwitchToThisWindow(emu),
-        "SystemParametersInfoForDpi" => SystemParametersInfoForDpi(emu),
-        "SystemParametersInfoW" => SystemParametersInfoW(emu),
-        "TabbedTextOutA" => TabbedTextOutA(emu),
-        "TabbedTextOutW" => TabbedTextOutW(emu),
-        "TileChildWindows" => TileChildWindows(emu),
-        "TileWindows" => TileWindows(emu),
-        "ToAscii" => ToAscii(emu),
-        "ToAsciiEx" => ToAsciiEx(emu),
-        "ToUnicode" => ToUnicode(emu),
-        "ToUnicodeEx" => ToUnicodeEx(emu),
-        "TrackMouseEvent" => TrackMouseEvent(emu),
-        "TrackPopupMenu" => TrackPopupMenu(emu),
-        "TrackPopupMenuEx" => TrackPopupMenuEx(emu),
-        "TranslateAccelerator" => TranslateAccelerator(emu),
-        "TranslateAcceleratorA" => TranslateAcceleratorA(emu),
-        "TranslateAcceleratorW" => TranslateAcceleratorW(emu),
-        "TranslateMDISysAccel" => TranslateMDISysAccel(emu),
-        "TranslateMessageEx" => TranslateMessageEx(emu),
-        "UndelegateInput" => UndelegateInput(emu),
-        "UnhookWinEvent" => UnhookWinEvent(emu),
-        "UnhookWindowsHook" => UnhookWindowsHook(emu),
-        "UnhookWindowsHookEx" => UnhookWindowsHookEx(emu),
-        "UnionRect" => UnionRect(emu),
-        "UnloadKeyboardLayout" => UnloadKeyboardLayout(emu),
-        "UnlockWindowStation" => UnlockWindowStation(emu),
-        "UnpackDDElParam" => UnpackDDElParam(emu),
-        "UnregisterDeviceNotification" => UnregisterDeviceNotification(emu),
-        "UnregisterHotKey" => UnregisterHotKey(emu),
-        "UnregisterMessagePumpHook" => UnregisterMessagePumpHook(emu),
-        "UnregisterPointerInputTarget" => UnregisterPointerInputTarget(emu),
-        "UnregisterPointerInputTargetEx" => UnregisterPointerInputTargetEx(emu),
-        "UnregisterPowerSettingNotification" => UnregisterPowerSettingNotification(emu),
-        "UnregisterSessionPort" => UnregisterSessionPort(emu),
-        "UnregisterSuspendResumeNotification" => UnregisterSuspendResumeNotification(emu),
-        "UnregisterTouchWindow" => UnregisterTouchWindow(emu),
-        "UnregisterUserApiHook" => UnregisterUserApiHook(emu),
-        "UpdateDefaultDesktopThumbnail" => UpdateDefaultDesktopThumbnail(emu),
-        "UpdateLayeredWindow" => UpdateLayeredWindow(emu),
-        "UpdateLayeredWindowIndirect" => UpdateLayeredWindowIndirect(emu),
-        "UpdatePerUserSystemParameters" => UpdatePerUserSystemParameters(emu),
-        "UpdateWindowInputSinkHints" => UpdateWindowInputSinkHints(emu),
-        "User32InitializeImmEntryTable" => User32InitializeImmEntryTable(emu),
-        "UserClientDllInitialize" => UserClientDllInitialize(emu),
-        "UserHandleGrantAccess" => UserHandleGrantAccess(emu),
-        "UserLpkPSMTextOut" => UserLpkPSMTextOut(emu),
-        "UserLpkTabbedTextOut" => UserLpkTabbedTextOut(emu),
-        "UserRealizePalette" => UserRealizePalette(emu),
-        "UserRegisterWowHandlers" => UserRegisterWowHandlers(emu),
-        "VRipOutput" => VRipOutput(emu),
-        "VTagOutput" => VTagOutput(emu),
-        "ValidateRect" => ValidateRect(emu),
-        "ValidateRgn" => ValidateRgn(emu),
-        "VkKeyScanA" => VkKeyScanA(emu),
-        "VkKeyScanExA" => VkKeyScanExA(emu),
-        "VkKeyScanExW" => VkKeyScanExW(emu),
-        "VkKeyScanW" => VkKeyScanW(emu),
-        "WCSToMBEx" => WCSToMBEx(emu),
-        "WINNLSEnableIME" => WINNLSEnableIME(emu),
-        "WINNLSGetEnableStatus" => WINNLSGetEnableStatus(emu),
-        "WINNLSGetIMEHotkey" => WINNLSGetIMEHotkey(emu),
-        "WaitForInputIdle" => WaitForInputIdle(emu),
-        "WaitForRedirectionStartComplete" => WaitForRedirectionStartComplete(emu),
-        "WaitMessage" => WaitMessage(emu),
-        "WinHelpA" => WinHelpA(emu),
-        "WinHelpW" => WinHelpW(emu),
-        "WindowFromDC" => WindowFromDC(emu),
-        "WindowFromPhysicalPoint" => WindowFromPhysicalPoint(emu),
-        "WindowFromPoint" => WindowFromPoint(emu),
-        "_UserTestTokenForInteractive" => _UserTestTokenForInteractive(emu),
-        "gSharedInfo" => gSharedInfo(emu),
-        "gapfnScSendMessage" => gapfnScSendMessage(emu),
-        "keybd_event" => keybd_event(emu),
-        "mouse_event" => mouse_event(emu),
-        "wvsprintfA" => wvsprintfA(emu),
-        "wvsprintfW" => wvsprintfW(emu),
-        "Wow64Transition" => Wow64Transition(emu),
-
-        _ => return fallback::unimplemented(addr, api, emu),
+    if strings::dispatch(api, "user32", emu) {
+        return String::new();
     }
-    String::new()
+    if clipboard::dispatch(api, addr, emu)
+        || dde::dispatch(api, addr, emu)
+        || dialogs::dispatch(api, addr, emu)
+        || graphics::dispatch(api, addr, emu)
+        || input::dispatch(api, addr, emu)
+        || menus::dispatch(api, addr, emu)
+        || messages::dispatch(api, addr, emu)
+        || strings_format::dispatch(api, addr, emu)
+        || system::dispatch(api, addr, emu)
+        || windowing::dispatch(api, addr, emu)
+    {
+        return String::new();
+    }
+
+    fallback::unimplemented(addr, api, emu)
 }
 
 /*
@@ -3203,8 +2048,8 @@ fn unregister_class(emu: &mut emu::Emu, api: &str, wide: bool) {
             emu.regs_mut().rax = 1;
             return;
         }
-        Err(window_table::UnregisterError::NotRegistered) => constants::ERROR_CLASS_DOES_NOT_EXIST,
-        Err(window_table::UnregisterError::HasWindows) => constants::ERROR_CLASS_HAS_WINDOWS,
+        Err(window_table::UnregisterError::NotRegistered) => ERROR_CLASS_DOES_NOT_EXIST,
+        Err(window_table::UnregisterError::HasWindows) => ERROR_CLASS_HAS_WINDOWS,
     };
     emu.set_last_error(error);
     emu.regs_mut().rax = 0;
@@ -3218,7 +2063,7 @@ fn register_class(emu: &mut emu::Emu, lpwndclass: u64, wide: bool) {
     let name_ptr = match emu.maps.read_qword(lpwndclass + WNDCLASS_CLASS_NAME_OFF) {
         Some(ptr) if lpwndclass != 0 => ptr,
         _ => {
-            emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+            emu.set_last_error(ERROR_INVALID_PARAMETER);
             emu.regs_mut().rax = 0;
             return;
         }
@@ -3226,7 +2071,7 @@ fn register_class(emu: &mut emu::Emu, lpwndclass: u64, wide: bool) {
     match class_arg(emu, name_ptr, wide) {
         Some(name) => emu.regs_mut().rax = window_table::register_class(&name) as u64,
         None => {
-            emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+            emu.set_last_error(ERROR_INVALID_PARAMETER);
             emu.regs_mut().rax = 0;
         }
     }

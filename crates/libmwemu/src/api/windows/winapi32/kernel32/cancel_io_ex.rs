@@ -1,21 +1,17 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn CancelIoEx(emu: &mut emu::Emu) {
-    let file_handle = arg(emu, 0) as u64;
-    let overlapped = arg(emu, 1) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!CancelIoEx h:0x{:x} overlapped:0x{:x}",
-        file_handle,
-        overlapped
+        "kernel32!CancelIoEx h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if helper::handler_exist(file_handle) {
-        emu.regs_mut().rax = 1; // TRUE
-    } else {
-        emu.regs_mut().rax = 0; // FALSE
-        emu.set_last_error(6); // ERROR_INVALID_HANDLE
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    stdcall_ret(emu, 2);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

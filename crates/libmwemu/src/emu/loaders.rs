@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use iced_x86::Register;
 
 use crate::arch::Arch;
@@ -6,7 +7,7 @@ use crate::err::MwemuError;
 use crate::loaders::macho::macho64::Macho64;
 use crate::maps::mem64::Permission;
 use crate::winapi::winapi64;
-use crate::windows::constants;
+
 use crate::windows::peb::{peb32, peb64};
 use rs_header::elf::elf32::Elf32;
 use rs_header::elf::elf64::Elf64;
@@ -167,7 +168,7 @@ impl Emu {
             } else {
                 entry_raw
             };
-            if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+            if self.cfg.entry_point != CFG_DEFAULT_BASE {
                 self.regs_mut().rip = self.cfg.entry_point;
             } else {
                 self.regs_mut().rip = resolved_entry;
@@ -724,11 +725,11 @@ impl Emu {
             code.extend(0xffff); // this could overlap an existing map
         }
 
-        if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+        if self.cfg.entry_point != CFG_DEFAULT_BASE {
             self.regs_mut().rip = self.cfg.entry_point;
         }
 
-        /*if self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
+        /*if self.cfg.code_base_addr != CFG_DEFAULT_BASE {
             let code = self.maps.get_mem("code");
             code.update_base(self.cfg.code_base_addr);
             code.update_bottom(self.cfg.code_base_addr + code.size() as u64);

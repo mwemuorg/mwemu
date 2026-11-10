@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptOpenAlgorithmProvider(emu: &mut emu::Emu) {
     let ph_algorithm = emu.regs().rcx;
@@ -20,5 +20,5 @@ pub fn BCryptOpenAlgorithmProvider(emu: &mut emu::Emu) {
     if ph_algorithm != 0 {
         emu.maps.write_qword(ph_algorithm, handle);
     }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

@@ -1,26 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetSystemTimeAdjustment(emu: &mut emu::Emu) {
-    let adj_ptr = arg(emu, 0) as u64;
-    let inc_ptr = arg(emu, 1) as u64;
-    let disabled_ptr = arg(emu, 2) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetSystemTimeAdjustment adj:0x{:x} inc:0x{:x} dis:0x{:x}",
-        adj_ptr,
-        inc_ptr,
-        disabled_ptr
+        "kernel32!GetSystemTimeAdjustment h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if adj_ptr != 0 {
-        emu.maps.write_dword(adj_ptr, 156250);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    if inc_ptr != 0 {
-        emu.maps.write_dword(inc_ptr, 156250);
-    }
-    if disabled_ptr != 0 {
-        emu.maps.write_dword(disabled_ptr, 1);
-    }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
 }

@@ -1,3 +1,5 @@
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
 use itertools::iproduct;
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
@@ -5,10 +7,7 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers::{call_winapi32, call_winapi64, register_export_module};
 use crate::winapi::{winapi32, winapi64};
-use crate::windows::constants::{
-    ERROR_INVALID_ADDRESS, ERROR_INVALID_PARAMETER, PAGE_READONLY, STATUS_CONFLICTING_ADDRESSES,
-    STATUS_SUCCESS,
-};
+
 use crate::{emu32, emu64};
 
 const PAGE_SIZE: u64 = 0x1000;

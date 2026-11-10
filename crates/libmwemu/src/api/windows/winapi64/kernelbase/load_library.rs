@@ -1,0 +1,20 @@
+use crate::emu;
+use crate::winapi::helper;
+
+pub fn LoadLibraryA(emu: &mut emu::Emu) {
+    let name_ptr = emu.regs().rcx;
+    let name = emu.maps.read_string(name_ptr);
+    let hndl = helper::handler_create(&format!("module_{}", name));
+    log_red!(emu, "kernelbase!LoadLibraryA '{}' => 0x{:x}", name, hndl);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = hndl;
+}
+
+pub fn LoadLibraryW(emu: &mut emu::Emu) {
+    let name_ptr = emu.regs().rcx;
+    let name = emu.maps.read_wide_string(name_ptr);
+    let hndl = helper::handler_create(&format!("module_{}", name));
+    log_red!(emu, "kernelbase!LoadLibraryW '{}' => 0x{:x}", name, hndl);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = hndl;
+}

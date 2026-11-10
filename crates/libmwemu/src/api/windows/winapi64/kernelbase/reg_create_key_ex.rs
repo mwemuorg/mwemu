@@ -1,0 +1,60 @@
+use crate::emu;
+use crate::winapi::helper;
+
+pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
+    let hkey = emu.regs().rcx;
+    let subkey_ptr = emu.regs().rdx;
+    let _reserved = emu.regs().r8;
+    let _class = emu.regs().r9;
+    let _options = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _sam = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _security = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let disp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+    let subkey = emu.maps.read_string(subkey_ptr);
+    let hndl = helper::handler_create(&format!("regkey_{}", subkey));
+    if result_ptr != 0 {
+        emu.maps.write_qword(result_ptr, hndl);
+    }
+    if disp_ptr != 0 {
+        emu.maps.write_dword(disp_ptr, 2); // REG_CREATED_NEW_KEY
+    }
+    log_red!(
+        emu,
+        "kernelbase!RegCreateKeyExA hkey:0x{:x} '{}' => 0x{:x}",
+        hkey,
+        subkey,
+        hndl
+    );
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 0;
+}
+
+pub fn RegCreateKeyExW(emu: &mut emu::Emu) {
+    let hkey = emu.regs().rcx;
+    let subkey_ptr = emu.regs().rdx;
+    let _reserved = emu.regs().r8;
+    let _class = emu.regs().r9;
+    let _options = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _sam = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _security = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let disp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+    let subkey = emu.maps.read_wide_string(subkey_ptr);
+    let hndl = helper::handler_create(&format!("regkey_{}", subkey));
+    if result_ptr != 0 {
+        emu.maps.write_qword(result_ptr, hndl);
+    }
+    if disp_ptr != 0 {
+        emu.maps.write_dword(disp_ptr, 2);
+    }
+    log_red!(
+        emu,
+        "kernelbase!RegCreateKeyExW hkey:0x{:x} '{}' => 0x{:x}",
+        hkey,
+        subkey,
+        hndl
+    );
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 0;
+}

@@ -1,18 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetAppContainerAce(emu: &mut emu::Emu) {
-    let acl_ptr = arg(emu, 0) as u64;
-    let starting_index = arg(emu, 1);
-    let ace_ptr_ptr = arg(emu, 2) as u64;
-    let app_container_ace_index_ptr = arg(emu, 3) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetAppContainerAce acl:0x{:x} start:{}",
-        acl_ptr,
-        starting_index
+        "kernel32!GetAppContainerAce h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 4);
+    emu.regs_mut().rax = 1;
 }

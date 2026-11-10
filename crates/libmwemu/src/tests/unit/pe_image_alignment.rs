@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use std::fs;
 
 use itertools::iproduct;
@@ -10,7 +11,7 @@ use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::MemoryKind;
 use crate::serialization::Serialization;
 use crate::tests::helpers::{LOADER32, LOADER64, call_winapi32, call_winapi64};
-use crate::windows::constants::{LIBS32_MIN, LIBS64_MIN};
+
 use crate::{emu32, emu64};
 
 const PAGE: u32 = 0x1000;
