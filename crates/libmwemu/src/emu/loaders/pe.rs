@@ -2,7 +2,8 @@ use crate::emu::Emu;
 use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::ALLOCATION_GRANULARITY;
-use crate::windows::constants;
+use crate::windows::constants::memory::*;
+
 use crate::windows::peb::{peb32, peb64};
 use rs_header::pe::export_index::{ExportIndexData, build_export_index};
 use rs_header::pe::image::{aligned_size, image_size, section_data, section_size};
@@ -78,12 +79,12 @@ impl Emu {
             && !pe64.has_relocations()
             && base
                 .checked_add(span)
-                .is_some_and(|end| end <= constants::USER64_ADDRESS_LIMIT)
+                .is_some_and(|end| end <= USER64_ADDRESS_LIMIT)
             && !self.maps.overlaps(base, span)
         {
             return Some(base);
         }
-        self.alloc_pe_image(span, constants::LIBS64_MIN, constants::LIBS64_MAX)
+        self.alloc_pe_image(span, LIBS64_MIN, LIBS64_MAX)
     }
 
     /// Complex funtion called from many places and with multiple purposes.
@@ -132,7 +133,7 @@ impl Emu {
 
         // base is setted by user
         } else if !is_maps
-            && self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE
+            && self.cfg.code_base_addr != CFG_DEFAULT_BASE
             && !self.cfg.emulate_winapi
         {
             base = self.cfg.code_base_addr as u32;
@@ -143,14 +144,10 @@ impl Emu {
             if set_entry {
                 if pe32.opt.image_base < ALLOCATION_GRANULARITY as u32
                     || !(pe32.opt.image_base as u64).is_multiple_of(ALLOCATION_GRANULARITY)
-                    || pe32.opt.image_base as u64 + image_span > constants::LIBS32_MIN
+                    || pe32.opt.image_base as u64 + image_span > LIBS32_MIN
                     || self.maps.overlaps(pe32.opt.image_base as u64, image_span)
                 {
-                    base = match self.alloc_pe_image(
-                        image_span,
-                        constants::ALLOC32_MIN,
-                        constants::ALLOC32_MAX,
-                    ) {
+                    base = match self.alloc_pe_image(image_span, ALLOC32_MIN, ALLOC32_MAX) {
                         Some(a) => a as u32,
                         None => {
                             log::error!("pe32 loader: out of memory");
@@ -163,11 +160,7 @@ impl Emu {
 
             // system library
             } else {
-                base = match self.alloc_pe_image(
-                    image_span,
-                    constants::LIBS32_MIN,
-                    constants::LIBS32_MAX,
-                ) {
+                base = match self.alloc_pe_image(image_span, LIBS32_MIN, LIBS32_MAX) {
                     Some(a) => a as u32,
                     None => {
                         log::error!("pe32 loader: out of memory for lib");
@@ -209,7 +202,7 @@ impl Emu {
             }
 
             // 3. entry point logic
-            if self.cfg.entry_point == constants::CFG_DEFAULT_BASE {
+            if self.cfg.entry_point == CFG_DEFAULT_BASE {
                 self.regs_mut().rip = base as u64 + pe32.opt.address_of_entry_point as u64;
                 log::trace!("entry point at 0x{:x}", self.regs().rip);
             } else {
@@ -441,7 +434,7 @@ impl Emu {
             base = force_base;
 
         // base is setted by user
-        } else if !is_maps && self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
+        } else if !is_maps && self.cfg.code_base_addr != CFG_DEFAULT_BASE {
             base = self.cfg.code_base_addr;
 
         // base is setted by image base (if overlapps, alloc)
@@ -450,9 +443,9 @@ impl Emu {
             if set_entry {
                 let preferred = pe64.opt.image_base;
                 let preferred_usable = if let Some(end) = preferred.checked_add(image_span) {
-                    (ALLOCATION_GRANULARITY..constants::LIBS64_MIN).contains(&preferred)
+                    (ALLOCATION_GRANULARITY..LIBS64_MIN).contains(&preferred)
                         && preferred.is_multiple_of(ALLOCATION_GRANULARITY)
-                        && end <= constants::LIBS64_MIN
+                        && end <= LIBS64_MIN
                         && !self.maps.overlaps(preferred, image_span)
                 } else {
                     false
@@ -465,11 +458,7 @@ impl Emu {
                         "pe64: preferred image base 0x{:x} unavailable or outside program range, relocating",
                         preferred
                     );
-                    base = match self.alloc_pe_image(
-                        image_span,
-                        constants::ALLOC64_MIN,
-                        constants::ALLOC64_MAX,
-                    ) {
+                    base = match self.alloc_pe_image(image_span, ALLOC64_MIN, ALLOC64_MAX) {
                         Some(a) => a,
                         None => {
                             log::error!("pe64 loader: out of memory");
@@ -512,7 +501,7 @@ impl Emu {
             self.base = base;
 
             // 2. entry point logic (relocs + IAT run after PE maps exist; see step 4b below)
-            if self.cfg.entry_point == constants::CFG_DEFAULT_BASE {
+            if self.cfg.entry_point == CFG_DEFAULT_BASE {
                 self.set_pc(base + pe64.opt.address_of_entry_point as u64);
                 log::trace!("entry point at 0x{:x}", self.pc());
             } else {

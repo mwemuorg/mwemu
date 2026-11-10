@@ -1,7 +1,7 @@
 use crate::api::windows::winapi64;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -24,7 +24,7 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
         emu.maps.write_qword(libaddr_ptr, base);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn LdrGetDllHandleEx(emu: &mut emu::Emu) {

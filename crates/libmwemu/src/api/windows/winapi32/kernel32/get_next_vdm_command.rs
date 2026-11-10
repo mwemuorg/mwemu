@@ -1,16 +1,17 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetNextVDMCommand(emu: &mut emu::Emu) {
-    let vdm_info_ptr = arg(emu, 0) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetNextVDMCommand info:0x{:x} => 0",
-        vdm_info_ptr
+        "kernel32!GetNextVDMCommand h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    let _ = helper::handler_exist(arg(emu, 0) as u64);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 1);
+    emu.regs_mut().rax = 1;
 }

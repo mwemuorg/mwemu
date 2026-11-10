@@ -1,3 +1,6 @@
+use crate::emu::Emu;
+use crate::winapi::winapi32::kernel32;
+
 #[path = "../application_recovery_finished.rs"]
 mod application_recovery_finished;
 pub use application_recovery_finished::*;
@@ -381,3 +384,180 @@ pub use werp_notify_use_string_resource_worker::*;
 #[path = "../werp_recovery_invoked_remotely.rs"]
 mod werp_recovery_invoked_remotely;
 pub use werp_recovery_invoked_remotely::*;
+
+pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
+    match api {
+        "CompareStringW" => kernel32::CompareStringW(emu),
+        "ApplicationRecoveryFinished" => kernel32::ApplicationRecoveryFinished(emu),
+        "ApplicationRecoveryInProgress" => kernel32::ApplicationRecoveryInProgress(emu),
+        "BaseCheckAppcompatCacheExWorker" => kernel32::BaseCheckAppcompatCacheExWorker(emu),
+        "BaseCheckAppcompatCacheWorker" => kernel32::BaseCheckAppcompatCacheWorker(emu),
+        "BaseCleanupAppcompatCacheSupportWorker" => {
+            kernel32::BaseCleanupAppcompatCacheSupportWorker(emu)
+        }
+        "BaseFlushAppcompatCacheWorker" => kernel32::BaseFlushAppcompatCacheWorker(emu),
+        "BaseFreeAppCompatDataForProcessWorker" => {
+            kernel32::BaseFreeAppCompatDataForProcessWorker(emu)
+        }
+        "BaseGenerateAppCompatData" => kernel32::BaseGenerateAppCompatData(emu),
+        "BaseIsDosApplication" => kernel32::BaseIsDosApplication(emu),
+        "BaseReadAppCompatDataForProcessWorker" => {
+            kernel32::BaseReadAppCompatDataForProcessWorker(emu)
+        }
+        "BaseUpdateAppcompatCacheWorker" => kernel32::BaseUpdateAppcompatCacheWorker(emu),
+        "BasepAppContainerEnvironmentExtension" => {
+            kernel32::BasepAppContainerEnvironmentExtension(emu)
+        }
+        "BasepAppXExtension" => kernel32::BasepAppXExtension(emu),
+        "BasepCheckAppCompat" => kernel32::BasepCheckAppCompat(emu),
+        "BasepConfigureAppCertDlls" => kernel32::BasepConfigureAppCertDlls(emu),
+        "BasepFreeAppCompatData" => kernel32::BasepFreeAppCompatData(emu),
+        "BasepInitAppCompatData" => kernel32::BasepInitAppCompatData(emu),
+        "BasepInitializeApphelpGlobals" => kernel32::BasepInitializeApphelpGlobals(emu),
+        "BasepPostSuccessAppXExtension" => kernel32::BasepPostSuccessAppXExtension(emu),
+        "BasepQueryAppCompat" => kernel32::BasepQueryAppCompat(emu),
+        "CompareCalendarDates" => kernel32::CompareCalendarDates(emu),
+        "CompatCacheLookupExe" => kernel32::CompatCacheLookupExe(emu),
+        "GetApplicationRestartSettingsWorker" => kernel32::GetApplicationRestartSettingsWorker(emu),
+        "GetComPlusPackageInstallStatus" => kernel32::GetComPlusPackageInstallStatus(emu),
+        "GetProcessDEPPolicy" => kernel32::GetProcessDEPPolicy(emu),
+        "GetSystemDEPPolicy" => kernel32::GetSystemDEPPolicy(emu),
+        "QuirkGetDataWorker" => kernel32::QuirkGetDataWorker(emu),
+        "QuirkIsEnabled2Worker" => kernel32::QuirkIsEnabled2Worker(emu),
+        "QuirkIsEnabledForPackage2Worker" => kernel32::QuirkIsEnabledForPackage2Worker(emu),
+        "QuirkIsEnabledForPackage3Worker" => kernel32::QuirkIsEnabledForPackage3Worker(emu),
+        "QuirkIsEnabledForPackage4Worker" => kernel32::QuirkIsEnabledForPackage4Worker(emu),
+        "QuirkIsEnabledForPackageWorker" => kernel32::QuirkIsEnabledForPackageWorker(emu),
+        "QuirkIsEnabledForProcessWorker" => kernel32::QuirkIsEnabledForProcessWorker(emu),
+        "QuirkIsEnabledWorker" => kernel32::QuirkIsEnabledWorker(emu),
+        "SdbpCheckFromVersion" => kernel32::SdbpCheckFromVersion(emu),
+        "SdbpCheckMatchingDevice" => kernel32::SdbpCheckMatchingDevice(emu),
+        "SdbpCheckMatchingDir" => kernel32::SdbpCheckMatchingDir(emu),
+        "SdbpCheckMatchingFiles" => kernel32::SdbpCheckMatchingFiles(emu),
+        "SdbpCheckMatchingText" => kernel32::SdbpCheckMatchingText(emu),
+        "SdbpCheckMatchingWildcardFiles" => kernel32::SdbpCheckMatchingWildcardFiles(emu),
+        "SdbpCheckOSKind" => kernel32::SdbpCheckOSKind(emu),
+        "SdbpCheckPackageAttributes" => kernel32::SdbpCheckPackageAttributes(emu),
+        "SdbpCheckRuntimePlatform" => kernel32::SdbpCheckRuntimePlatform(emu),
+        "SdbpCheckUptoVersion" => kernel32::SdbpCheckUptoVersion(emu),
+        "SdbpCheckVersion" => kernel32::SdbpCheckVersion(emu),
+        "SdbpGetPathAppPatch" => kernel32::SdbpGetPathAppPatch(emu),
+        "SdbpGetPathAppPatchPreRS3" => kernel32::SdbpGetPathAppPatchPreRS3(emu),
+        "SdbpGetPathAppraiser" => kernel32::SdbpGetPathAppraiser(emu),
+        "SdbpGetPathCustomSdb" => kernel32::SdbpGetPathCustomSdb(emu),
+        "SdbpGetPathCustomSdbPreRS3" => kernel32::SdbpGetPathCustomSdbPreRS3(emu),
+        "SdbpGetPathSystem" => kernel32::SdbpGetPathSystem(emu),
+        "SetComPlusPackageInstallStatus" => kernel32::SetComPlusPackageInstallStatus(emu),
+        "SetProcessDEPPolicy" => kernel32::SetProcessDEPPolicy(emu),
+        "UnregisterApplicationRecoveryCallback" => {
+            kernel32::UnregisterApplicationRecoveryCallback(emu)
+        }
+        "UnregisterApplicationRestart" => kernel32::UnregisterApplicationRestart(emu),
+        "ActivatePackageVirtualizationContext" => {
+            kernel32::ActivatePackageVirtualizationContext(emu)
+        }
+        "AddScopedPolicyIDAce" => kernel32::AddScopedPolicyIDAce(emu),
+        "AppPolicyGetClrCompat" => kernel32::AppPolicyGetClrCompat(emu),
+        "AppPolicyGetCreateFileAccess" => kernel32::AppPolicyGetCreateFileAccess(emu),
+        "AppPolicyGetLifecycleManagement" => kernel32::AppPolicyGetLifecycleManagement(emu),
+        "AppPolicyGetMediaFoundationCodecLoading" => {
+            kernel32::AppPolicyGetMediaFoundationCodecLoading(emu)
+        }
+        "AppPolicyGetProcessTerminationMethod" => {
+            kernel32::AppPolicyGetProcessTerminationMethod(emu)
+        }
+        "AppPolicyGetShowDeveloperDiagnostic" => kernel32::AppPolicyGetShowDeveloperDiagnostic(emu),
+        "AppPolicyGetThreadInitializationType" => {
+            kernel32::AppPolicyGetThreadInitializationType(emu)
+        }
+        "AppPolicyGetWindowingModel" => kernel32::AppPolicyGetWindowingModel(emu),
+        "AppXGetOSMaxVersionTested" => kernel32::AppXGetOSMaxVersionTested(emu),
+        "BaseCheckAppcompatCache" => kernel32::BaseCheckAppcompatCache(emu),
+        "BaseCheckAppcompatCacheEx" => kernel32::BaseCheckAppcompatCacheEx(emu),
+        "BaseCleanupAppcompatCacheSupport" => kernel32::BaseCleanupAppcompatCacheSupport(emu),
+        "BaseDumpAppcompatCache" => kernel32::BaseDumpAppcompatCache(emu),
+        "BaseDumpAppcompatCacheWorker" => kernel32::BaseDumpAppcompatCacheWorker(emu),
+        "BaseFlushAppcompatCache" => kernel32::BaseFlushAppcompatCache(emu),
+        "BaseInitAppcompatCacheSupport" => kernel32::BaseInitAppcompatCacheSupport(emu),
+        "BaseInitAppcompatCacheSupportWorker" => kernel32::BaseInitAppcompatCacheSupportWorker(emu),
+        "BaseIsAppcompatInfrastructureDisabled" => {
+            kernel32::BaseIsAppcompatInfrastructureDisabled(emu)
+        }
+        "BaseIsAppcompatInfrastructureDisabledWorker" => {
+            kernel32::BaseIsAppcompatInfrastructureDisabledWorker(emu)
+        }
+        "BaseUpdateAppcompatCache" => kernel32::BaseUpdateAppcompatCache(emu),
+        "BasepFinishPackageActivation" => kernel32::BasepFinishPackageActivation(emu),
+        "BasepFinishPackageActivationForSxS" => kernel32::BasepFinishPackageActivationForSxS(emu),
+        "BasepGetAppCompatData" => kernel32::BasepGetAppCompatData(emu),
+        "BasepGetPackagedAppInfoForFile" => kernel32::BasepGetPackagedAppInfoForFile(emu),
+        "BasepReleaseAppXContext" => kernel32::BasepReleaseAppXContext(emu),
+        "BasepReleasePackagedAppInfo" => kernel32::BasepReleasePackagedAppInfo(emu),
+        "CheckAllowDecryptedRemoteDestinationPolicy" => {
+            kernel32::CheckAllowDecryptedRemoteDestinationPolicy(emu)
+        }
+        "ClosePackageInfo" => kernel32::ClosePackageInfo(emu),
+        "CloseState" => kernel32::CloseState(emu),
+        "CompareFileTime" => kernel32::CompareFileTime(emu),
+        "CompareStringA" => kernel32::CompareStringA(emu),
+        "CompareStringEx" => kernel32::CompareStringEx(emu),
+        "CompareStringOrdinal" => kernel32::CompareStringOrdinal(emu),
+        "CreatePackageVirtualizationContext" => kernel32::CreatePackageVirtualizationContext(emu),
+        "DeactivatePackageVirtualizationContext" => {
+            kernel32::DeactivatePackageVirtualizationContext(emu)
+        }
+        "DuplicatePackageVirtualizationContext" => {
+            kernel32::DuplicatePackageVirtualizationContext(emu)
+        }
+        "FindPackagesByPackageFamily" => kernel32::FindPackagesByPackageFamily(emu),
+        "FormatApplicationUserModelId" => kernel32::FormatApplicationUserModelId(emu),
+        "GetAppContainerNamedObjectPath" => kernel32::GetAppContainerNamedObjectPath(emu),
+        "GetApplicationRecoveryCallback" => kernel32::GetApplicationRecoveryCallback(emu),
+        "GetApplicationRecoveryCallbackWorker" => {
+            kernel32::GetApplicationRecoveryCallbackWorker(emu)
+        }
+        "GetApplicationRestartSettings" => kernel32::GetApplicationRestartSettings(emu),
+        "GetApplicationUserModelId" => kernel32::GetApplicationUserModelId(emu),
+        "GetCurrentApplicationUserModelId" => kernel32::GetCurrentApplicationUserModelId(emu),
+        "GetCurrentPackageFamilyName" => kernel32::GetCurrentPackageFamilyName(emu),
+        "GetCurrentPackageFullName" => kernel32::GetCurrentPackageFullName(emu),
+        "GetCurrentPackageId" => kernel32::GetCurrentPackageId(emu),
+        "GetCurrentPackageInfo" => kernel32::GetCurrentPackageInfo(emu),
+        "GetCurrentPackagePath" => kernel32::GetCurrentPackagePath(emu),
+        "GetCurrentPackageVirtualizationContext" => {
+            kernel32::GetCurrentPackageVirtualizationContext(emu)
+        }
+        "GetPackageApplicationIds" => kernel32::GetPackageApplicationIds(emu),
+        "GetPackageFamilyName" => kernel32::GetPackageFamilyName(emu),
+        "GetPackageFullName" => kernel32::GetPackageFullName(emu),
+        "GetPackageId" => kernel32::GetPackageId(emu),
+        "GetPackageInfo" => kernel32::GetPackageInfo(emu),
+        "GetPackagePath" => kernel32::GetPackagePath(emu),
+        "GetPackagePathByFullName" => kernel32::GetPackagePathByFullName(emu),
+        "GetPackagesByPackageFamily" => kernel32::GetPackagesByPackageFamily(emu),
+        "GetProcessMitigationPolicy" => kernel32::GetProcessMitigationPolicy(emu),
+        "GetStagedPackagePathByFullName" => kernel32::GetStagedPackagePathByFullName(emu),
+        "GetStateFolder" => kernel32::GetStateFolder(emu),
+        "LoadPackagedLibrary" => kernel32::LoadPackagedLibrary(emu),
+        "NlsCheckPolicy" => kernel32::NlsCheckPolicy(emu),
+        "OpenPackageInfoByFullName" => kernel32::OpenPackageInfoByFullName(emu),
+        "OpenState" => kernel32::OpenState(emu),
+        "OpenStateExplicit" => kernel32::OpenStateExplicit(emu),
+        "PackageFamilyNameFromFullName" => kernel32::PackageFamilyNameFromFullName(emu),
+        "PackageFamilyNameFromId" => kernel32::PackageFamilyNameFromId(emu),
+        "PackageFullNameFromId" => kernel32::PackageFullNameFromId(emu),
+        "PackageIdFromFullName" => kernel32::PackageIdFromFullName(emu),
+        "PackageNameAndPublisherIdFromFamilyName" => {
+            kernel32::PackageNameAndPublisherIdFromFamilyName(emu)
+        }
+        "ParseApplicationUserModelId" => kernel32::ParseApplicationUserModelId(emu),
+        "QueryProtectedPolicy" => kernel32::QueryProtectedPolicy(emu),
+        "QuirkGetData2Worker" => kernel32::QuirkGetData2Worker(emu),
+        "QuirkIsEnabled3Worker" => kernel32::QuirkIsEnabled3Worker(emu),
+        "ReleasePackageVirtualizationContext" => kernel32::ReleasePackageVirtualizationContext(emu),
+        "SetProcessMitigationPolicy" => kernel32::SetProcessMitigationPolicy(emu),
+        "SetProtectedPolicy" => kernel32::SetProtectedPolicy(emu),
+        _ => return false,
+    }
+    true
+}

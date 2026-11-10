@@ -1,22 +1,17 @@
 use crate::emu;
 
-pub fn VerifyVersionInfoA(emu: &mut emu::Emu) {
+pub fn VerifyVersionInfoA(emu: &mut emu::Emu, api: &str) {
     let version_info = emu.regs().rcx;
     let type_mask = emu.regs().rdx;
     let condition_mask = emu.regs().r8;
-
     log_red!(
         emu,
-        "kernel32!VerifyVersionInfoA pInfo:0x{:x} typeMask:0x{:x} condMask:0x{:x}",
+        "kernel32!{} info:0x{:x} type_mask:0x{:x} cond_mask:0x{:x} -> TRUE",
+        api,
         version_info,
         type_mask,
         condition_mask
     );
-    let out_ptr = emu.regs().r8;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
-
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

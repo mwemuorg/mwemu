@@ -8,18 +8,18 @@
 
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32::set_last_error;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 /// Log a parameter-validation failure, set `ERROR_INVALID_PARAMETER`, return 0.
 pub(crate) fn fail(emu: &mut Emu, label: &str, ctx: &str, reason: &str) {
     log_red!(emu, "kernel32!{} {} = 0 reason: {}", label, ctx, reason);
-    set_last_error(emu, constants::ERROR_INVALID_PARAMETER as u32);
+    set_last_error(emu, ERROR_INVALID_PARAMETER as u32);
     emu.regs_mut().rax = 0;
 }
 
 /// Log an out-of-memory failure, set `ERROR_NOT_ENOUGH_MEMORY`, return 0.
 pub(crate) fn fail_oom(emu: &mut Emu, label: &str, ctx: &str) {
     log_red!(emu, "kernel32!{} {} = 0 reason: out of memory", label, ctx);
-    set_last_error(emu, constants::ERROR_NOT_ENOUGH_MEMORY as u32);
+    set_last_error(emu, ERROR_NOT_ENOUGH_MEMORY as u32);
     emu.regs_mut().rax = 0;
 }

@@ -3,7 +3,7 @@ use crate::maps::mem64::Permission;
 use crate::winapi::common::sections;
 use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -24,7 +24,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
                 buffer,
                 length
             );
-            emu.regs_mut().rax = constants::STATUS_SUCCESS;
+            emu.regs_mut().rax = STATUS_SUCCESS;
             stdcall_ret(emu, 9);
         }
         _ => return false,
@@ -165,7 +165,7 @@ fn NtCreateFile(emu: &mut emu::Emu) {
         emu.stack_pop32(false);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn RtlFreeHeap(emu: &mut emu::Emu) {
@@ -214,7 +214,7 @@ fn NtQueryInformationFile(emu: &mut emu::Emu) {
         emu.stack_pop32(false);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtReadFile(emu: &mut emu::Emu) {
@@ -245,7 +245,7 @@ fn NtReadFile(emu: &mut emu::Emu) {
 
     emu.maps.memset(buff, 0x90, len);
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtClose(emu: &mut emu::Emu) {
@@ -255,16 +255,16 @@ fn NtClose(emu: &mut emu::Emu) {
     log_red!(emu, "ntdll!NtClose hndl: 0x{:x} uri: {}", hndl, uri);
     if sections::close(emu, hndl) {
         emu.stack_pop32(false);
-        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        emu.regs_mut().rax = STATUS_SUCCESS;
         return;
     }
 
     emu.stack_pop32(false);
 
     if uri.is_empty() {
-        emu.regs_mut().rax = constants::STATUS_INVALID_HANDLE;
+        emu.regs_mut().rax = STATUS_INVALID_HANDLE;
     } else {
-        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        emu.regs_mut().rax = STATUS_SUCCESS;
     }
 }
 
@@ -279,6 +279,6 @@ fn NtSetInformationFile(emu: &mut emu::Emu) {
         info_class,
         length
     );
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 5);
 }

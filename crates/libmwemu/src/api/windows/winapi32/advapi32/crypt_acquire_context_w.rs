@@ -1,11 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants::CRYPT_DEFAULT_CONTAINER_OPTIONAL;
-use crate::windows::constants::CRYPT_DELETEKEYSET;
-use crate::windows::constants::CRYPT_MACHINE_KEYSET;
-use crate::windows::constants::CRYPT_NEWKEYSET;
-use crate::windows::constants::CRYPT_SILENT;
-use crate::windows::constants::CRYPT_VERIFYCONTEXT;
+use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptAcquireContextW(emu: &mut emu::Emu) {
     let out_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;

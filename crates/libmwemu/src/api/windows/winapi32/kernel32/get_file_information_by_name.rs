@@ -1,19 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetFileInformationByName(emu: &mut emu::Emu) {
-    let file_name_ptr = arg(emu, 0) as u64;
-    let info_class = arg(emu, 1);
-    let info_ptr = arg(emu, 2) as u64;
-    let info_size = arg(emu, 3);
-    let file_name = emu.maps.read_wide_string(file_name_ptr);
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetFileInformationByName '{}' class:{}",
-        file_name,
-        info_class
+        "kernel32!GetFileInformationByName h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    emu.regs_mut().rax = 0;
-    emu.set_last_error(2);
-    stdcall_ret(emu, 4);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

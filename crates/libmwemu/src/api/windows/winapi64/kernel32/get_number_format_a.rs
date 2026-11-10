@@ -1,5 +1,6 @@
+
+use crate::windows::constants::errors::*;
 use crate::emu;
-use crate::windows::constants;
 
 pub fn GetNumberFormatA(emu: &mut emu::Emu) {
     let _Locale = emu.regs().rcx as u32;
@@ -14,5 +15,5 @@ pub fn GetNumberFormatA(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!GetNumberFormatA {}", lpNumberStr);
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.regs_mut().rax = ERROR_SUCCESS;
 }

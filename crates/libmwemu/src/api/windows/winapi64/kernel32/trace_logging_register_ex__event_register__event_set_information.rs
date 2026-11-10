@@ -1,6 +1,8 @@
+
+use crate::windows::constants::errors::*;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+
 pub fn TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu: &mut emu::Emu) {
     let param1 = emu.regs().rcx;
     let param2 = emu.regs().rdx;
@@ -18,5 +20,5 @@ pub fn TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu: &mut emu::E
         emu.maps.write_qword(out_ptr, handle);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.regs_mut().rax = ERROR_SUCCESS;
 }

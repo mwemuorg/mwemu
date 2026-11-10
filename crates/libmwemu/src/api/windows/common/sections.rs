@@ -5,33 +5,19 @@ use crate::maps::virtual_memory::{
 };
 use crate::winapi::common::memory::{self, Call};
 use crate::winapi::common::trace;
-use crate::windows::constants;
-
-const STATUS_OBJECT_NAME_NOT_FOUND: u64 = 0xc0000034;
-const STATUS_INVALID_HANDLE: u64 = 0xc0000008;
-const STATUS_INVALID_PARAMETER: u64 = 0xc000000d;
-const STATUS_ACCESS_VIOLATION: u64 = 0xc0000005;
-const STATUS_NOT_IMPLEMENTED: u64 = 0xc0000002;
-const STATUS_NO_MEMORY: u64 = 0xc0000017;
-const STATUS_CONFLICTING_ADDRESSES: u64 = 0xc0000018;
-const STATUS_SECTION_PROTECTION: u64 = 0xc000004e;
-const STATUS_NOT_MAPPED_VIEW: u64 = 0xc0000019;
-const SEC_COMMIT: u32 = 0x08000000;
-const FILE_MAP_COPY: u32 = 1;
-const FILE_MAP_WRITE: u32 = 2;
-const FILE_MAP_READ: u32 = 4;
-const FILE_MAP_EXECUTE: u32 = 0x20;
-const FILE_MAP_ALL_ACCESS: u32 = 0xf001f;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::files::*;
+use crate::windows::constants::memory::*;
 
 fn error_to_win32(status: u64) -> u64 {
     match status {
-        STATUS_INVALID_HANDLE => 6,
-        STATUS_OBJECT_NAME_NOT_FOUND => 2,
-        STATUS_NO_MEMORY => 8,
-        STATUS_NOT_IMPLEMENTED => 50,
-        STATUS_CONFLICTING_ADDRESSES => 487,
-        STATUS_ACCESS_VIOLATION => 998,
-        _ => 87,
+        STATUS_INVALID_HANDLE => ERROR_INVALID_HANDLE,
+        STATUS_OBJECT_NAME_NOT_FOUND => ERROR_FILE_NOT_FOUND,
+        STATUS_NO_MEMORY => ERROR_NOT_ENOUGH_MEMORY,
+        STATUS_NOT_IMPLEMENTED => ERROR_NOT_SUPPORTED,
+        STATUS_CONFLICTING_ADDRESSES => ERROR_INVALID_ADDRESS,
+        STATUS_ACCESS_VIOLATION => ERROR_NOACCESS,
+        _ => ERROR_INVALID_PARAMETER,
     }
 }
 
@@ -148,9 +134,9 @@ pub(crate) fn map(
     let size = align_up(length, PAGE_SIZE).ok_or(STATUS_INVALID_PARAMETER)?;
     let base = if address == 0 {
         let (bottom, top) = if emu.cfg.arch.is_64bits() {
-            (constants::ALLOC64_MIN, constants::ALLOC64_MAX)
+            (ALLOC64_MIN, ALLOC64_MAX)
         } else {
-            (constants::ALLOC32_MIN, constants::ALLOC32_MAX)
+            (ALLOC32_MIN, ALLOC32_MAX)
         };
         emu.maps
             .find_free_range(size, ALLOCATION_GRANULARITY, bottom, top)
@@ -159,9 +145,9 @@ pub(crate) fn map(
         address
     };
     let limit = if emu.cfg.arch.is_64bits() {
-        constants::USER64_ADDRESS_LIMIT
+        USER64_ADDRESS_LIMIT
     } else {
-        constants::USER32_ADDRESS_LIMIT
+        USER32_ADDRESS_LIMIT
     };
     if base.checked_add(size).is_none_or(|end| end > limit) {
         return Err(STATUS_INVALID_PARAMETER);

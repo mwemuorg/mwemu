@@ -1,6 +1,6 @@
-use super::allocate_memory;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _cexit(emu: &mut emu::Emu, api: &str) {
     log_red!(emu, "msvcrt!{} cleaning up", api);

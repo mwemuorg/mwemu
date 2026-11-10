@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use std::io::Write as _;
 use std::sync::atomic;
 
@@ -11,7 +12,6 @@ use crate::err::MwemuError;
 use crate::serialization;
 use crate::syscall::windows::syscall64::memory as win_syscall64_memory;
 use crate::utils::helpers::unlikely;
-use crate::windows::constants;
 
 use super::Emu;
 
@@ -69,7 +69,7 @@ impl Emu {
         };
 
         // block
-        let block = code.read_code(rip, constants::BLOCK_LEN).to_vec();
+        let block = code.read_code(rip, BLOCK_LEN).to_vec();
         if block.is_empty() {
             return false;
         }
@@ -186,8 +186,8 @@ impl Emu {
 
         let arch = if is_x64 { 64 } else { 32 };
         let mut x86_ins: Instruction = Instruction::default();
-        let mut block: Vec<u8> = Vec::with_capacity(constants::BLOCK_LEN + 1);
-        block.resize(constants::BLOCK_LEN, 0x0);
+        let mut block: Vec<u8> = Vec::with_capacity(BLOCK_LEN + 1);
+        block.resize(BLOCK_LEN, 0x0);
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {

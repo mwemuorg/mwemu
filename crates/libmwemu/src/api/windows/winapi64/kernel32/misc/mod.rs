@@ -2,41 +2,25 @@
 mod environment;
 pub use environment::*;
 
-#[path = "../close_handle.rs"]
-mod close_handle;
-pub use close_handle::*;
+#[path = "../global_add_atom.rs"]
+mod global_add_atom;
+pub use global_add_atom::*;
 
-#[path = "../get_computer_name_a.rs"]
-mod get_computer_name_a;
-pub use get_computer_name_a::*;
+#[path = "../output_debug_string.rs"]
+mod output_debug_string;
+pub use output_debug_string::*;
 
-#[path = "../get_computer_name_w.rs"]
-mod get_computer_name_w;
-pub use get_computer_name_w::*;
+#[path = "../get_startup_info.rs"]
+mod get_startup_info;
+pub use get_startup_info::*;
 
 #[path = "../get_last_error.rs"]
 mod get_last_error;
 pub use get_last_error::*;
 
-#[path = "../get_startup_info_a.rs"]
-mod get_startup_info_a;
-pub use get_startup_info_a::*;
-
-#[path = "../get_startup_info_w.rs"]
-mod get_startup_info_w;
-pub use get_startup_info_w::*;
-
-#[path = "../get_std_handle.rs"]
-mod get_std_handle;
-pub use get_std_handle::*;
-
 #[path = "../get_user_default_lcid.rs"]
 mod get_user_default_lcid;
 pub use get_user_default_lcid::*;
-
-#[path = "../global_add_atom_a.rs"]
-mod global_add_atom_a;
-pub use global_add_atom_a::*;
 
 #[path = "../is_bad_read_ptr.rs"]
 mod is_bad_read_ptr;
@@ -61,11 +45,3 @@ pub use sleep::*;
 #[path = "../win_exec.rs"]
 mod win_exec;
 pub use win_exec::*;
-
-#[path = "../output_debug_string_a.rs"]
-mod output_debug_string_a;
-pub use output_debug_string_a::*;
-
-#[path = "../output_debug_string_w.rs"]
-mod output_debug_string_w;
-pub use output_debug_string_w::*;

@@ -1,7 +1,7 @@
 use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
 use crate::emu;
 use crate::winapi::winapi64::kernel32;
-use crate::windows::constants::STATUS_NOT_IMPLEMENTED;
+use crate::windows::constants::errors::*;
 
 mod file;
 mod heap;

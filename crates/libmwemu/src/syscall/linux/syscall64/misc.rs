@@ -1,7 +1,11 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::syscall::linux::constants::errors::*;
+use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::constants::system::*;
+
 use crate::winapi::helper; // TODO: why not winapi64 helper?
-use crate::windows::constants;
+
 use crate::windows::structures;
 use std::fs as stdfs;
 use std::fs::File;
@@ -133,23 +137,23 @@ fn trace_bad_syscall64(emu: &mut emu::Emu, nr: u64) {
 }
 fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
     match emu.regs().rax {
-        constants::NR64_RESTART_SYSCALL => super::proc::handle_syscall64_restart(emu),
+        NR64_RESTART_SYSCALL => super::proc::handle_syscall64_restart(emu),
 
-        constants::NR64_EXIT_GROUP => {
+        NR64_EXIT_GROUP => {
             super::proc::handle_syscall64_exit(emu);
         }
 
-        constants::NR64_FORK => super::proc::handle_syscall64_fork(emu),
+        NR64_FORK => super::proc::handle_syscall64_fork(emu),
 
-        constants::NR64_READ => super::fs::handle_syscall64_read(emu),
+        NR64_READ => super::fs::handle_syscall64_read(emu),
 
-        constants::NR64_WRITE => super::fs::handle_syscall64_write(emu),
+        NR64_WRITE => super::fs::handle_syscall64_write(emu),
 
         // getrandom(buf, buflen, flags): fill `buflen` bytes and return the
         // count. Without this the unimplemented-syscall fallback leaves rax = the
         // syscall number (318), which glibc/std reads as "318 bytes written" and
         // then indexes past a smaller buffer (panic: range start 318 of len 16).
-        constants::NR64_GETRANDOM => {
+        NR64_GETRANDOM => {
             let buf = emu.regs().rdi;
             let count = emu.regs().rsi;
             // Deterministic, non-zero-ish fill (functional, not cryptographic).
@@ -187,31 +191,31 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                 log::trace!("stderr: `{}`", s)
             }
         }*/
-        constants::NR64_OPEN => super::fs::handle_syscall64_open(emu),
+        NR64_OPEN => super::fs::handle_syscall64_open(emu),
 
-        constants::NR64_OPENAT => super::fs::handle_syscall64_openat(emu),
+        NR64_OPENAT => super::fs::handle_syscall64_openat(emu),
 
-        constants::NR64_CLOSE => super::fs::handle_syscall64_close(emu),
+        NR64_CLOSE => super::fs::handle_syscall64_close(emu),
 
-        constants::NR64_BRK => super::memory::handle_syscall64_brk(emu),
+        NR64_BRK => super::memory::handle_syscall64_brk(emu),
 
-        constants::NR64_EXECVE => super::fs::handle_syscall64_execve(emu),
+        NR64_EXECVE => super::fs::handle_syscall64_execve(emu),
 
-        constants::NR64_CHDIR => super::fs::handle_syscall64_chdir(emu),
+        NR64_CHDIR => super::fs::handle_syscall64_chdir(emu),
 
-        constants::NR64_CHMOD => super::fs::handle_syscall64_chmod(emu),
+        NR64_CHMOD => super::fs::handle_syscall64_chmod(emu),
 
-        constants::NR64_LSEEK => super::fs::handle_syscall64_lseek(emu),
+        NR64_LSEEK => super::fs::handle_syscall64_lseek(emu),
 
-        constants::NR64_KILL => super::proc::handle_syscall64_kill(emu),
+        NR64_KILL => super::proc::handle_syscall64_kill(emu),
 
-        constants::NR64_DUP => super::proc::handle_syscall64_dup(emu),
+        NR64_DUP => super::proc::handle_syscall64_dup(emu),
 
-        constants::NR64_DUP2 => super::proc::handle_syscall64_dup2(emu),
+        NR64_DUP2 => super::proc::handle_syscall64_dup2(emu),
 
-        constants::NR64_SOCKET => super::net::handle_syscall64_socket(emu),
+        NR64_SOCKET => super::net::handle_syscall64_socket(emu),
 
-        constants::NR64_BIND => {
+        NR64_BIND => {
             let sock = emu.regs().rdi;
             let sockaddr = emu.regs().rsi;
             let len = emu.regs().rdx;
@@ -241,7 +245,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
 
                 if !helper::socket_exist(sock) {
                     log::trace!("\tbad socket/");
-                    emu.regs_mut().rax = constants::ENOTSOCK;
+                    emu.regs_mut().rax = ENOTSOCK;
                 } else {
                     emu.regs_mut().rax = 0;
                 }
@@ -255,11 +259,11 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                         ("addr_len", len.to_string()),
                     ],
                 );
-                emu.regs_mut().rax = constants::EINVAL;
+                emu.regs_mut().rax = EINVAL;
             }
         }
 
-        constants::NR64_CONNECT => {
+        NR64_CONNECT => {
             let sock = emu.regs().rdi;
             let sockaddr = emu.regs().rsi;
             let len = emu.regs().rdx;
@@ -289,7 +293,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
 
                 if !helper::socket_exist(sock) {
                     log::trace!("\tbad socket/");
-                    emu.regs_mut().rax = constants::ENOTSOCK;
+                    emu.regs_mut().rax = ENOTSOCK;
                     return;
                 }
 
@@ -313,11 +317,11 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                         ("addr_len", len.to_string()),
                     ],
                 );
-                emu.regs_mut().rax = constants::EINVAL;
+                emu.regs_mut().rax = EINVAL;
             }
         }
 
-        constants::NR64_LISTEN => {
+        NR64_LISTEN => {
             let sock = emu.regs().rdi;
             let conns = emu.regs().rsi;
 
@@ -329,13 +333,13 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
 
             if !helper::socket_exist(sock) {
                 log::trace!("\tbad socket/");
-                emu.regs_mut().rax = constants::ENOTSOCK;
+                emu.regs_mut().rax = ENOTSOCK;
             } else {
                 emu.regs_mut().rax = 0;
             }
         }
 
-        constants::NR64_ACCEPT => {
+        NR64_ACCEPT => {
             let sock = emu.regs().rdi;
             let sockaddr = emu.regs().rsi;
             let len = emu.regs().rdx;
@@ -361,24 +365,24 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
 
             if !helper::socket_exist(sock) {
                 log::trace!("\tbad socket/");
-                emu.regs_mut().rax = constants::ENOTSOCK;
+                emu.regs_mut().rax = ENOTSOCK;
             } else {
                 emu.regs_mut().rax = 0;
             }
         }
 
-        constants::NR64_GETSOCKNAME => {
+        NR64_GETSOCKNAME => {
             let sock = emu.regs().rdi;
             trace_socketcall64_args(emu, "getsockname", &[("sock", sock.to_string())]);
             emu.regs_mut().rax = 0;
         }
 
-        constants::NR64_GETPEERNAME => {
+        NR64_GETPEERNAME => {
             trace_socketcall64(emu, "getpeername");
             emu.regs_mut().rax = 0;
         }
 
-        constants::NR64_SOCKETPAIR => {
+        NR64_SOCKETPAIR => {
             trace_socketcall64(emu, "socketpair");
             emu.regs_mut().rax = 0;
         }
@@ -433,7 +437,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                 emu.regs_mut().rax = len; //TODO: avoid loops
             }
         }*/
-        constants::NR64_SENDTO => {
+        NR64_SENDTO => {
             let sock = emu.regs().rdi;
             let buf = emu.regs().rsi;
             let len = emu.regs().rdx;
@@ -483,13 +487,13 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
 
             if !helper::socket_exist(sock) {
                 log::trace!("\tbad socket/");
-                emu.regs_mut().rax = constants::ENOTSOCK;
+                emu.regs_mut().rax = ENOTSOCK;
             } else {
                 emu.regs_mut().rax = len;
             }
         }
 
-        constants::NR64_RECVFROM => {
+        NR64_RECVFROM => {
             let sock = emu.regs().rdi;
             let buf = emu.regs().rsi;
             let len = emu.regs().rdx;
@@ -521,67 +525,67 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
 
             if !helper::socket_exist(sock) {
                 log::trace!("\tbad socket/");
-                emu.regs_mut().rax = constants::ENOTSOCK;
+                emu.regs_mut().rax = ENOTSOCK;
             } else {
                 emu.regs_mut().rax = len; //TODO: avoid loops
             }
         }
 
-        constants::NR64_SHUTDOWN => {
+        NR64_SHUTDOWN => {
             trace_socketcall64(emu, "shutdown");
             //endpoint::sock_close();
         }
 
-        constants::NR64_SETSOCKOPT => {
+        NR64_SETSOCKOPT => {
             trace_socketcall64(emu, "setsockopt");
         }
 
-        constants::NR64_GETSOCKOPT => {
+        NR64_GETSOCKOPT => {
             trace_socketcall64(emu, "getsockopt");
         }
 
-        constants::NR64_SENDMSG => {
+        NR64_SENDMSG => {
             trace_socketcall64(emu, "sendmsg");
         }
 
-        constants::NR64_RECVMSG => {
+        NR64_RECVMSG => {
             trace_socketcall64(emu, "recvmsg");
         }
 
-        constants::NR64_ACCEPT4 => {
+        NR64_ACCEPT4 => {
             trace_socketcall64(emu, "accept4");
         }
 
-        constants::NR64_RECVMMSG => {
+        NR64_RECVMMSG => {
             trace_socketcall64(emu, "recvmmsg");
         }
 
-        constants::NR64_SENDMMSG => {
+        NR64_SENDMMSG => {
             trace_socketcall64(emu, "sendmmsg");
         }
 
-        constants::NR64_ARCH_PRCTL => {
+        NR64_ARCH_PRCTL => {
             let mode = emu.regs().rdi;
             let ptr = emu.regs().rsi;
             emu.regs_mut().rax = 0;
             let mut op: String = "unimplemented operation".to_string();
 
             match mode {
-                constants::ARCH_SET_GS => {
+                ARCH_SET_GS => {
                     op = "set gs".to_string();
                     emu.regs_mut().gs = ptr;
                 }
-                constants::ARCH_SET_FS => {
+                ARCH_SET_FS => {
                     op = "set fs".to_string();
                     // ARCH_SET_FS takes the new FS base *directly* in the second
                     // arg — it must NOT be dereferenced.
                     emu.regs_mut().fs = ptr;
                 }
-                constants::ARCH_GET_FS => {
+                ARCH_GET_FS => {
                     op = "get fs".to_string();
                     emu.maps.write_qword(ptr, emu.regs().fs);
                 }
-                constants::ARCH_GET_GS => {
+                ARCH_GET_GS => {
                     op = "get gs".to_string();
                     emu.maps.write_qword(ptr, emu.regs().gs);
                 }
@@ -591,33 +595,33 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             trace_syscall64_args(emu, "arch_prctl", &[("op", op)]);
         }
 
-        constants::NR64_UNAME => {
+        NR64_UNAME => {
             emu.regs_mut().rax = 0;
             let ptr = emu.regs().rdi;
 
             if emu.maps.is_valid_ptr(ptr) {
-                emu.maps.write_bytes(ptr, &constants::UTSNAME);
+                emu.maps.write_bytes(ptr, &UTSNAME);
                 emu.regs_mut().rax = 0;
             } else {
-                emu.regs_mut().rax = constants::EINVAL;
+                emu.regs_mut().rax = EINVAL;
             }
 
             trace_syscall64_args(emu, "uname", &[("buf", format!("0x{ptr:x}"))]);
         }
 
-        constants::NR64_ACCESS => {
+        NR64_ACCESS => {
             let filename = emu.maps.read_string(emu.regs().rdi);
 
             trace_syscall64_args(emu, "access", &[("path", filename.clone())]);
 
             if filename == "/etc/ld.so.preload" {
-                emu.regs_mut().rax = constants::ENOENT;
+                emu.regs_mut().rax = ENOENT;
             } else {
                 emu.regs_mut().rax = 0;
             }
         }
 
-        constants::NR64_MUNMAP => {
+        NR64_MUNMAP => {
             let addr = emu.regs().rdi;
             let sz = emu.regs().rsi;
 
@@ -634,7 +638,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             emu.regs_mut().rax = 0;
         }
 
-        constants::NR64_MMAP => {
+        NR64_MMAP => {
             let mut addr = emu.regs().rdi;
             let mut sz = emu.regs().rsi;
             let prot = emu.regs().rdx;
@@ -652,7 +656,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             let reservation = prot == 0;
 
             if sz == 0 || (map_fixed && addr & PAGE_MASK != 0) {
-                emu.regs_mut().rax = constants::EINVAL;
+                emu.regs_mut().rax = EINVAL;
                 trace_syscall64_args(emu, "mmap", &[("result", "EINVAL".to_string())]);
                 return;
             }
@@ -674,7 +678,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                 // No hint, or a hint that is unaligned or already taken.
                 let Some(reserved) = emu.maps.lib64_reserve(sz) else {
                     log::error!("syscall64 mmap cannot alloc {} bytes", sz);
-                    emu.regs_mut().rax = constants::ENOMEM;
+                    emu.regs_mut().rax = ENOMEM;
                     trace_syscall64_args(emu, "mmap", &[("result", "ENOMEM".to_string())]);
                     return;
                 };
@@ -687,7 +691,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             let name = emu.maps.unique_map_name(&format!("mmap_{addr:x}"));
             if let Err(e) = emu.maps.create_map(&name, addr, sz, perm) {
                 log::error!("mmap: {e}");
-                emu.regs_mut().rax = constants::ENOMEM;
+                emu.regs_mut().rax = ENOMEM;
                 trace_syscall64_args(emu, "mmap", &[("result", "ENOMEM".to_string())]);
                 return;
             }
@@ -704,7 +708,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                             let mut reader = BufReader::new(&f);
                             if let Err(e) = reader.seek(SeekFrom::Start(off)) {
                                 log::error!("mmap: seek to offset 0x{:x} failed: {}", off, e);
-                                emu.regs_mut().rax = constants::ENOMEM;
+                                emu.regs_mut().rax = ENOMEM;
                                 return;
                             }
                             // Read at most `sz` bytes (the requested mapping
@@ -717,7 +721,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                                 let mut limited = (&mut reader).take(sz);
                                 if let Err(e) = limited.read_to_end(&mut lib_buff) {
                                     log::error!("kernel64 cannot load dynamic library: {}", e);
-                                    emu.regs_mut().rax = constants::ENOMEM;
+                                    emu.regs_mut().rax = ENOMEM;
                                     return;
                                 }
                             }
@@ -729,7 +733,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
                                     "mmap: no backing map at 0x{:x} for library read",
                                     addr
                                 );
-                                emu.regs_mut().rax = constants::ENOMEM;
+                                emu.regs_mut().rax = ENOMEM;
                                 return;
                             };
 
@@ -770,7 +774,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             emu.regs_mut().rax = addr;
         }
 
-        constants::NR64_FSTAT => {
+        NR64_FSTAT => {
             let fd = emu.regs().rdi;
             let stat_ptr = emu.regs().rsi;
             let mut stat = structures::Stat::fake();
@@ -811,7 +815,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             emu.regs_mut().rax = 0;
         }
 
-        constants::NR64_STAT => {
+        NR64_STAT => {
             let filename_ptr = emu.regs().rdi;
             let stat_ptr = emu.regs().rsi;
             let filename = emu.maps.read_string(filename_ptr);
@@ -835,7 +839,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             emu.regs_mut().rax = 0;
         }
 
-        constants::NR64_STATX => {
+        NR64_STATX => {
             let dirfd = emu.regs().rdi;
             let path_ptr = emu.regs().rsi;
             let _flags = emu.regs().r10;
@@ -902,7 +906,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             );
         }
 
-        constants::NR64_READLINK => {
+        NR64_READLINK => {
             let link_ptr = emu.regs().rdi;
             let buff = emu.regs().rsi;
             let buffsz = emu.regs().rdx;
@@ -934,27 +938,24 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
         // them in the "unimplemented" catch-all returns the syscall number in
         // rax, which glibc reads as a bogus result (e.g. "the futex facility
         // returned an unexpected error code" then an abort loop).
-        constants::NR64_GETPID => {
+        NR64_GETPID => {
             emu.regs_mut().rax = 1000;
             trace_simple_syscall64(emu, "getpid");
         }
-        constants::NR64_TGKILL | constants::NR64_TKILL => {
+        NR64_TGKILL | NR64_TKILL => {
             emu.regs_mut().rax = 0;
             trace_simple_syscall64(emu, "tgkill");
         }
-        constants::NR64_RT_SIGPROCMASK | constants::NR64_RT_SIGACTION => {
+        NR64_RT_SIGPROCMASK | NR64_RT_SIGACTION => {
             emu.regs_mut().rax = 0;
             trace_simple_syscall64(emu, "rt_sig*");
         }
-        constants::NR64_SET_ROBUST_LIST
-        | constants::NR64_RSEQ
-        | constants::NR64_SCHED_GETAFFINITY
-        | constants::NR64_PRLIMIT64 => {
+        NR64_SET_ROBUST_LIST | NR64_RSEQ | NR64_SCHED_GETAFFINITY | NR64_PRLIMIT64 => {
             emu.regs_mut().rax = 0;
             trace_simple_syscall64(emu, "ok0");
         }
 
-        constants::NR64_MPROTECT => {
+        NR64_MPROTECT => {
             let addr = emu.regs().rdi;
             let sz = emu.regs().rsi;
             let prot = emu.regs().rdx;
@@ -978,23 +979,20 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             );
         }
 
-        constants::NR64_NANOSLEEP => super::memory::handle_syscall64_nanosleep(emu),
+        NR64_NANOSLEEP => super::memory::handle_syscall64_nanosleep(emu),
 
-        constants::NR64_MREMAP => super::memory::handle_syscall64_mremap(emu),
+        NR64_MREMAP => super::memory::handle_syscall64_mremap(emu),
 
         // Identity syscalls: report a normal unprivileged user (uid/gid 1000)
         // so programs like `id` resolve a real /etc/passwd entry instead of
         // treating the raw syscall number left in rax as the uid.
-        constants::NR64_GETUID
-        | constants::NR64_GETEUID
-        | constants::NR64_GETGID
-        | constants::NR64_GETEGID => {
+        NR64_GETUID | NR64_GETEUID | NR64_GETGID | NR64_GETEGID => {
             emu.regs_mut().rax = 1000;
             trace_simple_syscall64(emu, "getid");
         }
 
         // getresuid/getresgid: write real/effective/saved ids (all 1000).
-        constants::NR64_GETRESUID | constants::NR64_GETRESGID => {
+        NR64_GETRESUID | NR64_GETRESGID => {
             let (a, b, c) = (emu.regs().rdi, emu.regs().rsi, emu.regs().rdx);
             for p in [a, b, c] {
                 if p != 0 {
@@ -1006,7 +1004,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
         }
 
         // getgroups(size, list): one supplementary group (1000).
-        constants::NR64_GETGROUPS => {
+        NR64_GETGROUPS => {
             let size = emu.regs().rdi;
             let list = emu.regs().rsi;
             if size >= 1 && list != 0 {

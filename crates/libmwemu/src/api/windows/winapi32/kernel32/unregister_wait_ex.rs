@@ -1,14 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+
 pub fn UnregisterWaitEx(emu: &mut emu::Emu) {
-    let handle = arg(emu, 0) as u64;
-    log_red!(emu, "kernel32!UnregisterWaitEx handle:0x{:x}", handle);
-    let h = arg(emu, 0) as u64;
-    if helper::handler_exist(h) {
-        helper::handler_close(h);
-    }
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    log_red!(emu, "kernel32!UnregisterWaitEx 0x{:x}", arg1);
+    helper::advance_tick(emu, 1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    for _ in 0..1u32 {
+        emu.stack_pop32(false);
+    }
 }

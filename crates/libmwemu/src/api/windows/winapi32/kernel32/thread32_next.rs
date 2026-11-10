@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn Thread32Next(emu: &mut emu::Emu) {
     let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -10,5 +10,5 @@ pub fn Thread32Next(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.regs_mut().rax = constants::ERROR_NO_MORE_FILES;
+    emu.regs_mut().rax = ERROR_NO_MORE_FILES;
 }

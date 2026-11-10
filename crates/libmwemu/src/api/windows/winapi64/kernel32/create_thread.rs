@@ -1,7 +1,8 @@
+use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::threading::context::ThreadContext;
 use crate::winapi::helper;
-use crate::{emu, windows::constants};
+use crate::windows::constants::process::*;
 
 pub fn CreateThread(emu: &mut emu::Emu) {
     // Add comprehensive debugging
@@ -153,7 +154,7 @@ pub fn CreateThread(emu: &mut emu::Emu) {
     }
 
     // Set suspended state if CREATE_SUSPENDED flag is set
-    if (flags & constants::CREATE_SUSPENDED) != 0 {
+    if (flags & CREATE_SUSPENDED) != 0 {
         new_thread.suspended = true;
         log::trace!("Thread created in suspended state (flags: 0x{:x})", flags);
     } else {

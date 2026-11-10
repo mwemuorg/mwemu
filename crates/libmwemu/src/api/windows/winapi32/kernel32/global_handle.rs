@@ -1,12 +1,12 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn GlobalHandle(emu: &mut emu::Emu) {
     let _pMem = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
     log_red!(emu, "kernel32!GlobalHandle");
 
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.regs_mut().rax = ERROR_SUCCESS;
 
     for _ in 0..1 {
         emu.stack_pop32(false);

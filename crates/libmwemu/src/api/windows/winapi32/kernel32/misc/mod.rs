@@ -1,34 +1,98 @@
-#[path = "../close_handle.rs"]
-mod close_handle;
-pub use close_handle::*;
-
 #[path = "../crypt_create_hash.rs"]
 mod crypt_create_hash;
 pub use crypt_create_hash::*;
 
-#[path = "../get_computer_name_a.rs"]
-mod get_computer_name_a;
-pub use get_computer_name_a::*;
+#[path = "../set_local_primary_computer_name.rs"]
+mod set_local_primary_computer_name;
+pub use set_local_primary_computer_name::*;
+
+#[path = "../open_private_namespace.rs"]
+mod open_private_namespace;
+pub use open_private_namespace::*;
+
+#[path = "../create_symbolic_link.rs"]
+mod create_symbolic_link;
+pub use create_symbolic_link::*;
+
+#[path = "../create_hard_link_transacted.rs"]
+mod create_hard_link_transacted;
+pub use create_hard_link_transacted::*;
+
+#[path = "../create_boundary_descriptor.rs"]
+mod create_boundary_descriptor;
+pub use create_boundary_descriptor::*;
+
+#[path = "../add_local_alternate_computer_name.rs"]
+mod add_local_alternate_computer_name;
+pub use add_local_alternate_computer_name::*;
+
+#[path = "../output_debug_string.rs"]
+mod output_debug_string;
+pub use output_debug_string::*;
+
+#[path = "../open_job_object.rs"]
+mod open_job_object;
+pub use open_job_object::*;
+
+#[path = "../global_get_atom_name.rs"]
+mod global_get_atom_name;
+pub use global_get_atom_name::*;
+
+#[path = "../global_find_atom.rs"]
+mod global_find_atom;
+pub use global_find_atom::*;
+
+#[path = "../global_add_atom_ex.rs"]
+mod global_add_atom_ex;
+pub use global_add_atom_ex::*;
+
+#[path = "../global_add_atom.rs"]
+mod global_add_atom;
+pub use global_add_atom::*;
+
+#[path = "../get_startup_info.rs"]
+mod get_startup_info;
+pub use get_startup_info::*;
+
+#[path = "../get_expanded_name.rs"]
+mod get_expanded_name;
+pub use get_expanded_name::*;
+
+#[path = "../get_atom_name.rs"]
+mod get_atom_name;
+pub use get_atom_name::*;
+
+#[path = "../format_message.rs"]
+mod format_message;
+pub use format_message::*;
+
+#[path = "../find_atom.rs"]
+mod find_atom;
+pub use find_atom::*;
+
+#[path = "../enumerate_local_computer_names.rs"]
+mod enumerate_local_computer_names;
+pub use enumerate_local_computer_names::*;
+
+#[path = "../dns_hostname_to_computer_name.rs"]
+mod dns_hostname_to_computer_name;
+pub use dns_hostname_to_computer_name::*;
+
+#[path = "../create_symbolic_link_transacted.rs"]
+mod create_symbolic_link_transacted;
+pub use create_symbolic_link_transacted::*;
+
+#[path = "../check_name_legal_dos8_dot3.rs"]
+mod check_name_legal_dos8_dot3;
+pub use check_name_legal_dos8_dot3::*;
+
+#[path = "../add_atom.rs"]
+mod add_atom;
+pub use add_atom::*;
 
 #[path = "../get_last_error.rs"]
 mod get_last_error;
 pub use get_last_error::*;
-
-#[path = "../get_startup_info_a.rs"]
-mod get_startup_info_a;
-pub use get_startup_info_a::*;
-
-#[path = "../get_startup_info_w.rs"]
-mod get_startup_info_w;
-pub use get_startup_info_w::*;
-
-#[path = "../get_std_handle.rs"]
-mod get_std_handle;
-pub use get_std_handle::*;
-
-#[path = "../global_add_atom_a.rs"]
-mod global_add_atom_a;
-pub use global_add_atom_a::*;
 
 #[path = "../query_performance_counter.rs"]
 mod query_performance_counter;
@@ -54,21 +118,9 @@ pub use sleep::*;
 mod win_exec;
 pub use win_exec::*;
 
-#[path = "../add_atom_a.rs"]
-mod add_atom_a;
-pub use add_atom_a::*;
-
-#[path = "../add_atom_w.rs"]
-mod add_atom_w;
-pub use add_atom_w::*;
-
 #[path = "../add_integrity_label_to_boundary_descriptor.rs"]
 mod add_integrity_label_to_boundary_descriptor;
 pub use add_integrity_label_to_boundary_descriptor::*;
-
-#[path = "../add_local_alternate_computer_name_w.rs"]
-mod add_local_alternate_computer_name_w;
-pub use add_local_alternate_computer_name_w::*;
 
 #[path = "../beep_implementation.rs"]
 mod beep_implementation;
@@ -86,79 +138,21 @@ pub use byte_match::*;
 mod check_elevation;
 pub use check_elevation::*;
 
-#[path = "../check_name_legal_dos8_dot3_a.rs"]
-mod check_name_legal_dos8_dot3_a;
-pub use check_name_legal_dos8_dot3_a::*;
-
-#[path = "../check_name_legal_dos8_dot3_w.rs"]
-mod check_name_legal_dos8_dot3_w;
-pub use check_name_legal_dos8_dot3_w::*;
-
 #[path = "../convert_nls_day_of_week_to_win32_day_of_week.rs"]
 mod convert_nls_day_of_week_to_win32_day_of_week;
 pub use convert_nls_day_of_week_to_win32_day_of_week::*;
-
-#[path = "../create_boundary_descriptor_a.rs"]
-mod create_boundary_descriptor_a;
-pub use create_boundary_descriptor_a::*;
-
-#[path = "../create_hard_link_transacted_a.rs"]
-mod create_hard_link_transacted_a;
-pub use create_hard_link_transacted_a::*;
-
-#[path = "../create_job_object_a.rs"]
-mod create_job_object_a;
-
-#[path = "../create_job_object_w.rs"]
-mod create_job_object_w;
 
 #[path = "../create_socket_handle.rs"]
 mod create_socket_handle;
 pub use create_socket_handle::*;
 
-#[path = "../create_symbolic_link_a.rs"]
-mod create_symbolic_link_a;
-pub use create_symbolic_link_a::*;
-
-#[path = "../create_symbolic_link_transacted_a.rs"]
-mod create_symbolic_link_transacted_a;
-pub use create_symbolic_link_transacted_a::*;
-
-#[path = "../create_symbolic_link_transacted_w.rs"]
-mod create_symbolic_link_transacted_w;
-pub use create_symbolic_link_transacted_w::*;
-
 #[path = "../device_name_compare.rs"]
 mod device_name_compare;
 pub use device_name_compare::*;
 
-#[path = "../dns_hostname_to_computer_name_a.rs"]
-mod dns_hostname_to_computer_name_a;
-pub use dns_hostname_to_computer_name_a::*;
-
-#[path = "../dns_hostname_to_computer_name_w.rs"]
-mod dns_hostname_to_computer_name_w;
-pub use dns_hostname_to_computer_name_w::*;
-
-#[path = "../enumerate_local_computer_names_a.rs"]
-mod enumerate_local_computer_names_a;
-pub use enumerate_local_computer_names_a::*;
-
-#[path = "../enumerate_local_computer_names_w.rs"]
-mod enumerate_local_computer_names_w;
-pub use enumerate_local_computer_names_w::*;
-
 #[path = "../fatal_exit.rs"]
 mod fatal_exit;
 pub use fatal_exit::*;
-
-#[path = "../find_atom_a.rs"]
-mod find_atom_a;
-pub use find_atom_a::*;
-
-#[path = "../find_atom_w.rs"]
-mod find_atom_w;
-pub use find_atom_w::*;
 
 #[path = "../free_memory_job_object.rs"]
 mod free_memory_job_object;
@@ -168,14 +162,6 @@ pub use free_memory_job_object::*;
 mod get_application_restart_settings_worker;
 pub use get_application_restart_settings_worker::*;
 
-#[path = "../get_atom_name_a.rs"]
-mod get_atom_name_a;
-pub use get_atom_name_a::*;
-
-#[path = "../get_atom_name_w.rs"]
-mod get_atom_name_w;
-pub use get_atom_name_w::*;
-
 #[path = "../get_binary_type_w.rs"]
 mod get_binary_type_w;
 pub use get_binary_type_w::*;
@@ -183,10 +169,6 @@ pub use get_binary_type_w::*;
 #[path = "../get_com_plus_package_install_status.rs"]
 mod get_com_plus_package_install_status;
 pub use get_com_plus_package_install_status::*;
-
-#[path = "../get_computer_name_w.rs"]
-mod get_computer_name_w;
-pub use get_computer_name_w::*;
 
 #[path = "../get_config_dialog_name.rs"]
 mod get_config_dialog_name;
@@ -207,14 +189,6 @@ pub use get_device_power_state::*;
 #[path = "../get_duration_format.rs"]
 mod get_duration_format;
 pub use get_duration_format::*;
-
-#[path = "../get_expanded_name_a.rs"]
-mod get_expanded_name_a;
-pub use get_expanded_name_a::*;
-
-#[path = "../get_expanded_name_w.rs"]
-mod get_expanded_name_w;
-pub use get_expanded_name_w::*;
 
 #[path = "../get_handle_context.rs"]
 mod get_handle_context;
@@ -248,26 +222,6 @@ pub use get_numa_available_memory_node_ex::*;
 mod get_numa_proximity_node;
 pub use get_numa_proximity_node::*;
 
-#[path = "../global_add_atom_ex_a.rs"]
-mod global_add_atom_ex_a;
-pub use global_add_atom_ex_a::*;
-
-#[path = "../global_add_atom_ex_w.rs"]
-mod global_add_atom_ex_w;
-pub use global_add_atom_ex_w::*;
-
-#[path = "../global_add_atom_w.rs"]
-mod global_add_atom_w;
-pub use global_add_atom_w::*;
-
-#[path = "../global_find_atom_a.rs"]
-mod global_find_atom_a;
-pub use global_find_atom_a::*;
-
-#[path = "../global_find_atom_w.rs"]
-mod global_find_atom_w;
-pub use global_find_atom_w::*;
-
 #[path = "../global_fix.rs"]
 mod global_fix;
 pub use global_fix::*;
@@ -275,14 +229,6 @@ pub use global_fix::*;
 #[path = "../global_flags.rs"]
 mod global_flags;
 pub use global_flags::*;
-
-#[path = "../global_get_atom_name_a.rs"]
-mod global_get_atom_name_a;
-pub use global_get_atom_name_a::*;
-
-#[path = "../global_get_atom_name_w.rs"]
-mod global_get_atom_name_w;
-pub use global_get_atom_name_w::*;
 
 #[path = "../global_handle.rs"]
 mod global_handle;
@@ -428,18 +374,6 @@ pub use oobe_complete_wnf_callback::*;
 mod oobe_complete_wnf_query_callback;
 pub use oobe_complete_wnf_query_callback::*;
 
-#[path = "../open_job_object_a.rs"]
-mod open_job_object_a;
-pub use open_job_object_a::*;
-
-#[path = "../open_job_object_w.rs"]
-mod open_job_object_w;
-pub use open_job_object_w::*;
-
-#[path = "../open_private_namespace_a.rs"]
-mod open_private_namespace_a;
-pub use open_private_namespace_a::*;
-
 #[path = "../power_clear_request.rs"]
 mod power_clear_request;
 pub use power_clear_request::*;
@@ -496,10 +430,6 @@ pub use set_information_job_object::*;
 mod set_io_rate_control_information_job_object;
 pub use set_io_rate_control_information_job_object::*;
 
-#[path = "../set_local_primary_computer_name_w.rs"]
-mod set_local_primary_computer_name_w;
-pub use set_local_primary_computer_name_w::*;
-
 #[path = "../u_long_add.rs"]
 mod u_long_add;
 pub use u_long_add::*;
@@ -531,22 +461,6 @@ pub use query_performance_frequency::*;
 #[path = "../is_wow64_process.rs"]
 mod is_wow64_process;
 pub use is_wow64_process::*;
-
-#[path = "../output_debug_string_a.rs"]
-mod output_debug_string_a;
-pub use output_debug_string_a::*;
-
-#[path = "../output_debug_string_w.rs"]
-mod output_debug_string_w;
-pub use output_debug_string_w::*;
-
-#[path = "../format_message_a.rs"]
-mod format_message_a;
-pub use format_message_a::*;
-
-#[path = "../format_message_w.rs"]
-mod format_message_w;
-pub use format_message_w::*;
 
 #[path = "../duplicate_handle.rs"]
 mod duplicate_handle;

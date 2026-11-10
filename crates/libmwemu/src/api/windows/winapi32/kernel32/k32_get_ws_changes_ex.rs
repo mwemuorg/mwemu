@@ -1,19 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn K32GetWsChangesEx(emu: &mut emu::Emu) {
-    let h_process = arg(emu, 0) as u64;
-    let p_info = arg(emu, 1) as u64;
-    let p_cb = arg(emu, 2) as u64;
-
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!K32GetWsChangesEx hProc:0x{:x} pInfo:0x{:x} pCb:0x{:x}",
-        h_process,
-        p_info,
-        p_cb
+        "kernel32!K32GetWsChangesEx arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 3);
+    emu.regs_mut().rax = 1;
 }

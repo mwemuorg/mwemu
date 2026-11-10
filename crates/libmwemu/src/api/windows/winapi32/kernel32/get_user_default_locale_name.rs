@@ -1,18 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetUserDefaultLocaleName(emu: &mut emu::Emu) {
-    let buf_ptr = arg(emu, 0) as u64;
-    let buf_len = arg(emu, 1);
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetUserDefaultLocaleName ptr:0x{:x} len:{}",
-        buf_ptr,
-        buf_len
+        "kernel32!GetUserDefaultLocaleName h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if buf_ptr != 0 && buf_len >= 6 {
-        emu.maps.write_wide_string(buf_ptr, "en-US");
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 6;
-    stdcall_ret(emu, 2);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

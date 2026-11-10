@@ -1,15 +1,15 @@
-use crate::api::windows::common::kernel32 as kernel32_common;
+use crate::api::windows::common::modules;
 use crate::emu;
 use crate::windows::peb::peb32;
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
-    let Some(dll) = kernel32_common::normalize_library_name(libname, true) else {
+    let Some(dll) = modules::normalize_library_name(libname, true) else {
         emu.regs_mut().rax = 0;
         return 0;
     };
 
     // API set DLLs are virtual; map them to a real provider to avoid hard failure.
-    if kernel32_common::is_api_set_contract(&dll) {
+    if modules::is_api_set_contract(&dll) {
         let base = load_library(emu, "kernelbase.dll");
         if base != 0 {
             return base;

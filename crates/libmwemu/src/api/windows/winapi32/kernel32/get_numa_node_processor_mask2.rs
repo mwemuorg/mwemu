@@ -1,26 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetNumaNodeProcessorMask2(emu: &mut emu::Emu) {
-    let node = arg(emu, 0) as u64 as u16;
-    let masks_ptr = arg(emu, 1) as u64;
-    let mask_count = arg(emu, 2);
-    let req_count_ptr = arg(emu, 3) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetNumaNodeProcessorMask2 node:{} masks:0x{:x} count:{} req:0x{:x}",
-        node,
-        masks_ptr,
-        mask_count,
-        req_count_ptr
+        "kernel32!GetNumaNodeProcessorMask2 h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if req_count_ptr != 0 {
-        emu.maps.write_dword(req_count_ptr, 1);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    if masks_ptr != 0 && mask_count >= 1 {
-        emu.maps.write_qword(masks_ptr, 0xF);
-        emu.maps.write_word(masks_ptr + 8, 0);
-    }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

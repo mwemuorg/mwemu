@@ -1,4 +1,6 @@
-use crate::{emu, windows::constants};
+use crate::emu;
+use crate::winapi::common::strings::locale_info_value;
+use crate::windows::constants::errors::*;
 
 // FROM THE ASSEMBLY FILE - THESE ARE THE CORRECT VALUES:
 const LOCALE_SDAYNAME1: u64 = 0x2A; // Monday
@@ -65,7 +67,7 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
         lp_lc_data,
         cch_data
     );
-    let result = match crate::api::windows::common::kernel32::locale_info_value(lctype) {
+    let result = match locale_info_value(lctype) {
         Some(v) => v,
         None => {
             log::warn!(
@@ -89,7 +91,7 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
     // Validate buffer pointer
     if lp_lc_data == 0 {
         log::warn!("{} GetLocaleInfoW invalid parameter - null buffer", emu.pos);
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return;
     }
@@ -102,7 +104,7 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
             cch_data,
             required_size
         );
-        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+        emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }

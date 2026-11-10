@@ -1,18 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn AreShortNamesEnabled(emu: &mut emu::Emu) {
-    let h_volume = arg(emu, 0) as u64;
-    let p_enabled = arg(emu, 1) as u64;
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!AreShortNamesEnabled hVolume:0x{:x} pEnabled:0x{:x}",
-        h_volume,
-        p_enabled
+        "kernel32!AreShortNamesEnabled arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-    if p_enabled != 0 {
-        emu.maps.write_dword(p_enabled, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

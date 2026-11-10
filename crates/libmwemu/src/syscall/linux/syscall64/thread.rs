@@ -11,7 +11,7 @@
 //! semaphores on futexes) is the reference workload.
 
 use crate::emu;
-use crate::windows::constants;
+use crate::syscall::linux::constants::syscalls::*;
 
 const CLONE_VM: u64 = 0x100;
 const CLONE_VFORK: u64 = 0x4000;
@@ -36,20 +36,20 @@ const VFORK_WAIT_KEY: u64 = 0xffff_ffff_0000_0000;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
-        constants::NR64_CLONE => clone(emu),
-        constants::NR64_FUTEX => futex(emu),
-        constants::NR64_EXIT => exit_thread(emu),
-        constants::NR64_EXECVE => execve(emu),
-        constants::NR64_WAIT4 => wait4(emu),
-        constants::NR64_WAITID => waitid(emu),
+        NR64_CLONE => clone(emu),
+        NR64_FUTEX => futex(emu),
+        NR64_EXIT => exit_thread(emu),
+        NR64_EXECVE => execve(emu),
+        NR64_WAIT4 => wait4(emu),
+        NR64_WAITID => waitid(emu),
         // No pidfds: Go (1.23+) and glibc fall back to wait4/waitid on ENOSYS.
-        constants::NR64_PIDFD_OPEN => ret0_named(emu, ENOSYS, "pidfd_open"),
-        constants::NR64_GETTID => gettid(emu),
-        constants::NR64_GETPPID => ret0_named(emu, 1, "getppid"),
-        constants::NR64_PRCTL => ret0_named(emu, 0, "prctl"),
-        constants::NR64_DUP3 => dup3(emu),
-        constants::NR64_SET_TID_ADDRESS => set_tid_address(emu),
-        constants::NR64_SCHED_YIELD => sched_yield(emu),
+        NR64_PIDFD_OPEN => ret0_named(emu, ENOSYS, "pidfd_open"),
+        NR64_GETTID => gettid(emu),
+        NR64_GETPPID => ret0_named(emu, 1, "getppid"),
+        NR64_PRCTL => ret0_named(emu, 0, "prctl"),
+        NR64_DUP3 => dup3(emu),
+        NR64_SET_TID_ADDRESS => set_tid_address(emu),
+        NR64_SCHED_YIELD => sched_yield(emu),
         _ => return false,
     }
     true

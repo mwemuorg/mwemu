@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::system::*;
 
 // The emulated machine has one fixed NTFS volume, C:.
 
@@ -82,10 +82,10 @@ fn volume_path_name(emu: &mut emu::Emu, api: &str, wide: bool) {
     log_red!(emu, "kernel32!{} `{}` = `{}`", api, file, root);
     if out == 0 || !write_text(emu, out, size, &root, wide) {
         emu.set_last_error(ERROR_FILENAME_EXCED_RANGE);
-        emu.regs_mut().rax = constants::FALSE;
+        emu.regs_mut().rax = FALSE;
         return;
     }
-    emu.regs_mut().rax = constants::TRUE;
+    emu.regs_mut().rax = TRUE;
 }
 
 /*
@@ -129,14 +129,14 @@ fn volume_information(emu: &mut emu::Emu, api: &str, wide: bool) {
     // the root must name a volume, with its trailing backslash
     if !root.eq_ignore_ascii_case("C:\\") {
         emu.set_last_error(ERROR_PATH_NOT_FOUND);
-        emu.regs_mut().rax = constants::FALSE;
+        emu.regs_mut().rax = FALSE;
         return;
     }
     if (label_buf != 0 && !write_text(emu, label_buf, label_size, VOLUME_LABEL, wide))
         || (fs_buf != 0 && !write_text(emu, fs_buf, fs_size, FILE_SYSTEM, wide))
     {
         emu.set_last_error(ERROR_BAD_LENGTH);
-        emu.regs_mut().rax = constants::FALSE;
+        emu.regs_mut().rax = FALSE;
         return;
     }
     for (ptr, value) in [
@@ -148,5 +148,5 @@ fn volume_information(emu: &mut emu::Emu, api: &str, wide: bool) {
             emu.maps.write_dword(ptr, value);
         }
     }
-    emu.regs_mut().rax = constants::TRUE;
+    emu.regs_mut().rax = TRUE;
 }

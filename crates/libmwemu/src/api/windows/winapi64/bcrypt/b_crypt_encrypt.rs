@@ -1,6 +1,6 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptEncrypt(emu: &mut emu::Emu) {
     let h_key = emu.regs().rcx;
@@ -36,5 +36,5 @@ pub fn BCryptEncrypt(emu: &mut emu::Emu) {
         emu.maps.write_dword(pcb_result, cb_input as u32);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

@@ -1,7 +1,9 @@
 use crate::context::context64::Context64;
 use crate::debug::console::Console;
 use crate::emu;
-use crate::windows::{constants, structures};
+use crate::windows::constants::errors::*;
+
+use crate::windows::structures;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -71,7 +73,7 @@ fn NtQueueApcThread(emu: &mut emu::Emu) {
         arg2
     );
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtGetTickCount(emu: &mut emu::Emu) {
@@ -86,7 +88,7 @@ fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
     log_red!(emu, "ntdll!NtQueryPerformanceCounter");
 
     emu.maps.write_dword(perf_counter_ptr, 0);
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn RtlGetVersion(emu: &mut emu::Emu) {
@@ -178,7 +180,7 @@ pub fn NtQueryInformationProcess(emu: &mut emu::Emu) {
         }
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
@@ -203,7 +205,7 @@ pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
         emu.maps.write_dword(return_length_ptr, fill as u32);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {

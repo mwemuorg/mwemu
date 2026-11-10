@@ -1,7 +1,7 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::crypto::*;
 
 pub fn CryptGenKey(emu: &mut emu::Emu) {
     let _hprov = emu.regs().rcx;
@@ -9,7 +9,7 @@ pub fn CryptGenKey(emu: &mut emu::Emu) {
     let flags = emu.regs().r8;
     let ph_key = emu.regs().r9;
 
-    let alg_name = constants::get_cryptoalgorithm_name(alg_id);
+    let alg_name = get_cryptoalgorithm_name(alg_id);
     let uri = format!("cryptkey://{}", alg_name);
     let hndl = helper::handler_create(&uri);
 

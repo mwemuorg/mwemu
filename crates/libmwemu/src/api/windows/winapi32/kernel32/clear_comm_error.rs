@@ -1,22 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn ClearCommError(emu: &mut emu::Emu) {
-    let h_file = arg(emu, 0) as u64;
-    let lp_errors = arg(emu, 1) as u64;
-    let lp_stat = arg(emu, 2) as u64;
-
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!ClearCommError hFile:0x{:x} lpErrors:0x{:x} lpStat:0x{:x}",
-        h_file,
-        lp_errors,
-        lp_stat
+        "kernel32!ClearCommError arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-
-    if lp_errors != 0 {
-        emu.maps.write_dword(lp_errors, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
 }

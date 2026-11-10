@@ -1,14 +1,13 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetDateFormatEx(emu: &mut emu::Emu) {
-    let p0 = arg(emu, 0) as u64;
-    let p1 = arg(emu, 1) as u64;
-    let p2 = arg(emu, 2) as u64;
-    let p3 = arg(emu, 3) as u64;
-    let p4 = arg(emu, 4) as u64;
-    let p5 = arg(emu, 5) as u64;
-    let p6 = arg(emu, 6) as u64;
+    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+    let p6 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
     log_red!(
         emu,
         "kernel32!GetDateFormatEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
@@ -16,7 +15,9 @@ pub fn GetDateFormatEx(emu: &mut emu::Emu) {
         p2,
         p3
     );
+    for _ in 0..7 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 7);
 }

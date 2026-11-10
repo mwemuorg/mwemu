@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn SortCompareString(emu: &mut emu::Emu) {
     let _a1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -13,7 +13,7 @@ pub fn SortCompareString(emu: &mut emu::Emu) {
 
     log_red!(emu, "kernel32!SortCompareString");
 
-    emu.regs_mut().rax = constants::ERROR_SUCCESS;
+    emu.regs_mut().rax = ERROR_SUCCESS;
 
     for _ in 0..8 {
         emu.stack_pop32(false);

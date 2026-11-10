@@ -1,26 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetCurrentPackageInfo(emu: &mut emu::Emu) {
-    let flags = arg(emu, 0) as u64;
-    let buffer_length_ptr = arg(emu, 1) as u64;
-    let _buffer_ptr = arg(emu, 2) as u64;
-    let count_ptr = arg(emu, 3) as u64;
-
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetCurrentPackageInfo flags:0x{:x} len_ptr:0x{:x}",
-        flags,
-        buffer_length_ptr
+        "kernel32!GetCurrentPackageInfo h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-
-    if buffer_length_ptr != 0 {
-        emu.maps.write_dword(buffer_length_ptr, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    if count_ptr != 0 {
-        emu.maps.write_dword(count_ptr, 0);
-    }
-
-    emu.regs_mut().rax = 0x80073D54; // APPMODEL_ERROR_NO_PACKAGE
-    stdcall_ret(emu, 4);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

@@ -1,3 +1,6 @@
+use crate::emu::Emu;
+use crate::winapi::winapi64::kernel32;
+
 #[path = "../decode_pointer.rs"]
 mod decode_pointer;
 pub use decode_pointer::*;
@@ -104,3 +107,49 @@ pub use global_unlock::*;
 #[path = "../heap_size.rs"]
 mod heap_size;
 pub use heap_size::*;
+
+#[path = "../flush_instruction_cache.rs"]
+mod flush_instruction_cache;
+pub use flush_instruction_cache::FlushInstructionCache;
+
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "FlushInstructionCache" => kernel32::FlushInstructionCache(emu),
+        "DecodePointer" => kernel32::DecodePointer(emu),
+        "EncodePointer" => kernel32::EncodePointer(emu),
+        "GetProcessHeap" => kernel32::GetProcessHeap(emu),
+        "GlobalAlloc" => kernel32::GlobalAlloc(emu),
+        "GlobalFree" => kernel32::GlobalFree(emu),
+        "GlobalLock" => kernel32::GlobalLock(emu),
+        "GlobalUnlock" => kernel32::GlobalUnlock(emu),
+        "HeapAlloc" => kernel32::HeapAlloc(emu),
+        "HeapCreate" => kernel32::HeapCreate(emu),
+        "HeapDestroy" => kernel32::HeapDestroy(emu),
+        "HeapSetInformation" => kernel32::HeapSetInformation(emu),
+        "HeapFree" => kernel32::HeapFree(emu),
+        "HeapReAlloc" => kernel32::HeapReAlloc(emu),
+        "HeapSize" => kernel32::HeapSize(emu),
+        "IsBadReadPtr" => kernel32::IsBadReadPtr(emu),
+        "LocalAlloc" => kernel32::LocalAlloc(emu),
+        "LocalFree" => kernel32::LocalFree(emu),
+        "MapViewOfFile" => kernel32::MapViewOfFile(emu),
+        "ReadProcessMemory" => kernel32::ReadProcessMemory(emu),
+        "VirtualAlloc" => kernel32::VirtualAlloc(emu),
+        "VirtualAllocEx" => kernel32::VirtualAllocEx(emu),
+        "VirtualAllocExNuma" => kernel32::VirtualAllocExNuma(emu),
+        "VirtualFree" => kernel32::VirtualFree(emu),
+        "VirtualLock" => kernel32::VirtualLock(emu),
+        "VirtualProtect" => kernel32::VirtualProtect(emu),
+        "VirtualProtectEx" => kernel32::VirtualProtectEx(emu),
+        "WriteProcessMemory" => kernel32::WriteProcessMemory(emu),
+        "VirtualQuery" => kernel32::VirtualQuery(emu, addr),
+        "VirtualQueryEx" => kernel32::VirtualQueryEx(emu, addr),
+        "GetProcessWorkingSetSize" => kernel32::GetProcessWorkingSetSize(emu),
+        "SetProcessWorkingSetSize" => kernel32::SetProcessWorkingSetSize(emu),
+        "GlobalFlags" => kernel32::GlobalFlags(emu),
+        "GlobalSize" => kernel32::GlobalSize(emu),
+        "GlobalReAlloc" => kernel32::GlobalReAlloc(emu, addr),
+        _ => return false,
+    }
+    true
+}

@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _initialize_narrow_environment(emu: &mut emu::Emu) {
     log_red!(emu, "msvcrt!_initialize_narrow_environment");

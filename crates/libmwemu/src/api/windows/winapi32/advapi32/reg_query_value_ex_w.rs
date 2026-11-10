@@ -1,7 +1,7 @@
 use crate::emu;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
-use crate::windows::constants::ERROR_SUCCESS;
+use crate::windows::constants::errors::*;
 
 pub(super) fn RegQueryValueExW(emu: &mut emu::Emu) {
     let value_ptr = arg(emu, 1) as u64;

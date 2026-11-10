@@ -1,8 +1,10 @@
+use crate::windows::constants::memory::*;
+use crate::windows::constants::system::*;
 use std::collections::HashMap;
 use std::path::Path;
 
 use crate::arch::Arch;
-use crate::{debug::definitions::Definition, windows::constants};
+use crate::debug::definitions::Definition;
 use serde::{Deserialize, Serialize};
 
 /// Emulation configuration controlling architecture, memory layout, tracing, and runtime limits.
@@ -153,11 +155,11 @@ impl Config {
             winver: None,
             console2: false,
             console_addr: 0,
-            entry_point: constants::CFG_DEFAULT_BASE,
+            entry_point: CFG_DEFAULT_BASE,
             exit_position: 0,
             dump_on_exit: false, // TODO: a way to make it false/set it through cli + lib
             dump_filename: Some("dumps/emu.bin".to_string()), // TODO: a way to set it through cli + lib
-            code_base_addr: constants::CFG_DEFAULT_BASE,
+            code_base_addr: CFG_DEFAULT_BASE,
             arch: Arch::X86,
             stack_trace: false,
             test_mode: false,
@@ -185,14 +187,14 @@ impl Config {
             // can't be located.
             linux_real_libc: true,
             max_alloc_size: 0xffffff, // 16MB default
-            module_name: constants::MODULE_NAME.to_string(),
-            exe_name: constants::EXE_NAME.to_string(),
-            user_name: constants::USER_NAME.to_string(),
-            host_name: constants::HOST_NAME.to_string(),
-            temp_path: constants::TEMP_PATH.to_string(),
-            cwd_path: constants::CWD_PATH.to_string(),
-            windows_directory: constants::WINDOWS_DIRECTORY.to_string(),
-            system_directory: constants::SYSTEM_DIRECTORY.to_string(),
+            module_name: MODULE_NAME.to_string(),
+            exe_name: EXE_NAME.to_string(),
+            user_name: USER_NAME.to_string(),
+            host_name: HOST_NAME.to_string(),
+            temp_path: TEMP_PATH.to_string(),
+            cwd_path: CWD_PATH.to_string(),
+            windows_directory: WINDOWS_DIRECTORY.to_string(),
+            system_directory: SYSTEM_DIRECTORY.to_string(),
             max_instructions: None,
             timeout_secs: None,
             max_faults: None,

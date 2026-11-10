@@ -2,7 +2,7 @@ use super::bcrypt_algo_to_calg;
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptCreateHash(emu: &mut emu::Emu) {
     let h_algorithm = emu.regs().rcx;
@@ -33,5 +33,5 @@ pub fn BCryptCreateHash(emu: &mut emu::Emu) {
         hndl
     );
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

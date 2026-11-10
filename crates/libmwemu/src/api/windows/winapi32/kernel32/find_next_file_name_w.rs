@@ -1,16 +1,12 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn FindNextFileNameW(emu: &mut emu::Emu) {
-    let name_ptr = arg(emu, 0) as u64;
-    let param2 = arg(emu, 1) as u64;
-    let param3 = arg(emu, 2) as u64;
-    let param4 = arg(emu, 3) as u64;
-
-    let name = emu.maps.read_wide_string(name_ptr);
-    log_red!(emu, "kernel32!FindNextFileNameW name:'{}'", name);
-
-    emu.set_last_error(0);
+    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let s = emu.maps.read_wide_string(str_ptr);
+    log_red!(emu, "kernel32!FindNextFileNameW '{}'  0x{:x}", s, arg2);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

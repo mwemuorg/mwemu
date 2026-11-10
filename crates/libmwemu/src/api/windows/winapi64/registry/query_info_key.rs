@@ -3,8 +3,7 @@ use super::key_path;
 use super::stack_arg;
 use crate::emu;
 use crate::winapi::registry_store as store;
-use crate::windows::constants::ERROR_KEY_DELETED;
-use crate::windows::constants::ERROR_SUCCESS;
+use crate::windows::constants::errors::*;
 
 pub(super) fn query_info_key(emu: &mut emu::Emu, api: &str) {
     let hkey = emu.regs().rcx;

@@ -7,7 +7,7 @@ pub(crate) mod crypt32;
 mod dnsapi;
 pub(crate) mod gdi32;
 pub mod kernel32;
-mod kernelbase;
+pub(crate) mod kernelbase;
 pub(crate) mod msvcrt;
 pub mod ntdll;
 pub(crate) mod ole32;

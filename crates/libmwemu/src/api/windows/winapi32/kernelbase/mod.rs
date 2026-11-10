@@ -4,14 +4,11 @@ use crate::emu;
 use crate::winapi::common::heap as heap_api;
 use crate::winapi::common::memory_ops;
 use crate::winapi::common::sections;
+use crate::winapi::common::{files, handles, modules, strings};
 use crate::winapi::winapi32::kernel32;
 
-mod get_module_handle_w;
-use get_module_handle_w::GetModuleHandleW;
 mod get_token_information;
 use get_token_information::GetTokenInformation;
-mod is_char_alpha_numeric_a;
-use is_char_alpha_numeric_a::IsCharAlphaNumericA;
 mod load_string_w;
 use load_string_w::LoadStringW;
 mod local_alloc;
@@ -42,8 +39,18 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     if memory_api::dispatch(api, emu) {
         return String::new();
     }
+    if modules::dispatch(api, "kernelbase", emu)
+        || files::dispatch(api, "kernelbase", emu)
+        || strings::dispatch(api, "kernelbase", emu)
+        || handles::dispatch(api, "kernelbase", emu)
+    {
+        return String::new();
+    }
     match api {
-        "GetModuleHandleW" => GetModuleHandleW(emu),
+        "FlushInstructionCache" => {
+            memory_api::flush_instruction_cache(emu, "kernelbase!FlushInstructionCache")
+        }
+
         "LoadStringW" => LoadStringW(emu),
         "SetUnhandledExceptionFilter" => SetUnhandledExceptionFilter(emu),
         "_initterm" => _initterm(emu),
@@ -52,7 +59,6 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "GetTokenInformation" => GetTokenInformation(emu),
         "PathCombineA" => PathCombineA(emu),
         "PathCombineW" => PathCombineW(emu),
-        "IsCharAlphaNumericA" => IsCharAlphaNumericA(emu),
 
         _ => {
             return fallback::unimplemented(addr, api, emu);

@@ -1,3 +1,82 @@
+use crate::emu::Emu;
+use crate::winapi::winapi64::kernel32;
+
+#[path = "../set_file_attributes.rs"]
+mod set_file_attributes;
+pub use set_file_attributes::*;
+
+#[path = "../remove_directory.rs"]
+mod remove_directory;
+pub use remove_directory::*;
+
+#[path = "../move_file.rs"]
+mod move_file;
+pub use move_file::*;
+
+#[path = "../get_windows_directory.rs"]
+mod get_windows_directory;
+pub use get_windows_directory::*;
+
+#[path = "../get_temp_path.rs"]
+mod get_temp_path;
+pub use get_temp_path::*;
+
+#[path = "../get_system_directory.rs"]
+mod get_system_directory;
+pub use get_system_directory::*;
+
+#[path = "../get_full_path_name.rs"]
+mod get_full_path_name;
+pub use get_full_path_name::*;
+
+#[path = "../get_file_attributes.rs"]
+mod get_file_attributes;
+pub use get_file_attributes::*;
+
+#[path = "../get_drive_type.rs"]
+mod get_drive_type;
+pub use get_drive_type::*;
+
+#[path = "../get_disk_free_space_ex.rs"]
+mod get_disk_free_space_ex;
+pub use get_disk_free_space_ex::*;
+
+#[path = "../get_current_directory.rs"]
+mod get_current_directory;
+pub use get_current_directory::*;
+
+#[path = "../get_command_line.rs"]
+mod get_command_line;
+pub use get_command_line::*;
+
+#[path = "../find_next_file.rs"]
+mod find_next_file;
+pub use find_next_file::*;
+
+#[path = "../find_first_file.rs"]
+mod find_first_file;
+pub use find_first_file::*;
+
+#[path = "../delete_file.rs"]
+mod delete_file;
+pub use delete_file::*;
+
+#[path = "../create_named_pipe.rs"]
+mod create_named_pipe;
+pub use create_named_pipe::*;
+
+#[path = "../create_file_mapping.rs"]
+mod create_file_mapping;
+pub use create_file_mapping::*;
+
+#[path = "../create_directory.rs"]
+mod create_directory;
+pub use create_directory::*;
+
+#[path = "../copy_file.rs"]
+mod copy_file;
+pub use copy_file::*;
+
 #[path = "../volume.rs"]
 mod volume;
 pub use volume::*;
@@ -18,42 +97,6 @@ pub use are_file_api_is_ansi::*;
 mod connect_named_pipe;
 pub use connect_named_pipe::*;
 
-#[path = "../copy_file_a.rs"]
-mod copy_file_a;
-pub use copy_file_a::*;
-
-#[path = "../copy_file_w.rs"]
-mod copy_file_w;
-pub use copy_file_w::*;
-
-#[path = "../create_file_a.rs"]
-mod create_file_a;
-pub use create_file_a::*;
-
-#[path = "../create_file_mapping_a.rs"]
-mod create_file_mapping_a;
-pub use create_file_mapping_a::*;
-
-#[path = "../create_file_mapping_w.rs"]
-mod create_file_mapping_w;
-pub use create_file_mapping_w::*;
-
-#[path = "../create_file_w.rs"]
-mod create_file_w;
-pub use create_file_w::*;
-
-#[path = "../create_named_pipe_a.rs"]
-mod create_named_pipe_a;
-pub use create_named_pipe_a::*;
-
-#[path = "../create_named_pipe_w.rs"]
-mod create_named_pipe_w;
-pub use create_named_pipe_w::*;
-
-#[path = "../delete_file_a.rs"]
-mod delete_file_a;
-pub use delete_file_a::*;
-
 #[path = "../disconnect_named_pipe.rs"]
 mod disconnect_named_pipe;
 pub use disconnect_named_pipe::*;
@@ -66,97 +109,17 @@ pub use file_time_to_system_time::*;
 mod find_close;
 pub use find_close::*;
 
-#[path = "../find_first_file_a.rs"]
-mod find_first_file_a;
-pub use find_first_file_a::*;
-
 #[path = "../find_first_file_ex_w.rs"]
 mod find_first_file_ex_w;
 pub use find_first_file_ex_w::*;
-
-#[path = "../find_first_file_w.rs"]
-mod find_first_file_w;
-pub use find_first_file_w::*;
-
-#[path = "../find_next_file_a.rs"]
-mod find_next_file_a;
-pub use find_next_file_a::*;
-
-#[path = "../find_next_file_w.rs"]
-mod find_next_file_w;
-pub use find_next_file_w::*;
-
-#[path = "../get_command_line_a.rs"]
-mod get_command_line_a;
-pub use get_command_line_a::*;
-
-#[path = "../get_command_line_w.rs"]
-mod get_command_line_w;
-pub use get_command_line_w::*;
-
-#[path = "../get_current_directory_a.rs"]
-mod get_current_directory_a;
-pub use get_current_directory_a::*;
-
-#[path = "../get_current_directory_w.rs"]
-mod get_current_directory_w;
-pub use get_current_directory_w::*;
-
-#[path = "../get_disk_free_space_a.rs"]
-mod get_disk_free_space_a;
-pub use get_disk_free_space_a::*;
-
-#[path = "../get_disk_free_space_ex_a.rs"]
-mod get_disk_free_space_ex_a;
-pub use get_disk_free_space_ex_a::*;
-
-#[path = "../get_disk_free_space_ex_w.rs"]
-mod get_disk_free_space_ex_w;
-pub use get_disk_free_space_ex_w::*;
-
-#[path = "../get_drive_type_a.rs"]
-mod get_drive_type_a;
-pub use get_drive_type_a::*;
-
-#[path = "../get_drive_type_w.rs"]
-mod get_drive_type_w;
-pub use get_drive_type_w::*;
-
-#[path = "../get_file_attributes_a.rs"]
-mod get_file_attributes_a;
-pub use get_file_attributes_a::*;
-
-#[path = "../get_file_attributes_w.rs"]
-mod get_file_attributes_w;
-pub use get_file_attributes_w::*;
-
-#[path = "../get_file_size.rs"]
-mod get_file_size;
-pub use get_file_size::GetFileSize;
 
 #[path = "../get_file_type.rs"]
 mod get_file_type;
 pub use get_file_type::*;
 
-#[path = "../get_full_path_name_a.rs"]
-mod get_full_path_name_a;
-pub use get_full_path_name_a::*;
-
-#[path = "../get_full_path_name_w.rs"]
-mod get_full_path_name_w;
-pub use get_full_path_name_w::*;
-
 #[path = "../get_logical_drives.rs"]
 mod get_logical_drives;
 pub use get_logical_drives::*;
-
-#[path = "../get_system_directory_a.rs"]
-mod get_system_directory_a;
-pub use get_system_directory_a::*;
-
-#[path = "../get_system_directory_w.rs"]
-mod get_system_directory_w;
-pub use get_system_directory_w::*;
 
 #[path = "../get_system_time_as_file_time.rs"]
 mod get_system_time_as_file_time;
@@ -166,85 +129,85 @@ pub use get_system_time_as_file_time::*;
 mod get_system_time_precise_as_file_time;
 pub use get_system_time_precise_as_file_time::*;
 
-#[path = "../get_temp_path_a.rs"]
-mod get_temp_path_a;
-pub use get_temp_path_a::*;
-
-#[path = "../get_temp_path_w.rs"]
-mod get_temp_path_w;
-pub use get_temp_path_w::*;
-
-#[path = "../get_windows_directory_a.rs"]
-mod get_windows_directory_a;
-pub use get_windows_directory_a::*;
-
-#[path = "../get_windows_directory_w.rs"]
-mod get_windows_directory_w;
-pub use get_windows_directory_w::*;
-
-#[path = "../move_file_a.rs"]
-mod move_file_a;
-pub use move_file_a::*;
-
-#[path = "../move_file_w.rs"]
-mod move_file_w;
-pub use move_file_w::*;
-
-#[path = "../read_file.rs"]
-mod read_file;
-pub use read_file::*;
-
 #[path = "../device_io_control.rs"]
 mod device_io_control;
 pub use device_io_control::*;
-
-#[path = "../set_current_directory_a.rs"]
-mod set_current_directory_a;
-pub use set_current_directory_a::*;
-
-#[path = "../set_file_pointer.rs"]
-mod set_file_pointer;
-pub use set_file_pointer::*;
 
 #[path = "../system_time_to_file_time.rs"]
 mod system_time_to_file_time;
 pub use system_time_to_file_time::*;
 
-#[path = "../write_file.rs"]
-mod write_file;
-pub use write_file::*;
-
 #[path = "../GetFileSize.rs"]
 mod GetFileSize;
 
-#[path = "../get_file_size_ex.rs"]
-mod get_file_size_ex;
-pub use get_file_size_ex::GetFileSizeEx;
-
-#[path = "../create_directory_a.rs"]
-mod create_directory_a;
-pub use create_directory_a::*;
-
-#[path = "../create_directory_w.rs"]
-mod create_directory_w;
-pub use create_directory_w::*;
-
-#[path = "../delete_file_w.rs"]
-mod delete_file_w;
-pub use delete_file_w::*;
-
-#[path = "../remove_directory_a.rs"]
-mod remove_directory_a;
-pub use remove_directory_a::*;
-
-#[path = "../remove_directory_w.rs"]
-mod remove_directory_w;
-pub use remove_directory_w::*;
-
-#[path = "../set_file_attributes_a.rs"]
-mod set_file_attributes_a;
-pub use set_file_attributes_a::*;
-
-#[path = "../set_file_attributes_w.rs"]
-mod set_file_attributes_w;
-pub use set_file_attributes_w::*;
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "AreFileApiIsAnsi" | "AreFileApisANSI" => kernel32::AreFileApiIsAnsi(emu),
+        "ConnectNamedPipe" => kernel32::ConnectNamedPipe(emu),
+        "DeleteFileA" => kernel32::DeleteFileA(emu),
+        "DeleteFileW" => kernel32::DeleteFileW(emu),
+        "CopyFileA" => kernel32::CopyFileA(emu),
+        "CopyFileW" => kernel32::CopyFileW(emu),
+        "CreateDirectoryA" => kernel32::CreateDirectoryA(emu),
+        "CreateDirectoryW" => kernel32::CreateDirectoryW(emu),
+        "CreateFileMappingA" => kernel32::CreateFileMappingA(emu),
+        "CreateFileMappingW" => kernel32::CreateFileMappingW(emu),
+        "CreateNamedPipeA" => kernel32::CreateNamedPipeA(emu),
+        "CreateNamedPipeW" => kernel32::CreateNamedPipeW(emu),
+        "DisconnectNamedPipe" => kernel32::DisconnectNamedPipe(emu),
+        "FindClose" => kernel32::FindClose(emu),
+        "FindFirstFileA" => kernel32::FindFirstFileA(emu),
+        "FindFirstFileExW" => kernel32::FindFirstFileExW(emu),
+        "FindFirstFileW" => kernel32::FindFirstFileW(emu),
+        "FindNextFileA" => kernel32::FindNextFileA(emu),
+        "FindNextFileW" => kernel32::FindNextFileW(emu),
+        "GetCommandLineA" => kernel32::GetCommandLineA(emu),
+        "GetCommandLineW" => kernel32::GetCommandLineW(emu),
+        "GetDiskFreeSpaceExA" => kernel32::GetDiskFreeSpaceExA(emu),
+        "GetDiskFreeSpaceExW" => kernel32::GetDiskFreeSpaceExW(emu),
+        "GetDriveTypeA" => kernel32::GetDriveTypeA(emu),
+        "GetDriveTypeW" => kernel32::GetDriveTypeW(emu),
+        "GetCurrentDirectoryA" => kernel32::GetCurrentDirectoryA(emu),
+        "GetCurrentDirectoryW" => kernel32::GetCurrentDirectoryW(emu),
+        "GetFileAttributesA" => kernel32::GetFileAttributesA(emu),
+        "GetFileAttributesW" => kernel32::GetFileAttributesW(emu),
+        "GetFileType" => kernel32::GetFileType(emu),
+        "GetFullPathNameA" => kernel32::GetFullPathNameA(emu),
+        "GetFullPathNameW" => kernel32::GetFullPathNameW(emu),
+        "GetLogicalDrives" => kernel32::GetLogicalDrives(emu),
+        "GetSystemDirectoryA" => kernel32::GetSystemDirectoryA(emu),
+        "GetSystemDirectoryW" => kernel32::GetSystemDirectoryW(emu),
+        "GetTempPathA" => kernel32::GetTempPathA(emu),
+        "GetTempPathW" => kernel32::GetTempPathW(emu),
+        "GetWindowsDirectoryA" => kernel32::GetWindowsDirectoryA(emu),
+        "GetWindowsDirectoryW" => kernel32::GetWindowsDirectoryW(emu),
+        "QueryDosDeviceW" => kernel32::QueryDosDeviceW(emu),
+        "MoveFileA" => kernel32::MoveFileA(emu),
+        "MoveFileW" => kernel32::MoveFileW(emu),
+        "GetVolumeInformationA" => kernel32::GetVolumeInformationA(emu),
+        "GetVolumeInformationW" => kernel32::GetVolumeInformationW(emu),
+        "GetVolumePathNameA" => kernel32::GetVolumePathNameA(emu),
+        "GetVolumePathNameW" => kernel32::GetVolumePathNameW(emu),
+        "RemoveDirectoryA" => kernel32::RemoveDirectoryA(emu),
+        "RemoveDirectoryW" => kernel32::RemoveDirectoryW(emu),
+        "SetFileAttributesA" => kernel32::SetFileAttributesA(emu),
+        "SetFileAttributesW" => kernel32::SetFileAttributesW(emu),
+        "DeviceIoControl" => kernel32::api_DeviceIoControl(emu),
+        "GetLongPathNameA" => kernel32::GetLongPathNameA(emu),
+        "GetLongPathNameW" => kernel32::GetLongPathNameW(emu),
+        "GetShortPathNameA" => kernel32::GetShortPathNameA(emu),
+        "GetShortPathNameW" => kernel32::GetShortPathNameW(emu),
+        "SearchPathA" => kernel32::SearchPathA(emu),
+        "SearchPathW" => kernel32::SearchPathW(emu),
+        "CopyFileExW" => kernel32::CopyFileExW(emu),
+        "MoveFileExA" => kernel32::MoveFileExA(emu),
+        "MoveFileExW" => kernel32::MoveFileExW(emu),
+        "LockFile" => kernel32::LockFile(emu),
+        "UnlockFile" => kernel32::UnlockFile(emu),
+        "CreatePipe" => kernel32::CreatePipe(emu),
+        "GetSystemWindowsDirectoryA" => kernel32::GetSystemWindowsDirectoryA(emu),
+        "GetSystemWindowsDirectoryW" => kernel32::GetSystemWindowsDirectoryW(emu),
+        _ => return false,
+    }
+    true
+}

@@ -1,29 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetUserPreferredUILanguages(emu: &mut emu::Emu) {
-    let flags = arg(emu, 0);
-    let num_languages_ptr = arg(emu, 1) as u64;
-    let languages_buf = arg(emu, 2) as u64;
-    let buf_size_ptr = arg(emu, 3) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetUserPreferredUILanguages flags:0x{:x} num:0x{:x} buf:0x{:x} size:0x{:x}",
-        flags,
-        num_languages_ptr,
-        languages_buf,
-        buf_size_ptr
+        "kernel32!GetUserPreferredUILanguages h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if num_languages_ptr != 0 {
-        emu.maps.write_dword(num_languages_ptr, 1);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    if languages_buf != 0 {
-        emu.maps.write_wide_string(languages_buf, "en-US");
-        emu.maps.write_word(languages_buf + 12, 0);
-    }
-    if buf_size_ptr != 0 {
-        emu.maps.write_dword(buf_size_ptr, 7);
-    }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

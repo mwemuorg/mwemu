@@ -1,0 +1,30 @@
+use crate::emu;
+use crate::windows::constants::errors::*;
+
+pub fn FindAtomA(emu: &mut emu::Emu) {
+    let lpString = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+
+    let lpString = emu.maps.read_string(lpString as u64);
+
+    log_red!(emu, "kernel32!FindAtomA {}", lpString);
+
+    emu.regs_mut().rax = ERROR_SUCCESS;
+
+    for _ in 0..1 {
+        emu.stack_pop32(false);
+    }
+}
+
+pub fn FindAtomW(emu: &mut emu::Emu) {
+    let lpString = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+
+    let lpString = emu.maps.read_wide_string(lpString as u64);
+
+    log_red!(emu, "kernel32!FindAtomW {}", lpString);
+
+    emu.regs_mut().rax = ERROR_SUCCESS;
+
+    for _ in 0..1 {
+        emu.stack_pop32(false);
+    }
+}

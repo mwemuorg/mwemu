@@ -1,8 +1,13 @@
+use crate::winapi::{winapi32, winapi64};
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::*;
+
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{MemoryError, PAGE_SIZE, PageState};
 use crate::serialization::Serialization;
-use crate::tests::helpers::{call_winapi32, call_winapi64};
+use crate::tests::helpers::{self, call_winapi32, call_winapi64};
 use crate::winapi::common::memory::{self, Call};
 use crate::{emu32, emu64};
 use itertools::iproduct;
@@ -11,12 +16,6 @@ use std::{env, fs};
 
 const BASE: u64 = 0x3000_0000;
 const OUTPUT: u64 = BASE + 0x10000;
-const RW: u32 = 4;
-const RO: u32 = 2;
-const RESERVE: u32 = 0x2000;
-const COMMIT: u32 = 0x1000;
-const DECOMMIT: u32 = 0x4000;
-const RELEASE: u32 = 0x8000;
 
 fn prepare(is64: bool) -> Emu {
     let mut emu = if is64 { emu64() } else { emu32() };
@@ -68,7 +67,12 @@ fn reserve_commit_decommit_release_preserves_identity_and_resets_bytes() {
             call(
                 &mut emu,
                 allocate,
-                &[BASE, 3 * PAGE_SIZE, RESERVE as u64, RW as u64]
+                &[
+                    BASE,
+                    3 * PAGE_SIZE,
+                    MEM_RESERVE as u64,
+                    PAGE_READWRITE as u64
+                ]
             ),
             BASE
         );
@@ -78,7 +82,12 @@ fn reserve_commit_decommit_release_preserves_identity_and_resets_bytes() {
             call(
                 &mut emu,
                 allocate,
-                &[BASE + PAGE_SIZE + 3, 2, COMMIT as u64, RW as u64]
+                &[
+                    BASE + PAGE_SIZE + 3,
+                    2,
+                    MEM_COMMIT as u64,
+                    PAGE_READWRITE as u64
+                ]
             ),
             BASE + PAGE_SIZE
         );
@@ -88,7 +97,12 @@ fn reserve_commit_decommit_release_preserves_identity_and_resets_bytes() {
             call(
                 &mut emu,
                 allocate,
-                &[BASE + PAGE_SIZE, PAGE_SIZE, COMMIT as u64, RO as u64]
+                &[
+                    BASE + PAGE_SIZE,
+                    PAGE_SIZE,
+                    MEM_COMMIT as u64,
+                    PAGE_READONLY as u64
+                ]
             ),
             BASE + PAGE_SIZE
         );
@@ -102,7 +116,7 @@ fn reserve_commit_decommit_release_preserves_identity_and_resets_bytes() {
             call(
                 &mut emu,
                 free,
-                &[BASE + PAGE_SIZE, PAGE_SIZE, DECOMMIT as u64]
+                &[BASE + PAGE_SIZE, PAGE_SIZE, MEM_DECOMMIT as u64]
             ),
             1
         );
@@ -111,17 +125,25 @@ fn reserve_commit_decommit_release_preserves_identity_and_resets_bytes() {
             call(
                 &mut emu,
                 allocate,
-                &[BASE + PAGE_SIZE, PAGE_SIZE, COMMIT as u64, RW as u64]
+                &[
+                    BASE + PAGE_SIZE,
+                    PAGE_SIZE,
+                    MEM_COMMIT as u64,
+                    PAGE_READWRITE as u64
+                ]
             ),
             BASE + PAGE_SIZE
         );
         assert_eq!(emu.maps.read_dword(BASE + PAGE_SIZE), Some(0));
         assert_eq!(
-            call(&mut emu, free, &[BASE + PAGE_SIZE, 0, RELEASE as u64]),
+            call(&mut emu, free, &[BASE + PAGE_SIZE, 0, MEM_RELEASE as u64]),
             0
         );
-        assert_eq!(call(&mut emu, free, &[BASE, PAGE_SIZE, RELEASE as u64]), 0);
-        assert_eq!(call(&mut emu, free, &[BASE, 0, RELEASE as u64]), 1);
+        assert_eq!(
+            call(&mut emu, free, &[BASE, PAGE_SIZE, MEM_RELEASE as u64]),
+            0
+        );
+        assert_eq!(call(&mut emu, free, &[BASE, 0, MEM_RELEASE as u64]), 1);
         assert!(!emu.maps.is_mapped(BASE));
         assert!(emu.maps.query_memory(BASE).state.is_none());
     }
@@ -144,10 +166,17 @@ fn nt_allocate_rounds_pointer_outputs_and_cleans_x86_stack_on_error() {
                 0,
                 OUTPUT + 8,
                 if valid { 0x3000 } else { 0 },
-                RW as u64,
+                PAGE_READWRITE as u64,
             ],
         );
-        assert_eq!(result, if valid { 0 } else { 0xc000000d });
+        assert_eq!(
+            result,
+            if valid {
+                STATUS_SUCCESS
+            } else {
+                STATUS_INVALID_PARAMETER
+            }
+        );
         assert_eq!(
             memory::read_pointer(&emu, OUTPUT),
             Some(if valid { BASE } else { BASE + 0x123 })
@@ -168,16 +197,22 @@ fn query_reports_page_state_in_the_guest_layout() {
     for is64 in [false, true] {
         let mut emu = prepare(is64);
         emu.maps
-            .reserve_private(BASE, 3 * PAGE_SIZE, RW, Permission::READ_WRITE, false)
+            .reserve_private(
+                BASE,
+                3 * PAGE_SIZE,
+                PAGE_READWRITE,
+                Permission::READ_WRITE,
+                false,
+            )
             .unwrap();
         emu.maps
-            .commit_memory(BASE + PAGE_SIZE, PAGE_SIZE, RO, Permission::READ)
+            .commit_memory(BASE + PAGE_SIZE, PAGE_SIZE, PAGE_READONLY, Permission::READ)
             .unwrap();
         let length = memory::query_size(&emu);
         for (offset, state, protection) in [
-            (0, RESERVE, 0),
-            (PAGE_SIZE, COMMIT, RO),
-            (2 * PAGE_SIZE, RESERVE, 0),
+            (0, MEM_RESERVE, 0),
+            (PAGE_SIZE, MEM_COMMIT, PAGE_READONLY),
+            (2 * PAGE_SIZE, MEM_RESERVE, 0),
         ] {
             emu.maps.fill_range(OUTPUT, 0xcc, 64);
             assert_eq!(
@@ -208,28 +243,34 @@ fn query_reports_page_state_in_the_guest_layout() {
 fn protection_rejects_reserved_pages_and_cross_allocation_ranges_atomically() {
     let mut emu = prepare(false);
     emu.maps
-        .reserve_private(BASE, 2 * PAGE_SIZE, RW, Permission::READ_WRITE, false)
+        .reserve_private(
+            BASE,
+            2 * PAGE_SIZE,
+            PAGE_READWRITE,
+            Permission::READ_WRITE,
+            false,
+        )
         .unwrap();
     emu.maps
-        .commit_memory(BASE, PAGE_SIZE, RW, Permission::READ_WRITE)
+        .commit_memory(BASE, PAGE_SIZE, PAGE_READWRITE, Permission::READ_WRITE)
         .unwrap();
     emu.maps
         .reserve_private(
             BASE + 2 * PAGE_SIZE,
             PAGE_SIZE,
-            RW,
+            PAGE_READWRITE,
             Permission::READ_WRITE,
             true,
         )
         .unwrap();
     assert_eq!(
         emu.maps
-            .protect_memory(BASE, 2 * PAGE_SIZE, RO, Permission::READ),
+            .protect_memory(BASE, 2 * PAGE_SIZE, PAGE_READONLY, Permission::READ),
         Err(MemoryError::NotCommitted)
     );
     assert_eq!(
         emu.maps
-            .protect_memory(BASE, 3 * PAGE_SIZE, RO, Permission::READ),
+            .protect_memory(BASE, 3 * PAGE_SIZE, PAGE_READONLY, Permission::READ),
         Err(MemoryError::Conflict)
     );
     assert!(emu.maps.write_byte(BASE, 1));
@@ -262,10 +303,21 @@ fn map_overlap_and_oversized_requests_leave_existing_memory_intact() {
 fn native_snapshot_retains_reserved_pages_and_allocation_identity() {
     let mut emu = prepare(false);
     emu.maps
-        .reserve_private(BASE, 3 * PAGE_SIZE, RW, Permission::READ_WRITE, false)
+        .reserve_private(
+            BASE,
+            3 * PAGE_SIZE,
+            PAGE_READWRITE,
+            Permission::READ_WRITE,
+            false,
+        )
         .unwrap();
     emu.maps
-        .commit_memory(BASE + PAGE_SIZE, PAGE_SIZE, RW, Permission::READ_WRITE)
+        .commit_memory(
+            BASE + PAGE_SIZE,
+            PAGE_SIZE,
+            PAGE_READWRITE,
+            Permission::READ_WRITE,
+        )
         .unwrap();
     emu.maps.write_dword(BASE + PAGE_SIZE, 0x12345678);
     let mut restored = Serialization::deserialize(&Serialization::serialize(&emu));
@@ -295,8 +347,22 @@ fn top_down_search_uses_complete_free_ranges() {
             .find_free_range_top_down(0x4000, 0x1000, BASE, BASE + 0x5000),
         None
     );
-    let (high, _) = memory::allocate(&mut emu, 0, 0x2000, RESERVE | COMMIT | 0x100000, RW).unwrap();
-    let (low, _) = memory::allocate(&mut emu, 0, 0x2000, RESERVE | COMMIT, RW).unwrap();
+    let (high, _) = memory::allocate(
+        &mut emu,
+        0,
+        0x2000,
+        MEM_RESERVE | MEM_COMMIT | 0x100000,
+        PAGE_READWRITE,
+    )
+    .unwrap();
+    let (low, _) = memory::allocate(
+        &mut emu,
+        0,
+        0x2000,
+        MEM_RESERVE | MEM_COMMIT,
+        PAGE_READWRITE,
+    )
+    .unwrap();
     assert!(high > low);
 }
 
@@ -304,10 +370,21 @@ fn top_down_search_uses_complete_free_ranges() {
 fn minidump_restores_reservation_boundaries_and_page_state() {
     let mut emu = emu32();
     emu.maps
-        .reserve_private(BASE, 3 * PAGE_SIZE, RW, Permission::READ_WRITE, false)
+        .reserve_private(
+            BASE,
+            3 * PAGE_SIZE,
+            PAGE_READWRITE,
+            Permission::READ_WRITE,
+            false,
+        )
         .unwrap();
     emu.maps
-        .commit_memory(BASE + PAGE_SIZE, PAGE_SIZE, RW, Permission::READ_WRITE)
+        .commit_memory(
+            BASE + PAGE_SIZE,
+            PAGE_SIZE,
+            PAGE_READWRITE,
+            Permission::READ_WRITE,
+        )
         .unwrap();
     emu.maps.write_dword(BASE + PAGE_SIZE, 0x12345678);
     let dir = env::temp_dir().join("mwemu_reservation_state");
@@ -331,7 +408,12 @@ fn minidump_restores_reservation_boundaries_and_page_state() {
     assert_eq!(restored.maps.read_byte(BASE + 2 * PAGE_SIZE), None);
     restored
         .maps
-        .commit_memory(BASE + 2 * PAGE_SIZE, PAGE_SIZE, RW, Permission::READ_WRITE)
+        .commit_memory(
+            BASE + 2 * PAGE_SIZE,
+            PAGE_SIZE,
+            PAGE_READWRITE,
+            Permission::READ_WRITE,
+        )
         .unwrap();
     assert_eq!(restored.maps.read_byte(BASE + 2 * PAGE_SIZE), Some(0));
     restored.maps.release_memory(BASE).unwrap();
@@ -342,7 +424,13 @@ fn minidump_restores_reservation_boundaries_and_page_state() {
 fn missing_allocation_page_state_remains_reserved() {
     let mut emu = prepare(false);
     emu.maps
-        .reserve_private(BASE, PAGE_SIZE, RW, Permission::READ_WRITE, false)
+        .reserve_private(
+            BASE,
+            PAGE_SIZE,
+            PAGE_READWRITE,
+            Permission::READ_WRITE,
+            false,
+        )
         .unwrap();
     let mut saved = to_value(emu.maps.allocation_at(BASE).unwrap()).unwrap();
     saved["states"].as_object_mut().unwrap().clear();
@@ -354,14 +442,143 @@ fn missing_allocation_page_state_remains_reserved() {
     );
     assert_eq!(
         emu.maps
-            .protect_memory(BASE, PAGE_SIZE, RW, Permission::READ_WRITE),
+            .protect_memory(BASE, PAGE_SIZE, PAGE_READWRITE, Permission::READ_WRITE),
         Err(MemoryError::NotCommitted)
     );
     assert!(!emu.maps.write_byte(BASE, 1));
     assert_eq!(emu.maps.read_byte(BASE), None);
 
     emu.maps
-        .commit_memory(BASE, PAGE_SIZE, RW, Permission::READ_WRITE)
+        .commit_memory(BASE, PAGE_SIZE, PAGE_READWRITE, Permission::READ_WRITE)
         .unwrap();
     assert_eq!(emu.maps.read_byte(BASE), Some(0));
+}
+
+#[test]
+fn virtual_alloc_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::VirtualAlloc,
+        &[
+            0,
+            PAGE_SIZE as u32,
+            MEM_COMMIT | MEM_RESERVE,
+            PAGE_EXECUTE_READWRITE,
+        ],
+    );
+    assert!(base != 0, "VirtualAlloc 32-bit failed");
+
+    // Verify memory and write
+    emu.maps.write_dword(base as u64, 0x11223344);
+    let val = emu.maps.read_dword(base as u64).unwrap();
+    assert_eq!(val, 0x11223344);
+}
+
+#[test]
+fn virtual_alloc() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let base = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::VirtualAlloc,
+        &[
+            0,
+            PAGE_SIZE,
+            (MEM_COMMIT | MEM_RESERVE) as u64,
+            PAGE_EXECUTE_READWRITE as u64,
+        ],
+    );
+    assert!(base != 0, "VirtualAlloc failed");
+
+    // Verify memory access
+    emu.maps.write_dword(base, 0xDEADBEEF);
+    let val = emu.maps.read_dword(base).unwrap();
+    assert_eq!(val, 0xDEADBEEF);
+}
+
+#[test]
+fn nt_free_virtual_memory_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let base = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::VirtualAlloc,
+        &[
+            0,
+            PAGE_SIZE,
+            (MEM_COMMIT | MEM_RESERVE) as u64,
+            PAGE_EXECUTE_READWRITE as u64,
+        ],
+    );
+    assert_ne!(base, 0);
+    assert!(emu.maps.is_mapped(base));
+
+    let base_ptr = 0x200000u64;
+    emu.maps
+        .create_map("ntfree_io", base_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_qword(base_ptr, base);
+    emu.maps.write_qword(base_ptr + 8, 0);
+
+    let status = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ntdll::NtFreeVirtualMemory,
+        &[
+            NT_CURRENT_PROCESS,
+            base_ptr,
+            base_ptr + 8,
+            MEM_RELEASE as u64,
+        ],
+    );
+    assert_eq!(
+        status, STATUS_SUCCESS,
+        "NtFreeVirtualMemory must return STATUS_SUCCESS"
+    );
+    assert!(!emu.maps.is_mapped(base));
+}
+
+#[test]
+fn nt_free_virtual_memory() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    // First allocate some virtual memory
+    let base = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::VirtualAlloc,
+        &[
+            0,
+            PAGE_SIZE,
+            (MEM_COMMIT | MEM_RESERVE) as u64,
+            PAGE_EXECUTE_READWRITE as u64,
+        ],
+    );
+    assert_ne!(base, 0);
+    assert!(emu.maps.is_mapped(base));
+
+    let base_ptr_addr = 0x100000u64;
+    emu.maps
+        .create_map("freevm", base_ptr_addr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_qword(base_ptr_addr, base);
+    emu.maps.write_qword(base_ptr_addr + 8, 0);
+
+    let status = helpers::call_winapi64(
+        &mut emu,
+        winapi64::ntdll::NtFreeVirtualMemory,
+        &[
+            NT_CURRENT_PROCESS,
+            base_ptr_addr,
+            base_ptr_addr + 8,
+            MEM_RELEASE as u64,
+        ],
+    );
+    assert_eq!(
+        status, STATUS_SUCCESS,
+        "NtFreeVirtualMemory should return STATUS_SUCCESS"
+    );
+    assert!(!emu.maps.is_mapped(base));
 }

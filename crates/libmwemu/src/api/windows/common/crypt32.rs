@@ -1,20 +1,8 @@
+use crate::windows::constants::crypto::*;
 use sha1::Sha1;
 use sha2::{Digest, Sha256};
 
 use crate::emu;
-
-const CRYPT_STRING_BASE64HEADER: u64 = 0x00000000;
-const CRYPT_STRING_BASE64: u64 = 0x00000001;
-const CRYPT_STRING_BINARY: u64 = 0x00000002;
-const CRYPT_STRING_HEX: u64 = 0x00000004;
-const CRYPT_STRING_BASE64_ANY: u64 = 0x00000006;
-const CRYPT_STRING_ANY: u64 = 0x00000007;
-const CRYPT_STRING_HEX_ANY: u64 = 0x00000008;
-const CRYPT_STRING_HEXRAW: u64 = 0x0000000c;
-
-const CALG_SHA_256: u32 = 0x0000800c;
-const CALG_SHA1: u32 = 0x00008004;
-const CALG_MD5: u32 = 0x00008003;
 
 fn base64_decode(input: &[u8]) -> Option<Vec<u8>> {
     let filtered: Vec<u8> = input
@@ -123,14 +111,14 @@ pub(crate) fn crypt_string_to_binary_a(
     };
 
     let dflags = match flags {
-        0x00 => "BASE64HEADER",
-        0x01 => "BASE64",
-        0x02 => "BINARY",
-        0x04 => "HEX",
-        0x06 => "BASE64_ANY",
-        0x07 => "ANY",
-        0x08 => "HEX_ANY",
-        0x0c => "HEXRAW",
+        CRYPT_STRING_BASE64HEADER => "BASE64HEADER",
+        CRYPT_STRING_BASE64 => "BASE64",
+        CRYPT_STRING_BINARY => "BINARY",
+        CRYPT_STRING_HEX => "HEX",
+        CRYPT_STRING_BASE64_ANY => "BASE64_ANY",
+        CRYPT_STRING_ANY => "ANY",
+        CRYPT_STRING_HEX_ANY => "HEX_ANY",
+        CRYPT_STRING_HEXRAW => "HEXRAW",
         _ => "unknown",
     };
 
