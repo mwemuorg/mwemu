@@ -615,7 +615,7 @@ fn winapi32_handlers_preserve_nonvolatile_regs() {
                 apis.first().map_or("_", |s| s),
                 MODULE32,
             );
-            let stack_base = emu.regs().get_esp() as u64;
+            let stack_base = emu.regs().get_esp();
 
             for api in &apis {
                 emu.regs_mut().set_esp(stack_base);
