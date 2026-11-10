@@ -55,9 +55,9 @@ impl Emu {
         self.regs_mut().rip = self.gateway_return;
 
         if self.os.is_macos() {
-            crate::macosapi::gateway(addr, section_name, &symbol, self);
+            crate::layers::macos().api_call(addr, section_name, &symbol, self);
         } else if self.os.is_linux() {
-            crate::linuxapi::gateway(addr, section_name, &symbol, self);
+            crate::layers::linux().api_call(addr, section_name, &symbol, self);
         }
 
         self.force_break = true;
@@ -380,11 +380,11 @@ impl Emu {
         if self.os.is_macos() {
             // Set PC to return address (already in LR from BL/BLR)
             self.regs_aarch64_mut().pc = self.regs_aarch64().x[30];
-            crate::macosapi::gateway(addr, &name, &symbol, self);
+            crate::layers::macos().api_call(addr, &name, &symbol, self);
         } else if self.os.is_linux() {
             // Set PC to return address (already in LR from BL/BLR)
             self.regs_aarch64_mut().pc = self.regs_aarch64().x[30];
-            crate::linuxapi::gateway(addr, &name, &symbol, self);
+            crate::layers::linux().api_call(addr, &name, &symbol, self);
         } else if self.os.is_windows() {
             // emulate winapi mode
             if self.cfg.emulate_winapi {

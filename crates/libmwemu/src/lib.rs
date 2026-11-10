@@ -25,10 +25,17 @@ pub use mwemu_core::{color, get_bit, log_orange, log_red, popn, set_bit, to32};
 // The tests were written inside the single-crate libmwemu and reach its
 // internals as `crate::…`; keep those paths valid for them.
 #[cfg(test)]
-pub(crate) use mwemu_core::{engine, exception, syscall, threading, windows};
+pub(crate) use mwemu_core::{engine, exception, threading, windows};
+#[cfg(test)]
+pub(crate) mod syscall {
+    pub(crate) use mwemu_core::syscall::*;
+    pub(crate) use mwemu_linux::syscall::linux;
+}
 #[cfg(test)]
 pub(crate) mod api {
     pub(crate) use mwemu_core::api::*;
+    pub(crate) use mwemu_linux::api::linux;
+    pub(crate) use mwemu_macos::api::macos;
     pub(crate) mod windows {
         pub(crate) use mwemu_core::api::windows::*;
         pub(crate) use mwemu_winapi32 as winapi32;
@@ -45,11 +52,14 @@ use arch::Arch;
 use emu::Emu;
 use mwemu_core::api::dispatch::{self, ApiDispatch};
 
-/// Register the Windows API handlers with the emulator core. `emu32()`,
-/// `emu64()` and `emu_aarch64()` do it for you; call it yourself before
-/// running an emulator built another way (`Emu::new`, `Serialization::load`).
-/// Calling it more than once is harmless.
+/// Register the Windows API handlers and the OS layers (`mwemu-linux`,
+/// `mwemu-macos`) with the emulator core. `emu32()`, `emu64()` and
+/// `emu_aarch64()` do it for you; call it yourself before running an emulator
+/// built another way (`Emu::new`, `Serialization::load`). Calling it more than
+/// once is harmless.
 pub fn register_api_handlers() {
+    mwemu_linux::register();
+    mwemu_macos::register();
     dispatch::register(ApiDispatch {
         winapi32_gateway: mwemu_winapi32::gateway,
         winapi64_gateway: mwemu_winapi64::gateway,

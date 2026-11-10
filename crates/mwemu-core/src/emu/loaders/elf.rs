@@ -1,4 +1,4 @@
-use crate::syscall::linux::constants::elf::*;
+use crate::emu::loaders::elf_constants::*;
 use crate::windows::constants::memory::*;
 use std::collections::HashMap;
 use std::path::Path;

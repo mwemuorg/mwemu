@@ -7,8 +7,8 @@ inside each function body. CC = 1 + branch_points.
 Usage:
     python3 scripts/complexity.py [--threshold N] [--top N] [path ...]
 
-Defaults to scanning the library crates: mwemu-core, mwemu-winapi32,
-mwemu-winapi64 and libmwemu.
+Defaults to scanning the library crates: mwemu-core, the layer crates built
+on it and libmwemu.
 Exit code 1 if any function exceeds the threshold (default: 40).
 """
 
@@ -82,7 +82,8 @@ def measure_file(path):
 
 def main():
     parser = argparse.ArgumentParser(description='Rust cyclomatic complexity')
-    parser.add_argument('paths', nargs='*', default=['crates/mwemu-core/src', 'crates/mwemu-winapi32/src',
+    parser.add_argument('paths', nargs='*', default=['crates/mwemu-core/src', 'crates/mwemu-linux/src', 'crates/mwemu-macos/src',
+                                 'crates/mwemu-winapi32/src',
                                  'crates/mwemu-winapi64/src', 'crates/libmwemu/src'])
     parser.add_argument('--threshold', type=int, default=40,
                         help='max allowed CC (default: 40)')

@@ -74,6 +74,8 @@ jobs:
           --package mwemu
           --package libmwemu
           --package mwemu-core
+          --package mwemu-linux
+          --package mwemu-macos
           --package mwemu-winapi32
           --package mwemu-winapi64
           --package rs-header
@@ -208,6 +210,8 @@ jobs:
           --package mwemu
           --package libmwemu
           --package mwemu-core
+          --package mwemu-linux
+          --package mwemu-macos
           --package mwemu-winapi32
           --package mwemu-winapi64
           --package rs-header

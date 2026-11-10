@@ -32,6 +32,7 @@ pub mod err;
 pub mod exception;
 pub mod hooks;
 pub mod kernel;
+pub mod layers;
 pub mod maps;
 pub mod serialization;
 pub mod syscall;
@@ -46,8 +47,6 @@ pub use arch::x86::flags;
 pub use arch::x86::fpu;
 pub use arch::x86::regs as regs64;
 
-pub use api::linux as linuxapi;
-pub use api::macos as macosapi;
 pub use api::windows as winapi;
 pub use syscall::windows::ntapi;
 

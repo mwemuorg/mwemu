@@ -218,7 +218,7 @@ pub struct Emu {
     pub file_handles: HashMap<u64, String>, // NtOpenFile handle → resolved basename (e.g., "kernelbase.dll"); used by NtCreateSection to inherit the dll name
     pub section_view_dll: HashMap<u64, String>, // section_view base → DLL filename; used by NtAreMappedFilesTheSame to compare views from the same file
     pub validated_knowndlls: HashSet<String>, // DLLs that passed AreMappedFilesTheSame — NtQueryAttributesFile returns NOT_FOUND for these on subsequent calls
-    pub fts_handles: HashMap<u64, crate::api::macos::libsystem::FtsState>, // macOS FTS traversal state
+    pub fts_handles: HashMap<u64, Box<dyn std::any::Any + Send + Sync>>, // macOS FTS traversal state; the macOS layer owns the type (`FtsState`)
     pub getopt_char_index: usize, // position within current argv element for grouped flags (-la)
     pub emulated_stdout: Vec<u8>, // buffered stdout output from emulated program
     pub syscall_number_map: HashMap<u64, u64>, // real_nr (from loaded ntdll) → canonical_nr (the value our gateway dispatcher matches on). Built at init by scanning ntdll exports; empty means no translation.

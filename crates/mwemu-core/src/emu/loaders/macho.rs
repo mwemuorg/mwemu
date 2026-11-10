@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
 use crate::emu::Emu;
+use crate::emu::loaders::macho_sentinels;
 use crate::emu::loaders::macho64::Macho64;
 
 impl Emu {
@@ -126,7 +127,7 @@ impl Emu {
         if self.cfg.arch.is_aarch64() {
             self.map_macos_sentinels(&mut macho.addr_to_symbol);
             if let Some(main_return) =
-                crate::macosapi::sentinel_addr(self, crate::macosapi::MAIN_RETURN)
+                macho_sentinels::sentinel_addr(self, macho_sentinels::MAIN_RETURN)
             {
                 self.regs_aarch64_mut().x[30] = main_return;
             }
@@ -184,11 +185,11 @@ impl Emu {
     fn map_macos_sentinels(&mut self, addr_to_sym: &mut HashMap<u64, String>) {
         use crate::maps::mem64::Permission;
         let base = self.maps.map_lib(
-            crate::macosapi::SENTINEL_MAP,
+            macho_sentinels::SENTINEL_MAP,
             0x1000,
             Permission::READ_EXECUTE,
         );
-        for (i, sym) in crate::macosapi::SENTINELS.iter().enumerate() {
+        for (i, sym) in macho_sentinels::SENTINELS.iter().enumerate() {
             addr_to_sym.insert(base + 4 * i as u64, sym.to_string());
         }
     }

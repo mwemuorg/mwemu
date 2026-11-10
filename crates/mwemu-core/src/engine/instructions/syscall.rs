@@ -1,7 +1,6 @@
 use crate::color;
 use crate::emu::Emu;
-use crate::syscall::linux;
-use crate::syscall::macos;
+use crate::layers;
 use crate::syscall::windows;
 use iced_x86::Instruction;
 
@@ -21,9 +20,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     }
 
     if emu.os.is_linux() {
-        linux::syscall64::gateway(emu);
+        layers::linux().syscall64(emu);
     } else if emu.os.is_macos() {
-        macos::syscall_x86_64::gateway(emu);
+        layers::macos().syscall_x86_64(emu);
     } else {
         windows::syscall64::gateway(emu);
     }

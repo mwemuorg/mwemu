@@ -1,0 +1,15 @@
+[package]
+name = "mwemu-linux"
+version = "1.0.0"
+edition = "2024"
+authors = ["sha0coder"]
+license = "Apache-2.0"
+rust-version = "1.95"
+description = "Linux layer of libmwemu: the Linux syscalls and the libc hooks. Use libmwemu instead of depending on this directly."
+homepage = "https://mwemu.github.io/"
+repository = "https://github.com/mwemuorg/mwemu"
+publish = false
+
+[dependencies]
+mwemu-core = { path = "../mwemu-core" }
+log = "0.4.22"

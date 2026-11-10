@@ -1226,6 +1226,8 @@ dependencies = [
  "log",
  "minidump",
  "mwemu-core",
+ "mwemu-linux",
+ "mwemu-macos",
  "mwemu-winapi32",
  "mwemu-winapi64",
  "rs-header",
@@ -1424,6 +1426,22 @@ dependencies = [
  "yaxpeax-arch",
  "yaxpeax-arm",
  "zip",
+]
+
+[[package]]
+name = "mwemu-linux"
+version = "1.0.0"
+dependencies = [
+ "log",
+ "mwemu-core",
+]
+
+[[package]]
+name = "mwemu-macos"
+version = "1.0.0"
+dependencies = [
+ "log",
+ "mwemu-core",
 ]
 
 [[package]]

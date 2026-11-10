@@ -27,5 +27,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction) -> bool {
 /// Returning into a macOS sentinel (end of `main` or of a thread routine)
 /// must be intercepted; ordinary returns never land in the library range.
 fn is_sentinel(emu: &Emu, target: u64) -> bool {
-    target >= LIBS64_MIN && emu.maps.get_addr_name(target) == Some(crate::macosapi::SENTINEL_MAP)
+    target >= LIBS64_MIN
+        && emu.maps.get_addr_name(target)
+            == Some(crate::emu::loaders::macho_sentinels::SENTINEL_MAP)
 }

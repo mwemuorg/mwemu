@@ -16,11 +16,13 @@ use rs_header::pe::{
 };
 
 mod elf;
+pub mod elf_constants;
 mod elf_loader;
 mod kext;
 mod ko;
 mod macho;
 pub mod macho64;
+pub mod macho_sentinels;
 mod pe;
 mod pe_loader;
 pub use pe::{MappedPe64, PeLoadInfo};

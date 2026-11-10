@@ -2618,7 +2618,8 @@ fn api_fts_open(emu: &mut Emu) {
         root_returned: false,
         options,
     };
-    emu.fts_handles.insert(handle, state);
+    // `Emu` stores the state type-erased: `FtsState` belongs to this layer.
+    emu.fts_handles.insert(handle, Box::new(state));
 
     log::info!("  -> handle 0x{:x}", handle);
     set_ret(emu, handle);
@@ -2627,7 +2628,11 @@ fn api_fts_open(emu: &mut Emu) {
 fn api_fts_read(emu: &mut Emu) {
     let handle = arg(emu, 0);
 
-    let state = match emu.fts_handles.get_mut(&handle) {
+    let state = match emu
+        .fts_handles
+        .get_mut(&handle)
+        .and_then(|s| s.downcast_mut::<FtsState>())
+    {
         Some(s) => s,
         None => {
             log::warn!("fts_read: invalid handle 0x{:x}", handle);
@@ -2682,7 +2687,11 @@ fn api_fts_read(emu: &mut Emu) {
         emu.colors.nc
     );
 
-    let root_addr = match emu.fts_handles.get(&handle) {
+    let root_addr = match emu
+        .fts_handles
+        .get(&handle)
+        .and_then(|s| s.downcast_ref::<FtsState>())
+    {
         Some(h) => h.root_ftsent,
         None => {
             log::warn!("fts_read: invalid handle 0x{:x}", handle);
@@ -2695,7 +2704,11 @@ fn api_fts_read(emu: &mut Emu) {
     } else {
         write_ftsent(emu, &entry)
     };
-    if let Some(h) = emu.fts_handles.get_mut(&handle) {
+    if let Some(h) = emu
+        .fts_handles
+        .get_mut(&handle)
+        .and_then(|s| s.downcast_mut::<FtsState>())
+    {
         h.last_ftsent = ftsent_addr;
     }
     set_ret(emu, ftsent_addr);
@@ -2722,7 +2735,11 @@ fn api_fts_children(emu: &mut Emu) {
     let handle = arg(emu, 0);
     let instr = arg(emu, 1);
 
-    let state = match emu.fts_handles.get_mut(&handle) {
+    let state = match emu
+        .fts_handles
+        .get_mut(&handle)
+        .and_then(|s| s.downcast_mut::<FtsState>())
+    {
         Some(s) => s,
         None => {
             set_ret(emu, 0);
@@ -2782,7 +2799,11 @@ fn api_fts_children(emu: &mut Emu) {
     }
 
     let head = addrs[0];
-    if let Some(h) = emu.fts_handles.get_mut(&handle) {
+    if let Some(h) = emu
+        .fts_handles
+        .get_mut(&handle)
+        .and_then(|s| s.downcast_mut::<FtsState>())
+    {
         h.children_head = head;
     }
 
