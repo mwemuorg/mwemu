@@ -112,11 +112,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   type-checks a crate on one thread, so the handlers (73% of the code) now
   compile in parallel with each other and editing one no longer re-checks the
   emulator core.
+- **mwemu-core is split further** (#233): the OS layers and the debugger are
+  their own crates on top of the core. `mwemu-linux` and `mwemu-macos` hold
+  each OS's syscalls and API hooks, `mwemu-windows` the NT syscalls, the
+  helpers the API handlers share and the emulated registry/environment state,
+  and `mwemu-debug` the console, the script runner, the gdb server and
+  snapshots. `libmwemu` re-exports the same public paths as before. Editing a
+  syscall or the debugger no longer re-checks the core and both handler crates.
+  `Console::help` and `Console::spawn_radare2` moved to
+  `debug::commands::Commands`.
 - **`libmwemu::register_api_handlers()`**: the core no longer names the
   handlers, so they are registered at run time. `emu32()`, `emu64()` and
   `emu_aarch64()` do it; call it once yourself if you build the emulator with
   `Emu::new(arch)` or `Serialization::load*` instead. Without it the first
-  Windows API call logs an error and stops the emulation.
+  Windows API call logs an error and stops the emulation. It registers the
+  layer crates too: without it a syscall or a console request does the same.
 
 ## [1.0.0] - 2026-10-24
 

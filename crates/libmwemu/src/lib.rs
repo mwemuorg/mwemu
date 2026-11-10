@@ -1,8 +1,10 @@
 //! libmwemu: an x86, x86-64 and AArch64 emulator for malware analysis.
 //!
-//! This crate is the public face of three internal ones: the emulator core
-//! (`mwemu-core`) and the Windows API handlers (`mwemu-winapi32`,
-//! `mwemu-winapi64`). It re-exports the core's API and plugs the handlers in.
+//! This crate is the public face of the internal ones: the emulator core
+//! (`mwemu-core`), the OS layers (`mwemu-linux`, `mwemu-macos`,
+//! `mwemu-windows`), the debugger (`mwemu-debug`) and the Windows API handlers
+//! (`mwemu-winapi32`, `mwemu-winapi64`). It re-exports their API and plugs the
+//! layers and the handlers into the core.
 
 // Lints the test suite was written under.
 #![cfg_attr(

@@ -122,8 +122,12 @@ rustup target add x86_64-apple-darwin
 
 ```
 crates/
-  libmwemu/         The library people depend on: re-exports mwemu-core, registers the WinAPI handlers, holds the test suite
+  libmwemu/         The library people depend on: re-exports the crates below, registers the layers and the WinAPI handlers, holds the test suite
   mwemu-core/       Emulator core (everything in the module layout below)
+  mwemu-linux/      Linux layer: syscall/linux, api/linux (libc hooks)
+  mwemu-macos/      macOS layer: syscall/macos, api/macos (libSystem hooks)
+  mwemu-windows/    Windows layer: syscall/windows (NT syscalls), api/windows/common (helpers shared by the handlers), emulated registry/environment/profile/window state
+  mwemu-debug/      Debugger layer: console commands, script interpreter, GDB server, tracing, serialization/ (snapshots, minidump)
   mwemu-winapi32/   32-bit Windows API handlers, one module per DLL, one file per API
   mwemu-winapi64/   64-bit Windows API handlers, same layout
   mwemu/            CLI binary
@@ -131,10 +135,17 @@ crates/
   mwemu-test/   Integration tests
 ```
 
-The handler crates depend on mwemu-core, never the other way round: the core
-reaches them through `api::dispatch`, which `libmwemu::register_api_handlers()`
-fills (`emu32()`, `emu64()` and `emu_aarch64()` call it). Keep it that way — a
-handler edit then recompiles one handler crate instead of the whole library.
+The layer and handler crates depend on mwemu-core, never the other way round.
+The core reaches the layers through the traits in `layers` (`LinuxLayer`,
+`MacosLayer`, `WindowsLayer`, `DebugLayer`) and the handlers through
+`api::dispatch`. `libmwemu::register_api_handlers()` fills both (`emu32()`,
+`emu64()` and `emu_aarch64()` call it). Keep it that way — an edit to a
+syscall, an API hook or the debugger then recompiles one small crate instead
+of the core and everything built on it. When the core needs something new from
+a layer, add a method to that layer's trait.
+
+The layer crates keep the module paths their code had in mwemu-core
+(`mwemu_linux::syscall::linux`, `mwemu_windows::api::windows::common`, ...).
 
 ### mwemu-core/src/ module layout
 
@@ -142,15 +153,14 @@ handler edit then recompiles one handler crate instead of the whole library.
 arch/           Arch enum, x86/ (regs, flags, FPU, eflags, context), aarch64/ (regs)
 threading/      Thread scheduler, thread context, crit_state, global_locks
 exception/      Exception handlers (SEH/VEH/UEF), exception types
-windows/        Windows internals: peb/, structures/, kuser_shared, constants, loader32/ + loader64/ (LoadLibrary, export resolution), emulated state (registry, environment, profile, window table, export index)
-debug/          Console, script interpreter, GDB server, breakpoints, tracing, definitions
+windows/        Windows internals: peb/, structures/, kuser_shared, constants, loader32/ + loader64/ (LoadLibrary, export resolution), module_names, export index
+debug/          Breakpoints, definitions, console prompts (`Console::spawn_console` opens the console in mwemu-debug)
 utils/          Macros, ANSI colors, helper utilities
-api/            Platform API interception: dispatch (entry points into the WinAPI handler crates), windows/ (helpers shared by the handlers), linux/, macos/, banzai (unimplemented API stubs)
+api/            Platform API interception: dispatch (entry points into the WinAPI handler crates), windows/helper (handle table shared by all layers), banzai (unimplemented API stubs), abi, printf, strconv
+layers.rs       Traits the layer crates implement, and their registration
 emu/            Core emulator state machine, execution, memory, registers, emu_context, loaders/ (PE, ELF, Mach-O, .ko/.kext)
 engine/         x86 instruction dispatch (mnemonic -> handler)
 maps/           Memory regions, heap allocation, TLB, permissions
-syscall/        Syscall dispatch per platform (windows/, linux/, macos/)
-serialization/  State serialization, minidump conversion
 config.rs       Emulation configuration
 err.rs          Custom error type
 hooks.rs        Callback hook definitions

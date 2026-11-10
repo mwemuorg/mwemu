@@ -1,10 +1,12 @@
-//! The mwemu emulator core: CPU engines, memory maps, loaders, syscalls and
-//! the emulated OS state.
+//! The mwemu emulator core: CPU engines, memory maps, the run loop and the
+//! loaders (PE, ELF, Mach-O).
 //!
 //! This is an internal crate. Use `libmwemu`, which re-exports the supported
-//! API and adds the Windows API handlers (`mwemu-winapi32`, `mwemu-winapi64`).
-//! Everything here is `pub` so those handler crates can reach it; none of it
-//! is a stability promise.
+//! API and adds the layers built on the core: the OS layers (`mwemu-linux`,
+//! `mwemu-macos`, `mwemu-windows`), the debugger (`mwemu-debug`) and the
+//! Windows API handlers (`mwemu-winapi32`, `mwemu-winapi64`). The core reaches
+//! them through [`layers`] and [`api::dispatch`]. Everything here is `pub` so
+//! those crates can reach it; none of it is a stability promise.
 
 #![allow(non_snake_case)]
 #![allow(dead_code)]
