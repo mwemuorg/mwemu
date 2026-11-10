@@ -44,7 +44,7 @@ pub(super) fn GetFileVersionInfoA(emu: &mut emu::Emu) {
             dw_file_date_ls: 0x00000000,
         };
 
-        version_info.write(emu, lp_data as u64);
+        version_info.write(&mut emu.maps, lp_data as u64);
 
         emu.regs_mut().rax = 1; // Success
     } else {

@@ -1411,7 +1411,6 @@ dependencies = [
  "ahash",
  "bitfield",
  "byteorder",
- "chrono",
  "csv",
  "ctrlc",
  "dunce",
@@ -1424,6 +1423,7 @@ dependencies = [
  "memmap2",
  "mwemu-arch",
  "mwemu-maps",
+ "mwemu-wintypes",
  "rand 0.9.5",
  "rs-header",
  "scan_fmt",
@@ -1554,6 +1554,18 @@ dependencies = [
  "pbkdf2",
  "sha1",
  "sha2",
+]
+
+[[package]]
+name = "mwemu-wintypes"
+version = "1.0.0"
+dependencies = [
+ "ahash",
+ "chrono",
+ "log",
+ "mwemu-maps",
+ "rs-header",
+ "serde",
 ]
 
 [[package]]

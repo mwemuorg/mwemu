@@ -1,5 +1,5 @@
 use super::vs_fixedfileinfo::VS_FIXEDFILEINFO;
-use crate::emu;
+use crate::maps::Maps;
 
 #[repr(C)]
 #[derive(Debug, Clone)]
@@ -62,33 +62,33 @@ impl VS_VERSIONINFO {
         6 + 32 + 2 + VS_FIXEDFILEINFO::size() + 2 + 2
     }
 
-    pub fn write(&self, emu: &mut emu::Emu, addr: u64) {
+    pub fn write(&self, maps: &mut Maps, addr: u64) {
         let mut offset = addr;
 
-        emu.maps.write_word(offset, self.w_length);
+        maps.write_word(offset, self.w_length);
         offset += 2;
 
-        emu.maps.write_word(offset, self.w_value_length);
+        maps.write_word(offset, self.w_value_length);
         offset += 2;
 
-        emu.maps.write_word(offset, self.w_type);
+        maps.write_word(offset, self.w_type);
         offset += 2;
 
         // Write szKey
         for i in 0..16 {
-            emu.maps.write_word(offset, self.sz_key[i]);
+            maps.write_word(offset, self.sz_key[i]);
             offset += 2;
         }
 
-        emu.maps.write_word(offset, self.padding1);
+        maps.write_word(offset, self.padding1);
         offset += 2;
 
-        self.value.write(emu, offset);
+        self.value.write(maps, offset);
         offset += VS_FIXEDFILEINFO::size() as u64;
 
-        emu.maps.write_word(offset, self.padding2);
+        maps.write_word(offset, self.padding2);
         offset += 2;
 
-        emu.maps.write_word(offset, self.children);
+        maps.write_word(offset, self.children);
     }
 }
