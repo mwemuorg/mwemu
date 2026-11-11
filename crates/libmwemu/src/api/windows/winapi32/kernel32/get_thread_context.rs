@@ -1,17 +1,12 @@
-use crate::context::context32;
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::{threads, trace};
 
-pub fn GetThreadContext(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let ctx_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-
-    let ctx = context32::Context32::new(emu.regs());
-    ctx.save(ctx_ptr, &mut emu.maps);
-
-    log_red!(emu, "kernel32!GetThreadContext");
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-
-    emu.regs_mut().rax = 1;
+pub fn GetThreadContext(emu: &mut Emu) {
+    trace::api(
+        emu,
+        "kernel32!GetThreadContext",
+        "thread context",
+        true,
+        threads::get_thread_context,
+    );
 }

@@ -1,9 +1,12 @@
-use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::emu::Emu;
+use crate::winapi::common::{threads, trace};
 
-pub fn ExitThread(emu: &mut emu::Emu) {
-    let code = arg(emu, 0);
-    log_red!(emu, "kernel32!ExitThread code: {}", code);
-    emu.stop();
-    stdcall_ret(emu, 1);
+pub fn ExitThread(emu: &mut Emu) {
+    trace::api(
+        emu,
+        "kernel32!ExitThread",
+        "exit_code",
+        false,
+        threads::exit_thread,
+    );
 }

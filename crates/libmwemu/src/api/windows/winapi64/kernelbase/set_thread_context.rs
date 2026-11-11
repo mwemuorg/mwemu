@@ -1,18 +1,12 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::{threads, trace};
 
-pub fn SetThreadContext(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
-    log_red!(
+pub fn SetThreadContext(emu: &mut Emu) {
+    trace::api(
         emu,
-        "kernelbase!SetThreadContext h:0x{:x} arg2:0x{:x}",
-        handle,
-        arg2
+        "kernelbase!SetThreadContext",
+        "thread context",
+        true,
+        threads::set_thread_context,
     );
-    let val_ptr = emu.regs().rdx;
-    if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
-        let _val = emu.maps.read_string(val_ptr);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
 }

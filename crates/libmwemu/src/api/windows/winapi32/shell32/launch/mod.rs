@@ -41,17 +41,13 @@ pub use command_line_to_argv_w::CommandLineToArgvW;
 mod control_run_dll;
 pub use control_run_dll::Control_RunDLL;
 
-#[path = "../control_run_dlla.rs"]
-mod control_run_dlla;
-pub use control_run_dlla::Control_RunDLLA;
+pub use control_run_dll::Control_RunDLLA;
 
 #[path = "../control_run_dll_as_user_w.rs"]
 mod control_run_dll_as_user_w;
 pub use control_run_dll_as_user_w::Control_RunDLLAsUserW;
 
-#[path = "../control_run_dllw.rs"]
-mod control_run_dllw;
-pub use control_run_dllw::Control_RunDLLW;
+pub use control_run_dll::Control_RunDLLW;
 
 #[path = "../create_storage_item_from_shell_item_full_trust_caller_for_package_with_process_handle.rs"]
 mod create_storage_item_from_shell_item_full_trust_caller_for_package_with_process_handle;
@@ -109,25 +105,17 @@ pub use launch_ms_help_run_dllw::LaunchMSHelp_RunDLLW;
 mod open_as_run_dll;
 pub use open_as_run_dll::OpenAs_RunDLL;
 
-#[path = "../open_as_run_dlla.rs"]
-mod open_as_run_dlla;
-pub use open_as_run_dlla::OpenAs_RunDLLA;
+pub use open_as_run_dll::OpenAs_RunDLLA;
 
-#[path = "../open_as_run_dllw.rs"]
-mod open_as_run_dllw;
-pub use open_as_run_dllw::OpenAs_RunDLLW;
+pub use open_as_run_dll::OpenAs_RunDLLW;
 
 #[path = "../options_run_dll.rs"]
 mod options_run_dll;
 pub use options_run_dll::Options_RunDLL;
 
-#[path = "../options_run_dlla.rs"]
-mod options_run_dlla;
-pub use options_run_dlla::Options_RunDLLA;
+pub use options_run_dll::Options_RunDLLA;
 
-#[path = "../options_run_dllw.rs"]
-mod options_run_dllw;
-pub use options_run_dllw::Options_RunDLLW;
+pub use options_run_dll::Options_RunDLLW;
 
 #[path = "../prepare_disc_for_burn_run_dll_w.rs"]
 mod prepare_disc_for_burn_run_dll_w;
@@ -137,13 +125,9 @@ pub use prepare_disc_for_burn_run_dll_w::PrepareDiscForBurnRunDllW;
 mod printers_get_command_run_dll;
 pub use printers_get_command_run_dll::PrintersGetCommand_RunDLL;
 
-#[path = "../printers_get_command_run_dlla.rs"]
-mod printers_get_command_run_dlla;
-pub use printers_get_command_run_dlla::PrintersGetCommand_RunDLLA;
+pub use printers_get_command_run_dll::PrintersGetCommand_RunDLLA;
 
-#[path = "../printers_get_command_run_dllw.rs"]
-mod printers_get_command_run_dllw;
-pub use printers_get_command_run_dllw::PrintersGetCommand_RunDLLW;
+pub use printers_get_command_run_dll::PrintersGetCommand_RunDLLW;
 
 #[path = "../regenerate_user_environment.rs"]
 mod regenerate_user_environment;
@@ -233,13 +217,9 @@ pub use sh_get_unread_mail_count_w::SHGetUnreadMailCountW;
 mod sh_help_shortcuts_run_dll;
 pub use sh_help_shortcuts_run_dll::SHHelpShortcuts_RunDLL;
 
-#[path = "../sh_help_shortcuts_run_dlla.rs"]
-mod sh_help_shortcuts_run_dlla;
-pub use sh_help_shortcuts_run_dlla::SHHelpShortcuts_RunDLLA;
+pub use sh_help_shortcuts_run_dll::SHHelpShortcuts_RunDLLA;
 
-#[path = "../sh_help_shortcuts_run_dllw.rs"]
-mod sh_help_shortcuts_run_dllw;
-pub use sh_help_shortcuts_run_dllw::SHHelpShortcuts_RunDLLW;
+pub use sh_help_shortcuts_run_dll::SHHelpShortcuts_RunDLLW;
 
 #[path = "../sh_restricted.rs"]
 mod sh_restricted;
@@ -257,25 +237,17 @@ pub use set_current_process_explicit_app_user_model_id::SetCurrentProcessExplici
 mod shell_exec_run_dll;
 pub use shell_exec_run_dll::ShellExec_RunDLL;
 
-#[path = "../shell_exec_run_dlla.rs"]
-mod shell_exec_run_dlla;
-pub use shell_exec_run_dlla::ShellExec_RunDLLA;
+pub use shell_exec_run_dll::ShellExec_RunDLLA;
 
-#[path = "../shell_exec_run_dllw.rs"]
-mod shell_exec_run_dllw;
-pub use shell_exec_run_dllw::ShellExec_RunDLLW;
+pub use shell_exec_run_dll::ShellExec_RunDLLW;
 
 #[path = "../shell_execute_ex.rs"]
 mod shell_execute_ex;
 pub use shell_execute_ex::ShellExecuteEx;
 
-#[path = "../shell_execute_ex_a.rs"]
-mod shell_execute_ex_a;
-pub use shell_execute_ex_a::ShellExecuteExA;
+pub use shell_execute_ex::ShellExecuteExA;
 
-#[path = "../shell_execute_ex_w.rs"]
-mod shell_execute_ex_w;
-pub use shell_execute_ex_w::ShellExecuteExW;
+pub use shell_execute_ex::ShellExecuteExW;
 
 #[path = "../shell_hook_proc.rs"]
 mod shell_hook_proc;
@@ -289,9 +261,9 @@ pub use wow_shell_execute::WOWShellExecute;
 mod wait_for_explorer_restart_w;
 pub use wait_for_explorer_restart_w::WaitForExplorerRestartW;
 
-#[path = "../shell_execute_a.rs"]
-mod shell_execute_a;
-pub use shell_execute_a::ShellExecuteA;
+#[path = "../shell_execute.rs"]
+mod shell_execute;
+pub use shell_execute::{ShellExecuteA, ShellExecuteW};
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
     match api {

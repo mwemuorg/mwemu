@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity api-modules
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -46,6 +46,10 @@ test-ci:
 # #![allow(...)] blocks marked "clippy v1 burn-down backlog" (see V1-ROADMAP.md).
 clippy:
 	cargo clippy --locked $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
+
+api-modules:
+	python3 scripts/test_api_modules.py
+	python3 scripts/check_api_modules.py $(CARGO_TARGET)
 
 clippy-release:
 	cargo clippy --locked --release $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings

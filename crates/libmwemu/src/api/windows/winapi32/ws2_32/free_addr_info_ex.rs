@@ -10,3 +10,9 @@ pub fn FreeAddrInfoEx(emu: &mut emu::Emu) {
         emu.stack_pop32(false);
     }
 }
+
+pub fn FreeAddrInfoExW(emu: &mut emu::Emu) {
+    let info_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    log_red!(emu, "ws2_32!FreeAddrInfoExW ptr:0x{:x}", info_ptr);
+    helper::handler_close(info_ptr);
+}

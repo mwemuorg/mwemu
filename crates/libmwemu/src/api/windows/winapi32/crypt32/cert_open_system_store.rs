@@ -1,5 +1,7 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::arg;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CertOpenSystemStore(emu: &mut emu::Emu) {
     let esp = emu.regs().get_esp();
@@ -15,4 +17,30 @@ pub fn CertOpenSystemStore(emu: &mut emu::Emu) {
         arg2
     );
     emu.regs_mut().rax = helper::handler_create("CertOpenSystemStore");
+}
+
+pub fn CertOpenSystemStoreA(emu: &mut emu::Emu) {
+    let _hprov = arg(emu, 0);
+    let subsystem = arg(emu, 1) as u64;
+
+    let name = emu.maps.read_string(subsystem);
+
+    log_red!(emu, "crypt32!CertOpenSystemStoreA subsystem: {}", name);
+
+    let handle = helper::handler_create(&format!("cert_sys_store://{}", name));
+    emu.regs_mut().rax = handle;
+    stdcall_ret(emu, 2);
+}
+
+pub fn CertOpenSystemStoreW(emu: &mut emu::Emu) {
+    let _hprov = arg(emu, 0);
+    let subsystem = arg(emu, 1) as u64;
+
+    let name = emu.maps.read_wide_string(subsystem);
+
+    log_red!(emu, "crypt32!CertOpenSystemStoreW subsystem: {}", name);
+
+    let handle = helper::handler_create(&format!("cert_sys_store://{}", name));
+    emu.regs_mut().rax = handle;
+    stdcall_ret(emu, 2);
 }

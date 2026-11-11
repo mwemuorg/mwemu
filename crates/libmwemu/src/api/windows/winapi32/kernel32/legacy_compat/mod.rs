@@ -139,13 +139,9 @@ pub use wow64_system_service_call::*;
 mod wow64_transition_resolve;
 pub use wow64_transition_resolve::*;
 
-#[path = "../write_console_input_vdma.rs"]
-mod write_console_input_vdma;
-pub use write_console_input_vdma::*;
-
-#[path = "../write_console_input_vdmw.rs"]
-mod write_console_input_vdmw;
-pub use write_console_input_vdmw::*;
+#[path = "../write_console_input_vdm.rs"]
+mod write_console_input_vdm;
+pub use write_console_input_vdm::*;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {

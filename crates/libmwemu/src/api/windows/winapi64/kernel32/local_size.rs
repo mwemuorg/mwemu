@@ -1,6 +1,0 @@
-use crate::emu::Emu;
-use crate::winapi::common::heap;
-
-pub fn LocalSize(emu: &mut Emu) {
-    heap::local_size_api(emu);
-}

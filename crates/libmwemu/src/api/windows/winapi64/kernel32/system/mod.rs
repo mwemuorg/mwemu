@@ -17,13 +17,9 @@ pub use get_cp_info::*;
 mod get_local_time;
 pub use get_local_time::*;
 
-#[path = "../get_locale_info_a.rs"]
-mod get_locale_info_a;
-pub use get_locale_info_a::*;
-
-#[path = "../get_locale_info_w.rs"]
-mod get_locale_info_w;
-pub use get_locale_info_w::*;
+#[path = "../get_locale_info.rs"]
+mod get_locale_info;
+pub use get_locale_info::*;
 
 #[path = "../get_native_system_info.rs"]
 mod get_native_system_info;

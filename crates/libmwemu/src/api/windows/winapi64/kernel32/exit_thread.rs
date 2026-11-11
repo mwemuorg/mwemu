@@ -1,12 +1,12 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::{threads, trace};
 
-pub fn ExitThread(emu: &mut emu::Emu) {
-    let code = emu.regs().rcx;
-
-    log_red!(emu, "kernel32!ExitThread code: {}", code);
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
-    emu.stop();
+pub fn ExitThread(emu: &mut Emu) {
+    trace::api(
+        emu,
+        "kernel32!ExitThread",
+        "exit_code",
+        false,
+        threads::exit_thread,
+    );
 }

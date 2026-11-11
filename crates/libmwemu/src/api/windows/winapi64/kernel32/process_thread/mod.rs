@@ -25,17 +25,9 @@ pub use create_toolhelp32_snapshot::*;
 mod module32_first;
 pub use module32_first::*;
 
-#[path = "../module32_first_w.rs"]
-mod module32_first_w;
-pub use module32_first_w::*;
-
 #[path = "../module32_next.rs"]
 mod module32_next;
 pub use module32_next::*;
-
-#[path = "../module32_next_w.rs"]
-mod module32_next_w;
-pub use module32_next_w::*;
 
 #[path = "../exit_process.rs"]
 mod exit_process;

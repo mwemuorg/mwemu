@@ -61,13 +61,9 @@ pub use il_combine::ILCombine;
 mod il_create_from_path;
 pub use il_create_from_path::ILCreateFromPath;
 
-#[path = "../il_create_from_path_a.rs"]
-mod il_create_from_path_a;
-pub use il_create_from_path_a::ILCreateFromPathA;
+pub use il_create_from_path::ILCreateFromPathA;
 
-#[path = "../il_create_from_path_w.rs"]
-mod il_create_from_path_w;
-pub use il_create_from_path_w::ILCreateFromPathW;
+pub use il_create_from_path::ILCreateFromPathW;
 
 #[path = "../il_find_child.rs"]
 mod il_find_child;
@@ -301,17 +297,13 @@ pub use sh_get_name_from_id_list::SHGetNameFromIDList;
 mod sh_get_path_from_id_list;
 pub use sh_get_path_from_id_list::SHGetPathFromIDList;
 
-#[path = "../sh_get_path_from_id_list_a.rs"]
-mod sh_get_path_from_id_list_a;
-pub use sh_get_path_from_id_list_a::SHGetPathFromIDListA;
+pub use sh_get_path_from_id_list::SHGetPathFromIDListA;
 
 #[path = "../sh_get_path_from_id_list_ex.rs"]
 mod sh_get_path_from_id_list_ex;
 pub use sh_get_path_from_id_list_ex::SHGetPathFromIDListEx;
 
-#[path = "../sh_get_path_from_id_list_w.rs"]
-mod sh_get_path_from_id_list_w;
-pub use sh_get_path_from_id_list_w::SHGetPathFromIDListW;
+pub use sh_get_path_from_id_list::SHGetPathFromIDListW;
 
 #[path = "../sh_get_property_store_from_id_list.rs"]
 mod sh_get_property_store_from_id_list;

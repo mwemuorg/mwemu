@@ -8,3 +8,21 @@ pub fn InternetGetConnectedStateEx(emu: &mut emu::Emu) {
     }
     emu.regs_mut().rax = 1;
 }
+
+pub fn InternetGetConnectedStateExA(emu: &mut emu::Emu) {
+    let flags_ptr = emu.regs().rcx;
+    log_red!(emu, "wininet!InternetGetConnectedStateExA");
+    if flags_ptr != 0 {
+        emu.maps.write_dword(flags_ptr, 0x20);
+    }
+    emu.regs_mut().rax = 1;
+}
+
+pub fn InternetGetConnectedStateExW(emu: &mut emu::Emu) {
+    let flags_ptr = emu.regs().rcx;
+    log_red!(emu, "wininet!InternetGetConnectedStateExW");
+    if flags_ptr != 0 {
+        emu.maps.write_dword(flags_ptr, 0x20);
+    }
+    emu.regs_mut().rax = 1;
+}

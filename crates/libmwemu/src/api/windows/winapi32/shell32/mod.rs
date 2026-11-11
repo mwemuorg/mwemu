@@ -11,9 +11,6 @@ pub use objects::*;
 mod filesystem;
 pub use filesystem::*;
 
-mod shell_execute_w;
-use shell_execute_w::ShellExecuteW;
-
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);

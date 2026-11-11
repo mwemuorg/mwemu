@@ -25,17 +25,9 @@ pub use create_toolhelp32_snapshot::*;
 mod module32_first;
 pub use module32_first::*;
 
-#[path = "../module32_first_w.rs"]
-mod module32_first_w;
-pub use module32_first_w::*;
-
 #[path = "../module32_next.rs"]
 mod module32_next;
 pub use module32_next::*;
-
-#[path = "../module32_next_w.rs"]
-mod module32_next_w;
-pub use module32_next_w::*;
 
 #[path = "../exit_process.rs"]
 mod exit_process;
@@ -193,17 +185,9 @@ pub use get_thread_selector_entry::*;
 mod is_thread_a_fiber;
 pub use is_thread_a_fiber::*;
 
-#[path = "../process32_first_w.rs"]
-mod process32_first_w;
-pub use process32_first_w::*;
-
 #[path = "../process32_next.rs"]
 mod process32_next;
 pub use process32_next::*;
-
-#[path = "../process32_next_w.rs"]
-mod process32_next_w;
-pub use process32_next_w::*;
 
 #[path = "../query_thread_profiling.rs"]
 mod query_thread_profiling;

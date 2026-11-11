@@ -18,6 +18,7 @@ pub const GMEM_FIXED: u32 = 0x0000;
 pub const GMEM_ZEROINIT: u32 = 0x0040;
 pub const GPTR: u32 = 0x0040;
 pub const SECTION_ALL_ACCESS: u32 = 0x000f_001f;
+pub const SEC_IMAGE: u32 = 0x0100_0000;
 pub const SEC_COMMIT: u32 = 0x0800_0000;
 pub const VIEW_SHARE: u32 = 1;
 pub const LIBS_BARRIER: u64 = 0x60000000;

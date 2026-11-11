@@ -1,11 +1,12 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::{threads, trace};
 
-pub fn ResumeThread(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-
-    log_red!(emu, "kernel32!ResumeThread hndl: {}", hndl);
-
-    emu.stack_pop32(false);
-
-    emu.regs_mut().rax = 1; // previous suspend count
+pub fn ResumeThread(emu: &mut Emu) {
+    trace::api(
+        emu,
+        "kernel32!ResumeThread",
+        "thread",
+        true,
+        threads::resume_thread,
+    );
 }

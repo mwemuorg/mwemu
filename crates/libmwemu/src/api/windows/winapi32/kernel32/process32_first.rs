@@ -1,6 +1,7 @@
 use crate::emu;
 use crate::winapi::helper;
 use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::windows::constants::errors::*;
 
 pub fn Process32First(emu: &mut emu::Emu) {
     let handle = arg(emu, 0) as u64;
@@ -20,4 +21,17 @@ pub fn Process32First(emu: &mut emu::Emu) {
         emu.regs_mut().rax = 1;
     }
     stdcall_ret(emu, 2);
+}
+
+pub fn Process32FirstW(emu: &mut emu::Emu) {
+    let _hSnapshot = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _lppe = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+
+    log_red!(emu, "kernel32!Process32FirstW");
+
+    emu.regs_mut().rax = ERROR_SUCCESS;
+
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
 }

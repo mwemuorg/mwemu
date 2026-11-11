@@ -6,14 +6,12 @@ mod dns_free;
 pub use dns_free::DnsFree;
 mod dns_record_list_free;
 pub use dns_record_list_free::DnsRecordListFree;
-mod dns_name_compare_a;
-pub use dns_name_compare_a::DnsNameCompare_A;
-mod dns_name_compare_w;
-pub use dns_name_compare_w::DnsNameCompare_W;
-mod dns_query_a;
-use dns_query_a::DnsQuery_A;
-mod dns_query_w;
-use dns_query_w::DnsQuery_W;
+mod dns_name_compare;
+pub use dns_name_compare::DnsNameCompare_A;
+pub use dns_name_compare::DnsNameCompare_W;
+mod dns_query;
+use dns_query::DnsQuery_A;
+use dns_query::DnsQuery_W;
 
 const DNS_ERROR_RCODE_SERVER_FAILURE: u64 = 9002;
 

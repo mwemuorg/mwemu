@@ -297,13 +297,9 @@ pub use backup_seek::*;
 mod backup_write;
 pub use backup_write::*;
 
-#[path = "../build_comm_dcba.rs"]
-mod build_comm_dcba;
-pub use build_comm_dcba::*;
-
-#[path = "../build_comm_dcbw.rs"]
-mod build_comm_dcbw;
-pub use build_comm_dcbw::*;
+#[path = "../build_comm_dcb.rs"]
+mod build_comm_dcb;
+pub use build_comm_dcb::*;
 
 #[path = "../copy_lz_file.rs"]
 mod copy_lz_file;
@@ -397,9 +393,9 @@ pub use priv_move_file_identity_w::*;
 mod remove_secure_memory_cache_callback;
 pub use remove_secure_memory_cache_callback::*;
 
-#[path = "../replace_file_a.rs"]
-mod replace_file_a;
-pub use replace_file_a::*;
+#[path = "../replace_file.rs"]
+mod replace_file;
+pub use replace_file::*;
 
 #[path = "../replace_partition_unit.rs"]
 mod replace_partition_unit;

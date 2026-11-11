@@ -1,6 +1,8 @@
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 use crate::winapi::{winapi32, winapi64};
+use crate::windows::constants::errors::*;
+use crate::windows::constants::network::*;
 use crate::*;
 
 // ─── send/recv 64-bit: validates real buffer management ───
@@ -642,4 +644,237 @@ fn advance_tick_increments_time() {
         emu.tick > tick_before,
         "advance_tick should increment emu.tick"
     );
+}
+
+// ─── IP Helper queries through the x86/x64 DLL gateways ───
+
+const EMPTY_MIB_TABLE_SIZE: u32 = 4;
+const IP_HELPER_CANARY: u8 = 0xa5;
+
+fn call_ip_helper(emu: &mut emu::Emu, name: &str, args: &[u64]) -> u64 {
+    helpers::call_winapi_export(emu, "iphlpapi.dll", name, args)
+}
+
+#[test]
+fn ip_helper_tables_support_size_probe_and_empty_result() {
+    helpers::setup();
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        emu.cfg.skip_unimplemented = false;
+        emu.cfg.stop_on_unimplemented = true;
+        emu.set_last_error(ERROR_ACCESS_DENIED);
+        let size = data + 1;
+        let table = data + 0x100;
+        for name in ["GetIfTable", "GetIpAddrTable", "GetTcpTable", "GetUdpTable"] {
+            assert!(emu.maps.write_bytes(table - 1, &[IP_HELPER_CANARY; 6]));
+            for (buffer, capacity) in [(0, 0), (table, EMPTY_MIB_TABLE_SIZE - 1)] {
+                assert!(emu.maps.write_dword(size, capacity));
+                assert_eq!(
+                    call_ip_helper(&mut emu, name, &[buffer, size, 1]),
+                    ERROR_INSUFFICIENT_BUFFER,
+                    "{name}"
+                );
+                assert_eq!(emu.maps.read_dword(size), Some(EMPTY_MIB_TABLE_SIZE));
+                assert_eq!(
+                    emu.maps.read_bytes(table - 1, 6).as_ref(),
+                    &[IP_HELPER_CANARY; 6]
+                );
+            }
+            assert_eq!(
+                call_ip_helper(&mut emu, name, &[table, size, 0]),
+                ERROR_SUCCESS,
+                "{name}"
+            );
+            assert_eq!(emu.maps.read_dword(table), Some(0));
+            assert_eq!(emu.maps.read_byte(table - 1), Some(IP_HELPER_CANARY));
+            assert_eq!(
+                emu.maps.read_byte(table + EMPTY_MIB_TABLE_SIZE as u64),
+                Some(IP_HELPER_CANARY)
+            );
+            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
+            assert!(!emu.process_terminated);
+        }
+    }
+}
+
+#[test]
+fn ip_helper_network_parameters_use_the_guest_fixed_info_layout() {
+    helpers::setup();
+    // FIXED_INFO: x86 has 4-byte pointers; x64 has 8-byte pointers and padding.
+    for (is64, required, node_type) in [(false, 584u32, 308u64), (true, 600, 320)] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let size = data + 1;
+        let output = data + 0x100;
+        emu.cfg.host_name = "LAB-HOST".into();
+        assert!(
+            emu.maps
+                .write_bytes(output - 1, &vec![IP_HELPER_CANARY; required as usize + 2])
+        );
+        for (buffer, capacity) in [(0, 0), (output, required - 1)] {
+            assert!(emu.maps.write_dword(size, capacity));
+            assert_eq!(
+                call_ip_helper(&mut emu, "GetNetworkParams", &[buffer, size]),
+                ERROR_BUFFER_OVERFLOW
+            );
+            assert_eq!(emu.maps.read_dword(size), Some(required));
+            assert_eq!(emu.maps.read_byte(output), Some(IP_HELPER_CANARY));
+        }
+        assert_eq!(
+            call_ip_helper(&mut emu, "GetNetworkParams", &[output, size]),
+            ERROR_SUCCESS
+        );
+        let mut expected = vec![0; required as usize];
+        expected[..8].copy_from_slice(b"LAB-HOST");
+        expected[node_type as usize..node_type as usize + 4]
+            .copy_from_slice(&BROADCAST_NODETYPE.to_le_bytes());
+        assert_eq!(
+            emu.maps.read_bytes(output, required as usize).as_ref(),
+            expected
+        );
+        assert_eq!(emu.maps.read_byte(output - 1), Some(IP_HELPER_CANARY));
+        assert_eq!(
+            emu.maps.read_byte(output + required as u64),
+            Some(IP_HELPER_CANARY)
+        );
+
+        emu.cfg.host_name = "A".repeat(256);
+        assert_eq!(
+            call_ip_helper(&mut emu, "GetNetworkParams", &[output, size]),
+            ERROR_SUCCESS
+        );
+        assert_eq!(emu.maps.read_bytes(output, 131).as_ref(), &[b'A'; 131]);
+        assert_eq!(
+            emu.maps.read_word(output + 131),
+            Some(0),
+            "terminated hostname must not overwrite the domain"
+        );
+    }
+}
+
+#[test]
+fn ip_helper_rejects_invalid_buffers_without_partial_writes() {
+    helpers::setup();
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let size = data + 1;
+        let output = data + 0x100;
+        let unmapped = data + 0x10000;
+        let read_only = data + 0x20000;
+        let short_output = data + 0x30000;
+        emu.maps
+            .create_map("ip_helper_read_only", read_only, 0x1000, Permission::READ)
+            .unwrap();
+        emu.maps
+            .create_map("ip_helper_short", short_output, 3, Permission::READ_WRITE)
+            .unwrap();
+        assert!(emu.maps.write_bytes(short_output, &[IP_HELPER_CANARY; 3]));
+        assert!(emu.maps.write_bytes(output, &[IP_HELPER_CANARY; 600]));
+        for (name, required, arguments) in [
+            ("GetIfTable", 4, 3),
+            ("GetIpAddrTable", 4, 3),
+            ("GetTcpTable", 4, 3),
+            ("GetUdpTable", 4, 3),
+            ("GetNetworkParams", if is64 { 600 } else { 584 }, 2),
+        ] {
+            for bad_size in [0, unmapped, read_only, data + 0xfff] {
+                let args = [output, bad_size, 0];
+                assert_eq!(
+                    call_ip_helper(&mut emu, name, &args[..arguments]),
+                    ERROR_INVALID_PARAMETER,
+                    "{name}: size pointer"
+                );
+                assert_eq!(
+                    emu.maps.read_bytes(output, 600).as_ref(),
+                    &[IP_HELPER_CANARY; 600]
+                );
+            }
+            for bad_output in [unmapped, read_only, short_output] {
+                assert!(emu.maps.write_dword(size, required));
+                let args = [bad_output, size, 0];
+                assert_eq!(
+                    call_ip_helper(&mut emu, name, &args[..arguments]),
+                    ERROR_INVALID_PARAMETER,
+                    "{name}: output buffer"
+                );
+                assert_eq!(emu.maps.read_dword(size), Some(required));
+                assert_eq!(
+                    emu.maps.read_bytes(short_output, 3).as_ref(),
+                    &[IP_HELPER_CANARY; 3]
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn ip_helper_adapter_queries_report_no_data_and_validate_parameters() {
+    helpers::setup();
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let size = data + 1;
+        let output = data + 0x100;
+        let unmapped = data + 0x10000;
+        let read_only = data + 0x20000;
+        emu.maps
+            .create_map("adapter_read_only", read_only, 0x1000, Permission::READ)
+            .unwrap();
+        assert!(emu.maps.write_dword(size, 512));
+        assert!(emu.maps.write_bytes(output, &[IP_HELPER_CANARY; 512]));
+        for buffer in [0, output] {
+            assert_eq!(
+                call_ip_helper(&mut emu, "GetAdaptersInfo", &[buffer, size]),
+                ERROR_NO_DATA
+            );
+            for family in [AF_UNSPEC, AF_INET, AF_INET6] {
+                assert_eq!(
+                    call_ip_helper(
+                        &mut emu,
+                        "GetAdaptersAddresses",
+                        &[family as u64, 0, 0, buffer, size]
+                    ),
+                    ERROR_NO_DATA
+                );
+            }
+        }
+        for bad_size in [0, unmapped, read_only, data + 0xfff] {
+            assert_eq!(
+                call_ip_helper(&mut emu, "GetAdaptersInfo", &[output, bad_size]),
+                ERROR_INVALID_PARAMETER
+            );
+            assert_eq!(
+                call_ip_helper(
+                    &mut emu,
+                    "GetAdaptersAddresses",
+                    &[AF_INET as u64, 0, 0, output, bad_size]
+                ),
+                ERROR_INVALID_PARAMETER
+            );
+        }
+        for (family, reserved) in [(u32::MAX, 0), (AF_INET, output)] {
+            assert_eq!(
+                call_ip_helper(
+                    &mut emu,
+                    "GetAdaptersAddresses",
+                    &[family as u64, 0, reserved, output, size]
+                ),
+                ERROR_INVALID_PARAMETER
+            );
+        }
+        assert_eq!(emu.maps.read_dword(size), Some(512));
+        assert_eq!(
+            emu.maps.read_bytes(output, 512).as_ref(),
+            &[IP_HELPER_CANARY; 512]
+        );
+    }
+}
+
+#[test]
+fn ip_helper_unknown_exports_keep_the_existing_fallback() {
+    helpers::setup();
+    for is64 in [false, true] {
+        let (mut emu, _) = helpers::prepare_winapi(is64);
+        emu.cfg.skip_unimplemented = false;
+        call_ip_helper(&mut emu, "UnsupportedIpHelperQuery", &[]);
+        assert!(emu.process_terminated);
+    }
 }

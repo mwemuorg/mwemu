@@ -93,13 +93,9 @@ pub use init_network_address_control::InitNetworkAddressControl;
 mod is_lfn_drive;
 pub use is_lfn_drive::IsLFNDrive;
 
-#[path = "../is_lfn_drive_a.rs"]
-mod is_lfn_drive_a;
-pub use is_lfn_drive_a::IsLFNDriveA;
+pub use is_lfn_drive::IsLFNDriveA;
 
-#[path = "../is_lfn_drive_w.rs"]
-mod is_lfn_drive_w;
-pub use is_lfn_drive_w::IsLFNDriveW;
+pub use is_lfn_drive::IsLFNDriveW;
 
 #[path = "../is_net_drive.rs"]
 mod is_net_drive;
@@ -437,13 +433,9 @@ pub use sh_enable_service_object::SHEnableServiceObject;
 mod sh_file_operation;
 pub use sh_file_operation::SHFileOperation;
 
-#[path = "../sh_file_operation_a.rs"]
-mod sh_file_operation_a;
-pub use sh_file_operation_a::SHFileOperationA;
+pub use sh_file_operation::SHFileOperationA;
 
-#[path = "../sh_file_operation_w.rs"]
-mod sh_file_operation_w;
-pub use sh_file_operation_w::SHFileOperationW;
+pub use sh_file_operation::SHFileOperationW;
 
 #[path = "../sh_find_files.rs"]
 mod sh_find_files;
@@ -473,13 +465,9 @@ pub use sh_get_drive_media::SHGetDriveMedia;
 mod sh_get_file_info;
 pub use sh_get_file_info::SHGetFileInfo;
 
-#[path = "../sh_get_file_info_a.rs"]
-mod sh_get_file_info_a;
-pub use sh_get_file_info_a::SHGetFileInfoA;
+pub use sh_get_file_info::SHGetFileInfoA;
 
-#[path = "../sh_get_file_info_w.rs"]
-mod sh_get_file_info_w;
-pub use sh_get_file_info_w::SHGetFileInfoW;
+pub use sh_get_file_info::SHGetFileInfoW;
 
 #[path = "../sh_get_folder_location.rs"]
 mod sh_get_folder_location;
@@ -501,13 +489,9 @@ pub use sh_get_localized_name::SHGetLocalizedName;
 mod sh_get_new_link_info;
 pub use sh_get_new_link_info::SHGetNewLinkInfo;
 
-#[path = "../sh_get_new_link_info_a.rs"]
-mod sh_get_new_link_info_a;
-pub use sh_get_new_link_info_a::SHGetNewLinkInfoA;
+pub use sh_get_new_link_info::SHGetNewLinkInfoA;
 
-#[path = "../sh_get_new_link_info_w.rs"]
-mod sh_get_new_link_info_w;
-pub use sh_get_new_link_info_w::SHGetNewLinkInfoW;
+pub use sh_get_new_link_info::SHGetNewLinkInfoW;
 
 #[path = "../sh_get_set_folder_custom_settings.rs"]
 mod sh_get_set_folder_custom_settings;
@@ -597,61 +581,47 @@ pub use signal_file_open::SignalFileOpen;
 mod stg_make_unique_name;
 pub use stg_make_unique_name::StgMakeUniqueName;
 
-#[path = "../str_chr_ia.rs"]
-mod str_chr_ia;
-pub use str_chr_ia::StrChrIA;
+#[path = "../str_chr_i.rs"]
+mod str_chr_i;
+pub use str_chr_i::StrChrIA;
 
-#[path = "../str_chr_iw.rs"]
-mod str_chr_iw;
-pub use str_chr_iw::StrChrIW;
+pub use str_chr_i::StrChrIW;
 
-#[path = "../str_cmp_na.rs"]
-mod str_cmp_na;
-pub use str_cmp_na::StrCmpNA;
+#[path = "../str_cmp_n.rs"]
+mod str_cmp_n;
+pub use str_cmp_n::StrCmpNA;
 
-#[path = "../str_cmp_nia.rs"]
-mod str_cmp_nia;
-pub use str_cmp_nia::StrCmpNIA;
+#[path = "../str_cmp_ni.rs"]
+mod str_cmp_ni;
+pub use str_cmp_ni::StrCmpNIA;
 
-#[path = "../str_cmp_niw.rs"]
-mod str_cmp_niw;
-pub use str_cmp_niw::StrCmpNIW;
+pub use str_cmp_ni::StrCmpNIW;
 
-#[path = "../str_cmp_nw.rs"]
-mod str_cmp_nw;
-pub use str_cmp_nw::StrCmpNW;
+pub use str_cmp_n::StrCmpNW;
 
-#[path = "../str_n_cmp_ia.rs"]
-mod str_n_cmp_ia;
-pub use str_n_cmp_ia::StrNCmpIA;
+#[path = "../str_n_cmp_i.rs"]
+mod str_n_cmp_i;
+pub use str_n_cmp_i::StrNCmpIA;
 
-#[path = "../str_n_cmp_iw.rs"]
-mod str_n_cmp_iw;
-pub use str_n_cmp_iw::StrNCmpIW;
+pub use str_n_cmp_i::StrNCmpIW;
 
-#[path = "../str_r_chr_ia.rs"]
-mod str_r_chr_ia;
-pub use str_r_chr_ia::StrRChrIA;
+#[path = "../str_r_chr_i.rs"]
+mod str_r_chr_i;
+pub use str_r_chr_i::StrRChrIA;
 
-#[path = "../str_r_chr_iw.rs"]
-mod str_r_chr_iw;
-pub use str_r_chr_iw::StrRChrIW;
+pub use str_r_chr_i::StrRChrIW;
 
-#[path = "../str_r_str_ia.rs"]
-mod str_r_str_ia;
-pub use str_r_str_ia::StrRStrIA;
+#[path = "../str_r_str_i.rs"]
+mod str_r_str_i;
+pub use str_r_str_i::StrRStrIA;
 
-#[path = "../str_r_str_iw.rs"]
-mod str_r_str_iw;
-pub use str_r_str_iw::StrRStrIW;
+pub use str_r_str_i::StrRStrIW;
 
-#[path = "../str_str_ia.rs"]
-mod str_str_ia;
-pub use str_str_ia::StrStrIA;
+#[path = "../str_str_i.rs"]
+mod str_str_i;
+pub use str_str_i::StrStrIA;
 
-#[path = "../str_str_iw.rs"]
-mod str_str_iw;
-pub use str_str_iw::StrStrIW;
+pub use str_str_i::StrStrIW;
 
 #[path = "../win32_delete_file.rs"]
 mod win32_delete_file;

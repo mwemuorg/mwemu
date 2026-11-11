@@ -3,10 +3,9 @@ use crate::emu;
 use crate::winapi::winapi64;
 //use crate::windows::constants;
 //
-mod path_file_exists_a;
-use path_file_exists_a::PathFileExistsA;
-mod path_file_exists_w;
-use path_file_exists_w::PathFileExistsW;
+mod path_file_exists;
+use path_file_exists::PathFileExistsA;
+use path_file_exists::PathFileExistsW;
 mod path_find_suffix_array_a;
 pub use path_find_suffix_array_a::PathFindSuffixArrayA;
 mod path_is_content_type_w;

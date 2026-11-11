@@ -3,10 +3,9 @@ use crate::serialization;
 use crate::winapi::winapi32::kernel32;
 //use crate::endpoint;
 
-mod path_file_exists_a;
-use path_file_exists_a::PathFileExistsA;
-mod path_file_exists_w;
-use path_file_exists_w::PathFileExistsW;
+mod path_file_exists;
+use path_file_exists::PathFileExistsA;
+use path_file_exists::PathFileExistsW;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);

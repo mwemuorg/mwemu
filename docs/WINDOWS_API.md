@@ -43,3 +43,7 @@ Use `banzai_add(name, nparams)` in Rust or Python to add or replace a cleanup si
 Fallback returns log the API name, address, instruction pointer, cleanup size, and result. Stops log the reason and serialize emulator state if `dump_on_exit` and `dump_filename` are configured.
 
 `--strict-api` / `Config::stop_on_unimplemented` adds an x64 check for calls still reported as unhandled by a gateway. It does not override a defined fallback return.
+
+## Adding handlers
+
+Keep A/W variants in the same module and connect each implementation through a single module owner. Run `make api-modules` after adding or moving handlers. CI compares Windows API source files with the dependencies of the current library and test compilation, and rejects unconnected Rust files.

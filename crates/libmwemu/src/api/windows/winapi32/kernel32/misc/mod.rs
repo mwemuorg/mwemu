@@ -162,10 +162,6 @@ pub use free_memory_job_object::*;
 mod get_application_restart_settings_worker;
 pub use get_application_restart_settings_worker::*;
 
-#[path = "../get_binary_type_w.rs"]
-mod get_binary_type_w;
-pub use get_binary_type_w::*;
-
 #[path = "../get_com_plus_package_install_status.rs"]
 mod get_com_plus_package_install_status;
 pub use get_com_plus_package_install_status::*;

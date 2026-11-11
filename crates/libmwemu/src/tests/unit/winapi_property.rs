@@ -50,6 +50,11 @@ impl DllDef {
 
 const DLLS_64: &[DllDef] = &[
     DllDef {
+        name: "iphlpapi",
+        section: "iphlpapi.text",
+        sources: &[include_str!("../../api/windows/common/iphlpapi.rs")],
+    },
+    DllDef {
         name: "ucrtbase",
         section: "ucrtbase.text",
         sources: &[
@@ -216,11 +221,6 @@ const DLLS_64: &[DllDef] = &[
         sources: &[include_str!("../../api/windows/winapi64/shlwapi/mod.rs")],
     },
     DllDef {
-        name: "iphlpapi",
-        section: "iphlpapi.text",
-        sources: &[include_str!("../../api/windows/winapi64/iphlpapi/mod.rs")],
-    },
-    DllDef {
         name: "dnsapi",
         section: "dnsapi.text",
         sources: &[include_str!("../../api/windows/winapi64/dnsapi/mod.rs")],
@@ -238,6 +238,11 @@ const DLLS_64: &[DllDef] = &[
 ];
 
 const DLLS_32: &[DllDef] = &[
+    DllDef {
+        name: "iphlpapi",
+        section: "iphlpapi.text",
+        sources: &[include_str!("../../api/windows/common/iphlpapi.rs")],
+    },
     DllDef {
         name: "kernel32",
         section: "kernel32.text",

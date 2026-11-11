@@ -73,17 +73,13 @@ pub use drag_finish::DragFinish;
 mod drag_query_file;
 pub use drag_query_file::DragQueryFile;
 
-#[path = "../drag_query_file_a.rs"]
-mod drag_query_file_a;
-pub use drag_query_file_a::DragQueryFileA;
+pub use drag_query_file::DragQueryFileA;
 
 #[path = "../drag_query_file_aor_w.rs"]
 mod drag_query_file_aor_w;
 pub use drag_query_file_aor_w::DragQueryFileAorW;
 
-#[path = "../drag_query_file_w.rs"]
-mod drag_query_file_w;
-pub use drag_query_file_w::DragQueryFileW;
+pub use drag_query_file::DragQueryFileW;
 
 #[path = "../drag_query_point.rs"]
 mod drag_query_point;
@@ -97,13 +93,9 @@ pub use duplicate_icon::DuplicateIcon;
 mod extract_icon_ex;
 pub use extract_icon_ex::ExtractIconEx;
 
-#[path = "../extract_icon_ex_a.rs"]
-mod extract_icon_ex_a;
-pub use extract_icon_ex_a::ExtractIconExA;
+pub use extract_icon_ex::ExtractIconExA;
 
-#[path = "../extract_icon_ex_w.rs"]
-mod extract_icon_ex_w;
-pub use extract_icon_ex_w::ExtractIconExW;
+pub use extract_icon_ex::ExtractIconExW;
 
 #[path = "../free_icon_list.rs"]
 mod free_icon_list;
@@ -137,13 +129,9 @@ pub use sh_app_bar_message::SHAppBarMessage;
 mod sh_browse_for_folder;
 pub use sh_browse_for_folder::SHBrowseForFolder;
 
-#[path = "../sh_browse_for_folder_a.rs"]
-mod sh_browse_for_folder_a;
-pub use sh_browse_for_folder_a::SHBrowseForFolderA;
+pub use sh_browse_for_folder::SHBrowseForFolderA;
 
-#[path = "../sh_browse_for_folder_w.rs"]
-mod sh_browse_for_folder_w;
-pub use sh_browse_for_folder_w::SHBrowseForFolderW;
+pub use sh_browse_for_folder::SHBrowseForFolderW;
 
 #[path = "../sh_create_default_context_menu.rs"]
 mod sh_create_default_context_menu;
@@ -417,13 +405,9 @@ pub use sh_update_recycle_bin_icon::SHUpdateRecycleBinIcon;
 mod shell_get_cached_image_index;
 pub use shell_get_cached_image_index::Shell_GetCachedImageIndex;
 
-#[path = "../shell_get_cached_image_index_a.rs"]
-mod shell_get_cached_image_index_a;
-pub use shell_get_cached_image_index_a::Shell_GetCachedImageIndexA;
+pub use shell_get_cached_image_index::Shell_GetCachedImageIndexA;
 
-#[path = "../shell_get_cached_image_index_w.rs"]
-mod shell_get_cached_image_index_w;
-pub use shell_get_cached_image_index_w::Shell_GetCachedImageIndexW;
+pub use shell_get_cached_image_index::Shell_GetCachedImageIndexW;
 
 #[path = "../shell_get_image_lists.rs"]
 mod shell_get_image_lists;
@@ -437,17 +421,13 @@ pub use shell_merge_menus::Shell_MergeMenus;
 mod shell_notify_icon;
 pub use shell_notify_icon::Shell_NotifyIcon;
 
-#[path = "../shell_notify_icon_a.rs"]
-mod shell_notify_icon_a;
-pub use shell_notify_icon_a::Shell_NotifyIconA;
+pub use shell_notify_icon::Shell_NotifyIconA;
 
 #[path = "../shell_notify_icon_get_rect.rs"]
 mod shell_notify_icon_get_rect;
 pub use shell_notify_icon_get_rect::Shell_NotifyIconGetRect;
 
-#[path = "../shell_notify_icon_w.rs"]
-mod shell_notify_icon_w;
-pub use shell_notify_icon_w::Shell_NotifyIconW;
+pub use shell_notify_icon::Shell_NotifyIconW;
 
 #[path = "../state_repo_new_menu_cache_ensure_cache_async.rs"]
 mod state_repo_new_menu_cache_ensure_cache_async;

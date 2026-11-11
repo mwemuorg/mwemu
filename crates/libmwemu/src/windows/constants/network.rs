@@ -1,6 +1,14 @@
+pub const AF_UNSPEC: u32 = 0;
 pub const AF_INET: u32 = 2;
+pub const AF_INET6: u32 = 23;
 pub const SOCK_STREAM: u32 = 1;
 pub const IPPROTO_TCP: u32 = 6;
+
+// FIXED_INFO node types
+pub const BROADCAST_NODETYPE: u32 = 0x0001;
+pub const PEER_TO_PEER_NODETYPE: u32 = 0x0002;
+pub const MIXED_NODETYPE: u32 = 0x0004;
+pub const HYBRID_NODETYPE: u32 = 0x0008;
 // ntdll: 0x76dc7070
 pub const INTERNET_OPTION_ALTER_IDENTITY: u32 = 80;
 pub const INTERNET_OPTION_ASYNC: u32 = 30;

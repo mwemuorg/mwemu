@@ -375,6 +375,7 @@ pub const WINAPI_MODULE_BASE: u64 = 0x7000_0000;
 const EXPORT: u64 = WINAPI_MODULE_BASE + 0x100;
 const KERNELBASE_EXPORT: u64 = EXPORT + 0x10000;
 const USER32_EXPORT: u64 = EXPORT + 0x20000;
+const IPHLPAPI_EXPORT: u64 = EXPORT + 0x30000;
 const DATA_SIZE: u64 = 0x1000;
 
 pub fn prepare_winapi(is64: bool) -> (Emu, u64) {
@@ -406,6 +407,7 @@ pub fn call_winapi_export(emu: &mut Emu, library: &str, name: &str, args: &[u64]
         "kernel32.dll" => EXPORT,
         "kernelbase.dll" => KERNELBASE_EXPORT,
         "user32.dll" => USER32_EXPORT,
+        "iphlpapi.dll" => IPHLPAPI_EXPORT,
         _ => panic!("unexpected library: {library}"),
     };
     register_export_module(emu, library, address - 0x100, &exports);
@@ -418,6 +420,12 @@ pub fn call_winapi_export(emu: &mut Emu, library: &str, name: &str, args: &[u64]
         },
         (false, "user32.dll") => |emu| {
             winapi32::gateway(USER32_EXPORT as u32, "user32.text", emu);
+        },
+        (false, "iphlpapi.dll") => |emu| {
+            winapi32::gateway(IPHLPAPI_EXPORT as u32, "iphlpapi.text", emu);
+        },
+        (true, "iphlpapi.dll") => |emu| {
+            winapi64::gateway(IPHLPAPI_EXPORT, "iphlpapi.text", emu);
         },
         (true, "kernel32.dll") => |emu| {
             winapi64::gateway(EXPORT, "kernel32.text", emu);

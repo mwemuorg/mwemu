@@ -73,17 +73,13 @@ pub use expand_environment_strings::*;
 mod get_environment_strings;
 pub use get_environment_strings::*;
 
-#[path = "../get_environment_strings_w.rs"]
-mod get_environment_strings_w;
-pub use get_environment_strings_w::*;
-
 #[path = "../lstrcat.rs"]
 mod lstrcat;
 pub use lstrcat::*;
 
-#[path = "../lstrcmpi_a.rs"]
-mod lstrcmpi_a;
-pub use lstrcmpi_a::*;
+#[path = "../lstrcmpi.rs"]
+mod lstrcmpi;
+pub use lstrcmpi::*;
 
 #[path = "../lstrcpy.rs"]
 mod lstrcpy;
@@ -188,25 +184,9 @@ mod string_v_printf_worker_w_0;
 mod string_validate_dest_and_length_w;
 pub use string_validate_dest_and_length_w::*;
 
-#[path = "../lstrlen_w.rs"]
-mod lstrlen_w;
-pub use lstrlen_w::*;
-
-#[path = "../lstrcpy_w.rs"]
-mod lstrcpy_w;
-pub use lstrcpy_w::*;
-
 #[path = "../lstrcpyn.rs"]
 mod lstrcpyn;
 pub use lstrcpyn::*;
-
-#[path = "../lstrcat_w.rs"]
-mod lstrcat_w;
-pub use lstrcat_w::*;
-
-#[path = "../lstrcmpi_w.rs"]
-mod lstrcmpi_w;
-pub use lstrcmpi_w::*;
 
 #[path = "../get_user_default_lcid.rs"]
 mod get_user_default_lcid;
