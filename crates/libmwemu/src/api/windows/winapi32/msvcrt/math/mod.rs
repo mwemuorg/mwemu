@@ -45,9 +45,9 @@ pub use sqrt::sqrt;
 mod pow;
 pub use pow::pow;
 
-#[path = "../log_api.rs"]
-mod log_api;
-pub use log_api::log;
+#[path = "../log.rs"]
+mod log;
+pub use log::log;
 
 #[path = "../log10.rs"]
 mod log10;

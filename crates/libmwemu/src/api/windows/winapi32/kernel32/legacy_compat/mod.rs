@@ -152,12 +152,12 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "_lopen" => kernel32::_lopen(emu),
         "_lread" => kernel32::_lread(emu),
         "_lwrite" => kernel32::_lwrite(emu),
-        "_hread" => kernel32::_hread_api(emu),
-        "_hwrite" => kernel32::_hwrite_api(emu),
-        "__C_specific_handler" => kernel32::__C_specific_handler_api(emu),
-        "__chkstk" => kernel32::__chkstk_api(emu),
-        "__misaligned_access" => kernel32::__misaligned_access_api(emu),
-        "_local_unwind" => kernel32::_local_unwind_api(emu),
+        "_hread" => kernel32::_hread(emu),
+        "_hwrite" => kernel32::_hwrite(emu),
+        "__C_specific_handler" => kernel32::__C_specific_handler(emu),
+        "__chkstk" => kernel32::__chkstk(emu),
+        "__misaligned_access" => kernel32::__misaligned_access(emu),
+        "_local_unwind" => kernel32::_local_unwind(emu),
         _ => return false,
     }
     true

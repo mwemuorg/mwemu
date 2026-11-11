@@ -2,7 +2,7 @@ use super::EINVAL;
 use super::errno_cell;
 use crate::emu;
 
-pub(super) fn get_errno_api(emu: &mut emu::Emu) {
+pub(super) fn _get_errno(emu: &mut emu::Emu) {
     let out = emu.regs().rcx;
     if out == 0 {
         emu.regs_mut().rax = EINVAL as u64;

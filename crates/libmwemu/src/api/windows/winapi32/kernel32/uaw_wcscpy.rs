@@ -1,11 +1,11 @@
 use crate::emu;
 
-pub fn timeGetSystemTime_api(emu: &mut emu::Emu) {
+pub fn uaw_wcscpy(emu: &mut emu::Emu) {
     let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!timeGetSystemTime arg1:0x{:x} arg2:0x{:x}",
+        "kernel32!uaw_wcscpy arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );

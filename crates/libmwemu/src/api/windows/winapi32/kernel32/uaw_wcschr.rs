@@ -1,9 +1,14 @@
 use crate::emu;
 
-pub fn __chkstk_api(emu: &mut emu::Emu) {
+pub fn uaw_wcschr(emu: &mut emu::Emu) {
     let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    log_red!(emu, "kernel32!__chkstk arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+    log_red!(
+        emu,
+        "kernel32!uaw_wcschr arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
+    );
     for _ in 0..2 {
         emu.stack_pop32(false);
     }

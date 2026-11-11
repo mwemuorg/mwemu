@@ -1,6 +1,6 @@
 use crate::emu;
 
-pub fn uaw_lstrlenW_api(emu: &mut emu::Emu) {
+pub fn uaw_lstrlenW(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)

@@ -1,6 +1,6 @@
 use crate::emu;
 
-pub fn lstrcmpA_api(emu: &mut emu::Emu) {
+pub fn lstrcmpA(emu: &mut emu::Emu) {
     let s1 = emu.regs().rcx;
     let s2 = emu.regs().rdx;
     let str1 = emu.maps.read_string(s1);
@@ -10,7 +10,7 @@ pub fn lstrcmpA_api(emu: &mut emu::Emu) {
     emu.regs_mut().rax = r as u64;
 }
 
-pub fn lstrcmpW_api(emu: &mut emu::Emu) {
+pub fn lstrcmpW(emu: &mut emu::Emu) {
     let s1 = emu.regs().rcx;
     let s2 = emu.regs().rdx;
     let str1 = emu.maps.read_wide_string(s1);

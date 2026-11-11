@@ -1,11 +1,11 @@
 use crate::emu;
 
-pub fn __misaligned_access_api(emu: &mut emu::Emu) {
+pub fn __C_specific_handler(emu: &mut emu::Emu) {
     let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!__misaligned_access arg1:0x{:x} arg2:0x{:x}",
+        "kernel32!__C_specific_handler arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );

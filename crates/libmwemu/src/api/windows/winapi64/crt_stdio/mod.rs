@@ -28,14 +28,14 @@ mod ftell;
 use ftell::ftell;
 mod fwrite;
 use fwrite::fwrite;
-mod get_errno_api;
-use get_errno_api::get_errno_api;
+mod get_errno;
+use get_errno::_get_errno;
 mod get_osfhandle;
 use get_osfhandle::get_osfhandle;
 mod rewind;
 use rewind::rewind;
-mod set_errno_api;
-use set_errno_api::set_errno_api;
+mod set_errno;
+use set_errno::_set_errno;
 mod stream_flag;
 use stream_flag::stream_flag;
 
@@ -129,8 +129,8 @@ pub fn gateway(api: &str, emu: &mut emu::Emu) -> bool {
         "_filelengthi64" => filelength(emu, api, false),
         "_get_osfhandle" => get_osfhandle(emu),
         "_errno" => errno_location(emu),
-        "_set_errno" => set_errno_api(emu),
-        "_get_errno" => get_errno_api(emu),
+        "_set_errno" => _set_errno(emu),
+        "_get_errno" => _get_errno(emu),
         _ => return false,
     }
     true

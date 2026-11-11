@@ -97,7 +97,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "SystemTimeToTzSpecificLocalTimeEx" => kernel32::SystemTimeToTzSpecificLocalTimeEx(emu),
         "TzSpecificLocalTimeToSystemTime" => kernel32::TzSpecificLocalTimeToSystemTime(emu),
         "TzSpecificLocalTimeToSystemTimeEx" => kernel32::TzSpecificLocalTimeToSystemTimeEx(emu),
-        "timeGetSystemTime" => kernel32::timeGetSystemTime_api(emu),
+        "timeGetSystemTime" => kernel32::timeGetSystemTime(emu),
         _ => return false,
     }
     true

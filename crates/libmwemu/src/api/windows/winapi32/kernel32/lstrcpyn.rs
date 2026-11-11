@@ -15,7 +15,7 @@ pub fn lstrcpyn(emu: &mut emu::Emu) {
     stdcall_ret(emu, 3);
 }
 
-pub fn lstrcpynA_api(emu: &mut emu::Emu) {
+pub fn lstrcpynA(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
@@ -36,7 +36,7 @@ pub fn lstrcpynA_api(emu: &mut emu::Emu) {
     }
 }
 
-pub fn lstrcpynW_api(emu: &mut emu::Emu) {
+pub fn lstrcpynW(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;

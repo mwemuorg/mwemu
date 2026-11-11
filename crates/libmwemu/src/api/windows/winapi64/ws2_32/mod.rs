@@ -337,10 +337,6 @@ mod shutdown;
 pub use shutdown::shutdown;
 mod wsc_install_provider_and_chains;
 pub use wsc_install_provider_and_chains::WSCInstallProviderAndChains;
-mod wsa_socket_a_api;
-pub use wsa_socket_a_api::WsaSocketA_api;
-mod wsa_startup_api;
-pub use wsa_startup_api::WsaStartup_api;
 mod get_sock_name;
 use get_sock_name::GetSockName;
 mod wsa_accept_2;
@@ -356,9 +352,10 @@ use wsa_recv_from_2::WsaRecvFrom;
 mod wsa_send;
 use wsa_send::WsaSend;
 mod wsa_socket;
-use wsa_socket::WsaSocketA;
+use wsa_socket::WSASocketA;
+pub use wsa_socket::WsaSocketA;
 mod wsa_startup;
-pub use wsa_startup::WsaStartup;
+pub use wsa_startup::{WSAStartup, WsaStartup};
 mod accept;
 pub use accept::accept;
 mod bind;
@@ -396,8 +393,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
     match api {
-        "WSAStartup" => WsaStartup(emu),
-        "WSASocketA" => WsaSocketA(emu),
+        "WSAStartup" => WSAStartup(emu),
+        "WSASocketA" => WSASocketA(emu),
         "connect" => connect(emu),
         "recv" => recv(emu),
         "send" => send(emu),
@@ -599,8 +596,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "select" => select(emu),
         "shutdown" => shutdown(emu),
         "WSCInstallProviderAndChains" => WSCInstallProviderAndChains(emu),
-        "WsaSocketA" => WsaSocketA_api(emu),
-        "WsaStartup" => WsaStartup_api(emu),
+        "WsaSocketA" => WsaSocketA(emu),
+        "WsaStartup" => WsaStartup(emu),
 
         _ => return fallback::unimplemented(addr, api, emu),
     }
