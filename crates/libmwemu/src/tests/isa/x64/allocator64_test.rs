@@ -12,7 +12,7 @@ pub fn allocator64_test() {
 
     let mut emu = emu64();
     emu.cfg.maps_folder = win_maps!(64);
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
 
     assert!(!emu.maps.exists_mapname("notexist"));
     assert!(emu.maps.get_map_by_name("notexist").is_none());
@@ -56,7 +56,7 @@ fn virtual_alloc_zero_size_64() {
     helpers::setup();
     let mut emu = emu64();
     emu.cfg.maps_folder = win_maps!(64);
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
 
     let r = helpers::call_winapi64(
         &mut emu,
@@ -97,7 +97,7 @@ fn virtual_alloc_commit_unmapped_64() {
     helpers::setup();
     let mut emu = emu64();
     emu.cfg.maps_folder = win_maps!(64);
-    emu.init_win32(false, false);
+    emu.init_win32(false, false).unwrap();
 
     // MEM_COMMIT at a fresh, never-mapped fixed address must fail.
     let r = helpers::call_winapi64(

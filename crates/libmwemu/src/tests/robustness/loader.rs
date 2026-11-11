@@ -171,20 +171,20 @@ fn check_pe_header_mapping(name: &str, is_x64: bool, load: impl Fn(&mut Emu, &st
 #[test]
 fn pe32_headers_load_available_bytes_and_zero_fill() {
     check_pe_header_mapping("mwemu_rob_headers32.exe", false, |emu, path| {
-        u64::from(emu.load_pe32(path, false, 0x400000).0)
+        emu.load_pe32(path, false, 0x400000).unwrap().base
     });
 }
 
 #[test]
 fn pe64_headers_load_available_bytes_and_zero_fill() {
     check_pe_header_mapping("mwemu_rob_headers64.exe", true, |emu, path| {
-        emu.load_pe64(path, false, 0x140000000).0
+        emu.load_pe64(path, false, 0x140000000).unwrap().base
     });
 }
 
 #[test]
 fn pe64_dll_headers_load_available_bytes_and_zero_fill() {
     check_pe_header_mapping("mwemu_rob_headers64.dll", true, |emu, path| {
-        emu.map_dll_pe64(path).0
+        emu.map_dll_pe64(path).unwrap().base
     });
 }

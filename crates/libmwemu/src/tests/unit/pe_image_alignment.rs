@@ -1,21 +1,28 @@
-use crate::windows::constants::memory::*;
 use std::fs;
 
+use goblin::pe::section_table::{
+    IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE,
+};
 use itertools::iproduct;
+use rs_header::pe::shared::{IMAGE_DIRECTORY_ENTRY_BASERELOC, ImageDosHeader};
 
 use crate::api::windows::common::memory::Call;
 use crate::api::windows::common::{memory, sections};
+use crate::api::windows::{winapi32, winapi64};
 use crate::emu::Emu;
+use crate::err::MwemuError;
 use crate::maps::Maps;
 use crate::maps::mem64::Permission;
-use crate::maps::virtual_memory::MemoryKind;
+use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, MemoryKind, PAGE_SIZE};
 use crate::serialization::Serialization;
 use crate::tests::helpers::{LOADER32, LOADER64, call_winapi32, call_winapi64};
-
+use crate::windows::constants::errors::STATUS_SUCCESS;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::NT_CURRENT_PROCESS;
+use crate::windows::peb::{peb32, peb64};
 use crate::{emu32, emu64};
 
-const PAGE: u32 = 0x1000;
-const GRANULARITY: u64 = 0x10000;
+const PAGE: u32 = PAGE_SIZE as u32;
 
 #[derive(Clone, Copy, Debug)]
 enum Loader {
@@ -39,22 +46,26 @@ impl Loader {
     }
 
     fn load(self, emu: &mut Emu, raw: &[u8], name: &str) -> u64 {
-        let base = self.try_load(emu, raw, name);
+        let base = self.try_load(emu, raw, name).unwrap();
         assert_ne!(base, 0, "{self:?}");
         base
     }
 
-    fn try_load(self, emu: &mut Emu, raw: &[u8], name: &str) -> u64 {
+    fn try_load(self, emu: &mut Emu, raw: &[u8], name: &str) -> Result<u64, MwemuError> {
         let path = std::env::temp_dir().join(format!("mwemu_alignment_{name}.dll"));
         fs::write(&path, raw).unwrap();
         let filename = path.to_str().unwrap();
-        let base = match self {
-            Self::Pe32 => emu.load_pe32(filename, false, 0).0 as u64,
-            Self::Pe64 => emu.load_pe64(filename, false, 0).0,
-            Self::Dll64 => emu.map_dll_pe64(filename).0,
-        };
+        let base = self.load_file(emu, filename);
         fs::remove_file(path).unwrap();
         base
+    }
+
+    fn load_file(self, emu: &mut Emu, filename: &str) -> Result<u64, MwemuError> {
+        match self {
+            Self::Pe32 => emu.load_pe32(filename, false, 0).map(|image| image.base),
+            Self::Pe64 => emu.load_pe64(filename, false, 0).map(|image| image.base),
+            Self::Dll64 => emu.map_dll_pe64(filename).map(|image| image.base),
+        }
     }
 }
 
@@ -96,7 +107,11 @@ fn image(
     write_u32(&mut raw, section + 12, rva);
     write_u32(&mut raw, section + 16, raw_size);
     write_u32(&mut raw, section + 20, pointer);
-    write_u32(&mut raw, section + 36, 0xe0000020);
+    write_u32(
+        &mut raw,
+        section + 36,
+        IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE,
+    );
     for (i, byte) in raw.iter_mut().enumerate().skip(0x400) {
         *byte = ((i ^ (i >> 8)) % 251 + 1) as u8;
     }
@@ -168,7 +183,7 @@ fn low_alignment_preserves_exact_file_offsets() {
         let base = loader.load(&mut emu, &raw, "low");
         let mapped = emu.maps.get_mem_by_addr(base + 0x403).unwrap();
         assert_eq!(
-            &mapped.get_mem()[..0x20],
+            &mapped.get_mem()[0x403..0x423],
             &raw[0x403..0x423],
             "{loader:?}, alignment={alignment:#x}"
         );
@@ -210,7 +225,7 @@ fn consecutive_stub_images_use_allocation_granularity() {
                 emu.create_stub_pe32(name, &["Example"]) as u64
             };
             assert_ne!(base, 0);
-            assert_eq!(base % GRANULARITY, 0, "{name}, is_64={is_64}");
+            assert_eq!(base % ALLOCATION_GRANULARITY, 0, "{name}, is_64={is_64}");
         }
     }
 }
@@ -231,12 +246,12 @@ fn pe_image_gaps_remain_owned_and_excluded_from_allocation() {
         );
         assert_eq!(
             emu.maps
-                .find_free_range(0x1000, GRANULARITY, base, base + 0x50000),
+                .find_free_range(0x1000, ALLOCATION_GRANULARITY, base, base + 0x50000),
             Some(base + 0x40000)
         );
         assert_eq!(
             emu.maps
-                .find_free_range_top_down(0x1000, GRANULARITY, base, base + 0x31000),
+                .find_free_range_top_down(0x1000, ALLOCATION_GRANULARITY, base, base + 0x31000),
             None
         );
         let info = emu.maps.query_memory(gap);
@@ -267,7 +282,12 @@ fn pe_image_load_failure_rolls_back_earlier_regions() {
             )
             .unwrap();
         let count = emu.maps.maps.len();
-        assert_eq!(loader.try_load(&mut emu, &raw, "rollback"), 0, "{loader:?}");
+        let error = loader.try_load(&mut emu, &raw, "rollback").unwrap_err();
+        assert!(error.message.contains("cannot map PE"), "{error}");
+        assert!(
+            error.message.contains("mwemu_alignment_rollback.probe"),
+            "{error}"
+        );
         assert_eq!(emu.maps.maps.len(), count);
         assert!(!emu.maps.exists_mapname("mwemu_alignment_rollback.pe"));
         assert_eq!(emu.maps.read_byte(0x100000), Some(0));
@@ -358,10 +378,19 @@ fn pe_image_query_and_allocation_apis_respect_reserved_holes() {
         let mut emu = loader.emu();
         let base = loader.load(&mut emu, &sparse_image(loader), "query");
         let gap = base + 0x10000;
-        assert!(memory::allocate(&mut emu, gap, 0x1000, 0x3000, 4).is_err());
+        assert!(
+            memory::allocate(
+                &mut emu,
+                gap,
+                PAGE_SIZE,
+                MEM_COMMIT | MEM_RESERVE,
+                PAGE_READWRITE
+            )
+            .is_err()
+        );
         assert!(
             emu.maps
-                .protect_memory(gap, 0x1000, 4, Permission::READ_WRITE)
+                .protect_memory(gap, PAGE_SIZE, PAGE_READWRITE, Permission::READ_WRITE)
                 .is_err()
         );
         let output = 0x5000000;
@@ -381,23 +410,44 @@ fn pe_image_query_and_allocation_apis_respect_reserved_holes() {
             memory::read_pointer(&emu, output + memory::pointer_size(&emu)),
             Some(base)
         );
-        assert_eq!(emu.maps.read_dword(output + state_offset), Some(0x2000));
+        assert_eq!(
+            emu.maps.read_dword(output + state_offset),
+            Some(MEM_RESERVE)
+        );
         assert_eq!(
             emu.maps.read_dword(output + state_offset + 8),
-            Some(0x1000000)
+            Some(MEM_IMAGE)
         );
         let expected = emu.maps.read_bytes(output, length as usize).into_owned();
         emu.maps.fill_range(output, 0xcc, length as usize);
         let result = if loader.is_64() {
-            call_winapi64(&mut emu, nt_query, &[u64::MAX, gap, 0, output, length, 0])
+            call_winapi64(
+                &mut emu,
+                nt_query,
+                &[
+                    NT_CURRENT_PROCESS,
+                    gap,
+                    MEMORY_INFORMATION_CLASS_MEMORY_BASIC_INFORMATION,
+                    output,
+                    length,
+                    0,
+                ],
+            )
         } else {
             call_winapi32(
                 &mut emu,
                 nt_query,
-                &[u32::MAX, gap as u32, 0, output as u32, length as u32, 0],
+                &[
+                    NT_CURRENT_PROCESS as u32,
+                    gap as u32,
+                    MEMORY_INFORMATION_CLASS_MEMORY_BASIC_INFORMATION as u32,
+                    output as u32,
+                    length as u32,
+                    0,
+                ],
             ) as u64
         };
-        assert_eq!(result, 0);
+        assert_eq!(result, STATUS_SUCCESS);
         assert_eq!(
             emu.maps.read_bytes(output, length as usize).as_ref(),
             expected
@@ -448,11 +498,15 @@ fn pe_image_unmap_removes_stub_exports_and_reuses_the_range() {
         assert!(emu.export_indexes.get_by_base(base).is_some());
         let unmap: fn(&mut Emu) = |emu| sections::nt_unmap(emu, Call::Api);
         let result = if is64 {
-            call_winapi64(&mut emu, unmap, &[u64::MAX, base + 0x1001])
+            call_winapi64(&mut emu, unmap, &[NT_CURRENT_PROCESS, base + 0x1001])
         } else {
-            call_winapi32(&mut emu, unmap, &[u32::MAX, (base + 0x1001) as u32]) as u64
+            call_winapi32(
+                &mut emu,
+                unmap,
+                &[NT_CURRENT_PROCESS as u32, (base + 0x1001) as u32],
+            ) as u64
         };
-        assert_eq!(result, 0);
+        assert_eq!(result, STATUS_SUCCESS);
         assert!(emu.export_indexes.get_by_base(base).is_none());
         assert!(emu.maps.is_range_free(base, 0x3000));
         let next = if is64 {
@@ -492,4 +546,297 @@ fn pe_image_owner_and_backing_search_matches_exhaustive_candidates() {
             }
         }
     }
+}
+
+#[test]
+fn low_alignment_maps_file_gaps_and_zero_fills_to_image_end() {
+    for (loader, file_size) in iproduct!(LOADERS, [0x1800, 0x5000]) {
+        let mut raw = image(loader, 0x200, 0x800, 0x800, 0x20, 0x20);
+        raw.resize(file_size, 0x5a);
+        let mut emu = loader.emu();
+        let base = loader.load(&mut emu, &raw, "flat_gaps");
+        for offset in [0x600, 0x800, 0x1000, 0x1800, 0x3fff] {
+            let expected = raw.get(offset).copied().unwrap_or(0);
+            assert_eq!(
+                emu.maps.read_byte(base + offset as u64),
+                Some(expected),
+                "{loader:?}, offset={offset:#x}"
+            );
+        }
+        assert!(!emu.maps.is_mapped(base + 0x4000));
+        assert_eq!(emu.maps.query_memory(base + 0x600).allocation_base, base);
+    }
+}
+
+#[test]
+fn low_alignment_last_page_is_owned_but_not_read_from_overlay() {
+    for loader in LOADERS {
+        let mut raw = image(loader, 0x200, 0x800, 0x800, 0x20, 0x20);
+        let nt = u32::from_le_bytes(raw[0x3c..0x40].try_into().unwrap()) as usize;
+        write_u32(&mut raw, nt + 24 + 56, 0x2200);
+        let mut emu = loader.emu();
+        let base = loader.load(&mut emu, &raw, "flat_tail");
+        assert_eq!(emu.maps.read_byte(base + 0x21ff), Some(raw[0x21ff]));
+        for offset in [0x2200, 0x2fff] {
+            assert_eq!(emu.maps.read_byte(base + offset), Some(0));
+            assert!(!emu.maps.is_range_free(base + offset, 1));
+        }
+        assert!(!emu.maps.is_mapped(base + 0x3000));
+    }
+}
+
+#[test]
+fn load_code_reports_pe_allocation_failure() {
+    for loader in [Loader::Pe32, Loader::Pe64] {
+        let directory = std::env::temp_dir().join(format!("mwemu_pe_load_result_{loader:?}"));
+        fs::create_dir_all(&directory).unwrap();
+        let raw = image(loader, PAGE, PAGE, 0x800, 0x200, PAGE);
+        // Supply import-free images locally so initialization never needs system DLLs.
+        for name in ["ntdll.dll", "kernel32.dll", "kernelbase.dll", "sample.exe"] {
+            fs::write(directory.join(name), &raw).unwrap();
+        }
+        let filename = directory.join("sample.exe");
+        for (span, succeeds) in [(0x4000, true), (u32::MAX - PAGE + 1, false)] {
+            let mut input = raw.clone();
+            let nt = u32::from_le_bytes(input[0x3c..0x40].try_into().unwrap()) as usize;
+            write_u32(&mut input, nt + 24 + 56, span);
+            fs::write(&filename, &input).unwrap();
+            let mut emu = loader.emu();
+            emu.cfg.maps_folder = directory.to_string_lossy().into_owned();
+            emu.cfg.skip_unimplemented = false;
+            let result = emu.load_code(filename.to_str().unwrap());
+            assert_eq!(
+                result.is_ok(),
+                succeeds,
+                "{loader:?}, span={span:#x}: {result:?}"
+            );
+            if succeeds {
+                let base = emu.base;
+                assert_ne!(base, 0);
+                assert_eq!(emu.maps.read_word(base), Some(0x5a4d));
+                assert_eq!(emu.pc(), base + PAGE as u64);
+            } else {
+                let message = result.unwrap_err().to_string();
+                assert!(message.contains("cannot allocate PE"), "{message}");
+                assert!(message.contains("sample.exe"), "{message}");
+                assert_eq!(emu.instruction_count, 0);
+            }
+        }
+        for name in ["ntdll.dll", "kernel32.dll", "kernelbase.dll", "sample.exe"] {
+            fs::remove_file(directory.join(name)).unwrap();
+        }
+        fs::remove_dir(directory).unwrap();
+    }
+}
+
+#[test]
+fn pe64_preferred_base_depends_on_image_role_and_relocations()
+-> Result<(), Box<dyn std::error::Error>> {
+    const PREFERRED_BASE: u64 = 0x140000000;
+    const SECTION_OFFSET: u32 = 0x800;
+    const RELOCATION_OFFSET: u32 = 0x100;
+    const RELOCATION_BLOCK_SIZE: u32 = 8;
+
+    let path = std::env::temp_dir().join("mwemu_pe64_preferred_base.dll");
+    for ((main_image, loader), relocatable) in iproduct!(
+        [
+            (true, Loader::Pe64),
+            (false, Loader::Pe64),
+            (false, Loader::Dll64)
+        ],
+        [false, true]
+    ) {
+        let mut raw = image(loader, PAGE, PAGE, SECTION_OFFSET, 0x200, PAGE);
+        let opt = ImageDosHeader::load(&raw, 0).e_lfanew as usize + 24;
+        raw[opt + 24..opt + 32].copy_from_slice(&PREFERRED_BASE.to_le_bytes());
+        if relocatable {
+            let directory = opt + 112 + IMAGE_DIRECTORY_ENTRY_BASERELOC * 8;
+            write_u32(&mut raw, directory, PAGE + RELOCATION_OFFSET);
+            write_u32(&mut raw, directory + 4, RELOCATION_BLOCK_SIZE);
+            let block = (SECTION_OFFSET + RELOCATION_OFFSET) as usize;
+            write_u32(&mut raw, block, PAGE);
+            write_u32(&mut raw, block + 4, RELOCATION_BLOCK_SIZE);
+        }
+        fs::write(&path, raw)?;
+        let mut emu = loader.emu();
+        peb64::init_peb(&mut emu);
+        let filename = path.to_string_lossy();
+        let result = if main_image {
+            emu.load_pe64(&filename, true, 0).map(|image| image.base)
+        } else {
+            loader.load_file(&mut emu, &filename)
+        };
+        fs::remove_file(&path)?;
+        let base = result?;
+        if main_image || !relocatable {
+            assert_eq!(
+                base, PREFERRED_BASE,
+                "{loader:?}, main={main_image}, reloc={relocatable}"
+            );
+        } else {
+            assert!(
+                (LIBS64_MIN..LIBS64_MAX).contains(&base),
+                "{loader:?}: {base:#x}"
+            );
+            assert_ne!(base, PREFERRED_BASE);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn pe_dependencies_preserve_main_image_identity() {
+    for (loader, emulate_winapi) in iproduct!([Loader::Pe32, Loader::Pe64], [false, true]) {
+        let mut emu = loader.emu();
+        if loader.is_64() {
+            peb64::init_peb(&mut emu);
+        } else {
+            peb32::init_peb(&mut emu);
+        }
+        let raw = image(loader, PAGE, PAGE, 0x800, 0x200, PAGE);
+        let path = std::env::temp_dir().join("mwemu_pe_main_identity.exe");
+        fs::write(&path, &raw).unwrap();
+        let filename = path.to_str().unwrap();
+        let main_base = 0x400000;
+        emu.tls_callbacks = vec![0x12345678];
+        let base = if loader.is_64() {
+            emu.load_pe64(filename, true, main_base).unwrap().base
+        } else {
+            emu.load_pe32(filename, true, main_base as u32)
+                .unwrap()
+                .base
+        };
+        fs::remove_file(path).unwrap();
+        assert_eq!(base, main_base);
+        assert!(emu.tls_callbacks.is_empty());
+        let entry = main_base + PAGE as u64;
+        let peb = emu.maps.get_mem("peb").get_base();
+        let image_base = if loader.is_64() {
+            emu.maps.read_qword(peb + 0x10)
+        } else {
+            emu.maps.read_dword(peb + 0x8).map(u64::from)
+        };
+        assert_eq!(image_base, Some(main_base), "{loader:?}");
+
+        // Main-image overrides must not place a dependency on top of the EXE.
+        emu.cfg.code_base_addr = main_base;
+        emu.cfg.emulate_winapi = emulate_winapi;
+        let dependency = image(loader, PAGE, PAGE * 2, 0x800, 0x200, PAGE);
+        let dll_base = loader.load(&mut emu, &dependency, "dependency_identity");
+        assert_ne!(dll_base, main_base);
+        assert_eq!(emu.base, main_base);
+        assert_eq!(emu.pc(), entry);
+        let current_raw = if loader.is_64() {
+            emu.pe64_raw.as_deref()
+        } else {
+            emu.pe32_raw.as_deref()
+        };
+        assert_eq!(current_raw, Some(raw.as_slice()));
+        let current_entry = if loader.is_64() {
+            emu.pe64.as_ref().unwrap().opt.address_of_entry_point
+        } else {
+            emu.pe32.as_ref().unwrap().opt.address_of_entry_point
+        };
+        assert_eq!(current_entry, PAGE);
+    }
+}
+
+#[test]
+fn pe_loaders_report_read_errors_without_changing_image_state() {
+    let path = std::env::temp_dir()
+        .join("mwemu_missing_pe_directory")
+        .join("missing.dll");
+    assert!(!path.exists());
+    for loader in LOADERS {
+        let mut emu = loader.emu();
+        let count = emu.maps.maps.len();
+        let error = loader
+            .load_file(&mut emu, path.to_str().unwrap())
+            .unwrap_err();
+        assert!(error.message.contains("cannot read PE file"), "{error}");
+        assert!(error.message.contains("missing.dll"), "{error}");
+        assert_eq!(emu.maps.maps.len(), count);
+        assert!(emu.pe32.is_none() && emu.pe64.is_none());
+    }
+}
+
+#[test]
+fn pe_loaders_reject_invalid_images_before_mapping() {
+    for loader in LOADERS {
+        let wrong_arch = if loader.is_64() { LOADER32 } else { LOADER64 };
+        for raw in [&[][..], b"not a PE".as_slice(), wrong_arch] {
+            let mut emu = loader.emu();
+            let count = emu.maps.maps.len();
+            let error = loader.try_load(&mut emu, raw, "invalid").unwrap_err();
+            assert!(error.message.contains("is not a PE"), "{loader:?}: {error}");
+            assert!(
+                error.message.contains("mwemu_alignment_invalid.dll"),
+                "{error}"
+            );
+            assert_eq!(emu.maps.maps.len(), count);
+        }
+    }
+}
+
+#[test]
+fn failed_library_load_does_not_register_a_module() {
+    for loader in [Loader::Pe32, Loader::Pe64] {
+        let directory = std::env::temp_dir().join(format!("mwemu_failed_dll_{loader:?}"));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("broken.dll"), b"invalid PE").unwrap();
+        let mut emu = loader.emu();
+        emu.cfg.maps_folder = directory.to_string_lossy().into_owned();
+        if loader.is_64() {
+            peb64::init_peb(&mut emu);
+        } else {
+            peb32::init_peb(&mut emu);
+        }
+        let count = emu.maps.maps.len();
+        let base = if loader.is_64() {
+            winapi64::kernel32::load_library(&mut emu, "broken.dll")
+        } else {
+            winapi32::kernel32::load_library(&mut emu, "broken.dll")
+        };
+        let linked = if loader.is_64() {
+            peb64::get_module_base("broken.dll", &mut emu)
+        } else {
+            peb32::get_module_base("broken.dll", &mut emu)
+        };
+        assert_eq!(base, 0);
+        assert_eq!(linked, None);
+        assert!(!emu.library_loaded);
+        assert_eq!(emu.maps.maps.len(), count);
+        fs::remove_file(directory.join("broken.dll")).unwrap();
+        fs::remove_dir(directory).unwrap();
+    }
+}
+
+#[test]
+fn windows_initialization_propagates_system_image_errors() {
+    let directory = std::env::temp_dir().join("mwemu_invalid_system_dll");
+    fs::create_dir_all(&directory).unwrap();
+    fs::write(directory.join("ntdll.dll"), b"invalid PE").unwrap();
+    let mut emu = Loader::Pe64.emu();
+    emu.cfg.maps_folder = directory.to_string_lossy().into_owned();
+    let error = emu.init_win32(false, false).unwrap_err();
+    assert!(error.message.contains("ntdll.dll"), "{error}");
+    assert!(error.message.contains("is not a PE64"), "{error}");
+    assert!(!emu.maps.exists_mapname("ntdll.pe"));
+    fs::remove_file(directory.join("ntdll.dll")).unwrap();
+    fs::remove_dir(directory).unwrap();
+}
+
+#[test]
+fn dll_mapping_preserves_host_path_case() {
+    let directory = std::env::temp_dir().join("Mwemu_Pe_Path_Case");
+    fs::create_dir_all(&directory).unwrap();
+    let path = directory.join("MixedCase.dll");
+    let raw = image(Loader::Dll64, PAGE, PAGE, 0x800, 0x200, PAGE);
+    fs::write(&path, &raw).unwrap();
+    let mut emu = Loader::Dll64.emu();
+    let mapped = emu.map_dll_pe64(path.to_str().unwrap()).unwrap();
+    assert_eq!(mapped.image.filename, path.to_str().unwrap());
+    assert_eq!(emu.maps.read_word(mapped.base), Some(0x5a4d));
+    fs::remove_file(path).unwrap();
+    fs::remove_dir(directory).unwrap();
 }

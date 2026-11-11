@@ -1,10 +1,10 @@
 use super::{
-    DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_EXPORT,
-    IMAGE_DIRECTORY_ENTRY_IAT, IMAGE_DIRECTORY_ENTRY_IMPORT, IMAGE_DIRECTORY_ENTRY_TLS,
-    IMAGE_FILE_DLL, ImageDosHeader, ImageExportDirectory, ImageFileHeader, ImageImportDescriptor,
-    ImageNtHeaders, ImageOptionalHeader64, ImageSectionHeader, PE64, SECTION_HEADER_SZ,
-    TlsDirectory64,
+    DelayLoadDirectory, IMAGE_DIRECTORY_ENTRY_DELAY_LOAD, IMAGE_DIRECTORY_ENTRY_IMPORT,
+    IMAGE_DIRECTORY_ENTRY_TLS, IMAGE_FILE_DLL, ImageDosHeader, ImageFileHeader,
+    ImageImportDescriptor, ImageNtHeaders, ImageOptionalHeader64, ImageSectionHeader, PE64,
+    SECTION_HEADER_SZ, TlsDirectory64,
 };
+use crate::pe::image::{ImageLayout, raw_section_data};
 use crate::pe::readers::{read_c_string, read_u64_le as read_u64_le_shared};
 
 macro_rules! read_u64_le {
@@ -42,57 +42,51 @@ impl PE64 {
         }
 
         let import_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_IMPORT].virtual_address;
-        let export_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
         let delay_load_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_DELAY_LOAD].virtual_address;
 
         let mut image_import_descriptor: Vec<ImageImportDescriptor> = Vec::new();
         let mut delay_load_dir: Vec<DelayLoadDirectory> = Vec::new();
 
-        if delay_load_va > 0 {
-            let mut delay_load_off = PE64::vaddr_to_off(&sect, delay_load_va) as usize;
-            if delay_load_off > 0 {
-                loop {
-                    let mut delay_load = DelayLoadDirectory::load(raw, delay_load_off);
-                    if delay_load.handle == 0 || delay_load.name_ptr == 0 {
-                        break;
-                    }
-                    let off = PE64::vaddr_to_off(&sect, delay_load.name_ptr) as usize;
-                    if off > raw.len() {
-                        {
-                            log::warn!("pe64: delay_load.name out of buffer, skipping");
-                            break;
-                        }
-                    }
-                    delay_load.name = read_c_string(raw, off);
-                    delay_load_dir.push(delay_load);
-                    delay_load_off += DelayLoadDirectory::size();
+        let layout = ImageLayout::new(
+            opt.size_of_headers,
+            opt.size_of_image,
+            &sect,
+            opt.section_alignment,
+        );
+        if delay_load_va != 0
+            && let Some(data) = layout.data_at(raw, delay_load_va)
+        {
+            for descriptor in data.chunks_exact(DelayLoadDirectory::size()) {
+                let mut delay = DelayLoadDirectory::load(descriptor, 0);
+                if delay.name_ptr == 0 {
+                    break;
+                }
+                let Some(name) = layout.data_at(raw, delay.name_ptr) else {
+                    continue;
+                };
+                delay.name = read_c_string(name, 0);
+                if !delay.name.is_empty() {
+                    delay_load_dir.push(delay);
                 }
             }
         }
-
-        if import_va > 0 {
-            let mut import_off = PE64::vaddr_to_off(&sect, import_va) as usize;
-            if import_off > 0 {
-                loop {
-                    let mut iid = ImageImportDescriptor::load(raw, import_off);
-                    if iid.name_ptr == 0 {
-                        break;
-                    }
-                    let off = PE64::vaddr_to_off(&sect, iid.name_ptr) as usize;
-                    if off > raw.len() {
-                        {
-                            log::warn!("pe64: iid name out of buffer, skipping");
-                            break;
-                        }
-                    }
-                    iid.name = read_c_string(raw, off);
-                    image_import_descriptor.push(iid);
-                    import_off += ImageImportDescriptor::size();
+        if import_va != 0
+            && let Some(data) = layout.data_at(raw, import_va)
+        {
+            for descriptor in data.chunks_exact(ImageImportDescriptor::size()) {
+                let mut import = ImageImportDescriptor::load(descriptor, 0);
+                if import.name_ptr == 0 {
+                    break;
+                }
+                let Some(name) = layout.data_at(raw, import.name_ptr) else {
+                    continue;
+                };
+                import.name = read_c_string(name, 0);
+                if !import.name.is_empty() {
+                    image_import_descriptor.push(import);
                 }
             }
         }
-
-        let _exportd: Option<ImageExportDirectory> = if export_va > 0 { None } else { None };
 
         PE64 {
             filename: filename.to_string(),
@@ -128,21 +122,14 @@ impl PE64 {
         &raw[..(self.opt.size_of_headers as usize).min(raw.len())]
     }
 
+    /// Section-only raw-file lookup. Image metadata should use image_layout().
     pub fn vaddr_to_off(sections: &Vec<ImageSectionHeader>, vaddr: u32) -> u32 {
-        for sect in sections {
-            if vaddr >= sect.virtual_address && vaddr < sect.virtual_address + sect.virtual_size {
-                let offset_within_section = vaddr - sect.virtual_address;
-                if offset_within_section >= sect.size_of_raw_data {
-                    log::warn!(
-                        "Virtual address 0x{:x} maps to uninitialized data in section '{}' (offset {} >= raw_size {})",
-                        vaddr,
-                        sect.get_name(),
-                        offset_within_section,
-                        sect.size_of_raw_data
-                    );
-                    return 0;
-                }
-                return sect.pointer_to_raw_data + offset_within_section;
+        for section in sections {
+            if let Some(offset) = vaddr.checked_sub(section.virtual_address)
+                && offset < section.virtual_size
+                && offset < section.size_of_raw_data
+            {
+                return section.pointer_to_raw_data.checked_add(offset).unwrap_or(0);
             }
         }
         0
@@ -152,19 +139,24 @@ impl PE64 {
         read_c_string(raw, off)
     }
 
+    pub fn image_layout(&self) -> ImageLayout<'_> {
+        ImageLayout::new(
+            self.opt.size_of_headers,
+            self.opt.size_of_image,
+            &self.sect_hdr,
+            self.opt.section_alignment,
+        )
+    }
+
     pub fn num_of_sections(&self) -> usize {
         self.sect_hdr.len()
     }
 
     pub fn get_section_ptr_by_name<'a>(&self, raw: &'a [u8], name: &str) -> Option<&'a [u8]> {
-        for sect in &self.sect_hdr {
-            if sect.get_name() == name {
-                let off = sect.pointer_to_raw_data as usize;
-                let sz = sect.virtual_size as usize;
-                return Some(&raw[off..off + sz]);
-            }
-        }
-        None
+        self.sect_hdr
+            .iter()
+            .find(|section| section.get_name() == name)
+            .map(|section| raw_section_data(raw, section))
     }
 
     pub fn get_section(&self, id: usize) -> &ImageSectionHeader {
@@ -176,101 +168,48 @@ impl PE64 {
     }
 
     pub fn get_section_ptr<'a>(&self, raw: &'a [u8], id: usize) -> &'a [u8] {
-        if id > self.sect_hdr.len() {
-            {
-                log::warn!("pe64: invalid section id {}", id);
-                return &[];
-            }
-        }
-        let off = self.sect_hdr[id].pointer_to_raw_data as usize;
-        let sz = self.sect_hdr[id].size_of_raw_data as usize;
-        if off + sz > raw.len() {
-            log::trace!(
-                "/!\\ warning: id:{} name:{} raw sz:{} off:{} sz:{}  off+sz:{}",
-                id,
-                self.sect_hdr[id].get_name(),
-                raw.len(),
-                off,
-                sz,
-                off + sz
-            );
-            if off > raw.len() {
-                return &[];
-            }
-            return &raw[off..];
-        }
-        &raw[off..off + sz]
+        self.sect_hdr
+            .get(id)
+            .map(|section| raw_section_data(raw, section))
+            .unwrap_or_default()
     }
 
     pub fn get_section_vaddr(&self, id: usize) -> u32 {
         self.sect_hdr[id].virtual_address
     }
 
-    pub fn get_tls_callbacks(&self, raw: &[u8], _vaddr: u32) -> Vec<u64> {
-        let mut callbacks: Vec<u64> = Vec::new();
-
-        if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {
-            log::trace!("/!\\ alert there is .tls section but not tls directory entry");
-            return callbacks;
-        }
-
-        let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
-        let _iat = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_IAT].virtual_address;
-
-        // No TLS directory (VA == 0) means no callbacks; reading from off 0 would
-        // decode a garbage TlsDirectory64 and yield bogus callback addresses.
-        if entry_tls == 0 {
-            return callbacks;
-        }
-
-        let tls_off = PE64::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
-        let tls = TlsDirectory64::load(raw, tls_off);
+    pub fn get_tls_callbacks(&self, raw: &[u8], _vaddr: u64) -> Vec<u64> {
+        let Some(tls) = self.get_tls_directory(raw) else {
+            return Vec::new();
+        };
         tls.print();
-
-        // A null AddressOfCallBacks means the TLS directory has no callback array.
         if tls.tls_callbacks == 0 {
-            return callbacks;
+            return Vec::new();
         }
-
-        // AddressOfCallBacks is a full VA; the RVA is (VA - ImageBase), not a
-        // 16-bit mask (that only worked by luck when the RVA was < 0x10000).
-        let cb_rva = tls.tls_callbacks.wrapping_sub(self.opt.image_base) as u32;
-        let mut cb_off = PE64::vaddr_to_off(&self.sect_hdr, cb_rva) as usize;
-        // Cap iterations: the array is NULL-terminated, but a malformed/garbage
-        // pointer could otherwise loop until it walks off the buffer.
-        for _ in 0..64 {
-            if cb_off + 8 > raw.len() {
-                break;
-            }
-            let callback: u64 = read_u64_le!(raw, cb_off);
-            if callback == 0 {
-                break;
-            }
-            // Callbacks are full VAs inside the image; anything below ImageBase is
-            // garbage from a misparsed directory.
-            if callback < self.opt.image_base {
-                break;
-            }
-            log::trace!("0x{:x} TLS Callback: 0x{:x}", cb_off, callback);
-            callbacks.push(callback);
-            cb_off += 8;
-        }
-
-        callbacks
+        let Some(rva) = tls
+            .tls_callbacks
+            .checked_sub(self.opt.image_base)
+            .and_then(|rva| u32::try_from(rva).ok())
+        else {
+            return Vec::new();
+        };
+        let Some(data) = self.image_layout().data_at(raw, rva) else {
+            return Vec::new();
+        };
+        data.chunks_exact(8)
+            .take(64)
+            .map(|entry| read_u64_le!(entry, 0))
+            .take_while(|&callback| callback != 0 && callback >= self.opt.image_base)
+            .collect()
     }
 
     pub fn get_tls_directory(&self, raw: &[u8]) -> Option<TlsDirectory64> {
-        if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {
+        let entry = self.opt.data_directory.get(IMAGE_DIRECTORY_ENTRY_TLS)?;
+        if entry.virtual_address == 0 {
             return None;
         }
-        let entry_tls = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
-        if entry_tls == 0 {
-            return None;
-        }
-        let tls_off = PE64::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
-        if tls_off + 40 > raw.len() {
-            return None;
-        }
-        Some(TlsDirectory64::load(raw, tls_off))
+        let data = self.image_layout().data_at(raw, entry.virtual_address)?;
+        let data = data.get(..40)?;
+        Some(TlsDirectory64::load(data, 0))
     }
 }

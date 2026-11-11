@@ -46,10 +46,9 @@ pub fn section_data<'a>(raw: &'a [u8], section: &ImageSectionHeader, alignment: 
     if section.pointer_to_raw_data == 0 || section.size_of_raw_data == 0 {
         return &[];
     }
-    let mut start = section.pointer_to_raw_data as u64;
-    let mut end = start + section.size_of_raw_data as u64;
+    let start = section_offset(section, alignment);
+    let mut end = section.pointer_to_raw_data as u64 + section.size_of_raw_data as u64;
     if alignment >= PAGE_SIZE {
-        start &= !(SECTOR_SIZE - 1);
         end = (end + SECTOR_SIZE - 1) & !(SECTOR_SIZE - 1);
     }
     end = end
@@ -59,4 +58,83 @@ pub fn section_data<'a>(raw: &'a [u8], section: &ImageSectionHeader, alignment: 
         return &[];
     }
     &raw[start as usize..end as usize]
+}
+
+/// File offset used when mapping an initialized image section.
+fn section_offset(section: &ImageSectionHeader, alignment: u32) -> u64 {
+    let offset = section.pointer_to_raw_data as u64;
+    if alignment >= PAGE_SIZE {
+        offset & !(SECTOR_SIZE - 1)
+    } else {
+        offset
+    }
+}
+
+/// Literal raw-file access, independent of virtual size and image alignment.
+pub fn raw_section_data<'a>(raw: &'a [u8], section: &ImageSectionHeader) -> &'a [u8] {
+    let start = (section.pointer_to_raw_data as usize).min(raw.len());
+    let size = (section.size_of_raw_data as usize).min(raw.len() - start);
+    &raw[start..start + size]
+}
+
+/// Shared file-backed view used by PE metadata readers and the image loader.
+#[derive(Clone, Copy)]
+pub struct ImageLayout<'a> {
+    pub headers: u32,
+    pub size: u64,
+    pub sections: &'a [ImageSectionHeader],
+    pub alignment: u32,
+}
+
+impl<'a> ImageLayout<'a> {
+    pub fn new(
+        headers: u32,
+        declared_size: u32,
+        sections: &'a [ImageSectionHeader],
+        alignment: u32,
+    ) -> Self {
+        Self {
+            headers,
+            size: image_size(headers, declared_size, sections, alignment),
+            sections,
+            alignment,
+        }
+    }
+
+    /// Low-alignment images own the final page, but only SizeOfImage bytes
+    /// are initialized from the file; the remaining page tail is zero-filled.
+    pub fn mapped_size(&self) -> u64 {
+        if self.is_flat() {
+            self.size.div_ceil(PAGE_SIZE as u64) * PAGE_SIZE as u64
+        } else {
+            self.size
+        }
+    }
+
+    pub fn is_flat(&self) -> bool {
+        self.alignment.is_power_of_two() && self.alignment < PAGE_SIZE
+    }
+
+    /// Contiguous initialized bytes at an RVA. Zero-fill and unmapped gaps have
+    /// no file offset; callers must not substitute offset zero for a failed lookup.
+    pub fn data_at<'b>(&self, raw: &'b [u8], rva: u32) -> Option<&'b [u8]> {
+        let rva = rva as u64;
+        if self.is_flat() {
+            let end = self.size.min(raw.len() as u64);
+            return (rva < end).then(|| &raw[rva as usize..end as usize]);
+        }
+        if rva < self.headers as u64 {
+            return raw.get(rva as usize..(self.headers as usize).min(raw.len()));
+        }
+        for section in self.sections {
+            let Some(offset) = rva.checked_sub(section.virtual_address as u64) else {
+                continue;
+            };
+            if offset < section_size(section, self.alignment) {
+                let data = section_data(raw, section, self.alignment);
+                return (offset < data.len() as u64).then(|| &data[offset as usize..]);
+            }
+        }
+        None
+    }
 }

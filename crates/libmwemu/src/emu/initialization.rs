@@ -5,6 +5,7 @@ use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
 use crate::emu::{Emu, InstructionState};
+use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
 use crate::windows::peb::{peb32, peb64};
 use crate::{
@@ -12,7 +13,6 @@ use crate::{
     threading::context::ThreadContext, threading::global_locks::GlobalLocks, utils::colors::Colors,
 };
 use crate::{winapi::winapi32, winapi::winapi64, windows::kuser_shared, windows::structures};
-use rs_header::pe::pe64;
 
 use crate::api::windows::export_index::ExportIndexRegistry;
 use crate::emu::object_handle::{HandleManagement, HeapHandle};
@@ -42,15 +42,6 @@ impl Default for Emu {
     fn default() -> Self {
         Emu::new(crate::arch::Arch::X86)
     }
-}
-
-pub struct Lib {
-    pe64: pe64::PE64,
-    /// Raw image bytes, kept because rs-header's PE is borrow-based and the
-    /// later IAT/delay-load binding stage needs them.
-    raw: Vec<u8>,
-    base: u64,
-    name: String,
 }
 
 impl Emu {
@@ -352,7 +343,11 @@ impl Emu {
     /// emu64() already call init_cpu()
     /// This is called from load_code if the code is a PE or shellcode.
     /// load_code_bytes() and other loading ways don't call this, if you need windows simulation call this.
-    pub fn init_win32(&mut self, clear_registers: bool, clear_flags: bool) {
+    pub fn init_win32(
+        &mut self,
+        clear_registers: bool,
+        clear_flags: bool,
+    ) -> Result<(), MwemuError> {
         self.pos = 0;
 
         if !std::io::stdout().is_terminal() {
@@ -400,9 +395,9 @@ impl Emu {
         if self.cfg.arch.is_64bits() {
             self.maps.is_64bits = true;
             if self.cfg.is_aarch64() {
-                self.init_win_aarch64();
+                self.init_win_aarch64()?;
             } else {
-                self.init_win32_mem64();
+                self.init_win32_mem64()?;
                 self.init_stack64();
             }
         } else {
@@ -418,7 +413,7 @@ impl Emu {
             self.banzai.load(&self.cfg.get_maps_folder("banzai.csv"));
         }
 
-        //self.init_tests();
+        Ok(())
     }
 
     /// Return a mutable reference to the managed heap, creating it on demand.
@@ -999,17 +994,17 @@ impl Emu {
     ///
     /// Reuses the same 64-bit Windows memory setup as x86_64 since PEB64/TEB64/LDR
     /// structures are architecture-neutral; the difference is register semantics and stack init.
-    fn init_win_aarch64(&mut self) {
+    fn init_win_aarch64(&mut self) -> Result<(), MwemuError> {
         // Set up the aarch64 stack first (uses SP register instead of RSP/RBP)
         // so that the stack map exists when init_win32_mem64 writes TEB stack bounds.
         self.init_stack_aarch64();
 
         // Set up the 64-bit Windows memory (PEB64, TEB64, LDR, DLLs, heap)
-        self.init_win32_mem64();
+        self.init_win32_mem64()
     }
 
     /// This is called from init(), this setup the 64bits windows memory simulation.
-    pub fn init_win32_mem64(&mut self) {
+    pub fn init_win32_mem64(&mut self) -> Result<(), MwemuError> {
         log::trace!("loading memory maps");
         self.maps.is_64bits = self.cfg.arch.is_64bits();
 
@@ -1360,7 +1355,7 @@ impl Emu {
             teb.nt_tib.self_pointer = teb_addr;
             teb.save(teb_map);
 
-            return;
+            return Ok(());
         }
 
         // Update exe_name from the real EXE basename before PEB init writes it.
@@ -1368,76 +1363,47 @@ impl Emu {
         peb64::init_peb(self);
         kuser_shared::init_kuser_shared_data(self);
 
-        let mut metadata: Vec<Lib> = Vec::new();
-        let base: Vec<&str> = vec!["ntdll.dll", "kernel32.dll", "kernelbase.dll"];
+        let mut metadata = Vec::new();
+        let core_libraries = ["ntdll.dll", "kernel32.dll", "kernelbase.dll"];
 
-        // Stage 1: map the core system libraries in loader order.
-        for dll in &base {
+        // Map all system libraries before binding imports between them.
+        for dll in core_libraries {
             self.ensure_maps_dll(dll); // fetch from the symbol server if missing
             let filepath = self.cfg.get_maps_folder(dll);
             log::debug!("mapping base lib64: {}", filepath);
-            assert!(
-                std::path::Path::new(&filepath).exists(),
-                "required base DLL not found: {} (maps_folder={})",
-                filepath,
-                self.cfg.maps_folder
-            );
-            let (base, pe64, raw) = self.map_dll_pe64(&filepath);
-            let lib = Lib {
-                pe64,
-                raw,
-                base,
-                name: dll.to_string(),
-            };
-            metadata.push(lib);
+            metadata.push((dll.to_string(), self.map_dll_pe64(&filepath)?));
         }
 
-        // Stage 2: get_dependencies
         let mut dependencies: BTreeSet<String> = BTreeSet::new();
-        for dll in metadata.iter_mut() {
-            for mut dep in dll.pe64.get_dependencies() {
+        for (_, dll) in &metadata {
+            for mut dep in dll.image.get_dependencies() {
                 dep = dep.to_lowercase();
                 if !dep.ends_with(".dll") {
                     dep.push_str(".dll");
                 }
-                if !base.contains(&dep.as_str()) {
+                if !core_libraries.contains(&dep.as_str()) {
                     dependencies.insert(dep);
                 }
             }
         }
 
-        // Stage 3: map dependencies
         for dll in dependencies {
             self.ensure_maps_dll(&dll); // fetch from the symbol server if missing
             let filepath = self.cfg.get_maps_folder(&dll);
-            log::debug!("mapping depenency {}", filepath);
-            assert!(
-                std::path::Path::new(&filepath).exists(),
-                "required dependency DLL not found: {} (maps_folder={})",
-                filepath,
-                self.cfg.maps_folder
-            );
-            let (base, pe64, raw) = self.map_dll_pe64(&filepath);
-            let lib = Lib {
-                pe64,
-                raw,
-                base,
-                name: dll.to_string(),
-            };
-            metadata.push(lib);
+            log::debug!("mapping dependency {}", filepath);
+            metadata.push((dll.to_string(), self.map_dll_pe64(&filepath)?));
         }
 
-        // Stage 3: dynamic linking base + deps
-        for dll in &metadata {
-            log::debug!("dynamic linking {}", dll.name);
-            peb64::dynamic_link_module(dll.base, dll.pe64.get_pe_off(), &dll.name, self);
+        for (name, dll) in &metadata {
+            log::debug!("dynamic linking {}", name);
+            peb64::dynamic_link_module(dll.base, dll.image.get_pe_off(), name, self);
         }
 
-        // Stage 3: IAT binding for base + deps (relocs already applied in `map_dll_pe64`).
-        for dll in metadata.iter_mut() {
-            log::debug!("iat binding {}", dll.name);
-            dll.pe64.iat_binding(&dll.raw, self, dll.base);
-            dll.pe64.delay_load_binding(&dll.raw, self, dll.base);
+        // Relocations and exports are ready for every dependency.
+        for (name, dll) in &mut metadata {
+            log::debug!("iat binding {}", name);
+            dll.image.iat_binding(&dll.raw, self, dll.base);
+            dll.image.delay_load_binding(&dll.raw, self, dll.base);
         }
         log::debug!("win32 64bits base libs ok.");
 
@@ -1457,22 +1423,15 @@ impl Emu {
 
         let heap_sz = 0x885900 - 0x4b5000;
         self.heap_addr = 0x520000; // Hardcoded in PEB64
-        if let Err(e) =
-            self.maps
-                .create_map(".heap", self.heap_addr, heap_sz, Permission::READ_WRITE)
-        {
-            log::error!("cannot create heap map: {}", e);
-            return;
-        }
+        self.maps
+            .create_map(".heap", self.heap_addr, heap_sz, Permission::READ_WRITE)
+            .map_err(|error| MwemuError::new(&format!("cannot create heap map: {error}")))?;
 
         if self.heap_arenas.is_empty() {
-            match O1Heap::new(self.heap_addr, heap_sz as u32) {
-                Ok(heap) => self.heap_arenas.push(Box::new(heap)),
-                Err(e) => {
-                    log::error!("cannot init heap management: {}", e);
-                    return;
-                }
-            }
+            let heap = O1Heap::new(self.heap_addr, heap_sz as u32).map_err(|error| {
+                MwemuError::new(&format!("cannot initialize process heap: {error}"))
+            })?;
+            self.heap_arenas.push(Box::new(heap));
 
             // Reserve the first 0x800 bytes for the _HEAP header so the
             // allocator never hands them out and overwrites the struct fields.
@@ -1490,5 +1449,6 @@ impl Emu {
         let heap_struct = structures::Heap64::new(self.heap_addr, heap_sz);
         let heap_map = self.maps.get_mem_mut(".heap");
         heap_struct.save(heap_map);
+        Ok(())
     }
 }

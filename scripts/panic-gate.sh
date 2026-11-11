@@ -18,7 +18,7 @@ declare -A BASELINE=(
   [maps_expect]=26
   [maps_panic]=0
   [engine_assert]=0
-  [emu_assert]=91
+  [emu_assert]=89
   [maps_assert]=39
 )
 
