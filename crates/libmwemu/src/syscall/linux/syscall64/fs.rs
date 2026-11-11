@@ -147,7 +147,7 @@ pub(super) fn handle_syscall64_writev(emu: &mut emu::Emu) {
     }
 
     let total = data.len() as u64;
-    if emu.cfg.console_enabled {
+    if !cfg!(test) {
         match fd {
             1 => {
                 let _ = std::io::stdout().write_all(&data);
@@ -276,7 +276,7 @@ pub(super) fn handle_syscall64_write(emu: &mut emu::Emu) {
     for i in 0..sz {
         data.push(emu.maps.read_byte(buff + i).unwrap_or(0));
     }
-    if emu.cfg.console_enabled {
+    if !cfg!(test) {
         match fd {
             1 => {
                 let _ = std::io::stdout().write_all(&data);
