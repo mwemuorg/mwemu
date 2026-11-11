@@ -272,7 +272,7 @@ fn ymm_hook_observes_and_replaces_both_halves_before_store() {
         !value
     });
     assert!(emu.step());
-    #[allow(clippy::chunks_exact_to_as_chunks)]
+    #[allow(unknown_lints, clippy::chunks_exact_to_as_chunks)]
     let expected: Vec<_> = input
         .chunks_exact(16)
         .enumerate()
