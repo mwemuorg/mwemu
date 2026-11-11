@@ -18,6 +18,7 @@
 //! cache so the rest of the emulator is unchanged — it just sees a maps folder.
 
 use crate::windows::constants::system::*;
+use std::collections::HashSet;
 use std::error::Error;
 use std::fs;
 use std::io::Read;
@@ -27,6 +28,9 @@ use std::sync::Mutex;
 /// Serializes symbol-server fetches so concurrent emulator threads don't race
 /// on the shared maps cache or burst-hammer the server.
 static FETCH_LOCK: Mutex<()> = Mutex::new(());
+
+/// DLLs that already failed to fetch this session — never retry them.
+static FAILED_DLLS: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
 /// PE `Machine` values used to pick the right architecture from winbindex.
 pub const MACHINE_I386: u64 = 0x14C; // 32-bit x86
@@ -240,15 +244,17 @@ impl crate::emu::Emu {
         if std::path::Path::new(&filepath).exists() {
             return;
         }
-        // Unit tests never hit the network: `make symbols` provisions the maps
-        // once, and tests skip when they are absent (parallel test processes
-        // fetching into the same folder made CI flaky).
         if cfg!(test) {
             return;
         }
-        // Opt-in only: contact the symbol server únicamente cuando el consumidor
-        // lo pidió con `--winver` (que deja `cfg.winver` puesto). Sin eso un run
-        // normal se queda offline con las maps locales y no toca a Microsoft.
+        let dll_lower = dll.to_lowercase();
+        {
+            let mut guard = FAILED_DLLS.lock().unwrap();
+            let set = guard.get_or_insert_with(HashSet::new);
+            if set.contains(&dll_lower) {
+                return;
+            }
+        }
         let Some(build) = self.cfg.winver.clone() else {
             log::warn!(
                 "winver: {} missing from the bundled maps; pass --winver to fetch it",
@@ -262,13 +268,14 @@ impl crate::emu::Emu {
             MACHINE_I386
         };
         let folder = self.cfg.maps_folder.clone();
-        if let Err(e) = ensure_dll(
-            std::path::Path::new(&folder),
-            &build,
-            &dll.to_lowercase(),
-            machine,
-        ) {
+        if let Err(e) = ensure_dll(std::path::Path::new(&folder), &build, &dll_lower, machine) {
             log::warn!("winver: could not fetch {} (build {}): {}", dll, build, e);
+            eprintln!(
+                "dll {} not found on symbol server. Use --iso to extract it from a Windows image.",
+                dll
+            );
+            let mut guard = FAILED_DLLS.lock().unwrap();
+            guard.get_or_insert_with(HashSet::new).insert(dll_lower);
         }
     }
 
