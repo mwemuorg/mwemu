@@ -17,19 +17,19 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     let eax = emu.regs().rax & 0xffffffff;
     let edx_eax = (edx << 32) | eax;
 
-    if mem_val == edx_eax {
-        emu.flags_mut().f_zf = true;
-        let ecx = emu.regs().rcx & 0xffffffff;
-        let ebx = emu.regs().rbx & 0xffffffff;
-        let ecx_ebx = (ecx << 32) | ebx;
-
-        if !emu.set_operand_value(ins, 0, ecx_ebx) {
-            return false;
-        }
+    let equal = mem_val == edx_eax;
+    let value = if equal {
+        (emu.regs().get_ecx() << u32::BITS) | emu.regs().get_ebx()
     } else {
-        emu.flags_mut().f_zf = false;
-        emu.regs_mut().rax = mem_val & 0xffffffff;
-        emu.regs_mut().rdx = (mem_val >> 32) & 0xffffffff;
+        mem_val
+    };
+    if !emu.set_operand_value(ins, 0, value) {
+        return false;
+    }
+    emu.flags_mut().f_zf = equal;
+    if !equal {
+        emu.regs_mut().set_eax(mem_val as u32 as u64);
+        emu.regs_mut().set_edx(mem_val >> u32::BITS);
     }
     true
 }

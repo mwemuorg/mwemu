@@ -567,6 +567,7 @@ impl Emu {
 
     /// Set a value to an operand, normally noperand=0
     /// If it's a register modify the register, it can be memory also.
+    #[must_use = "instruction handlers must propagate a failed operand write"]
     pub fn set_operand_value(&mut self, ins: &Instruction, noperand: u32, value: u64) -> bool {
         debug_assert!(ins.op_count() > noperand);
 
@@ -1035,26 +1036,9 @@ impl Emu {
                 };
 
                 if do_derref {
-                    if unlikely(self.kernel_guard) {
-                        let rip = self.pc();
-                        self.kernel_guard_access(rip, mem_addr, 16, false);
-                    }
-
-                    if let Some(mut hook_fn) = self.hooks.hook_on_memory_read.take() {
-                        let rip = self.regs().rip;
-                        hook_fn(self, rip, mem_addr, 128);
-                        self.hooks.hook_on_memory_read = Some(hook_fn);
-                    }
-
-                    let value: u128 = match self.maps.read_128bits_le(mem_addr) {
-                        Some(v) => v,
-                        None => {
-                            log::trace!("/!\\ exception reading xmm operand at 0x{:x} ", mem_addr);
-                            self.exception(ExceptionType::ReadingXmmOperand);
-                            return None;
-                        }
-                    };
-                    value
+                    let size = ins.memory_size().size();
+                    let bytes = self.read_instruction_bytes::<16>(mem_addr, size)?;
+                    u128::from_le_bytes(bytes)
                 } else {
                     mem_addr as u128
                 }
@@ -1067,39 +1051,32 @@ impl Emu {
         Some(value)
     }
 
-    /// Set an operand of 128 bits, like xmm.
-    pub fn set_operand_xmm_value_128(&mut self, ins: &Instruction, noperand: u32, value: u128) {
-        debug_assert!(ins.op_count() > noperand);
-
-        match ins.op_kind(noperand) {
-            OpKind::Register => self
-                .regs_mut()
-                .set_xmm_reg(ins.op_register(noperand), value),
-            // because you can't set immediate, only check for two condition
-            _ => {
-                let mem_addr = match ins
-                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs().get_reg(reg)))
-                {
-                    Some(addr) => addr,
-                    None => {
-                        log::trace!("/!\\ exception setting xmm operand.");
-                        self.exception(ExceptionType::SettingXmmOperand);
-                        return;
-                    }
-                };
-
-                if unlikely(self.kernel_guard) {
-                    let rip = self.pc();
-                    self.kernel_guard_access(rip, mem_addr, 16, true);
-                }
-
-                let value2 = self.call_memory_write_hook(mem_addr, 128, value);
-
-                for (i, b) in value2.to_le_bytes().iter().enumerate() {
-                    self.maps.write_byte(mem_addr + i as u64, *b);
-                }
-            }
+    /// Set an MMX/XMM register or a memory operand of its encoded width.
+    #[must_use = "instruction handlers must propagate a failed operand write"]
+    pub fn set_operand_xmm_value_128(
+        &mut self,
+        ins: &Instruction,
+        noperand: u32,
+        value: u128,
+    ) -> bool {
+        if ins.op_kind(noperand) == OpKind::Register {
+            self.regs_mut()
+                .set_xmm_reg(ins.op_register(noperand), value);
+            return true;
+        }
+        let Some(addr) =
+            ins.virtual_address(noperand, 0, |reg, _, _| Some(self.regs().get_reg(reg)))
+        else {
+            self.exception(ExceptionType::SettingXmmOperand);
+            return false;
         };
+        let mut bytes = value.to_le_bytes();
+        let size = ins.memory_size().size();
+        if size > bytes.len() || !self.write_instruction_bytes(addr, &mut bytes[..size]) {
+            self.exception(ExceptionType::SettingXmmOperand);
+            return false;
+        }
+        true
     }
 
     pub fn get_operand_ymm_value_256(
@@ -1134,19 +1111,8 @@ impl Emu {
                 };
 
                 if do_derref {
-                    if unlikely(self.kernel_guard) {
-                        let rip = self.pc();
-                        self.kernel_guard_access(rip, mem_addr, 32, false);
-                    }
-
-                    if let Some(mut hook_fn) = self.hooks.hook_on_memory_read.take() {
-                        let rip = self.regs().rip;
-                        hook_fn(self, rip, mem_addr, 256);
-                        self.hooks.hook_on_memory_read = Some(hook_fn);
-                    }
-
-                    let bytes = self.maps.read_bytes_array::<32>(mem_addr);
-
+                    let bytes =
+                        self.read_instruction_bytes::<32>(mem_addr, ins.memory_size().size())?;
                     regs64::U256::from_little_endian(&bytes)
                 } else {
                     regs64::U256::from(mem_addr)
@@ -1156,45 +1122,88 @@ impl Emu {
         Some(value)
     }
 
-    /// Set a 256bits value to an operand, usually ymm instructions.
+    /// Set a YMM register or memory operand; report a failed store to the caller.
+    #[must_use = "instruction handlers must propagate a failed operand write"]
     pub fn set_operand_ymm_value_256(
         &mut self,
         ins: &Instruction,
         noperand: u32,
         value: regs64::U256,
-    ) {
-        debug_assert!(ins.op_count() > noperand);
-
-        match ins.op_kind(noperand) {
-            OpKind::Register => self
-                .regs_mut()
-                .set_ymm_reg(ins.op_register(noperand), value),
-            // because you can't set immediate, only check for two condition
-            _ => {
-                let mem_addr = match ins
-                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs().get_reg(reg)))
-                {
-                    Some(addr) => addr,
-                    None => {
-                        log::trace!("/!\\ exception setting xmm operand.");
-                        self.exception(ExceptionType::SettingXmmOperand);
-                        return;
-                    }
-                };
-
-                // ymm dont support value modification from hook, for now
-                let value_u128: u128 = ((value.0[1] as u128) << 64) | value.0[0] as u128;
-                if unlikely(self.kernel_guard) {
-                    let rip = self.pc();
-                    self.kernel_guard_access(rip, mem_addr, 32, true);
-                }
-
-                let value2 = self.call_memory_write_hook(mem_addr, 256, value_u128);
-
-                let bytes = value.to_little_endian();
-                self.maps.write_bytes(mem_addr, &bytes);
-            }
+    ) -> bool {
+        if ins.op_kind(noperand) == OpKind::Register {
+            self.regs_mut()
+                .set_ymm_reg(ins.op_register(noperand), value);
+            return true;
+        }
+        let Some(addr) =
+            ins.virtual_address(noperand, 0, |reg, _, _| Some(self.regs().get_reg(reg)))
+        else {
+            self.exception(ExceptionType::SettingXmmOperand);
+            return false;
         };
+        let mut bytes = value.to_little_endian();
+        if !self.write_instruction_bytes(addr, &mut bytes) {
+            self.exception(ExceptionType::SettingXmmOperand);
+            return false;
+        }
+        true
+    }
+
+    /// Read exactly the encoded operand width, including across adjacent maps.
+    fn read_instruction_bytes<const N: usize>(
+        &mut self,
+        addr: u64,
+        size: usize,
+    ) -> Option<[u8; N]> {
+        if size > N {
+            return None;
+        }
+        if unlikely(self.kernel_guard) {
+            self.kernel_guard_access(self.pc(), addr, size as u32, false);
+        }
+        if let Some(mut hook) = self.hooks.hook_on_memory_read.take() {
+            hook(self, self.pc(), addr, (size * u8::BITS as usize) as u32);
+            self.hooks.hook_on_memory_read = Some(hook);
+        }
+        if !self.maps.can_access_range(addr, size, Permission::READ) {
+            log::trace!("/!\\ exception reading SIMD operand at 0x{:x}", addr);
+            self.exception(ExceptionType::ReadingXmmOperand);
+            return None;
+        }
+        let mut bytes = [0; N];
+        for (offset, byte) in bytes[..size].iter_mut().enumerate() {
+            *byte = self.maps.read_byte(addr + offset as u64)?;
+        }
+        Some(bytes)
+    }
+
+    /// Apply CPU write hooks before committing the whole store. Host Maps writes
+    /// deliberately bypass this path. The u128 hook observes wide stores in
+    /// ascending chunks of at most 128 bits, with every replacement applied.
+    pub(crate) fn write_instruction_bytes(&mut self, addr: u64, bytes: &mut [u8]) -> bool {
+        if unlikely(self.kernel_guard) {
+            self.kernel_guard_access(self.pc(), addr, bytes.len() as u32, true);
+        }
+        const HOOK_BYTES: usize = size_of::<u128>();
+        for (index, chunk) in bytes.chunks_mut(HOOK_BYTES).enumerate() {
+            let mut value = [0; HOOK_BYTES];
+            value[..chunk.len()].copy_from_slice(chunk);
+            let value = self.call_memory_write_hook(
+                addr.wrapping_add((index * HOOK_BYTES) as u64),
+                (chunk.len() * u8::BITS as usize) as u32,
+                u128::from_le_bytes(value),
+            );
+            chunk.copy_from_slice(&value.to_le_bytes()[..chunk.len()]);
+        }
+        if !self.maps.write_bytes(addr, bytes) {
+            log::trace!(
+                "/!\\ failed CPU store of {} bytes at 0x{:x}",
+                bytes.len(),
+                addr
+            );
+            return false;
+        }
+        true
     }
 
     /// Fetch the size in amount of bits of a specific operand (reg/mem/imm), if it's a memory operation it

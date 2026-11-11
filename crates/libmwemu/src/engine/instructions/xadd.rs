@@ -47,17 +47,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     };
 
-    // set the dest to the sum
     if !emu.set_operand_value(ins, 0, res) {
         return false;
     }
 
-    // and then set the src to the original dest.
-    // Doing this in reverse (src first) can break memory addressing, e.g.
-    //   xadd [rsp+r9*4+16h], r9
-    // where assigning r9 before resolving the address corrupts the address.
-    // But when both operands are the *same* register, the sum written above is
-    // the architectural result; writing the original dest back would clobber it.
+    // Writing the source first can change a register used in the destination address,
+    // e.g. xadd [rsp+r9*4+16h], r9. If both operands name the same register,
+    // retain the sum instead of overwriting it with the old destination.
     let same_reg = ins.op0_kind() == iced_x86::OpKind::Register
         && ins.op1_kind() == iced_x86::OpKind::Register
         && ins.op0_register() == ins.op1_register();

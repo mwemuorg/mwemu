@@ -1,16 +1,15 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
-// SHA1RNDS4 DEST, SRC, imm8: perform four SHA-1 rounds; imm8[1:0] selects the
-// round function and constant.
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Blue"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let d = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-    let s = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-    let imm = emu.get_operand_value(ins, 2, true).unwrap_or(0) as u32 & 3;
+    emu.show_instruction(color!("Blue"), &DecodedInstruction::X86(*ins));
+
+    let d = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+    let s = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+    // The low two immediate bits select the round function and constant.
+    let imm = try_operand!(emu.get_operand_value(ins, 2, true)) as u32 & 3;
     let dw = |v: u128, i: u32| ((v >> (i * 32)) & 0xffffffff) as u32;
     let (mut a, mut b, mut c, mut d0) = (dw(d, 3), dw(d, 2), dw(d, 1), dw(d, 0));
     let w = [dw(s, 3), dw(s, 2), dw(s, 1), dw(s, 0)];
@@ -45,6 +44,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         ins,
         0,
         (d0 as u128) | ((c as u128) << 32) | ((b as u128) << 64) | ((a as u128) << 96),
-    );
-    true
+    )
 }

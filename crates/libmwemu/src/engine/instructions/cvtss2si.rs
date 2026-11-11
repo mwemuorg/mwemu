@@ -1,14 +1,11 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// CVTSS2SI: low f32 -> signed integer GPR (round-to-nearest-even).
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
+    let src = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
     let f = f32::from_bits((src & 0xffffffff) as u32);
     let r = if false {
         f.trunc()
@@ -26,8 +23,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     } else {
         r as i32 as u32 as u64
     };
-    if !emu.set_operand_value(ins, 0, result) {
-        return false;
-    }
-    true
+    emu.set_operand_value(ins, 0, result)
 }

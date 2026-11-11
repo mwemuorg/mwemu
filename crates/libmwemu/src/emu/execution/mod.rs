@@ -378,7 +378,9 @@ impl Emu {
         }
 
         // Advance PC
-        self.advance_pc(sz);
+        if result_ok || self.force_reload {
+            self.advance_pc(sz);
+        }
 
         result_ok
     }

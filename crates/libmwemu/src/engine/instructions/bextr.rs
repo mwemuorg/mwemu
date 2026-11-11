@@ -1,14 +1,10 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// BEXTR dest, src, control: start = control[7:0], len = control[15:8];
-// dest = (src >> start) & ((1 << len) - 1)
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
     let src = match emu.get_operand_value(ins, 1, true) {
         Some(v) => v,
@@ -40,6 +36,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     emu.flags_mut().f_cf = false;
     emu.flags_mut().f_of = false;
 
-    emu.set_operand_value(ins, 0, result);
-    true
+    emu.set_operand_value(ins, 0, result)
 }

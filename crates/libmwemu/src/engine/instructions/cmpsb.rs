@@ -48,7 +48,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rdi = v;
         }
     } else {
-        // 32bits
         value0 = match emu.maps.read_byte(emu.regs().get_esi()) {
             Some(v) => v,
             None => {
@@ -75,7 +74,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().set_esi(esi);
             emu.regs_mut().set_edi(edi);
         }
-    } // end 32bits
+    }
 
     emu.flags_overwrite_mut().sub8(value0 as u64, value1 as u64);
 

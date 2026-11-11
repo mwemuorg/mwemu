@@ -1,15 +1,14 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
-// SHA256RNDS2 DEST, SRC, <XMM0>: two SHA-256 rounds; XMM0 supplies the two
-// precomputed K+W values.
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Blue"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let d = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-    let s = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    emu.show_instruction(color!("Blue"), &DecodedInstruction::X86(*ins));
+
+    let d = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+    let s = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+    // XMM0 supplies the two precomputed K+W values.
     let xmm0 = emu.regs().xmm0;
     let dw = |v: u128, i: u32| ((v >> (i * 32)) & 0xffffffff) as u32;
     let (mut a, mut b, mut c, mut dd) = (dw(s, 3), dw(s, 2), dw(d, 3), dw(d, 2));
@@ -35,6 +34,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         ins,
         0,
         (f as u128) | ((e as u128) << 32) | ((b as u128) << 64) | ((a as u128) << 96),
-    );
-    true
+    )
 }

@@ -1,4 +1,5 @@
 use crate::maps::Maps;
+use crate::utils::bits::{low_bits_u64, low_bits_u128};
 use iced_x86::Register;
 use rand;
 use serde::{Deserialize, Serialize};
@@ -6,58 +7,58 @@ use uint::construct_uint;
 
 macro_rules! set_reg32 {
     ($reg:expr, $val:expr) => {
-        $reg = ($val & 0x00000000ffffffff);
+        $reg = low_bits_u64($val, u32::BITS);
     };
 }
 
 macro_rules! set_reg16 {
     ($reg:expr, $val:expr) => {
-        $reg &= 0xffffffffffff0000;
-        $reg += ($val & 0x000000000000ffff);
+        $reg &= !(u16::MAX as u64);
+        $reg |= low_bits_u64($val, u16::BITS);
     };
 }
 
 macro_rules! set_reg8l {
     ($reg:expr, $val:expr) => {
-        $reg &= 0xffffffffffffff00;
-        $reg += ($val & 0x00000000000000ff);
+        $reg &= !(u8::MAX as u64);
+        $reg |= low_bits_u64($val, u8::BITS);
     };
 }
 
 macro_rules! set_reg8h {
     ($reg:expr, $val:expr) => {
-        $reg &= 0xffffffffffff00ff;
-        $reg += (($val & 0x00000000000000ff) << 8);
+        $reg &= !((u8::MAX as u64) << u8::BITS);
+        $reg |= low_bits_u64($val, u8::BITS) << u8::BITS;
     };
 }
 
 macro_rules! get_reg32l {
     ($reg:expr) => {
-        $reg & 0x00000000ffffffff
+        low_bits_u64($reg, u32::BITS)
     };
 }
 
 macro_rules! get_reg32h {
     ($reg:expr) => {
-        $reg >> 32
+        low_bits_u64($reg >> u32::BITS, u32::BITS)
     };
 }
 
 macro_rules! get_reg16 {
     ($reg:expr) => {
-        $reg & 0x000000000000ffff
+        low_bits_u64($reg, u16::BITS)
     };
 }
 
 macro_rules! get_reg8l {
     ($reg:expr) => {
-        $reg & 0x00000000000000ff
+        low_bits_u64($reg, u8::BITS)
     };
 }
 
 macro_rules! get_reg8h {
     ($reg:expr) => {
-        ($reg & 0x000000000000ff00) >> 8
+        low_bits_u64($reg >> u8::BITS, u8::BITS)
     };
 }
 
@@ -919,14 +920,14 @@ impl Regs64 {
             Register::XMM13 => self.xmm13,
             Register::XMM14 => self.xmm14,
             Register::XMM15 => self.xmm15,
-            Register::MM0 => self.mm0,
-            Register::MM1 => self.mm1,
-            Register::MM2 => self.mm2,
-            Register::MM3 => self.mm3,
-            Register::MM4 => self.mm4,
-            Register::MM5 => self.mm5,
-            Register::MM6 => self.mm6,
-            Register::MM7 => self.mm7,
+            Register::MM0 => low_bits_u128(self.mm0, u64::BITS),
+            Register::MM1 => low_bits_u128(self.mm1, u64::BITS),
+            Register::MM2 => low_bits_u128(self.mm2, u64::BITS),
+            Register::MM3 => low_bits_u128(self.mm3, u64::BITS),
+            Register::MM4 => low_bits_u128(self.mm4, u64::BITS),
+            Register::MM5 => low_bits_u128(self.mm5, u64::BITS),
+            Register::MM6 => low_bits_u128(self.mm6, u64::BITS),
+            Register::MM7 => low_bits_u128(self.mm7, u64::BITS),
 
             _ => {
                 log::warn!("get_xmm_reg: unsupported register {:?}", reg);
@@ -953,14 +954,14 @@ impl Regs64 {
             Register::XMM13 => self.xmm13 = value,
             Register::XMM14 => self.xmm14 = value,
             Register::XMM15 => self.xmm15 = value,
-            Register::MM0 => self.mm0 = value,
-            Register::MM1 => self.mm1 = value,
-            Register::MM2 => self.mm2 = value,
-            Register::MM3 => self.mm3 = value,
-            Register::MM4 => self.mm4 = value,
-            Register::MM5 => self.mm5 = value,
-            Register::MM6 => self.mm6 = value,
-            Register::MM7 => self.mm7 = value,
+            Register::MM0 => self.mm0 = low_bits_u128(value, u64::BITS),
+            Register::MM1 => self.mm1 = low_bits_u128(value, u64::BITS),
+            Register::MM2 => self.mm2 = low_bits_u128(value, u64::BITS),
+            Register::MM3 => self.mm3 = low_bits_u128(value, u64::BITS),
+            Register::MM4 => self.mm4 = low_bits_u128(value, u64::BITS),
+            Register::MM5 => self.mm5 = low_bits_u128(value, u64::BITS),
+            Register::MM6 => self.mm6 = low_bits_u128(value, u64::BITS),
+            Register::MM7 => self.mm7 = low_bits_u128(value, u64::BITS),
 
             _ => {
                 log::warn!("set_xmm_reg: unsupported register {:?}", reg);
@@ -1514,14 +1515,14 @@ impl Regs64 {
             Register::YMM13 => 256,
             Register::YMM14 => 256,
             Register::YMM15 => 256,
-            Register::MM0 => 128,
-            Register::MM1 => 128,
-            Register::MM2 => 128,
-            Register::MM3 => 128,
-            Register::MM4 => 128,
-            Register::MM5 => 128,
-            Register::MM6 => 128,
-            Register::MM7 => 128,
+            Register::MM0 => 64,
+            Register::MM1 => 64,
+            Register::MM2 => 64,
+            Register::MM3 => 64,
+            Register::MM4 => 64,
+            Register::MM5 => 64,
+            Register::MM6 => 64,
+            Register::MM7 => 64,
             _ => {
                 log::warn!("get_size: unsupported register {:?}", reg);
                 0

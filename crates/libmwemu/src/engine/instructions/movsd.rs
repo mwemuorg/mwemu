@@ -6,11 +6,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     let sz0 = emu.get_operand_sz(ins, 0);
     let sz1 = emu.get_operand_sz(ins, 1);
 
-    // SSE scalar form `MOVSD` (iced shares `Mnemonic::Movsd` with the string
-    // MOVSD; the scalar-double form always has an xmm/128-bit operand). The m64
-    // memory operand is NOT a 128-bit value: treating it as one made the store
-    // write 16 bytes (clobbering the adjacent qword — e.g. a stack GS cookie)
-    // and the load pull garbage into the upper 64 bits instead of zeroing them.
+    // Iced shares this mnemonic between scalar-double and string forms.
+    // Scalar memory accesses use 64 bits; memory loads also clear the upper half.
     if ins.op_count() == 2 && (sz0 == 128 || sz1 == 128) {
         emu.show_instruction(
             color!("LightCyan"),
@@ -18,7 +15,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         );
 
         if sz0 == 128 && sz1 == 128 {
-            // movsd xmm0, xmm1 — copy the low 64 bits, leave dst's high 64 intact.
             let src = match emu.get_operand_xmm_value_128(ins, 1, true) {
                 Some(v) => v,
                 None => return false,
@@ -28,24 +24,22 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 None => return false,
             };
             let res = (dst & 0xffffffff_ffffffff_00000000_00000000) | (src & 0xffffffff_ffffffff);
-            emu.set_operand_xmm_value_128(ins, 0, res);
+            emu.set_operand_xmm_value_128(ins, 0, res)
         } else if sz0 == 128 {
-            // movsd xmm0, m64 — load the low 64 bits and ZERO the upper 64 bits.
             let src = match emu.get_operand_value(ins, 1, true) {
                 Some(v) => v as u128,
                 None => return false,
             };
-            emu.set_operand_xmm_value_128(ins, 0, src & 0xffffffff_ffffffff);
+            emu.set_operand_xmm_value_128(ins, 0, src & 0xffffffff_ffffffff)
         } else {
-            // movsd m64, xmm1 — store ONLY the low 64 bits (8 bytes).
             let src = match emu.get_operand_xmm_value_128(ins, 1, true) {
                 Some(v) => v,
                 None => return false,
             };
-            emu.set_operand_value(ins, 0, src as u64);
+            emu.set_operand_value(ins, 0, src as u64)
         }
     } else {
-        // legacy mode of movsd
+        // String form.
 
         if emu.rep.is_some() {
             if emu.rep.unwrap_or(0) == 0 {
@@ -72,7 +66,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
             let addr = emu.regs().rdi;
             let value = emu.call_memory_write_hook(addr, 32, val.into()) as u32;
-            emu.maps.write_dword(addr, value);
+            if !emu.maps.write_dword(addr, value) {
+                return false;
+            }
 
             if !emu.flag_df() {
                 let v = emu.regs().rsi.wrapping_add(4);
@@ -86,8 +82,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 emu.regs_mut().rdi = v;
             }
         } else {
-            // 32bits
-
             let val = match emu.maps.read_dword(emu.regs().get_esi()) {
                 Some(v) => v,
                 None => {
@@ -97,7 +91,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             };
             let addr = emu.regs().get_edi();
             let value = emu.call_memory_write_hook(addr, 32, val.into()) as u32;
-            emu.maps.write_dword(addr, value);
+            if !emu.maps.write_dword(addr, value) {
+                return false;
+            }
 
             if !emu.flag_df() {
                 let esi = emu.regs().get_esi().wrapping_add(4);
@@ -111,6 +107,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 emu.regs_mut().set_edi(edi);
             }
         }
+        true
     }
-    true
 }

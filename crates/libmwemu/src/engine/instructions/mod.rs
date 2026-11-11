@@ -1,3 +1,5 @@
+#![deny(unused_must_use)]
+
 // Auto-generated module declarations for instructions
 
 pub mod aaa;
@@ -53,6 +55,7 @@ pub mod cet;
 pub mod clc;
 pub mod cld;
 pub mod cmc;
+pub mod cmov;
 pub mod cmova;
 pub mod cmovae;
 pub mod cmovb;
@@ -492,6 +495,7 @@ pub mod shrd;
 pub mod shrx;
 pub mod shufpd;
 pub mod shufps;
+pub mod simd;
 pub mod sqrtpd;
 pub mod sqrtps;
 pub mod sqrtsd;

@@ -267,7 +267,9 @@ impl Emu {
         self.rep = Some(0);
         while self.regs().rcx != 0 {
             ok = engine::emulate_instruction(self, ins, sz, true);
-            self.update_x86_rep_state_after_execution(*ins);
+            if ok {
+                self.update_x86_rep_state_after_execution(*ins);
+            }
             if !ok || self.rep.is_none() {
                 break;
             }

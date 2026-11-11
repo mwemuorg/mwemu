@@ -93,7 +93,9 @@ impl Hooks {
         self.hook_on_memory_read = None;
     }
 
-    /// Register a pre-write hook. Return the value to actually write.
+    /// Register a CPU pre-write hook. Return the value to actually write.
+    /// Wide stores are reported in ascending chunks of at most 128 bits, all
+    /// before the store commits. Direct host writes through Maps bypass hooks.
     pub fn on_memory_write(
         &mut self,
         hook: impl FnMut(&mut emu::Emu, u64, u64, u32, u128) -> u128 + 'static,
@@ -206,7 +208,7 @@ impl emu::Emu {
         self.hooks.on_memory_read(hook);
     }
 
-    /// Register a pre-write hook. Return the value to actually write.
+    /// Register a CPU pre-write hook; see [Hooks::on_memory_write] for wide stores.
     pub fn set_hook_on_memory_write(
         &mut self,
         hook: impl FnMut(&mut emu::Emu, u64, u64, u32, u128) -> u128 + 'static,
