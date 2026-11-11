@@ -1,17 +1,15 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
     let st0 = emu.fpu_mut().get_st(0);
 
     let comparand = if ins.op_count() == 2 {
-        let value1 = emu.get_operand_value(ins, 1, false).unwrap_or_default();
+        let value1 = try_operand!(emu.get_operand_value(ins, 1, false));
         emu.fpu_mut().get_st(value1 as usize)
     } else if ins.op_count() == 1 && ins.op_kind(0) == iced_x86::OpKind::Memory {
         let mem_addr = match emu.get_operand_value(ins, 0, false) {
@@ -28,11 +26,11 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 None => return false,
             },
             iced_x86::MemorySize::Int16 => {
-                let v = emu.maps.read_word(mem_addr).unwrap_or(0) as i16;
+                let v = try_operand!(emu.maps.read_word(mem_addr)) as i16;
                 v as f64
             }
             iced_x86::MemorySize::Int32 => {
-                let v = emu.maps.read_dword(mem_addr).unwrap_or(0) as i32;
+                let v = try_operand!(emu.maps.read_dword(mem_addr)) as i32;
                 v as f64
             }
             _ => {

@@ -1,15 +1,10 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-/// `VXORPS` — VEX-encoded bitwise XOR of packed single-precision floats:
-/// `dest = src1 ^ src2`. Bit-for-bit identical to `VPXOR`/`VXORPD` (XOR is
-/// type-agnostic), handled for both the 128-bit (xmm) and 256-bit (ymm) forms.
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
     match emu.get_operand_sz(ins, 0) {
         128 => {
@@ -27,7 +22,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                     return false;
                 }
             };
-            emu.set_operand_xmm_value_128(ins, 0, source1 ^ source2);
+            emu.set_operand_xmm_value_128(ins, 0, source1 ^ source2)
         }
         256 => {
             let source1 = match emu.get_operand_ymm_value_256(ins, 1, true) {
@@ -44,12 +39,11 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                     return false;
                 }
             };
-            emu.set_operand_ymm_value_256(ins, 0, source1 ^ source2);
+            emu.set_operand_ymm_value_256(ins, 0, source1 ^ source2)
         }
         _ => {
             log::warn!("vxorps: unexpected operand size");
-            return false;
+            false
         }
     }
-    true
 }

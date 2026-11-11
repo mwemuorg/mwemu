@@ -8,9 +8,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
 
-    let addr = emu.get_operand_value(ins, 0, false).unwrap_or(0);
-    if addr > 0 {
-        emu.maps.write_word(addr, emu.fpu().fpu_control_word);
-    }
-    true
+    let value = emu.fpu().get_ctrl();
+    emu.set_operand_value(ins, 0, value as u64)
 }

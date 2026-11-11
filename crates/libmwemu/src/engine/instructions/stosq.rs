@@ -22,7 +22,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     let addr = emu.regs().rdi;
     let value = emu.regs().rax;
     let value = emu.call_memory_write_hook(addr, 64, value.into()) as u64;
-    emu.maps.write_qword(addr, value);
+    if !emu.maps.write_qword(addr, value) {
+        return false;
+    }
 
     if emu.flag_df() {
         let v = emu.regs().rdi.wrapping_sub(8);

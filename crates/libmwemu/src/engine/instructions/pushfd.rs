@@ -10,8 +10,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     // 32bits only instruction
     let flags = emu.flags().dump();
-    if !emu.stack_push32(flags) {
-        return false;
-    }
-    true
+    emu.push_instruction(flags as u64, u32::BITS)
 }

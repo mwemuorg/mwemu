@@ -1,14 +1,12 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
-// VCOMISS: VEX scalar compare setting ZF/PF/CF; OF/SF/AF cleared.
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("LightCyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let v1 = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-    let v2 = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    emu.show_instruction(color!("LightCyan"), &DecodedInstruction::X86(*ins));
+    let v1 = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+    let v2 = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
     let a = f32::from_bits((v1 & 0xffffffff) as _);
     let b = f32::from_bits((v2 & 0xffffffff) as _);
     let f = emu.flags_mut();

@@ -1,12 +1,12 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::{Instruction, OpKind};
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     let op_size = match ins.op_kind(0) {
         OpKind::Register => ins.op_register(0).size(),
         OpKind::Memory => ins.memory_size().size(),
-        // this is the case of immediate value then it is depend on the stack addr size which is the execution architecture
         _ => {
             if emu.cfg.is_x64() {
                 8
@@ -16,6 +16,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     };
 
+    let original_sp = emu.sp();
     let value = match op_size {
         8 => match emu.stack_pop64(true) {
             Some(v) => v,
@@ -40,13 +41,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         },
     };
 
-    emu.show_instruction_pushpop(
-        color!("Blue"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-        value,
-    );
+    emu.show_instruction_pushpop(color!("Blue"), &DecodedInstruction::X86(*ins), value);
 
     if !emu.set_operand_value(ins, 0, value) {
+        emu.set_sp(original_sp);
         return false;
     }
     true

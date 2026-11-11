@@ -1,13 +1,10 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-/// DAS: decimal adjust AL after a packed-BCD subtraction (SDM pseudo-code).
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
 
     let old_al = emu.regs().get_al();
     let old_cf = emu.flag_cf();

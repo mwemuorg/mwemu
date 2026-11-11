@@ -1,22 +1,15 @@
-use crate::arch::x86::regs::U256;
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::engine::instructions::avx;
 use iced_x86::Instruction;
-// VPERMD dest, indices, data: gather 8 dwords across the full 256 bits.
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let (ilo, ihi) = avx::to_pair(
-        emu.get_operand_ymm_value_256(ins, 1, true)
-            .unwrap_or(U256::from(0)),
-    );
-    let (dlo, dhi) = avx::to_pair(
-        emu.get_operand_ymm_value_256(ins, 2, true)
-            .unwrap_or(U256::from(0)),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
+
+    let (ilo, ihi) = avx::to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+    let (dlo, dhi) = avx::to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 2, true)));
+    // Indices can select from either 128-bit half.
     let dw = |n: u32| {
         if n < 4 {
             (dlo >> (n * 32)) & 0xffffffff
@@ -42,6 +35,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
             nhi |= val << ((i - 4) * 32)
         }
     }
-    emu.set_operand_ymm_value_256(ins, 0, avx::from_pair(nlo, nhi));
-    true
+    emu.set_operand_ymm_value_256(ins, 0, avx::from_pair(nlo, nhi))
 }
