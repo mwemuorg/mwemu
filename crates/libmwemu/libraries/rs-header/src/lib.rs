@@ -10,6 +10,7 @@
 //! See `design/ARCHITECTURE.md` and `design/PE_EXTRACTION.md`.
 
 // clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
+#![allow(unknown_lints, clippy::chunks_exact_to_as_chunks)]
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::unusual_byte_groupings)]
 #![allow(clippy::too_many_arguments)]

@@ -23,8 +23,14 @@ echo "==> Creating worktree at ${WORKTREE}..."
 git -C "$REPO_ROOT" worktree add "$WORKTREE" "pr-${PR}"
 
 echo "==> Linking maps and test data..."
-[ -d "$REPO_ROOT/maps" ] && ln -s "$REPO_ROOT/maps" "$WORKTREE/maps" 2>/dev/null || true
-[ -d "$REPO_ROOT/test" ] && ln -s "$REPO_ROOT/test" "$WORKTREE/test" 2>/dev/null || true
+if [ -d "$REPO_ROOT/maps" ] && [[ "$WORKTREE" == /tmp/mwemu-pr-* ]]; then
+    rm -rf "$WORKTREE/maps"
+    ln -s "$REPO_ROOT/maps" "$WORKTREE/maps"
+fi
+if [ -d "$REPO_ROOT/test" ] && [[ "$WORKTREE" == /tmp/mwemu-pr-* ]]; then
+    rm -rf "$WORKTREE/test"
+    ln -s "$REPO_ROOT/test" "$WORKTREE/test"
+fi
 
 echo "==> Running cargo nextest..."
 cd "$WORKTREE"
