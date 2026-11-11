@@ -6,7 +6,7 @@ use crate::utils::helpers::{OP_KIND_BIT_WIDTH, unlikely};
 use crate::{
     console::Console,
     emu::Emu,
-    exception::types::ExceptionType,
+    exception::types::{ExceptionType, MemoryAccess},
     regs64,
     windows::structures::{self, MemoryOperation},
 };
@@ -376,7 +376,12 @@ impl Emu {
                             Some(0)
                         } else {
                             log::trace!("/!\\ error dereferencing qword on 0x{:x}", mem_addr);
-                            self.exception(ExceptionType::QWordDereferencing);
+                            self.memory_exception(
+                                ExceptionType::QWordDereferencing,
+                                mem_addr,
+                                (sz / u8::BITS) as usize,
+                                MemoryAccess::Read,
+                            );
                             if self.cfg.soft_exception_recovery && self.process_terminated {
                                 self.process_terminated = false;
                                 self.is_running
@@ -402,7 +407,12 @@ impl Emu {
                                 Some(0)
                             } else {
                                 log::trace!("/!\\ error dereferencing dword on 0x{:x}", mem_addr);
-                                self.exception(ExceptionType::DWordDereferencing);
+                                self.memory_exception(
+                                    ExceptionType::DWordDereferencing,
+                                    mem_addr,
+                                    (sz / u8::BITS) as usize,
+                                    MemoryAccess::Read,
+                                );
                                 if self.cfg.soft_exception_recovery && self.process_terminated {
                                     self.process_terminated = false;
                                     self.is_running
@@ -424,7 +434,12 @@ impl Emu {
                             Some(0)
                         } else {
                             log::trace!("/!\\ error dereferencing word on 0x{:x}", mem_addr);
-                            self.exception(ExceptionType::WordDereferencing);
+                            self.memory_exception(
+                                ExceptionType::WordDereferencing,
+                                mem_addr,
+                                (sz / u8::BITS) as usize,
+                                MemoryAccess::Read,
+                            );
                             if self.cfg.soft_exception_recovery && self.process_terminated {
                                 self.process_terminated = false;
                                 self.is_running
@@ -446,7 +461,12 @@ impl Emu {
                             Some(0)
                         } else {
                             log::trace!("/!\\ error dereferencing byte on 0x{:x}", mem_addr);
-                            self.exception(ExceptionType::ByteDereferencing);
+                            self.memory_exception(
+                                ExceptionType::ByteDereferencing,
+                                mem_addr,
+                                (sz / u8::BITS) as usize,
+                                MemoryAccess::Read,
+                            );
                             if self.cfg.soft_exception_recovery && self.process_terminated {
                                 self.process_terminated = false;
                                 self.is_running
@@ -786,7 +806,12 @@ impl Emu {
                                         "/!\\ exception dereferencing bad address. 0x{:x}",
                                         mem_addr
                                     );
-                                    self.exception(ExceptionType::BadAddressDereferencing);
+                                    self.memory_exception(
+                                        ExceptionType::BadAddressDereferencing,
+                                        mem_addr,
+                                        (sz / u8::BITS) as usize,
+                                        MemoryAccess::Write,
+                                    );
                                     if self.cfg.soft_exception_recovery && self.process_terminated {
                                         self.process_terminated = false;
                                         self.is_running
@@ -828,7 +853,12 @@ impl Emu {
                                         "/!\\ exception dereferencing bad address. 0x{:x}",
                                         mem_addr
                                     );
-                                    self.exception(ExceptionType::BadAddressDereferencing);
+                                    self.memory_exception(
+                                        ExceptionType::BadAddressDereferencing,
+                                        mem_addr,
+                                        (sz / u8::BITS) as usize,
+                                        MemoryAccess::Write,
+                                    );
                                     if self.cfg.soft_exception_recovery && self.process_terminated {
                                         self.process_terminated = false;
                                         self.is_running
@@ -870,7 +900,12 @@ impl Emu {
                                         "/!\\ exception dereferencing bad address. 0x{:x}",
                                         mem_addr
                                     );
-                                    self.exception(ExceptionType::BadAddressDereferencing);
+                                    self.memory_exception(
+                                        ExceptionType::BadAddressDereferencing,
+                                        mem_addr,
+                                        (sz / u8::BITS) as usize,
+                                        MemoryAccess::Write,
+                                    );
                                     if self.cfg.soft_exception_recovery && self.process_terminated {
                                         self.process_terminated = false;
                                         self.is_running
@@ -929,7 +964,12 @@ impl Emu {
                                         "/!\\ exception dereferencing bad address. 0x{:x}",
                                         mem_addr
                                     );
-                                    self.exception(ExceptionType::BadAddressDereferencing);
+                                    self.memory_exception(
+                                        ExceptionType::BadAddressDereferencing,
+                                        mem_addr,
+                                        (sz / u8::BITS) as usize,
+                                        MemoryAccess::Write,
+                                    );
                                     if self.cfg.soft_exception_recovery && self.process_terminated {
                                         self.process_terminated = false;
                                         self.is_running
@@ -1072,11 +1112,11 @@ impl Emu {
         };
         let mut bytes = value.to_le_bytes();
         let size = ins.memory_size().size();
-        if size > bytes.len() || !self.write_instruction_bytes(addr, &mut bytes[..size]) {
-            self.exception(ExceptionType::SettingXmmOperand);
+        if size > bytes.len() {
+            self.exception(ExceptionType::IllegalInstruction);
             return false;
         }
-        true
+        self.write_instruction_bytes(addr, &mut bytes[..size])
     }
 
     pub fn get_operand_ymm_value_256(
@@ -1142,11 +1182,7 @@ impl Emu {
             return false;
         };
         let mut bytes = value.to_little_endian();
-        if !self.write_instruction_bytes(addr, &mut bytes) {
-            self.exception(ExceptionType::SettingXmmOperand);
-            return false;
-        }
-        true
+        self.write_instruction_bytes(addr, &mut bytes)
     }
 
     /// Read exactly the encoded operand width, including across adjacent maps.
@@ -1167,7 +1203,12 @@ impl Emu {
         }
         if !self.maps.can_access_range(addr, size, Permission::READ) {
             log::trace!("/!\\ exception reading SIMD operand at 0x{:x}", addr);
-            self.exception(ExceptionType::ReadingXmmOperand);
+            self.memory_exception(
+                ExceptionType::ReadingXmmOperand,
+                addr,
+                size,
+                MemoryAccess::Read,
+            );
             return None;
         }
         let mut bytes = [0; N];
@@ -1200,6 +1241,12 @@ impl Emu {
                 "/!\\ failed CPU store of {} bytes at 0x{:x}",
                 bytes.len(),
                 addr
+            );
+            self.memory_exception(
+                ExceptionType::SettingXmmOperand,
+                addr,
+                bytes.len(),
+                MemoryAccess::Write,
             );
             return false;
         }

@@ -2,7 +2,7 @@ use crate::exception;
 use crate::exception::types::ExceptionType;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
-use crate::windows::constants::errors::*;
+use crate::windows::constants::exceptions::*;
 
 use crate::*;
 
@@ -53,7 +53,7 @@ fn build_minimal_pe64(emu: &mut emu::Emu, pe_base: u64, handler_rva: u32) {
 
     // UNWIND_INFO structure
     let ui_addr = pe_base + unwind_info_rva as u64;
-    let flags: u8 = 0x01; // UNW_FLAG_EHANDLER
+    let flags = UNW_FLAG_EHANDLER;
     let version_flags: u8 = 1 | (flags << 3); // version=1, flags=EHANDLER
     emu.maps.write_byte(ui_addr, version_flags);
     emu.maps.write_byte(ui_addr + 1, 0); // SizeOfProlog
@@ -87,12 +87,13 @@ fn x64_pdata_seh_finds_handler() {
     );
     assert_ne!(emu.eh_ctx(), 0);
 
-    // Simulate handler returning EXCEPTION_CONTINUE_EXECUTION
-    emu.regs_mut().rax = EXCEPTION_CONTINUE_EXECUTION64;
+    // A language handler returns ExceptionContinueExecution, not a filter value.
+    emu.regs_mut().rax = ExceptionDisposition::ContinueExecution as u64;
     exception::handlers::exit64(&mut emu);
 
     assert_eq!(emu.regs().rip, faulting_rip);
     assert_eq!(emu.eh_ctx(), 0);
+    assert!(!emu.process_terminated);
 }
 
 #[test]
@@ -204,7 +205,7 @@ fn x64_pdata_chaininfo() {
 
     // UNWIND_INFO #1: CHAININFO -> UNWIND_INFO #2
     let ui1 = pe_base + 0x4000;
-    let chain_flag: u8 = 0x04; // UNW_FLAG_CHAININFO
+    let chain_flag = UNW_FLAG_CHAININFO;
     emu.maps.write_byte(ui1, 1 | (chain_flag << 3));
     emu.maps.write_byte(ui1 + 2, 0); // 0 codes
     // Chained RUNTIME_FUNCTION at ui1+4
@@ -229,4 +230,27 @@ fn x64_pdata_chaininfo() {
         pe_base + 0x6000,
         "should follow CHAININFO to find the handler"
     );
+}
+
+#[test]
+fn x64_unwind_only_handler_is_not_called_during_exception_search() {
+    const PE_BASE: u64 = 0x140000000;
+    const HANDLER_RVA: u32 = 0x5000;
+    const UNWIND_INFO_RVA: u64 = 0x4000;
+    const UNWIND_VERSION: u8 = 1;
+    const FLAGS_SHIFT: u32 = 3;
+    const UEF: u64 = PE_BASE + 0x9000;
+    helpers::setup();
+    let mut emu = emu64();
+    emu.init_stack64();
+    build_minimal_pe64(&mut emu, PE_BASE, HANDLER_RVA);
+    assert!(emu.maps.write_byte(
+        PE_BASE + UNWIND_INFO_RVA,
+        UNWIND_VERSION | (UNW_FLAG_UHANDLER << FLAGS_SHIFT)
+    ));
+    emu.set_uef(UEF);
+    emu.regs_mut().rip = PE_BASE + 0x2500;
+    emu.exception(ExceptionType::Int3);
+    assert_eq!(emu.pc(), UEF);
+    assert!(!emu.process_terminated);
 }

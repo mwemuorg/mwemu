@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants::errors::*;
+use crate::windows::constants::exceptions::*;
 
 pub fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
     let exception_info = emu.regs().rcx;

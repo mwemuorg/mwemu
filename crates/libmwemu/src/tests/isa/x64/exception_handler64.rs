@@ -2,7 +2,7 @@ use crate::exception;
 use crate::exception::types::ExceptionType;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
-use crate::windows::constants::errors::*;
+use crate::windows::constants::exceptions::*;
 
 use crate::*;
 

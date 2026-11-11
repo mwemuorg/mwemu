@@ -373,10 +373,6 @@ impl Emu {
 
         // Decode and execute (arch-dispatched)
         let (sz, result_ok) = self.decode_and_execute();
-        if sz == 0 {
-            return false;
-        }
-
         // Advance PC
         if result_ok || self.force_reload {
             self.advance_pc(sz);

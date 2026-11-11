@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::windows::constants::system::FORMAT_MESSAGE_ALLOCATE_BUFFER;
 
 pub fn FormatMessageA(emu: &mut emu::Emu) {
     let flags = emu.regs().rcx as u32;
@@ -18,9 +19,6 @@ pub fn FormatMessageA(emu: &mut emu::Emu) {
     );
 
     let msg = error_message(msg_id);
-
-    const FORMAT_MESSAGE_ALLOCATE_BUFFER: u32 = 0x00000100;
-    const FORMAT_MESSAGE_FROM_SYSTEM: u32 = 0x00001000;
 
     if flags & FORMAT_MESSAGE_ALLOCATE_BUFFER != 0 {
         // Caller passes a pointer-to-pointer; we allocate and write there
