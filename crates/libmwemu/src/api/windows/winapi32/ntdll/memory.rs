@@ -4,7 +4,7 @@ use crate::emu;
 use crate::winapi::common::sections;
 use crate::winapi::common::{crt, memory_ops};
 use crate::winapi::winapi32::{arg, stdcall_ret};
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     if memory_ops::dispatch(api, emu) || crt::dispatch(api, emu) {
@@ -102,7 +102,7 @@ fn NtFlushInstructionCache(emu: &mut emu::Emu) {
     let addr = arg(emu, 1);
     let sz = arg(emu, 2);
     log_red!(emu, "ntdll!NtFlushInstructionCache 0x{:x} sz: {}", addr, sz);
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 3);
 }
 

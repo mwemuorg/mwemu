@@ -1,6 +1,10 @@
 use std::fs;
 
+use goblin::pe::section_table::{
+    IMAGE_SCN_CNT_CODE, IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE,
+};
 use itertools::iproduct;
+use rs_header::pe::shared::{IMAGE_DIRECTORY_ENTRY_BASERELOC, ImageDosHeader};
 
 use crate::api::windows::common::memory::Call;
 use crate::api::windows::common::{memory, sections};
@@ -9,15 +13,16 @@ use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::maps::Maps;
 use crate::maps::mem64::Permission;
-use crate::maps::virtual_memory::MemoryKind;
+use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, MemoryKind, PAGE_SIZE};
 use crate::serialization::Serialization;
 use crate::tests::helpers::{LOADER32, LOADER64, call_winapi32, call_winapi64};
-use crate::windows::constants::{LIBS32_MIN, LIBS64_MIN};
+use crate::windows::constants::errors::STATUS_SUCCESS;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::NT_CURRENT_PROCESS;
 use crate::windows::peb::{peb32, peb64};
 use crate::{emu32, emu64};
 
-const PAGE: u32 = 0x1000;
-const GRANULARITY: u64 = 0x10000;
+const PAGE: u32 = PAGE_SIZE as u32;
 
 #[derive(Clone, Copy, Debug)]
 enum Loader {
@@ -102,7 +107,11 @@ fn image(
     write_u32(&mut raw, section + 12, rva);
     write_u32(&mut raw, section + 16, raw_size);
     write_u32(&mut raw, section + 20, pointer);
-    write_u32(&mut raw, section + 36, 0xe0000020);
+    write_u32(
+        &mut raw,
+        section + 36,
+        IMAGE_SCN_CNT_CODE | IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE,
+    );
     for (i, byte) in raw.iter_mut().enumerate().skip(0x400) {
         *byte = ((i ^ (i >> 8)) % 251 + 1) as u8;
     }
@@ -216,7 +225,7 @@ fn consecutive_stub_images_use_allocation_granularity() {
                 emu.create_stub_pe32(name, &["Example"]) as u64
             };
             assert_ne!(base, 0);
-            assert_eq!(base % GRANULARITY, 0, "{name}, is_64={is_64}");
+            assert_eq!(base % ALLOCATION_GRANULARITY, 0, "{name}, is_64={is_64}");
         }
     }
 }
@@ -237,12 +246,12 @@ fn pe_image_gaps_remain_owned_and_excluded_from_allocation() {
         );
         assert_eq!(
             emu.maps
-                .find_free_range(0x1000, GRANULARITY, base, base + 0x50000),
+                .find_free_range(0x1000, ALLOCATION_GRANULARITY, base, base + 0x50000),
             Some(base + 0x40000)
         );
         assert_eq!(
             emu.maps
-                .find_free_range_top_down(0x1000, GRANULARITY, base, base + 0x31000),
+                .find_free_range_top_down(0x1000, ALLOCATION_GRANULARITY, base, base + 0x31000),
             None
         );
         let info = emu.maps.query_memory(gap);
@@ -369,10 +378,19 @@ fn pe_image_query_and_allocation_apis_respect_reserved_holes() {
         let mut emu = loader.emu();
         let base = loader.load(&mut emu, &sparse_image(loader), "query");
         let gap = base + 0x10000;
-        assert!(memory::allocate(&mut emu, gap, 0x1000, 0x3000, 4).is_err());
+        assert!(
+            memory::allocate(
+                &mut emu,
+                gap,
+                PAGE_SIZE,
+                MEM_COMMIT | MEM_RESERVE,
+                PAGE_READWRITE
+            )
+            .is_err()
+        );
         assert!(
             emu.maps
-                .protect_memory(gap, 0x1000, 4, Permission::READ_WRITE)
+                .protect_memory(gap, PAGE_SIZE, PAGE_READWRITE, Permission::READ_WRITE)
                 .is_err()
         );
         let output = 0x5000000;
@@ -392,23 +410,44 @@ fn pe_image_query_and_allocation_apis_respect_reserved_holes() {
             memory::read_pointer(&emu, output + memory::pointer_size(&emu)),
             Some(base)
         );
-        assert_eq!(emu.maps.read_dword(output + state_offset), Some(0x2000));
+        assert_eq!(
+            emu.maps.read_dword(output + state_offset),
+            Some(MEM_RESERVE)
+        );
         assert_eq!(
             emu.maps.read_dword(output + state_offset + 8),
-            Some(0x1000000)
+            Some(MEM_IMAGE)
         );
         let expected = emu.maps.read_bytes(output, length as usize).into_owned();
         emu.maps.fill_range(output, 0xcc, length as usize);
         let result = if loader.is_64() {
-            call_winapi64(&mut emu, nt_query, &[u64::MAX, gap, 0, output, length, 0])
+            call_winapi64(
+                &mut emu,
+                nt_query,
+                &[
+                    NT_CURRENT_PROCESS,
+                    gap,
+                    MEMORY_INFORMATION_CLASS_MEMORY_BASIC_INFORMATION,
+                    output,
+                    length,
+                    0,
+                ],
+            )
         } else {
             call_winapi32(
                 &mut emu,
                 nt_query,
-                &[u32::MAX, gap as u32, 0, output as u32, length as u32, 0],
+                &[
+                    NT_CURRENT_PROCESS as u32,
+                    gap as u32,
+                    MEMORY_INFORMATION_CLASS_MEMORY_BASIC_INFORMATION as u32,
+                    output as u32,
+                    length as u32,
+                    0,
+                ],
             ) as u64
         };
-        assert_eq!(result, 0);
+        assert_eq!(result, STATUS_SUCCESS);
         assert_eq!(
             emu.maps.read_bytes(output, length as usize).as_ref(),
             expected
@@ -459,11 +498,15 @@ fn pe_image_unmap_removes_stub_exports_and_reuses_the_range() {
         assert!(emu.export_indexes.get_by_base(base).is_some());
         let unmap: fn(&mut Emu) = |emu| sections::nt_unmap(emu, Call::Api);
         let result = if is64 {
-            call_winapi64(&mut emu, unmap, &[u64::MAX, base + 0x1001])
+            call_winapi64(&mut emu, unmap, &[NT_CURRENT_PROCESS, base + 0x1001])
         } else {
-            call_winapi32(&mut emu, unmap, &[u32::MAX, (base + 0x1001) as u32]) as u64
+            call_winapi32(
+                &mut emu,
+                unmap,
+                &[NT_CURRENT_PROCESS as u32, (base + 0x1001) as u32],
+            ) as u64
         };
-        assert_eq!(result, 0);
+        assert_eq!(result, STATUS_SUCCESS);
         assert!(emu.export_indexes.get_by_base(base).is_none());
         assert!(emu.maps.is_range_free(base, 0x3000));
         let next = if is64 {
@@ -584,6 +627,61 @@ fn load_code_reports_pe_allocation_failure() {
         }
         fs::remove_dir(directory).unwrap();
     }
+}
+
+#[test]
+fn pe64_preferred_base_depends_on_image_role_and_relocations()
+-> Result<(), Box<dyn std::error::Error>> {
+    const PREFERRED_BASE: u64 = 0x140000000;
+    const SECTION_OFFSET: u32 = 0x800;
+    const RELOCATION_OFFSET: u32 = 0x100;
+    const RELOCATION_BLOCK_SIZE: u32 = 8;
+
+    let path = std::env::temp_dir().join("mwemu_pe64_preferred_base.dll");
+    for ((main_image, loader), relocatable) in iproduct!(
+        [
+            (true, Loader::Pe64),
+            (false, Loader::Pe64),
+            (false, Loader::Dll64)
+        ],
+        [false, true]
+    ) {
+        let mut raw = image(loader, PAGE, PAGE, SECTION_OFFSET, 0x200, PAGE);
+        let opt = ImageDosHeader::load(&raw, 0).e_lfanew as usize + 24;
+        raw[opt + 24..opt + 32].copy_from_slice(&PREFERRED_BASE.to_le_bytes());
+        if relocatable {
+            let directory = opt + 112 + IMAGE_DIRECTORY_ENTRY_BASERELOC * 8;
+            write_u32(&mut raw, directory, PAGE + RELOCATION_OFFSET);
+            write_u32(&mut raw, directory + 4, RELOCATION_BLOCK_SIZE);
+            let block = (SECTION_OFFSET + RELOCATION_OFFSET) as usize;
+            write_u32(&mut raw, block, PAGE);
+            write_u32(&mut raw, block + 4, RELOCATION_BLOCK_SIZE);
+        }
+        fs::write(&path, raw)?;
+        let mut emu = loader.emu();
+        peb64::init_peb(&mut emu);
+        let filename = path.to_string_lossy();
+        let result = if main_image {
+            emu.load_pe64(&filename, true, 0).map(|image| image.base)
+        } else {
+            loader.load_file(&mut emu, &filename)
+        };
+        fs::remove_file(&path)?;
+        let base = result?;
+        if main_image || !relocatable {
+            assert_eq!(
+                base, PREFERRED_BASE,
+                "{loader:?}, main={main_image}, reloc={relocatable}"
+            );
+        } else {
+            assert!(
+                (LIBS64_MIN..LIBS64_MAX).contains(&base),
+                "{loader:?}: {base:#x}"
+            );
+            assert_ne!(base, PREFERRED_BASE);
+        }
+    }
+    Ok(())
 }
 
 #[test]

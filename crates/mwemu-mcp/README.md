@@ -201,4 +201,4 @@ subsystem, so you can tell in advance whether a given driver will run.
 
 ## License
 
-MIT, same as mwemu.
+Apache-2.0

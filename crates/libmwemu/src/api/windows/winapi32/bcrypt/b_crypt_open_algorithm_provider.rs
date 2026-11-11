@@ -2,7 +2,7 @@ use crate::emu;
 use crate::winapi::helper;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptOpenAlgorithmProvider(emu: &mut emu::Emu) {
     let out_handle = arg(emu, 0) as u64;
@@ -13,6 +13,6 @@ pub(super) fn BCryptOpenAlgorithmProvider(emu: &mut emu::Emu) {
         let hndl = helper::handler_create(&format!("bcrypt://{}", algo));
         emu.maps.write_dword(out_handle, hndl as u32);
     }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
     stdcall_ret(emu, 4);
 }

@@ -1,18 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetProcessHeaps(emu: &mut emu::Emu) {
-    let num_heaps = arg(emu, 0);
-    let heaps_ptr = arg(emu, 1) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetProcessHeaps count:{} ptr:0x{:x}",
-        num_heaps,
-        heaps_ptr
+        "kernel32!GetProcessHeaps h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if heaps_ptr != 0 && num_heaps >= 1 {
-        emu.maps.write_qword(heaps_ptr, 0x00050000);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

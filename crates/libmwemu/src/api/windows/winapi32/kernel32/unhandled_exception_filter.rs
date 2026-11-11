@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
     let exception_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -11,6 +11,6 @@ pub fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
     );
 
     emu.stack_pop32(false);
-    emu.regs_mut().rax = constants::EXCEPTION_EXECUTE_HANDLER as u64;
+    emu.regs_mut().rax = EXCEPTION_EXECUTE_HANDLER as u64;
     // a debugger would had answered EXCEPTION_CONTINUE_SEARCH
 }

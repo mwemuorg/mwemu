@@ -1,38 +1,26 @@
-use crate::color;
-use crate::emu::Emu;
 use iced_x86::Instruction;
 
-pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Blue"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+use crate::color;
+use crate::emu::{Emu, decoded_instruction::DecodedInstruction};
 
-    // only 32bits instruction
-    let tmp_esp = emu.regs().get_esp() as u32;
-    if !emu.stack_push32(emu.regs().get_eax() as u32) {
-        return false;
-    }
-    if !emu.stack_push32(emu.regs().get_ecx() as u32) {
-        return false;
-    }
-    if !emu.stack_push32(emu.regs().get_edx() as u32) {
-        return false;
-    }
-    if !emu.stack_push32(emu.regs().get_ebx() as u32) {
-        return false;
-    }
-    if !emu.stack_push32(tmp_esp) {
-        return false;
-    }
-    if !emu.stack_push32(emu.regs().get_ebp() as u32) {
-        return false;
-    }
-    if !emu.stack_push32(emu.regs().get_esi() as u32) {
-        return false;
-    }
-    if !emu.stack_push32(emu.regs().get_edi() as u32) {
-        return false;
+pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
+    emu.show_instruction(color!("Blue"), &DecodedInstruction::X86(*ins));
+    let sp = emu.sp();
+    let values = [
+        emu.regs().get_eax(),
+        emu.regs().get_ecx(),
+        emu.regs().get_edx(),
+        emu.regs().get_ebx(),
+        emu.regs().get_esp(),
+        emu.regs().get_ebp(),
+        emu.regs().get_esi(),
+        emu.regs().get_edi(),
+    ];
+    for value in values {
+        if !emu.push_instruction(value, u32::BITS) {
+            emu.set_sp(sp);
+            return false;
+        }
     }
     true
 }

@@ -1,20 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetThreadIdealProcessorEx(emu: &mut emu::Emu) {
-    let h_thread = arg(emu, 0) as u64;
-    let proc_num_ptr = arg(emu, 1) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetThreadIdealProcessorEx h:0x{:x} ptr:0x{:x}",
-        h_thread,
-        proc_num_ptr
+        "kernel32!GetThreadIdealProcessorEx h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if proc_num_ptr != 0 {
-        emu.maps.write_word(proc_num_ptr, 0);
-        emu.maps.write_byte(proc_num_ptr + 2, 0);
-        emu.maps.write_byte(proc_num_ptr + 3, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

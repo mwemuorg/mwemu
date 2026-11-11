@@ -1,26 +1,20 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn SetNamedPipeHandleState(emu: &mut emu::Emu) {
-    let handle = arg(emu, 0) as u64;
-    let mode_ptr = arg(emu, 1) as u64;
-    let _max_collection_count = arg(emu, 2) as u64;
-    let _collect_data_timeout = arg(emu, 3) as u64;
-
-    let mode = if mode_ptr != 0 {
-        emu.maps.read_dword(mode_ptr).unwrap_or(0)
-    } else {
-        0
-    };
-
+    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!SetNamedPipeHandleState handle:0x{:x} mode:0x{:x}",
-        handle,
-        mode
+        "kernel32!SetNamedPipeHandleState p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+        p1,
+        p2,
+        p3
     );
-
+    for _ in 0..4 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

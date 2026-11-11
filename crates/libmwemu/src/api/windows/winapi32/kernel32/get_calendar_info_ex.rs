@@ -1,20 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetCalendarInfoEx(emu: &mut emu::Emu) {
-    let locale_ptr = arg(emu, 0) as u64;
-    let calendar = arg(emu, 1);
-    let cal_type = arg(emu, 2);
-    let data_ptr = arg(emu, 3) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetCalendarInfoEx locale:0x{:x} cal:{} type:{} data:0x{:x}",
-        locale_ptr,
-        calendar,
-        cal_type,
-        data_ptr
+        "kernel32!GetCalendarInfoEx h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 4);
+    emu.regs_mut().rax = 1;
 }

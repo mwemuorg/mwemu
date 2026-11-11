@@ -1,3 +1,6 @@
+use crate::emu::Emu;
+use crate::winapi::winapi32::kernel32;
+
 #[path = "../__tlg_create_wsz.rs"]
 mod __tlg_create_wsz;
 pub use __tlg_create_wsz::*;
@@ -143,3 +146,23 @@ pub use write_console_input_vdma::*;
 #[path = "../write_console_input_vdmw.rs"]
 mod write_console_input_vdmw;
 pub use write_console_input_vdmw::*;
+
+pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
+    match api {
+        "_TlgCreateWsz" => kernel32::_TlgCreateWsz(emu),
+        "_lclose" => kernel32::_lclose(emu),
+        "_lcreat" => kernel32::_lcreat(emu),
+        "_llseek" => kernel32::_llseek(emu),
+        "_lopen" => kernel32::_lopen(emu),
+        "_lread" => kernel32::_lread(emu),
+        "_lwrite" => kernel32::_lwrite(emu),
+        "_hread" => kernel32::_hread_api(emu),
+        "_hwrite" => kernel32::_hwrite_api(emu),
+        "__C_specific_handler" => kernel32::__C_specific_handler_api(emu),
+        "__chkstk" => kernel32::__chkstk_api(emu),
+        "__misaligned_access" => kernel32::__misaligned_access_api(emu),
+        "_local_unwind" => kernel32::_local_unwind_api(emu),
+        _ => return false,
+    }
+    true
+}

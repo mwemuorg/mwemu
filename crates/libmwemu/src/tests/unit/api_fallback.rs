@@ -1,3 +1,4 @@
+use crate::windows::constants::errors::*;
 use csv::ReaderBuilder;
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
@@ -6,7 +7,7 @@ use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers::{register_export_module, setup, win32_maps_folder};
 use crate::winapi::{winapi32, winapi64};
-use crate::windows::constants::{STATUS_NOT_IMPLEMENTED, STATUS_SUCCESS};
+
 use crate::{emu32, emu64};
 
 const CODE: u64 = 0x400000;

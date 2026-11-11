@@ -1,20 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetCachedSigningLevel(emu: &mut emu::Emu) {
-    let h_file = arg(emu, 0) as u64;
-    let flags_ptr = arg(emu, 1) as u64;
-    let signing_level_ptr = arg(emu, 2) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetCachedSigningLevel h:0x{:x} flags:0x{:x} level:0x{:x}",
-        h_file,
-        flags_ptr,
-        signing_level_ptr
+        "kernel32!GetCachedSigningLevel h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if signing_level_ptr != 0 {
-        emu.maps.write_byte(signing_level_ptr, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 3);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

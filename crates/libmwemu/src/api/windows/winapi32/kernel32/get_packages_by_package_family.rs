@@ -1,22 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetPackagesByPackageFamily(emu: &mut emu::Emu) {
-    let param1 = arg(emu, 0) as u64;
-    let param2 = arg(emu, 1) as u64;
-    let param3 = arg(emu, 2) as u64;
-    let param4 = arg(emu, 3) as u64;
-
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetPackagesByPackageFamily p1:0x{:x} p2:0x{:x} p3:0x{:x} p4:0x{:x}",
-        param1,
-        param2,
-        param3,
-        param4
+        "kernel32!GetPackagesByPackageFamily h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
 }

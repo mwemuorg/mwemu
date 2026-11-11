@@ -1,6 +1,6 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptHashData(emu: &mut emu::Emu) {
     let h_hash = emu.regs().rcx;
@@ -21,5 +21,5 @@ pub fn BCryptHashData(emu: &mut emu::Emu) {
         cb_input
     );
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

@@ -1,19 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetLogicalProcessorInformation(emu: &mut emu::Emu) {
-    let buffer_ptr = arg(emu, 0) as u64;
-    let length_ptr = arg(emu, 1) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetLogicalProcessorInformation buf:0x{:x} len:0x{:x}",
-        buffer_ptr,
-        length_ptr
+        "kernel32!GetLogicalProcessorInformation h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if length_ptr != 0 {
-        emu.maps.write_dword(length_ptr, 72);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    emu.set_last_error(122);
-    stdcall_ret(emu, 2);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

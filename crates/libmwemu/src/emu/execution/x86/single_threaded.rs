@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use std::io::Write as _;
 use std::sync::atomic;
 
@@ -11,7 +12,6 @@ use crate::err::MwemuError;
 use crate::serialization;
 use crate::syscall::windows::syscall64::memory as win_syscall64_memory;
 use crate::utils::helpers::unlikely;
-use crate::windows::constants;
 
 use super::Emu;
 
@@ -69,7 +69,7 @@ impl Emu {
         };
 
         // block
-        let block = code.read_code(rip, constants::BLOCK_LEN).to_vec();
+        let block = code.read_code(rip, BLOCK_LEN).to_vec();
         if block.is_empty() {
             return false;
         }
@@ -118,7 +118,11 @@ impl Emu {
             }
         }
         // emulate
-        let result_ok = engine::emulate_instruction(self, &ins, sz, true);
+        let result_ok = if Self::is_rep_string_instruction(&ins) {
+            self.execute_x86_rep_fully(&ins, sz)
+        } else {
+            engine::emulate_instruction(self, &ins, sz, true)
+        };
         //tracing::trace_instruction(self, self.pos);
         self.last_instruction_size = sz;
 
@@ -135,7 +139,9 @@ impl Emu {
         }
 
         // update eip/rip
-        self.advance_pc_x86(sz);
+        if result_ok || self.force_reload {
+            self.advance_pc_x86(sz);
+        }
 
         result_ok
     }
@@ -186,8 +192,8 @@ impl Emu {
 
         let arch = if is_x64 { 64 } else { 32 };
         let mut x86_ins: Instruction = Instruction::default();
-        let mut block: Vec<u8> = Vec::with_capacity(constants::BLOCK_LEN + 1);
-        block.resize(constants::BLOCK_LEN, 0x0);
+        let mut block: Vec<u8> = Vec::with_capacity(BLOCK_LEN + 1);
+        block.resize(BLOCK_LEN, 0x0);
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
@@ -487,9 +493,9 @@ impl Emu {
                         let skip = !hook_fn(self, hook_pc, &decoded, sz);
                         self.hooks.hook_on_pre_instruction = Some(hook_fn);
                         if skip {
-                            // Check can_decode for next iteration
-                            inner_running = self.instruction_cache_can_decode();
-                            continue;
+                            self.rep = None;
+                            self.advance_pc_x86(sz);
+                            break;
                         }
                     }
 
@@ -524,7 +530,11 @@ impl Emu {
                     }
 
                     // --- x86 REP post-execution state machine ---
-                    self.update_x86_rep_state_after_execution(x86_ins);
+                    if emulation_ok {
+                        self.update_x86_rep_state_after_execution(x86_ins);
+                    } else {
+                        self.rep = None;
+                    }
 
                     // --- Post-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_post_instruction.take() {

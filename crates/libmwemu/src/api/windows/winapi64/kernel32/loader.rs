@@ -1,17 +1,17 @@
-use crate::api::windows::common::kernel32 as kernel32_common;
+use crate::api::windows::common::modules;
 use crate::emu;
 use crate::emu::loaders::pe_stub_exports::get_stub_exports;
 use crate::windows::peb::peb64;
 
 pub fn is_library_loaded(emu: &mut emu::Emu, libname: &str) -> bool {
-    let Some(dll) = kernel32_common::normalize_library_name(libname, false) else {
+    let Some(dll) = modules::normalize_library_name(libname, false) else {
         return false;
     };
     peb64::get_module_base(&dll, emu).is_some()
 }
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
-    let Some(mut dll) = kernel32_common::normalize_library_name(libname, false) else {
+    let Some(mut dll) = modules::normalize_library_name(libname, false) else {
         emu.set_last_error(0);
         emu.regs_mut().rax = 0;
         return 0;
@@ -19,8 +19,8 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
 
     // API set names are virtual contracts: loading one loads (and returns)
     // the contract's host DLL, like the Windows loader.
-    if kernel32_common::is_api_set_contract(&dll) {
-        dll = kernel32_common::api_set_hosts(&dll)[0].to_string();
+    if modules::is_api_set_contract(&dll) {
+        dll = modules::api_set_hosts(&dll)[0].to_string();
     }
 
     let dll_path = emu.cfg.get_maps_folder(&dll);
@@ -93,7 +93,7 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
 }
 
 pub fn get_library_handle(emu: &mut emu::Emu, libname: &str) -> u64 {
-    let Some(dll) = kernel32_common::normalize_library_name(libname, false) else {
+    let Some(dll) = modules::normalize_library_name(libname, false) else {
         emu.regs_mut().rax = 0;
         return 0;
     };

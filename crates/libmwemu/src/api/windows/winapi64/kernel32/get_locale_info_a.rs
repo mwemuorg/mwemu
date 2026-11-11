@@ -1,4 +1,5 @@
-use crate::{emu, windows::constants};
+use crate::emu;
+use crate::windows::constants::errors::*;
 
 pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
     let locale = emu.regs().rcx as usize;
@@ -24,7 +25,7 @@ pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
             cch_data,
             required_size
         );
-        emu.set_last_error(constants::ERROR_INSUFFICIENT_BUFFER);
+        emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
         emu.regs_mut().rax = 0;
         return;
     }

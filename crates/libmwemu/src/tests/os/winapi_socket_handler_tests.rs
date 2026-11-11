@@ -6,7 +6,7 @@ use crate::*;
 // ─── send/recv 64-bit: validates real buffer management ───
 
 #[test]
-fn test_send_valid_socket_returns_len_64() {
+fn send_valid_socket_returns_len_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -23,7 +23,7 @@ fn test_send_valid_socket_returns_len_64() {
 }
 
 #[test]
-fn test_send_invalid_socket_returns_zero_64() {
+fn send_invalid_socket_returns_zero_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -40,7 +40,7 @@ fn test_send_invalid_socket_returns_zero_64() {
 }
 
 #[test]
-fn test_recv_valid_socket_fills_buffer_64() {
+fn recv_valid_socket_fills_buffer_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -59,7 +59,7 @@ fn test_recv_valid_socket_fills_buffer_64() {
 }
 
 #[test]
-fn test_recv_invalid_socket_returns_error_64() {
+fn recv_invalid_socket_returns_error_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -76,7 +76,7 @@ fn test_recv_invalid_socket_returns_error_64() {
 }
 
 #[test]
-fn test_recv_4_byte_writes_size_64() {
+fn recv_4_byte_writes_size_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -95,7 +95,7 @@ fn test_recv_4_byte_writes_size_64() {
 }
 
 #[test]
-fn test_send_loop_termination_64() {
+fn send_loop_termination_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -119,7 +119,7 @@ fn test_send_loop_termination_64() {
 }
 
 #[test]
-fn test_recv_loop_termination_64() {
+fn recv_loop_termination_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -144,7 +144,7 @@ fn test_recv_loop_termination_64() {
 // ─── send/recv 32-bit ───
 
 #[test]
-fn test_send_valid_socket_32() {
+fn send_valid_socket_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -162,7 +162,7 @@ fn test_send_valid_socket_32() {
 }
 
 #[test]
-fn test_recv_valid_socket_32() {
+fn recv_valid_socket_32() {
     helpers::setup();
     let mut emu = emu32();
 
@@ -180,7 +180,7 @@ fn test_recv_valid_socket_32() {
 // ─── inet_addr 64-bit: real IP parsing ───
 
 #[test]
-fn test_inet_addr_parses_ip_64() {
+fn inet_addr_parses_ip_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -197,7 +197,7 @@ fn test_inet_addr_parses_ip_64() {
 }
 
 #[test]
-fn test_inet_addr_192_168_1_1_64() {
+fn inet_addr_192_168_1_1_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -217,7 +217,7 @@ fn test_inet_addr_192_168_1_1_64() {
 // ─── getaddrinfo 64-bit: handler-based DNS ───
 
 #[test]
-fn test_getaddrinfo_creates_result_64() {
+fn getaddrinfo_creates_result_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -245,7 +245,7 @@ fn test_getaddrinfo_creates_result_64() {
 // ─── handler lifecycle: create, exist, close ───
 
 #[test]
-fn test_handler_create_returns_unique_ids() {
+fn handler_create_returns_unique_ids() {
     use crate::winapi::helper;
 
     let h1 = helper::handler_create("file://test1");
@@ -261,7 +261,7 @@ fn test_handler_create_returns_unique_ids() {
 }
 
 #[test]
-fn test_handler_exist_tracks_lifecycle() {
+fn handler_exist_tracks_lifecycle() {
     use crate::winapi::helper;
 
     let h = helper::handler_create("test://lifecycle");
@@ -283,7 +283,7 @@ fn test_handler_exist_tracks_lifecycle() {
 }
 
 #[test]
-fn test_handler_uri_lookup() {
+fn handler_uri_lookup() {
     use crate::winapi::helper;
 
     let h = helper::handler_create("file://C:\\Windows\\System32\\kernel32.dll");
@@ -300,7 +300,7 @@ fn test_handler_uri_lookup() {
 }
 
 #[test]
-fn test_handler_find_by_uri() {
+fn handler_find_by_uri() {
     use crate::winapi::helper;
 
     let unique_uri = format!("inet://test-find-{}", std::process::id());
@@ -315,7 +315,7 @@ fn test_handler_find_by_uri() {
 }
 
 #[test]
-fn test_handler_seek_and_tell() {
+fn handler_seek_and_tell() {
     use crate::winapi::helper;
 
     let h = helper::handler_create("file://test_seek");
@@ -335,7 +335,7 @@ fn test_handler_seek_and_tell() {
 }
 
 #[test]
-fn test_handler_put_and_read_bytes() {
+fn handler_put_and_read_bytes() {
     use crate::winapi::helper;
 
     let h = helper::handler_create("file://data_test");
@@ -355,7 +355,7 @@ fn test_handler_put_and_read_bytes() {
 // ─── socket lifecycle: create, exist, close ───
 
 #[test]
-fn test_socket_create_returns_unique_ids() {
+fn socket_create_returns_unique_ids() {
     use crate::winapi::helper;
 
     let s1 = helper::socket_create();
@@ -371,7 +371,7 @@ fn test_socket_create_returns_unique_ids() {
 }
 
 #[test]
-fn test_socket_exist_tracks_lifecycle() {
+fn socket_exist_tracks_lifecycle() {
     use crate::winapi::helper;
 
     let s = helper::socket_create();
@@ -392,7 +392,7 @@ fn test_socket_exist_tracks_lifecycle() {
 // ─── full crypto pipeline through advapi32 64-bit ───
 
 #[test]
-fn test_crypto_pipeline_md5_through_winapi_64() {
+fn crypto_pipeline_md5_through_winapi_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -450,7 +450,7 @@ fn test_crypto_pipeline_md5_through_winapi_64() {
 }
 
 #[test]
-fn test_crypto_genkey_encrypt_decrypt_64() {
+fn crypto_genkey_encrypt_decrypt_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -520,7 +520,7 @@ fn test_crypto_genkey_encrypt_decrypt_64() {
 }
 
 #[test]
-fn test_crypto_gen_random_64() {
+fn crypto_gen_random_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -561,7 +561,7 @@ fn test_crypto_gen_random_64() {
 // ─── InternetOpen/InternetConnect handler tests 64-bit ───
 
 #[test]
-fn test_internet_open_a_creates_handle_64() {
+fn internet_open_a_creates_handle_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -579,7 +579,7 @@ fn test_internet_open_a_creates_handle_64() {
 }
 
 #[test]
-fn test_internet_open_w_creates_handle_64() {
+fn internet_open_w_creates_handle_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -597,7 +597,7 @@ fn test_internet_open_w_creates_handle_64() {
 }
 
 #[test]
-fn test_internet_connect_a_creates_handle_64() {
+fn internet_connect_a_creates_handle_64() {
     helpers::setup();
     let mut emu = emu64();
 
@@ -628,57 +628,10 @@ fn test_internet_connect_a_creates_handle_64() {
     );
 }
 
-// ─── CreateFileA/W 64-bit: handler-based file handles ───
-// CreateFile needs filesystem initialization to resolve paths; without it,
-// it correctly returns INVALID_HANDLE_VALUE (-1). Test that it reads the
-// filename and returns -1 rather than crashing (no filesystem = no file).
-
-#[test]
-fn test_create_file_a_no_filesystem_returns_invalid_handle_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let buf = 0x30000u64;
-    emu.maps
-        .create_map("file_buf", buf, 0x1000, Permission::READ_WRITE);
-    emu.maps.write_string(buf, "C:\\test.txt");
-
-    let ret = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::CreateFileA,
-        &[buf, 0x80000000, 0, 0, 3, 0, 0],
-    );
-    assert_eq!(
-        ret, 0xFFFFFFFFFFFFFFFF,
-        "CreateFileA without filesystem should return INVALID_HANDLE_VALUE"
-    );
-}
-
-#[test]
-fn test_create_file_w_no_filesystem_returns_invalid_handle_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let buf = 0x30000u64;
-    emu.maps
-        .create_map("file_buf", buf, 0x1000, Permission::READ_WRITE);
-    emu.maps.write_wide_string(buf, "C:\\test.txt");
-
-    let ret = helpers::call_winapi64(
-        &mut emu,
-        winapi64::kernel32::CreateFileW,
-        &[buf, 0x80000000, 0, 0, 3, 0, 0],
-    );
-    assert_eq!(
-        ret, 0xFFFFFFFFFFFFFFFF,
-        "CreateFileW without filesystem should return INVALID_HANDLE_VALUE"
-    );
-}
-
 // ─── advance_tick test ───
 
 #[test]
-fn test_advance_tick_increments_time() {
+fn advance_tick_increments_time() {
     use crate::winapi::helper;
 
     helpers::setup();

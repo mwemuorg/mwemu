@@ -1,17 +1,13 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper;
+
 pub fn LockFileEx(emu: &mut emu::Emu) {
-    let handle = arg(emu, 0) as u64;
-    let flags = arg(emu, 1);
-    let _reserved = arg(emu, 2);
-    let bytes_low = arg(emu, 3);
-    log_red!(
-        emu,
-        "kernel32!LockFileEx handle:0x{:x} bytes:{}",
-        handle,
-        bytes_low
-    );
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    log_red!(emu, "kernel32!LockFileEx 0x{:x}", arg1);
+    helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // TRUE
-    stdcall_ret(emu, 4);
+    emu.regs_mut().rax = 1;
+    for _ in 0..1u32 {
+        emu.stack_pop32(false);
+    }
 }

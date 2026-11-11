@@ -1,7 +1,7 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants::get_cryptoalgorithm_name;
+use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptGenKey(emu: &mut emu::Emu) {
     let hprov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);

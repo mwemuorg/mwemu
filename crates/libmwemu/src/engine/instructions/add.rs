@@ -1,12 +1,10 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
 
     debug_assert!(ins.op_count() == 2);
 
@@ -48,8 +46,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     };
 
-    if !emu.set_operand_value(ins, 0, res) {
-        return false;
-    }
-    true
+    emu.set_operand_value(ins, 0, res)
 }

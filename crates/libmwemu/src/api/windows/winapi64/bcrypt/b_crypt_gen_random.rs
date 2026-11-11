@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptGenRandom(emu: &mut emu::Emu) {
     let pb_buffer = emu.regs().rdx;
@@ -18,5 +18,5 @@ pub fn BCryptGenRandom(emu: &mut emu::Emu) {
         let byte = ((emu.pos.wrapping_add(i)) & 0xFF) as u8;
         emu.maps.write_byte(pb_buffer + i, byte);
     }
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

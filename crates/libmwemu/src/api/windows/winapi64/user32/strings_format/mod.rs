@@ -1,0 +1,47 @@
+use crate::emu::Emu;
+use crate::winapi::winapi64::user32;
+
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "CharLowerBuffW" => user32::CharLowerBuffW(emu),
+        "CharLowerBuffA" => user32::CharLowerBuffA(emu),
+        "CharUpperBuffW" => user32::CharUpperBuffW(emu),
+        "CharUpperBuffA" => user32::CharUpperBuffA(emu),
+        "wsprintfA" => user32::wsprintfA(emu),
+        "wsprintfW" => user32::wsprintfW(emu),
+        "LoadStringA" => user32::LoadStringA(emu),
+        "LoadStringW" => user32::LoadStringW(emu),
+        "CharLowerA" => user32::CharLowerA(emu),
+        "CharLowerW" => user32::CharLowerW(emu),
+        "CharToOemA" => user32::CharToOemA(emu),
+        "CharToOemBuffA" => user32::CharToOemBuffA(emu),
+        "CharToOemBuffW" => user32::CharToOemBuffW(emu),
+        "CharToOemW" => user32::CharToOemW(emu),
+        "CharUpperA" => user32::CharUpperA(emu),
+        "CharUpperW" => user32::CharUpperW(emu),
+        "GetKBCodePage" => user32::GetKBCodePage(emu),
+        "GetTabbedTextExtentA" => user32::GetTabbedTextExtentA(emu),
+        "GetTabbedTextExtentW" => user32::GetTabbedTextExtentW(emu),
+        "MBToWCSEx" => user32::MBToWCSEx(emu),
+        "MBToWCSExt" => user32::MBToWCSExt(emu),
+        "MB_GetString" => user32::MB_GetString(emu),
+        "OemToCharA" => user32::OemToCharA(emu),
+        "OemToCharBuffA" => user32::OemToCharBuffA(emu),
+        "OemToCharBuffW" => user32::OemToCharBuffW(emu),
+        "OemToCharW" => user32::OemToCharW(emu),
+        "TabbedTextOutA" => user32::TabbedTextOutA(emu),
+        "TabbedTextOutW" => user32::TabbedTextOutW(emu),
+        "ToAscii" => user32::ToAscii(emu),
+        "ToAsciiEx" => user32::ToAsciiEx(emu),
+        "ToUnicode" => user32::ToUnicode(emu),
+        "ToUnicodeEx" => user32::ToUnicodeEx(emu),
+        "WCSToMBEx" => user32::WCSToMBEx(emu),
+        "WINNLSEnableIME" => user32::WINNLSEnableIME(emu),
+        "WINNLSGetEnableStatus" => user32::WINNLSGetEnableStatus(emu),
+        "WINNLSGetIMEHotkey" => user32::WINNLSGetIMEHotkey(emu),
+        "wvsprintfA" => user32::wvsprintfA(emu),
+        "wvsprintfW" => user32::wvsprintfW(emu),
+        _ => return false,
+    }
+    true
+}

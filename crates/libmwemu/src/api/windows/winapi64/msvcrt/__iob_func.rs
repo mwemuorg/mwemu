@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn __iob_func(emu: &mut emu::Emu) {
     let iob_addr = allocate_memory(emu, 96).unwrap_or(0);

@@ -1,10 +1,11 @@
-// Shared helpers for VEX-encoded AVX/AVX2 instructions (not an instruction
-// handler). Most AVX vertical ops apply the same 128-bit lane operation to each
-// 128-bit half of a 256-bit operand, so these helpers factor that out.
+//! Shared operand operations for VEX-encoded AVX/AVX2 instructions.
+//! Vertical operations apply a 128-bit lane operation to each half of a 256-bit operand.
+
+use iced_x86::Instruction;
 
 use crate::arch::x86::regs::U256;
 use crate::emu::Emu;
-use iced_x86::Instruction;
+use crate::engine::instructions::fp;
 
 pub fn to_pair(v: U256) -> (u128, u128) {
     let b = v.to_little_endian();
@@ -82,26 +83,57 @@ pub fn cmp_pred_f64(x: f64, y: f64, imm: u8) -> bool {
     }
 }
 
-/// Apply `f` per f32 lane across a 128-bit value.
-pub fn fps<F: Fn(f32, f32) -> f32>(a: u128, b: u128, f: F) -> u128 {
-    let mut r = 0u128;
-    for i in 0..4 {
-        let x = f32::from_bits(((a >> (i * 32)) & 0xffffffff) as u32);
-        let y = f32::from_bits(((b >> (i * 32)) & 0xffffffff) as u32);
-        r |= (f(x, y).to_bits() as u128) << (i * 32);
-    }
-    r
+/// Apply a binary operation to each f32 lane.
+pub fn fps(a: u128, b: u128, f: impl Fn(f32, f32) -> f32) -> u128 {
+    fps_indexed(a, b, |_, x, y| f(x, y))
 }
 
-/// Apply `f` per f64 lane across a 128-bit value.
-pub fn fpd<F: Fn(f64, f64) -> f64>(a: u128, b: u128, f: F) -> u128 {
-    let mut r = 0u128;
-    for i in 0..2 {
-        let x = f64::from_bits(((a >> (i * 64)) & 0xffff_ffff_ffff_ffff) as u64);
-        let y = f64::from_bits(((b >> (i * 64)) & 0xffff_ffff_ffff_ffff) as u64);
-        r |= (f(x, y).to_bits() as u128) << (i * 64);
+fn fps_indexed(a: u128, b: u128, f: impl Fn(u32, f32, f32) -> f32) -> u128 {
+    let mut result = 0;
+    for lane in 0..u128::BITS / u32::BITS {
+        let shift = lane * u32::BITS;
+        let x = f32::from_bits((a >> shift) as u32);
+        let y = f32::from_bits((b >> shift) as u32);
+        result |= (f(lane, x, y).to_bits() as u128) << shift;
     }
-    r
+    result
+}
+
+/// Apply a binary operation to each f64 lane.
+pub fn fpd(a: u128, b: u128, f: impl Fn(f64, f64) -> f64) -> u128 {
+    fpd_indexed(a, b, |_, x, y| f(x, y))
+}
+
+fn fpd_indexed(a: u128, b: u128, f: impl Fn(u32, f64, f64) -> f64) -> u128 {
+    let mut result = 0;
+    for lane in 0..u128::BITS / u64::BITS {
+        let shift = lane * u64::BITS;
+        let x = f64::from_bits((a >> shift) as u64);
+        let y = f64::from_bits((b >> shift) as u64);
+        result |= (f(lane, x, y).to_bits() as u128) << shift;
+    }
+    result
+}
+
+pub fn addsub_ps(a: u128, b: u128) -> u128 {
+    fps_indexed(a, b, |lane, x, y| {
+        // Even lanes subtract; odd lanes add, with the same x86 NaN rules as ADDPS.
+        if lane % 2 == 0 {
+            fp::sub_f32(x, y)
+        } else {
+            fp::add_f32(x, y)
+        }
+    })
+}
+
+pub fn addsub_pd(a: u128, b: u128) -> u128 {
+    fpd_indexed(a, b, |lane, x, y| {
+        if lane % 2 == 0 {
+            fp::sub_f64(x, y)
+        } else {
+            fp::add_f64(x, y)
+        }
+    })
 }
 
 /// 3-operand VEX binary op: DEST = f(SRC1, SRC2) applied to the 128-bit form or
@@ -109,24 +141,17 @@ pub fn fpd<F: Fn(f64, f64) -> f64>(a: u128, b: u128, f: F) -> u128 {
 pub fn binop<F: Fn(u128, u128) -> u128>(emu: &mut Emu, ins: &Instruction, f: F) -> bool {
     match emu.get_operand_sz(ins, 0) {
         128 => {
-            let a = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-            let b = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
-            emu.set_operand_xmm_value_128(ins, 0, f(a, b));
+            let a = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+            let b = try_operand!(emu.get_operand_xmm_value_128(ins, 2, true));
+            emu.set_operand_xmm_value_128(ins, 0, f(a, b))
         }
         256 => {
-            let (a0, a1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 1, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            let (b0, b1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 2, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0, b0), f(a1, b1)));
+            let (a0, a1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+            let (b0, b1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 2, true)));
+            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0, b0), f(a1, b1)))
         }
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// VEX packed shift: shift each `bits`-wide lane of SRC1 (op1) by the count from
@@ -134,9 +159,9 @@ pub fn binop<F: Fn(u128, u128) -> u128>(emu: &mut Emu, ins: &Instruction, f: F) 
 /// logical, 2=right arithmetic. A count >= width produces 0 (or the sign fill).
 pub fn shift(emu: &mut Emu, ins: &Instruction, bits: u32, kind: u8) -> bool {
     let count = if emu.get_operand_sz(ins, 2) == 128 {
-        (emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0) & 0xffff_ffff_ffff_ffff) as u64
+        (try_operand!(emu.get_operand_xmm_value_128(ins, 2, true)) & 0xffff_ffff_ffff_ffff) as u64
     } else {
-        emu.get_operand_value(ins, 2, true).unwrap_or(0)
+        try_operand!(emu.get_operand_value(ins, 2, true))
     };
     let mask: u128 = if bits >= 128 {
         u128::MAX
@@ -171,19 +196,15 @@ pub fn shift(emu: &mut Emu, ins: &Instruction, bits: u32, kind: u8) -> bool {
     };
     match emu.get_operand_sz(ins, 0) {
         128 => {
-            let d = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-            emu.set_operand_xmm_value_128(ins, 0, per128(d));
+            let d = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+            emu.set_operand_xmm_value_128(ins, 0, per128(d))
         }
         256 => {
-            let (lo, hi) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 1, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            emu.set_operand_ymm_value_256(ins, 0, from_pair(per128(lo), per128(hi)));
+            let (lo, hi) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+            emu.set_operand_ymm_value_256(ins, 0, from_pair(per128(lo), per128(hi)))
         }
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// Interleave the low halves of `a` and `b` at `bits`-wide granularity.
@@ -222,25 +243,23 @@ pub fn unpack_hi(a: u128, b: u128, bits: u32) -> u128 {
 /// DEST[127:32] comes from SRC1. (For unary scalars like VSQRTSS, ignore the
 /// first argument.)
 pub fn scalar32<F: Fn(f32, f32) -> f32>(emu: &mut Emu, ins: &Instruction, f: F) -> bool {
-    let src1 = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-    let src2 = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
+    let src1 = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+    let src2 = try_operand!(emu.get_operand_xmm_value_128(ins, 2, true));
     let x = f32::from_bits(src1 as u32);
     let y = f32::from_bits(src2 as u32);
     let r = (src1 & !0xffff_ffffu128) | (f(x, y).to_bits() as u128);
-    emu.set_operand_xmm_value_128(ins, 0, r);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, r)
 }
 
 /// 3-operand VEX scalar-double op: DEST[63:0] = f(SRC1[63:0], SRC2[63:0]);
 /// DEST[127:64] comes from SRC1.
 pub fn scalar64<F: Fn(f64, f64) -> f64>(emu: &mut Emu, ins: &Instruction, f: F) -> bool {
-    let src1 = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-    let src2 = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
+    let src1 = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+    let src2 = try_operand!(emu.get_operand_xmm_value_128(ins, 2, true));
     let x = f64::from_bits(src1 as u64);
     let y = f64::from_bits(src2 as u64);
     let r = (src1 & !(0xffff_ffff_ffff_ffffu128)) | (f(x, y).to_bits() as u128);
-    emu.set_operand_xmm_value_128(ins, 0, r);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, r)
 }
 
 // FMA operand order: 0 = *132* (dest*op2 + op1), 1 = *213* (op1*dest + op2),
@@ -306,33 +325,19 @@ pub fn fma_packed(
     };
     match emu.get_operand_sz(ins, 0) {
         128 => {
-            let a = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-            let b = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-            let c = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
-            emu.set_operand_xmm_value_128(ins, 0, per128(a, b, c));
+            let a = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+            let b = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+            let c = try_operand!(emu.get_operand_xmm_value_128(ins, 2, true));
+            emu.set_operand_xmm_value_128(ins, 0, per128(a, b, c))
         }
         256 => {
-            let (a0, a1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 0, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            let (b0, b1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 1, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            let (c0, c1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 2, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            emu.set_operand_ymm_value_256(
-                ins,
-                0,
-                from_pair(per128(a0, b0, c0), per128(a1, b1, c1)),
-            );
+            let (a0, a1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 0, true)));
+            let (b0, b1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+            let (c0, c1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 2, true)));
+            emu.set_operand_ymm_value_256(ins, 0, from_pair(per128(a0, b0, c0), per128(a1, b1, c1)))
         }
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// Scalar FMA (ss/sd): low lane computed, DEST[127:low] copied from SRC1 (op1).
@@ -344,9 +349,9 @@ pub fn fma_scalar(
     neg: bool,
     sub: bool,
 ) -> bool {
-    let a = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-    let b = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-    let c = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
+    let a = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+    let b = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+    let c = try_operand!(emu.get_operand_xmm_value_128(ins, 2, true));
     let r = if dbl {
         let v = fma64(
             f64::from_bits(a as u64),
@@ -368,8 +373,7 @@ pub fn fma_scalar(
         );
         (b & !0xffff_ffffu128) | (v.to_bits() as u128)
     };
-    emu.set_operand_xmm_value_128(ins, 0, r);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, r)
 }
 
 /// VEX sign/zero extend (VPMOVSX*/VPMOVZX*): widen `sbits`-wide source lanes to
@@ -377,7 +381,7 @@ pub fn fma_scalar(
 /// lanes are produced; the source low bits supply them.
 pub fn pmovx(emu: &mut Emu, ins: &Instruction, sbits: u32, dbits: u32, sign: bool) -> bool {
     let dsz = emu.get_operand_sz(ins, 0);
-    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    let src = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
     let count = dsz / dbits;
     let smask: u128 = (1u128 << sbits) - 1;
     let dmask: u128 = if dbits >= 128 {
@@ -405,9 +409,8 @@ pub fn pmovx(emu: &mut Emu, ins: &Instruction, sbits: u32, dbits: u32, sign: boo
     match dsz {
         128 => emu.set_operand_xmm_value_128(ins, 0, lo),
         256 => emu.set_operand_ymm_value_256(ins, 0, from_pair(lo, hi)),
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// VEX broadcast: replicate the low `bits`-wide element of the source across the
@@ -419,9 +422,9 @@ pub fn broadcast(emu: &mut Emu, ins: &Instruction, bits: u32) -> bool {
         (1u128 << bits) - 1
     };
     let val = if ins.op_kind(1) == iced_x86::OpKind::Memory {
-        (emu.get_operand_value(ins, 1, true).unwrap_or(0) as u128) & mask
+        (try_operand!(emu.get_operand_value(ins, 1, true)) as u128) & mask
     } else {
-        emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) & mask
+        try_operand!(emu.get_operand_xmm_value_128(ins, 1, true)) & mask
     };
     let mut per128 = 0u128;
     let mut s = 0u32;
@@ -432,54 +435,42 @@ pub fn broadcast(emu: &mut Emu, ins: &Instruction, bits: u32) -> bool {
     match emu.get_operand_sz(ins, 0) {
         128 => emu.set_operand_xmm_value_128(ins, 0, per128),
         256 => emu.set_operand_ymm_value_256(ins, 0, from_pair(per128, per128)),
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// 4-operand VEX binary op with imm8 (op3): DEST = f(SRC1, SRC2, imm8) per half.
 pub fn binop_imm<F: Fn(u128, u128, u8) -> u128>(emu: &mut Emu, ins: &Instruction, f: F) -> bool {
-    let imm = emu.get_operand_value(ins, 3, true).unwrap_or(0) as u8;
+    let imm = try_operand!(emu.get_operand_value(ins, 3, true)) as u8;
     match emu.get_operand_sz(ins, 0) {
         128 => {
-            let a = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-            let b = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
-            emu.set_operand_xmm_value_128(ins, 0, f(a, b, imm));
+            let a = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+            let b = try_operand!(emu.get_operand_xmm_value_128(ins, 2, true));
+            emu.set_operand_xmm_value_128(ins, 0, f(a, b, imm))
         }
         256 => {
-            let (a0, a1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 1, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            let (b0, b1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 2, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0, b0, imm), f(a1, b1, imm)));
+            let (a0, a1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+            let (b0, b1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 2, true)));
+            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0, b0, imm), f(a1, b1, imm)))
         }
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// 3-operand VEX unary op with imm8 (op2): DEST = f(SRC, imm8) per half.
 pub fn unop_imm<F: Fn(u128, u8) -> u128>(emu: &mut Emu, ins: &Instruction, f: F) -> bool {
-    let imm = emu.get_operand_value(ins, 2, true).unwrap_or(0) as u8;
+    let imm = try_operand!(emu.get_operand_value(ins, 2, true)) as u8;
     match emu.get_operand_sz(ins, 0) {
         128 => {
-            let a = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-            emu.set_operand_xmm_value_128(ins, 0, f(a, imm));
+            let a = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+            emu.set_operand_xmm_value_128(ins, 0, f(a, imm))
         }
         256 => {
-            let (a0, a1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 1, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0, imm), f(a1, imm)));
+            let (a0, a1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0, imm), f(a1, imm)))
         }
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// 3-operand VEX op where DEST (op0) is also read (accumulate): DEST =
@@ -487,48 +478,34 @@ pub fn unop_imm<F: Fn(u128, u8) -> u128>(emu: &mut Emu, ins: &Instruction, f: F)
 pub fn ternop_acc<F: Fn(u128, u128, u128) -> u128>(emu: &mut Emu, ins: &Instruction, f: F) -> bool {
     match emu.get_operand_sz(ins, 0) {
         128 => {
-            let d = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-            let a = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-            let b = emu.get_operand_xmm_value_128(ins, 2, true).unwrap_or(0);
-            emu.set_operand_xmm_value_128(ins, 0, f(d, a, b));
+            let d = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+            let a = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+            let b = try_operand!(emu.get_operand_xmm_value_128(ins, 2, true));
+            emu.set_operand_xmm_value_128(ins, 0, f(d, a, b))
         }
         256 => {
-            let (d0, d1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 0, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            let (a0, a1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 1, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            let (b0, b1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 2, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(d0, a0, b0), f(d1, a1, b1)));
+            let (d0, d1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 0, true)));
+            let (a0, a1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+            let (b0, b1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 2, true)));
+            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(d0, a0, b0), f(d1, a1, b1)))
         }
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// 2-operand VEX unary op: DEST = f(SRC).
 pub fn unop<F: Fn(u128) -> u128>(emu: &mut Emu, ins: &Instruction, f: F) -> bool {
     match emu.get_operand_sz(ins, 0) {
         128 => {
-            let a = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-            emu.set_operand_xmm_value_128(ins, 0, f(a));
+            let a = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+            emu.set_operand_xmm_value_128(ins, 0, f(a))
         }
         256 => {
-            let (a0, a1) = to_pair(
-                emu.get_operand_ymm_value_256(ins, 1, true)
-                    .unwrap_or(U256::from(0)),
-            );
-            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0), f(a1)));
+            let (a0, a1) = to_pair(try_operand!(emu.get_operand_ymm_value_256(ins, 1, true)));
+            emu.set_operand_ymm_value_256(ins, 0, from_pair(f(a0), f(a1)))
         }
-        _ => return false,
+        _ => false,
     }
-    true
 }
 
 /// IEEE-754 half (f16) bit pattern -> f32 bit pattern (exact).

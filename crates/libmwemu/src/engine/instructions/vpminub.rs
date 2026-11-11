@@ -1,12 +1,10 @@
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::{color, regs64};
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
     match emu.get_operand_sz(ins, 0) {
         128 => {
@@ -34,7 +32,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 result |= min_byte << (8 * i);
             }
 
-            emu.set_operand_xmm_value_128(ins, 0, result);
+            emu.set_operand_xmm_value_128(ins, 0, result)
         }
         256 => {
             let source1 = match emu.get_operand_ymm_value_256(ins, 1, true) {
@@ -64,12 +62,11 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
             let result256: regs64::U256 = regs64::U256::from_little_endian(&result);
 
-            emu.set_operand_ymm_value_256(ins, 0, result256);
+            emu.set_operand_ymm_value_256(ins, 0, result256)
         }
         _ => {
             log::warn!("vpminub: unexpected operand size");
-            return false;
+            false
         }
     }
-    true
 }

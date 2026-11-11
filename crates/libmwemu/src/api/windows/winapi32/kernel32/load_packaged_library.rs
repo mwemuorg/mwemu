@@ -1,17 +1,17 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn LoadPackagedLibrary(emu: &mut emu::Emu) {
-    let lib_name_ptr = arg(emu, 0) as u64;
-    let reserved = arg(emu, 1) as u64;
-    let lib_name = emu.maps.read_wide_string(lib_name_ptr);
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!LoadPackagedLibrary '{}' reserved:0x{:x}",
-        lib_name,
-        reserved
+        "kernel32!LoadPackagedLibrary arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-    emu.regs_mut().rax = helper::handler_create(&format!("lib://{}", lib_name));
-    stdcall_ret(emu, 2);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

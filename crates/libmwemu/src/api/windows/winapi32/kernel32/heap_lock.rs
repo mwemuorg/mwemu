@@ -1,26 +1,13 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper;
 
 pub fn HeapLock(emu: &mut emu::Emu) {
-    let param1 = arg(emu, 0) as u64;
-    let param2 = arg(emu, 1) as u64;
-    let param3 = arg(emu, 2) as u64;
-    let param4 = arg(emu, 3) as u64;
-
-    log_red!(
-        emu,
-        "kernel32!HeapLock p1:0x{:x} p2:0x{:x} p3:0x{:x} p4:0x{:x}",
-        param1,
-        param2,
-        param3,
-        param4
-    );
-    let val_ptr = arg(emu, 1) as u64;
-    if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
-        let _val = emu.maps.read_string(val_ptr);
-    }
-
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    log_red!(emu, "kernel32!HeapLock 0x{:x}", arg1);
+    helper::advance_tick(emu, 1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
+    for _ in 0..1u32 {
+        emu.stack_pop32(false);
+    }
 }

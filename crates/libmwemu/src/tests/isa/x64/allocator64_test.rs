@@ -1,6 +1,8 @@
 use crate::tests::helpers;
 use crate::winapi::winapi64;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+
 use crate::*;
 
 #[test]
@@ -28,25 +30,20 @@ pub fn allocator64_test() {
     let p = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::VirtualAlloc,
-        &[0, 1024, constants::MEM_RESERVE as u64, 0x40],
+        &[0, 1024, MEM_RESERVE as u64, 0x40],
     );
     assert!(emu.maps.is_allocated(p));
 
     helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::VirtualAlloc,
-        &[
-            0x30000000,
-            1024,
-            (constants::MEM_RESERVE | constants::MEM_COMMIT) as u64,
-            0x40,
-        ],
+        &[0x30000000, 1024, (MEM_RESERVE | MEM_COMMIT) as u64, 0x40],
     );
 
     let committed = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::VirtualAlloc,
-        &[0x30000000, 1024, constants::MEM_COMMIT as u64, 0x40],
+        &[0x30000000, 1024, MEM_COMMIT as u64, 0x40],
     );
     assert_eq!(committed, 0x30000000);
 
@@ -64,47 +61,34 @@ fn virtual_alloc_zero_size_64() {
     let r = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::VirtualAlloc,
-        &[0, 0, constants::MEM_COMMIT as u64, 0x40],
+        &[0, 0, MEM_COMMIT as u64, 0x40],
     );
     assert_eq!(r, 0);
     assert_eq!(
         helpers::call_winapi64(&mut emu, winapi64::kernel32::GetLastError, &[]),
-        constants::ERROR_INVALID_PARAMETER
+        ERROR_INVALID_PARAMETER
     );
 
     let r = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::VirtualAllocEx,
-        &[
-            0xffff_ffff_ffff_ffff,
-            0,
-            0,
-            constants::MEM_COMMIT as u64,
-            0x40,
-        ],
+        &[0xffff_ffff_ffff_ffff, 0, 0, MEM_COMMIT as u64, 0x40],
     );
     assert_eq!(r, 0);
     assert_eq!(
         helpers::call_winapi64(&mut emu, winapi64::kernel32::GetLastError, &[]),
-        constants::ERROR_INVALID_PARAMETER
+        ERROR_INVALID_PARAMETER
     );
 
     let r = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::VirtualAllocExNuma,
-        &[
-            0xffff_ffff_ffff_ffff,
-            0,
-            0,
-            constants::MEM_COMMIT as u64,
-            0x40,
-            0,
-        ],
+        &[0xffff_ffff_ffff_ffff, 0, 0, MEM_COMMIT as u64, 0x40, 0],
     );
     assert_eq!(r, 0);
     assert_eq!(
         helpers::call_winapi64(&mut emu, winapi64::kernel32::GetLastError, &[]),
-        constants::ERROR_INVALID_PARAMETER
+        ERROR_INVALID_PARAMETER
     );
 }
 
@@ -119,11 +103,11 @@ fn virtual_alloc_commit_unmapped_64() {
     let r = helpers::call_winapi64(
         &mut emu,
         winapi64::kernel32::VirtualAlloc,
-        &[0x40000000, 0x1000, constants::MEM_COMMIT as u64, 0x40],
+        &[0x40000000, 0x1000, MEM_COMMIT as u64, 0x40],
     );
     assert_eq!(r, 0);
     assert_eq!(
         helpers::call_winapi64(&mut emu, winapi64::kernel32::GetLastError, &[]),
-        constants::ERROR_INVALID_PARAMETER
+        ERROR_INVALID_PARAMETER
     );
 }

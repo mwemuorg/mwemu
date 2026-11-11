@@ -1,24 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn IdnToNameprepUnicode(emu: &mut emu::Emu) {
-    let flags = arg(emu, 0) as u64;
-    let p_src = arg(emu, 1) as u64;
-    let src_len = arg(emu, 2) as u64 as i32;
-    let p_dest = arg(emu, 3) as u64;
-    let dest_len = arg(emu, 4) as u64 as i32;
-
-    let src = emu.maps.read_wide_string(p_src);
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!IdnToNameprepUnicode flags:0x{:x} src:'{}'",
-        flags,
-        src
+        "kernel32!IdnToNameprepUnicode arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-
-    if p_dest != 0 && dest_len > 0 {
-        emu.maps.write_wide_string(p_dest, &src);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = src.len() as u64 + 1;
-    stdcall_ret(emu, 5);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

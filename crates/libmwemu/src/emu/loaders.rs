@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use iced_x86::Register;
 
 use crate::arch::Arch;
@@ -6,7 +7,7 @@ use crate::err::MwemuError;
 use crate::loaders::macho::macho64::Macho64;
 use crate::maps::mem64::Permission;
 use crate::winapi::winapi64;
-use crate::windows::constants;
+
 use crate::windows::peb::{peb32, peb64};
 use rs_header::elf::elf32::Elf32;
 use rs_header::elf::elf64::Elf64;
@@ -168,7 +169,7 @@ impl Emu {
             } else {
                 entry_raw
             };
-            if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+            if self.cfg.entry_point != CFG_DEFAULT_BASE {
                 self.regs_mut().rip = self.cfg.entry_point;
             } else {
                 self.regs_mut().rip = resolved_entry;
@@ -493,6 +494,10 @@ impl Emu {
                     // Rip: entry point — NtContinue will redirect execution here
                     let _ = self.maps.write_qword(ctx_addr + 0xF8, ep);
 
+                    crate::windows::peb::peb64::ensure_ntdll_loader_globals(self);
+                    crate::syscall::windows::syscall64::memory::patch_ntdll_load_reason_checks(
+                        self,
+                    );
                     let _ = self.call64(ldr_init, &[ctx_addr, ntdll_base, 0]);
                     self.ldr_init_done = true;
                     if self.process_terminated {
@@ -706,10 +711,11 @@ impl Emu {
                 }
             }
 
+            let code_sz = raw.len().max(1) as u64;
             let code_map = match self.maps.create_map(
                 "code",
                 self.cfg.code_base_addr,
-                0,
+                code_sz,
                 Permission::READ_WRITE_EXECUTE,
             ) {
                 Ok(m) => m,
@@ -729,11 +735,11 @@ impl Emu {
             code.extend(0xffff); // this could overlap an existing map
         }
 
-        if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+        if self.cfg.entry_point != CFG_DEFAULT_BASE {
             self.regs_mut().rip = self.cfg.entry_point;
         }
 
-        /*if self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
+        /*if self.cfg.code_base_addr != CFG_DEFAULT_BASE {
             let code = self.maps.get_mem("code");
             code.update_base(self.cfg.code_base_addr);
             code.update_bottom(self.cfg.code_base_addr + code.size() as u64);

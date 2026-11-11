@@ -1,7 +1,7 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptDestroyKey(emu: &mut emu::Emu) {
     let h_key = emu.regs().rcx;
@@ -10,5 +10,5 @@ pub fn BCryptDestroyKey(emu: &mut emu::Emu) {
 
     crypto_state::destroy_key(h_key);
     helper::handler_close(h_key);
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

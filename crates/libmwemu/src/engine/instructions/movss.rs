@@ -27,9 +27,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         let vf32: f32 = f32::from_bits((val & 0xFFFFFFFF) as u32);
         let result: u32 = vf32.to_bits();
 
-        if !emu.set_operand_value(ins, 0, result as u64) {
-            return false;
-        }
+        emu.set_operand_value(ins, 0, result as u64)
     } else if sz0 == 128 && sz1 < 128 {
         let val = match emu.get_operand_value(ins, 1, true) {
             Some(v) => v,
@@ -40,10 +38,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         let result: u32 = value1_f32.to_bits();
         let xmm_value: u128 = result as u128;
 
-        emu.set_operand_xmm_value_128(ins, 0, xmm_value);
+        emu.set_operand_xmm_value_128(ins, 0, xmm_value)
     } else {
         log::warn!("movss: unsupported operand sizes {}x{}", sz0, sz1);
-        return false;
+        false
     }
-    true
 }

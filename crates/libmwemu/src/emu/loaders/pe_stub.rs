@@ -2,7 +2,8 @@ use crate::api::windows::export_index::{self, ModuleExportIndex};
 use crate::emu::Emu;
 use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
-use crate::windows::constants;
+use crate::windows::constants::memory::*;
+
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
 const PAGE: u32 = 0x1000;
@@ -50,11 +51,7 @@ impl Emu {
         let edata_size = align_page(edata_raw);
 
         let size_of_image = PAGE + text_size + edata_size; // headers + .text + .edata
-        let base = match self.alloc_pe_image(
-            size_of_image as u64,
-            constants::LIBS32_MIN,
-            constants::LIBS32_MAX,
-        ) {
+        let base = match self.alloc_pe_image(size_of_image as u64, LIBS32_MIN, LIBS32_MAX) {
             Some(b) => b as u32,
             None => {
                 log::error!("create_stub_pe32: out of lib32 space for {}", dll_name);
@@ -269,11 +266,7 @@ impl Emu {
         let edata_size = align_page(edata_raw);
 
         let size_of_image = PAGE + text_size + edata_size;
-        let base = match self.alloc_pe_image(
-            size_of_image as u64,
-            constants::LIBS64_MIN,
-            constants::LIBS64_MAX,
-        ) {
+        let base = match self.alloc_pe_image(size_of_image as u64, LIBS64_MIN, LIBS64_MAX) {
             Some(b) => b,
             None => {
                 log::error!("create_stub_pe64: out of lib64 space for {}", dll_name);

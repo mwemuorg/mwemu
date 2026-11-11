@@ -1,22 +1,16 @@
 use crate::emu;
 
 pub fn SetProcessWorkingSetSize(emu: &mut emu::Emu) {
-    let param1 = emu.regs().rcx;
-    let param2 = emu.regs().rdx;
-    let param3 = emu.regs().r8;
-
+    let hprocess = emu.regs().rcx;
+    let min_size = emu.regs().rdx;
+    let max_size = emu.regs().r8;
     log_red!(
         emu,
-        "kernel32!SetProcessWorkingSetSize param1:0x{:x} param2:0x{:x} param3:0x{:x}",
-        param1,
-        param2,
-        param3
+        "kernel32!SetProcessWorkingSetSize proc:0x{:x} min:0x{:x} max:0x{:x}",
+        hprocess,
+        min_size,
+        max_size
     );
-    let out_ptr = emu.regs().r8;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
-
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

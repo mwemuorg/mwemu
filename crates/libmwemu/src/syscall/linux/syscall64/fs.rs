@@ -1,25 +1,27 @@
 use crate::emu;
+use crate::syscall::linux::constants::syscalls::*;
+
 use crate::winapi::helper;
-use crate::windows::constants;
+
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
-        constants::NR64_READ => handle_syscall64_read(emu),
-        constants::NR64_PREAD64 => handle_syscall64_pread64(emu),
-        constants::NR64_WRITEV => handle_syscall64_writev(emu),
-        constants::NR64_GETDENTS64 => handle_syscall64_getdents64(emu),
-        constants::NR64_IOCTL => handle_syscall64_ioctl(emu),
-        constants::NR64_WRITE => handle_syscall64_write(emu),
-        constants::NR64_OPEN => handle_syscall64_open(emu),
-        constants::NR64_OPENAT => handle_syscall64_openat(emu),
-        constants::NR64_CLOSE => handle_syscall64_close(emu),
-        constants::NR64_EXECVE => handle_syscall64_execve(emu),
-        constants::NR64_CHDIR => handle_syscall64_chdir(emu),
-        constants::NR64_CHMOD => handle_syscall64_chmod(emu),
-        constants::NR64_LSEEK => handle_syscall64_lseek(emu),
+        NR64_READ => handle_syscall64_read(emu),
+        NR64_PREAD64 => handle_syscall64_pread64(emu),
+        NR64_WRITEV => handle_syscall64_writev(emu),
+        NR64_GETDENTS64 => handle_syscall64_getdents64(emu),
+        NR64_IOCTL => handle_syscall64_ioctl(emu),
+        NR64_WRITE => handle_syscall64_write(emu),
+        NR64_OPEN => handle_syscall64_open(emu),
+        NR64_OPENAT => handle_syscall64_openat(emu),
+        NR64_CLOSE => handle_syscall64_close(emu),
+        NR64_EXECVE => handle_syscall64_execve(emu),
+        NR64_CHDIR => handle_syscall64_chdir(emu),
+        NR64_CHMOD => handle_syscall64_chmod(emu),
+        NR64_LSEEK => handle_syscall64_lseek(emu),
         _ => return false,
     }
 
@@ -145,16 +147,18 @@ pub(super) fn handle_syscall64_writev(emu: &mut emu::Emu) {
     }
 
     let total = data.len() as u64;
-    match fd {
-        1 => {
-            let _ = std::io::stdout().write_all(&data);
-            let _ = std::io::stdout().flush();
+    if emu.cfg.console_enabled {
+        match fd {
+            1 => {
+                let _ = std::io::stdout().write_all(&data);
+                let _ = std::io::stdout().flush();
+            }
+            2 => {
+                let _ = std::io::stderr().write_all(&data);
+                let _ = std::io::stderr().flush();
+            }
+            _ => {}
         }
-        2 => {
-            let _ = std::io::stderr().write_all(&data);
-            let _ = std::io::stderr().flush();
-        }
-        _ => {}
     }
     log::trace!(
         "{}** {} syscall writev(fd:{} iovcnt:{}) ={} {}",
@@ -272,16 +276,18 @@ pub(super) fn handle_syscall64_write(emu: &mut emu::Emu) {
     for i in 0..sz {
         data.push(emu.maps.read_byte(buff + i).unwrap_or(0));
     }
-    match fd {
-        1 => {
-            let _ = std::io::stdout().write_all(&data);
-            let _ = std::io::stdout().flush();
+    if emu.cfg.console_enabled {
+        match fd {
+            1 => {
+                let _ = std::io::stdout().write_all(&data);
+                let _ = std::io::stdout().flush();
+            }
+            2 => {
+                let _ = std::io::stderr().write_all(&data);
+                let _ = std::io::stderr().flush();
+            }
+            _ => {}
         }
-        2 => {
-            let _ = std::io::stderr().write_all(&data);
-            let _ = std::io::stderr().flush();
-        }
-        _ => {}
     }
     log::trace!(
         "{}** {} syscall write(fd:{} buf:0x{:x} sz:{}) {}",

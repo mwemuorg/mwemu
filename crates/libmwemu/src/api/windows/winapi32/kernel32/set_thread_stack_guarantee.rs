@@ -1,28 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn SetThreadStackGuarantee(emu: &mut emu::Emu) {
-    let stack_size_ptr = arg(emu, 0) as u64;
-
-    let requested = if stack_size_ptr != 0 {
-        emu.maps.read_dword(stack_size_ptr).unwrap_or(0)
-    } else {
-        0
-    };
-
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!SetThreadStackGuarantee ptr:0x{:x} requested:{}",
-        stack_size_ptr,
-        requested
+        "kernel32!SetThreadStackGuarantee h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-
-    // Write back the current guarantee (simulate a reasonable default)
-    if stack_size_ptr != 0 {
-        emu.maps.write_dword(stack_size_ptr, 0x1000); // 4KB default
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
 }

@@ -1,10 +1,10 @@
+use crate::windows::constants::memory::*;
 use iced_x86::{Decoder, DecoderOptions};
 
 use crate::debug::console::Console;
 use crate::emu::Emu;
 use crate::engine;
 use crate::err::MwemuError;
-use crate::windows::constants;
 
 use super::assert_x86_arch;
 
@@ -53,7 +53,7 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
         }
     };
 
-    let block_slice = code.read_code(pc, constants::BLOCK_LEN);
+    let block_slice = code.read_code(pc, BLOCK_LEN);
     if block_slice.len() != block.len() {
         block.resize(block_slice.len(), 0);
     }
@@ -83,7 +83,7 @@ impl Emu {
             }
             let end = addr.saturating_add(len);
             let cache = self.x86_instruction_cache();
-            cache.invalidate_range(addr, len, constants::BLOCK_LEN as u64);
+            cache.invalidate_range(addr, len, BLOCK_LEN as u64);
             if cache.pending_x86_overlaps(addr, end) {
                 refetch = true;
             }
@@ -121,7 +121,7 @@ pub(crate) fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
 
     emu.memory_operations.clear();
 
-    let block = code.read_code(pc, constants::BLOCK_LEN).to_vec();
+    let block = code.read_code(pc, BLOCK_LEN).to_vec();
     if block.is_empty() {
         return (0, false);
     }

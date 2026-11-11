@@ -1,8 +1,7 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants::get_crypto_key_len;
-use crate::windows::constants::get_cryptoalgorithm_name;
+use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptDeriveKey(emu: &mut emu::Emu) {
     let _hprov = emu.regs().rcx;

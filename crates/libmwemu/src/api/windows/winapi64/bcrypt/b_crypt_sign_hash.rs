@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub fn BCryptSignHash(emu: &mut emu::Emu) {
     let _h_key = emu.regs().rcx;
@@ -40,5 +40,5 @@ pub fn BCryptSignHash(emu: &mut emu::Emu) {
         emu.maps.write_dword(pcb_result, out_len as u32);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

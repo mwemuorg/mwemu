@@ -1,10 +1,12 @@
+use goblin::pe::section_table::{IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE};
+
 use crate::api::windows::export_index::{ModuleExportIndex, normalize_module_name};
 use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::maps::image::ImageRegion;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE};
-use crate::windows::constants;
+use crate::windows::constants::memory::*;
 use crate::windows::peb::{peb32, peb64};
 use crate::windows::structures::{TEB, TEB64};
 use rs_header::pe::export_index::build_image_export_index;
@@ -14,10 +16,6 @@ use rs_header::pe::pe64::PE64;
 use rs_header::pe::shared::{IMAGE_DIRECTORY_ENTRY_EXPORT, ImageDataDirectory};
 
 const INITIAL_LDR_PREVIOUS_LINK: u32 = 0x2c1950;
-
-const SECTION_EXECUTE: u32 = 0x2000_0000;
-const SECTION_READ: u32 = 0x4000_0000;
-const SECTION_WRITE: u32 = 0x8000_0000;
 
 /// Location of a successfully loaded PE image in guest memory.
 #[derive(Debug, Clone, Copy)]
@@ -86,38 +84,38 @@ impl Emu {
 
     fn pick_pe32_base(&self, pe: &PE32, span: u64, main_image: bool) -> Option<u64> {
         if !main_image {
-            return self.alloc_pe_image(span, constants::LIBS32_MIN, constants::LIBS32_MAX);
+            return self.alloc_pe_image(span, LIBS32_MIN, LIBS32_MAX);
         }
         let preferred = pe.opt.image_base as u64;
-        if self.pe_base_available(preferred, span, constants::LIBS32_MIN) {
+        if self.pe_base_available(preferred, span, LIBS32_MIN) {
             Some(preferred)
         } else {
-            self.alloc_pe_image(span, constants::ALLOC32_MIN, constants::ALLOC32_MAX)
+            self.alloc_pe_image(span, ALLOC32_MIN, ALLOC32_MAX)
         }
     }
 
     fn pick_pe64_base(&self, pe: &PE64, span: u64, main_image: bool) -> Option<u64> {
         let preferred = pe.opt.image_base;
         let limit = if main_image {
-            constants::LIBS64_MIN
+            LIBS64_MIN
         } else {
-            constants::USER64_ADDRESS_LIMIT
+            USER64_ADDRESS_LIMIT
         };
         // Relocatable DLLs use the library range; preserve a fixed DLL's base.
         if (main_image || !pe.has_relocations()) && self.pe_base_available(preferred, span, limit) {
             return Some(preferred);
         }
         if main_image {
-            self.alloc_pe_image(span, constants::ALLOC64_MIN, constants::ALLOC64_MAX)
+            self.alloc_pe_image(span, ALLOC64_MIN, ALLOC64_MAX)
         } else {
-            self.alloc_pe_image(span, constants::LIBS64_MIN, constants::LIBS64_MAX)
+            self.alloc_pe_image(span, LIBS64_MIN, LIBS64_MAX)
         }
     }
 
     fn set_pe_entry_point(&mut self, base: u64, entry_rva: u32) {
         self.base = base;
         let entry = base + entry_rva as u64;
-        let actual = if self.cfg.entry_point == constants::CFG_DEFAULT_BASE {
+        let actual = if self.cfg.entry_point == CFG_DEFAULT_BASE {
             entry
         } else {
             self.cfg.entry_point
@@ -154,7 +152,7 @@ impl Emu {
             force_base
         } else if main_image
             && !is_maps
-            && self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE
+            && self.cfg.code_base_addr != CFG_DEFAULT_BASE
             && !self.cfg.emulate_winapi
         {
             self.cfg.code_base_addr as u32
@@ -253,7 +251,7 @@ impl Emu {
         let is_maps = filename.contains("windows/x86_64/") || filename.contains("windows/aarch64/");
         let base = if force_base != 0 {
             force_base
-        } else if main_image && !is_maps && self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
+        } else if main_image && !is_maps && self.cfg.code_base_addr != CFG_DEFAULT_BASE {
             self.cfg.code_base_addr
         } else {
             self.pick_pe64_base(&image, image_span, main_image)
@@ -487,9 +485,9 @@ fn image_regions<'a>(module: &str, raw: &'a [u8], layout: ImageLayout<'_>) -> Ve
         // Windows init patches .didat before calling VirtualProtect; keep the
         // existing writable approximation until image COW is implemented.
         let permission = Permission::from_flags(
-            section.characteristics & SECTION_READ != 0,
-            section.characteristics & SECTION_WRITE != 0 || original_name.trim() == ".didat",
-            section.characteristics & SECTION_EXECUTE != 0,
+            section.characteristics & IMAGE_SCN_MEM_READ != 0,
+            section.characteristics & IMAGE_SCN_MEM_WRITE != 0 || original_name.trim() == ".didat",
+            section.characteristics & IMAGE_SCN_MEM_EXECUTE != 0,
         );
         regions.push(ImageRegion {
             name,

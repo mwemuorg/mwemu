@@ -1,14 +1,10 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::{Instruction, Register};
 
-/// XLAT/XLATB: AL = [table + zero-extended AL], the table base being BX, EBX
-/// or RBX depending on the address size.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
 
     let table = match ins.memory_base() {
         Register::BX => emu.regs().get_bx(),

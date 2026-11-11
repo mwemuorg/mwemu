@@ -1,5 +1,4 @@
-use crate::windows::constants;
-
+use crate::windows::constants::errors::*;
 #[derive(Clone, Copy, Debug)]
 pub enum ExceptionType {
     Int3,                      // int 3 breakpoint
@@ -51,41 +50,41 @@ impl std::fmt::Display for ExceptionType {
 
 pub fn exception_type_code(ex_type: ExceptionType) -> u32 {
     match ex_type {
-        ExceptionType::Int3 => constants::STATUS_BREAKPOINT,
-        ExceptionType::Div0 => constants::STATUS_INTEGER_DIVIDE_BY_ZERO,
-        ExceptionType::SignChangeOnDivision => constants::STATUS_INTEGER_OVERFLOW,
-        ExceptionType::PopfCannotReadStack => constants::STATUS_POPF_CANNOT_READ_STACK,
-        ExceptionType::WritingWord => constants::STATUS_WRITING_WORD,
-        ExceptionType::SettingRipToNonMappedAddr => constants::STATUS_READING_RIP,
-        ExceptionType::QWordDereferencing => constants::STATUS_QWORD_DEREFERENCING,
-        ExceptionType::DWordDereferencing => constants::STATUS_DWORD_DEREFERENCING,
-        ExceptionType::WordDereferencing => constants::STATUS_WORD_DEREFERENCING,
-        ExceptionType::ByteDereferencing => constants::STATUS_BYTE_DEREFERENCING,
-        ExceptionType::BadAddressDereferencing => constants::STATUS_BAD_ADDRESS_DEREFERENCING,
-        ExceptionType::SettingXmmOperand => constants::STATUS_SETTING_XMM_OPERAND,
-        ExceptionType::ReadingXmmOperand => constants::STATUS_READING_XMM_OPERAND,
-        ExceptionType::HeapNoMemory => constants::STATUS_NO_MEMORY as u32,
-        ExceptionType::IllegalInstruction => constants::STATUS_ILLEGAL_INSTRUCTION,
+        ExceptionType::Int3 => STATUS_BREAKPOINT,
+        ExceptionType::Div0 => STATUS_INTEGER_DIVIDE_BY_ZERO,
+        ExceptionType::SignChangeOnDivision => STATUS_INTEGER_OVERFLOW,
+        ExceptionType::PopfCannotReadStack => STATUS_POPF_CANNOT_READ_STACK,
+        ExceptionType::WritingWord => STATUS_WRITING_WORD,
+        ExceptionType::SettingRipToNonMappedAddr => STATUS_READING_RIP,
+        ExceptionType::QWordDereferencing => STATUS_QWORD_DEREFERENCING,
+        ExceptionType::DWordDereferencing => STATUS_DWORD_DEREFERENCING,
+        ExceptionType::WordDereferencing => STATUS_WORD_DEREFERENCING,
+        ExceptionType::ByteDereferencing => STATUS_BYTE_DEREFERENCING,
+        ExceptionType::BadAddressDereferencing => STATUS_BAD_ADDRESS_DEREFERENCING,
+        ExceptionType::SettingXmmOperand => STATUS_SETTING_XMM_OPERAND,
+        ExceptionType::ReadingXmmOperand => STATUS_READING_XMM_OPERAND,
+        ExceptionType::HeapNoMemory => STATUS_NO_MEMORY as u32,
+        ExceptionType::IllegalInstruction => STATUS_ILLEGAL_INSTRUCTION,
     }
 }
 
 pub fn exception_type_from_code(code: u32) -> ExceptionType {
     match code {
-        constants::STATUS_BREAKPOINT => ExceptionType::Int3,
-        constants::STATUS_INTEGER_DIVIDE_BY_ZERO => ExceptionType::Div0,
-        constants::STATUS_INTEGER_OVERFLOW => ExceptionType::SignChangeOnDivision,
-        constants::STATUS_POPF_CANNOT_READ_STACK => ExceptionType::PopfCannotReadStack,
-        constants::STATUS_WRITING_WORD => ExceptionType::WritingWord,
-        constants::STATUS_READING_RIP => ExceptionType::SettingRipToNonMappedAddr,
-        constants::STATUS_QWORD_DEREFERENCING => ExceptionType::QWordDereferencing,
-        constants::STATUS_DWORD_DEREFERENCING => ExceptionType::DWordDereferencing,
-        constants::STATUS_WORD_DEREFERENCING => ExceptionType::WordDereferencing,
-        constants::STATUS_BYTE_DEREFERENCING => ExceptionType::ByteDereferencing,
-        constants::STATUS_BAD_ADDRESS_DEREFERENCING => ExceptionType::BadAddressDereferencing,
-        constants::STATUS_SETTING_XMM_OPERAND => ExceptionType::SettingXmmOperand,
-        constants::STATUS_READING_XMM_OPERAND => ExceptionType::ReadingXmmOperand,
-        x if x == constants::STATUS_NO_MEMORY as u32 => ExceptionType::HeapNoMemory,
-        constants::STATUS_ILLEGAL_INSTRUCTION => ExceptionType::IllegalInstruction,
+        STATUS_BREAKPOINT => ExceptionType::Int3,
+        STATUS_INTEGER_DIVIDE_BY_ZERO => ExceptionType::Div0,
+        STATUS_INTEGER_OVERFLOW => ExceptionType::SignChangeOnDivision,
+        STATUS_POPF_CANNOT_READ_STACK => ExceptionType::PopfCannotReadStack,
+        STATUS_WRITING_WORD => ExceptionType::WritingWord,
+        STATUS_READING_RIP => ExceptionType::SettingRipToNonMappedAddr,
+        STATUS_QWORD_DEREFERENCING => ExceptionType::QWordDereferencing,
+        STATUS_DWORD_DEREFERENCING => ExceptionType::DWordDereferencing,
+        STATUS_WORD_DEREFERENCING => ExceptionType::WordDereferencing,
+        STATUS_BYTE_DEREFERENCING => ExceptionType::ByteDereferencing,
+        STATUS_BAD_ADDRESS_DEREFERENCING => ExceptionType::BadAddressDereferencing,
+        STATUS_SETTING_XMM_OPERAND => ExceptionType::SettingXmmOperand,
+        STATUS_READING_XMM_OPERAND => ExceptionType::ReadingXmmOperand,
+        x if x == STATUS_NO_MEMORY as u32 => ExceptionType::HeapNoMemory,
+        STATUS_ILLEGAL_INSTRUCTION => ExceptionType::IllegalInstruction,
         _ => ExceptionType::BadAddressDereferencing,
     }
 }

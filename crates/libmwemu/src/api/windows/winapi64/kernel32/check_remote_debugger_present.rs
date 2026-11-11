@@ -1,6 +1,7 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::process::*;
 
 pub fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
     let process = emu.regs().rcx;
@@ -14,16 +15,15 @@ pub fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
     );
 
     if process == 0 || present_ptr == 0 {
-        emu.set_last_error(constants::ERROR_INVALID_PARAMETER);
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
         emu.regs_mut().rax = 0;
         return;
     }
 
-    let valid = process == constants::CURRENT_PROCESS_HANDLE
-        || process == u64::MAX
-        || helper::handler_exist(process);
+    let valid =
+        process == CURRENT_PROCESS_HANDLE || process == u64::MAX || helper::handler_exist(process);
     if !valid {
-        emu.set_last_error(constants::ERROR_INVALID_HANDLE);
+        emu.set_last_error(ERROR_INVALID_HANDLE);
         emu.regs_mut().rax = 0;
         return;
     }

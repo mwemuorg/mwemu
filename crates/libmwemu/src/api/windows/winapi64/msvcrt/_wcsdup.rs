@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _wcsdup(emu: &mut emu::Emu) {
     let src_ptr = emu.regs().rcx;

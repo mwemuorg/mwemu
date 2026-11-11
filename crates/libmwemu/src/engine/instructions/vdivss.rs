@@ -1,14 +1,11 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::engine::instructions::avx;
 use crate::engine::instructions::fp;
 use iced_x86::Instruction;
 
-// VDIVSS: VEX scalar/vertical float op.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
     avx::scalar32(emu, ins, fp::div_f32)
 }

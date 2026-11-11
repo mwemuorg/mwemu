@@ -1,9 +1,0 @@
-use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::stdcall_ret;
-
-pub fn FindFirstChangeNotificationA(emu: &mut emu::Emu) {
-    log_red!(emu, "kernel32!FindFirstChangeNotificationA");
-    emu.regs_mut().rax = helper::handler_create("FindFirstChangeNotificationA");
-    stdcall_ret(emu, 1);
-}

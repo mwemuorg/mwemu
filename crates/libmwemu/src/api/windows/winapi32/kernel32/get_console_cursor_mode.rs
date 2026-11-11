@@ -1,23 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub fn GetConsoleCursorMode(emu: &mut emu::Emu) {
-    let h_console = arg(emu, 0) as u64;
-    let mode_ptr = arg(emu, 1) as u64;
-    let visible_ptr = arg(emu, 2) as u64;
+    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!GetConsoleCursorMode h:0x{:x} mode:0x{:x} vis:0x{:x}",
-        h_console,
-        mode_ptr,
-        visible_ptr
+        "kernel32!GetConsoleCursorMode h:0x{:x} arg2:0x{:x}",
+        handle,
+        arg2
     );
-    if mode_ptr != 0 {
-        emu.maps.write_dword(mode_ptr, 0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    if visible_ptr != 0 {
-        emu.maps.write_dword(visible_ptr, 1);
-    }
+    emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
 }

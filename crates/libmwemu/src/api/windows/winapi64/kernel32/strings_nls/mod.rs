@@ -1,6 +1,9 @@
-#[path = "../compare_string_w.rs"]
-mod compare_string_w;
-pub use compare_string_w::*;
+use crate::emu::Emu;
+use crate::winapi::winapi64::kernel32;
+
+#[path = "../compare_string.rs"]
+mod compare_string;
+pub use compare_string::*;
 
 #[path = "../find_act_ctx_section_string_w.rs"]
 mod find_act_ctx_section_string_w;
@@ -57,3 +60,46 @@ pub use format_message_a::*;
 #[path = "../format_message_w.rs"]
 mod format_message_w;
 pub use format_message_w::*;
+
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "GetACP" => kernel32::GetACP(emu),
+        "GetCPInfo" => kernel32::GetCPInfo(emu),
+        "GetLocaleInfoA" => kernel32::GetLocaleInfoA(emu),
+        "GetLocaleInfoW" => kernel32::GetLocaleInfoW(emu),
+        "GetStringTypeW" => kernel32::GetStringTypeW(emu),
+        "GetUserDefaultLangId" => kernel32::GetUserDefaultLangId(emu),
+        "GetUserDefaultLCID" => kernel32::GetUserDefaultLCID(emu),
+        "GlobalAddAtomA" => kernel32::GlobalAddAtomA(emu),
+        "IsValidCodePage" => kernel32::IsValidCodePage(emu),
+        "LCMapStringW" => kernel32::LCMapStringW(emu),
+        "lstrcatA" => kernel32::lstrcatA(emu),
+        "lstrcatW" => kernel32::lstrcatW(emu),
+        "LStrCmpI" => kernel32::LStrCmpI(emu),
+        "lstrcmpiW" => kernel32::LStrCmpIW(emu),
+        "LStrCmpIW" => kernel32::LStrCmpIW(emu),
+        "lstrcpy" => kernel32::lstrcpy(emu),
+        "lstrcpyn" => kernel32::lstrcpyn(emu),
+        "lstrcpyW" => kernel32::lstrcpyW(emu),
+        "lstrlen" => kernel32::lstrlenA(emu),
+        "lstrlenA" => kernel32::lstrlenA(emu),
+        "lstrlenW" => kernel32::lstrlenW(emu),
+        "MultiByteToWideChar" => kernel32::MultiByteToWideChar(emu),
+        "WideCharToMultiByte" => kernel32::WideCharToMultiByte(emu),
+        "lstrcmpA" => kernel32::lstrcmpA_api(emu),
+        "lstrcmpW" => kernel32::lstrcmpW_api(emu),
+        "GetStringTypeA" => kernel32::GetStringTypeA(emu),
+        "GetOEMCP" => kernel32::GetOEMCP(emu),
+        "GetUserDefaultUILanguage" => kernel32::GetUserDefaultUILanguage(emu),
+        "SetLocaleInfoA" | "SetLocaleInfoW" => kernel32::SetLocaleInfoA(emu, api),
+        "GetLocaleInfoEx" => kernel32::GetLocaleInfoEx(emu),
+        "GlobalAddAtomW" => kernel32::GlobalAddAtomW(emu),
+        "GlobalDeleteAtom" => kernel32::GlobalDeleteAtom(emu),
+        "GlobalFindAtomA" => kernel32::GlobalFindAtomA(emu),
+        "GlobalFindAtomW" => kernel32::GlobalFindAtomW(emu),
+        "GlobalGetAtomNameA" => kernel32::GlobalGetAtomNameA(emu),
+        "GlobalGetAtomNameW" => kernel32::GlobalGetAtomNameW(emu),
+        _ => return false,
+    }
+    true
+}

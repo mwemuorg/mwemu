@@ -1,6 +1,22 @@
-use crate::emu::Emu;
-use crate::winapi::common::sections;
+use crate::emu;
 
-pub fn MapViewOfFileEx(emu: &mut Emu) {
-    sections::map_view(emu, true);
+pub fn MapViewOfFileEx(emu: &mut emu::Emu) {
+    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let p3 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let p4 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let p5 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+    log_red!(
+        emu,
+        "kernel32!MapViewOfFileEx p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+        p1,
+        p2,
+        p3
+    );
+    for _ in 0..6 {
+        emu.stack_pop32(false);
+    }
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 0x100000;
 }

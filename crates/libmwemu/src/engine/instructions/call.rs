@@ -2,7 +2,8 @@ use crate::color;
 use crate::emu::Emu;
 use crate::utils::helpers::unlikely;
 use crate::winapi::{winapi32, winapi64};
-use crate::windows::constants::{LIBS64_MAX, LIBS64_MIN};
+use crate::windows::constants::memory::*;
+
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
@@ -47,17 +48,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     }
 
-    /*
-    if emu.regs_mut().rip == addr - 5 && emu.cfg.verbose >= 1 {
-        log::trace!("call next instruction, prolly call/pop");
-    }
-     */
-    //emu.stack_lvl[emu.stack_lvl_idx] -= 1;
-    /*else {
-    emu.stack_lvl.push(0);
-    emu.stack_lvl_idx += 1;
-    }*/
-
     let rip = emu.regs().rip;
     emu.call_stack_mut().push((rip, addr));
 
@@ -74,20 +64,29 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             && rip < LIBS64_MIN
             && (LIBS64_MIN..=LIBS64_MAX).contains(&addr)
             && emu.maps.is_mapped(addr);
+        let stack_before = emu.sp();
+        let pad_depth = emu.ssdt_pad_stack.len();
         if unlikely(pad_call) {
             emu.regs_mut().rsp = emu.regs().rsp.wrapping_sub(0x20);
             let expected_ra = rip + instruction_sz as u64;
             emu.ssdt_pad_stack.push(expected_ra);
         }
-        if !emu.stack_push64(emu.regs().rip + instruction_sz as u64) {
+        if !emu.push_instruction(
+            emu.regs().rip.wrapping_add(instruction_sz as u64),
+            u64::BITS,
+        ) {
+            emu.set_sp(stack_before);
+            emu.ssdt_pad_stack.truncate(pad_depth);
             return false;
         }
         emu.set_rip_with_check(addr, false)
     } else {
-        if !emu.stack_push32(emu.regs().get_eip() as u32 + instruction_sz as u32) {
+        if !emu.push_instruction(
+            emu.regs().get_eip().wrapping_add(instruction_sz as u64),
+            u32::BITS,
+        ) {
             return false;
         }
         emu.set_eip(addr, false)
     }
-    //true
 }

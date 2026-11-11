@@ -1,6 +1,7 @@
+
+use crate::windows::constants::crypto::*;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
 
 pub fn CryptCreateHash(emu: &mut emu::Emu) {
     let hprov = emu.regs().rcx;
@@ -9,7 +10,7 @@ pub fn CryptCreateHash(emu: &mut emu::Emu) {
     let flags = emu.regs().r9 as u32;
     let ptr_hash = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
 
-    let alg_name = constants::get_cryptoalgorithm_name(algid);
+    let alg_name = get_cryptoalgorithm_name(algid);
 
     log_red!(
         emu,

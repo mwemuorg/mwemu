@@ -2,6 +2,8 @@ use crate::exception;
 use crate::exception::types::ExceptionType;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
+use crate::windows::constants::errors::*;
+
 use crate::*;
 
 fn build_minimal_pe64(emu: &mut emu::Emu, pe_base: u64, handler_rva: u32) {
@@ -86,7 +88,7 @@ fn x64_pdata_seh_finds_handler() {
     assert_ne!(emu.eh_ctx(), 0);
 
     // Simulate handler returning EXCEPTION_CONTINUE_EXECUTION
-    emu.regs_mut().rax = crate::windows::constants::EXCEPTION_CONTINUE_EXECUTION64;
+    emu.regs_mut().rax = EXCEPTION_CONTINUE_EXECUTION64;
     exception::handlers::exit64(&mut emu);
 
     assert_eq!(emu.regs().rip, faulting_rip);

@@ -1,5 +1,5 @@
-use super::release;
 use crate::emu;
+use crate::winapi::winapi32::msvcrt::release;
 
 pub fn __3_YAXPAX_Z(emu: &mut emu::Emu) {
     // operator delete(void*)

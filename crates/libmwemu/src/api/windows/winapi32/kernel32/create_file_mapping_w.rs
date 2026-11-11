@@ -1,6 +1,0 @@
-use crate::emu::Emu;
-use crate::winapi::common::sections;
-
-pub fn CreateFileMappingW(emu: &mut Emu) {
-    sections::create_file_mapping(emu, true);
-}

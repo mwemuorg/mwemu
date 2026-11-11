@@ -1,13 +1,13 @@
 use crate::arch::x86::regs::U256;
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
-// VTESTPS: ZF=((a AND b) sign bits==0), CF=((NOT a AND b) sign bits==0).
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
-    emu.show_instruction(
-        color!("LightCyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("LightCyan"), &DecodedInstruction::X86(*ins));
+
+    // Only lane sign bits participate in the flag comparisons.
     let sm128: u128 = {
         let mut m = 0u128;
         let mut s = 0u32;
@@ -18,12 +18,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
         m
     };
     let (zf, cf) = if emu.get_operand_sz(ins, 0) == 256 {
-        let a = emu
-            .get_operand_ymm_value_256(ins, 0, true)
-            .unwrap_or(U256::from(0));
-        let b = emu
-            .get_operand_ymm_value_256(ins, 1, true)
-            .unwrap_or(U256::from(0));
+        let a = try_operand!(emu.get_operand_ymm_value_256(ins, 0, true));
+        let b = try_operand!(emu.get_operand_ymm_value_256(ins, 1, true));
         let sm = U256::from_little_endian(&{
             let mut x = [0u8; 32];
             x[0..16].copy_from_slice(&sm128.to_le_bytes());
@@ -32,8 +28,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
         });
         ((a & b & sm).is_zero(), (!a & b & sm).is_zero())
     } else {
-        let a = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-        let b = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+        let a = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+        let b = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
         ((a & b & sm128) == 0, (!a & b & sm128) == 0)
     };
     let f = emu.flags_mut();

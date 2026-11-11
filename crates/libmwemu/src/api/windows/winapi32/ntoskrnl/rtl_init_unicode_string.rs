@@ -1,5 +1,6 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+
 use crate::windows::structures::UnicodeString;
 
 pub(super) fn RtlInitUnicodeString(emu: &mut emu::Emu) {
@@ -50,5 +51,5 @@ pub(super) fn RtlInitUnicodeString(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

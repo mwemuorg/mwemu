@@ -1,22 +1,17 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+
 pub fn RegOpenUserClassesRoot(emu: &mut emu::Emu) {
-    let token = arg(emu, 0) as u64;
-    let _options = arg(emu, 1) as u64;
-    let sam_desired = arg(emu, 2) as u64;
-    let ph_key = arg(emu, 3) as u64;
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(
         emu,
-        "kernel32!RegOpenUserClassesRoot token:0x{:x} sam:0x{:x} phKey:0x{:x}",
-        token,
-        sam_desired,
-        ph_key
+        "kernel32!RegOpenUserClassesRoot arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-    let handle = helper::handler_create("regkey://HKCR");
-    if ph_key != 0 {
-        emu.maps.write_qword(ph_key, handle);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 4);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

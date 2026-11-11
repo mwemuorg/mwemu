@@ -1,22 +1,18 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// BMI2 SARX dest, src, count : shift src by (count & size-1); flags unaffected.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
     let sz = emu.get_operand_sz(ins, 0) as u64;
-    let src = emu.get_operand_value(ins, 1, true).unwrap_or(0);
-    let cnt = emu.get_operand_value(ins, 2, true).unwrap_or(0);
+    let src = try_operand!(emu.get_operand_value(ins, 1, true));
+    let cnt = try_operand!(emu.get_operand_value(ins, 2, true));
     let shift = cnt & (sz - 1);
     let result = match sz {
         64 => ((src as i64) >> shift) as u64,
         32 => (((src as u32) as i32) >> shift) as u32 as u64,
         _ => return false,
     };
-    emu.set_operand_value(ins, 0, result);
-    true
+    emu.set_operand_value(ins, 0, result)
 }

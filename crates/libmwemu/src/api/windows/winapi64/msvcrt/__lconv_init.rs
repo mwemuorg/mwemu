@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn __lconv_init(emu: &mut emu::Emu) {
     let addr = allocate_memory(emu, 64).unwrap_or(0);

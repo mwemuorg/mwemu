@@ -8,10 +8,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
 
-    let num: i64 = emu.regs().get_eax() as u32 as i32 as i64; // sign-extend
+    let num: i64 = emu.regs().get_eax() as u32 as i32 as i64;
     let unum: u64 = num as u64;
     emu.regs_mut().set_edx((unum & 0xffffffff00000000) >> 32);
-    // preserve upper 64-bits from getting overriden
+    // Preserve RAX's upper 32 bits.
     let rax_upper = emu.regs().rax >> 32;
     emu.regs_mut().rax = (rax_upper << 32) | (unum & 0xffffffff);
     true

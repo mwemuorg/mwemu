@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::windows::constants::network::*;
 
 pub(super) fn HttpOpenRequestA(emu: &mut emu::Emu) {
     let conn_hndl = emu.regs().rcx;
@@ -48,7 +48,7 @@ pub(super) fn HttpOpenRequestA(emu: &mut emu::Emu) {
         log::trace!("\tinvalid handle.");
     }
 
-    if flags & constants::INTERNET_FLAG_SECURE != 0 {
+    if flags & INTERNET_FLAG_SECURE != 0 {
         log::trace!("\tssl communication.");
     }
 

@@ -1,0 +1,34 @@
+use crate::emu;
+use crate::windows::constants::errors::*;
+
+pub fn LZOpenFileA(emu: &mut emu::Emu) {
+    let lpFileName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _lpReOpenBuf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _wStyle = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+
+    let lpFileName = emu.maps.read_string(lpFileName as u64);
+
+    log_red!(emu, "kernel32!LZOpenFileA {}", lpFileName);
+
+    emu.regs_mut().rax = ERROR_SUCCESS;
+
+    for _ in 0..3 {
+        emu.stack_pop32(false);
+    }
+}
+
+pub fn LZOpenFileW(emu: &mut emu::Emu) {
+    let lpFileName = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _lpReOpenBuf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let _wStyle = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+
+    let lpFileName = emu.maps.read_wide_string(lpFileName as u64);
+
+    log_red!(emu, "kernel32!LZOpenFileW {}", lpFileName);
+
+    emu.regs_mut().rax = ERROR_SUCCESS;
+
+    for _ in 0..3 {
+        emu.stack_pop32(false);
+    }
+}

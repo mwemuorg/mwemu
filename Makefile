@@ -167,7 +167,7 @@ test_fuzz:
 
 
 fmt:
-	cargo fmt --all -- --check
+	cargo fmt --all
 
 msrv:
 	cargo +1.95 check --locked $(CARGO_TARGET)

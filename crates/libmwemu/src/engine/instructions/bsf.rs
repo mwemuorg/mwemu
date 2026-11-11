@@ -43,31 +43,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         emu.flags_mut().f_cf = false;
     }
 
-    /*
-    if src == 0 {
-        emu.flags_mut().f_zf = true;
-        if emu.cfg.verbose >= 1 {
-            log::trace!("/!\\ bsf src == 0 is undefined behavior");
-        }
-    } else {
-        let sz = emu.get_operand_sz(&ins, 0);
-        let mut bitpos: u8 = 0;
-        let mut dest: u64 = 0;
-
-        while bitpos < sz && get_bit!(src, bitpos) == 0 {
-            dest += 1;
-            bitpos += 1;
-        }
-
-        if dest == 0 {
-            emu.flags_mut().f_zf = true;
-        } else {
-            emu.flags_mut().f_zf = false;
-        }
-
-        if !emu.set_operand_value(&ins, 0, dest) {
-            return false;
-        }
-    }*/
     true
 }

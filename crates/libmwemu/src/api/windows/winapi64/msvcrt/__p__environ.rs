@@ -1,5 +1,5 @@
-use super::allocate_memory;
 use crate::emu;
+use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn __p__environ(emu: &mut emu::Emu) {
     let env_addr = allocate_memory(emu, 16).unwrap_or(0);

@@ -1,8 +1,10 @@
+use crate::syscall::linux::constants::elf::*;
+use crate::windows::constants::memory::*;
 use std::collections::HashMap;
 use std::path::Path;
 
 use crate::emu::Emu;
-use crate::windows::constants;
+
 use rs_header::elf::ElfError;
 use rs_header::elf::elf64::Elf64;
 
@@ -91,7 +93,7 @@ impl Emu {
         // `.text` section). Fall back to the first executable PT_LOAD segment.
         if text_addr == 0 {
             for phdr in &elf64.elf_phdr {
-                if phdr.p_type == constants::PT_LOAD && (phdr.p_flags & 1) != 0 {
+                if phdr.p_type == PT_LOAD && (phdr.p_flags & 1) != 0 {
                     text_addr = elf64.rebase_vaddr(phdr.p_vaddr);
                     break;
                 }
@@ -106,7 +108,7 @@ impl Emu {
         }
 
         // entry point logic:
-        if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+        if self.cfg.entry_point != CFG_DEFAULT_BASE {
             log::trace!("forcing entry point to 0x{:x}", self.cfg.entry_point);
             self.set_pc(self.cfg.entry_point);
         } else {
@@ -166,13 +168,7 @@ impl Emu {
             };
 
             let map_name = lib.rsplit('/').next().unwrap_or(lib);
-            elflib.load(
-                &mut self.maps,
-                map_name,
-                true,
-                true,
-                constants::CFG_DEFAULT_BASE,
-            );
+            elflib.load(&mut self.maps, map_name, true, true, CFG_DEFAULT_BASE);
 
             for (sym, addr) in elflib.exported_symbols() {
                 export_map.entry(sym.clone()).or_insert(addr);
@@ -320,13 +316,7 @@ impl Emu {
             }
         };
         ld.segment_mode = true;
-        ld.load(
-            &mut self.maps,
-            "ld-linux",
-            true,
-            true,
-            constants::CFG_DEFAULT_BASE,
-        );
+        ld.load(&mut self.maps, "ld-linux", true, true, CFG_DEFAULT_BASE);
 
         let ld_base = ld.base;
         let ld_entry = ld.rebase_vaddr(ld.elf_hdr.e_entry);

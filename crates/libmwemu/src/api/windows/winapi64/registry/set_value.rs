@@ -6,8 +6,7 @@ use super::stack_arg;
 use crate::emu;
 use crate::winapi::registry_store as store;
 use crate::winapi::registry_store::Value;
-use crate::windows::constants::ERROR_INVALID_PARAMETER;
-use crate::windows::constants::ERROR_SUCCESS;
+use crate::windows::constants::errors::*;
 
 pub(super) fn set_value(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;

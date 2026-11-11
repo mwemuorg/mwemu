@@ -1,5 +1,5 @@
-use super::read_guid_string;
 use crate::emu;
+use crate::winapi::winapi64::ole32::read_guid_string;
 
 pub fn CoCreateGuid(emu: &mut emu::Emu) {
     let pguid = emu.regs().rcx;

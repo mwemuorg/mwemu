@@ -13,7 +13,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         None => return false,
     };
 
-    //log::trace!("{} {}", value, value as f32);
     emu.fpu_mut().set_st(0, value as f64);
     true
 }

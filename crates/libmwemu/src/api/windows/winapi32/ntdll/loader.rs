@@ -1,7 +1,7 @@
 use crate::api::windows::winapi32;
 use crate::emu;
 use crate::winapi::winapi32::{arg, stdcall_ret};
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -25,7 +25,7 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
         emu.maps.write_dword(libaddr_ptr, base as u32);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn LdrLoadDll_gul(emu: &mut emu::Emu) {

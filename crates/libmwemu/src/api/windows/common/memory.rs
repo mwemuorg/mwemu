@@ -7,31 +7,12 @@ use crate::maps::virtual_memory::{
 use crate::winapi::common::virtual_protect;
 use crate::winapi::common::{nt_api, sections, trace};
 use crate::winapi::helper::WinApiAbi;
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::*;
 
 const PAGE_MASK: u32 = 0xff;
 const PAGE_MODIFIERS: u32 = 0x4000_0700;
-const MEM_COMMIT: u32 = 0x1000;
-const MEM_RESERVE: u32 = 0x2000;
-const MEM_DECOMMIT: u32 = 0x4000;
-const MEM_RELEASE: u32 = 0x8000;
-const MEM_TOP_DOWN: u32 = 0x100000;
-const MEM_FREE: u32 = 0x10000;
-const MEM_PRIVATE: u32 = 0x20000;
-const MEM_MAPPED: u32 = 0x40000;
-const MEM_IMAGE: u32 = 0x1000000;
-const STATUS_PARTIAL_COPY: u64 = 0x8000000d;
-const STATUS_INVALID_PARAMETER: u64 = 0xc000000d;
-const STATUS_ACCESS_VIOLATION: u64 = 0xc0000005;
-const STATUS_INVALID_HANDLE: u64 = 0xc0000008;
-const STATUS_INFO_LENGTH_MISMATCH: u64 = 0xc0000004;
-const STATUS_INVALID_PAGE_PROTECTION: u64 = 0xc0000045;
-const STATUS_NOT_IMPLEMENTED: u64 = 0xc0000002;
-const ERROR_INVALID_PARAMETER: u64 = 87;
-const ERROR_INVALID_ADDRESS: u64 = 487;
-const ERROR_NOACCESS: u64 = 998;
-const ERROR_INVALID_HANDLE: u64 = 6;
-const ERROR_PARTIAL_COPY: u64 = 299;
 
 #[derive(Clone, Copy)]
 pub(crate) enum Call {
@@ -91,7 +72,7 @@ pub(crate) fn writable_pointer(emu: &Emu, addr: u64) -> bool {
 }
 
 pub(crate) fn current_process(handle: u64) -> bool {
-    handle == u32::MAX as u64 || handle == u64::MAX
+    handle == NT_CURRENT_PROCESS as u32 as u64 || handle == NT_CURRENT_PROCESS
 }
 
 pub(crate) fn permissions(protection: u32) -> Option<Permission> {
@@ -99,35 +80,38 @@ pub(crate) fn permissions(protection: u32) -> Option<Permission> {
     if !base.is_power_of_two() || protection & !(PAGE_MASK | PAGE_MODIFIERS) != 0 {
         return None;
     }
-    let execute = base >= 0x10;
-    let read = base != 0x01 && base != 0x10;
-    let write = matches!(base, 0x04 | 0x08 | 0x40 | 0x80);
+    let execute = base >= PAGE_EXECUTE;
+    let read = base != PAGE_NOACCESS && base != PAGE_EXECUTE;
+    let write = matches!(
+        base,
+        PAGE_READWRITE | PAGE_WRITECOPY | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY
+    );
     Some(Permission::from_flags(read, write, execute))
 }
 
 fn status(error: MemoryError) -> u64 {
     match error {
         MemoryError::InvalidParameter => STATUS_INVALID_PARAMETER,
-        MemoryError::Conflict => 0xc0000018,
-        MemoryError::Unmapped => 0xc0000141,
-        MemoryError::NotCommitted => 0xc000002d,
-        MemoryError::NoMemory => 0xc0000017,
+        MemoryError::Conflict => STATUS_CONFLICTING_ADDRESSES,
+        MemoryError::Unmapped => STATUS_INVALID_ADDRESS,
+        MemoryError::NotCommitted => STATUS_NOT_COMMITTED,
+        MemoryError::NoMemory => STATUS_NO_MEMORY,
     }
 }
 
 fn win32_error(error: MemoryError) -> u64 {
     match error {
         MemoryError::InvalidParameter => ERROR_INVALID_PARAMETER,
-        MemoryError::NoMemory => 8,
+        MemoryError::NoMemory => ERROR_NOT_ENOUGH_MEMORY,
         _ => ERROR_INVALID_ADDRESS,
     }
 }
 
 fn address_limit(emu: &Emu) -> u64 {
     if emu.cfg.arch.is_64bits() {
-        constants::USER64_ADDRESS_LIMIT
+        USER64_ADDRESS_LIMIT
     } else {
-        constants::USER32_ADDRESS_LIMIT
+        USER32_ADDRESS_LIMIT
     }
 }
 
@@ -163,7 +147,11 @@ pub(crate) fn allocate(
     }
     if !reserve {
         emu.maps
-            .commit_memory(start, length, protection, permission)?;
+            .commit_memory(start, length, protection, permission)
+            .map_err(|e| match e {
+                MemoryError::Unmapped => MemoryError::InvalidParameter,
+                other => other,
+            })?;
         return Ok((start, length));
     }
     if length > emu.maps.max_alloc_size {
@@ -171,14 +159,14 @@ pub(crate) fn allocate(
     }
     let base = if address == 0 {
         let bottom = if emu.cfg.arch.is_64bits() {
-            constants::ALLOC64_MIN
+            ALLOC64_MIN
         } else {
-            constants::ALLOC32_MIN
+            ALLOC32_MIN
         };
         let top = if emu.cfg.arch.is_64bits() {
-            constants::ALLOC64_MAX
+            ALLOC64_MAX
         } else {
-            constants::ALLOC32_MAX
+            ALLOC32_MAX
         };
         let address = if flags & MEM_TOP_DOWN != 0 {
             emu.maps
@@ -634,4 +622,27 @@ pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: Call) -> bool {
     };
     trace::invoke(emu, call, api, parameters, true, |emu| handler(emu, call));
     true
+}
+
+pub(crate) fn flush_instruction_cache(emu: &mut Emu, api: &str) {
+    let call = Call::Api;
+    let process = call.arg(emu, 0);
+    let base = call.arg(emu, 1);
+    let size = call.arg(emu, 2);
+    log_red!(
+        emu,
+        "{} process:0x{:x} base:0x{:x} size:0x{:x}",
+        api,
+        process,
+        base,
+        size
+    );
+    // The emulator has one address space. Flushing must not consume the process handle.
+    if base == 0 {
+        emu.instruction_cache().invalidate_all();
+    } else {
+        emu.instruction_cache()
+            .invalidate_range(base, size, BLOCK_LEN as u64);
+    }
+    call.finish(emu, 1, 3);
 }
