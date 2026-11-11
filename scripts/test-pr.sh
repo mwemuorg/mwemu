@@ -26,14 +26,14 @@ echo "==> Linking maps and test data..."
 [ -d "$REPO_ROOT/maps" ] && ln -s "$REPO_ROOT/maps" "$WORKTREE/maps" 2>/dev/null || true
 [ -d "$REPO_ROOT/test" ] && ln -s "$REPO_ROOT/test" "$WORKTREE/test" 2>/dev/null || true
 
-echo "==> Running cargo test..."
-TARGET=""
-if [ "$(uname -m)" = "arm64" ]; then
-    TARGET="--target x86_64-apple-darwin"
-fi
-
+echo "==> Running cargo nextest..."
 cd "$WORKTREE"
-cargo test $TARGET "$@"
+mkdir -p .config
+cat > .config/nextest.toml <<'TOML'
+[profile.default]
+slow-timeout = { period = "60s", terminate-after = 1 }
+TOML
+cargo nextest run "$@"
 EXIT=$?
 
 echo ""
