@@ -5,6 +5,7 @@ use crate::debug::console::Console;
 use crate::emu::Emu;
 use crate::engine;
 use crate::err::MwemuError;
+use crate::exception::types::{ExceptionType, MemoryAccess};
 
 use super::assert_x86_arch;
 
@@ -25,11 +26,7 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
         emu.drain_code_writes_x86(&mut scratch);
     }
 
-    if emu
-        .maps
-        .get_mem_by_addr(pc)
-        .is_none_or(|mem| mem.read_code(pc, 1).is_empty())
-    {
+    if !emu.check_instruction_fetch(pc) {
         return Err(MwemuError::new(
             "instruction fetch from inaccessible memory",
         ));
@@ -69,6 +66,23 @@ pub(crate) fn ensure_instruction_cache_populated_x86(
 }
 
 impl Emu {
+    pub(crate) fn check_instruction_fetch(&mut self, pc: u64) -> bool {
+        if self
+            .maps
+            .get_mem_by_addr(pc)
+            .is_some_and(|mem| !mem.read_code(pc, 1).is_empty())
+        {
+            return true;
+        }
+        self.memory_exception(
+            ExceptionType::SettingRipToNonMappedAddr,
+            pc,
+            1,
+            MemoryAccess::Execute,
+        );
+        false
+    }
+
     /// Apply the executable-memory writes `Maps` recorded since the last drain
     /// to the decoded-instruction cache. Returns `true` when a write touched an
     /// instruction of the block currently being executed from the cache, so the
@@ -108,6 +122,10 @@ impl Emu {
 pub(crate) fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
     assert_x86_arch(emu, "decode_and_execute_x86");
     let pc = emu.pc();
+
+    if !emu.check_instruction_fetch(pc) {
+        return (0, false);
+    }
 
     // Fetch code
     let code = match emu.maps.get_mem_by_addr(pc) {

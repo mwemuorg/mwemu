@@ -1,10 +1,11 @@
-use std::sync::atomic::Ordering;
+use crate::windows::constants::exceptions::*;
 
 use crate::{
     console::Console,
     emu::Emu,
     exception::handlers::{self, HandlerKind},
-    exception::types::ExceptionType,
+    exception::types::{ExceptionRecord, ExceptionType, MemoryAccess},
+    maps::mem64::Permission,
     threading::context::ArchThreadState,
 };
 
@@ -146,9 +147,6 @@ impl Emu {
 
         let mut unwind_rva = found_unwind_rva?;
 
-        const UNW_FLAG_EHANDLER: u8 = 0x01;
-        const UNW_FLAG_UHANDLER: u8 = 0x02;
-        const UNW_FLAG_CHAININFO: u8 = 0x04;
         const MAX_CHAIN_DEPTH: u32 = 16;
 
         for _ in 0..MAX_CHAIN_DEPTH {
@@ -166,7 +164,7 @@ impl Emu {
                 continue;
             }
 
-            if flags & (UNW_FLAG_EHANDLER | UNW_FLAG_UHANDLER) != 0 {
+            if flags & UNW_FLAG_EHANDLER != 0 {
                 let handler_rva = self.maps.read_dword(handler_offset)? as u64;
                 return Some(pe_base + handler_rva);
             }
@@ -181,164 +179,129 @@ impl Emu {
         None
     }
 
-    /// Trigger an exception.
-    /// If it has to be handled initiate contex tand jump to the programmed error routine.
-    /// Support SEH, VEH and UEF
+    /// Trigger an exception while preserving the diagnostic hook interface.
     pub fn exception(&mut self, ex_type: ExceptionType) {
-        self.fault_count += 1;
+        let record = ExceptionRecord::new(ex_type, self.pc());
+        self.dispatch_exception(ex_type, record);
+    }
 
-        let addr: u64;
-
-        // hook
-        let handle_exception: bool = if let Some(mut hook_fn) = self.hooks.hook_on_exception.take()
-        {
-            let pc = self.pc();
-            let result = hook_fn(self, pc, ex_type);
-            self.hooks.hook_on_exception = Some(hook_fn);
-            result
-        } else {
-            true
+    pub(crate) fn memory_exception(
+        &mut self,
+        ex_type: ExceptionType,
+        address: u64,
+        size: usize,
+        access: MemoryAccess,
+    ) {
+        let permission = match access {
+            MemoryAccess::Read => Permission::READ,
+            MemoryAccess::Write => Permission::WRITE,
+            MemoryAccess::Execute => Permission::EXECUTE,
         };
+        let fault_address = self
+            .maps
+            .first_inaccessible_address(address, size, permission)
+            .unwrap_or(address);
+        let record = ExceptionRecord::access_violation(self.pc(), fault_address, access);
+        self.dispatch_exception(ex_type, record);
+    }
 
-        // aarch64 has no SEH/VEH/UEF
+    fn dispatch_exception(&mut self, ex_type: ExceptionType, mut record: ExceptionRecord) {
+        self.fault_count += 1;
+        if let Some(mut hook) = self.hooks.hook_on_exception.take() {
+            let handle = hook(self, self.pc(), ex_type);
+            self.hooks.hook_on_exception = Some(hook);
+            if !handle {
+                log::trace!("cancelled exception handling from hook");
+                return;
+            }
+        }
         if self.cfg.arch.is_aarch64() {
             log::error!(
-                "exception on aarch64 (no SEH/VEH support). pos = {} pc = 0x{:x} type = {:?}",
-                self.pos,
+                "unhandled aarch64 exception at 0x{:x}: {:?}",
                 self.pc(),
-                ex_type,
+                ex_type
             );
-            self.process_terminated = true;
-            self.is_running.store(0, Ordering::Relaxed);
+            self.stop();
             return;
         }
+        record.nested = handlers::active_record(self).unwrap_or(0);
+        self.dispatch_vectored_exception(&record, 0);
+    }
 
-        // No handler installed (no SEH chain, no VEH list, no UEF callback).
-        // Real Windows would invoke KiUserExceptionDispatcher → unhandled
-        // exception filter → ExitProcess. We don't have a kernel side, so the
-        // safest answer is to STOP emulation right here: silently dropping the
-        // fault lets ntdll continue with corrupted state and the resulting
-        // crash surfaces millions of instructions later in unrelated code,
-        // which makes diagnosis nearly impossible. Surfacing the fault at its
-        // original RIP gives the operator the exact frame that needs fixing.
-        if self.seh() == 0 && self.veh() == 0 && self.uef() == 0 && !self.cfg.is_x64() {
-            log::error!(
-                "unhandled exception (no SEH/VEH/UEF configured). pos = {} rip = 0x{:x} type = {:?} — stopping emulation",
-                self.pos,
-                self.pc(),
-                ex_type,
-            );
-            self.process_terminated = true;
-            self.is_running.store(0, Ordering::Relaxed);
-            return;
-        }
-
-        // hook replaced handler
-        if !handle_exception {
-            log::trace!("cancelled exception handling from hook.");
-            return;
-        }
-
-        // VEH
-        if self.veh() > 0 {
-            addr = self.veh();
-
-            handlers::enter_for_handler(self, ex_type, HandlerKind::Veh);
-
-            if self.cfg.is_x64() {
-                self.set_rip_with_check(addr, false);
-            } else {
-                self.set_eip(addr, false);
-            }
-
-        // x64 table-driven SEH (.pdata / RUNTIME_FUNCTION)
-        } else if self.cfg.is_x64() {
-            match self.find_x64_seh_handler(self.pc()) {
-                Some(handler_addr) => {
-                    log::trace!(
-                        "x64 SEH: .pdata handler at 0x{:x} for rip 0x{:x}",
-                        handler_addr,
-                        self.pc(),
-                    );
-                    handlers::enter_for_handler(self, ex_type, HandlerKind::Seh);
-                    self.set_rip_with_check(handler_addr, false);
-                }
-                None => {
-                    if self.uef() > 0 {
-                        let uef_addr = self.uef();
-                        handlers::enter_for_handler(self, ex_type, HandlerKind::Uef);
-                        self.set_rip_with_check(uef_addr, false);
-                    } else {
-                        log::error!(
-                            "x64 unhandled exception: no .pdata handler and no UEF. \
-                             pos = {} rip = 0x{:x} type = {:?} — stopping emulation",
-                            self.pos,
-                            self.pc(),
-                            ex_type,
-                        );
-                        self.process_terminated = true;
-                        self.is_running.store(0, Ordering::Relaxed);
-                    }
-                }
-            }
-
-        // x86 stack-chain SEH
-        } else if self.seh() > 0 {
-            addr = match self.maps.read_dword(self.seh() + 4) {
-                Some(value) => value.into(),
-                None => {
-                    log::error!(
-                        "SEH record at 0x{:x} unreadable (Handler field). \
-                         pos = {} rip = 0x{:x} — stopping emulation",
-                        self.seh(),
-                        self.pos,
-                        self.pc(),
-                    );
-                    self.process_terminated = true;
-                    self.is_running.store(0, Ordering::Relaxed);
-                    return;
-                }
-            };
-
-            if self.maps.read_dword(self.seh()).is_none() || !self.maps.is_mapped(addr) {
-                log::error!(
-                    "invalid x86 SEH registration or handler at 0x{:x}",
-                    self.seh()
-                );
-                self.stop();
-                return;
-            }
-
-            let con = Console::new();
-            if self.running_script {
-                handlers::enter_for_handler(self, ex_type, HandlerKind::Seh);
-                if !self.process_terminated {
-                    self.set_eip(addr, false);
-                }
-                return;
-            }
-            con.print("jump the exception pointer (y/n)?");
-
-            let cmd = con.cmd();
-            if cmd == "y" {
-                handlers::enter_for_handler(self, ex_type, HandlerKind::Seh);
-                if !self.process_terminated {
-                    self.set_eip(addr, false);
-                }
-            }
-        } else if self.uef() > 0 {
-            // UEF
-
-            addr = self.uef();
-
-            handlers::enter_for_handler(self, ex_type, HandlerKind::Uef);
-            if self.cfg.is_x64() {
-                self.set_rip_with_check(addr, false);
-            } else {
-                self.set_eip(addr, false);
-            }
+    pub(crate) fn dispatch_vectored_exception(&mut self, record: &ExceptionRecord, index: usize) {
+        if let Some(&address) = self.veh_list().get(index) {
+            self.call_exception_handler(record, address, HandlerKind::Veh, index);
         } else {
-            log::warn!("no exception handler registered for {:?}", ex_type);
+            self.dispatch_structured_exception(record);
+        }
+    }
+
+    fn dispatch_structured_exception(&mut self, record: &ExceptionRecord) {
+        if self.cfg.is_x64() {
+            if let Some(address) = self.find_x64_seh_handler(record.address) {
+                self.call_exception_handler(record, address, HandlerKind::Seh, 0);
+            } else {
+                self.dispatch_unhandled_exception(record);
+            }
+            return;
+        }
+        if self.seh() == 0 || self.seh() == EXCEPTION_CHAIN_END as u64 {
+            self.dispatch_unhandled_exception(record);
+            return;
+        }
+        let Some(address) = self.maps.read_dword(self.seh() + size_of::<u32>() as u64) else {
+            log::error!("unreadable x86 SEH registration at 0x{:x}", self.seh());
+            self.stop();
+            return;
+        };
+        if self.maps.read_dword(self.seh()).is_none() {
+            log::error!("invalid x86 SEH registration at 0x{:x}", self.seh());
+            self.stop();
+            return;
+        }
+        if !self.running_script {
+            let console = Console::new();
+            console.print("jump the exception pointer (y/n)?");
+            if console.cmd() != "y" {
+                return;
+            }
+        }
+        self.call_exception_handler(record, address as u64, HandlerKind::Seh, 0);
+    }
+
+    pub(crate) fn dispatch_unhandled_exception(&mut self, record: &ExceptionRecord) {
+        if self.uef() != 0 {
+            self.call_exception_handler(record, self.uef(), HandlerKind::Uef, 0);
+        } else {
+            log::error!(
+                "unhandled exception 0x{:x} at 0x{:x}",
+                record.code,
+                record.address
+            );
+            self.stop();
+        }
+    }
+
+    fn call_exception_handler(
+        &mut self,
+        record: &ExceptionRecord,
+        address: u64,
+        kind: HandlerKind,
+        veh_index: usize,
+    ) {
+        if self
+            .maps
+            .get_mem_by_addr(address)
+            .is_none_or(|mem| mem.read_code(address, 1).is_empty())
+        {
+            log::error!("inaccessible exception handler at 0x{:x}", address);
+            self.stop();
+            return;
+        }
+        handlers::enter_record(self, record, kind, veh_index);
+        if !self.process_terminated {
+            self.regs_mut().rip = address;
+            self.force_reload = true;
         }
     }
 }

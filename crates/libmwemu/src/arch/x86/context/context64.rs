@@ -47,6 +47,9 @@ pub struct Context64 {
 }
 
 impl Context64 {
+    pub const FLAGS_OFFSET: u64 = 0x30;
+    pub const EFLAGS_OFFSET: u64 = 0x44;
+
     pub fn size() -> usize {
         std::mem::size_of::<Self>()
     }

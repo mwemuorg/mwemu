@@ -1,11 +1,10 @@
 //! Guest arguments and continuation state for x86 stack-chain SEH.
 
-use crate::context::context32::Context32;
 use crate::emu::Emu;
+use crate::exception::handlers;
+use crate::exception::types::ExceptionRecord;
 use crate::maps::mem64::Permission;
-use crate::windows::constants::errors::*;
-
-use super::{handlers, types};
+use crate::windows::constants::exceptions::*;
 
 const FRAME_SIZE: u64 = 0x1000;
 const FRAME_MAGIC: u32 = u32::from_le_bytes(*b"SEH3");
@@ -18,19 +17,7 @@ const DISPATCHER_OFFSET: u64 = 0x80;
 const CONTEXT_OFFSET: u64 = 0x100;
 const RETURN_COOKIE_OFFSET: u64 = 0xf00;
 
-const EXCEPTION_CODE: u64 = 0;
-const EXCEPTION_FLAGS: u64 = 4;
-const EXCEPTION_RECORD: u64 = 8;
-const EXCEPTION_ADDRESS: u64 = 12;
-const NUMBER_PARAMETERS: u64 = 16;
-const CONTEXT_CONTROL_INTEGER: u32 = 0x0001_0003;
-const CONTEXT_EFLAGS: u64 = 0xc0;
 const REGISTRATION_HANDLER: u64 = 4;
-
-// EXCEPTION_DISPOSITION values, not the EXCEPTION_* filter return values.
-const CONTINUE_EXECUTION: u32 = 0;
-const CONTINUE_SEARCH: u32 = 1;
-const END_OF_CHAIN: u32 = u32::MAX;
 
 #[derive(Clone, Copy)]
 struct Frame {
@@ -58,7 +45,7 @@ impl Frame {
         format!("seh32_{:x}", self.base)
     }
 
-    fn allocate(emu: &mut Emu, ex_type: types::ExceptionType) -> Option<Self> {
+    fn allocate(emu: &mut Emu, record: &ExceptionRecord) -> Option<Self> {
         let base = emu.maps.alloc(FRAME_SIZE)?;
         if base.checked_add(FRAME_SIZE)? > u32::MAX as u64 {
             return None;
@@ -69,28 +56,12 @@ impl Frame {
             .ok()?;
 
         let previous = emu.eh_ctx();
-        let nested_record = Self::active(emu).map(|f| f.record()).unwrap_or(0);
         emu.maps.write_dword(base, FRAME_MAGIC);
         emu.maps
             .write_dword(base + PREVIOUS_CONTEXT, previous as u32);
         emu.maps.write_dword(base + HANDLERS_VISITED, 1);
-        emu.maps
-            .write_dword(frame.record() + EXCEPTION_CODE, exception_code(ex_type));
-        emu.maps.write_dword(frame.record() + EXCEPTION_FLAGS, 0);
-        emu.maps
-            .write_dword(frame.record() + EXCEPTION_RECORD, nested_record as u32);
-        emu.maps
-            .write_dword(frame.record() + EXCEPTION_ADDRESS, emu.pc() as u32);
-        // ExceptionType does not carry access type/address or software arguments.
-        emu.maps.write_dword(frame.record() + NUMBER_PARAMETERS, 0);
-
-        // Capture the fault-time ESP before pushing the dispatcher call frame.
-        Context32::new(emu.regs()).save(frame.context() as u32, &mut emu.maps);
-        emu.maps
-            .write_dword(frame.context(), CONTEXT_CONTROL_INTEGER);
-        let flags = emu.flags().dump();
-        emu.maps
-            .write_dword(frame.context() + CONTEXT_EFLAGS, flags);
+        record.save(&mut emu.maps, frame.record(), false);
+        handlers::save_context(emu, frame.context());
         emu.set_eh_ctx(frame.context());
         Some(frame)
     }
@@ -113,15 +84,7 @@ impl Frame {
     }
 
     fn restore_context(self, emu: &mut Emu) {
-        let mut context = Context32::new(emu.regs());
-        context.load(self.context() as u32, &mut emu.maps);
-        context.sync(emu.regs_mut());
-        let flags = emu
-            .maps
-            .read_dword(self.context() + CONTEXT_EFLAGS)
-            .unwrap_or(0);
-        emu.flags_mut().load(flags);
-        emu.force_reload = true;
+        handlers::restore_context(emu, self.context());
     }
 
     fn release(self, emu: &mut Emu) {
@@ -148,22 +111,13 @@ impl Frame {
             self.stop(emu, "unreadable registration record");
             return;
         };
-        if next == 0 || next == END_OF_CHAIN {
-            let code = emu
-                .maps
-                .read_dword(self.record() + EXCEPTION_CODE)
-                .unwrap_or(0);
+        if next == 0 || next == EXCEPTION_CHAIN_END {
+            let record = ExceptionRecord::load(&emu.maps, self.record(), false);
             self.release(emu);
-            let uef = emu.uef();
-            if uef != 0 && emu.maps.is_mapped(uef) {
-                handlers::enter_for_handler(
-                    emu,
-                    types::exception_type_from_code(code),
-                    handlers::HandlerKind::Uef,
-                );
-                emu.set_eip(uef, false);
+            if let Some(record) = record {
+                emu.dispatch_unhandled_exception(&record);
             } else {
-                log::error!("x86 SEH: no handler accepted the exception");
+                log::error!("x86 SEH: invalid exception record");
                 emu.stop();
             }
             return;
@@ -199,33 +153,18 @@ impl Frame {
         let disposition = emu.regs().get_eax() as u32;
         self.restore_context(emu);
         match disposition {
-            CONTINUE_EXECUTION => self.release(emu),
-            CONTINUE_SEARCH => self.continue_search(emu),
+            value if value == ExceptionDisposition::ContinueExecution as u32 => self.release(emu),
+            value if value == ExceptionDisposition::ContinueSearch as u32 => {
+                self.continue_search(emu)
+            }
             // Nested/collided unwind dispositions require an unwinder.
             _ => self.stop(emu, "unsupported exception disposition"),
         }
     }
 }
 
-fn exception_code(ex_type: types::ExceptionType) -> u32 {
-    use types::ExceptionType::*;
-    match ex_type {
-        PopfCannotReadStack
-        | WritingWord
-        | SettingRipToNonMappedAddr
-        | QWordDereferencing
-        | DWordDereferencing
-        | WordDereferencing
-        | ByteDereferencing
-        | BadAddressDereferencing
-        | SettingXmmOperand
-        | ReadingXmmOperand => STATUS_ACCESS_VIOLATION as u32,
-        _ => types::exception_type_code(ex_type),
-    }
-}
-
-pub(crate) fn enter(emu: &mut Emu, ex_type: types::ExceptionType) {
-    let Some(frame) = Frame::allocate(emu, ex_type) else {
+pub(crate) fn enter_record(emu: &mut Emu, record: &ExceptionRecord) {
+    let Some(frame) = Frame::allocate(emu, record) else {
         log::error!("x86 SEH: cannot allocate exception records");
         emu.stop();
         return;
@@ -255,4 +194,8 @@ pub(crate) fn exit(emu: &mut Emu) {
     if let Some(frame) = Frame::active(emu) {
         frame.finish(emu);
     }
+}
+
+pub(crate) fn active_record(emu: &Emu) -> Option<u64> {
+    Frame::active(emu).map(|frame| frame.record())
 }

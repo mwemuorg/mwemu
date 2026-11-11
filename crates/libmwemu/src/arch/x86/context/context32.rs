@@ -30,6 +30,9 @@ pub struct Context32 {
 }
 
 impl Context32 {
+    pub const FLAGS_OFFSET: u64 = 0x0;
+    pub const EFLAGS_OFFSET: u64 = 0xc0;
+
     pub fn new(regs: &Regs64) -> Context32 {
         Context32 {
             ctx_flags: 0,

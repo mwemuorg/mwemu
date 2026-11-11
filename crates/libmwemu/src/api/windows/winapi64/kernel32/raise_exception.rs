@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::exception::raise;
+use crate::windows::constants::exceptions::EXCEPTION_MAXIMUM_PARAMETERS;
 
 pub fn RaiseException(emu: &mut emu::Emu) {
     let code = emu.regs().rcx as u32;
@@ -16,7 +17,7 @@ pub fn RaiseException(emu: &mut emu::Emu) {
         args_ptr
     );
 
-    let count = (num_args as usize).min(raise::EXCEPTION_MAXIMUM_PARAMETERS);
+    let count = (num_args as usize).min(EXCEPTION_MAXIMUM_PARAMETERS);
     let params: Vec<u64> = (0..count as u64)
         .map(|i| emu.maps.read_qword(args_ptr + i * 8).unwrap_or(0))
         .collect();

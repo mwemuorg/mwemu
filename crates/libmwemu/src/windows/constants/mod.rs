@@ -1,5 +1,6 @@
 pub mod crypto;
 pub mod errors;
+pub mod exceptions;
 pub mod files;
 pub mod memory;
 pub mod network;
