@@ -33,6 +33,8 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 11. CI cannot do tests that needs dll's that would spam the symbol server.
 
+12. avoid unwrap, expect, panic, etc
+
 
 ## Testing
 

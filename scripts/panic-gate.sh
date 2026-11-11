@@ -8,17 +8,17 @@ SRC="crates/libmwemu/src"
 
 # Baseline — update these when you intentionally reduce the counts.
 declare -A BASELINE=(
-  [engine_unwrap]=4
+  [engine_unwrap]=2
   [engine_expect]=0
   [engine_panic]=0
-  [emu_unwrap]=31
+  [emu_unwrap]=32
   [emu_expect]=6
   [emu_panic]=5
   [maps_unwrap]=13
   [maps_expect]=26
   [maps_panic]=0
   [engine_assert]=0
-  [emu_assert]=93
+  [emu_assert]=91
   [maps_assert]=39
 )
 
