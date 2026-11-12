@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn InitializeSecurityDescriptor(emu: &mut emu::Emu) {
-    let sd_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let revision = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let sd_ptr = WinApiAbi::arg(emu, 0);
+    let revision = WinApiAbi::arg(emu, 1) as u32;
     if sd_ptr != 0 {
         emu.maps.write_byte(sd_ptr, revision as u8);
         emu.maps.write_byte(sd_ptr + 1, 0); // Sbz1

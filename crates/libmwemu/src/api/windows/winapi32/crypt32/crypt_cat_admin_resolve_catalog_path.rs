@@ -1,10 +1,11 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptCATAdminResolveCatalogPath(emu: &mut emu::Emu) {
-    let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pwsz_catalog_file = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let p_resolve_info = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let h_cat_admin = WinApiAbi::arg(emu, 0);
+    let pwsz_catalog_file = WinApiAbi::arg(emu, 1);
+    let p_resolve_info = WinApiAbi::arg(emu, 2);
     log_red!(
         emu,
         "crypt32!CryptCATAdminResolveCatalogPath h_cat_admin:0x{:x} pwsz_catalog_file:0x{:x} p_resolve_info:0x{:x}",

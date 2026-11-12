@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
@@ -17,11 +18,11 @@ pub fn GetUserObjectInformationA(emu: &mut emu::Emu) {
 }
 
 pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let nidx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let out_vinfo = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let nlen = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let out_len = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let hndl = WinApiAbi::arg(emu, 0);
+    let nidx = WinApiAbi::arg(emu, 0);
+    let out_vinfo = WinApiAbi::arg(emu, 0);
+    let nlen = WinApiAbi::arg(emu, 0);
+    let out_len = WinApiAbi::arg(emu, 0);
 
     log_red!(emu, "user32!GetUserObjectInformationW");
 

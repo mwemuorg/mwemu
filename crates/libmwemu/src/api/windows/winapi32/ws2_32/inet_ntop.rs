@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn inet_ntop(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     log_red!(emu, "ws2_32!inet_ntop arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-    let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let first_param = WinApiAbi::arg(emu, 0);
     if first_param != 0 && emu.maps.is_mapped(first_param) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }
@@ -15,10 +16,10 @@ pub fn inet_ntop(emu: &mut emu::Emu) {
 }
 
 pub fn InetNtopW(emu: &mut emu::Emu) {
-    let family = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let addr_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let str_buf = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let str_len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let family = WinApiAbi::arg(emu, 0) as u32;
+    let addr_ptr = WinApiAbi::arg(emu, 1);
+    let str_buf = WinApiAbi::arg(emu, 2);
+    let str_len = WinApiAbi::arg(emu, 3) as u32;
     log_red!(
         emu,
         "ws2_32!InetNtopW family:{} addr:0x{:x} buf:0x{:x}",
@@ -26,7 +27,7 @@ pub fn InetNtopW(emu: &mut emu::Emu) {
         addr_ptr,
         str_buf
     );
-    let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let first_param = WinApiAbi::arg(emu, 0);
     if first_param != 0 && emu.maps.is_mapped(first_param) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }

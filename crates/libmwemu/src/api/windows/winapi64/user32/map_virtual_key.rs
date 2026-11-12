@@ -1,24 +1,10 @@
-use super::map_virtual_key;
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::input;
 
-pub(super) fn MapVirtualKeyA(emu: &mut emu::Emu) {
-    map_key(emu, "MapVirtualKeyA");
+pub(super) fn MapVirtualKeyA(emu: &mut Emu) {
+    input::map_virtual_key(emu, "MapVirtualKeyA", false);
 }
 
-fn map_key(emu: &mut emu::Emu, api: &str) {
-    let code = emu.regs().rcx as u32;
-    let map_type = emu.regs().rdx as u32;
-    let result = map_virtual_key(code, map_type);
-    log_red!(
-        emu,
-        "user32!{api} code:0x{:x} type:{} => 0x{:x}",
-        code,
-        map_type,
-        result
-    );
-    emu.regs_mut().rax = result;
-}
-
-pub(super) fn MapVirtualKeyW(emu: &mut emu::Emu) {
-    map_key(emu, "MapVirtualKeyW");
+pub(super) fn MapVirtualKeyW(emu: &mut Emu) {
+    input::map_virtual_key(emu, "MapVirtualKeyW", false);
 }

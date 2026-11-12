@@ -1,9 +1,10 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CreatePrivateObjectSecurity(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
     let hndl = helper::handler_create("CreatePrivateObjectSecurity");
     log_red!(emu, "advapi32!CreatePrivateObjectSecurity => 0x{:x}", hndl);
     emu.regs_mut().rax = hndl;

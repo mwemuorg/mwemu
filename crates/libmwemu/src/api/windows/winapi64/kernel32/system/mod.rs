@@ -1,73 +1,56 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
-#[path = "../get_version_ex.rs"]
 mod get_version_ex;
-pub use get_version_ex::*;
+pub use get_version_ex::{GetVersionExA, GetVersionExW};
 
-#[path = "../get_acp.rs"]
 mod get_acp;
-pub use get_acp::*;
+pub use get_acp::GetACP;
 
-#[path = "../get_cp_info.rs"]
 mod get_cp_info;
-pub use get_cp_info::*;
+pub use get_cp_info::GetCPInfo;
 
-#[path = "../get_local_time.rs"]
 mod get_local_time;
-pub use get_local_time::*;
+pub use get_local_time::GetLocalTime;
 
-#[path = "../get_locale_info.rs"]
 mod get_locale_info;
-pub use get_locale_info::*;
+pub use get_locale_info::{GetLocaleInfoA, GetLocaleInfoW};
 
-#[path = "../get_native_system_info.rs"]
 mod get_native_system_info;
-pub use get_native_system_info::*;
+pub use get_native_system_info::GetNativeSystemInfo;
 
-#[path = "../get_system_firmware_table.rs"]
 mod get_system_firmware_table;
-pub use get_system_firmware_table::*;
+pub use get_system_firmware_table::GetSystemFirmwareTable;
 
-#[path = "../get_system_info.rs"]
 mod get_system_info;
-pub use get_system_info::*;
+pub use get_system_info::GetSystemInfo;
 
-#[path = "../get_system_time.rs"]
 mod get_system_time;
-pub use get_system_time::*;
+pub use get_system_time::GetSystemTime;
 
-#[path = "../get_tick_count.rs"]
 mod get_tick_count;
-pub use get_tick_count::*;
+pub use get_tick_count::GetTickCount;
 
-#[path = "../get_time_zone_information.rs"]
 mod get_time_zone_information;
-pub use get_time_zone_information::*;
+pub use get_time_zone_information::GetTimeZoneInformation;
 
-#[path = "../get_time_zone_information_for_year.rs"]
 mod get_time_zone_information_for_year;
-pub use get_time_zone_information_for_year::*;
+pub use get_time_zone_information_for_year::GetTimeZoneInformationForYear;
 
-#[path = "../get_user_default_lang_id.rs"]
 mod get_user_default_lang_id;
-pub use get_user_default_lang_id::*;
+pub use get_user_default_lang_id::GetUserDefaultLangID;
 
-#[path = "../get_version.rs"]
 mod get_version;
-pub use get_version::*;
+pub use get_version::GetVersion;
 
-#[path = "../system_time_to_tz_specific_local_time.rs"]
 mod system_time_to_tz_specific_local_time;
-pub use system_time_to_tz_specific_local_time::*;
+pub use system_time_to_tz_specific_local_time::SystemTimeToTzSpecificLocalTime;
 
-#[path = "../get_tick_count64.rs"]
 mod get_tick_count64;
-pub use get_tick_count64::*;
+pub use get_tick_count64::GetTickCount64;
 
-#[path = "../query_performance_frequency.rs"]
 mod query_performance_frequency;
-pub use query_performance_frequency::*;
+pub use query_performance_frequency::QueryPerformanceFrequency;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
     match api {
@@ -82,7 +65,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetVersionExW" => kernel32::GetVersionExW(emu),
         "SetErrorMode" => kernel32::SetErrorMode(emu),
         "SetLastError" => kernel32::SetLastError(emu),
-        "VerifyVersionInfoA" | "VerifyVersionInfoW" => kernel32::VerifyVersionInfoA(emu, api),
+        "VerifyVersionInfoA" => kernel32::VerifyVersionInfoA(emu),
+        "VerifyVersionInfoW" => kernel32::VerifyVersionInfoW(emu),
         "VerSetConditionMask" => kernel32::VerSetConditionMask(emu),
         "Beep" => kernel32::Beep(emu),
         _ => return false,

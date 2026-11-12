@@ -2,6 +2,7 @@ use crate::context::context32::Context32;
 use crate::debug::console::Console;
 use crate::emu;
 use crate::winapi::common::ntdll;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants::errors::*;
 
@@ -78,8 +79,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn NtGetContextThread(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let ctx_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let handle = WinApiAbi::arg(emu, 0);
+    let ctx_ptr = WinApiAbi::arg(emu, 1);
     let ctx_ptr2 = emu.maps.read_dword(ctx_ptr).unwrap_or(0) as u64;
 
     log_red!(emu, "ntdll_NtGetContextThread   ctx");
@@ -93,8 +94,8 @@ fn NtGetContextThread(emu: &mut emu::Emu) {
 }
 
 fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let first = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let fptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let first = WinApiAbi::arg(emu, 0);
+    let fptr = WinApiAbi::arg(emu, 1);
 
     log_red!(
         emu,
@@ -122,8 +123,8 @@ fn NtGetTickCount(emu: &mut emu::Emu) {
 }
 
 fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
-    let perf_counter_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let perf_freq_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let perf_counter_ptr = WinApiAbi::arg(emu, 0);
+    let perf_freq_ptr = WinApiAbi::arg(emu, 1);
 
     log_red!(emu, "ntdll!NtQueryPerformanceCounter");
 
@@ -136,7 +137,7 @@ fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
 }
 
 fn RtlGetVersion(emu: &mut emu::Emu) {
-    let versioninfo_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let versioninfo_ptr = WinApiAbi::arg(emu, 0);
 
     log_red!(emu, "ntdll!RtlGetVersion");
 
@@ -148,7 +149,7 @@ fn RtlGetVersion(emu: &mut emu::Emu) {
 }
 
 fn RtlSetUnhandledExceptionFilter(emu: &mut emu::Emu) {
-    let filter = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let filter = WinApiAbi::arg(emu, 0);
 
     log_red!(
         emu,

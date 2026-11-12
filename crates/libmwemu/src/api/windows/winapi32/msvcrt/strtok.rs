@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn strtok(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let delim_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let str_ptr = WinApiAbi::arg(emu, 0);
+    let delim_ptr = WinApiAbi::arg(emu, 1);
     let delims = emu.maps.read_string(delim_ptr);
 
     if str_ptr != 0 {

@@ -1,14 +1,15 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptImportKey(emu: &mut emu::Emu) {
-    let h_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let data_len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let h_pub_key = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let _flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let h_key_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+    let h_prov = WinApiAbi::arg(emu, 0);
+    let data_ptr = WinApiAbi::arg(emu, 1);
+    let data_len = WinApiAbi::arg(emu, 2) as u32;
+    let h_pub_key = WinApiAbi::arg(emu, 3);
+    let _flags = WinApiAbi::arg(emu, 4) as u32;
+    let h_key_ptr = WinApiAbi::arg(emu, 5);
     for _ in 0..6u32 {
         emu.stack_pop32(false);
     }

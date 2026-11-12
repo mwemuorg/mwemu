@@ -126,7 +126,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "MITGetCursorUpdateHandle" => user32::MITGetCursorUpdateHandle(emu),
         "MITSetLastInputRecipient" => user32::MITSetLastInputRecipient(emu),
         "MITSynthesizeTouchInput" => user32::MITSynthesizeTouchInput(emu),
-        "MapVirtualKeyExA" | "MapVirtualKeyExW" => user32::MapVirtualKeyExA(emu),
+        "MapVirtualKeyExA" => user32::MapVirtualKeyExA(emu),
+        "MapVirtualKeyExW" => user32::MapVirtualKeyExW(emu),
         "OemKeyScan" => user32::OemKeyScan(emu),
         "OpenInputDesktop" => user32::OpenInputDesktop(emu),
         "PackTouchHitTestingProximityEvaluation" => {

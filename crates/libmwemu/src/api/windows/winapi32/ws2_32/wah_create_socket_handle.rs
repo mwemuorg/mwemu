@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WahCreateSocketHandle(emu: &mut emu::Emu) {
-    let table_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let table_ptr = WinApiAbi::arg(emu, 0);
     log_red!(emu, "ws2_32!WahCreateSocketHandle ptr:0x{:x}", table_ptr);
     let handle = helper::handler_create("wah_handle");
     if table_ptr != 0 {

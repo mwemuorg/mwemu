@@ -1,113 +1,88 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../write_console.rs"]
 mod write_console;
-pub use write_console::*;
+pub use write_console::{WriteConsoleA, WriteConsoleW};
 
-#[path = "../get_console_keyboard_layout_name.rs"]
 mod get_console_keyboard_layout_name;
-pub use get_console_keyboard_layout_name::*;
+pub use get_console_keyboard_layout_name::{
+    GetConsoleKeyboardLayoutNameA, GetConsoleKeyboardLayoutNameW,
+};
 
-#[path = "../close_console_handle.rs"]
 mod close_console_handle;
-pub use close_console_handle::*;
+pub use close_console_handle::CloseConsoleHandle;
 
-#[path = "../console_menu_control.rs"]
 mod console_menu_control;
-pub use console_menu_control::*;
+pub use console_menu_control::ConsoleMenuControl;
 
-#[path = "../get_console_char_type.rs"]
 mod get_console_char_type;
-pub use get_console_char_type::*;
+pub use get_console_char_type::GetConsoleCharType;
 
-#[path = "../get_console_font_info.rs"]
 mod get_console_font_info;
-pub use get_console_font_info::*;
+pub use get_console_font_info::GetConsoleFontInfo;
 
-#[path = "../get_console_hardware_state.rs"]
 mod get_console_hardware_state;
-pub use get_console_hardware_state::*;
+pub use get_console_hardware_state::GetConsoleHardwareState;
 
-#[path = "../get_console_input_wait_handle.rs"]
 mod get_console_input_wait_handle;
-pub use get_console_input_wait_handle::*;
+pub use get_console_input_wait_handle::GetConsoleInputWaitHandle;
 
-#[path = "../get_number_of_console_fonts.rs"]
 mod get_number_of_console_fonts;
-pub use get_number_of_console_fonts::*;
+pub use get_number_of_console_fonts::GetNumberOfConsoleFonts;
 
-#[path = "../invalidate_console_di_bits.rs"]
 mod invalidate_console_di_bits;
-pub use invalidate_console_di_bits::*;
+pub use invalidate_console_di_bits::InvalidateConsoleDIBits;
 
-#[path = "../register_console_ime.rs"]
 mod register_console_ime;
-pub use register_console_ime::*;
+pub use register_console_ime::RegisterConsoleIME;
 
-#[path = "../register_console_os2.rs"]
 mod register_console_os2;
-pub use register_console_os2::*;
+pub use register_console_os2::RegisterConsoleOS2;
 
-#[path = "../set_console_cursor.rs"]
 mod set_console_cursor;
-pub use set_console_cursor::*;
+pub use set_console_cursor::SetConsoleCursor;
 
-#[path = "../set_console_font.rs"]
 mod set_console_font;
-pub use set_console_font::*;
+pub use set_console_font::SetConsoleFont;
 
-#[path = "../set_console_hardware_state.rs"]
 mod set_console_hardware_state;
-pub use set_console_hardware_state::*;
+pub use set_console_hardware_state::SetConsoleHardwareState;
 
-#[path = "../set_console_icon.rs"]
 mod set_console_icon;
-pub use set_console_icon::*;
+pub use set_console_icon::SetConsoleIcon;
 
-#[path = "../set_console_key_shortcuts.rs"]
 mod set_console_key_shortcuts;
-pub use set_console_key_shortcuts::*;
+pub use set_console_key_shortcuts::SetConsoleKeyShortcuts;
 
-#[path = "../set_console_local_eudc.rs"]
 mod set_console_local_eudc;
-pub use set_console_local_eudc::*;
+pub use set_console_local_eudc::SetConsoleLocalEUDC;
 
-#[path = "../set_console_maximum_window_size.rs"]
 mod set_console_maximum_window_size;
-pub use set_console_maximum_window_size::*;
+pub use set_console_maximum_window_size::SetConsoleMaximumWindowSize;
 
-#[path = "../set_console_menu_close.rs"]
 mod set_console_menu_close;
-pub use set_console_menu_close::*;
+pub use set_console_menu_close::SetConsoleMenuClose;
 
-#[path = "../set_console_os2_oem_format.rs"]
 mod set_console_os2_oem_format;
-pub use set_console_os2_oem_format::*;
+pub use set_console_os2_oem_format::SetConsoleOS2OemFormat;
 
-#[path = "../set_console_palette.rs"]
 mod set_console_palette;
-pub use set_console_palette::*;
+pub use set_console_palette::SetConsolePalette;
 
-#[path = "../show_console_cursor.rs"]
 mod show_console_cursor;
-pub use show_console_cursor::*;
+pub use show_console_cursor::ShowConsoleCursor;
 
-#[path = "../verify_console_io_handle.rs"]
 mod verify_console_io_handle;
-pub use verify_console_io_handle::*;
+pub use verify_console_io_handle::VerifyConsoleIoHandle;
 
-#[path = "../get_console_mode.rs"]
 mod get_console_mode;
-pub use get_console_mode::*;
+pub use get_console_mode::GetConsoleMode;
 
-#[path = "../get_console_cp.rs"]
 mod get_console_cp;
-pub use get_console_cp::*;
+pub use get_console_cp::GetConsoleCP;
 
-#[path = "../get_console_output_cp.rs"]
 mod get_console_output_cp;
-pub use get_console_output_cp::*;
+pub use get_console_output_cp::GetConsoleOutputCP;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {

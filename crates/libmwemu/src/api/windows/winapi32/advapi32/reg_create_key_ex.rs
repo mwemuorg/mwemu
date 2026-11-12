@@ -1,21 +1,22 @@
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
     reg_create_key_ex(emu, "RegCreateKeyExA", false);
 }
 
 fn reg_create_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let subkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let class_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let options = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let sam = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
-    let security = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
-    let result_ptr = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0) as u64;
-    let disposition_ptr = emu.maps.read_dword(emu.regs().get_esp() + 32).unwrap_or(0) as u64;
+    let hkey = WinApiAbi::arg(emu, 0) as u32;
+    let subkey_ptr = WinApiAbi::arg(emu, 1);
+    let reserved = WinApiAbi::arg(emu, 2) as u32;
+    let class_ptr = WinApiAbi::arg(emu, 3) as u32;
+    let options = WinApiAbi::arg(emu, 4) as u32;
+    let sam = WinApiAbi::arg(emu, 5) as u32;
+    let security = WinApiAbi::arg(emu, 6) as u32;
+    let result_ptr = WinApiAbi::arg(emu, 7);
+    let disposition_ptr = WinApiAbi::arg(emu, 8);
     let subkey = strings::read_text(emu, subkey_ptr, wide);
     let new_handle = helper::handler_create(&subkey);
     if result_ptr != 0 {

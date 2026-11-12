@@ -1,10 +1,11 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptHashSessionKey(emu: &mut emu::Emu) {
-    let hhash = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let hkey = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let _flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let hhash = WinApiAbi::arg(emu, 0);
+    let hkey = WinApiAbi::arg(emu, 1);
+    let _flags = WinApiAbi::arg(emu, 2) as u32;
     let placeholder = vec![0x41u8; 16];
     crypto_state::hash_data(hhash, &placeholder);
     log_red!(

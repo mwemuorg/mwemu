@@ -1,155 +1,117 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::msvcrt;
 
-#[path = "../printf.rs"]
 mod printf;
 pub use printf::printf;
 
-#[path = "../sprintf.rs"]
 mod sprintf;
 pub use sprintf::sprintf;
 
-#[path = "../swprintf.rs"]
 mod swprintf;
 pub use swprintf::swprintf;
 
-#[path = "../freopen.rs"]
 mod freopen;
 pub use freopen::freopen;
 
-#[path = "../_wrename.rs"]
 mod _wrename;
 pub use _wrename::_wrename;
 
-#[path = "../_iob.rs"]
 mod _iob;
 pub use _iob::_iob;
 
-#[path = "../_snprintf.rs"]
 mod _snprintf;
 pub use _snprintf::_snprintf;
 
-#[path = "../sscanf.rs"]
 mod sscanf;
 pub use sscanf::sscanf;
 
-#[path = "../fread.rs"]
 mod fread;
 pub use fread::fread;
 
-#[path = "../fseek.rs"]
 mod fseek;
 pub use fseek::fseek;
 
-#[path = "../ftell.rs"]
 mod ftell;
 pub use ftell::ftell;
 
-#[path = "../feof.rs"]
 mod feof;
 pub use feof::feof;
 
-#[path = "../fgets.rs"]
 mod fgets;
 pub use fgets::fgets;
 
-#[path = "../fprintf.rs"]
 mod fprintf;
 pub use fprintf::fprintf;
 
-#[path = "../vprintf.rs"]
 mod vprintf;
 pub use vprintf::vprintf;
 
-#[path = "../vsprintf.rs"]
 mod vsprintf;
 pub use vsprintf::vsprintf;
 
-#[path = "../vfprintf.rs"]
 mod vfprintf;
 pub use vfprintf::vfprintf;
 
-#[path = "../fputs.rs"]
 mod fputs;
 pub use fputs::fputs;
 
-#[path = "../puts.rs"]
 mod puts;
 pub use puts::puts;
 
-#[path = "../putchar.rs"]
 mod putchar;
 pub use putchar::putchar;
 
-#[path = "../getc.rs"]
 mod getc;
 pub use getc::getc;
 
-#[path = "../_fileno.rs"]
 mod _fileno;
 pub use _fileno::_fileno;
 
-#[path = "../_setmode.rs"]
 mod _setmode;
 pub use _setmode::_setmode;
 
-#[path = "../_open.rs"]
 mod _open;
 pub use _open::_open;
 
-#[path = "../_close.rs"]
 mod _close;
 pub use _close::_close;
 
-#[path = "../_read.rs"]
 mod _read;
 pub use _read::_read;
 
-#[path = "../_write.rs"]
 mod _write;
 pub use _write::_write;
 
-#[path = "../__acrt_iob_func.rs"]
 mod __acrt_iob_func;
 pub use __acrt_iob_func::__acrt_iob_func;
 
-#[path = "../__iob_func.rs"]
 mod __iob_func;
 pub use __iob_func::__iob_func;
 
-#[path = "../__stdio_common_vfprintf.rs"]
 mod __stdio_common_vfprintf;
 pub use __stdio_common_vfprintf::__stdio_common_vfprintf;
 
-#[path = "../__stdio_common_vsprintf_s.rs"]
 mod __stdio_common_vsprintf_s;
 pub use __stdio_common_vsprintf_s::__stdio_common_vsprintf_s;
 
-#[path = "../_wfopen.rs"]
 mod _wfopen;
 pub use _wfopen::_wfopen;
 
-#[path = "../setvbuf.rs"]
 mod setvbuf;
 pub use setvbuf::setvbuf;
 
-#[path = "../vwprintf.rs"]
 mod vwprintf;
 pub use vwprintf::vwprintf;
 
-#[path = "../__stdio_common_vsprintf.rs"]
 mod __stdio_common_vsprintf;
 pub use __stdio_common_vsprintf::__stdio_common_vsprintf;
 
-#[path = "../__stdio_common_vsscanf.rs"]
 mod __stdio_common_vsscanf;
 pub use __stdio_common_vsscanf::__stdio_common_vsscanf;
 
-#[path = "../_sprintf_l.rs"]
 mod _sprintf_l;
 pub use _sprintf_l::_sprintf_l;
 
-#[path = "../wprintf.rs"]
 mod wprintf;
 pub use wprintf::wprintf;
 

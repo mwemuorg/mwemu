@@ -1,14 +1,15 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ExtTextOutA(emu: &mut emu::Emu) {
     ext_text_out(emu, "ExtTextOutA");
 }
 
 fn ext_text_out(emu: &mut emu::Emu, api: &str) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let arg3 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let arg4 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
+    let arg2 = WinApiAbi::arg(emu, 1) as u32;
+    let arg3 = WinApiAbi::arg(emu, 2) as u32;
+    let arg4 = WinApiAbi::arg(emu, 3) as u32;
     log_red!(
         emu,
         "gdi32!{api} arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",

@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn LookupSecurityDescriptorPartsA(emu: &mut emu::Emu) {
@@ -7,8 +8,8 @@ pub fn LookupSecurityDescriptorPartsA(emu: &mut emu::Emu) {
 }
 
 fn lookup_security_descriptor_parts(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let system_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let system_ptr = WinApiAbi::arg(emu, 0);
+    let name_ptr = WinApiAbi::arg(emu, 1);
     let name = strings::read_text(emu, name_ptr, wide);
     log_red!(emu, "advapi32!{api} '{}'", name);
     emu.regs_mut().rax = 1;

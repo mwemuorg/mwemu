@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptImportPublicKeyInfoEx2(emu: &mut emu::Emu) {
-    let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p_info = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let pv_aux_info = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let ph_key = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let dw_cert_encoding = WinApiAbi::arg(emu, 0);
+    let p_info = WinApiAbi::arg(emu, 1);
+    let dw_flags = WinApiAbi::arg(emu, 2);
+    let pv_aux_info = WinApiAbi::arg(emu, 3);
+    let ph_key = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "crypt32!CryptImportPublicKeyInfoEx2 0x{:x}",

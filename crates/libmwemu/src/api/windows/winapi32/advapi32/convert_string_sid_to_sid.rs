@@ -1,13 +1,14 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ConvertStringSidToSidA(emu: &mut emu::Emu) {
     convert_string_sid_to_sid(emu, "ConvertStringSidToSidA", false);
 }
 
 fn convert_string_sid_to_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let str_sid_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pp_sid = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let str_sid_ptr = WinApiAbi::arg(emu, 0);
+    let pp_sid = WinApiAbi::arg(emu, 1);
     let sid_str = if str_sid_ptr != 0 && str_sid_ptr > 0xffff {
         strings::read_text(emu, str_sid_ptr, wide)
     } else {

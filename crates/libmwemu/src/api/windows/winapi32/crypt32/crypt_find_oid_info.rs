@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptFindOIDInfo(emu: &mut emu::Emu) {
-    let dw_key_type = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pv_key = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let dw_group_id = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let dw_key_type = WinApiAbi::arg(emu, 0);
+    let pv_key = WinApiAbi::arg(emu, 1);
+    let dw_group_id = WinApiAbi::arg(emu, 2);
     log_red!(
         emu,
         "crypt32!CryptFindOIDInfo dw_key_type:0x{:x} pv_key:0x{:x} dw_group_id:0x{:x}",

@@ -1,15 +1,16 @@
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn OpenServiceA(emu: &mut emu::Emu) {
     open_service(emu, "OpenServiceA", false);
 }
 
 fn open_service(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hsc = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let access = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let hsc = WinApiAbi::arg(emu, 0) as u32;
+    let name_ptr = WinApiAbi::arg(emu, 1);
+    let access = WinApiAbi::arg(emu, 2) as u32;
     let name = strings::read_text(emu, name_ptr, wide);
     let hsvc = helper::handler_create(&name);
     log_red!(

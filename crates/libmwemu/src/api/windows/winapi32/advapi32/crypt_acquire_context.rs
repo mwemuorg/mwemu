@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptAcquireContextA(emu: &mut emu::Emu) {
@@ -7,11 +8,11 @@ pub(super) fn CryptAcquireContextA(emu: &mut emu::Emu) {
 }
 
 fn crypt_acquire_context(emu: &mut emu::Emu, api: &str) {
-    let out_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let container = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let provider = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let prov_type = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let out_handle = WinApiAbi::arg(emu, 0);
+    let container = WinApiAbi::arg(emu, 1) as u32;
+    let provider = WinApiAbi::arg(emu, 2) as u32;
+    let prov_type = WinApiAbi::arg(emu, 3) as u32;
+    let flags = WinApiAbi::arg(emu, 4) as u32;
 
     let uri = "cryptctx://".to_string();
     let hndl = helper::handler_create(&uri) as u32;

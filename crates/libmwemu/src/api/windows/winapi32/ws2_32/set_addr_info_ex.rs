@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn SetAddrInfoExA(emu: &mut emu::Emu) {
@@ -7,7 +8,7 @@ pub fn SetAddrInfoExA(emu: &mut emu::Emu) {
 }
 
 fn set_addr_info_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let name_ptr = WinApiAbi::arg(emu, 0);
     let name = if name_ptr != 0 {
         strings::read_text(emu, name_ptr, wide)
     } else {

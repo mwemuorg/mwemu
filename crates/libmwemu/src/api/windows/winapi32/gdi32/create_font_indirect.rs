@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CreateFontIndirectA(emu: &mut emu::Emu) {
     create_font_indirect(emu, "CreateFontIndirectA");
 }
 
 fn create_font_indirect(emu: &mut emu::Emu, api: &str) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
     log_red!(emu, "gdi32!{api} arg1:0x{:x}", arg1);
     for _ in 0..1u32 {
         emu.stack_pop32(false);

@@ -1,59 +1,45 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::msvcrt;
 
-#[path = "../malloc.rs"]
 mod malloc;
 pub use malloc::malloc;
 
-#[path = "../free.rs"]
 mod free;
 pub use free::free;
 
-#[path = "../realloc.rs"]
 mod realloc;
 pub use realloc::realloc;
 
-#[path = "../__2_yapaxi_z.rs"]
 mod __2_yapaxi_z;
 pub use __2_yapaxi_z::__2_YAPAXI_Z;
 
-#[path = "../__3_yaxpax_z.rs"]
 mod __3_yaxpax_z;
 pub use __3_yaxpax_z::__3_YAXPAX_Z;
 
-#[path = "../calloc.rs"]
 mod calloc;
 pub use calloc::calloc;
 
-#[path = "../memset.rs"]
 mod memset;
 pub use memset::memset;
 
-#[path = "../memcpy.rs"]
 mod memcpy;
 pub use memcpy::memcpy;
 
-#[path = "../memmove.rs"]
 mod memmove;
 pub use memmove::memmove;
 
-#[path = "../memcmp.rs"]
 mod memcmp;
 pub use memcmp::memcmp;
 
-#[path = "../memchr.rs"]
 mod memchr;
 pub use memchr::memchr;
 
-#[path = "../_msize.rs"]
 mod _msize;
 pub use _msize::_msize;
 
-#[path = "../_aligned_malloc.rs"]
 mod _aligned_malloc;
 pub use _aligned_malloc::_aligned_malloc;
 
-#[path = "../_aligned_free.rs"]
 mod _aligned_free;
 pub use _aligned_free::_aligned_free;
 

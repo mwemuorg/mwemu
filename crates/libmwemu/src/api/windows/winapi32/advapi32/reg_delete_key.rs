@@ -1,13 +1,14 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegDeleteKeyA(emu: &mut emu::Emu) {
     reg_delete_key(emu, "RegDeleteKeyA", false);
 }
 
 fn reg_delete_key(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let subkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let hkey = WinApiAbi::arg(emu, 0) as u32;
+    let subkey_ptr = WinApiAbi::arg(emu, 1);
     let subkey = strings::read_text(emu, subkey_ptr, wide);
     log_red!(emu, "advapi32!{api} hkey:0x{:x} '{}'", hkey, subkey);
     for _ in 0..2 {

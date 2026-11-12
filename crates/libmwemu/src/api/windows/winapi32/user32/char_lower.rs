@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
@@ -12,7 +13,7 @@ pub fn CharLowerA(emu: &mut emu::Emu) {
 }
 
 pub(super) fn CharLowerW(emu: &mut emu::Emu) {
-    let ptr_str = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let ptr_str = WinApiAbi::arg(emu, 0);
 
     let s = emu.maps.read_wide_string(ptr_str);
 

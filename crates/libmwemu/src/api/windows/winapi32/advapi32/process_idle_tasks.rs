@@ -1,15 +1,16 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ProcessIdleTasks(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let handle = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
         "advapi32!ProcessIdleTasks h:0x{:x} arg2:0x{:x}",
         handle,
         arg2
     );
-    let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let first_param = WinApiAbi::arg(emu, 0);
     if first_param != 0 && emu.maps.is_mapped(first_param) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }
@@ -21,8 +22,8 @@ pub fn ProcessIdleTasks(emu: &mut emu::Emu) {
 }
 
 pub fn ProcessIdleTasksW(emu: &mut emu::Emu) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p0 = WinApiAbi::arg(emu, 0);
+    let p1 = WinApiAbi::arg(emu, 1);
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {

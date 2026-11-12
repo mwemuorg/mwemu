@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetLengthSid(emu: &mut emu::Emu) {
-    let sid_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let sid_ptr = WinApiAbi::arg(emu, 0);
     let sub_count = if sid_ptr != 0 {
         emu.maps.read_byte(sid_ptr + 1).unwrap_or(1) as u64
     } else {

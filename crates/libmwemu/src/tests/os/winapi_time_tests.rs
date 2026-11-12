@@ -2,6 +2,8 @@ use crate::emu64;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 use crate::winapi::winapi64;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::nls::*;
 
 const PERFORMANCE_COUNTER_FREQUENCY: u64 = 10_000_000;
 const HUNDRED_NS_PER_MILLISECOND: i64 = 10_000;
@@ -136,4 +138,106 @@ fn nt_delay_execution() {
         start_tick,
         emu.tick
     );
+}
+
+#[test]
+fn calendar_info_uses_shared_ansi_unicode_sizes_and_numeric_outputs() {
+    const GUARD: u8 = 0xcc;
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let mut targets = vec![
+            ("kernel32.dll", "GetCalendarInfoA", false),
+            ("kernel32.dll", "GetCalendarInfoW", true),
+        ];
+        if is64 {
+            targets.push(("kernelbase.dll", "GetCalendarInfoW", true));
+        }
+        for (library, api, wide) in targets {
+            for (kind, text) in [
+                (CAL_SCALNAME, "Gregorian Calendar"),
+                (CAL_SDAYNAME1, "Monday"),
+                (CAL_SMONTHNAME1, "January"),
+            ] {
+                let expected: Vec<u8> = if wide {
+                    text.encode_utf16()
+                        .chain([0])
+                        .flat_map(u16::to_le_bytes)
+                        .collect()
+                } else {
+                    text.bytes().chain([0]).collect()
+                };
+                let count = text.len() as u64 + 1;
+                let mut args = [LOCALE_USER_DEFAULT, CAL_GREGORIAN as u64, kind, 0, 0, 0];
+                emu.set_last_error(GUARD as u64);
+                assert_eq!(
+                    helpers::call_winapi_export(&mut emu, library, api, &args),
+                    count,
+                    "{api} size query"
+                );
+                assert_eq!(emu.get_last_error(), GUARD as u64);
+                assert!(emu.maps.write_bytes(data, &[GUARD; 64]));
+                args[3] = data;
+                args[4] = count - 1;
+                assert_eq!(
+                    helpers::call_winapi_export(&mut emu, library, api, &args),
+                    0
+                );
+                assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+                assert_eq!(
+                    emu.maps.try_read_bytes(data, 64).as_deref(),
+                    Some([GUARD; 64].as_slice())
+                );
+                args[4] = count;
+                assert_eq!(
+                    helpers::call_winapi_export(&mut emu, library, api, &args),
+                    count
+                );
+                assert_eq!(
+                    emu.maps.try_read_bytes(data, expected.len()).as_deref(),
+                    Some(expected.as_slice())
+                );
+                assert_eq!(
+                    emu.maps.read_byte(data + expected.len() as u64),
+                    Some(GUARD)
+                );
+            }
+            assert!(emu.maps.write_bytes(data, &[GUARD; 8]));
+            let args = [
+                EN_US_LOCALE as u64,
+                CAL_GREGORIAN as u64,
+                CAL_ICALINTVALUE | CAL_RETURN_NUMBER,
+                0,
+                0,
+                data,
+            ];
+            let unit_size = if wide {
+                size_of::<u16>()
+            } else {
+                size_of::<u8>()
+            };
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, library, api, &args),
+                (size_of::<u32>() / unit_size) as u64
+            );
+            assert_eq!(emu.maps.read_dword(data), Some(CAL_GREGORIAN));
+            assert_eq!(
+                emu.maps.read_byte(data + size_of::<u32>() as u64),
+                Some(GUARD)
+            );
+            let mut invalid = args;
+            invalid[5] = 0;
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, library, api, &invalid),
+                0
+            );
+            assert_eq!(emu.get_last_error(), ERROR_INVALID_PARAMETER);
+            invalid = args;
+            invalid[2] = CAL_SCALNAME | CAL_RETURN_NUMBER;
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, library, api, &invalid),
+                0
+            );
+            assert_eq!(emu.get_last_error(), ERROR_INVALID_FLAGS);
+        }
+    }
 }

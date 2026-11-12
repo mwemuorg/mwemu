@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptCATEnumerateMember(emu: &mut emu::Emu) {
-    let h_catalog = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p_prev_member = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let h_catalog = WinApiAbi::arg(emu, 0);
+    let p_prev_member = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
         "crypt32!CryptCATEnumerateMember h_catalog:0x{:x} p_prev_member:0x{:x}",

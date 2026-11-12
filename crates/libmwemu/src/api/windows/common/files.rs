@@ -483,3 +483,44 @@ pub(crate) fn get_directory(emu: &mut Emu, api: &str, wide: bool, directory: Dir
     };
     call.finish(emu, result as u64, 2);
 }
+
+pub(crate) fn device_io_control(emu: &mut Emu, api: &str) {
+    let device = Call::Api.arg(emu, 0);
+    let code = Call::Api.arg(emu, 1) as u32;
+    let input = Call::Api.arg(emu, 2);
+    let input_size = Call::Api.arg(emu, 3) as u32;
+    let output = Call::Api.arg(emu, 4);
+    let output_size = Call::Api.arg(emu, 5) as u32;
+    let returned = Call::Api.arg(emu, 6);
+    let overlapped = Call::Api.arg(emu, 7);
+    log_red!(
+        emu,
+        "{} handle:0x{:x} code:0x{:x} input:0x{:x}({}) output:0x{:x}({}) overlapped:0x{:x}",
+        api,
+        device,
+        code,
+        input,
+        input_size,
+        output,
+        output_size,
+        overlapped
+    );
+    // Preserve the existing empty device-response model; IOCTL-specific output
+    // and asynchronous completion are not implemented here.
+    let error = if !helper::handler_exist(device) {
+        Some(ERROR_INVALID_HANDLE)
+    } else if returned != 0
+        && (!emu
+            .maps
+            .validate_write_range(returned, size_of::<u32>() as u64)
+            || !emu.maps.write_dword(returned, 0))
+    {
+        Some(ERROR_NOACCESS)
+    } else {
+        None
+    };
+    if let Some(error) = error {
+        emu.set_last_error(error);
+    }
+    Call::Api.finish(emu, error.is_none() as u64, 8);
+}

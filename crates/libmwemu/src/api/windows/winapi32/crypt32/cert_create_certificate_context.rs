@@ -1,10 +1,11 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertCreateCertificateContext(emu: &mut emu::Emu) {
-    let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pb_cert_encoded = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let cb_cert_encoded = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let dw_cert_encoding = WinApiAbi::arg(emu, 0);
+    let pb_cert_encoded = WinApiAbi::arg(emu, 1);
+    let cb_cert_encoded = WinApiAbi::arg(emu, 2);
     log_red!(
         emu,
         "crypt32!CertCreateCertificateContext dw_cert_encoding:0x{:x} pb_cert_encoded:0x{:x} cb_cert_encoded:0x{:x}",

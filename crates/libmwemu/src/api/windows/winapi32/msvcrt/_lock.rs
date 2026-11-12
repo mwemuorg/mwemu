@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn _lock(emu: &mut emu::Emu) {
-    let lock_num = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let lock_num = WinApiAbi::arg(emu, 0) as u32;
 
     log_red!(emu, "msvcrt!_lock {}", lock_num);
 

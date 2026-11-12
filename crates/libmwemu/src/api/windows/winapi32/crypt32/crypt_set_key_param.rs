@@ -1,11 +1,12 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptSetKeyParam(emu: &mut emu::Emu) {
-    let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let param = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let h_key = WinApiAbi::arg(emu, 0);
+    let param = WinApiAbi::arg(emu, 1) as u32;
+    let pb_data = WinApiAbi::arg(emu, 2);
+    let _flags = WinApiAbi::arg(emu, 3) as u32;
     log_red!(
         emu,
         "crypt32!CryptSetKeyParam key:0x{:x} param:{} data:0x{:x}",

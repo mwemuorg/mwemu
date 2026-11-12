@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertGetIssuerCertificateFromStore(emu: &mut emu::Emu) {
-    let h_cert_store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p_subject_ctx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let p_prev_issuer_ctx = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let pdw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let h_cert_store = WinApiAbi::arg(emu, 0);
+    let p_subject_ctx = WinApiAbi::arg(emu, 1);
+    let p_prev_issuer_ctx = WinApiAbi::arg(emu, 2);
+    let pdw_flags = WinApiAbi::arg(emu, 3);
     log_red!(
         emu,
         "crypt32!CertGetIssuerCertificateFromStore 0x{:x}",

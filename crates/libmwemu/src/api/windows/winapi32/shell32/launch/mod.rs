@@ -1,267 +1,184 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::shell32;
 
-#[path = "../real_shell_execute_ex.rs"]
 mod real_shell_execute_ex;
-pub use real_shell_execute_ex::*;
+pub use real_shell_execute_ex::{RealShellExecuteExA, RealShellExecuteExW};
 
-#[path = "../real_shell_execute.rs"]
 mod real_shell_execute;
-pub use real_shell_execute::*;
+pub use real_shell_execute::{RealShellExecuteA, RealShellExecuteW};
 
-#[path = "../find_executable.rs"]
 mod find_executable;
-pub use find_executable::*;
+pub use find_executable::{FindExecutableA, FindExecutableW};
 
-#[path = "../do_environment_subst.rs"]
 mod do_environment_subst;
-pub use do_environment_subst::*;
+pub use do_environment_subst::{DoEnvironmentSubstA, DoEnvironmentSubstW};
 
-#[path = "../app_compat_run_dllw.rs"]
 mod app_compat_run_dllw;
 pub use app_compat_run_dllw::AppCompat_RunDLLW;
 
-#[path = "../assoc_create_for_classes.rs"]
 mod assoc_create_for_classes;
 pub use assoc_create_for_classes::AssocCreateForClasses;
 
-#[path = "../assoc_elem_create_for_key.rs"]
 mod assoc_elem_create_for_key;
 pub use assoc_elem_create_for_key::AssocElemCreateForKey;
 
-#[path = "../assoc_get_details_of_prop_key.rs"]
 mod assoc_get_details_of_prop_key;
 pub use assoc_get_details_of_prop_key::AssocGetDetailsOfPropKey;
 
-#[path = "../command_line_to_argv_w.rs"]
 mod command_line_to_argv_w;
 pub use command_line_to_argv_w::CommandLineToArgvW;
 
-#[path = "../control_run_dll.rs"]
 mod control_run_dll;
-pub use control_run_dll::Control_RunDLL;
+pub use control_run_dll::{Control_RunDLL, Control_RunDLLA, Control_RunDLLW};
 
-pub use control_run_dll::Control_RunDLLA;
-
-#[path = "../control_run_dll_as_user_w.rs"]
 mod control_run_dll_as_user_w;
 pub use control_run_dll_as_user_w::Control_RunDLLAsUserW;
 
-pub use control_run_dll::Control_RunDLLW;
-
-#[path = "../create_storage_item_from_shell_item_full_trust_caller_for_package_with_process_handle.rs"]
 mod create_storage_item_from_shell_item_full_trust_caller_for_package_with_process_handle;
 pub use create_storage_item_from_shell_item_full_trust_caller_for_package_with_process_handle::CreateStorageItemFromShellItem_FullTrustCaller_ForPackage_WithProcessHandle;
 
-#[path = "../dll_can_unload_now.rs"]
 mod dll_can_unload_now;
 pub use dll_can_unload_now::DllCanUnloadNow;
 
-#[path = "../dll_get_activation_factory.rs"]
 mod dll_get_activation_factory;
 pub use dll_get_activation_factory::DllGetActivationFactory;
 
-#[path = "../dll_get_class_object.rs"]
 mod dll_get_class_object;
 pub use dll_get_class_object::DllGetClassObject;
 
-#[path = "../dll_get_version.rs"]
 mod dll_get_version;
 pub use dll_get_version::DllGetVersion;
 
-#[path = "../dll_install.rs"]
 mod dll_install;
 pub use dll_install::DllInstall;
 
-#[path = "../dll_register_server.rs"]
 mod dll_register_server;
 pub use dll_register_server::DllRegisterServer;
 
-#[path = "../dll_unregister_server.rs"]
 mod dll_unregister_server;
 pub use dll_unregister_server::DllUnregisterServer;
 
-#[path = "../get_current_process_explicit_app_user_model_id.rs"]
 mod get_current_process_explicit_app_user_model_id;
 pub use get_current_process_explicit_app_user_model_id::GetCurrentProcessExplicitAppUserModelID;
 
-#[path = "../is_desktop_explorer_process.rs"]
 mod is_desktop_explorer_process;
 pub use is_desktop_explorer_process::IsDesktopExplorerProcess;
 
-#[path = "../is_process_an_explorer.rs"]
 mod is_process_an_explorer;
 pub use is_process_an_explorer::IsProcessAnExplorer;
 
-#[path = "../is_user_an_admin.rs"]
 mod is_user_an_admin;
 pub use is_user_an_admin::IsUserAnAdmin;
 
-#[path = "../launch_ms_help_run_dllw.rs"]
 mod launch_ms_help_run_dllw;
 pub use launch_ms_help_run_dllw::LaunchMSHelp_RunDLLW;
 
-#[path = "../open_as_run_dll.rs"]
 mod open_as_run_dll;
-pub use open_as_run_dll::OpenAs_RunDLL;
+pub use open_as_run_dll::{OpenAs_RunDLL, OpenAs_RunDLLA, OpenAs_RunDLLW};
 
-pub use open_as_run_dll::OpenAs_RunDLLA;
-
-pub use open_as_run_dll::OpenAs_RunDLLW;
-
-#[path = "../options_run_dll.rs"]
 mod options_run_dll;
-pub use options_run_dll::Options_RunDLL;
+pub use options_run_dll::{Options_RunDLL, Options_RunDLLA, Options_RunDLLW};
 
-pub use options_run_dll::Options_RunDLLA;
-
-pub use options_run_dll::Options_RunDLLW;
-
-#[path = "../prepare_disc_for_burn_run_dll_w.rs"]
 mod prepare_disc_for_burn_run_dll_w;
 pub use prepare_disc_for_burn_run_dll_w::PrepareDiscForBurnRunDllW;
 
-#[path = "../printers_get_command_run_dll.rs"]
 mod printers_get_command_run_dll;
-pub use printers_get_command_run_dll::PrintersGetCommand_RunDLL;
+pub use printers_get_command_run_dll::{
+    PrintersGetCommand_RunDLL, PrintersGetCommand_RunDLLA, PrintersGetCommand_RunDLLW,
+};
 
-pub use printers_get_command_run_dll::PrintersGetCommand_RunDLLA;
-
-pub use printers_get_command_run_dll::PrintersGetCommand_RunDLLW;
-
-#[path = "../regenerate_user_environment.rs"]
 mod regenerate_user_environment;
 pub use regenerate_user_environment::RegenerateUserEnvironment;
 
-#[path = "../run_as_new_user_run_dllw.rs"]
 mod run_as_new_user_run_dllw;
 pub use run_as_new_user_run_dllw::RunAsNewUser_RunDLLW;
 
-#[path = "../sh_assoc_enum_handlers.rs"]
 mod sh_assoc_enum_handlers;
 pub use sh_assoc_enum_handlers::SHAssocEnumHandlers;
 
-#[path = "../sh_assoc_enum_handlers_for_protocol_by_application.rs"]
 mod sh_assoc_enum_handlers_for_protocol_by_application;
 pub use sh_assoc_enum_handlers_for_protocol_by_application::SHAssocEnumHandlersForProtocolByApplication;
 
-#[path = "../sh_create_association_registration.rs"]
 mod sh_create_association_registration;
 pub use sh_create_association_registration::SHCreateAssociationRegistration;
 
-#[path = "../sh_create_local_server_run_dll.rs"]
 mod sh_create_local_server_run_dll;
 pub use sh_create_local_server_run_dll::SHCreateLocalServerRunDll;
 
-#[path = "../sh_create_process_as_user_w.rs"]
 mod sh_create_process_as_user_w;
 pub use sh_create_process_as_user_w::SHCreateProcessAsUserW;
 
-#[path = "../sh_create_query_cancel_auto_play_moniker.rs"]
 mod sh_create_query_cancel_auto_play_moniker;
 pub use sh_create_query_cancel_auto_play_moniker::SHCreateQueryCancelAutoPlayMoniker;
 
-#[path = "../shell32_c_mount_point_do_autorun.rs"]
 mod shell32_c_mount_point_do_autorun;
 pub use shell32_c_mount_point_do_autorun::SHELL32_CMountPoint_DoAutorun;
 
-#[path = "../shell32_c_mount_point_do_autorun_prompt.rs"]
 mod shell32_c_mount_point_do_autorun_prompt;
 pub use shell32_c_mount_point_do_autorun_prompt::SHELL32_CMountPoint_DoAutorunPrompt;
 
-#[path = "../shell32_c_mount_point_is_auto_run_drive_and_enabled_by_policy.rs"]
 mod shell32_c_mount_point_is_auto_run_drive_and_enabled_by_policy;
 pub use shell32_c_mount_point_is_auto_run_drive_and_enabled_by_policy::SHELL32_CMountPoint_IsAutoRunDriveAndEnabledByPolicy;
 
-#[path = "../shell32_c_mount_point_process_auto_run_file.rs"]
 mod shell32_c_mount_point_process_auto_run_file;
 pub use shell32_c_mount_point_process_auto_run_file::SHELL32_CMountPoint_ProcessAutoRunFile;
 
-#[path = "../shell32_close_autoplay_prompt.rs"]
 mod shell32_close_autoplay_prompt;
 pub use shell32_close_autoplay_prompt::SHELL32_CloseAutoplayPrompt;
 
-#[path = "../shell32_command_line_from_msi_descriptor.rs"]
 mod shell32_command_line_from_msi_descriptor;
 pub use shell32_command_line_from_msi_descriptor::SHELL32_CommandLineFromMsiDescriptor;
 
-#[path = "../shell32_generate_app_id.rs"]
 mod shell32_generate_app_id;
 pub use shell32_generate_app_id::SHELL32_GenerateAppID;
 
-#[path = "../shell32_get_app_id_root.rs"]
 mod shell32_get_app_id_root;
 pub use shell32_get_app_id_root::SHELL32_GetAppIDRoot;
 
-#[path = "../shell32_verify_safer_trust.rs"]
 mod shell32_verify_safer_trust;
 pub use shell32_verify_safer_trust::SHELL32_VerifySaferTrust;
 
-#[path = "../sh_enumerate_unread_mail_accounts_w.rs"]
 mod sh_enumerate_unread_mail_accounts_w;
 pub use sh_enumerate_unread_mail_accounts_w::SHEnumerateUnreadMailAccountsW;
 
-#[path = "../sh_evaluate_system_command_template.rs"]
 mod sh_evaluate_system_command_template;
 pub use sh_evaluate_system_command_template::SHEvaluateSystemCommandTemplate;
 
-#[path = "../sh_execute_error_message_box.rs"]
 mod sh_execute_error_message_box;
 pub use sh_execute_error_message_box::SHExecuteErrorMessageBox;
 
-#[path = "../sh_get_unread_mail_count_w.rs"]
 mod sh_get_unread_mail_count_w;
 pub use sh_get_unread_mail_count_w::SHGetUnreadMailCountW;
 
-#[path = "../sh_help_shortcuts_run_dll.rs"]
 mod sh_help_shortcuts_run_dll;
-pub use sh_help_shortcuts_run_dll::SHHelpShortcuts_RunDLL;
+pub use sh_help_shortcuts_run_dll::{
+    SHHelpShortcuts_RunDLL, SHHelpShortcuts_RunDLLA, SHHelpShortcuts_RunDLLW,
+};
 
-pub use sh_help_shortcuts_run_dll::SHHelpShortcuts_RunDLLA;
-
-pub use sh_help_shortcuts_run_dll::SHHelpShortcuts_RunDLLW;
-
-#[path = "../sh_restricted.rs"]
 mod sh_restricted;
 pub use sh_restricted::SHRestricted;
 
-#[path = "../sh_set_unread_mail_count_w.rs"]
 mod sh_set_unread_mail_count_w;
 pub use sh_set_unread_mail_count_w::SHSetUnreadMailCountW;
 
-#[path = "../set_current_process_explicit_app_user_model_id.rs"]
 mod set_current_process_explicit_app_user_model_id;
 pub use set_current_process_explicit_app_user_model_id::SetCurrentProcessExplicitAppUserModelID;
 
-#[path = "../shell_exec_run_dll.rs"]
 mod shell_exec_run_dll;
-pub use shell_exec_run_dll::ShellExec_RunDLL;
+pub use shell_exec_run_dll::{ShellExec_RunDLL, ShellExec_RunDLLA, ShellExec_RunDLLW};
 
-pub use shell_exec_run_dll::ShellExec_RunDLLA;
-
-pub use shell_exec_run_dll::ShellExec_RunDLLW;
-
-#[path = "../shell_execute_ex.rs"]
 mod shell_execute_ex;
-pub use shell_execute_ex::ShellExecuteEx;
+pub use shell_execute_ex::{ShellExecuteEx, ShellExecuteExA, ShellExecuteExW};
 
-pub use shell_execute_ex::ShellExecuteExA;
-
-pub use shell_execute_ex::ShellExecuteExW;
-
-#[path = "../shell_hook_proc.rs"]
 mod shell_hook_proc;
 pub use shell_hook_proc::ShellHookProc;
 
-#[path = "../wow_shell_execute.rs"]
 mod wow_shell_execute;
 pub use wow_shell_execute::WOWShellExecute;
 
-#[path = "../wait_for_explorer_restart_w.rs"]
 mod wait_for_explorer_restart_w;
 pub use wait_for_explorer_restart_w::WaitForExplorerRestartW;
 
-#[path = "../shell_execute.rs"]
 mod shell_execute;
 pub use shell_execute::{ShellExecuteA, ShellExecuteW};
 

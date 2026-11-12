@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EventRegister(emu: &mut emu::Emu) {
-    let provider_id = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let enable_callback = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let callback_ctx = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let reg_handle = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let provider_id = WinApiAbi::arg(emu, 0) as u32;
+    let enable_callback = WinApiAbi::arg(emu, 1) as u32;
+    let callback_ctx = WinApiAbi::arg(emu, 2) as u32;
+    let reg_handle = WinApiAbi::arg(emu, 3) as u32;
     log_red!(
         emu,
         "advapi32!EventRegister prov: 0x{:x} cb: 0x{:x} ctx: 0x{:x} out: 0x{:x}",

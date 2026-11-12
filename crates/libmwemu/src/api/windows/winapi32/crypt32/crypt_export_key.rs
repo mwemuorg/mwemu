@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptExportKey(emu: &mut emu::Emu) {
-    let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let h_exp_key = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let dw_blob_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let pdw_data_len = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+    let h_key = WinApiAbi::arg(emu, 0);
+    let h_exp_key = WinApiAbi::arg(emu, 1);
+    let dw_blob_type = WinApiAbi::arg(emu, 2) as u32;
+    let dw_flags = WinApiAbi::arg(emu, 3) as u32;
+    let pb_data = WinApiAbi::arg(emu, 4);
+    let pdw_data_len = WinApiAbi::arg(emu, 5);
     log_red!(
         emu,
         "crypt32!CryptExportKey key:0x{:x} exp:0x{:x} type:{} flags:0x{:x}",
@@ -15,7 +16,7 @@ pub fn CryptExportKey(emu: &mut emu::Emu) {
         dw_blob_type,
         dw_flags
     );
-    let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let val_ptr = WinApiAbi::arg(emu, 1);
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }

@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn EtwEventEnabled(emu: &mut emu::Emu) {
-    let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let event_descriptor = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let reg_handle = WinApiAbi::arg(emu, 0);
+    let event_descriptor = WinApiAbi::arg(emu, 1);
     let level = if event_descriptor != 0 {
         emu.maps.read_byte(event_descriptor).unwrap_or(0)
     } else {

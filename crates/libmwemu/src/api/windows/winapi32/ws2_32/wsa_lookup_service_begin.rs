@@ -1,14 +1,15 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSALookupServiceBeginA(emu: &mut emu::Emu) {
     wsa_lookup_service_begin(emu, "WSALookupServiceBeginA");
 }
 
 fn wsa_lookup_service_begin(emu: &mut emu::Emu, api: &str) {
-    let restrictions_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let handle_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let restrictions_ptr = WinApiAbi::arg(emu, 0);
+    let flags = WinApiAbi::arg(emu, 1) as u32;
+    let handle_ptr = WinApiAbi::arg(emu, 2);
     log_red!(emu, "ws2_32!{api} flags:0x{:x}", flags);
     let handle = helper::handler_create("wsa_lookup");
     if handle_ptr != 0 {

@@ -1,11 +1,12 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptHashData(emu: &mut emu::Emu) {
-    let h_hash = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let dw_data_len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let h_hash = WinApiAbi::arg(emu, 0);
+    let pb_data = WinApiAbi::arg(emu, 1);
+    let dw_data_len = WinApiAbi::arg(emu, 2) as u32;
+    let dw_flags = WinApiAbi::arg(emu, 3) as u32;
     log_red!(
         emu,
         "crypt32!CryptHashData hash:0x{:x} data:0x{:x} len:{} flags:0x{:x}",

@@ -1,9 +1,10 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn __register_frame_info(emu: &mut emu::Emu) {
-    let p1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let p1 = WinApiAbi::arg(emu, 0) as u32;
+    let p2 = WinApiAbi::arg(emu, 1) as u32;
 
     log_red!(emu, "libgcc!__register_frame_info {:x} {:x}", p1, p2);
 

@@ -1,435 +1,342 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../set_file_attributes_transacted.rs"]
 mod set_file_attributes_transacted;
-pub use set_file_attributes_transacted::*;
+pub use set_file_attributes_transacted::{
+    SetFileAttributesTransactedA, SetFileAttributesTransactedW,
+};
 
-#[path = "../set_default_comm_config.rs"]
 mod set_default_comm_config;
-pub use set_default_comm_config::*;
+pub use set_default_comm_config::{SetDefaultCommConfigA, SetDefaultCommConfigW};
 
-#[path = "../remove_local_alternate_computer_name.rs"]
 mod remove_local_alternate_computer_name;
-pub use remove_local_alternate_computer_name::*;
+pub use remove_local_alternate_computer_name::{
+    RemoveLocalAlternateComputerNameA, RemoveLocalAlternateComputerNameW,
+};
 
-#[path = "../remove_directory_transacted.rs"]
 mod remove_directory_transacted;
-pub use remove_directory_transacted::*;
+pub use remove_directory_transacted::{RemoveDirectoryTransactedA, RemoveDirectoryTransactedW};
 
-#[path = "../query_dos_device.rs"]
 mod query_dos_device;
-pub use query_dos_device::*;
+pub use query_dos_device::{QueryDosDeviceA, QueryDosDeviceW};
 
-#[path = "../open_file_mapping.rs"]
 mod open_file_mapping;
-pub use open_file_mapping::*;
+pub use open_file_mapping::{OpenFileMappingA, OpenFileMappingW};
 
-#[path = "../move_file_ex.rs"]
 mod move_file_ex;
-pub use move_file_ex::*;
+pub use move_file_ex::{MoveFileExA, MoveFileExW};
 
-#[path = "../get_volume_path_names_for_volume_name.rs"]
 mod get_volume_path_names_for_volume_name;
-pub use get_volume_path_names_for_volume_name::*;
+pub use get_volume_path_names_for_volume_name::{
+    GetVolumePathNamesForVolumeNameA, GetVolumePathNamesForVolumeNameW,
+};
 
-#[path = "../get_volume_name_for_volume_mount_point.rs"]
 mod get_volume_name_for_volume_mount_point;
-pub use get_volume_name_for_volume_mount_point::*;
+pub use get_volume_name_for_volume_mount_point::{
+    GetVolumeNameForVolumeMountPointA, GetVolumeNameForVolumeMountPointW,
+};
 
-#[path = "../get_named_pipe_handle_state.rs"]
 mod get_named_pipe_handle_state;
-pub use get_named_pipe_handle_state::*;
+pub use get_named_pipe_handle_state::{GetNamedPipeHandleStateA, GetNamedPipeHandleStateW};
 
-#[path = "../get_named_pipe_client_computer_name.rs"]
 mod get_named_pipe_client_computer_name;
-pub use get_named_pipe_client_computer_name::*;
+pub use get_named_pipe_client_computer_name::{
+    GetNamedPipeClientComputerNameA, GetNamedPipeClientComputerNameW,
+};
 
-#[path = "../get_file_attributes_transacted.rs"]
 mod get_file_attributes_transacted;
-pub use get_file_attributes_transacted::*;
+pub use get_file_attributes_transacted::{
+    GetFileAttributesTransactedA, GetFileAttributesTransactedW,
+};
 
-#[path = "../get_compressed_file_size_transacted.rs"]
 mod get_compressed_file_size_transacted;
-pub use get_compressed_file_size_transacted::*;
+pub use get_compressed_file_size_transacted::{
+    GetCompressedFileSizeTransactedA, GetCompressedFileSizeTransactedW,
+};
 
-#[path = "../find_next_volume.rs"]
 mod find_next_volume;
-pub use find_next_volume::*;
+pub use find_next_volume::{FindNextVolumeA, FindNextVolumeW};
 
-#[path = "../find_first_volume.rs"]
 mod find_first_volume;
-pub use find_first_volume::*;
+pub use find_first_volume::{FindFirstVolumeA, FindFirstVolumeW};
 
-#[path = "../delete_volume_mount_point.rs"]
 mod delete_volume_mount_point;
-pub use delete_volume_mount_point::*;
+pub use delete_volume_mount_point::{DeleteVolumeMountPointA, DeleteVolumeMountPointW};
 
-#[path = "../delete_file_transacted.rs"]
 mod delete_file_transacted;
-pub use delete_file_transacted::*;
+pub use delete_file_transacted::{DeleteFileTransactedA, DeleteFileTransactedW};
 
-#[path = "../define_dos_device.rs"]
 mod define_dos_device;
-pub use define_dos_device::*;
+pub use define_dos_device::{DefineDosDeviceA, DefineDosDeviceW};
 
-#[path = "../create_named_pipe.rs"]
 mod create_named_pipe;
-pub use create_named_pipe::*;
+pub use create_named_pipe::{CreateNamedPipeA, CreateNamedPipeW};
 
-#[path = "../create_file_mapping_numa.rs"]
 mod create_file_mapping_numa;
-pub use create_file_mapping_numa::*;
+pub use create_file_mapping_numa::{CreateFileMappingNumaA, CreateFileMappingNumaW};
 
-#[path = "../create_directory_ex.rs"]
 mod create_directory_ex;
-pub use create_directory_ex::*;
+pub use create_directory_ex::{CreateDirectoryExA, CreateDirectoryExW};
 
-#[path = "../copy_file_ex.rs"]
 mod copy_file_ex;
-pub use copy_file_ex::*;
+pub use copy_file_ex::{CopyFileExA, CopyFileExW};
 
-#[path = "../comm_config_dialog.rs"]
 mod comm_config_dialog;
-pub use comm_config_dialog::*;
+pub use comm_config_dialog::{CommConfigDialogA, CommConfigDialogW};
 
-#[path = "../call_named_pipe.rs"]
 mod call_named_pipe;
-pub use call_named_pipe::*;
+pub use call_named_pipe::{CallNamedPipeA, CallNamedPipeW};
 
-#[path = "../set_volume_mount_point.rs"]
 mod set_volume_mount_point;
-pub use set_volume_mount_point::*;
+pub use set_volume_mount_point::{SetVolumeMountPointA, SetVolumeMountPointW};
 
-#[path = "../set_volume_label.rs"]
 mod set_volume_label;
-pub use set_volume_label::*;
+pub use set_volume_label::{SetVolumeLabelA, SetVolumeLabelW};
 
-#[path = "../set_file_short_name.rs"]
 mod set_file_short_name;
-pub use set_file_short_name::*;
+pub use set_file_short_name::{SetFileShortNameA, SetFileShortNameW};
 
-#[path = "../set_file_attributes.rs"]
 mod set_file_attributes;
-pub use set_file_attributes::*;
+pub use set_file_attributes::{SetFileAttributesA, SetFileAttributesW};
 
-#[path = "../set_dll_directory.rs"]
 mod set_dll_directory;
-pub use set_dll_directory::*;
+pub use set_dll_directory::{SetDllDirectoryA, SetDllDirectoryW};
 
-#[path = "../remove_directory.rs"]
 mod remove_directory;
-pub use remove_directory::*;
+pub use remove_directory::{RemoveDirectoryA, RemoveDirectoryW};
 
-#[path = "../move_file_transacted.rs"]
 mod move_file_transacted;
-pub use move_file_transacted::*;
+pub use move_file_transacted::{MoveFileTransactedA, MoveFileTransactedW};
 
-#[path = "../move_file.rs"]
 mod move_file;
-pub use move_file::*;
+pub use move_file::{MoveFileA, MoveFileW};
 
-#[path = "../lz_open_file.rs"]
 mod lz_open_file;
-pub use lz_open_file::*;
+pub use lz_open_file::{LZOpenFileA, LZOpenFileW};
 
-#[path = "../get_windows_directory.rs"]
 mod get_windows_directory;
-pub use get_windows_directory::*;
+pub use get_windows_directory::{GetWindowsDirectoryA, GetWindowsDirectoryW};
 
-#[path = "../get_volume_information.rs"]
 mod get_volume_information;
-pub use get_volume_information::*;
+pub use get_volume_information::{GetVolumeInformationA, GetVolumeInformationW};
 
-#[path = "../get_temp_path.rs"]
 mod get_temp_path;
-pub use get_temp_path::*;
+pub use get_temp_path::{GetTempPathA, GetTempPathW};
 
-#[path = "../get_system_windows_directory.rs"]
 mod get_system_windows_directory;
-pub use get_system_windows_directory::*;
+pub use get_system_windows_directory::{GetSystemWindowsDirectoryA, GetSystemWindowsDirectoryW};
 
-#[path = "../get_system_directory.rs"]
 mod get_system_directory;
-pub use get_system_directory::*;
+pub use get_system_directory::{GetSystemDirectoryA, GetSystemDirectoryW};
 
-#[path = "../get_short_path_name.rs"]
 mod get_short_path_name;
-pub use get_short_path_name::*;
+pub use get_short_path_name::{GetShortPathNameA, GetShortPathNameW};
 
-#[path = "../get_long_path_name.rs"]
 mod get_long_path_name;
-pub use get_long_path_name::*;
+pub use get_long_path_name::{GetLongPathNameA, GetLongPathNameW};
 
-#[path = "../get_full_path_name_transacted.rs"]
 mod get_full_path_name_transacted;
-pub use get_full_path_name_transacted::*;
+pub use get_full_path_name_transacted::{GetFullPathNameTransactedA, GetFullPathNameTransactedW};
 
-#[path = "../get_full_path_name.rs"]
 mod get_full_path_name;
-pub use get_full_path_name::*;
+pub use get_full_path_name::{GetFullPathNameA, GetFullPathNameW};
 
-#[path = "../get_file_attributes.rs"]
 mod get_file_attributes;
-pub use get_file_attributes::*;
+pub use get_file_attributes::{GetFileAttributesA, GetFileAttributesW};
 
-#[path = "../get_drive_type.rs"]
 mod get_drive_type;
-pub use get_drive_type::*;
+pub use get_drive_type::{GetDriveTypeA, GetDriveTypeW};
 
-#[path = "../get_dll_directory.rs"]
 mod get_dll_directory;
-pub use get_dll_directory::*;
+pub use get_dll_directory::{GetDllDirectoryA, GetDllDirectoryW};
 
-#[path = "../get_disk_free_space_ex.rs"]
 mod get_disk_free_space_ex;
-pub use get_disk_free_space_ex::*;
+pub use get_disk_free_space_ex::{GetDiskFreeSpaceExA, GetDiskFreeSpaceExW};
 
-#[path = "../get_default_comm_config.rs"]
 mod get_default_comm_config;
-pub use get_default_comm_config::*;
+pub use get_default_comm_config::{GetDefaultCommConfigA, GetDefaultCommConfigW};
 
-#[path = "../get_current_directory.rs"]
 mod get_current_directory;
-pub use get_current_directory::*;
+pub use get_current_directory::{GetCurrentDirectoryA, GetCurrentDirectoryW};
 
-#[path = "../get_command_line.rs"]
 mod get_command_line;
-pub use get_command_line::*;
+pub use get_command_line::{GetCommandLineA, GetCommandLineW};
 
-#[path = "../find_next_volume_mount_point.rs"]
 mod find_next_volume_mount_point;
-pub use find_next_volume_mount_point::*;
+pub use find_next_volume_mount_point::{FindNextVolumeMountPointA, FindNextVolumeMountPointW};
 
-#[path = "../find_next_file.rs"]
 mod find_next_file;
-pub use find_next_file::*;
+pub use find_next_file::{FindNextFileA, FindNextFileW};
 
-#[path = "../find_first_volume_mount_point.rs"]
 mod find_first_volume_mount_point;
-pub use find_first_volume_mount_point::*;
+pub use find_first_volume_mount_point::{FindFirstVolumeMountPointA, FindFirstVolumeMountPointW};
 
-#[path = "../find_first_file.rs"]
 mod find_first_file;
-pub use find_first_file::*;
+pub use find_first_file::{FindFirstFileA, FindFirstFileW};
 
-#[path = "../dos_path_to_session_path.rs"]
 mod dos_path_to_session_path;
-pub use dos_path_to_session_path::*;
+pub use dos_path_to_session_path::{DosPathToSessionPathA, DosPathToSessionPathW};
 
-#[path = "../delete_file.rs"]
 mod delete_file;
-pub use delete_file::*;
+pub use delete_file::{DeleteFileA, DeleteFileW};
 
-#[path = "../create_file_mapping.rs"]
 mod create_file_mapping;
-pub use create_file_mapping::*;
+pub use create_file_mapping::{CreateFileMappingA, CreateFileMappingW};
 
-#[path = "../create_directory_transacted.rs"]
 mod create_directory_transacted;
-pub use create_directory_transacted::*;
+pub use create_directory_transacted::{CreateDirectoryTransactedA, CreateDirectoryTransactedW};
 
-#[path = "../create_directory.rs"]
 mod create_directory;
-pub use create_directory::*;
+pub use create_directory::{CreateDirectoryA, CreateDirectoryW};
 
-#[path = "../copy_file_transacted.rs"]
 mod copy_file_transacted;
-pub use copy_file_transacted::*;
+pub use copy_file_transacted::{CopyFileTransactedA, CopyFileTransactedW};
 
-#[path = "../copy_file.rs"]
 mod copy_file;
-pub use copy_file::*;
+pub use copy_file::{CopyFileA, CopyFileW};
 
-#[path = "../build_comm_dcb_and_timeouts.rs"]
 mod build_comm_dcb_and_timeouts;
-pub use build_comm_dcb_and_timeouts::*;
+pub use build_comm_dcb_and_timeouts::{BuildCommDCBAndTimeoutsA, BuildCommDCBAndTimeoutsW};
 
-#[path = "../are_file_apis_ansi.rs"]
 mod are_file_apis_ansi;
-pub use are_file_apis_ansi::*;
+pub use are_file_apis_ansi::AreFileApisANSI;
 
-#[path = "../connect_named_pipe.rs"]
 mod connect_named_pipe;
-pub use connect_named_pipe::*;
+pub use connect_named_pipe::ConnectNamedPipe;
 
-#[path = "../disconnect_named_pipe.rs"]
 mod disconnect_named_pipe;
-pub use disconnect_named_pipe::*;
+pub use disconnect_named_pipe::DisconnectNamedPipe;
 
-#[path = "../file_time_to_dos_date_time.rs"]
 mod file_time_to_dos_date_time;
-pub use file_time_to_dos_date_time::*;
+pub use file_time_to_dos_date_time::FileTimeToDosDateTime;
 
-#[path = "../file_time_to_local_file_time.rs"]
 mod file_time_to_local_file_time;
-pub use file_time_to_local_file_time::*;
+pub use file_time_to_local_file_time::FileTimeToLocalFileTime;
 
-#[path = "../file_time_to_system_time.rs"]
 mod file_time_to_system_time;
-pub use file_time_to_system_time::*;
+pub use file_time_to_system_time::FileTimeToSystemTime;
 
-#[path = "../find_close.rs"]
 mod find_close;
-pub use find_close::*;
+pub use find_close::FindClose;
 
-#[path = "../get_file_type.rs"]
 mod get_file_type;
-pub use get_file_type::*;
+pub use get_file_type::GetFileType;
 
-#[path = "../get_logical_drives.rs"]
 mod get_logical_drives;
-pub use get_logical_drives::*;
+pub use get_logical_drives::GetLogicalDrives;
 
-#[path = "../get_system_time_as_file_time.rs"]
 mod get_system_time_as_file_time;
-pub use get_system_time_as_file_time::*;
+pub use get_system_time_as_file_time::GetSystemTimeAsFileTime;
 
-#[path = "../backup_read.rs"]
 mod backup_read;
-pub use backup_read::*;
+pub use backup_read::BackupRead;
 
-#[path = "../backup_seek.rs"]
 mod backup_seek;
-pub use backup_seek::*;
+pub use backup_seek::BackupSeek;
 
-#[path = "../backup_write.rs"]
 mod backup_write;
-pub use backup_write::*;
+pub use backup_write::BackupWrite;
 
-#[path = "../build_comm_dcb.rs"]
 mod build_comm_dcb;
-pub use build_comm_dcb::*;
+pub use build_comm_dcb::{BuildCommDCBA, BuildCommDCBW};
 
-#[path = "../copy_lz_file.rs"]
 mod copy_lz_file;
-pub use copy_lz_file::*;
+pub use copy_lz_file::CopyLZFile;
 
-#[path = "../create_tape_partition.rs"]
 mod create_tape_partition;
-pub use create_tape_partition::*;
+pub use create_tape_partition::CreateTapePartition;
 
-#[path = "../delete_atom.rs"]
 mod delete_atom;
-pub use delete_atom::*;
+pub use delete_atom::DeleteAtom;
 
-#[path = "../delete_timer_queue.rs"]
 mod delete_timer_queue;
-pub use delete_timer_queue::*;
+pub use delete_timer_queue::DeleteTimerQueue;
 
-#[path = "../device_io_control_implementation.rs"]
 mod device_io_control_implementation;
-pub use device_io_control_implementation::*;
+pub use device_io_control_implementation::DeviceIoControlImplementation;
 
-#[path = "../dos_date_time_to_file_time.rs"]
 mod dos_date_time_to_file_time;
-pub use dos_date_time_to_file_time::*;
+pub use dos_date_time_to_file_time::DosDateTimeToFileTime;
 
-#[path = "../duplicate_encryption_info_file_ext.rs"]
 mod duplicate_encryption_info_file_ext;
-pub use duplicate_encryption_info_file_ext::*;
+pub use duplicate_encryption_info_file_ext::DuplicateEncryptionInfoFileExt;
 
-#[path = "../erase_tape.rs"]
 mod erase_tape;
-pub use erase_tape::*;
+pub use erase_tape::EraseTape;
 
-#[path = "../find_volume_mount_point_close.rs"]
 mod find_volume_mount_point_close;
-pub use find_volume_mount_point_close::*;
+pub use find_volume_mount_point_close::FindVolumeMountPointClose;
 
-#[path = "../get_encrypted_file_version_ext.rs"]
 mod get_encrypted_file_version_ext;
-pub use get_encrypted_file_version_ext::*;
+pub use get_encrypted_file_version_ext::GetEncryptedFileVersionExt;
 
-#[path = "../get_file_bandwidth_reservation.rs"]
 mod get_file_bandwidth_reservation;
-pub use get_file_bandwidth_reservation::*;
+pub use get_file_bandwidth_reservation::GetFileBandwidthReservation;
 
-#[path = "../get_friendly_match_comm.rs"]
 mod get_friendly_match_comm;
-pub use get_friendly_match_comm::*;
+pub use get_friendly_match_comm::GetFriendlyMatchComm;
 
-#[path = "../get_mailslot_info.rs"]
 mod get_mailslot_info;
-pub use get_mailslot_info::*;
+pub use get_mailslot_info::GetMailslotInfo;
 
-#[path = "../get_named_pipe_client_session_id.rs"]
 mod get_named_pipe_client_session_id;
-pub use get_named_pipe_client_session_id::*;
+pub use get_named_pipe_client_session_id::GetNamedPipeClientSessionId;
 
-#[path = "../get_named_pipe_server_session_id.rs"]
 mod get_named_pipe_server_session_id;
-pub use get_named_pipe_server_session_id::*;
+pub use get_named_pipe_server_session_id::GetNamedPipeServerSessionId;
 
-#[path = "../get_tape_parameters.rs"]
 mod get_tape_parameters;
-pub use get_tape_parameters::*;
+pub use get_tape_parameters::GetTapeParameters;
 
-#[path = "../get_tape_position.rs"]
 mod get_tape_position;
-pub use get_tape_position::*;
+pub use get_tape_position::GetTapePosition;
 
-#[path = "../get_tape_status.rs"]
 mod get_tape_status;
-pub use get_tape_status::*;
+pub use get_tape_status::GetTapeStatus;
 
-#[path = "../global_delete_atom.rs"]
 mod global_delete_atom;
-pub use global_delete_atom::*;
+pub use global_delete_atom::GlobalDeleteAtom;
 
-#[path = "../open_file.rs"]
 mod open_file;
-pub use open_file::*;
+pub use open_file::OpenFile;
 
-#[path = "../prepare_tape.rs"]
 mod prepare_tape;
-pub use prepare_tape::*;
+pub use prepare_tape::PrepareTape;
 
-#[path = "../priv_move_file_identity_w.rs"]
 mod priv_move_file_identity_w;
-pub use priv_move_file_identity_w::*;
+pub use priv_move_file_identity_w::PrivMoveFileIdentityW;
 
-#[path = "../remove_secure_memory_cache_callback.rs"]
 mod remove_secure_memory_cache_callback;
-pub use remove_secure_memory_cache_callback::*;
+pub use remove_secure_memory_cache_callback::RemoveSecureMemoryCacheCallback;
 
-#[path = "../replace_file.rs"]
 mod replace_file;
-pub use replace_file::*;
+pub use replace_file::{ReplaceFile, ReplaceFileA, ReplaceFileW};
 
-#[path = "../replace_partition_unit.rs"]
 mod replace_partition_unit;
-pub use replace_partition_unit::*;
+pub use replace_partition_unit::ReplacePartitionUnit;
 
-#[path = "../set_file_bandwidth_reservation.rs"]
 mod set_file_bandwidth_reservation;
-pub use set_file_bandwidth_reservation::*;
+pub use set_file_bandwidth_reservation::SetFileBandwidthReservation;
 
-#[path = "../set_mailslot_info.rs"]
 mod set_mailslot_info;
-pub use set_mailslot_info::*;
+pub use set_mailslot_info::SetMailslotInfo;
 
-#[path = "../set_named_pipe_attribute.rs"]
 mod set_named_pipe_attribute;
-pub use set_named_pipe_attribute::*;
+pub use set_named_pipe_attribute::SetNamedPipeAttribute;
 
-#[path = "../set_tape_parameters.rs"]
 mod set_tape_parameters;
-pub use set_tape_parameters::*;
+pub use set_tape_parameters::SetTapeParameters;
 
-#[path = "../set_tape_position.rs"]
 mod set_tape_position;
-pub use set_tape_position::*;
+pub use set_tape_position::SetTapePosition;
 
-#[path = "../write_tapemark.rs"]
 mod write_tapemark;
-pub use write_tapemark::*;
+pub use write_tapemark::WriteTapemark;
 
-#[path = "../are_file_api_is_ansi.rs"]
 mod are_file_api_is_ansi;
 
-#[path = "../device_io_control.rs"]
 mod device_io_control;
+pub use device_io_control::DeviceIoControl;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {

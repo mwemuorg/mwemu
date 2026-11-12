@@ -21,3 +21,5 @@ pub(crate) mod trace;
 pub(crate) mod virtual_alloc;
 pub(crate) mod virtual_protect;
 pub(crate) mod winsock;
+
+pub mod input;

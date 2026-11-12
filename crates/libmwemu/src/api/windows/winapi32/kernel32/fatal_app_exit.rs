@@ -1,13 +1,14 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn FatalAppExitA(emu: &mut emu::Emu) {
     fatal_app_exit(emu, "FatalAppExitA", false);
 }
 
 fn fatal_app_exit(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let str_ptr = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     let s = strings::read_text(emu, str_ptr, wide);
     log_red!(emu, "kernel32!{api} '{}'  0x{:x}", s, arg2);
     for _ in 0..2 {

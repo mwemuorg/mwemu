@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn PathFileExistsA(emu: &mut emu::Emu) {
     path_file_exists(emu, "PathFileExistsA", false);
 }
 
 fn path_file_exists(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let ptr_path = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let ptr_path = WinApiAbi::arg(emu, 0);
 
     let path = strings::read_text(emu, ptr_path, wide);
 

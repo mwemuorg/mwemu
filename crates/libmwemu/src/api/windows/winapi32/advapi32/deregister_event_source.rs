@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn DeregisterEventSource(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let hndl = WinApiAbi::arg(emu, 0);
     if helper::handler_exist(hndl) {
         helper::handler_close(hndl);
     }

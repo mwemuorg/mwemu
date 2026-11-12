@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn htons(emu: &mut emu::Emu) {
-    let port: u16 = emu.maps.read_word(emu.regs().get_esp()).unwrap_or_default();
+    let port: u16 = WinApiAbi::arg(emu, 0) as u16;
 
     log_red!(emu, "ws2_32!htons port: {}", port);
 

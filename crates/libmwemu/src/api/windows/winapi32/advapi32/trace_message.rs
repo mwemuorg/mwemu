@@ -2,7 +2,7 @@ use crate::emu;
 use crate::winapi::helper::WinApiAbi;
 
 pub fn TraceMessage(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
     let arg2 = WinApiAbi::arg(emu, 2) as u32 as u64;
     log_red!(
         emu,
@@ -10,7 +10,7 @@ pub fn TraceMessage(emu: &mut emu::Emu) {
         arg1,
         arg2
     );
-    let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let first_param = WinApiAbi::arg(emu, 0);
     if first_param != 0 && emu.maps.is_mapped(first_param) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }

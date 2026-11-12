@@ -805,3 +805,29 @@ fn paired_content_type_exports_consult_the_guest_registry() {
     }
     assert!(registry_store::delete_key(key, false).is_ok());
 }
+
+#[test]
+fn device_io_control_uses_all_eight_arguments_and_cleans_up_on_failure() {
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare(is64);
+        let handle = helper::handler_create("device-io-regression");
+        let returned = data + 0x100;
+        let guard = returned + size_of::<u32>() as u64;
+        let mut args = [handle, 0, data, 16, data + 0x200, 32, returned, 0];
+        assert!(emu.maps.write_dword(returned, MARKER));
+        assert!(emu.maps.write_dword(guard, MARKER));
+        assert_eq!(call(&mut emu, "kernel32.dll", "DeviceIoControl", &args), 1);
+        assert_eq!(emu.maps.read_dword(returned), Some(0));
+        assert_eq!(emu.maps.read_dword(guard), Some(MARKER));
+        assert!(emu.maps.write_dword(returned, MARKER));
+        args[0] = 0;
+        assert_eq!(call(&mut emu, "kernel32.dll", "DeviceIoControl", &args), 0);
+        assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
+        assert_eq!(emu.maps.read_dword(returned), Some(MARKER));
+        args[0] = handle;
+        args[6] = 1;
+        assert_eq!(call(&mut emu, "kernel32.dll", "DeviceIoControl", &args), 0);
+        assert_eq!(emu.get_last_error(), ERROR_NOACCESS);
+        assert!(helper::handler_close(handle));
+    }
+}

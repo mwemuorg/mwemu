@@ -1,14 +1,15 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetAccessPermissionsForObjectA(emu: &mut emu::Emu) {
     get_access_permissions_for_object(emu, "GetAccessPermissionsForObjectA", false);
 }
 
 fn get_access_permissions_for_object(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let p0 = WinApiAbi::arg(emu, 0);
+    let p1 = WinApiAbi::arg(emu, 1);
+    let p2 = WinApiAbi::arg(emu, 2);
     let s = if p0 != 0 && p0 > 0xffff {
         strings::read_text(emu, p0, wide)
     } else {

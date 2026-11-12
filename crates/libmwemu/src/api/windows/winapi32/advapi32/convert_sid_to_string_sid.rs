@@ -1,50 +1,54 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ConvertSidToStringSidA(emu: &mut emu::Emu) {
-    let str_sid_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let sid_str = "S-1-5-21-1234567890-1234567890-1234567890-1001";
-    log_red!(emu, "advapi32!ConvertSidToStringSidA -> '{}'", sid_str);
-    if str_sid_ptr != 0 {
-        let alloc_size = (sid_str.len() + 1) as u64;
-        if let Some(base) = emu.maps.alloc(alloc_size) {
-            let name = format!("sid_str_{:x}", base);
-            emu.maps.create_map(
-                &name,
-                base,
-                alloc_size,
-                crate::maps::mem64::Permission::READ_WRITE,
-            );
-            emu.maps.write_string(base, sid_str);
-            emu.maps.write_dword(str_sid_ptr, base as u32);
-        }
-    }
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    convert_sid_to_string_sid(emu, "ConvertSidToStringSidA", false);
 }
 
 pub fn ConvertSidToStringSidW(emu: &mut emu::Emu) {
-    let str_sid_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    convert_sid_to_string_sid(emu, "ConvertSidToStringSidW", true);
+}
+
+fn convert_sid_to_string_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let str_sid_ptr = WinApiAbi::arg(emu, 1);
     let sid_str = "S-1-5-21-1234567890-1234567890-1234567890-1001";
-    log_red!(emu, "advapi32!ConvertSidToStringSidW -> '{}'", sid_str);
-    if str_sid_ptr != 0 {
-        let wlen: Vec<u16> = sid_str.encode_utf16().chain(std::iter::once(0)).collect();
-        let alloc_size = (wlen.len() * 2) as u64;
-        if let Some(base) = emu.maps.alloc(alloc_size) {
-            let name = format!("sid_strw_{:x}", base);
-            emu.maps.create_map(
-                &name,
-                base,
-                alloc_size,
-                crate::maps::mem64::Permission::READ_WRITE,
-            );
-            for (i, ch) in wlen.iter().enumerate() {
-                emu.maps.write_word(base + (i as u64) * 2, *ch);
+    log_red!(emu, "advapi32!{api} -> '{}'", sid_str);
+    if wide {
+        if str_sid_ptr != 0 {
+            let wlen: Vec<u16> = sid_str.encode_utf16().chain(std::iter::once(0)).collect();
+            let alloc_size = (wlen.len() * 2) as u64;
+            if let Some(base) = emu.maps.alloc(alloc_size) {
+                let name = format!("sid_strw_{:x}", base);
+                emu.maps.create_map(
+                    &name,
+                    base,
+                    alloc_size,
+                    crate::maps::mem64::Permission::READ_WRITE,
+                );
+                for (i, ch) in wlen.iter().enumerate() {
+                    emu.maps.write_word(base + (i as u64) * 2, *ch);
+                }
+                emu.maps.write_dword(str_sid_ptr, base as u32);
             }
-            emu.maps.write_dword(str_sid_ptr, base as u32);
+        }
+    } else {
+        if str_sid_ptr != 0 {
+            let alloc_size = (sid_str.len() + 1) as u64;
+            if let Some(base) = emu.maps.alloc(alloc_size) {
+                let name = format!("sid_str_{:x}", base);
+                emu.maps.create_map(
+                    &name,
+                    base,
+                    alloc_size,
+                    crate::maps::mem64::Permission::READ_WRITE,
+                );
+                strings::write_string(emu, base, sid_str, wide);
+                emu.maps.write_dword(str_sid_ptr, base as u32);
+            }
         }
     }
+
     for _ in 0..2u32 {
         emu.stack_pop32(false);
     }

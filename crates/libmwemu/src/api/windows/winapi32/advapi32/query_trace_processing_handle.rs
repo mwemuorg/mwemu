@@ -3,7 +3,7 @@ use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn QueryTraceProcessingHandle(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let handle = WinApiAbi::arg(emu, 0);
     let arg2 = WinApiAbi::arg(emu, 2) as u32 as u64;
     log_red!(
         emu,

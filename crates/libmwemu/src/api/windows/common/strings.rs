@@ -392,15 +392,215 @@ pub(crate) fn write_text(
     0
 }
 
-pub(crate) fn compare_ignore_case(emu: &mut Emu, api: &str, wide: bool) {
-    let left = read_text(emu, Call::Api.arg(emu, 0), wide).to_lowercase();
-    let right = read_text(emu, Call::Api.arg(emu, 1), wide).to_lowercase();
+fn calendar_text(kind: u64) -> Option<&'static str> {
+    let locale_kind = match kind {
+        CAL_SCALNAME => return Some("Gregorian Calendar"),
+        CAL_SERASTRING => return Some("A.D."),
+        CAL_SABBREVERASTRING => return Some("AD"),
+        CAL_SSHORTDATE => LOCALE_SSHORTDATE,
+        CAL_SLONGDATE => LOCALE_SLONGDATE,
+        CAL_SYEARMONTH => LOCALE_SYEARMONTH,
+        CAL_SDAYNAME1..=CAL_SDAYNAME7 => LOCALE_SDAYNAME1 + kind - CAL_SDAYNAME1,
+        CAL_SABBREVDAYNAME1..=CAL_SABBREVDAYNAME7 => {
+            LOCALE_SABBREVDAYNAME1 + kind - CAL_SABBREVDAYNAME1
+        }
+        CAL_SMONTHNAME1..=CAL_SMONTHNAME12 => LOCALE_SMONTHNAME1 + kind - CAL_SMONTHNAME1,
+        CAL_SABBREVMONTHNAME1..=CAL_SABBREVMONTHNAME12 => {
+            LOCALE_SABBREVMONTHNAME1 + kind - CAL_SABBREVMONTHNAME1
+        }
+        CAL_SMONTHNAME13 | CAL_SABBREVMONTHNAME13 => return Some(""),
+        _ => return None,
+    };
+    locale_info_value(locale_kind)
+}
+
+pub(crate) fn calendar_info(emu: &mut Emu, api: &str, wide: bool) {
+    // Like the existing locale handlers, model a fixed en-US profile.
+    const TWO_DIGIT_YEAR_MAX: u32 = 2029;
+    let locale = Call::Api.arg(emu, 0) as u32;
+    let calendar = Call::Api.arg(emu, 1) as u32;
+    let kind = Call::Api.arg(emu, 2) as u32 as u64;
+    let data = Call::Api.arg(emu, 3);
+    let capacity = Call::Api.arg(emu, 4) as i32;
+    let value = Call::Api.arg(emu, 5);
+    let selector = kind
+        & !(CAL_NOUSEROVERRIDE | CAL_RETURN_NUMBER | CAL_RETURN_GENITIVE_NAMES | CAL_USE_CP_ACP);
+    let numeric = match selector {
+        CAL_ICALINTVALUE => Some(calendar),
+        CAL_IYEAROFFSETRANGE => Some(1),
+        CAL_ITWODIGITYEARMAX => Some(TWO_DIGIT_YEAR_MAX),
+        _ => None,
+    };
+    let result = if !matches!(locale as u64, LOCALE_USER_DEFAULT | LOCALE_SYSTEM_DEFAULT)
+        && locale != EN_US_LOCALE
+        || !matches!(calendar, CAL_GREGORIAN | CAL_GREGORIAN_US)
+        || capacity < 0
+    {
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
+        0
+    } else if kind & CAL_RETURN_NUMBER != 0 {
+        if data != 0 || capacity != 0 || value == 0 {
+            emu.set_last_error(ERROR_INVALID_PARAMETER);
+            0
+        } else if let Some(number) = numeric {
+            if !emu
+                .maps
+                .validate_write_range(value, size_of::<u32>() as u64)
+                || !emu.maps.write_dword(value, number)
+            {
+                emu.set_last_error(ERROR_NOACCESS);
+                0
+            } else {
+                (size_of::<u32>() / code_unit_size(wide)) as u64
+            }
+        } else {
+            emu.set_last_error(ERROR_INVALID_FLAGS);
+            0
+        }
+    } else if value != 0 {
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
+        0
+    } else if let Some(number) = numeric {
+        write_text(emu, data, capacity, &number.to_string(), wide)
+    } else if let Some(text) = calendar_text(selector) {
+        write_text(emu, data, capacity, text, wide)
+    } else {
+        emu.set_last_error(ERROR_INVALID_FLAGS);
+        0
+    };
+    log_red!(
+        emu,
+        "{} locale:0x{:x} calendar:{} kind:0x{:x} capacity:{} => {}",
+        api,
+        locale,
+        calendar,
+        kind,
+        capacity,
+        result
+    );
+    Call::Api.finish(emu, result, 6);
+}
+
+fn code_unit_size(wide: bool) -> usize {
+    if wide {
+        size_of::<u16>()
+    } else {
+        size_of::<u8>()
+    }
+}
+
+fn string_bytes(emu: &Emu, address: u64, wide: bool, limit: Option<usize>) -> Option<Vec<u8>> {
+    // Match the existing map string readers' scan limit.
+    const MAX_STRING_BYTES: usize = 1_000_000;
+    if address == 0 {
+        return None;
+    }
+    let unit_size = code_unit_size(wide);
+    let scan_limit = MAX_STRING_BYTES / unit_size;
+    let mut cursor = address;
+    let mut bytes = Vec::new();
+    for _ in 0..limit.unwrap_or(scan_limit).min(scan_limit) {
+        let value = if wide {
+            emu.maps.read_word(cursor)?
+        } else {
+            emu.maps.read_byte(cursor)? as u16
+        };
+        if value == 0 {
+            return Some(bytes);
+        }
+        if wide {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        } else {
+            bytes.push(value as u8);
+        }
+        cursor = cursor.checked_add(unit_size as u64)?;
+    }
+    limit.filter(|count| *count <= scan_limit).map(|_| bytes)
+}
+
+fn write_string_bytes(emu: &mut Emu, destination: u64, mut bytes: Vec<u8>, wide: bool) -> u64 {
+    bytes.resize(bytes.len() + code_unit_size(wide), 0);
+    if destination != 0
+        && emu
+            .maps
+            .validate_write_range(destination, bytes.len() as u64)
+        && emu.maps.write_bytes(destination, &bytes)
+    {
+        destination
+    } else {
+        0
+    }
+}
+
+pub(crate) fn concatenate(emu: &mut Emu, api: &str, wide: bool) {
+    let destination = Call::Api.arg(emu, 0);
+    let source = Call::Api.arg(emu, 1);
+    let result = match (
+        string_bytes(emu, destination, wide, None),
+        string_bytes(emu, source, wide, None),
+    ) {
+        (Some(mut prefix), Some(suffix)) => {
+            prefix.extend_from_slice(&suffix);
+            write_string_bytes(emu, destination, prefix, wide)
+        }
+        _ => 0,
+    };
+    log_red!(
+        emu,
+        "{} destination:0x{:x} source:0x{:x} => 0x{:x}",
+        api,
+        destination,
+        source,
+        result
+    );
+    Call::Api.finish(emu, result, 2);
+}
+
+pub(crate) fn copy_string(emu: &mut Emu, api: &str, wide: bool, bounded: bool) {
+    let destination = Call::Api.arg(emu, 0);
+    let source = Call::Api.arg(emu, 1);
+    let capacity = bounded.then(|| Call::Api.arg(emu, 2) as u32 as usize);
+    let result = if capacity == Some(0) {
+        destination
+    } else {
+        string_bytes(emu, source, wide, capacity.map(|count| count - 1))
+            .map(|bytes| write_string_bytes(emu, destination, bytes, wide))
+            .unwrap_or(0)
+    };
+    log_red!(
+        emu,
+        "{} destination:0x{:x} source:0x{:x} capacity:{:?} => 0x{:x}",
+        api,
+        destination,
+        source,
+        capacity,
+        result
+    );
+    Call::Api.finish(emu, result, if bounded { 3 } else { 2 });
+}
+
+pub(crate) fn string_length(emu: &mut Emu, api: &str, wide: bool) {
+    let source = Call::Api.arg(emu, 0);
+    let length = string_bytes(emu, source, wide, None)
+        .map(|bytes| bytes.len() / code_unit_size(wide))
+        .unwrap_or(0);
+    log_red!(emu, "{} source:0x{:x} => {}", api, source, length);
+    Call::Api.finish(emu, length as u64, 1);
+}
+
+pub(crate) fn compare(emu: &mut Emu, api: &str, wide: bool, ignore_case: bool) {
+    let mut left = read_text(emu, Call::Api.arg(emu, 0), wide);
+    let mut right = read_text(emu, Call::Api.arg(emu, 1), wide);
+    if ignore_case {
+        left = left.to_lowercase();
+        right = right.to_lowercase();
+    }
     let result = match left.cmp(&right) {
         std::cmp::Ordering::Less => -1i32,
         std::cmp::Ordering::Equal => 0,
         std::cmp::Ordering::Greater => 1,
     };
-    log_red!(emu, "kernel32!{} '{}' '{}' ={}", api, left, right, result);
+    log_red!(emu, "{} '{}' '{}' => {}", api, left, right, result);
     Call::Api.finish(emu, result as u32 as u64, 2);
 }
 

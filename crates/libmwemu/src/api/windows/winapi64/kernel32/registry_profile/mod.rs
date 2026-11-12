@@ -1,9 +1,13 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
-#[path = "../profile_string.rs"]
 mod profile_string;
-pub use profile_string::*;
+pub use profile_string::{
+    GetPrivateProfileIntA, GetPrivateProfileIntW, GetPrivateProfileStringA,
+    GetPrivateProfileStringW, GetProfileIntA, GetProfileIntW, GetProfileStringA, GetProfileStringW,
+    WritePrivateProfileStringA, WritePrivateProfileStringW, WriteProfileStringA,
+    WriteProfileStringW,
+};
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
     match api {

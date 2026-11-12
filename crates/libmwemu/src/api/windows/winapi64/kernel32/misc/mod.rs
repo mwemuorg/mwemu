@@ -1,47 +1,39 @@
-#[path = "../environment.rs"]
 mod environment;
-pub use environment::*;
+pub use environment::{
+    ExpandEnvironmentStringsA, ExpandEnvironmentStringsW, FreeEnvironmentStrings,
+    GetEnvironmentStringsA, GetEnvironmentStringsW, GetEnvironmentVariableA,
+    GetEnvironmentVariableW, SetEnvironmentVariableA, SetEnvironmentVariableW,
+};
 
-#[path = "../global_add_atom.rs"]
 mod global_add_atom;
-pub use global_add_atom::*;
+pub use global_add_atom::{GlobalAddAtomA, GlobalAddAtomW};
 
-#[path = "../output_debug_string.rs"]
 mod output_debug_string;
-pub use output_debug_string::*;
+pub use output_debug_string::{OutputDebugStringA, OutputDebugStringW};
 
-#[path = "../get_startup_info.rs"]
 mod get_startup_info;
-pub use get_startup_info::*;
+pub use get_startup_info::{GetStartupInfoA, GetStartupInfoW};
 
-#[path = "../get_last_error.rs"]
 mod get_last_error;
-pub use get_last_error::*;
+pub use get_last_error::GetLastError;
 
-#[path = "../get_user_default_lcid.rs"]
 mod get_user_default_lcid;
-pub use get_user_default_lcid::*;
+pub use get_user_default_lcid::GetUserDefaultLCID;
 
-#[path = "../is_bad_read_ptr.rs"]
 mod is_bad_read_ptr;
-pub use is_bad_read_ptr::*;
+pub use is_bad_read_ptr::IsBadReadPtr;
 
-#[path = "../query_performance_counter.rs"]
 mod query_performance_counter;
-pub use query_performance_counter::*;
+pub use query_performance_counter::QueryPerformanceCounter;
 
-#[path = "../set_error_mode.rs"]
 mod set_error_mode;
-pub use set_error_mode::*;
+pub use set_error_mode::SetErrorMode;
 
-#[path = "../set_last_error.rs"]
 mod set_last_error;
-pub use set_last_error::*;
+pub use set_last_error::SetLastError;
 
-#[path = "../sleep.rs"]
 mod sleep;
-pub use sleep::*;
+pub use sleep::Sleep;
 
-#[path = "../win_exec.rs"]
 mod win_exec;
-pub use win_exec::*;
+pub use win_exec::WinExec;

@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertAddCertificateContextToStore(emu: &mut emu::Emu) {
-    let store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let cert_ctx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let add_disp = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let out_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let store = WinApiAbi::arg(emu, 0);
+    let cert_ctx = WinApiAbi::arg(emu, 1);
+    let add_disp = WinApiAbi::arg(emu, 2);
+    let out_ptr = WinApiAbi::arg(emu, 3);
     let hndl = helper::handler_create("cert_context");
     if out_ptr != 0 {
         emu.maps.write_dword(out_ptr, hndl as u32);

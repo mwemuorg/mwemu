@@ -1,14 +1,15 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSADuplicateSocketA(emu: &mut emu::Emu) {
     wsa_duplicate_socket(emu, "WSADuplicateSocketA");
 }
 
 fn wsa_duplicate_socket(emu: &mut emu::Emu, api: &str) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let process_id = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let proto_info_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let process_id = WinApiAbi::arg(emu, 1) as u32;
+    let proto_info_ptr = WinApiAbi::arg(emu, 2);
     log_red!(emu, "ws2_32!{api} sock:0x{:x} pid:{}", sock, process_id);
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038);

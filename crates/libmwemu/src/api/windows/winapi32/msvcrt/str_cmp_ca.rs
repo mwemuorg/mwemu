@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub(super) fn StrCmpCA(emu: &mut emu::Emu) {
-    let str1_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let str2_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let str1_ptr = WinApiAbi::arg(emu, 0);
+    let str2_ptr = WinApiAbi::arg(emu, 1);
 
     stdcall_ret(emu, 2);
 

@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WahWriteLSPEvent(emu: &mut emu::Emu) {
-    let event = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let event = WinApiAbi::arg(emu, 0);
     log_red!(emu, "ws2_32!WahWriteLSPEvent event:0x{:x}", event);
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;

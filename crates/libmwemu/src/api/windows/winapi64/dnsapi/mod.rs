@@ -7,8 +7,8 @@ pub use dns_free::DnsFree;
 mod dns_record_list_free;
 pub use dns_record_list_free::DnsRecordListFree;
 mod dns_name_compare;
-pub use dns_name_compare::DnsNameCompare_A;
-pub use dns_name_compare::DnsNameCompare_W;
+pub use dns_name_compare::{DnsNameCompare_A, DnsNameCompare_W};
+
 mod dns_query;
 use dns_query::DnsQuery_A;
 use dns_query::DnsQuery_W;

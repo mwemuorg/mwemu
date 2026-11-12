@@ -1,10 +1,11 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn bind(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let saddr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let saddr = WinApiAbi::arg(emu, 1);
+    let len = WinApiAbi::arg(emu, 2);
 
     let family: u16 = emu.maps.read_word(saddr).unwrap_or(0);
     let port: u16 = emu.maps.read_word(saddr + 2).unwrap_or(0);

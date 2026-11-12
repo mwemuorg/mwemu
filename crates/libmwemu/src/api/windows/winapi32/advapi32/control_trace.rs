@@ -8,7 +8,7 @@ pub fn ControlTraceA(emu: &mut emu::Emu) {
 }
 
 fn control_trace(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let p0 = WinApiAbi::arg(emu, 0);
     let p1 = WinApiAbi::arg(emu, 2) as u32 as u64;
     let s = if p0 != 0 && p0 > 0xffff {
         strings::read_text(emu, p0, wide)

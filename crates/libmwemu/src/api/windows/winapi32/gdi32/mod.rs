@@ -3,8 +3,8 @@ use crate::emu;
 use crate::winapi::winapi32::kernel32;
 
 mod add_font_resource_ex;
-pub use add_font_resource_ex::AddFontResourceExA;
-pub use add_font_resource_ex::AddFontResourceExW;
+pub use add_font_resource_ex::{AddFontResourceExA, AddFontResourceExW};
+
 mod bit_blt;
 pub use bit_blt::BitBlt;
 mod combine_rgn;
@@ -16,16 +16,16 @@ pub use create_compatible_bitmap::CreateCompatibleBitmap;
 mod create_compatible_dc;
 pub use create_compatible_dc::CreateCompatibleDC;
 mod create_dc;
-pub use create_dc::CreateDCA;
-pub use create_dc::CreateDCW;
+pub use create_dc::{CreateDCA, CreateDCW};
+
 mod create_dib_section;
 pub use create_dib_section::CreateDIBSection;
 mod create_font;
-pub use create_font::CreateFontA;
+pub use create_font::{CreateFontA, CreateFontW};
 mod create_font_indirect;
-pub use create_font::CreateFontW;
-pub use create_font_indirect::CreateFontIndirectA;
-pub use create_font_indirect::CreateFontIndirectW;
+
+pub use create_font_indirect::{CreateFontIndirectA, CreateFontIndirectW};
+
 mod create_hatch_brush;
 pub use create_hatch_brush::CreateHatchBrush;
 mod create_pattern_brush;
@@ -49,13 +49,13 @@ pub use end_doc::EndDoc;
 mod end_page;
 pub use end_page::EndPage;
 mod enum_font_families_ex;
-pub use enum_font_families_ex::EnumFontFamiliesExA;
-pub use enum_font_families_ex::EnumFontFamiliesExW;
+pub use enum_font_families_ex::{EnumFontFamiliesExA, EnumFontFamiliesExW};
+
 mod exclude_clip_rect;
 pub use exclude_clip_rect::ExcludeClipRect;
 mod ext_text_out;
-pub use ext_text_out::ExtTextOutA;
-pub use ext_text_out::ExtTextOutW;
+pub use ext_text_out::{ExtTextOutA, ExtTextOutW};
+
 mod fill_rect;
 pub use fill_rect::FillRect;
 mod gdi_arc;
@@ -75,11 +75,11 @@ pub use gdi_polyline::GdiPolyline;
 mod gdi_rectangle;
 pub use gdi_rectangle::GdiRectangle;
 mod get_char_abc_widths;
-pub use get_char_abc_widths::GetCharABCWidthsA;
-pub use get_char_abc_widths::GetCharABCWidthsW;
+pub use get_char_abc_widths::{GetCharABCWidthsA, GetCharABCWidthsW};
+
 mod get_char_width32;
-pub use get_char_width32::GetCharWidth32A;
-pub use get_char_width32::GetCharWidth32W;
+pub use get_char_width32::{GetCharWidth32A, GetCharWidth32W};
+
 mod get_clip_box;
 pub use get_clip_box::GetClipBox;
 mod get_current_object;
@@ -99,9 +99,9 @@ pub use get_map_mode::GetMapMode;
 mod get_nearest_color;
 pub use get_nearest_color::GetNearestColor;
 mod get_object;
-pub use get_object::GetObjectA;
+pub use get_object::{GetObjectA, GetObjectW};
 mod get_object_type;
-pub use get_object::GetObjectW;
+
 pub use get_object_type::GetObjectType;
 mod get_pixel_gdi;
 pub use get_pixel_gdi::GetPixelGdi;
@@ -120,14 +120,14 @@ pub use get_text_align::GetTextAlign;
 mod get_text_color;
 pub use get_text_color::GetTextColor;
 mod get_text_extent_point32;
-pub use get_text_extent_point32::GetTextExtentPoint32A;
-pub use get_text_extent_point32::GetTextExtentPoint32W;
+pub use get_text_extent_point32::{GetTextExtentPoint32A, GetTextExtentPoint32W};
+
 mod get_text_face;
-pub use get_text_face::GetTextFaceA;
-pub use get_text_face::GetTextFaceW;
+pub use get_text_face::{GetTextFaceA, GetTextFaceW};
+
 mod get_text_metrics;
-pub use get_text_metrics::GetTextMetricsA;
-pub use get_text_metrics::GetTextMetricsW;
+pub use get_text_metrics::{GetTextMetricsA, GetTextMetricsW};
+
 mod get_world_transform;
 pub use get_world_transform::GetWorldTransform;
 mod intersect_clip_rect;
@@ -141,8 +141,8 @@ pub use pat_blt::PatBlt;
 mod release_dc;
 pub use release_dc::ReleaseDC;
 mod remove_font_resource_ex;
-pub use remove_font_resource_ex::RemoveFontResourceExA;
-pub use remove_font_resource_ex::RemoveFontResourceExW;
+pub use remove_font_resource_ex::{RemoveFontResourceExA, RemoveFontResourceExW};
+
 mod restore_dc;
 pub use restore_dc::RestoreDC;
 mod save_dc;
@@ -190,8 +190,7 @@ pub use start_page::StartPage;
 mod stretch_blt;
 pub use stretch_blt::StretchBlt;
 mod text_out;
-pub use text_out::TextOutA;
-pub use text_out::TextOutW;
+pub use text_out::{TextOutA, TextOutW};
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);

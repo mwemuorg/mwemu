@@ -1,79 +1,60 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
-#[path = "../_fgetchar.rs"]
 mod _fgetchar;
 pub use _fgetchar::_fgetchar;
 
-#[path = "../_open.rs"]
 mod _open;
 pub use _open::_open;
 
-#[path = "../_snprintf_s.rs"]
 mod _snprintf_s;
 pub use _snprintf_s::_snprintf_s;
 
-#[path = "../_sscanf_s_l.rs"]
 mod _sscanf_s_l;
 pub use _sscanf_s_l::_sscanf_s_l;
 
-#[path = "../_wrename.rs"]
 mod _wrename;
 pub use _wrename::_wrename;
 
-#[path = "../putc.rs"]
 mod putc;
 pub use putc::putc;
 
-#[path = "../swprintf.rs"]
 mod swprintf;
 pub use swprintf::swprintf;
 
-#[path = "../_sprintf_p.rs"]
 mod _sprintf_p;
 pub use _sprintf_p::_sprintf_p;
 
-#[path = "../sscanf_s.rs"]
 mod sscanf_s;
 pub use sscanf_s::sscanf_s;
 
-#[path = "../fgets.rs"]
 mod fgets;
 pub use fgets::fgets;
 
-#[path = "../fputs.rs"]
 mod fputs;
 pub use fputs::fputs;
 
-#[path = "../getchar.rs"]
 mod getchar;
 pub use getchar::getchar;
 
-#[path = "../_close.rs"]
 mod _close;
 pub use _close::_close;
 
-#[path = "../_read.rs"]
 mod _read;
 pub use _read::_read;
 
-#[path = "../_write.rs"]
 mod _write;
 pub use _write::_write;
 
-#[path = "../_wopen.rs"]
 mod _wopen;
 pub use _wopen::_wopen;
 
-#[path = "../_fileno.rs"]
 mod _fileno;
 pub use _fileno::_fileno;
 
-#[path = "../_setmode.rs"]
 mod _setmode;
 pub use _setmode::_setmode;
 
-#[path = "../_putch.rs"]
 mod _putch;
 pub use _putch::_putch;
 

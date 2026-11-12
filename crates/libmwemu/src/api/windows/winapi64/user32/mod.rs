@@ -7,313 +7,313 @@ use crate::winapi::window_table;
 use crate::windows::constants::errors::*;
 
 mod wvsprintf;
-pub use wvsprintf::*;
+pub use wvsprintf::{wvsprintfA, wvsprintfW};
 
 mod wsprintf;
-pub use wsprintf::*;
+pub use wsprintf::{wsprintfA, wsprintfW};
 
 mod win_help;
-pub use win_help::*;
+pub use win_help::{WinHelpA, WinHelpW};
 
 mod vk_key_scan_ex;
-pub use vk_key_scan_ex::*;
+pub use vk_key_scan_ex::{VkKeyScanExA, VkKeyScanExW};
 
 mod vk_key_scan;
-pub use vk_key_scan::*;
+pub use vk_key_scan::{VkKeyScanA, VkKeyScanW};
 
 mod tabbed_text_out;
-pub use tabbed_text_out::*;
+pub use tabbed_text_out::{TabbedTextOutA, TabbedTextOutW};
 
 mod set_windows_hook_ex;
-pub use set_windows_hook_ex::*;
+pub use set_windows_hook_ex::{SetWindowsHookExA, SetWindowsHookExW};
 
 mod set_windows_hook;
-pub use set_windows_hook::*;
+pub use set_windows_hook::{SetWindowsHookA, SetWindowsHookW};
 
 mod set_user_object_information;
-pub use set_user_object_information::*;
+pub use set_user_object_information::{SetUserObjectInformationA, SetUserObjectInformationW};
 
 mod set_prop;
-pub use set_prop::*;
+pub use set_prop::{SetPropA, SetPropW};
 
 mod set_menu_item_info;
-pub use set_menu_item_info::*;
+pub use set_menu_item_info::{SetMenuItemInfoA, SetMenuItemInfoW};
 
 mod set_dlg_item_text;
-pub use set_dlg_item_text::*;
+pub use set_dlg_item_text::{SetDlgItemTextA, SetDlgItemTextW};
 
 mod set_class_long_ptr;
-pub use set_class_long_ptr::*;
+pub use set_class_long_ptr::{SetClassLongPtrA, SetClassLongPtrW};
 
 mod set_class_long;
-pub use set_class_long::*;
+pub use set_class_long::{SetClassLongA, SetClassLongW};
 
 mod send_notify_message;
-pub use send_notify_message::*;
+pub use send_notify_message::{SendNotifyMessageA, SendNotifyMessageW};
 
 mod send_message_timeout;
-pub use send_message_timeout::*;
+pub use send_message_timeout::{SendMessageTimeoutA, SendMessageTimeoutW};
 
 mod send_message_callback;
-pub use send_message_callback::*;
+pub use send_message_callback::{SendMessageCallbackA, SendMessageCallbackW};
 
 mod send_ime_message_ex;
-pub use send_ime_message_ex::*;
+pub use send_ime_message_ex::{SendIMEMessageExA, SendIMEMessageExW};
 
 mod send_dlg_item_message;
-pub use send_dlg_item_message::*;
+pub use send_dlg_item_message::{SendDlgItemMessageA, SendDlgItemMessageW};
 
 mod remove_prop;
-pub use remove_prop::*;
+pub use remove_prop::{RemovePropA, RemovePropW};
 
 mod register_window_message;
-pub use register_window_message::*;
+pub use register_window_message::{RegisterWindowMessageA, RegisterWindowMessageW};
 
 mod register_device_notification;
-pub use register_device_notification::*;
+pub use register_device_notification::{RegisterDeviceNotificationA, RegisterDeviceNotificationW};
 
 mod register_clipboard_format;
-pub use register_clipboard_format::*;
+pub use register_clipboard_format::{RegisterClipboardFormatA, RegisterClipboardFormatW};
 
 mod private_extract_icons;
-pub use private_extract_icons::*;
+pub use private_extract_icons::{PrivateExtractIconsA, PrivateExtractIconsW};
 
 mod private_extract_icon_ex;
-pub use private_extract_icon_ex::*;
+pub use private_extract_icon_ex::{PrivateExtractIconExA, PrivateExtractIconExW};
 
 mod post_thread_message;
-pub use post_thread_message::*;
+pub use post_thread_message::{PostThreadMessageA, PostThreadMessageW};
 
 mod open_window_station;
-pub use open_window_station::*;
+pub use open_window_station::{OpenWindowStationA, OpenWindowStationW};
 
 mod open_desktop;
-pub use open_desktop::*;
+pub use open_desktop::{OpenDesktopA, OpenDesktopW};
 
 mod oem_to_char_buff;
-pub use oem_to_char_buff::*;
+pub use oem_to_char_buff::{OemToCharBuffA, OemToCharBuffW};
 
 mod oem_to_char;
-pub use oem_to_char::*;
+pub use oem_to_char::{OemToCharA, OemToCharW};
 
 mod modify_menu;
-pub use modify_menu::*;
+pub use modify_menu::{ModifyMenuA, ModifyMenuW};
 
 mod message_box_timeout;
-pub use message_box_timeout::*;
+pub use message_box_timeout::{MessageBoxTimeoutA, MessageBoxTimeoutW};
 
 mod message_box_indirect;
-pub use message_box_indirect::*;
+pub use message_box_indirect::{MessageBoxIndirectA, MessageBoxIndirectW};
 
 mod message_box_ex;
-pub use message_box_ex::*;
+pub use message_box_ex::{MessageBoxExA, MessageBoxExW};
 
 mod menu_window_proc;
-pub use menu_window_proc::*;
+pub use menu_window_proc::{MenuWindowProcA, MenuWindowProcW};
 
 mod load_menu_indirect;
-pub use load_menu_indirect::*;
+pub use load_menu_indirect::{LoadMenuIndirectA, LoadMenuIndirectW};
 
 mod load_menu;
-pub use load_menu::*;
+pub use load_menu::{LoadMenuA, LoadMenuW};
 
 mod load_keyboard_layout;
-pub use load_keyboard_layout::*;
+pub use load_keyboard_layout::{LoadKeyboardLayoutA, LoadKeyboardLayoutW};
 
 mod load_image;
-pub use load_image::*;
+pub use load_image::{LoadImageA, LoadImageW};
 
 mod load_cursor_from_file;
-pub use load_cursor_from_file::*;
+pub use load_cursor_from_file::{LoadCursorFromFileA, LoadCursorFromFileW};
 
 mod load_bitmap;
-pub use load_bitmap::*;
+pub use load_bitmap::{LoadBitmapA, LoadBitmapW};
 
 mod load_accelerators;
-pub use load_accelerators::*;
+pub use load_accelerators::{LoadAcceleratorsA, LoadAcceleratorsW};
 
 mod insert_menu_item;
-pub use insert_menu_item::*;
+pub use insert_menu_item::{InsertMenuItemA, InsertMenuItemW};
 
 mod insert_menu;
-pub use insert_menu::*;
+pub use insert_menu::{InsertMenuA, InsertMenuW};
 
 mod gray_string;
-pub use gray_string::*;
+pub use gray_string::{GrayStringA, GrayStringW};
 
 mod get_window_text_length;
-pub use get_window_text_length::*;
+pub use get_window_text_length::{GetWindowTextLengthA, GetWindowTextLengthW};
 
 mod get_tabbed_text_extent;
-pub use get_tabbed_text_extent::*;
+pub use get_tabbed_text_extent::{GetTabbedTextExtentA, GetTabbedTextExtentW};
 
 mod get_raw_input_device_info;
-pub use get_raw_input_device_info::*;
+pub use get_raw_input_device_info::{GetRawInputDeviceInfoA, GetRawInputDeviceInfoW};
 
 mod get_prop;
-pub use get_prop::*;
+pub use get_prop::{GetPropA, GetPropW};
 
 mod get_monitor_info;
-pub use get_monitor_info::*;
+pub use get_monitor_info::{GetMonitorInfoA, GetMonitorInfoW};
 
 mod get_menu_string;
-pub use get_menu_string::*;
+pub use get_menu_string::{GetMenuStringA, GetMenuStringW};
 
 mod get_menu_item_info;
-pub use get_menu_item_info::*;
+pub use get_menu_item_info::{GetMenuItemInfoA, GetMenuItemInfoW};
 
 mod get_keyboard_layout_name;
-pub use get_keyboard_layout_name::*;
+pub use get_keyboard_layout_name::{GetKeyboardLayoutNameA, GetKeyboardLayoutNameW};
 
 mod get_key_name_text;
-pub use get_key_name_text::*;
+pub use get_key_name_text::{GetKeyNameTextA, GetKeyNameTextW};
 
 mod get_icon_info_ex;
-pub use get_icon_info_ex::*;
+pub use get_icon_info_ex::{GetIconInfoExA, GetIconInfoExW};
 
 mod get_dlg_item_text;
-pub use get_dlg_item_text::*;
+pub use get_dlg_item_text::{GetDlgItemTextA, GetDlgItemTextW};
 
 mod get_clipboard_format_name;
-pub use get_clipboard_format_name::*;
+pub use get_clipboard_format_name::{GetClipboardFormatNameA, GetClipboardFormatNameW};
 
 mod get_class_name;
-pub use get_class_name::*;
+pub use get_class_name::{GetClassNameA, GetClassNameW};
 
 mod get_class_long_ptr;
-pub use get_class_long_ptr::*;
+pub use get_class_long_ptr::{GetClassLongPtrA, GetClassLongPtrW};
 
 mod get_class_long;
-pub use get_class_long::*;
+pub use get_class_long::{GetClassLongA, GetClassLongW};
 
 mod get_class_info;
-pub use get_class_info::*;
+pub use get_class_info::{GetClassInfoA, GetClassInfoW};
 
 mod find_window_ex;
-pub use find_window_ex::*;
+pub use find_window_ex::{FindWindowExA, FindWindowExW};
 
 mod find_window;
-pub use find_window::*;
+pub use find_window::{FindWindowA, FindWindowW};
 
 mod enum_window_stations;
-pub use enum_window_stations::*;
+pub use enum_window_stations::{EnumWindowStationsA, EnumWindowStationsW};
 
 mod enum_props_ex;
-pub use enum_props_ex::*;
+pub use enum_props_ex::{EnumPropsExA, EnumPropsExW};
 
 mod enum_props;
-pub use enum_props::*;
+pub use enum_props::{EnumPropsA, EnumPropsW};
 
 mod enum_display_settings_ex;
-pub use enum_display_settings_ex::*;
+pub use enum_display_settings_ex::{EnumDisplaySettingsExA, EnumDisplaySettingsExW};
 
 mod enum_display_settings;
-pub use enum_display_settings::*;
+pub use enum_display_settings::{EnumDisplaySettingsA, EnumDisplaySettingsW};
 
 mod enum_display_devices;
-pub use enum_display_devices::*;
+pub use enum_display_devices::{EnumDisplayDevicesA, EnumDisplayDevicesW};
 
 mod enum_desktops;
-pub use enum_desktops::*;
+pub use enum_desktops::{EnumDesktopsA, EnumDesktopsW};
 
 mod draw_text_ex;
-pub use draw_text_ex::*;
+pub use draw_text_ex::{DrawTextExA, DrawTextExW};
 
 mod draw_state;
-pub use draw_state::*;
+pub use draw_state::{DrawStateA, DrawStateW};
 
 mod draw_caption_temp;
-pub use draw_caption_temp::*;
+pub use draw_caption_temp::{DrawCaptionTempA, DrawCaptionTempW};
 
 mod dlg_dir_select_ex;
-pub use dlg_dir_select_ex::*;
+pub use dlg_dir_select_ex::{DlgDirSelectExA, DlgDirSelectExW};
 
 mod dlg_dir_select_combo_box_ex;
-pub use dlg_dir_select_combo_box_ex::*;
+pub use dlg_dir_select_combo_box_ex::{DlgDirSelectComboBoxExA, DlgDirSelectComboBoxExW};
 
 mod dlg_dir_list_combo_box;
-pub use dlg_dir_list_combo_box::*;
+pub use dlg_dir_list_combo_box::{DlgDirListComboBoxA, DlgDirListComboBoxW};
 
 mod dlg_dir_list;
-pub use dlg_dir_list::*;
+pub use dlg_dir_list::{DlgDirListA, DlgDirListW};
 
 mod dialog_box_param;
-pub use dialog_box_param::*;
+pub use dialog_box_param::{DialogBoxParamA, DialogBoxParamW};
 
 mod dialog_box_indirect_param;
-pub use dialog_box_indirect_param::*;
+pub use dialog_box_indirect_param::{DialogBoxIndirectParamA, DialogBoxIndirectParamW};
 
 mod def_mdi_child_proc;
-pub use def_mdi_child_proc::*;
+pub use def_mdi_child_proc::{DefMDIChildProcA, DefMDIChildProcW};
 
 mod def_frame_proc;
-pub use def_frame_proc::*;
+pub use def_frame_proc::{DefFrameProcA, DefFrameProcW};
 
 mod def_dlg_proc;
-pub use def_dlg_proc::*;
+pub use def_dlg_proc::{DefDlgProcA, DefDlgProcW};
 
 mod dde_query_string;
-pub use dde_query_string::*;
+pub use dde_query_string::{DdeQueryStringA, DdeQueryStringW};
 
 mod dde_initialize;
-pub use dde_initialize::*;
+pub use dde_initialize::{DdeInitializeA, DdeInitializeW};
 
 mod dde_create_string_handle;
-pub use dde_create_string_handle::*;
+pub use dde_create_string_handle::{DdeCreateStringHandleA, DdeCreateStringHandleW};
 
 mod create_window_station;
-pub use create_window_station::*;
+pub use create_window_station::{CreateWindowStationA, CreateWindowStationW};
 
 mod create_mdi_window;
-pub use create_mdi_window::*;
+pub use create_mdi_window::{CreateMDIWindowA, CreateMDIWindowW};
 
 mod create_dialog_param;
-pub use create_dialog_param::*;
+pub use create_dialog_param::{CreateDialogParamA, CreateDialogParamW};
 
 mod create_dialog_indirect_param;
-pub use create_dialog_indirect_param::*;
+pub use create_dialog_indirect_param::{CreateDialogIndirectParamA, CreateDialogIndirectParamW};
 
 mod create_desktop_ex;
-pub use create_desktop_ex::*;
+pub use create_desktop_ex::{CreateDesktopExA, CreateDesktopExW};
 
 mod create_desktop;
-pub use create_desktop::*;
+pub use create_desktop::{CreateDesktopA, CreateDesktopW};
 
 mod create_accelerator_table;
-pub use create_accelerator_table::*;
+pub use create_accelerator_table::{CreateAcceleratorTableA, CreateAcceleratorTableW};
 
 mod copy_accelerator_table;
-pub use copy_accelerator_table::*;
+pub use copy_accelerator_table::{CopyAcceleratorTableA, CopyAcceleratorTableW};
 
 mod char_upper;
-pub use char_upper::*;
+pub use char_upper::{CharUpperA, CharUpperW};
 
 mod char_to_oem_buff;
-pub use char_to_oem_buff::*;
+pub use char_to_oem_buff::{CharToOemBuffA, CharToOemBuffW};
 
 mod char_to_oem;
-pub use char_to_oem::*;
+pub use char_to_oem::{CharToOemA, CharToOemW};
 
 mod char_lower;
-pub use char_lower::*;
+pub use char_lower::{CharLowerA, CharLowerW};
 
 mod change_menu;
-pub use change_menu::*;
+pub use change_menu::{ChangeMenuA, ChangeMenuW};
 
 mod change_display_settings_ex;
-pub use change_display_settings_ex::*;
+pub use change_display_settings_ex::{ChangeDisplaySettingsExA, ChangeDisplaySettingsExW};
 
 mod change_display_settings;
-pub use change_display_settings::*;
+pub use change_display_settings::{ChangeDisplaySettingsA, ChangeDisplaySettingsW};
 
 mod call_window_proc;
-pub use call_window_proc::*;
+pub use call_window_proc::{CallWindowProcA, CallWindowProcW};
 
 mod broadcast_system_message_ex;
-pub use broadcast_system_message_ex::*;
+pub use broadcast_system_message_ex::{BroadcastSystemMessageExA, BroadcastSystemMessageExW};
 
 mod append_menu;
-pub use append_menu::*;
+pub use append_menu::{AppendMenuA, AppendMenuW};
 
 mod activate_keyboard_layout;
 mod clipboard;
@@ -358,9 +358,10 @@ pub use block_input::BlockInput;
 mod bring_window_to_top;
 pub use bring_window_to_top::BringWindowToTop;
 mod broadcast_system_message;
-pub use broadcast_system_message::BroadcastSystemMessage;
-pub use broadcast_system_message::BroadcastSystemMessageA;
-pub use broadcast_system_message::BroadcastSystemMessageW;
+pub use broadcast_system_message::{
+    BroadcastSystemMessage, BroadcastSystemMessageA, BroadcastSystemMessageW,
+};
+
 mod build_reason_array;
 pub use build_reason_array::BuildReasonArray;
 mod calc_menu_bar;
@@ -368,9 +369,8 @@ pub use calc_menu_bar::CalcMenuBar;
 mod calculate_popup_window_position;
 pub use calculate_popup_window_position::CalculatePopupWindowPosition;
 mod call_msg_filter;
-pub use call_msg_filter::CallMsgFilter;
-pub use call_msg_filter::CallMsgFilterA;
-pub use call_msg_filter::CallMsgFilterW;
+pub use call_msg_filter::{CallMsgFilter, CallMsgFilterA, CallMsgFilterW};
+
 mod call_next_hook_ex;
 pub use call_next_hook_ex::CallNextHookEx;
 mod cancel_shutdown;
@@ -682,9 +682,8 @@ pub use frost_crashed_window::FrostCrashedWindow;
 mod get_active_window;
 pub use get_active_window::GetActiveWindow;
 mod get_alt_tab_info;
-pub use get_alt_tab_info::GetAltTabInfo;
-pub use get_alt_tab_info::GetAltTabInfoA;
-pub use get_alt_tab_info::GetAltTabInfoW;
+pub use get_alt_tab_info::{GetAltTabInfo, GetAltTabInfoA, GetAltTabInfoW};
+
 mod get_ancestor;
 pub use get_ancestor::GetAncestor;
 mod get_app_compat_flags;
@@ -1006,9 +1005,10 @@ pub use get_window_info::GetWindowInfo;
 mod get_window_minimize_rect;
 pub use get_window_minimize_rect::GetWindowMinimizeRect;
 mod get_window_module_file_name;
-pub use get_window_module_file_name::GetWindowModuleFileName;
-pub use get_window_module_file_name::GetWindowModuleFileNameA;
-pub use get_window_module_file_name::GetWindowModuleFileNameW;
+pub use get_window_module_file_name::{
+    GetWindowModuleFileName, GetWindowModuleFileNameA, GetWindowModuleFileNameW,
+};
+
 mod get_window_placement;
 pub use get_window_placement::GetWindowPlacement;
 mod get_window_process_handle;
@@ -1034,14 +1034,14 @@ pub use hilite_menu_item::HiliteMenuItem;
 mod hung_window_from_ghost_window;
 pub use hung_window_from_ghost_window::HungWindowFromGhostWindow;
 mod imp_get_ime;
-pub use imp_get_ime::IMPGetIMEA;
-pub use imp_get_ime::IMPGetIMEW;
+pub use imp_get_ime::{IMPGetIMEA, IMPGetIMEW};
+
 mod imp_query_ime;
-pub use imp_query_ime::IMPQueryIMEA;
-pub use imp_query_ime::IMPQueryIMEW;
+pub use imp_query_ime::{IMPQueryIMEA, IMPQueryIMEW};
+
 mod imp_set_ime;
-pub use imp_set_ime::IMPSetIMEA;
-pub use imp_set_ime::IMPSetIMEW;
+pub use imp_set_ime::{IMPSetIMEA, IMPSetIMEW};
+
 mod impersonate_dde_client_window;
 pub use impersonate_dde_client_window::ImpersonateDdeClientWindow;
 mod in_send_message;
@@ -1097,9 +1097,8 @@ pub use is_child::IsChild;
 mod is_clipboard_format_available;
 pub use is_clipboard_format_available::IsClipboardFormatAvailable;
 mod is_dialog_message;
-pub use is_dialog_message::IsDialogMessage;
-pub use is_dialog_message::IsDialogMessageA;
-pub use is_dialog_message::IsDialogMessageW;
+pub use is_dialog_message::{IsDialogMessage, IsDialogMessageA, IsDialogMessageW};
+
 mod is_dlg_button_checked;
 pub use is_dlg_button_checked::IsDlgButtonChecked;
 mod is_gui_thread;
@@ -1202,8 +1201,8 @@ mod map_dialog_rect;
 pub use map_dialog_rect::MapDialogRect;
 mod map_points_by_visual_identifier;
 pub use map_points_by_visual_identifier::MapPointsByVisualIdentifier;
-mod map_virtual_key_ex_a;
-pub use map_virtual_key_ex_a::MapVirtualKeyExA;
+mod map_virtual_key_ex;
+pub use map_virtual_key_ex::{MapVirtualKeyExA, MapVirtualKeyExW};
 mod map_visual_relative_points;
 pub use map_visual_relative_points::MapVisualRelativePoints;
 mod map_window_points;
@@ -1319,9 +1318,8 @@ pub use raise_lower_shell_window::RaiseLowerShellWindow;
 mod real_child_window_from_point;
 pub use real_child_window_from_point::RealChildWindowFromPoint;
 mod real_get_window_class;
-pub use real_get_window_class::RealGetWindowClass;
-pub use real_get_window_class::RealGetWindowClassA;
-pub use real_get_window_class::RealGetWindowClassW;
+pub use real_get_window_class::{RealGetWindowClass, RealGetWindowClassA, RealGetWindowClassW};
+
 mod reason_code_needs_bug_id;
 pub use reason_code_needs_bug_id::ReasonCodeNeedsBugID;
 mod reason_code_needs_comment;
@@ -1670,9 +1668,10 @@ pub use track_popup_menu::TrackPopupMenu;
 mod track_popup_menu_ex;
 pub use track_popup_menu_ex::TrackPopupMenuEx;
 mod translate_accelerator;
-pub use translate_accelerator::TranslateAccelerator;
-pub use translate_accelerator::TranslateAcceleratorA;
-pub use translate_accelerator::TranslateAcceleratorW;
+pub use translate_accelerator::{
+    TranslateAccelerator, TranslateAcceleratorA, TranslateAcceleratorW,
+};
+
 mod translate_mdi_sys_accel;
 pub use translate_mdi_sys_accel::TranslateMDISysAccel;
 mod translate_message_ex;
@@ -2177,40 +2176,4 @@ fn write_cursor_pos(emu: &mut emu::Emu) {
         emu.maps.write_dword(pt + 4, 540);
     }
     emu.regs_mut().rax = 1;
-}
-
-fn map_virtual_key(code: u32, map_type: u32) -> u64 {
-    match map_type {
-        0 => {
-            // MAPVK_VK_TO_VSC: virtual key -> scan code
-            match code {
-                0x08 => 0x0E,                               // VK_BACK
-                0x09 => 0x0F,                               // VK_TAB
-                0x0D => 0x1C,                               // VK_RETURN
-                0x1B => 0x01,                               // VK_ESCAPE
-                0x20 => 0x39,                               // VK_SPACE
-                0x41..=0x5A => (code - 0x41 + 0x1E) as u64, // A-Z approx
-                0x30..=0x39 => {
-                    // 0-9
-                    let sc = [0x0B, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A];
-                    sc[(code - 0x30) as usize] as u64
-                }
-                _ => 0,
-            }
-        }
-        1 => {
-            // MAPVK_VSC_TO_VK: scan code -> virtual key
-            match code {
-                0x01 => 0x1B, // ESC
-                0x0E => 0x08, // BACKSPACE
-                0x0F => 0x09, // TAB
-                0x1C => 0x0D, // ENTER
-                0x39 => 0x20, // SPACE
-                _ => 0,
-            }
-        }
-        2 if (0x30..=0x39).contains(&code) || (0x41..=0x5A).contains(&code) => code as u64,
-        2 => 0,
-        _ => 0,
-    }
 }

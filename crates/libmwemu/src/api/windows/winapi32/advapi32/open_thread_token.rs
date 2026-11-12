@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn OpenThreadToken(emu: &mut emu::Emu) {
-    let thread_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let desired_access = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let open_as_self = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) != 0;
-    let token_handle_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let thread_handle = WinApiAbi::arg(emu, 0) as u32;
+    let desired_access = WinApiAbi::arg(emu, 1) as u32;
+    let open_as_self = WinApiAbi::arg(emu, 2) as u32 != 0;
+    let token_handle_ptr = WinApiAbi::arg(emu, 3);
     let token = helper::handler_create("token");
     if token_handle_ptr != 0 {
         emu.maps.write_dword(token_handle_ptr, token as u32);

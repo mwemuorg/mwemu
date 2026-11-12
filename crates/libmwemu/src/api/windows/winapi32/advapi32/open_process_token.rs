@@ -1,10 +1,11 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn OpenProcessToken(emu: &mut emu::Emu) {
-    let process_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let desired_access = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let token_handle_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let process_handle = WinApiAbi::arg(emu, 0) as u32;
+    let desired_access = WinApiAbi::arg(emu, 1) as u32;
+    let token_handle_ptr = WinApiAbi::arg(emu, 2);
     let token = helper::handler_create("token");
     if token_handle_ptr != 0 {
         emu.maps.write_dword(token_handle_ptr, token as u32);

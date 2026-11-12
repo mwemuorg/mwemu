@@ -1,10 +1,11 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertVerifyCertificateChainPolicy(emu: &mut emu::Emu) {
-    let policy_oid = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let chain_ctx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let policy_para = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let policy_status = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let policy_oid = WinApiAbi::arg(emu, 0);
+    let chain_ctx = WinApiAbi::arg(emu, 1);
+    let policy_para = WinApiAbi::arg(emu, 2);
+    let policy_status = WinApiAbi::arg(emu, 3);
     if policy_status != 0 {
         emu.maps.write_dword(policy_status, 0); // cbSize
         emu.maps.write_dword(policy_status + 4, 0); // dwError = 0 (valid)

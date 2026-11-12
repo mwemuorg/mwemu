@@ -7,16 +7,17 @@ use crate::winapi::helper;
 use crate::winapi::winapi64;
 use crate::winapi::winapi64::crt_stdio;
 
-mod runtime;
-pub use runtime::*;
-mod memory;
-pub use memory::*;
 mod io;
-pub use io::*;
-mod strings;
-pub use strings::*;
 mod math;
+mod memory;
+mod runtime;
+mod strings;
+
+pub use io::*;
 pub use math::*;
+pub use memory::*;
+pub use runtime::*;
+pub use strings::*;
 
 mod __acrt_iob_func;
 use __acrt_iob_func::__acrt_iob_func;

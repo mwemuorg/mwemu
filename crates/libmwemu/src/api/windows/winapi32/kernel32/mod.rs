@@ -6,336 +6,366 @@ use crate::winapi::common::memory_ops;
 use crate::winapi::common::sections;
 use crate::winapi::common::{files, handles, modules, strings};
 
-mod write_console_output_character;
-pub use write_console_output_character::*;
-
-mod write_console_output;
-pub use write_console_output::*;
-
-mod write_console_input;
-pub use write_console_input::*;
-
-mod ver_language_name;
-pub use ver_language_name::*;
-
-mod termsrv_get_windows_directory;
-pub use termsrv_get_windows_directory::*;
-
-mod set_firmware_environment_variable_ex;
-pub use set_firmware_environment_variable_ex::*;
-
-mod set_console_title;
-pub use set_console_title::*;
-
-mod set_console_number_of_commands;
-pub use set_console_number_of_commands::*;
-
-mod set_console_input_exe_name;
-pub use set_console_input_exe_name::*;
-
-mod set_computer_name_ex;
-pub use set_computer_name_ex::*;
-
-mod set_computer_name;
-pub use set_computer_name::*;
-
-mod search_path;
-pub use search_path::*;
-
-mod scroll_console_screen_buffer;
-pub use scroll_console_screen_buffer::*;
-
-mod remove_directory2;
-pub use remove_directory2::*;
-
-mod reg_un_load_key;
-pub use reg_un_load_key::*;
-
-mod reg_save_key_ex;
-pub use reg_save_key_ex::*;
-
-mod reg_restore_key;
-pub use reg_restore_key::*;
-
-mod reg_query_value_ex;
-pub use reg_query_value_ex::*;
-
-mod reg_query_info_key;
-pub use reg_query_info_key::*;
-
-mod reg_load_mui_string;
-pub use reg_load_mui_string::*;
-
-mod reg_load_key;
-pub use reg_load_key::*;
-
-mod reg_get_value;
-pub use reg_get_value::*;
-
-mod reg_enum_value;
-pub use reg_enum_value::*;
-
-mod reg_enum_key_ex;
-pub use reg_enum_key_ex::*;
-
-mod reg_delete_value;
-pub use reg_delete_value::*;
-
-mod reg_delete_tree;
-pub use reg_delete_tree::*;
-
-mod reg_delete_key_ex;
-pub use reg_delete_key_ex::*;
-
-mod read_console_output_character;
-pub use read_console_output_character::*;
-
-mod read_console_output;
-pub use read_console_output::*;
-
-mod read_console_input_ex;
-pub use read_console_input_ex::*;
-
-mod read_console_input;
-pub use read_console_input::*;
-
-mod read_console;
-pub use read_console::*;
-
-mod query_full_process_image_name;
-pub use query_full_process_image_name::*;
-
-mod peek_console_input;
-pub use peek_console_input::*;
-
-mod open_waitable_timer;
-pub use open_waitable_timer::*;
-
-mod open_semaphore;
-pub use open_semaphore::*;
-
-mod open_event;
-pub use open_event::*;
-
-mod need_current_directory_for_exe_path;
-pub use need_current_directory_for_exe_path::*;
-
-mod move_file_with_progress;
-pub use move_file_with_progress::*;
-
-mod k32_get_process_image_file_name;
-pub use k32_get_process_image_file_name::*;
-
-mod k32_get_module_file_name_ex;
-pub use k32_get_module_file_name_ex::*;
-
-mod k32_get_module_base_name;
-pub use k32_get_module_base_name::*;
-
-mod k32_get_mapped_file_name;
-pub use k32_get_mapped_file_name::*;
-
-mod k32_get_device_driver_file_name;
-pub use k32_get_device_driver_file_name::*;
-
-mod k32_get_device_driver_base_name;
-pub use k32_get_device_driver_base_name::*;
-
-mod k32_enum_page_files;
-pub use k32_enum_page_files::*;
-
-mod get_volume_path_name;
-pub use get_volume_path_name::*;
-
-mod get_time_format;
-pub use get_time_format::*;
-
-mod get_temp_path2;
-pub use get_temp_path2::*;
-
-mod get_temp_file_name;
-pub use get_temp_file_name::*;
-
-mod get_system_wow64_directory;
-pub use get_system_wow64_directory::*;
-
-mod get_string_type_ex;
-pub use get_string_type_ex::*;
-
-mod get_long_path_name_transacted;
-pub use get_long_path_name_transacted::*;
-
-mod get_logical_drive_strings;
-pub use get_logical_drive_strings::*;
-
-mod get_firmware_environment_variable_ex;
-pub use get_firmware_environment_variable_ex::*;
-
-mod get_final_path_name_by_handle;
-pub use get_final_path_name_by_handle::*;
-
-mod get_file_attributes_ex;
-pub use get_file_attributes_ex::*;
-
-mod get_disk_space_information;
-pub use get_disk_space_information::*;
-
-mod get_date_format;
-pub use get_date_format::*;
-
-mod get_cp_info_ex;
-pub use get_cp_info_ex::*;
-
-mod get_console_title;
-pub use get_console_title::*;
-
-mod get_console_original_title;
-pub use get_console_original_title::*;
-
-mod get_console_input_exe_name;
-pub use get_console_input_exe_name::*;
-
-mod get_console_command_history_length;
-pub use get_console_command_history_length::*;
-
-mod get_console_command_history;
-pub use get_console_command_history::*;
-
-mod get_console_aliases_length;
-pub use get_console_aliases_length::*;
-
-mod get_console_aliases;
-pub use get_console_aliases::*;
-
-mod get_console_alias_exes_length;
-pub use get_console_alias_exes_length::*;
-
-mod get_console_alias_exes;
-pub use get_console_alias_exes::*;
-
-mod get_console_alias;
-pub use get_console_alias::*;
-
-mod get_computer_name_ex;
-pub use get_computer_name_ex::*;
-
-mod get_compressed_file_size;
-pub use get_compressed_file_size::*;
-
-mod find_resource_ex;
-pub use find_resource_ex::*;
-
-mod find_first_file_transacted;
-pub use find_first_file_transacted::*;
-
-mod find_first_file_ex;
-pub use find_first_file_ex::*;
-
-mod find_first_change_notification;
-pub use find_first_change_notification::*;
-
-mod fill_console_output_character;
-pub use fill_console_output_character::*;
-
-mod fatal_app_exit;
-pub use fatal_app_exit::*;
-
-mod expunge_console_command_history;
-pub use expunge_console_command_history::*;
-
-mod enum_system_locales;
-pub use enum_system_locales::*;
-
-mod enum_resource_types_ex;
-pub use enum_resource_types_ex::*;
-
-mod enum_resource_types;
-pub use enum_resource_types::*;
-
-mod enum_resource_names_ex;
-pub use enum_resource_names_ex::*;
-
-mod enum_resource_names;
-pub use enum_resource_names::*;
-
-mod enum_resource_languages_ex;
-pub use enum_resource_languages_ex::*;
-
-mod enum_resource_languages;
-pub use enum_resource_languages::*;
-
-mod delete_file2;
-pub use delete_file2::*;
-
-mod create_process_internal;
-pub use create_process_internal::*;
-
-mod create_process_as_user;
-pub use create_process_as_user::*;
-
-mod create_private_namespace;
-pub use create_private_namespace::*;
-
-mod create_mutex_ex;
-pub use create_mutex_ex::*;
-
-mod create_mailslot;
-pub use create_mailslot::*;
-
-mod create_job_object;
-pub use create_job_object::*;
-
-mod create_hard_link;
-pub use create_hard_link::*;
-
-mod create_file_transacted;
-pub use create_file_transacted::*;
-
-mod create_event_ex;
-pub use create_event_ex::*;
-
-mod create_directory2;
-pub use create_directory2::*;
-
-mod add_console_alias;
-pub use add_console_alias::*;
-
 mod appcompat;
 mod console;
-mod diagnostics;
 mod filesystem;
 mod legacy_compat;
 mod library_loader;
-mod loader;
 mod memory;
 mod misc;
-mod objects;
 mod process_thread;
 mod registry_profile;
-mod resolver;
-mod security;
-mod state;
 mod strings_nls;
 mod sync;
 mod system;
-mod time_date;
 
 pub use appcompat::*;
 pub use console::*;
 pub use filesystem::*;
 pub use legacy_compat::*;
 pub use library_loader::*;
-pub use loader::*;
 pub use memory::*;
 pub use misc::*;
 pub use process_thread::*;
 pub use registry_profile::*;
-pub use resolver::*;
-pub use state::*;
 pub use strings_nls::*;
 pub use sync::*;
 pub use system::*;
 
+mod write_console_output_character;
+pub use write_console_output_character::{
+    WriteConsoleOutputCharacterA, WriteConsoleOutputCharacterW,
+};
+
+mod write_console_output;
+pub use write_console_output::{WriteConsoleOutputA, WriteConsoleOutputW};
+
+mod write_console_input;
+pub use write_console_input::{WriteConsoleInputA, WriteConsoleInputW};
+
+mod ver_language_name;
+pub use ver_language_name::{VerLanguageNameA, VerLanguageNameW};
+
+mod termsrv_get_windows_directory;
+pub use termsrv_get_windows_directory::{TermsrvGetWindowsDirectoryA, TermsrvGetWindowsDirectoryW};
+
+mod set_firmware_environment_variable_ex;
+pub use set_firmware_environment_variable_ex::{
+    SetFirmwareEnvironmentVariableExA, SetFirmwareEnvironmentVariableExW,
+};
+
+mod set_console_title;
+pub use set_console_title::{SetConsoleTitleA, SetConsoleTitleW};
+
+mod set_console_number_of_commands;
+pub use set_console_number_of_commands::{
+    SetConsoleNumberOfCommandsA, SetConsoleNumberOfCommandsW,
+};
+
+mod set_console_input_exe_name;
+pub use set_console_input_exe_name::{SetConsoleInputExeNameA, SetConsoleInputExeNameW};
+
+mod set_computer_name_ex;
+pub use set_computer_name_ex::{SetComputerNameExA, SetComputerNameExW};
+
+mod set_computer_name;
+pub use set_computer_name::{SetComputerNameA, SetComputerNameW};
+
+mod search_path;
+pub use search_path::{SearchPathA, SearchPathW};
+
+mod scroll_console_screen_buffer;
+pub use scroll_console_screen_buffer::{ScrollConsoleScreenBufferA, ScrollConsoleScreenBufferW};
+
+mod remove_directory2;
+pub use remove_directory2::{RemoveDirectory2A, RemoveDirectory2W};
+
+mod reg_un_load_key;
+pub use reg_un_load_key::{RegUnLoadKeyA, RegUnLoadKeyW};
+
+mod reg_save_key_ex;
+pub use reg_save_key_ex::{RegSaveKeyExA, RegSaveKeyExW};
+
+mod reg_restore_key;
+pub use reg_restore_key::{RegRestoreKeyA, RegRestoreKeyW};
+
+mod reg_query_value_ex;
+pub use reg_query_value_ex::{RegQueryValueExA, RegQueryValueExW};
+
+mod reg_query_info_key;
+pub use reg_query_info_key::{RegQueryInfoKeyA, RegQueryInfoKeyW};
+
+mod reg_load_mui_string;
+pub use reg_load_mui_string::{RegLoadMUIStringA, RegLoadMUIStringW};
+
+mod reg_load_key;
+pub use reg_load_key::{RegLoadKeyA, RegLoadKeyW};
+
+mod reg_get_value;
+pub use reg_get_value::{RegGetValueA, RegGetValueW};
+
+mod reg_enum_value;
+pub use reg_enum_value::{RegEnumValueA, RegEnumValueW};
+
+mod reg_enum_key_ex;
+pub use reg_enum_key_ex::{RegEnumKeyExA, RegEnumKeyExW};
+
+mod reg_delete_value;
+pub use reg_delete_value::{RegDeleteValueA, RegDeleteValueW};
+
+mod reg_delete_tree;
+pub use reg_delete_tree::{RegDeleteTreeA, RegDeleteTreeW};
+
+mod reg_delete_key_ex;
+pub use reg_delete_key_ex::{RegDeleteKeyExA, RegDeleteKeyExW};
+
+mod read_console_output_character;
+pub use read_console_output_character::{ReadConsoleOutputCharacterA, ReadConsoleOutputCharacterW};
+
+mod read_console_output;
+pub use read_console_output::{ReadConsoleOutputA, ReadConsoleOutputW};
+
+mod read_console_input_ex;
+pub use read_console_input_ex::{ReadConsoleInputExA, ReadConsoleInputExW};
+
+mod read_console_input;
+pub use read_console_input::{ReadConsoleInputA, ReadConsoleInputW};
+
+mod read_console;
+pub use read_console::{ReadConsoleA, ReadConsoleW};
+
+mod query_full_process_image_name;
+pub use query_full_process_image_name::{QueryFullProcessImageNameA, QueryFullProcessImageNameW};
+
+mod peek_console_input;
+pub use peek_console_input::{PeekConsoleInputA, PeekConsoleInputW};
+
+mod open_waitable_timer;
+pub use open_waitable_timer::{OpenWaitableTimerA, OpenWaitableTimerW};
+
+mod open_semaphore;
+pub use open_semaphore::{OpenSemaphoreA, OpenSemaphoreW};
+
+mod open_event;
+pub use open_event::{OpenEventA, OpenEventW};
+
+mod need_current_directory_for_exe_path;
+pub use need_current_directory_for_exe_path::{
+    NeedCurrentDirectoryForExePathA, NeedCurrentDirectoryForExePathW,
+};
+
+mod move_file_with_progress;
+pub use move_file_with_progress::{MoveFileWithProgressA, MoveFileWithProgressW};
+
+mod k32_get_process_image_file_name;
+pub use k32_get_process_image_file_name::{
+    K32GetProcessImageFileNameA, K32GetProcessImageFileNameW,
+};
+
+mod k32_get_module_file_name_ex;
+pub use k32_get_module_file_name_ex::{K32GetModuleFileNameExA, K32GetModuleFileNameExW};
+
+mod k32_get_module_base_name;
+pub use k32_get_module_base_name::{K32GetModuleBaseNameA, K32GetModuleBaseNameW};
+
+mod k32_get_mapped_file_name;
+pub use k32_get_mapped_file_name::{K32GetMappedFileNameA, K32GetMappedFileNameW};
+
+mod k32_get_device_driver_file_name;
+pub use k32_get_device_driver_file_name::{
+    K32GetDeviceDriverFileNameA, K32GetDeviceDriverFileNameW,
+};
+
+mod k32_get_device_driver_base_name;
+pub use k32_get_device_driver_base_name::{
+    K32GetDeviceDriverBaseNameA, K32GetDeviceDriverBaseNameW,
+};
+
+mod k32_enum_page_files;
+pub use k32_enum_page_files::{K32EnumPageFilesA, K32EnumPageFilesW};
+
+mod get_volume_path_name;
+pub use get_volume_path_name::{GetVolumePathNameA, GetVolumePathNameW};
+
+mod get_time_format;
+pub use get_time_format::{GetTimeFormatA, GetTimeFormatW};
+
+mod get_temp_path2;
+pub use get_temp_path2::{GetTempPath2A, GetTempPath2W};
+
+mod get_temp_file_name;
+pub use get_temp_file_name::{GetTempFileNameA, GetTempFileNameW};
+
+mod get_system_wow64_directory;
+pub use get_system_wow64_directory::{GetSystemWow64DirectoryA, GetSystemWow64DirectoryW};
+
+mod get_string_type_ex;
+pub use get_string_type_ex::{GetStringTypeExA, GetStringTypeExW};
+
+mod get_long_path_name_transacted;
+pub use get_long_path_name_transacted::{GetLongPathNameTransactedA, GetLongPathNameTransactedW};
+
+mod get_logical_drive_strings;
+pub use get_logical_drive_strings::{GetLogicalDriveStringsA, GetLogicalDriveStringsW};
+
+mod get_firmware_environment_variable_ex;
+pub use get_firmware_environment_variable_ex::{
+    GetFirmwareEnvironmentVariableExA, GetFirmwareEnvironmentVariableExW,
+};
+
+mod get_final_path_name_by_handle;
+pub use get_final_path_name_by_handle::{GetFinalPathNameByHandleA, GetFinalPathNameByHandleW};
+
+mod get_file_attributes_ex;
+pub use get_file_attributes_ex::{GetFileAttributesExA, GetFileAttributesExW};
+
+mod get_disk_space_information;
+pub use get_disk_space_information::{GetDiskSpaceInformationA, GetDiskSpaceInformationW};
+
+mod get_date_format;
+pub use get_date_format::{GetDateFormatA, GetDateFormatW};
+
+mod get_cp_info_ex;
+pub use get_cp_info_ex::{GetCPInfoExA, GetCPInfoExW};
+
+mod get_console_title;
+pub use get_console_title::{GetConsoleTitleA, GetConsoleTitleW};
+
+mod get_console_original_title;
+pub use get_console_original_title::{GetConsoleOriginalTitleA, GetConsoleOriginalTitleW};
+
+mod get_console_input_exe_name;
+pub use get_console_input_exe_name::{GetConsoleInputExeNameA, GetConsoleInputExeNameW};
+
+mod get_console_command_history_length;
+pub use get_console_command_history_length::{
+    GetConsoleCommandHistoryLengthA, GetConsoleCommandHistoryLengthW,
+};
+
+mod get_console_command_history;
+pub use get_console_command_history::{GetConsoleCommandHistoryA, GetConsoleCommandHistoryW};
+
+mod get_console_aliases_length;
+pub use get_console_aliases_length::{GetConsoleAliasesLengthA, GetConsoleAliasesLengthW};
+
+mod get_console_aliases;
+pub use get_console_aliases::{GetConsoleAliasesA, GetConsoleAliasesW};
+
+mod get_console_alias_exes_length;
+pub use get_console_alias_exes_length::{GetConsoleAliasExesLengthA, GetConsoleAliasExesLengthW};
+
+mod get_console_alias_exes;
+pub use get_console_alias_exes::{GetConsoleAliasExesA, GetConsoleAliasExesW};
+
+mod get_console_alias;
+pub use get_console_alias::{GetConsoleAliasA, GetConsoleAliasW};
+
+mod get_computer_name_ex;
+pub use get_computer_name_ex::{GetComputerNameExA, GetComputerNameExW};
+
+mod get_compressed_file_size;
+pub use get_compressed_file_size::{GetCompressedFileSizeA, GetCompressedFileSizeW};
+
+mod find_resource_ex;
+pub use find_resource_ex::{FindResourceExA, FindResourceExW};
+
+mod find_first_file_transacted;
+pub use find_first_file_transacted::{FindFirstFileTransactedA, FindFirstFileTransactedW};
+
+mod find_first_file_ex;
+pub use find_first_file_ex::{FindFirstFileExA, FindFirstFileExW};
+
+mod find_first_change_notification;
+pub use find_first_change_notification::{
+    FindFirstChangeNotificationA, FindFirstChangeNotificationW,
+};
+
+mod fill_console_output_character;
+pub use fill_console_output_character::{FillConsoleOutputCharacterA, FillConsoleOutputCharacterW};
+
+mod fatal_app_exit;
+pub use fatal_app_exit::{FatalAppExitA, FatalAppExitW};
+
+mod expunge_console_command_history;
+pub use expunge_console_command_history::{
+    ExpungeConsoleCommandHistoryA, ExpungeConsoleCommandHistoryW,
+};
+
+mod enum_system_locales;
+pub use enum_system_locales::{EnumSystemLocalesA, EnumSystemLocalesW};
+
+mod enum_resource_types_ex;
+pub use enum_resource_types_ex::{EnumResourceTypesExA, EnumResourceTypesExW};
+
+mod enum_resource_types;
+pub use enum_resource_types::{EnumResourceTypesA, EnumResourceTypesW};
+
+mod enum_resource_names_ex;
+pub use enum_resource_names_ex::{EnumResourceNamesExA, EnumResourceNamesExW};
+
+mod enum_resource_names;
+pub use enum_resource_names::{EnumResourceNamesA, EnumResourceNamesW};
+
+mod enum_resource_languages_ex;
+pub use enum_resource_languages_ex::{EnumResourceLanguagesExA, EnumResourceLanguagesExW};
+
+mod enum_resource_languages;
+pub use enum_resource_languages::{EnumResourceLanguagesA, EnumResourceLanguagesW};
+
+mod delete_file2;
+pub use delete_file2::{DeleteFile2A, DeleteFile2W};
+
+mod create_process_internal;
+pub use create_process_internal::{CreateProcessInternalA, CreateProcessInternalW};
+
+mod create_process_as_user;
+pub use create_process_as_user::{CreateProcessAsUserA, CreateProcessAsUserW};
+
+mod create_private_namespace;
+pub use create_private_namespace::{CreatePrivateNamespaceA, CreatePrivateNamespaceW};
+
+mod create_mutex_ex;
+pub use create_mutex_ex::{CreateMutexExA, CreateMutexExW};
+
+mod create_mailslot;
+pub use create_mailslot::{CreateMailslotA, CreateMailslotW};
+
+mod create_job_object;
+pub use create_job_object::{CreateJobObjectA, CreateJobObjectW};
+
+mod create_hard_link;
+pub use create_hard_link::{CreateHardLinkA, CreateHardLinkW};
+
+mod create_file_transacted;
+pub use create_file_transacted::{CreateFileTransactedA, CreateFileTransactedW};
+
+mod create_event_ex;
+pub use create_event_ex::{CreateEventExA, CreateEventExW};
+
+mod create_directory2;
+pub use create_directory2::{CreateDirectory2A, CreateDirectory2W};
+
+mod add_console_alias;
+pub use add_console_alias::{AddConsoleAliasA, AddConsoleAliasW};
+
+mod diagnostics;
+
+mod loader;
+
+mod objects;
+
+mod resolver;
+mod security;
+mod state;
+
+mod time_date;
+
+pub use loader::load_library;
+pub use resolver::{
+    dump_module_iat, guess_api_name, resolve_api_addr_to_name, resolve_api_name,
+    resolve_api_name_in_module, search_api_name,
+};
+pub use state::set_last_error;
 mod activate_act_ctx;
 pub use activate_act_ctx::ActivateActCtx;
 mod activate_package_virtualization_context;
@@ -634,8 +664,7 @@ mod delete_timer_queue_ex;
 pub use delete_timer_queue_ex::DeleteTimerQueueEx;
 mod delete_timer_queue_timer;
 pub use delete_timer_queue_timer::DeleteTimerQueueTimer;
-mod device_io_control_2;
-pub use device_io_control_2::DeviceIoControl;
+
 mod disable_thread_library_calls;
 pub use disable_thread_library_calls::DisableThreadLibraryCalls;
 mod disassociate_current_thread_from_callback;
@@ -733,8 +762,8 @@ pub use get_application_restart_settings::GetApplicationRestartSettings;
 mod get_application_user_model_id;
 pub use get_application_user_model_id::GetApplicationUserModelId;
 mod get_binary_type;
-pub use get_binary_type::GetBinaryType;
-pub use get_binary_type::{GetBinaryTypeA, GetBinaryTypeW};
+pub use get_binary_type::{GetBinaryType, GetBinaryTypeA, GetBinaryTypeW};
+
 mod get_cached_signing_level;
 pub use get_cached_signing_level::GetCachedSigningLevel;
 mod get_calendar_info_ex;

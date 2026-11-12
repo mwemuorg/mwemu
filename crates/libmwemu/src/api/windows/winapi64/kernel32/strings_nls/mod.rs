@@ -1,48 +1,43 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
-#[path = "../compare_string.rs"]
+mod get_calendar_info;
+pub use get_calendar_info::{GetCalendarInfoA, GetCalendarInfoW};
+
 mod compare_string;
-pub use compare_string::*;
+pub use compare_string::{CompareStringA, CompareStringW};
 
-#[path = "../find_act_ctx_section_string.rs"]
 mod find_act_ctx_section_string;
-pub use find_act_ctx_section_string::*;
+pub use find_act_ctx_section_string::{FindActCtxSectionStringA, FindActCtxSectionStringW};
 
-#[path = "../lstrcat.rs"]
 mod lstrcat;
-pub use lstrcat::*;
+pub use lstrcat::{lstrcatA, lstrcatW};
 
-#[path = "../lstrcmpi.rs"]
 mod lstrcmpi;
-pub use lstrcmpi::*;
+pub use lstrcmpi::{lstrcmpi, lstrcmpiA, lstrcmpiW};
 
-#[path = "../lstrcpy.rs"]
 mod lstrcpy;
-pub use lstrcpy::*;
+pub use lstrcpy::{lstrcpy, lstrcpyA, lstrcpyW};
 
-#[path = "../lstrcpyn.rs"]
 mod lstrcpyn;
-pub use lstrcpyn::*;
+pub use lstrcpyn::{lstrcpyn, lstrcpynA, lstrcpynW};
 
-#[path = "../lstrlen.rs"]
 mod lstrlen;
-pub use lstrlen::*;
+pub use lstrlen::{lstrlenA, lstrlenW};
 
-#[path = "../multi_byte_to_wide_char.rs"]
 mod multi_byte_to_wide_char;
-pub use multi_byte_to_wide_char::*;
+pub use multi_byte_to_wide_char::MultiByteToWideChar;
 
-#[path = "../wide_char_to_multi_byte.rs"]
 mod wide_char_to_multi_byte;
-pub use wide_char_to_multi_byte::*;
+pub use wide_char_to_multi_byte::WideCharToMultiByte;
 
-#[path = "../format_message.rs"]
 mod format_message;
-pub use format_message::*;
+pub use format_message::{FormatMessageA, FormatMessageW};
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
     match api {
+        "GetCalendarInfoA" => kernel32::GetCalendarInfoA(emu),
+        "GetCalendarInfoW" => kernel32::GetCalendarInfoW(emu),
         "GetUserDefaultLangID" => kernel32::GetUserDefaultLangID(emu),
         "lstrcmpi" => kernel32::lstrcmpi(emu),
         "lstrcmpiA" => kernel32::lstrcmpiA(emu),
@@ -61,6 +56,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "lstrcmpiW" => kernel32::lstrcmpiW(emu),
         "lstrcpy" => kernel32::lstrcpy(emu),
         "lstrcpyn" => kernel32::lstrcpyn(emu),
+        "lstrcpynA" => kernel32::lstrcpynA(emu),
+        "lstrcpynW" => kernel32::lstrcpynW(emu),
         "lstrcpyA" => kernel32::lstrcpyA(emu),
         "lstrcpyW" => kernel32::lstrcpyW(emu),
         "lstrlen" => kernel32::lstrlenA(emu),
@@ -73,7 +70,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetStringTypeA" => kernel32::GetStringTypeA(emu),
         "GetOEMCP" => kernel32::GetOEMCP(emu),
         "GetUserDefaultUILanguage" => kernel32::GetUserDefaultUILanguage(emu),
-        "SetLocaleInfoA" | "SetLocaleInfoW" => kernel32::SetLocaleInfoA(emu, api),
+        "SetLocaleInfoA" => kernel32::SetLocaleInfoA(emu),
+        "SetLocaleInfoW" => kernel32::SetLocaleInfoW(emu),
         "GetLocaleInfoEx" => kernel32::GetLocaleInfoEx(emu),
         "GlobalAddAtomW" => kernel32::GlobalAddAtomW(emu),
         "GlobalDeleteAtom" => kernel32::GlobalDeleteAtom(emu),

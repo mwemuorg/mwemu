@@ -1,14 +1,15 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptVerifyCertificateSignatureEx(emu: &mut emu::Emu) {
-    let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let dw_subject_type = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let pv_subject = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let dw_issuer_type = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let pv_issuer = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-    let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+    let h_crypt_prov = WinApiAbi::arg(emu, 0);
+    let dw_cert_encoding = WinApiAbi::arg(emu, 1);
+    let dw_subject_type = WinApiAbi::arg(emu, 2);
+    let pv_subject = WinApiAbi::arg(emu, 3);
+    let dw_issuer_type = WinApiAbi::arg(emu, 4);
+    let pv_issuer = WinApiAbi::arg(emu, 5);
+    let dw_flags = WinApiAbi::arg(emu, 6);
     log_red!(
         emu,
         "crypt32!CryptVerifyCertificateSignatureEx 0x{:x}",

@@ -1,13 +1,14 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegisterEventSourceA(emu: &mut emu::Emu) {
     register_event_source(emu, "RegisterEventSourceA");
 }
 
 fn register_event_source(emu: &mut emu::Emu, api: &str) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
+    let arg2 = WinApiAbi::arg(emu, 1) as u32;
     log_red!(emu, "advapi32!{api} arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
     for _ in 0..2u32 {
         emu.stack_pop32(false);

@@ -1,5 +1,6 @@
 use crate::api::windows::helper;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::winapi::winapi64::kernel32::InitializeCriticalSection;
 use crate::windows::constants::errors::*;
@@ -28,8 +29,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
-    let crit_sect = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let spin_count = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let crit_sect = WinApiAbi::arg(emu, 0) as u32;
+    let spin_count = WinApiAbi::arg(emu, 1) as u32;
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionAndSpinCount");
 
@@ -40,7 +41,7 @@ fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
 }
 
 fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let hndl = WinApiAbi::arg(emu, 0);
 
     log_red!(emu, "ntdll!RtlEnterCriticalSection");
 
@@ -49,7 +50,7 @@ fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
 }
 
 fn RtlLeaveCriticalSection(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let hndl = WinApiAbi::arg(emu, 0);
 
     log_red!(emu, "ntdll!RtlLeaveCriticalSection");
 
@@ -58,8 +59,8 @@ fn RtlLeaveCriticalSection(emu: &mut emu::Emu) {
 }
 
 fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let first = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let fptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let first = WinApiAbi::arg(emu, 0) as u32;
+    let fptr = WinApiAbi::arg(emu, 1);
 
     log_red!(
         emu,
@@ -76,7 +77,7 @@ fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
 }
 
 fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let handle = WinApiAbi::arg(emu, 0);
 
     log_red!(
         emu,
@@ -91,9 +92,9 @@ fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
 }
 
 fn RtlInitializeCriticalSectionEx(emu: &mut emu::Emu) {
-    let crit_sect_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let spin_count = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let crit_sect_ptr = WinApiAbi::arg(emu, 0);
+    let spin_count = WinApiAbi::arg(emu, 1) as u32;
+    let flags = WinApiAbi::arg(emu, 2) as u32;
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionEx");
 
@@ -141,7 +142,7 @@ fn RtlQueueWorkItem(emu: &mut emu::Emu) {
 }
 
 fn RtlDeleteCriticalSection(emu: &mut emu::Emu) {
-    let _cs = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let _cs = WinApiAbi::arg(emu, 0) as u32;
     log_red!(emu, "ntdll!RtlDeleteCriticalSection");
     emu.stack_pop32(false);
     emu.regs_mut().rax = 0;
@@ -154,7 +155,7 @@ fn RtlTlsAlloc(emu: &mut emu::Emu) {
 }
 
 fn RtlTlsFree(emu: &mut emu::Emu) {
-    let index = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as usize;
+    let index = WinApiAbi::arg(emu, 0) as usize;
     log_red!(emu, "ntdll!RtlTlsFree index: {}", index);
     emu.stack_pop32(false);
     if index < emu.tls32().len() {
@@ -166,7 +167,7 @@ fn RtlTlsFree(emu: &mut emu::Emu) {
 }
 
 fn RtlTlsGetValue(emu: &mut emu::Emu) {
-    let index = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as usize;
+    let index = WinApiAbi::arg(emu, 0) as usize;
     emu.stack_pop32(false);
     let val = if index < emu.tls32().len() {
         emu.set_last_error(ERROR_SUCCESS);
@@ -180,8 +181,8 @@ fn RtlTlsGetValue(emu: &mut emu::Emu) {
 }
 
 fn RtlTlsSetValue(emu: &mut emu::Emu) {
-    let index = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as usize;
-    let value = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
+    let index = WinApiAbi::arg(emu, 0) as usize;
+    let value = WinApiAbi::arg(emu, 1) as u32;
     log_red!(
         emu,
         "ntdll!RtlTlsSetValue index: {} value: 0x{:x}",
@@ -202,7 +203,7 @@ fn RtlTlsSetValue(emu: &mut emu::Emu) {
 }
 
 fn RtlInitializeSListHead(emu: &mut emu::Emu) {
-    let head = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let head = WinApiAbi::arg(emu, 0);
     log_red!(emu, "ntdll!RtlInitializeSListHead head: 0x{:x}", head);
     if head != 0 {
         emu.maps.write_dword(head, 0);

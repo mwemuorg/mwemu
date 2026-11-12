@@ -1,18 +1,19 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn CryptSignHashA(emu: &mut emu::Emu) {
     crypt_sign_hash(emu, "CryptSignHashA", false);
 }
 
 fn crypt_sign_hash(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hhash = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let _key_spec = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let desc_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let sig_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let sig_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+    let hhash = WinApiAbi::arg(emu, 0);
+    let _key_spec = WinApiAbi::arg(emu, 1) as u32;
+    let desc_ptr = WinApiAbi::arg(emu, 2);
+    let _flags = WinApiAbi::arg(emu, 3) as u32;
+    let sig_ptr = WinApiAbi::arg(emu, 4);
+    let sig_len_ptr = WinApiAbi::arg(emu, 5);
     let desc = if desc_ptr != 0 {
         strings::read_text(emu, desc_ptr, wide)
     } else {

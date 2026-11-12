@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetSidSubAuthority(emu: &mut emu::Emu) {
-    let sid_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let index = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let sid_ptr = WinApiAbi::arg(emu, 0);
+    let index = WinApiAbi::arg(emu, 1);
     // Returns pointer to the sub-authority DWORD at offset 8 + index*4
     let result = sid_ptr + 8 + index * 4;
     log_red!(

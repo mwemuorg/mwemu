@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn getservbyname(emu: &mut emu::Emu) {
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let proto_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let name_ptr = WinApiAbi::arg(emu, 0);
+    let proto_ptr = WinApiAbi::arg(emu, 1);
     let name = if name_ptr != 0 {
         emu.maps.read_string(name_ptr)
     } else {

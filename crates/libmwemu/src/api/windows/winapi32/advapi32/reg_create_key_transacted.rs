@@ -1,6 +1,7 @@
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn RegCreateKeyTransactedA(emu: &mut emu::Emu) {
@@ -8,8 +9,8 @@ pub fn RegCreateKeyTransactedA(emu: &mut emu::Emu) {
 }
 
 fn reg_create_key_transacted(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let subkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let hkey = WinApiAbi::arg(emu, 0);
+    let subkey_ptr = WinApiAbi::arg(emu, 1);
     let subkey = strings::read_text(emu, subkey_ptr, wide);
     let hndl = helper::handler_create(&format!("regkey_{}", subkey));
     log_red!(

@@ -1,35 +1,33 @@
 use crate::emu;
 use crate::winapi::common::memory::Call;
+use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::network::*;
 
-use super::{
-    pop_stack32, read_ansi_string_if_present, read_stack_dword, read_wide_string_if_present,
-};
-
 pub(super) fn http_open_request_a(emu: &mut emu::Emu) {
-    let conn_hndl = read_stack_dword(emu, 0, "wininet!HttpOpenRequestA cannot read hndl") as u64;
-    let method_ptr =
-        read_stack_dword(emu, 4, "wininet!HttpOpenRequestA cannot read method_ptr") as u64;
-    let path_ptr = read_stack_dword(emu, 8, "wininet!HttpOpenRequestA cannot read path_ptr") as u64;
-    let version_ptr =
-        read_stack_dword(emu, 12, "wininet!HttpOpenRequestA cannot read version_ptr") as u64;
-    let referrer_ptr =
-        read_stack_dword(emu, 16, "wininet!HttpOpenRequestA cannot read referrer_ptr") as u64;
-    let access_ptr =
-        read_stack_dword(emu, 20, "wininet!HttpOpenRequestA cannot read access_ptr") as u64;
-    let flags = read_stack_dword(emu, 24, "wininet!HttpOpenRequestA cannot read flags") as u64;
-    let _ctx = read_stack_dword(emu, 28, "wininet!HttpOpenRequestA cannot read ctx");
+    http_open_request(emu, "HttpOpenRequestA", false);
+}
 
-    let method = read_ansi_string_if_present(emu, method_ptr);
-    let path = read_ansi_string_if_present(emu, path_ptr);
-    let version = read_ansi_string_if_present(emu, version_ptr);
-    let referrer = read_ansi_string_if_present(emu, referrer_ptr);
-    let access = read_ansi_string_if_present(emu, access_ptr);
+fn http_open_request(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let conn_hndl = WinApiAbi::arg(emu, 0);
+    let method_ptr = WinApiAbi::arg(emu, 1);
+    let path_ptr = WinApiAbi::arg(emu, 2);
+    let version_ptr = WinApiAbi::arg(emu, 3);
+    let referrer_ptr = WinApiAbi::arg(emu, 4);
+    let access_ptr = WinApiAbi::arg(emu, 5);
+    let flags = WinApiAbi::arg(emu, 6);
+    let _ctx = WinApiAbi::arg(emu, 7) as u32;
+
+    let method = strings::read_text(emu, method_ptr, wide);
+    let path = strings::read_text(emu, path_ptr, wide);
+    let version = strings::read_text(emu, version_ptr, wide);
+    let referrer = strings::read_text(emu, referrer_ptr, wide);
+    let access = strings::read_text(emu, access_ptr, wide);
 
     log_red!(
         emu,
-        "wininet!HttpOpenRequestA method: {} path: {} ver: {} ref: {} access: {}",
+        "wininet!{api} method: {} path: {} ver: {} ref: {} access: {}",
         method,
         path,
         version,
@@ -45,72 +43,35 @@ pub(super) fn http_open_request_a(emu: &mut emu::Emu) {
         log::trace!("\tssl communication.");
     }
 
-    pop_stack32(emu, 8);
+    WinApiAbi::stdcall_ret(emu, 8);
 
-    let uri = format!("HttpOpenRequestA://{}", path);
+    let uri = format!("{api}://{}", path);
     emu.regs_mut().rax = helper::handler_create(&uri);
 }
 
 pub(super) fn http_open_request_w(emu: &mut emu::Emu) {
-    let conn_hndl = read_stack_dword(emu, 0, "wininet!HttpOpenRequestW cannot read hndl") as u64;
-    let method_ptr =
-        read_stack_dword(emu, 4, "wininet!HttpOpenRequestW cannot read method_ptr") as u64;
-    let path_ptr = read_stack_dword(emu, 8, "wininet!HttpOpenRequestW cannot read path_ptr") as u64;
-    let version_ptr =
-        read_stack_dword(emu, 12, "wininet!HttpOpenRequestW cannot read version_ptr") as u64;
-    let referrer_ptr =
-        read_stack_dword(emu, 16, "wininet!HttpOpenRequestW cannot read referrer_ptr") as u64;
-    let access_ptr =
-        read_stack_dword(emu, 20, "wininet!HttpOpenRequestW cannot read access_ptr") as u64;
-    let flags = read_stack_dword(emu, 24, "wininet!HttpOpenRequestW cannot read flags") as u64;
-    let _ctx = read_stack_dword(emu, 28, "wininet!HttpOpenRequestW cannot read ctx");
-
-    let method = read_wide_string_if_present(emu, method_ptr);
-    let path = read_wide_string_if_present(emu, path_ptr);
-    let version = read_wide_string_if_present(emu, version_ptr);
-    let referrer = read_wide_string_if_present(emu, referrer_ptr);
-    let access = read_wide_string_if_present(emu, access_ptr);
-
-    log_red!(
-        emu,
-        "wininet!HttpOpenRequestW method: {} path: {} ver: {} ref: {} access: {}",
-        method,
-        path,
-        version,
-        referrer,
-        access
-    );
-
-    if !helper::handler_exist(conn_hndl) {
-        log::trace!("\tinvalid handle.");
-    }
-
-    if flags & INTERNET_FLAG_SECURE != 0 {
-        log::trace!("\tssl communication.");
-    }
-
-    pop_stack32(emu, 8);
-
-    let uri = format!("HttpOpenRequestW://{}", path);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    http_open_request(emu, "HttpOpenRequestW", true);
 }
 
 pub(super) fn internet_set_option_a(emu: &mut emu::Emu) {
-    let inet_hndl =
-        read_stack_dword(emu, 0, "wininet!InternetSetOptionA cannot read inet_hndl") as u64;
-    let option = read_stack_dword(emu, 4, "wininet!InternetSetOptionA cannot read option");
-    let buffer = read_stack_dword(emu, 8, "wininet!InternetSetOptionA cannot read buffer") as u64;
-    let len = read_stack_dword(emu, 12, "wininet!InternetSetOptionA cannot read len");
+    internet_set_option(emu, "InternetSetOptionA", false);
+}
+
+fn internet_set_option(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let inet_hndl = WinApiAbi::arg(emu, 0);
+    let option = WinApiAbi::arg(emu, 1) as u32;
+    let buffer = WinApiAbi::arg(emu, 2);
+    let len = WinApiAbi::arg(emu, 3) as u32;
 
     let mut buffer_content = String::new();
     if buffer != 0 {
         buffer_content = emu.maps.read_string_of_bytes(buffer, len as usize);
     }
-    let sbuff = emu.maps.read_string(buffer);
+    let sbuff = strings::read_text(emu, buffer, wide);
 
     log_red!(
         emu,
-        "wininet!InternetSetOptionA option: 0x{:x} buff: {{{}}} {}",
+        "wininet!{api} option: 0x{:x} buff: {{{}}} {}",
         option,
         buffer_content,
         sbuff
@@ -120,81 +81,42 @@ pub(super) fn internet_set_option_a(emu: &mut emu::Emu) {
         log::trace!("\tinvalid handle.");
     }
 
-    pop_stack32(emu, 4);
+    WinApiAbi::stdcall_ret(emu, 4);
 
     emu.regs_mut().rax = 1;
 }
 
 pub(super) fn internet_set_option_w(emu: &mut emu::Emu) {
-    let inet_hndl =
-        read_stack_dword(emu, 0, "wininet!InternetSetOptionW cannot read inet_hndl") as u64;
-    let option = read_stack_dword(emu, 4, "wininet!InternetSetOptionW cannot read option");
-    let buffer = read_stack_dword(emu, 8, "wininet!InternetSetOptionW cannot read buffer") as u64;
-    let len = read_stack_dword(emu, 12, "wininet!InternetSetOptionW cannot read len");
-
-    let mut buffer_content = String::new();
-    if buffer != 0 {
-        buffer_content = emu.maps.read_string_of_bytes(buffer, len as usize);
-    }
-    let sbuff = emu.maps.read_wide_string(buffer);
-
-    log_red!(
-        emu,
-        "wininet!InternetSetOptionW option: 0x{:x} buff: {{{}}} {}",
-        option,
-        buffer_content,
-        sbuff
-    );
-
-    if !helper::handler_exist(inet_hndl) {
-        log::trace!("\tinvalid handle.");
-    }
-
-    pop_stack32(emu, 4);
-
-    emu.regs_mut().rax = 1;
+    internet_set_option(emu, "InternetSetOptionW", true);
 }
 
 pub(super) fn http_send_request_a(emu: &mut emu::Emu) {
-    let req_hndl = read_stack_dword(emu, 0, "wininet!HttpSendRequestA cannot read req_hndl") as u64;
-    let hdrs_ptr = read_stack_dword(emu, 4, "wininet!HttpSendRequestA cannot read hdrs_ptr") as u64;
-    let _hdrs_len = read_stack_dword(emu, 8, "wininet!HttpSendRequestA cannot read hdrs_len");
-    let opt_ptr = read_stack_dword(emu, 12, "wininet!HttpSendRequestA cannot read opt_ptr") as u64;
-    let _opt_len = read_stack_dword(emu, 16, "wininet!HttpSendRequestA cannot read opt_len");
+    http_send_request(emu, "HttpSendRequestA", false);
+}
 
-    let hdrs = emu.maps.read_string(hdrs_ptr);
-    let opt = emu.maps.read_string(opt_ptr);
+fn http_send_request(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let req_hndl = WinApiAbi::arg(emu, 0);
+    let hdrs_ptr = WinApiAbi::arg(emu, 1);
+    let _hdrs_len = WinApiAbi::arg(emu, 2) as u32;
+    let opt_ptr = WinApiAbi::arg(emu, 3);
+    let _opt_len = WinApiAbi::arg(emu, 4) as u32;
 
-    log_red!(emu, "wininet!HttpSendRequestA hdrs: {} opt: {}", hdrs, opt);
+    let hdrs = strings::read_text(emu, hdrs_ptr, wide);
+    let opt = strings::read_text(emu, opt_ptr, wide);
+
+    log_red!(emu, "wininet!{api} hdrs: {} opt: {}", hdrs, opt);
 
     if !helper::handler_exist(req_hndl) {
         log::trace!("\tinvalid handle.");
     }
 
-    pop_stack32(emu, 5);
+    WinApiAbi::stdcall_ret(emu, 5);
 
     emu.regs_mut().rax = 1;
 }
 
 pub(super) fn http_send_request_w(emu: &mut emu::Emu) {
-    let req_hndl = read_stack_dword(emu, 0, "wininet!HttpSendRequestW cannot read req_hndl") as u64;
-    let hdrs_ptr = read_stack_dword(emu, 4, "wininet!HttpSendRequestW cannot read hdrs_ptr") as u64;
-    let _hdrs_len = read_stack_dword(emu, 8, "wininet!HttpSendRequestW cannot read hdrs_len");
-    let opt_ptr = read_stack_dword(emu, 12, "wininet!HttpSendRequestW cannot read opt_ptr") as u64;
-    let _opt_len = read_stack_dword(emu, 16, "wininet!HttpSendRequestW cannot read opt_len");
-
-    let hdrs = emu.maps.read_wide_string(hdrs_ptr);
-    let opt = emu.maps.read_wide_string(opt_ptr);
-
-    log_red!(emu, "wininet!HttpSendRequestW hdrs: {} opt: {}", hdrs, opt);
-
-    if !helper::handler_exist(req_hndl) {
-        log::trace!("\tinvalid handle.");
-    }
-
-    pop_stack32(emu, 5);
-
-    emu.regs_mut().rax = 1;
+    http_send_request(emu, "HttpSendRequestW", true);
 }
 
 pub fn HttpQueryInfoA(emu: &mut emu::Emu) {

@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
@@ -20,11 +21,11 @@ fn get_char_abc_widths(emu: &mut emu::Emu, api: &str) {
             emu.maps.write_dword(buf + off + 8, 1); // abcC
         }
     }
-    let esp = emu.regs().get_esp();
-    let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-    let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-    let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
+
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
+    let arg3 = WinApiAbi::arg(emu, 2);
+    let arg4 = WinApiAbi::arg(emu, 3);
     log_red!(
         emu,
         "gdi32!{api} arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",

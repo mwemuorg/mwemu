@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EtwEventRegister(emu: &mut emu::Emu) {
-    let provider_guid = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let callback = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let callback_ctx = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let reg_handle_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let provider_guid = WinApiAbi::arg(emu, 0);
+    let callback = WinApiAbi::arg(emu, 1) as u32;
+    let callback_ctx = WinApiAbi::arg(emu, 2) as u32;
+    let reg_handle_ptr = WinApiAbi::arg(emu, 3);
     let guid_str = emu.maps.read_string(provider_guid);
     let hndl = helper::handler_create(&guid_str);
     if reg_handle_ptr != 0 {

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Reject Windows API sources absent from the current Rust compilation."""
+"""Check Windows API module ownership and re-exports."""
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -69,6 +70,46 @@ def current_compilation(root, target=None, offline=False):
     return {library_dep_info(artifact) for artifact in artifacts}
 
 
+def aggregating_modules(path, text):
+    directory = path.parent if path.name == "mod.rs" else path.with_suffix("")
+    aggregators = set()
+    declarations = r'(?m)^(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)\s*;'
+    for name in re.findall(declarations, text):
+        child = directory / f"{name}.rs"
+        if not child.is_file():
+            child = directory / name / "mod.rs"
+        if not child.is_file():
+            continue
+        content = child.read_text(encoding="utf-8")
+        if re.search(declarations, content) and re.search(r'(?m)^pub use ', content):
+            aggregators.add(name)
+    return aggregators
+
+
+def module_style_issues(text, aggregators=()):
+    """Check module declarations, not ordinary wildcard imports of constants."""
+    issues = []
+    for match in re.finditer(r'(?m)^\s*#\[path\s*=', text):
+        issues.append((text.count("\n", 0, match.start()) + 1,
+                       "place the source beside its owning module instead of using #[path]"))
+    groups = {}
+    for match in re.finditer(r'(?m)^[ \t]*(pub(?:\([^)]*\))?)\s+use\s+([^;]+);', text):
+        visibility, tree = match.groups()
+        line = text.count("\n", 0, match.start()) + 1
+        if "*" in tree:
+            target = re.fullmatch(r'\s*(\w+)\s*::\s*\*\s*', tree)
+            if not target or target[1] not in aggregators:
+                issues.append((line, "list handler names explicitly; wildcard re-exports require a subsystem module"))
+        prefix = tree.split("{", 1)[0].rsplit("::", 1)[0].strip()
+        if "::" not in tree or tree.lstrip().startswith("{"):
+            continue
+        key = (visibility, re.sub(r'\s+', '', prefix))
+        if key in groups:
+            issues.append((line, f"combine re-exports from {prefix} with line {groups[key]}"))
+        groups[key] = line
+    return issues
+
+
 class ApiModulesTests(unittest.TestCase):
     def test_make_paths_and_path_attributes(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -113,6 +154,25 @@ class ApiModulesTests(unittest.TestCase):
             self.assertEqual(library_dep_info(artifact), current)
 
 
+    def test_module_style_requires_explicit_grouped_reexports_and_normal_paths(self):
+        good = 'mod text;\npub use text::{ApiA, ApiW};\nuse constants::*;\n'
+        self.assertEqual(module_style_issues(good), [])
+        self.assertEqual(module_style_issues("pub use strings_nls::*;", {"strings_nls"}), [])
+        self.assertTrue(module_style_issues("pub use text::*;", {"strings_nls"}))
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "strings_nls").mkdir()
+            (root / "strings_nls/mod.rs").write_text("mod text;\npub use text::{ApiA, ApiW};\n", encoding="utf-8")
+            (root / "text.rs").write_text("pub fn ApiA() {}\n", encoding="utf-8")
+            declarations = "mod strings_nls;\nmod text;\n"
+            self.assertEqual(aggregating_modules(root / "mod.rs", declarations), {"strings_nls"})
+        for bad in ['pub use text::*;\n',
+                    'pub use text::ApiA;\npub use text::ApiW;\n',
+                    '#[path = "../text.rs"]\nmod text;\n']:
+            with self.subTest(source=bad):
+                self.assertTrue(module_style_issues(bad))
+
+
 def run_self_tests():
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(ApiModulesTests)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
@@ -139,6 +199,12 @@ def main():
         if (source_root / "mod.rs").resolve() not in compiled:
             raise ValueError("dependency file does not contain the Windows API root module")
         orphans = orphan_sources(source_root, compiled)
+        style_issues = [
+            {"path": path.relative_to(root).as_posix(), "line": line, "message": message}
+            for path in sorted(source_root.rglob("*.rs"))
+            for text in [path.read_text(encoding="utf-8")]
+            for line, message in module_style_issues(text, aggregating_modules(path, text))
+        ]
     except (OSError, ValueError) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 2
@@ -147,11 +213,17 @@ def main():
                              for path in sorted(dep_files)},
         "api_sources": len(list(source_root.rglob("*.rs"))),
         "orphans": [path.relative_to(root).as_posix() for path in orphans],
+        "module_style": style_issues,
     }
     if args.report:
         args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     for path in report["orphans"]:
         print(f"UNCONNECTED: {path}")
+    for issue in style_issues:
+        print(f"MODULE: {issue['path']}:{issue['line']}: {issue['message']}")
+    if style_issues:
+        print(f"FAIL: {len(style_issues)} Windows API module declarations need cleanup")
+        return 1
     if orphans:
         print(f"FAIL: {len(orphans)} Windows API source files are not compiled")
         return 1

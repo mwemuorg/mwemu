@@ -1,13 +1,14 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::network::*;
 
 pub fn WSARecv(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let buffers_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let buffer_count = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let bytes_recvd_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let buffers_ptr = WinApiAbi::arg(emu, 1);
+    let buffer_count = WinApiAbi::arg(emu, 2) as u32;
+    let bytes_recvd_ptr = WinApiAbi::arg(emu, 3);
     log_red!(
         emu,
         "ws2_32!WSARecv sock:0x{:x} buffers:{}",

@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn RegSetValueA(emu: &mut emu::Emu) {
@@ -7,10 +8,10 @@ pub fn RegSetValueA(emu: &mut emu::Emu) {
 }
 
 fn reg_set_value(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let reg_type = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let hkey = WinApiAbi::arg(emu, 0);
+    let name_ptr = WinApiAbi::arg(emu, 1);
+    let reserved = WinApiAbi::arg(emu, 2);
+    let reg_type = WinApiAbi::arg(emu, 3);
     let name = strings::read_text(emu, name_ptr, wide);
     log_red!(
         emu,

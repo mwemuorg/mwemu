@@ -654,3 +654,157 @@ fn wsprintf_aw_reads_variadic_slots_without_callee_cleanup() {
         }
     }
 }
+
+fn lstr_encodings() -> [(bool, Vec<u8>); 2] {
+    [
+        (false, b"A\xe9B\0".to_vec()),
+        (
+            true,
+            "A😀B\0".encode_utf16().flat_map(u16::to_le_bytes).collect(),
+        ),
+    ]
+}
+
+#[test]
+fn lstr_copy_and_concat_preserve_code_units_and_return_the_destination() {
+    for is64 in [false, true] {
+        let (mut emu, destination) = prepare(is64);
+        let source = destination + 128;
+        for (wide, source_bytes) in lstr_encodings() {
+            let unit_size = if wide {
+                size_of::<u16>()
+            } else {
+                size_of::<u8>()
+            };
+            let suffix = if wide { "W" } else { "A" };
+            assert!(emu.maps.write_bytes(source, &source_bytes));
+            for concatenate in [false, true] {
+                let mut expected = Vec::new();
+                if concatenate {
+                    expected.resize(unit_size, 0);
+                    expected[0] = b'P';
+                }
+                let mut initial = expected.clone();
+                initial.resize(initial.len() + unit_size, 0);
+                emu.maps.memset(destination, MARKER as u8, 64);
+                assert!(emu.maps.write_bytes(destination, &initial));
+                expected.extend_from_slice(&source_bytes);
+                let api = format!(
+                    "{}{}",
+                    if concatenate { "lstrcat" } else { "lstrcpy" },
+                    suffix
+                );
+                assert_eq!(
+                    call(&mut emu, "kernel32.dll", &api, &[destination, source]),
+                    destination
+                );
+                assert_eq!(
+                    emu.maps.read_bytes(destination, expected.len()).as_ref(),
+                    expected
+                );
+                assert_eq!(
+                    emu.maps.read_byte(destination + expected.len() as u64),
+                    Some(MARKER as u8)
+                );
+                assert_eq!(
+                    emu.maps.read_bytes(source, source_bytes.len()).as_ref(),
+                    source_bytes
+                );
+            }
+        }
+        for api in ["lstrcpy", "lstrcpyn"] {
+            emu.maps.write_string(source, "alias");
+            let arguments = if api == "lstrcpy" {
+                vec![destination, source]
+            } else {
+                vec![destination, source, 6]
+            };
+            assert_eq!(call(&mut emu, "kernel32.dll", api, &arguments), destination);
+            assert_eq!(emu.maps.read_string(destination), "alias");
+        }
+        if !is64 {
+            emu.maps.write_string(destination, "head");
+            emu.maps.write_string(source, "tail");
+            assert_eq!(
+                call(&mut emu, "kernel32.dll", "lstrcat", &[destination, source]),
+                destination
+            );
+            assert_eq!(emu.maps.read_string(destination), "headtail");
+        }
+        for api in ["lstrcpyA", "lstrcpyW", "lstrcatA", "lstrcatW"] {
+            assert_eq!(call(&mut emu, "kernel32.dll", api, &[destination, 0]), 0);
+        }
+    }
+}
+
+#[test]
+fn lstrcpyn_respects_code_unit_capacity_and_does_not_pad() {
+    for (is64, library) in [
+        (false, "kernel32.dll"),
+        (true, "kernel32.dll"),
+        (true, "kernelbase.dll"),
+    ] {
+        let (mut emu, destination) = prepare(is64);
+        let source = destination + 128;
+        for (wide, bytes) in lstr_encodings() {
+            let unit_size = if wide {
+                size_of::<u16>()
+            } else {
+                size_of::<u8>()
+            };
+            let source_units = bytes.len() / unit_size - 1;
+            let api = if wide { "lstrcpynW" } else { "lstrcpynA" };
+            assert!(emu.maps.write_bytes(source, &bytes));
+            for capacity in [0u32, 1, 2, 3, 4, 16, u32::MAX] {
+                let mut expected = vec![MARKER as u8; 32];
+                if capacity != 0 {
+                    let copied = source_units.min(capacity as usize - 1) * unit_size;
+                    expected[..copied].copy_from_slice(&bytes[..copied]);
+                    expected[copied..copied + unit_size].fill(0);
+                }
+                emu.maps.memset(destination, MARKER as u8, expected.len());
+                assert_eq!(
+                    call(
+                        &mut emu,
+                        library,
+                        api,
+                        &[destination, source, capacity as u64]
+                    ),
+                    destination
+                );
+                assert_eq!(
+                    emu.maps.read_bytes(destination, expected.len()).as_ref(),
+                    expected,
+                    "{library}!{api}, capacity {capacity}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn lstrlen_counts_code_units_and_preserves_last_error() {
+    for (is64, library) in [
+        (false, "kernel32.dll"),
+        (true, "kernel32.dll"),
+        (true, "kernelbase.dll"),
+    ] {
+        let (mut emu, source) = prepare(is64);
+        for (wide, bytes) in lstr_encodings() {
+            let unit_size = if wide {
+                size_of::<u16>()
+            } else {
+                size_of::<u8>()
+            };
+            let api = if wide { "lstrlenW" } else { "lstrlenA" };
+            assert!(emu.maps.write_bytes(source, &bytes));
+            emu.set_last_error(MARKER as u64);
+            assert_eq!(
+                call(&mut emu, library, api, &[source]),
+                (bytes.len() / unit_size - 1) as u64
+            );
+            assert_eq!(call(&mut emu, library, api, &[0]), 0);
+            assert_eq!(emu.get_last_error(), MARKER as u64);
+        }
+    }
+}

@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptCATCatalogInfoFromContext(emu: &mut emu::Emu) {
-    let h_cat_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p_cat_info = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let h_cat_info = WinApiAbi::arg(emu, 0);
+    let p_cat_info = WinApiAbi::arg(emu, 1);
+    let dw_flags = WinApiAbi::arg(emu, 2);
     log_red!(
         emu,
         "crypt32!CryptCATCatalogInfoFromContext h_cat_info:0x{:x} p_cat_info:0x{:x} dw_flags:0x{:x}",

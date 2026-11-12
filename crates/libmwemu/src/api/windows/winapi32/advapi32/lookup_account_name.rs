@@ -1,18 +1,19 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn LookupAccountNameA(emu: &mut emu::Emu) {
     lookup_account_name(emu, "LookupAccountNameA", false);
 }
 
 fn lookup_account_name(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _system_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let sid_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let sid_sz_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let domain_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let domain_sz_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-    let use_ptr = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as u64;
+    let _system_ptr = WinApiAbi::arg(emu, 0);
+    let name_ptr = WinApiAbi::arg(emu, 1);
+    let sid_ptr = WinApiAbi::arg(emu, 2);
+    let sid_sz_ptr = WinApiAbi::arg(emu, 3);
+    let domain_ptr = WinApiAbi::arg(emu, 4);
+    let domain_sz_ptr = WinApiAbi::arg(emu, 5);
+    let use_ptr = WinApiAbi::arg(emu, 6);
     let name = strings::read_text(emu, name_ptr, wide);
     // Write a mock SID (28 bytes = S-1-5-21-...)
     if sid_ptr != 0 {

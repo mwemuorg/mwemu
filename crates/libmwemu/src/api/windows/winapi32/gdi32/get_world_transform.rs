@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
@@ -14,9 +15,9 @@ pub fn GetWorldTransform(emu: &mut emu::Emu) {
         emu.maps.write_dword(xform + 16, 0);
         emu.maps.write_dword(xform + 20, 0);
     }
-    let esp = emu.regs().get_esp();
-    let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
+
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
         "gdi32!GetWorldTransform arg1:0x{:x} arg2:0x{:x}",

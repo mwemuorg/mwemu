@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptMsgUpdate(emu: &mut emu::Emu) {
-    let hmsg = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pb_data = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let cb_data = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let f_final = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let hmsg = WinApiAbi::arg(emu, 0);
+    let pb_data = WinApiAbi::arg(emu, 1);
+    let cb_data = WinApiAbi::arg(emu, 2) as u32;
+    let f_final = WinApiAbi::arg(emu, 3) as u32;
     log_red!(
         emu,
         "crypt32!CryptMsgUpdate msg:0x{:x} data:0x{:x} len:{} final:{}",
@@ -14,7 +15,7 @@ pub fn CryptMsgUpdate(emu: &mut emu::Emu) {
         cb_data,
         f_final
     );
-    let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let val_ptr = WinApiAbi::arg(emu, 1);
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }

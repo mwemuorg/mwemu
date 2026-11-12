@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WahOpenHandleHelper(emu: &mut emu::Emu) {
-    let helper_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let helper_ptr = WinApiAbi::arg(emu, 0);
     log_red!(emu, "ws2_32!WahOpenHandleHelper ptr:0x{:x}", helper_ptr);
     let handle = helper::handler_create("wah_handle");
     if helper_ptr != 0 {

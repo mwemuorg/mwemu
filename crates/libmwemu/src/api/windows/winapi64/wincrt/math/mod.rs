@@ -1,11 +1,9 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
-#[path = "../__setusermatherr.rs"]
 mod __setusermatherr;
 pub use __setusermatherr::__setusermatherr;
 
-#[path = "../atan.rs"]
 mod atan;
 pub use atan::atan;
 

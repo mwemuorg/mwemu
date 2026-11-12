@@ -1,10 +1,11 @@
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn NotifyServiceStatusChange(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
     log_red!(emu, "advapi32!NotifyServiceStatusChange 0x{:x}", arg1);
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
@@ -19,8 +20,8 @@ pub fn NotifyServiceStatusChangeA(emu: &mut emu::Emu) {
 }
 
 fn notify_service_status_change(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p0 = WinApiAbi::arg(emu, 0);
+    let p1 = WinApiAbi::arg(emu, 1);
     let s = if p0 != 0 && p0 > 0xffff {
         strings::read_text(emu, p0, wide)
     } else {

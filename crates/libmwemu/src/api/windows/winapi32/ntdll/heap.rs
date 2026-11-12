@@ -1,5 +1,6 @@
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -34,8 +35,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
-    let count = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let buffer = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let count = WinApiAbi::arg(emu, 0);
+    let buffer = WinApiAbi::arg(emu, 1);
 
     let keys = emu.handle_management.heap_handle_keys();
     let total = keys.len() as u64;

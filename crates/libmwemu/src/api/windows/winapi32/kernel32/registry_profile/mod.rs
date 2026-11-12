@@ -1,105 +1,82 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../reg_open_key_ex.rs"]
 mod reg_open_key_ex;
-pub use reg_open_key_ex::*;
+pub use reg_open_key_ex::{RegOpenKeyExA, RegOpenKeyExW};
 
-#[path = "../write_profile_section.rs"]
 mod write_profile_section;
-pub use write_profile_section::*;
+pub use write_profile_section::{WriteProfileSectionA, WriteProfileSectionW};
 
-#[path = "../write_private_profile_struct.rs"]
 mod write_private_profile_struct;
-pub use write_private_profile_struct::*;
+pub use write_private_profile_struct::{WritePrivateProfileStructA, WritePrivateProfileStructW};
 
-#[path = "../write_private_profile_section.rs"]
 mod write_private_profile_section;
-pub use write_private_profile_section::*;
+pub use write_private_profile_section::{WritePrivateProfileSectionA, WritePrivateProfileSectionW};
 
-#[path = "../reg_set_value_ex.rs"]
 mod reg_set_value_ex;
-pub use reg_set_value_ex::*;
+pub use reg_set_value_ex::{RegSetValueExA, RegSetValueExW};
 
-#[path = "../reg_open_key.rs"]
 mod reg_open_key;
-pub use reg_open_key::*;
+pub use reg_open_key::{RegOpenKeyA, RegOpenKeyW};
 
-#[path = "../reg_create_key_ex.rs"]
 mod reg_create_key_ex;
-pub use reg_create_key_ex::*;
+pub use reg_create_key_ex::{RegCreateKeyExA, RegCreateKeyExW};
 
-#[path = "../get_profile_section.rs"]
 mod get_profile_section;
-pub use get_profile_section::*;
+pub use get_profile_section::{GetProfileSectionA, GetProfileSectionW};
 
-#[path = "../get_profile_int.rs"]
 mod get_profile_int;
-pub use get_profile_int::*;
+pub use get_profile_int::{GetProfileIntA, GetProfileIntW};
 
-#[path = "../get_private_profile_struct.rs"]
 mod get_private_profile_struct;
-pub use get_private_profile_struct::*;
+pub use get_private_profile_struct::{GetPrivateProfileStructA, GetPrivateProfileStructW};
 
-#[path = "../get_private_profile_section_names.rs"]
 mod get_private_profile_section_names;
-pub use get_private_profile_section_names::*;
+pub use get_private_profile_section_names::{
+    GetPrivateProfileSectionNamesA, GetPrivateProfileSectionNamesW,
+};
 
-#[path = "../get_private_profile_section.rs"]
 mod get_private_profile_section;
-pub use get_private_profile_section::*;
+pub use get_private_profile_section::{GetPrivateProfileSectionA, GetPrivateProfileSectionW};
 
-#[path = "../get_private_profile_int.rs"]
 mod get_private_profile_int;
-pub use get_private_profile_int::*;
+pub use get_private_profile_int::{GetPrivateProfileIntA, GetPrivateProfileIntW};
 
-#[path = "../reg_close_key.rs"]
 mod reg_close_key;
-pub use reg_close_key::*;
+pub use reg_close_key::RegCloseKey;
 
-#[path = "../termsrv_convert_sys_root_to_user_dir.rs"]
 mod termsrv_convert_sys_root_to_user_dir;
-pub use termsrv_convert_sys_root_to_user_dir::*;
+pub use termsrv_convert_sys_root_to_user_dir::TermsrvConvertSysRootToUserDir;
 
-#[path = "../termsrv_create_reg_entry.rs"]
 mod termsrv_create_reg_entry;
-pub use termsrv_create_reg_entry::*;
+pub use termsrv_create_reg_entry::TermsrvCreateRegEntry;
 
-#[path = "../termsrv_delete_key.rs"]
 mod termsrv_delete_key;
-pub use termsrv_delete_key::*;
+pub use termsrv_delete_key::TermsrvDeleteKey;
 
-#[path = "../termsrv_delete_value.rs"]
 mod termsrv_delete_value;
-pub use termsrv_delete_value::*;
+pub use termsrv_delete_value::TermsrvDeleteValue;
 
-#[path = "../termsrv_get_pre_set_value.rs"]
 mod termsrv_get_pre_set_value;
-pub use termsrv_get_pre_set_value::*;
+pub use termsrv_get_pre_set_value::TermsrvGetPreSetValue;
 
-#[path = "../termsrv_open_reg_entry.rs"]
 mod termsrv_open_reg_entry;
-pub use termsrv_open_reg_entry::*;
+pub use termsrv_open_reg_entry::TermsrvOpenRegEntry;
 
-#[path = "../termsrv_open_user_classes.rs"]
 mod termsrv_open_user_classes;
-pub use termsrv_open_user_classes::*;
+pub use termsrv_open_user_classes::TermsrvOpenUserClasses;
 
-#[path = "../termsrv_restore_key.rs"]
 mod termsrv_restore_key;
-pub use termsrv_restore_key::*;
+pub use termsrv_restore_key::TermsrvRestoreKey;
 
-#[path = "../termsrv_set_value_key.rs"]
 mod termsrv_set_value_key;
-pub use termsrv_set_value_key::*;
+pub use termsrv_set_value_key::TermsrvSetValueKey;
 
-#[path = "../termsrv_sync_user_ini_file.rs"]
 mod termsrv_sync_user_ini_file;
-pub use termsrv_sync_user_ini_file::*;
+pub use termsrv_sync_user_ini_file::TermsrvSyncUserIniFile;
 
-#[path = "../termsrv_sync_user_ini_file_ext.rs"]
 mod termsrv_sync_user_ini_file_ext;
-pub use termsrv_sync_user_ini_file_ext::*;
+pub use termsrv_sync_user_ini_file_ext::TermsrvSyncUserIniFileExt;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {

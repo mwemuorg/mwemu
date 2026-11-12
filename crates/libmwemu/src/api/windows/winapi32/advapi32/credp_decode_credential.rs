@@ -1,15 +1,16 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CredpDecodeCredential(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
         "advapi32!CredpDecodeCredential arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );
-    let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let src = WinApiAbi::arg(emu, 0);
     if src != 0 && emu.maps.is_mapped(src) {
         let _input = emu.maps.read_string(src);
     }

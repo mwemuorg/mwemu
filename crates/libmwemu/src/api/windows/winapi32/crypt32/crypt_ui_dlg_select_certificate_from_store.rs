@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptUIDlgSelectCertificateFromStore(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
     log_red!(
         emu,
         "crypt32!CryptUIDlgSelectCertificateFromStore arg1:0x{:x}",

@@ -1,16 +1,17 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn URLDownloadToFileA(emu: &mut emu::Emu) {
     url_download_to_file(emu, "URLDownloadToFileA", false);
 }
 
 fn url_download_to_file(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let pcaller = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let sz_url = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let sz_filename = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let dw_reserved = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let lpfn_cb = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let pcaller = WinApiAbi::arg(emu, 0);
+    let sz_url = WinApiAbi::arg(emu, 1);
+    let sz_filename = WinApiAbi::arg(emu, 2);
+    let dw_reserved = WinApiAbi::arg(emu, 3);
+    let lpfn_cb = WinApiAbi::arg(emu, 4);
 
     let url = strings::read_text(emu, sz_url, wide);
     let filename = strings::read_text(emu, sz_filename, wide);

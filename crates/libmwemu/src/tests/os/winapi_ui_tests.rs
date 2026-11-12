@@ -480,3 +480,44 @@ fn set_windows_hook_ex_a_64() {
     );
     assert_ne!(ret, 0, "SetWindowsHookExA must return a hook handle");
 }
+
+#[test]
+fn virtual_key_variants_share_the_us_keyboard_profile() {
+    const LAST_ERROR: u64 = 0xcccc;
+    // B and Z catch the old linear A-Z scan-code approximation.
+    let cases = [
+        (b'B' as u32, MAPVK_VK_TO_VSC, 0x30),
+        (b'Z' as u32, MAPVK_VK_TO_VSC_EX, 0x2c),
+        (0x30, MAPVK_VSC_TO_VK, b'B' as u32),
+        (0x2c, MAPVK_VSC_TO_VK_EX, b'Z' as u32),
+        (b'A' as u32, MAPVK_VK_TO_CHAR, b'A' as u32),
+        (VK_RETURN, MAPVK_VK_TO_VSC, 0x1c),
+        (u32::MAX, MAPVK_VK_TO_VSC, 0),
+        (b'A' as u32, u32::MAX, 0),
+    ];
+    for is64 in [false, true] {
+        let (mut emu, _) = helpers::prepare_winapi(is64);
+        for (api, extended) in [
+            ("MapVirtualKeyA", false),
+            ("MapVirtualKeyW", false),
+            ("MapVirtualKeyExA", true),
+            ("MapVirtualKeyExW", true),
+        ] {
+            for (code, kind, expected) in cases {
+                let args = [code as u64, kind as u64, 0];
+                emu.set_last_error(LAST_ERROR);
+                assert_eq!(
+                    helpers::call_winapi_export(
+                        &mut emu,
+                        "user32.dll",
+                        api,
+                        &args[..if extended { 3 } else { 2 }]
+                    ),
+                    expected as u64,
+                    "{api}: {code:#x}, {kind}"
+                );
+                assert_eq!(emu.get_last_error(), LAST_ERROR);
+            }
+        }
+    }
+}

@@ -1,17 +1,18 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
-    let sia_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let sub_auth_count = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let sa0 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let sa1 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let sa2 = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let sa3 = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
-    let sa4 = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
-    let sa5 = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0);
-    let sa6 = emu.maps.read_dword(emu.regs().get_esp() + 32).unwrap_or(0);
-    let sa7 = emu.maps.read_dword(emu.regs().get_esp() + 36).unwrap_or(0);
-    let pp_sid = emu.maps.read_dword(emu.regs().get_esp() + 40).unwrap_or(0) as u64;
+    let sia_ptr = WinApiAbi::arg(emu, 0);
+    let sub_auth_count = WinApiAbi::arg(emu, 1) as u32;
+    let sa0 = WinApiAbi::arg(emu, 2) as u32;
+    let sa1 = WinApiAbi::arg(emu, 3) as u32;
+    let sa2 = WinApiAbi::arg(emu, 4) as u32;
+    let sa3 = WinApiAbi::arg(emu, 5) as u32;
+    let sa4 = WinApiAbi::arg(emu, 6) as u32;
+    let sa5 = WinApiAbi::arg(emu, 7) as u32;
+    let sa6 = WinApiAbi::arg(emu, 8) as u32;
+    let sa7 = WinApiAbi::arg(emu, 9) as u32;
+    let pp_sid = WinApiAbi::arg(emu, 10);
 
     // SID: revision(1) + sub_auth_count(1) + authority(6) + sub_auths(4*count)
     let count = std::cmp::min(sub_auth_count, 8) as usize;

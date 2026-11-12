@@ -1,15 +1,16 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn LookupPrivilegeNameA(emu: &mut emu::Emu) {
     lookup_privilege_name(emu, "LookupPrivilegeNameA", false);
 }
 
 fn lookup_privilege_name(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _system_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let luid_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let name_buf = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let size_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let _system_ptr = WinApiAbi::arg(emu, 0);
+    let luid_ptr = WinApiAbi::arg(emu, 1);
+    let name_buf = WinApiAbi::arg(emu, 2);
+    let size_ptr = WinApiAbi::arg(emu, 3);
     let priv_name = "SeDebugPrivilege";
     if name_buf != 0 {
         strings::write_string(emu, name_buf, priv_name, wide);

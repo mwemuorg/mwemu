@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptGenRandom(emu: &mut emu::Emu) {
-    let h_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let len = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let buffer = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let h_prov = WinApiAbi::arg(emu, 0);
+    let len = WinApiAbi::arg(emu, 1) as u32;
+    let buffer = WinApiAbi::arg(emu, 2);
     for _ in 0..3u32 {
         emu.stack_pop32(false);
     }
@@ -14,7 +15,7 @@ pub fn CryptGenRandom(emu: &mut emu::Emu) {
         len,
         buffer
     );
-    let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let first_param = WinApiAbi::arg(emu, 0);
     if first_param != 0 && emu.maps.is_mapped(first_param) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }

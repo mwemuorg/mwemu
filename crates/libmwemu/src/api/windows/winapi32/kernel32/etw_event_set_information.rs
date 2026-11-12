@@ -1,10 +1,11 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EtwEventSetInformation(emu: &mut emu::Emu) {
-    let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let info_class = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let info_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let info_len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let reg_handle = WinApiAbi::arg(emu, 0);
+    let info_class = WinApiAbi::arg(emu, 1) as u32;
+    let info_ptr = WinApiAbi::arg(emu, 2);
+    let info_len = WinApiAbi::arg(emu, 3) as u32;
     let info_data = emu.maps.read_string(info_ptr);
     log_red!(
         emu,

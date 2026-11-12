@@ -17,27 +17,34 @@ impl WinApiAbi {
 
     #[inline]
     pub fn arg(emu: &Emu, index: usize) -> u64 {
+        Self::try_arg(emu, index).unwrap_or(0)
+    }
+
+    pub fn try_arg(emu: &Emu, index: usize) -> Option<u64> {
         if emu.cfg.arch.is_aarch64() {
             if index < Self::ARM64_REGISTER_ARGS {
-                emu.regs_aarch64().x[index]
+                Some(emu.regs_aarch64().x[index])
             } else {
-                let address = emu.regs_aarch64().sp
-                    + (index - Self::ARM64_REGISTER_ARGS) as u64 * Self::QWORD_BYTES;
-                emu.maps.read_qword(address).unwrap_or(0)
+                let offset =
+                    ((index - Self::ARM64_REGISTER_ARGS) as u64).checked_mul(Self::QWORD_BYTES)?;
+                let address = emu.regs_aarch64().sp.checked_add(offset)?;
+                emu.maps.read_qword(address)
             }
         } else if !emu.cfg.arch.is_64bits() {
-            let address = emu.regs().get_esp() + index as u64 * Self::DWORD_BYTES;
-            emu.maps.read_dword(address).unwrap_or(0) as u64
+            let offset = (index as u64).checked_mul(Self::DWORD_BYTES)?;
+            let address = emu.regs().get_esp().checked_add(offset)?;
+            emu.maps.read_dword(address).map(u64::from)
         } else {
             match index {
-                0 => emu.regs().rcx,
-                1 => emu.regs().rdx,
-                2 => emu.regs().r8,
-                3 => emu.regs().r9,
+                0 => Some(emu.regs().rcx),
+                1 => Some(emu.regs().rdx),
+                2 => Some(emu.regs().r8),
+                3 => Some(emu.regs().r9),
                 _ => {
                     // The register slots account for the x64 shadow space.
-                    let address = emu.regs().rsp + index as u64 * Self::QWORD_BYTES;
-                    emu.maps.read_qword(address).unwrap_or(0)
+                    let offset = (index as u64).checked_mul(Self::QWORD_BYTES)?;
+                    let address = emu.regs().rsp.checked_add(offset)?;
+                    emu.maps.read_qword(address)
                 }
             }
         }

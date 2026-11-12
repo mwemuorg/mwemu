@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetAddrInfoExCancel(emu: &mut emu::Emu) {
-    let cancel_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let cancel_ptr = WinApiAbi::arg(emu, 0);
     log_red!(emu, "ws2_32!GetAddrInfoExCancel ptr:0x{:x}", cancel_ptr);
     let handle = helper::handler_create("GetAddrInfoExCancel");
     emu.set_last_error(0);

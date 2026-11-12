@@ -1,15 +1,15 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CertCreateSelfSignCertificate(emu: &mut emu::Emu) {
-    let esp = emu.regs().get_esp();
-    let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
-    let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
-    let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
-    let arg5 = emu.maps.read_dword(esp + 20).unwrap_or(0) as u64;
-    let arg6 = emu.maps.read_dword(esp + 24).unwrap_or(0) as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
+    let arg3 = WinApiAbi::arg(emu, 2);
+    let arg4 = WinApiAbi::arg(emu, 3);
+    let arg5 = WinApiAbi::arg(emu, 4);
+    let arg6 = WinApiAbi::arg(emu, 5);
     stdcall_ret(emu, 8);
     log_red!(
         emu,

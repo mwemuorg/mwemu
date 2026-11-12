@@ -1,13 +1,14 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn MessageBoxA(emu: &mut emu::Emu) {
     message_box(emu, "MessageBoxA", false);
 }
 
 fn message_box(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let titleptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let msgptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let titleptr = WinApiAbi::arg(emu, 2);
+    let msgptr = WinApiAbi::arg(emu, 1);
     let msg = strings::read_text(emu, msgptr, wide);
     let title = strings::read_text(emu, titleptr, wide);
 

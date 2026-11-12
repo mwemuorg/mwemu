@@ -1,11 +1,12 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptGetHashParam(emu: &mut emu::Emu) {
-    let h_hash = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let param = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let data_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let h_hash = WinApiAbi::arg(emu, 0);
+    let param = WinApiAbi::arg(emu, 1) as u32;
+    let data_ptr = WinApiAbi::arg(emu, 2);
+    let data_len_ptr = WinApiAbi::arg(emu, 3);
     for _ in 0..5u32 {
         emu.stack_pop32(false);
     }

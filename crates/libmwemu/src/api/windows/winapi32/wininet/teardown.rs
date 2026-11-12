@@ -1,7 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
-
-use super::{pop_stack32, read_stack_dword};
+use crate::winapi::helper::WinApiAbi;
 
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -11,13 +10,10 @@ lazy_static! {
 }
 
 pub(super) fn internet_read_file(emu: &mut emu::Emu) {
-    let file_hndl =
-        read_stack_dword(emu, 0, "wininet!InternetReadFile cannot read file_hndl") as u64;
-    let buff_ptr = read_stack_dword(emu, 4, "wininet!InternetReadFile cannot read buff_ptr") as u64;
-    let bytes_to_read =
-        read_stack_dword(emu, 8, "wininet!InternetReadFile cannot read bytes_to_read") as u64;
-    let bytes_read_ptr =
-        read_stack_dword(emu, 12, "wininet!InternetReadFile cannot read bytes_read") as u64;
+    let file_hndl = WinApiAbi::arg(emu, 0);
+    let buff_ptr = WinApiAbi::arg(emu, 1);
+    let bytes_to_read = WinApiAbi::arg(emu, 2);
+    let bytes_read_ptr = WinApiAbi::arg(emu, 3);
 
     log_red!(
         emu,
@@ -48,35 +44,33 @@ pub(super) fn internet_read_file(emu: &mut emu::Emu) {
         }
     }
 
-    pop_stack32(emu, 4);
+    WinApiAbi::stdcall_ret(emu, 4);
 
     emu.regs_mut().rax = 1;
 }
 
 pub(super) fn internet_error_dlg(emu: &mut emu::Emu) {
-    let err = read_stack_dword(emu, 8, "wininet!InternetErrorDlg cannot read error");
+    let err = WinApiAbi::arg(emu, 2) as u32;
 
     log_red!(emu, "wininet!InternetErrorDlg err: {}", err);
 
-    pop_stack32(emu, 5);
+    WinApiAbi::stdcall_ret(emu, 5);
     emu.regs_mut().rax = 0;
 }
 
 pub(super) fn internet_close_handle(emu: &mut emu::Emu) {
-    let handle = read_stack_dword(emu, 0, "wininet!InternetCloseHandle cannot read handle") as u64;
+    let handle = WinApiAbi::arg(emu, 0);
 
     log_red!(emu, "wininet!InternetCloseHandle handle: {:x}", handle);
 
     helper::handler_close(handle);
-    pop_stack32(emu, 1);
+    WinApiAbi::stdcall_ret(emu, 1);
     emu.regs_mut().rax = 1;
 }
 
 pub(super) fn internet_read_file_ex_a(emu: &mut emu::Emu) {
-    let file_hndl =
-        read_stack_dword(emu, 0, "wininet!InternetReadFileExA cannot read file_hndl") as u64;
-    let buffers_ptr =
-        read_stack_dword(emu, 4, "wininet!InternetReadFileExA cannot read buffers") as u64;
+    let file_hndl = WinApiAbi::arg(emu, 0);
+    let buffers_ptr = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
         "wininet!InternetReadFileExA buffers: 0x{:x}",
@@ -91,7 +85,7 @@ pub(super) fn internet_read_file_ex_a(emu: &mut emu::Emu) {
     if buffers_ptr != 0 {
         emu.maps.write_dword(buffers_ptr + 12, 0);
     }
-    pop_stack32(emu, 4);
+    WinApiAbi::stdcall_ret(emu, 4);
     emu.regs_mut().rax = 1;
 }
 

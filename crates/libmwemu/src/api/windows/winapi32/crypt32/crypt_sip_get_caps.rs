@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptSIPGetCaps(emu: &mut emu::Emu) {
-    let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p_caps = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let p_subject_info = WinApiAbi::arg(emu, 0);
+    let p_caps = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
         "crypt32!CryptSIPGetCaps p_subject_info:0x{:x} p_caps:0x{:x}",

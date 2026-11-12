@@ -1,17 +1,18 @@
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptVerifySignatureA(emu: &mut emu::Emu) {
     crypt_verify_signature(emu, "CryptVerifySignatureA", false);
 }
 
 fn crypt_verify_signature(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hhash = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let sig_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let sig_len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let hpub_key = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let desc_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let _flags = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
+    let hhash = WinApiAbi::arg(emu, 0);
+    let sig_ptr = WinApiAbi::arg(emu, 1);
+    let sig_len = WinApiAbi::arg(emu, 2) as u32;
+    let hpub_key = WinApiAbi::arg(emu, 3);
+    let desc_ptr = WinApiAbi::arg(emu, 4);
+    let _flags = WinApiAbi::arg(emu, 5) as u32;
     let desc = if desc_ptr != 0 {
         strings::read_text(emu, desc_ptr, wide)
     } else {

@@ -1,19 +1,20 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ReportEventA(emu: &mut emu::Emu) {
     report_event(emu, "ReportEventA");
 }
 
 fn report_event(emu: &mut emu::Emu, api: &str) {
-    let hevt_log = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let wtype = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let category = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let event_id = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let _user_sid = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let num_strings = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
-    let _data_size = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
-    let _strings_ptr = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0);
-    let _raw_data = emu.maps.read_dword(emu.regs().get_esp() + 32).unwrap_or(0);
+    let hevt_log = WinApiAbi::arg(emu, 0);
+    let wtype = WinApiAbi::arg(emu, 1) as u32;
+    let category = WinApiAbi::arg(emu, 2) as u32;
+    let event_id = WinApiAbi::arg(emu, 3) as u32;
+    let _user_sid = WinApiAbi::arg(emu, 4) as u32;
+    let num_strings = WinApiAbi::arg(emu, 5) as u32;
+    let _data_size = WinApiAbi::arg(emu, 6) as u32;
+    let _strings_ptr = WinApiAbi::arg(emu, 7) as u32;
+    let _raw_data = WinApiAbi::arg(emu, 8) as u32;
     log_red!(
         emu,
         "advapi32!{api} log:0x{:x} type:{} cat:{} id:0x{:x} nstr:{}",

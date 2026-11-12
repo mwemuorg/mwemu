@@ -85,7 +85,7 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                     emu.regs_mut().rax = 1;
                 }
                 "waveInOpen" => {
-                    let phwi = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+                    let phwi = WinApiAbi::arg(emu, 0);
                     log_red!(emu, "winmm!waveInOpen");
                     if phwi != 0 {
                         emu.maps.write_dword(phwi, 0x1337_0001);
@@ -128,7 +128,7 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                     emu.regs_mut().rax = 0;
                 }
                 "GdipAlloc" => {
-                    let size = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(256) as u64;
+                    let size = WinApiAbi::try_arg(emu, 0).unwrap_or(256);
                     let alloc_addr = if let Some(a) = emu.maps.alloc(size) {
                         let _ = emu.maps.create_map(
                             &format!("gdip_alloc_{:x}", a),

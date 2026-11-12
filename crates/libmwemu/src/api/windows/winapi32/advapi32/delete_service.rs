@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn DeleteService(emu: &mut emu::Emu) {
-    let hsvc = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let hsvc = WinApiAbi::arg(emu, 0);
     helper::handler_close(hsvc);
     log_red!(emu, "advapi32!DeleteService 0x{:x}", hsvc);
     for _ in 0..1 {
