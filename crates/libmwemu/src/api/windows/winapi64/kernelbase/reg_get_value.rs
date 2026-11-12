@@ -1,26 +1,32 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegGetValueA(emu: &mut emu::Emu) {
+    reg_get_value(emu, "RegGetValueA", false);
+}
+
+fn reg_get_value(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;
     let subkey_ptr = emu.regs().rdx;
     let value_ptr = emu.regs().r8;
     let flags = emu.regs().r9;
-    let type_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let type_ptr = WinApiAbi::arg(emu, 4);
+    let data_ptr = WinApiAbi::arg(emu, 5);
+    let size_ptr = WinApiAbi::arg(emu, 6);
     let subkey = if subkey_ptr != 0 {
-        emu.maps.read_string(subkey_ptr)
+        strings::read_text(emu, subkey_ptr, wide)
     } else {
         String::new()
     };
     let value = if value_ptr != 0 {
-        emu.maps.read_string(value_ptr)
+        strings::read_text(emu, value_ptr, wide)
     } else {
         String::new()
     };
     log_red!(
         emu,
-        "kernelbase!RegGetValueA hkey:0x{:x} '{}\\{}' flags:0x{:x}",
+        "kernelbase!{api} hkey:0x{:x} '{}\\{}' flags:0x{:x}",
         hkey,
         subkey,
         value,
@@ -36,36 +42,5 @@ pub fn RegGetValueA(emu: &mut emu::Emu) {
 }
 
 pub fn RegGetValueW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let value_ptr = emu.regs().r8;
-    let flags = emu.regs().r9;
-    let type_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let subkey = if subkey_ptr != 0 {
-        emu.maps.read_wide_string(subkey_ptr)
-    } else {
-        String::new()
-    };
-    let value = if value_ptr != 0 {
-        emu.maps.read_wide_string(value_ptr)
-    } else {
-        String::new()
-    };
-    log_red!(
-        emu,
-        "kernelbase!RegGetValueW hkey:0x{:x} '{}\\{}' flags:0x{:x}",
-        hkey,
-        subkey,
-        value,
-        flags
-    );
-    if type_ptr != 0 {
-        emu.maps.write_dword(type_ptr, 1); // REG_SZ
-    }
-    if size_ptr != 0 {
-        emu.maps.write_dword(size_ptr, 0);
-    }
-    emu.regs_mut().rax = 2; // ERROR_FILE_NOT_FOUND
+    reg_get_value(emu, "RegGetValueW", true);
 }

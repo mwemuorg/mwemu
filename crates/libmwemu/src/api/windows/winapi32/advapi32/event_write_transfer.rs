@@ -1,14 +1,15 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EventWriteTransfer(emu: &mut emu::Emu) {
-    let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let event_desc = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let activity_id = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let related_id = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let user_data_count = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let user_data = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
-    let _reserved = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
+    let reg_handle = WinApiAbi::arg(emu, 0) as u32;
+    let event_desc = WinApiAbi::arg(emu, 1) as u32;
+    let activity_id = WinApiAbi::arg(emu, 2) as u32;
+    let related_id = WinApiAbi::arg(emu, 3) as u32;
+    let user_data_count = WinApiAbi::arg(emu, 4) as u32;
+    let user_data = WinApiAbi::arg(emu, 5) as u32;
+    let _reserved = WinApiAbi::arg(emu, 6) as u32;
     log_red!(
         emu,
         "advapi32!EventWriteTransfer handle: 0x{:x} desc: 0x{:x} activity: 0x{:x} count: {}",
@@ -17,7 +18,7 @@ pub fn EventWriteTransfer(emu: &mut emu::Emu) {
         activity_id,
         user_data_count
     );
-    let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let val_ptr = WinApiAbi::arg(emu, 1);
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }

@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CheckTokenMembership(emu: &mut emu::Emu) {
-    let token = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let sid_to_check = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let is_member_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let token = WinApiAbi::arg(emu, 0);
+    let sid_to_check = WinApiAbi::arg(emu, 1);
+    let is_member_ptr = WinApiAbi::arg(emu, 2);
     if is_member_ptr != 0 {
         emu.maps.write_dword(is_member_ptr, 1); // TRUE - user is member
     }

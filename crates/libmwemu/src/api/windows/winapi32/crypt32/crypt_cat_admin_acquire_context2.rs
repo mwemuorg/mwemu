@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptCATAdminAcquireContext2(emu: &mut emu::Emu) {
-    let ph_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pg_subsystem = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let pwsz_hash_alg = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let p_strong_hash_policy = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let ph_cat_admin = WinApiAbi::arg(emu, 0);
+    let pg_subsystem = WinApiAbi::arg(emu, 1);
+    let pwsz_hash_alg = WinApiAbi::arg(emu, 2);
+    let p_strong_hash_policy = WinApiAbi::arg(emu, 3);
+    let dw_flags = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "crypt32!CryptCATAdminAcquireContext2 0x{:x}",

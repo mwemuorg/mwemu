@@ -1,10 +1,6 @@
-use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::emu::Emu;
+use crate::winapi::common::automation::{self, FloatWidth, Number};
 
-pub fn VarDateFromR8(emu: &mut emu::Emu) {
-    let _a0 = arg(emu, 0);
-    log_red!(emu, "oleaut32!VarDateFromR8 a0:0x{:x}", _a0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 1);
+pub fn VarDateFromR8(emu: &mut Emu) {
+    automation::convert(emu, "VarDateFromR8", FloatWidth::Double, Number::Date);
 }

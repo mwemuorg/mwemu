@@ -1,10 +1,11 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptCATAdminCalcHashFromFileHandle(emu: &mut emu::Emu) {
-    let h_file = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pcb_hash = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let pb_hash = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let dw_flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let h_file = WinApiAbi::arg(emu, 0);
+    let pcb_hash = WinApiAbi::arg(emu, 1);
+    let pb_hash = WinApiAbi::arg(emu, 2);
+    let dw_flags = WinApiAbi::arg(emu, 3);
     log_red!(
         emu,
         "crypt32!CryptCATAdminCalcHashFromFileHandle 0x{:x}",

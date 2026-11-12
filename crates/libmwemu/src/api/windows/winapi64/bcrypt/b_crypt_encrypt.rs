@@ -1,5 +1,6 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptEncrypt(emu: &mut emu::Emu) {
@@ -7,12 +8,12 @@ pub fn BCryptEncrypt(emu: &mut emu::Emu) {
     let pb_input = emu.regs().rdx;
     let cb_input = emu.regs().r8 as usize;
     let _pb_padding = emu.regs().r9;
-    let _pb_iv = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let _cb_iv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as usize;
-    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as usize;
-    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
+    let _pb_iv = WinApiAbi::arg(emu, 4);
+    let _cb_iv = WinApiAbi::arg(emu, 5) as usize;
+    let pb_output = WinApiAbi::arg(emu, 6);
+    let cb_output = WinApiAbi::arg(emu, 7) as usize;
+    let pcb_result = WinApiAbi::arg(emu, 8);
+    let _flags = WinApiAbi::arg(emu, 9);
 
     log_red!(
         emu,

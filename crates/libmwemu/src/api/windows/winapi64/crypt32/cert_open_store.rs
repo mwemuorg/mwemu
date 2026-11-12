@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertOpenStore(emu: &mut emu::Emu) {
     let store_provider = emu.regs().rcx;
     let encoding_type = emu.regs().rdx;
     let hcrypt_prov = emu.regs().r8;
     let flags = emu.regs().r9;
-    let pv_para = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let pv_para = WinApiAbi::arg(emu, 4);
 
     log_red!(
         emu,

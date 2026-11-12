@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn SetScrollRange(emu: &mut emu::Emu) {
     let hwnd = emu.regs().rcx;
     let n_bar = emu.regs().rdx as i32;
     let n_min_pos = emu.regs().r8 as i32;
     let n_max_pos = emu.regs().r9 as i32;
-    let b_redraw = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let b_redraw = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "user32!SetScrollRange hwnd:0x{:x} bar:{} min:{} max:{} redraw:{}",

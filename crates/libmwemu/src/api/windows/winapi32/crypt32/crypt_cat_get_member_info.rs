@@ -1,9 +1,11 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptCATGetMemberInfo(emu: &mut emu::Emu) {
-    let h_catalog = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pwsz_ref_tag = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let p_cat_member = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let h_catalog = WinApiAbi::arg(emu, 0);
+    let pwsz_ref_tag = WinApiAbi::arg(emu, 1);
+    let p_cat_member = WinApiAbi::arg(emu, 2);
     log_red!(
         emu,
         "crypt32!CryptCATGetMemberInfo h_catalog:0x{:x} pwsz_ref_tag:0x{:x} p_cat_member:0x{:x}",
@@ -13,7 +15,5 @@ pub fn CryptCATGetMemberInfo(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 2);
 }

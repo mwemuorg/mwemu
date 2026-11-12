@@ -1,33 +1,33 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn AccessCheckByTypeResultListAndAuditAlarmByHandleA(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_string(str_ptr);
-    log_red!(
+    access_check_by_type_result_list_and_audit_alarm_by_handle(
         emu,
-        "advapi32!AccessCheckByTypeResultListAndAuditAlarmByHandleA '{}'  0x{:x}",
-        s,
-        arg2
+        "AccessCheckByTypeResultListAndAuditAlarmByHandleA",
+        false,
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+}
+
+fn access_check_by_type_result_list_and_audit_alarm_by_handle(
+    emu: &mut emu::Emu,
+    api: &str,
+    wide: bool,
+) {
+    let str_ptr = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
+    let s = strings::read_text(emu, str_ptr, wide);
+    log_red!(emu, "advapi32!{api} '{}'  0x{:x}", s, arg2);
+    stdcall_ret(emu, 17);
     emu.regs_mut().rax = 1;
 }
 
 pub fn AccessCheckByTypeResultListAndAuditAlarmByHandleW(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_wide_string(str_ptr);
-    log_red!(
+    access_check_by_type_result_list_and_audit_alarm_by_handle(
         emu,
-        "advapi32!AccessCheckByTypeResultListAndAuditAlarmByHandleW '{}'  0x{:x}",
-        s,
-        arg2
+        "AccessCheckByTypeResultListAndAuditAlarmByHandleW",
+        true,
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
 }

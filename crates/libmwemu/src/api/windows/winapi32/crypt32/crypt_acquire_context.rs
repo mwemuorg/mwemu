@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptAcquireContext(emu: &mut emu::Emu) {
-    let h_prov_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let container_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let provider_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let prov_type = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let h_prov_ptr = WinApiAbi::arg(emu, 0);
+    let container_ptr = WinApiAbi::arg(emu, 1);
+    let provider_ptr = WinApiAbi::arg(emu, 2);
+    let prov_type = WinApiAbi::arg(emu, 3) as u32;
+    let flags = WinApiAbi::arg(emu, 4) as u32;
     let container = if container_ptr != 0 {
         emu.maps.read_string(container_ptr)
     } else {

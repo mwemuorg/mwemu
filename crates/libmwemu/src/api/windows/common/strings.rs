@@ -1,5 +1,6 @@
 use crate::emu::Emu;
 use crate::winapi::common::memory::Call;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::*;
 
@@ -339,4 +340,379 @@ pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
     };
     handler(emu, &format!("{library}!{api}"));
     true
+}
+
+/// Read an API string using the emulator's existing ANSI or UTF-16 decoder.
+pub(crate) fn read_text(emu: &Emu, address: u64, wide: bool) -> String {
+    if wide {
+        emu.maps.read_wide_string(address)
+    } else {
+        emu.maps.read_string(address)
+    }
+}
+
+pub(crate) fn encode_text(text: &str, wide: bool) -> Vec<u8> {
+    if wide {
+        text.encode_utf16().flat_map(u16::to_le_bytes).collect()
+    } else {
+        text.as_bytes().to_vec()
+    }
+}
+
+/// Size-query and bounded output for a null-terminated API string.
+pub(crate) fn write_text(
+    emu: &mut Emu,
+    address: u64,
+    capacity: i32,
+    text: &str,
+    wide: bool,
+) -> u64 {
+    let bytes = encode_text(&format!("{text}\0"), wide);
+    let count = bytes.len()
+        / if wide {
+            size_of::<u16>()
+        } else {
+            size_of::<u8>()
+        };
+    if capacity == 0 {
+        return count as u64;
+    }
+    let error = if capacity < 0 || address == 0 {
+        ERROR_INVALID_PARAMETER
+    } else if (capacity as usize) < count {
+        ERROR_INSUFFICIENT_BUFFER
+    } else if !emu.maps.validate_write_range(address, bytes.len() as u64)
+        || !emu.maps.write_bytes(address, &bytes)
+    {
+        ERROR_NOACCESS
+    } else {
+        return count as u64;
+    };
+    emu.set_last_error(error);
+    0
+}
+
+fn calendar_text(kind: u64) -> Option<&'static str> {
+    let locale_kind = match kind {
+        CAL_SCALNAME => return Some("Gregorian Calendar"),
+        CAL_SERASTRING => return Some("A.D."),
+        CAL_SABBREVERASTRING => return Some("AD"),
+        CAL_SSHORTDATE => LOCALE_SSHORTDATE,
+        CAL_SLONGDATE => LOCALE_SLONGDATE,
+        CAL_SYEARMONTH => LOCALE_SYEARMONTH,
+        CAL_SDAYNAME1..=CAL_SDAYNAME7 => LOCALE_SDAYNAME1 + kind - CAL_SDAYNAME1,
+        CAL_SABBREVDAYNAME1..=CAL_SABBREVDAYNAME7 => {
+            LOCALE_SABBREVDAYNAME1 + kind - CAL_SABBREVDAYNAME1
+        }
+        CAL_SMONTHNAME1..=CAL_SMONTHNAME12 => LOCALE_SMONTHNAME1 + kind - CAL_SMONTHNAME1,
+        CAL_SABBREVMONTHNAME1..=CAL_SABBREVMONTHNAME12 => {
+            LOCALE_SABBREVMONTHNAME1 + kind - CAL_SABBREVMONTHNAME1
+        }
+        CAL_SMONTHNAME13 | CAL_SABBREVMONTHNAME13 => return Some(""),
+        _ => return None,
+    };
+    locale_info_value(locale_kind)
+}
+
+pub(crate) fn calendar_info(emu: &mut Emu, api: &str, wide: bool) {
+    // Like the existing locale handlers, model a fixed en-US profile.
+    const TWO_DIGIT_YEAR_MAX: u32 = 2029;
+    let locale = Call::Api.arg(emu, 0) as u32;
+    let calendar = Call::Api.arg(emu, 1) as u32;
+    let kind = Call::Api.arg(emu, 2) as u32 as u64;
+    let data = Call::Api.arg(emu, 3);
+    let capacity = Call::Api.arg(emu, 4) as i32;
+    let value = Call::Api.arg(emu, 5);
+    let selector = kind
+        & !(CAL_NOUSEROVERRIDE | CAL_RETURN_NUMBER | CAL_RETURN_GENITIVE_NAMES | CAL_USE_CP_ACP);
+    let numeric = match selector {
+        CAL_ICALINTVALUE => Some(calendar),
+        CAL_IYEAROFFSETRANGE => Some(1),
+        CAL_ITWODIGITYEARMAX => Some(TWO_DIGIT_YEAR_MAX),
+        _ => None,
+    };
+    let result = if !matches!(locale as u64, LOCALE_USER_DEFAULT | LOCALE_SYSTEM_DEFAULT)
+        && locale != EN_US_LOCALE
+        || !matches!(calendar, CAL_GREGORIAN | CAL_GREGORIAN_US)
+        || capacity < 0
+    {
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
+        0
+    } else if kind & CAL_RETURN_NUMBER != 0 {
+        if data != 0 || capacity != 0 || value == 0 {
+            emu.set_last_error(ERROR_INVALID_PARAMETER);
+            0
+        } else if let Some(number) = numeric {
+            if !emu
+                .maps
+                .validate_write_range(value, size_of::<u32>() as u64)
+                || !emu.maps.write_dword(value, number)
+            {
+                emu.set_last_error(ERROR_NOACCESS);
+                0
+            } else {
+                (size_of::<u32>() / code_unit_size(wide)) as u64
+            }
+        } else {
+            emu.set_last_error(ERROR_INVALID_FLAGS);
+            0
+        }
+    } else if value != 0 {
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
+        0
+    } else if let Some(number) = numeric {
+        write_text(emu, data, capacity, &number.to_string(), wide)
+    } else if let Some(text) = calendar_text(selector) {
+        write_text(emu, data, capacity, text, wide)
+    } else {
+        emu.set_last_error(ERROR_INVALID_FLAGS);
+        0
+    };
+    log_red!(
+        emu,
+        "{} locale:0x{:x} calendar:{} kind:0x{:x} capacity:{} => {}",
+        api,
+        locale,
+        calendar,
+        kind,
+        capacity,
+        result
+    );
+    Call::Api.finish(emu, result, 6);
+}
+
+fn code_unit_size(wide: bool) -> usize {
+    if wide {
+        size_of::<u16>()
+    } else {
+        size_of::<u8>()
+    }
+}
+
+fn string_bytes(emu: &Emu, address: u64, wide: bool, limit: Option<usize>) -> Option<Vec<u8>> {
+    // Match the existing map string readers' scan limit.
+    const MAX_STRING_BYTES: usize = 1_000_000;
+    if address == 0 {
+        return None;
+    }
+    let unit_size = code_unit_size(wide);
+    let scan_limit = MAX_STRING_BYTES / unit_size;
+    let mut cursor = address;
+    let mut bytes = Vec::new();
+    for _ in 0..limit.unwrap_or(scan_limit).min(scan_limit) {
+        let value = if wide {
+            emu.maps.read_word(cursor)?
+        } else {
+            emu.maps.read_byte(cursor)? as u16
+        };
+        if value == 0 {
+            return Some(bytes);
+        }
+        if wide {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        } else {
+            bytes.push(value as u8);
+        }
+        cursor = cursor.checked_add(unit_size as u64)?;
+    }
+    limit.filter(|count| *count <= scan_limit).map(|_| bytes)
+}
+
+fn write_string_bytes(emu: &mut Emu, destination: u64, mut bytes: Vec<u8>, wide: bool) -> u64 {
+    bytes.resize(bytes.len() + code_unit_size(wide), 0);
+    if destination != 0
+        && emu
+            .maps
+            .validate_write_range(destination, bytes.len() as u64)
+        && emu.maps.write_bytes(destination, &bytes)
+    {
+        destination
+    } else {
+        0
+    }
+}
+
+pub(crate) fn concatenate(emu: &mut Emu, api: &str, wide: bool) {
+    let destination = Call::Api.arg(emu, 0);
+    let source = Call::Api.arg(emu, 1);
+    let result = match (
+        string_bytes(emu, destination, wide, None),
+        string_bytes(emu, source, wide, None),
+    ) {
+        (Some(mut prefix), Some(suffix)) => {
+            prefix.extend_from_slice(&suffix);
+            write_string_bytes(emu, destination, prefix, wide)
+        }
+        _ => 0,
+    };
+    log_red!(
+        emu,
+        "{} destination:0x{:x} source:0x{:x} => 0x{:x}",
+        api,
+        destination,
+        source,
+        result
+    );
+    Call::Api.finish(emu, result, 2);
+}
+
+pub(crate) fn copy_string(emu: &mut Emu, api: &str, wide: bool, bounded: bool) {
+    let destination = Call::Api.arg(emu, 0);
+    let source = Call::Api.arg(emu, 1);
+    let capacity = bounded.then(|| Call::Api.arg(emu, 2) as u32 as usize);
+    let result = if capacity == Some(0) {
+        destination
+    } else {
+        string_bytes(emu, source, wide, capacity.map(|count| count - 1))
+            .map(|bytes| write_string_bytes(emu, destination, bytes, wide))
+            .unwrap_or(0)
+    };
+    log_red!(
+        emu,
+        "{} destination:0x{:x} source:0x{:x} capacity:{:?} => 0x{:x}",
+        api,
+        destination,
+        source,
+        capacity,
+        result
+    );
+    Call::Api.finish(emu, result, if bounded { 3 } else { 2 });
+}
+
+pub(crate) fn string_length(emu: &mut Emu, api: &str, wide: bool) {
+    let source = Call::Api.arg(emu, 0);
+    let length = string_bytes(emu, source, wide, None)
+        .map(|bytes| bytes.len() / code_unit_size(wide))
+        .unwrap_or(0);
+    log_red!(emu, "{} source:0x{:x} => {}", api, source, length);
+    Call::Api.finish(emu, length as u64, 1);
+}
+
+pub(crate) fn compare(emu: &mut Emu, api: &str, wide: bool, ignore_case: bool) {
+    let mut left = read_text(emu, Call::Api.arg(emu, 0), wide);
+    let mut right = read_text(emu, Call::Api.arg(emu, 1), wide);
+    if ignore_case {
+        left = left.to_lowercase();
+        right = right.to_lowercase();
+    }
+    let result = match left.cmp(&right) {
+        std::cmp::Ordering::Less => -1i32,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
+    };
+    log_red!(emu, "{} '{}' '{}' => {}", api, left, right, result);
+    Call::Api.finish(emu, result as u32 as u64, 2);
+}
+
+/// Unbounded API string output. Callers with a capacity must check it first or
+/// use write_text; this adapter preserves the existing maps writer semantics.
+pub(crate) fn write_string(emu: &mut Emu, address: u64, text: &str, wide: bool) {
+    if wide {
+        emu.maps.write_wide_string(address, text);
+    } else {
+        emu.maps.write_string(address, text);
+    }
+}
+
+/// The integer/string subset of wsprintf. Unlike wvsprintf, its trailing
+/// arguments are passed directly by the caller, not through a va_list pointer.
+pub(crate) fn wsprintf(emu: &mut Emu, api: &str, wide: bool) {
+    const BUFFER_CHARACTERS: i32 = 1024;
+    let destination = WinApiAbi::arg(emu, 0);
+    let format = read_text(emu, WinApiAbi::arg(emu, 1), wide);
+    let mut position = 2;
+    let mut characters = format.chars().peekable();
+    let mut result = String::new();
+    while let Some(character) = characters.next() {
+        if character != '%' {
+            result.push(character);
+            continue;
+        }
+        if characters.peek() == Some(&'%') {
+            characters.next();
+            result.push('%');
+            continue;
+        }
+        let left_justify = characters.next_if_eq(&'-').is_some();
+        let zero_pad = characters.next_if_eq(&'0').is_some();
+        let mut width = 0usize;
+        while let Some(digit) = characters.peek().and_then(|c| c.to_digit(10)) {
+            width = (width * 10 + digit as usize).min(BUFFER_CHARACTERS as usize);
+            characters.next();
+        }
+        let mut precision = None;
+        if characters.next_if_eq(&'.').is_some() {
+            let mut length = 0usize;
+            while let Some(digit) = characters.peek().and_then(|c| c.to_digit(10)) {
+                length = (length * 10 + digit as usize).min(BUFFER_CHARACTERS as usize);
+                characters.next();
+            }
+            precision = Some(length);
+        }
+        let modifier = characters.next_if(|c| matches!(c, 'h' | 'l' | 'w'));
+        let Some(specifier) = characters.next() else {
+            break;
+        };
+        let argument = WinApiAbi::arg(emu, position);
+        position += 1;
+        let text_wide = match modifier {
+            Some('h') => false,
+            Some('l' | 'w') => true,
+            _ => {
+                if matches!(specifier, 'S' | 'C') {
+                    !wide
+                } else {
+                    wide
+                }
+            }
+        };
+        let mut field = match specifier {
+            's' | 'S' => read_text(emu, argument, text_wide),
+            'c' | 'C' => char::from_u32(if text_wide {
+                argument as u16 as u32
+            } else {
+                argument as u8 as u32
+            })
+            .unwrap_or(char::REPLACEMENT_CHARACTER)
+            .to_string(),
+            'd' | 'i' => (argument as i32).to_string(),
+            'u' => (argument as u32).to_string(),
+            'x' => format!("{:x}", argument as u32),
+            'X' => format!("{:X}", argument as u32),
+            _ => {
+                result.push('%');
+                result.push(specifier);
+                continue;
+            }
+        };
+        if matches!(specifier, 's' | 'S')
+            && let Some(limit) = precision
+        {
+            field = field.chars().take(limit).collect();
+        }
+        let padding = width.saturating_sub(field.chars().count());
+        let fill = if zero_pad && !left_justify && !matches!(specifier, 's' | 'S' | 'c' | 'C') {
+            '0'
+        } else {
+            ' '
+        };
+        if !left_justify {
+            if fill == '0' && field.starts_with('-') {
+                result.push('-');
+                field.remove(0);
+            }
+            result.extend(std::iter::repeat_n(fill, padding));
+        }
+        result.push_str(&field);
+        if left_justify {
+            result.extend(std::iter::repeat_n(' ', padding));
+        }
+        if result.len() > BUFFER_CHARACTERS as usize * size_of::<u16>() {
+            break;
+        }
+    }
+    let written = write_text(emu, destination, BUFFER_CHARACTERS, &result, wide);
+    log_red!(emu, "user32!{} format:'{}' => '{}'", api, format, result);
+    // wsprintf is cdecl even when exported by user32.
+    WinApiAbi::set_ret(emu, written.saturating_sub(1));
 }

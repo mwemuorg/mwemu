@@ -8,5 +8,5 @@ pub fn VectorFromBstr(emu: &mut emu::Emu) {
     let _a2 = arg(emu, 2);
     log_red!(emu, "oleaut32!VectorFromBstr a0:0x{:x} a1:0x{:x}", _a0, _a1);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
+    stdcall_ret(emu, 2);
 }

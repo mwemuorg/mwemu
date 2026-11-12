@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 use crate::windows::structures::UnicodeString;
 
 pub(super) fn RtlInitUnicodeString(emu: &mut emu::Emu) {
-    let dst_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let src_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let dst_ptr = WinApiAbi::arg(emu, 0);
+    let src_ptr = WinApiAbi::arg(emu, 1);
 
     if !emu.maps.is_mapped(dst_ptr) {
         log_red!(

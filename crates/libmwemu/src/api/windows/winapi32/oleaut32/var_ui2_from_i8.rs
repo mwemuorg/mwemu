@@ -7,5 +7,5 @@ pub fn VarUI2FromI8(emu: &mut emu::Emu) {
     let _a1 = arg(emu, 1);
     log_red!(emu, "oleaut32!VarUI2FromI8 a0:0x{:x} a1:0x{:x}", _a0, _a1);
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }

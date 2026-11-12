@@ -2,13 +2,14 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
 
-mod objects;
-pub use objects::*;
-mod runtime;
-pub use runtime::*;
 mod marshaling;
-pub use marshaling::*;
+mod objects;
+mod runtime;
 mod storage;
+
+pub use marshaling::*;
+pub use objects::*;
+pub use runtime::*;
 pub use storage::*;
 
 mod co_create_instance;

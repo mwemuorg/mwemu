@@ -1,6 +1,8 @@
 use crate::emu::Emu;
 use crate::maps::virtual_memory::MemoryKind;
 use crate::winapi::common::memory::{Call, writable_pointer, write_pointer};
+use crate::winapi::common::strings;
+use crate::winapi::helper;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::process::*;
 
@@ -90,11 +92,7 @@ fn module_base(emu: &mut Emu, name_ptr: u64, wide: bool, from_address: bool) -> 
             .filter(|allocation| allocation.kind == MemoryKind::Image)
             .map(|allocation| allocation.base);
     }
-    let name = if wide {
-        emu.maps.read_wide_string(name_ptr)
-    } else {
-        emu.maps.read_string(name_ptr)
-    };
+    let name = strings::read_text(emu, name_ptr, wide);
     let name = normalize_library_name(&name, true)?;
     if let Some(module) = emu.export_indexes.get_by_name(&name) {
         return Some(module.base);
@@ -248,4 +246,24 @@ pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
     };
     handler(emu, &format!("{library}!{api}"));
     true
+}
+
+pub(crate) fn snapshot_next(emu: &mut Emu, api: &str) {
+    let snapshot = Call::Api.arg(emu, 0);
+    let entry = Call::Api.arg(emu, 1);
+    let error = if helper::handler_exist(snapshot) {
+        ERROR_NO_MORE_FILES
+    } else {
+        ERROR_INVALID_HANDLE
+    };
+    log_red!(
+        emu,
+        "{} snapshot:0x{:x} entry:0x{:x} => {}",
+        api,
+        snapshot,
+        entry,
+        error
+    );
+    emu.set_last_error(error);
+    Call::Api.finish(emu, 0, 2);
 }

@@ -8,5 +8,5 @@ pub fn GetCIMSSM(emu: &mut emu::Emu) {
     log_red!(emu, "user32!GetCIMSSM arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 1);
 }

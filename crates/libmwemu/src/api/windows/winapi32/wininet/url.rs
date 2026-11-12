@@ -1,38 +1,25 @@
 use crate::emu;
-
-use super::{pop_stack32, read_stack_dword};
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn internet_crack_url_a(emu: &mut emu::Emu) {
-    let url_ptr =
-        read_stack_dword(emu, 0, "wininet!InternetCrackUrlA error reading url_ptr") as u64;
-    let _url_len = read_stack_dword(emu, 4, "wininet!InternetCrackUrlA error reading flags");
-    let _flags = read_stack_dword(emu, 8, "wininet!InternetCrackUrlA error reading reserved");
-    let _components =
-        read_stack_dword(emu, 12, "wininet!InternetCrackUrlA error reading component");
+    internet_crack_url(emu, "InternetCrackUrlA", false);
+}
 
-    let url = emu.maps.read_string(url_ptr);
+fn internet_crack_url(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let url_ptr = WinApiAbi::arg(emu, 0);
+    let _url_len = WinApiAbi::arg(emu, 1) as u32;
+    let _flags = WinApiAbi::arg(emu, 2) as u32;
+    let _components = WinApiAbi::arg(emu, 3) as u32;
 
-    log_red!(emu, "wininet!InternetCrackUrlA url: `{}`", url);
+    let url = strings::read_text(emu, url_ptr, wide);
 
-    pop_stack32(emu, 4);
+    log_red!(emu, "wininet!{api} url: `{}`", url);
+
+    WinApiAbi::stdcall_ret(emu, 4);
     emu.regs_mut().rax = 1;
 }
 
 pub(super) fn internet_crack_url_w(emu: &mut emu::Emu) {
-    let url_ptr =
-        read_stack_dword(emu, 0, "wininet!InternetCrackUrlW error reading url_ptr") as u64;
-    let _url_len = read_stack_dword(emu, 4, "wininet!InternetCrackUrlW error reading url_len");
-    let _flags = read_stack_dword(emu, 8, "wininet!InternetCrackUrlW error reading flags");
-    let _components = read_stack_dword(
-        emu,
-        12,
-        "wininet!InternetCrackUrlW error reading components",
-    );
-
-    let url = emu.maps.read_wide_string(url_ptr);
-
-    log_red!(emu, "wininet!InternetCrackUrlW url: `{}`", url);
-
-    pop_stack32(emu, 4);
-    emu.regs_mut().rax = 1;
+    internet_crack_url(emu, "InternetCrackUrlW", true);
 }

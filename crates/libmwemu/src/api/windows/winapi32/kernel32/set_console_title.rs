@@ -1,13 +1,19 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn SetConsoleTitleA(emu: &mut emu::Emu) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    set_console_title(emu, "SetConsoleTitleA", false);
+}
+
+fn set_console_title(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let p0 = WinApiAbi::arg(emu, 0);
     let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_string(p0)
+        strings::read_text(emu, p0, wide)
     } else {
         format!("0x{:x}", p0)
     };
-    log_red!(emu, "kernel32!SetConsoleTitleA '{}'", s);
+    log_red!(emu, "kernel32!{api} '{}'", s);
     for _ in 0..1 {
         emu.stack_pop32(false);
     }
@@ -15,15 +21,5 @@ pub fn SetConsoleTitleA(emu: &mut emu::Emu) {
 }
 
 pub fn SetConsoleTitleW(emu: &mut emu::Emu) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_wide_string(p0)
-    } else {
-        format!("0x{:x}", p0)
-    };
-    log_red!(emu, "kernel32!SetConsoleTitleW '{}'", s);
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    set_console_title(emu, "SetConsoleTitleW", true);
 }

@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetDIBits(emu: &mut emu::Emu) {
     let hdc = emu.regs().rcx;
     let hbmp = emu.regs().rdx;
     let start = emu.regs().r8;
     let lines = emu.regs().r9;
-    let lpvbits = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let lpbmi = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let lpvbits = WinApiAbi::arg(emu, 4);
+    let lpbmi = WinApiAbi::arg(emu, 5);
     if lpbmi != 0 {
         emu.maps.write_dword(lpbmi, 40); // biSize = BITMAPINFOHEADER
         emu.maps.write_dword(lpbmi + 4, 1920); // biWidth

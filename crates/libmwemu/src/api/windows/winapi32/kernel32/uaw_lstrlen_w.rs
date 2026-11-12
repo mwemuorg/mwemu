@@ -1,15 +1,16 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper::WinApiAbi;
 
 pub fn uaw_lstrlenW(emu: &mut emu::Emu) {
-    let p0 = arg(emu, 0) as u64;
+    let p0 = WinApiAbi::arg(emu, 0);
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {
         format!("0x{:x}", p0)
     };
     log_red!(emu, "kernel32!uaw_lstrlenW '{}'", s);
-    emu.set_last_error(0);
+    for _ in 0..1 {
+        emu.stack_pop32(false);
+    }
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
 }

@@ -1,10 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn SetDIBits(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let arg3 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let arg4 = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
+    let arg2 = WinApiAbi::arg(emu, 1) as u32;
+    let arg3 = WinApiAbi::arg(emu, 2) as u32;
+    let arg4 = WinApiAbi::arg(emu, 3) as u32;
     log_red!(
         emu,
         "gdi32!SetDIBits arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
@@ -13,9 +15,7 @@ pub fn SetDIBits(emu: &mut emu::Emu) {
         arg3,
         arg4
     );
-    for _ in 0..6u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 7);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

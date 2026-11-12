@@ -2,6 +2,7 @@ use crate::api::windows::common::memory as memory_api;
 use crate::api::windows::common::memory::Call;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
 use crate::syscall::windows::syscall64::sync::next_handle;
 use crate::winapi::winapi64::kernel32::load_library;
 use crate::windows::constants::errors::*;
@@ -10,8 +11,6 @@ use crate::windows::constants::syscalls::*;
 
 use crate::windows::structures::MemoryBasicInformation64;
 use iced_x86::{Instruction, Mnemonic, OpKind, Register};
-
-const STATUS_INVALID_IMAGE_FORMAT: u64 = 0xc000007b;
 
 pub fn patch_ntdll_load_reason_checks(emu: &mut Emu) {
     if emu.validated_knowndlls.contains("__ntdll_patched__") {
@@ -735,33 +734,100 @@ fn mark_all_ldr_entries_ready(emu: &mut Emu) {
 /// For KnownDll section handles (tracked via NtOpenSection), loads the real
 /// PE from the maps folder so ntdll's loader gets valid image content.
 /// Other section handles use the shared mapping model.
+fn map_file_section(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u64, u64), u64> {
+    const DOS_LFANEW_OFFSET: u64 = 0x3c;
+    const NT_SIZE_OF_IMAGE_OFFSET: u64 = 0x50;
+
+    let stem = dll.strip_suffix(".dll").unwrap_or(dll);
+    let source = emu
+        .maps
+        .get_map_by_name(&format!("{stem}.pe"))
+        .ok_or(STATUS_INVALID_IMAGE_FORMAT)?
+        .get_base();
+    let header = source
+        .checked_add(DOS_LFANEW_OFFSET)
+        .ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
+    let pe_offset = emu
+        .maps
+        .read_dword(header)
+        .ok_or(STATUS_INVALID_IMAGE_FORMAT)? as u64;
+    let size_address = source
+        .checked_add(pe_offset)
+        .and_then(|base| base.checked_add(NT_SIZE_OF_IMAGE_OFFSET))
+        .ok_or(STATUS_INVALID_IMAGE_FORMAT)?;
+    let image_size = emu
+        .maps
+        .read_dword(size_address)
+        .filter(|&size| size != 0)
+        .ok_or(STATUS_INVALID_IMAGE_FORMAT)? as u64;
+    let size = align_up(image_size, PAGE_SIZE)
+        .filter(|&size| size <= emu.maps.max_alloc_size)
+        .ok_or(STATUS_NO_MEMORY)?;
+    let base = if requested_base == 0 {
+        emu.maps.lib64_alloc(size).ok_or(STATUS_NO_MEMORY)?
+    } else {
+        if !requested_base.is_multiple_of(ALLOCATION_GRANULARITY) {
+            return Err(STATUS_MAPPED_ALIGNMENT);
+        }
+        if requested_base
+            .checked_add(size)
+            .is_none_or(|end| end > USER64_ADDRESS_LIMIT)
+            || emu.maps.overlaps(requested_base, size)
+        {
+            return Err(STATUS_CONFLICTING_ADDRESSES);
+        }
+        requested_base
+    };
+    if source.checked_add(image_size).is_none() {
+        return Err(STATUS_INVALID_IMAGE_FORMAT);
+    }
+    let name = format!("section_view_{base:x}");
+    emu.maps
+        .create_map(&name, base, size, Permission::READ_WRITE)
+        .map_err(|_| STATUS_NO_MEMORY)?;
+    // Copy mapped image bytes; gaps between image sections remain zero-filled.
+    for offset in 0..image_size {
+        let byte = emu.maps.read_byte(source + offset).unwrap_or(0);
+        emu.maps.write_byte(base + offset, byte);
+    }
+    emu.section_view_dll.insert(base, dll.to_string());
+    patch_ntdll_load_reason_checks(emu);
+    Ok((base, size))
+}
+
 pub fn nt_map_view_of_section(emu: &mut Emu) {
-    if !emu.section_handles.contains_key(&Call::Syscall.arg(emu, 0)) {
+    let section_handle = Call::Syscall.arg(emu, 0);
+    if !emu.section_handles.contains_key(&section_handle)
+        && !emu.file_section_names.contains_key(&section_handle)
+    {
         memory_api::dispatch_nt("NtMapViewOfSection", emu, Call::Syscall);
         return;
     }
-    let section_handle = emu.regs().rcx;
     let process_handle = emu.regs().rdx;
     let base_addr_ptr = emu.regs().r8;
-    let rsp = emu.regs().rsp;
-    let view_size_ptr = emu.maps.read_qword(rsp + 0x38).unwrap_or(0);
-    let protect = emu.maps.read_dword(rsp + 0x50).unwrap_or(PAGE_READONLY);
+    let view_size_ptr = Call::Syscall.arg(emu, 6);
+    let protect = Call::Syscall.arg(emu, 9) as u32;
 
-    // Read requested base (0 = any) and requested size.
-    let requested_base = if base_addr_ptr != 0 && emu.maps.is_mapped(base_addr_ptr) {
-        emu.maps.read_qword(base_addr_ptr).unwrap_or(0)
-    } else {
-        0
+    if !memory_api::writable_pointer(emu, base_addr_ptr)
+        || !memory_api::writable_pointer(emu, view_size_ptr)
+    {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+        return;
+    }
+
+    let Some(requested_base) = emu.maps.read_qword(base_addr_ptr) else {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+        return;
     };
-    let view_size = if view_size_ptr != 0 && emu.maps.is_mapped(view_size_ptr) {
-        emu.maps.read_qword(view_size_ptr).unwrap_or(0x1000)
-    } else {
-        0x1000
+    let Some(view_size) = emu.maps.read_qword(view_size_ptr) else {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
+        return;
     };
-    let size = if view_size == 0 {
-        0x1000
-    } else {
-        (view_size + 0xfff) & !0xfff
+    let Some(size) = align_up(view_size.max(PAGE_SIZE), PAGE_SIZE)
+        .filter(|&size| size <= emu.maps.max_alloc_size)
+    else {
+        emu.regs_mut().rax = STATUS_NO_MEMORY;
+        return;
     };
 
     log_orange!(
@@ -774,44 +840,6 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
         size,
         protect,
     );
-
-    if section_handle == 0 {
-        if let Some(dll_name) = emu.last_closed_section_dll.take() {
-            let stem = dll_name.strip_suffix(".dll").unwrap_or(&dll_name);
-            let pe_name = format!("{}.pe", stem);
-            if let Some(map) = emu.maps.get_map_by_name(&pe_name) {
-                let dll_base = map.get_base();
-                log::trace!(
-                    "NtMapViewOfSection: NULL handle → clean view of {} at 0x{:x}",
-                    dll_name,
-                    dll_base,
-                );
-                if base_addr_ptr != 0 && emu.maps.is_mapped(base_addr_ptr) {
-                    let _ = emu.maps.write_qword(base_addr_ptr, dll_base);
-                }
-                let soi: u64 = {
-                    let pe_off = emu.maps.read_dword(dll_base + 0x3c).unwrap_or(0) as u64;
-                    if pe_off > 0 {
-                        emu.maps
-                            .read_dword(dll_base + pe_off + 0x50)
-                            .unwrap_or(0x1000) as u64
-                    } else {
-                        0x1000
-                    }
-                };
-                if view_size_ptr != 0 && emu.maps.is_mapped(view_size_ptr) {
-                    let _ = emu.maps.write_qword(view_size_ptr, soi);
-                }
-                emu.regs_mut().rax = STATUS_SUCCESS;
-                return;
-            }
-        }
-        if base_addr_ptr != 0 && emu.maps.is_mapped(base_addr_ptr) {
-            let _ = emu.maps.write_qword(base_addr_ptr, 0);
-        }
-        emu.regs_mut().rax = STATUS_SUCCESS;
-        return;
-    }
 
     if !memory_api::current_process(process_handle) {
         emu.regs_mut().rax = STATUS_ACCESS_DENIED;
@@ -852,54 +880,16 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
         }
     }
 
-    // --- File-backed section path (NtCreateSection from file handle) ----------
     if let Some(dll_name) = emu.file_section_names.get(&section_handle).cloned() {
-        patch_ntdll_load_reason_checks(emu);
-        let stem = dll_name
-            .strip_suffix(".dll")
-            .unwrap_or(&dll_name)
-            .to_string();
-        let pe_map_name = format!("{}.pe", stem);
-        if let Some(existing) = emu.maps.get_map_by_name(&pe_map_name) {
-            let dll_base = existing.get_base();
-            let soi: u64 = {
-                let pe_off = emu.maps.read_dword(dll_base + 0x3c).unwrap_or(0) as u64;
-                if pe_off > 0 {
-                    emu.maps
-                        .read_dword(dll_base + pe_off + 0x50)
-                        .unwrap_or(0x1000) as u64
-                } else {
-                    0x1000
-                }
-            };
-            let view_addr = emu.maps.lib64_alloc(soi).unwrap_or(0);
-            if view_addr != 0 {
-                let view_name = format!("section_view_{:x}", view_addr);
-                let _ = emu
-                    .maps
-                    .create_map(&view_name, view_addr, soi, Permission::READ_WRITE);
-                for off in (0..soi).step_by(8) {
-                    let val = emu.maps.read_qword(dll_base + off).unwrap_or(0);
-                    let _ = emu.maps.write_qword(view_addr + off, val);
-                }
-                emu.section_view_dll.insert(view_addr, dll_name.to_string());
-                log_orange!(
-                    emu,
-                    "NtMapViewOfSection: file-backed {} → temp copy at 0x{:x} (0x{:x} bytes)",
-                    stem,
-                    view_addr,
-                    soi,
-                );
-                if base_addr_ptr != 0 && emu.maps.is_mapped(base_addr_ptr) {
-                    let _ = emu.maps.write_qword(base_addr_ptr, view_addr);
-                }
-                if view_size_ptr != 0 && emu.maps.is_mapped(view_size_ptr) {
-                    let _ = emu.maps.write_qword(view_size_ptr, soi);
-                }
+        match map_file_section(emu, &dll_name, requested_base) {
+            Ok((base, size)) => {
+                emu.maps.write_qword(base_addr_ptr, base);
+                emu.maps.write_qword(view_size_ptr, size);
                 emu.regs_mut().rax = STATUS_SUCCESS;
-                return;
             }
+            Err(status) => emu.regs_mut().rax = status,
         }
+        return;
     }
 
     let perm = memory_api::permissions(protect).unwrap_or(Permission::READ_WRITE);
@@ -1004,8 +994,8 @@ pub fn nt_open_section(emu: &mut Emu) {
         section_name,
     );
 
-    if handle_out == 0 || !emu.maps.is_mapped(handle_out) {
-        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+    if !memory_api::writable_pointer(emu, handle_out) {
+        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
         return;
     }
 

@@ -1,5 +1,6 @@
 use crate::api::windows::winapi32;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants::errors::*;
 
@@ -14,8 +15,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn LdrLoadDll(emu: &mut emu::Emu) {
-    let libname_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let libaddr_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let libname_ptr = WinApiAbi::arg(emu, 3);
+    let libaddr_ptr = WinApiAbi::arg(emu, 4);
 
     let libname = emu.maps.read_wide_string(libname_ptr);
     log_red!(emu, "ntdll!LdrLoadDll   lib: {}", libname);

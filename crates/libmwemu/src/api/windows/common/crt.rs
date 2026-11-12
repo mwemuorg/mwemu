@@ -133,3 +133,32 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
     trace::api(emu, api, parameters, returns_value, handler);
     true
 }
+
+/// Normal cdecl math calls read stack arguments on x86 and XMM arguments on x64.
+pub(crate) fn math_unary(emu: &mut Emu, api: &str, operation: fn(f64) -> f64) {
+    let value = WinApiAbi::f64_arg(emu, 0, 0);
+    let result = operation(value);
+    log_red!(emu, "msvcrt!{} {} => {}", api, value, result);
+    WinApiAbi::set_f64_ret(emu, result);
+}
+
+pub(crate) fn math_binary(emu: &mut Emu, api: &str, operation: fn(f64, f64) -> f64) {
+    let left = WinApiAbi::f64_arg(emu, 0, 0);
+    let right = WinApiAbi::f64_arg(emu, 1, 2);
+    let result = operation(left, right);
+    log_red!(emu, "msvcrt!{} {} {} => {}", api, left, right, result);
+    WinApiAbi::set_f64_ret(emu, result);
+}
+
+/// Compiler _ftol helpers consume ST0 and return a signed integer in EDX:EAX.
+pub(crate) fn float_to_integer(emu: &mut Emu, api: &str) {
+    let value = emu.fpu_mut().pop_f64();
+    let limit = -(i64::MIN as f64);
+    let result = if value.is_finite() && value >= -limit && value < limit {
+        value.trunc() as i64
+    } else {
+        i64::MIN
+    };
+    log_red!(emu, "msvcrt!{} {} => {}", api, value, result);
+    WinApiAbi::set_ret64(emu, result as u64);
+}

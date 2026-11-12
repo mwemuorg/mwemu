@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetSidSubAuthorityCount(emu: &mut emu::Emu) {
-    let sid_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let sid_ptr = WinApiAbi::arg(emu, 0);
     // Returns pointer to the sub-authority count byte at offset 1
     let result = sid_ptr + 1;
     log_red!(

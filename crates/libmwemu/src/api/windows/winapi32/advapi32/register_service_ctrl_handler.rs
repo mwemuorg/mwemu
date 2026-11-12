@@ -1,34 +1,22 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegisterServiceCtrlHandlerA(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    log_red!(
-        emu,
-        "advapi32!RegisterServiceCtrlHandlerA arg1:0x{:x} arg2:0x{:x}",
-        arg1,
-        arg2
-    );
+    register_service_ctrl_handler(emu, "RegisterServiceCtrlHandlerA");
+}
+
+fn register_service_ctrl_handler(emu: &mut emu::Emu, api: &str) {
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
+    let arg2 = WinApiAbi::arg(emu, 1) as u32;
+    log_red!(emu, "advapi32!{api} arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
     for _ in 0..2u32 {
         emu.stack_pop32(false);
     }
-    let hndl = helper::handler_create("advapi32://RegisterServiceCtrlHandlerA");
+    let hndl = helper::handler_create(&format!("advapi32://{api}"));
     emu.regs_mut().rax = hndl;
 }
 
 pub fn RegisterServiceCtrlHandlerW(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    log_red!(
-        emu,
-        "advapi32!RegisterServiceCtrlHandlerW arg1:0x{:x} arg2:0x{:x}",
-        arg1,
-        arg2
-    );
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
-    let hndl = helper::handler_create("advapi32://RegisterServiceCtrlHandlerW");
-    emu.regs_mut().rax = hndl;
+    register_service_ctrl_handler(emu, "RegisterServiceCtrlHandlerW");
 }

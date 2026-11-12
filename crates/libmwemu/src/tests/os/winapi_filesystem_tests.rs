@@ -7,7 +7,7 @@ use itertools::iproduct;
 use crate::maps::mem64::Permission;
 use crate::tests::helpers::file_system_root;
 use crate::tests::helpers::{self, call_winapi_export as call, prepare_winapi as prepare};
-use crate::winapi::winapi64;
+use crate::winapi::{helper, registry_store, winapi64};
 
 use crate::{emu32, emu64};
 use std::fs;
@@ -678,5 +678,156 @@ fn directory_paths_reject_unwritable_outputs_without_partial_writes() {
                 assert_eq!(emu.maps.read_byte(readonly), Some(0));
             }
         }
+    }
+}
+
+#[test]
+fn paired_dos_device_exports_return_encoded_multisz() {
+    let (mut emu, data) = helpers::prepare_winapi(true);
+    for (name, wide) in [("QueryDosDeviceA", false), ("QueryDosDeviceW", true)] {
+        emu.maps.memset(data, 0xa5, 64);
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "kernel32.dll", name, &[0, data, 3]),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        assert_eq!(emu.maps.read_byte(data), Some(0xa5));
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "kernel32.dll", name, &[0, data, 4]),
+            4
+        );
+        assert_eq!(
+            if wide {
+                emu.maps.read_wide_string(data)
+            } else {
+                emu.maps.read_string(data)
+            },
+            "C:"
+        );
+        let width = if wide { 2 } else { 1 };
+        assert_eq!(emu.maps.read_byte(data + 3 * width), Some(0));
+        assert_eq!(emu.maps.read_byte(data + 4 * width), Some(0xa5));
+    }
+}
+
+#[test]
+fn suffix_array_exports_return_the_matching_array_element() {
+    let (mut emu, data) = helpers::prepare_winapi(true);
+    let array = data + 128;
+    let wrong = data + 160;
+    let matching = data + 192;
+    for (name, wide) in [
+        ("PathFindSuffixArrayA", false),
+        ("PathFindSuffixArrayW", true),
+    ] {
+        for (address, text) in [(data, "sample.txt"), (wrong, ".TXT"), (matching, ".txt")] {
+            if wide {
+                emu.maps.write_wide_string(address, text);
+            } else {
+                emu.maps.write_string(address, text);
+            }
+        }
+        assert!(emu.maps.write_qword(array, wrong));
+        assert!(
+            emu.maps
+                .write_qword(array + size_of::<u64>() as u64, matching)
+        );
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "shlwapi.dll", name, &[data, array, 1]),
+            0
+        );
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "shlwapi.dll", name, &[data, array, 2]),
+            matching
+        );
+    }
+}
+
+#[test]
+fn x86_resource_handles_come_from_stack_arguments() {
+    let (mut emu, _) = helpers::prepare_winapi(false);
+    let resource_offset = 128;
+    let resource_size = 48;
+    let resource = helper::handler_create(&format!("{resource_offset}_{resource_size}"));
+    emu.regs_mut().rcx = 0;
+    emu.regs_mut().rdx = 0;
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "LoadResource", &[0, resource]),
+        resource
+    );
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "SizeofResource", &[0, resource]),
+        resource_size
+    );
+    let expected = emu.base + resource_offset;
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "kernel32.dll", "LockResource", &[resource]),
+        expected
+    );
+    helpers::call_winapi_export(&mut emu, "kernel32.dll", "FreeResource", &[resource]);
+    assert!(!helper::handler_exist(resource));
+}
+
+#[test]
+fn paired_content_type_exports_consult_the_guest_registry() {
+    let key = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\.mwemu_content_type_test";
+    registry_store::create_key(key).unwrap();
+    assert!(registry_store::set_value(
+        key,
+        "Content Type",
+        registry_store::sz("text/plain")
+    ));
+    let (mut emu, data) = helpers::prepare_winapi(true);
+    for (name, wide) in [("PathIsContentTypeA", false), ("PathIsContentTypeW", true)] {
+        if wide {
+            emu.maps
+                .write_wide_string(data, "file.mwemu_content_type_test");
+            emu.maps.write_wide_string(data + 128, "TEXT/PLAIN");
+        } else {
+            emu.maps.write_string(data, "file.mwemu_content_type_test");
+            emu.maps.write_string(data + 128, "TEXT/PLAIN");
+        }
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "shlwapi.dll", name, &[data, data + 128]),
+            1
+        );
+        if wide {
+            emu.maps
+                .write_wide_string(data + 128, "application/octet-stream");
+        } else {
+            emu.maps
+                .write_string(data + 128, "application/octet-stream");
+        }
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "shlwapi.dll", name, &[data, data + 128]),
+            0
+        );
+    }
+    assert!(registry_store::delete_key(key, false).is_ok());
+}
+
+#[test]
+fn device_io_control_uses_all_eight_arguments_and_cleans_up_on_failure() {
+    for is64 in [false, true] {
+        let (mut emu, data) = prepare(is64);
+        let handle = helper::handler_create("device-io-regression");
+        let returned = data + 0x100;
+        let guard = returned + size_of::<u32>() as u64;
+        let mut args = [handle, 0, data, 16, data + 0x200, 32, returned, 0];
+        assert!(emu.maps.write_dword(returned, MARKER));
+        assert!(emu.maps.write_dword(guard, MARKER));
+        assert_eq!(call(&mut emu, "kernel32.dll", "DeviceIoControl", &args), 1);
+        assert_eq!(emu.maps.read_dword(returned), Some(0));
+        assert_eq!(emu.maps.read_dword(guard), Some(MARKER));
+        assert!(emu.maps.write_dword(returned, MARKER));
+        args[0] = 0;
+        assert_eq!(call(&mut emu, "kernel32.dll", "DeviceIoControl", &args), 0);
+        assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE);
+        assert_eq!(emu.maps.read_dword(returned), Some(MARKER));
+        args[0] = handle;
+        args[6] = 1;
+        assert_eq!(call(&mut emu, "kernel32.dll", "DeviceIoControl", &args), 0);
+        assert_eq!(emu.get_last_error(), ERROR_NOACCESS);
+        assert!(helper::handler_close(handle));
     }
 }

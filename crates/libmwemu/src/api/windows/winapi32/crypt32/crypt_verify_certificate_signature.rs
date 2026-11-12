@@ -1,10 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptVerifyCertificateSignature(emu: &mut emu::Emu) {
-    let h_crypt_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let pb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let cb_encoded = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let h_crypt_prov = WinApiAbi::arg(emu, 0);
+    let dw_cert_encoding = WinApiAbi::arg(emu, 1);
+    let pb_encoded = WinApiAbi::arg(emu, 2);
+    let cb_encoded = WinApiAbi::arg(emu, 3);
     log_red!(
         emu,
         "crypt32!CryptVerifyCertificateSignature 0x{:x}",
@@ -12,7 +14,5 @@ pub fn CryptVerifyCertificateSignature(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 5);
 }

@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ControlService(emu: &mut emu::Emu) {
-    let hsvc = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let control = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let status_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let hsvc = WinApiAbi::arg(emu, 0) as u32;
+    let control = WinApiAbi::arg(emu, 1) as u32;
+    let status_ptr = WinApiAbi::arg(emu, 2);
     if status_ptr != 0 {
         emu.maps.write_dword(status_ptr, 0x10);
         emu.maps.write_dword(status_ptr + 4, 1);

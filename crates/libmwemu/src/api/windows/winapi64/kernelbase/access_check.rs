@@ -1,14 +1,15 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn AccessCheck(emu: &mut emu::Emu) {
     let p_sd = emu.regs().rcx;
     let client_token = emu.regs().rdx;
     let desired_access = emu.regs().r8;
     let generic_mapping = emu.regs().r9;
-    let priv_set = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let priv_set_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let granted_access = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let access_status = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let priv_set = WinApiAbi::arg(emu, 4);
+    let priv_set_len = WinApiAbi::arg(emu, 5);
+    let granted_access = WinApiAbi::arg(emu, 6);
+    let access_status = WinApiAbi::arg(emu, 7);
     log_red!(
         emu,
         "kernelbase!AccessCheck sd:0x{:x} token:0x{:x} desired:0x{:x}",

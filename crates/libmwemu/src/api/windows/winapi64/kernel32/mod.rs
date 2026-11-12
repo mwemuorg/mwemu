@@ -7,65 +7,76 @@ use crate::winapi::common::sections;
 use crate::winapi::common::{files, handles, modules, strings};
 use crate::winapi::winapi64::ntdll;
 
-mod search_path;
-pub use search_path::*;
-
-mod open_mutex;
-pub use open_mutex::*;
-
-mod move_file_ex;
-pub use move_file_ex::*;
-
-mod global_get_atom_name;
-pub use global_get_atom_name::*;
-
-mod global_find_atom;
-pub use global_find_atom::*;
-
-mod get_system_windows_directory;
-pub use get_system_windows_directory::*;
-
-mod get_string_type;
-pub use get_string_type::*;
-
-mod get_short_path_name;
-pub use get_short_path_name::*;
-
-mod get_long_path_name;
-pub use get_long_path_name::*;
-
-mod appcompat;
 mod console;
-mod diagnostics;
 mod filesystem;
-mod legacy_compat;
 mod library_loader;
-mod loader;
 mod memory;
 mod misc;
-mod objects;
 mod process_thread;
 mod registry_profile;
-mod resolver;
-mod state;
 mod strings_nls;
 mod sync;
 mod system;
-mod time_date;
 
 pub use console::*;
 pub use filesystem::*;
 pub use library_loader::*;
-pub use loader::*;
 pub use memory::*;
 pub use misc::*;
 pub use process_thread::*;
 pub use registry_profile::*;
-pub use resolver::*;
 pub use strings_nls::*;
 pub use sync::*;
 pub use system::*;
 
+mod search_path;
+pub use search_path::{SearchPathA, SearchPathW};
+
+mod open_mutex;
+pub use open_mutex::{OpenMutexA, OpenMutexW};
+
+mod move_file_ex;
+pub use move_file_ex::{MoveFileExA, MoveFileExW};
+
+mod global_get_atom_name;
+pub use global_get_atom_name::{GlobalGetAtomNameA, GlobalGetAtomNameW};
+
+mod global_find_atom;
+pub use global_find_atom::{GlobalFindAtomA, GlobalFindAtomW};
+
+mod get_system_windows_directory;
+pub use get_system_windows_directory::{GetSystemWindowsDirectoryA, GetSystemWindowsDirectoryW};
+
+mod get_string_type;
+pub use get_string_type::{GetStringTypeA, GetStringTypeW};
+
+mod get_short_path_name;
+pub use get_short_path_name::{GetShortPathNameA, GetShortPathNameW};
+
+mod get_long_path_name;
+pub use get_long_path_name::{GetLongPathNameA, GetLongPathNameW};
+
+mod appcompat;
+
+mod diagnostics;
+
+mod legacy_compat;
+
+mod loader;
+
+mod objects;
+
+mod resolver;
+mod state;
+
+mod time_date;
+
+pub use loader::load_library;
+pub(crate) use resolver::resolve_forwarded_export_string_depth;
+pub use resolver::{
+    dump_module_iat, guess_api_name, resolve_api_addr_to_name, resolve_api_name,
+    resolve_api_name_in_module, search_api_name,
+};
 mod etw_event_enabled;
 pub use etw_event_enabled::EtwEventEnabled;
 mod etw_event_register;
@@ -82,20 +93,19 @@ mod get_current_package_path;
 pub use get_current_package_path::GetCurrentPackagePath;
 mod is_valid_code_page;
 pub use is_valid_code_page::IsValidCodePage;
-mod lc_map_string_w;
-pub use lc_map_string_w::LCMapStringW;
+mod lc_map_string;
+pub use lc_map_string::{LCMapStringA, LCMapStringW};
 mod set_event;
 pub use set_event::SetEvent;
 mod set_handle_count;
 pub use set_handle_count::SetHandleCount;
-mod verify_version_info_a;
-pub use verify_version_info_a::VerifyVersionInfoA;
+mod verify_version_info;
+pub use verify_version_info::{VerifyVersionInfoA, VerifyVersionInfoW};
 mod ver_set_condition_mask;
 pub use ver_set_condition_mask::VerSetConditionMask;
-mod lstrcmp_a_api;
-pub use lstrcmp_a_api::lstrcmpA_api;
-mod lstrcmp_w_api;
-pub use lstrcmp_w_api::lstrcmpW_api;
+mod lstrcmp;
+pub use lstrcmp::{lstrcmpA, lstrcmpW};
+
 mod compare_string_ordinal;
 pub use compare_string_ordinal::CompareStringOrdinal;
 mod get_oemcp_2;
@@ -104,22 +114,22 @@ mod virtual_query;
 pub use virtual_query::VirtualQuery;
 mod virtual_query_ex;
 pub use virtual_query_ex::VirtualQueryEx;
-mod copy_file_ex_w;
-pub use copy_file_ex_w::CopyFileExW;
+mod copy_file_ex;
+pub use copy_file_ex::{CopyFileExA, CopyFileExW};
 mod lock_file;
 pub use lock_file::LockFile;
 mod unlock_file;
 pub use unlock_file::UnlockFile;
 mod create_pipe;
 pub use create_pipe::CreatePipe;
-mod create_semaphore_a;
-pub use create_semaphore_a::CreateSemaphoreA;
-mod create_semaphore_ex_w;
-pub use create_semaphore_ex_w::CreateSemaphoreExW;
-mod create_waitable_timer_a;
-pub use create_waitable_timer_a::CreateWaitableTimerA;
-mod create_waitable_timer_ex_w;
-pub use create_waitable_timer_ex_w::CreateWaitableTimerExW;
+mod create_semaphore;
+pub use create_semaphore::{CreateSemaphoreA, CreateSemaphoreW};
+mod create_semaphore_ex;
+pub use create_semaphore_ex::{CreateSemaphoreExA, CreateSemaphoreExW};
+mod create_waitable_timer;
+pub use create_waitable_timer::{CreateWaitableTimerA, CreateWaitableTimerW};
+mod create_waitable_timer_ex;
+pub use create_waitable_timer_ex::{CreateWaitableTimerExA, CreateWaitableTimerExW};
 mod interlocked_increment;
 pub use interlocked_increment::InterlockedIncrement;
 mod interlocked_decrement;
@@ -166,20 +176,16 @@ mod set_thread_context;
 pub use set_thread_context::SetThreadContext;
 mod suspend_thread;
 pub use suspend_thread::SuspendThread;
-mod process32_first_w;
-pub use process32_first_w::Process32FirstW;
-mod process32_next_w;
-pub use process32_next_w::Process32NextW;
 mod get_user_default_ui_language_2;
 pub use get_user_default_ui_language_2::GetUserDefaultUILanguage;
-mod set_locale_info_a;
-pub use set_locale_info_a::SetLocaleInfoA;
+mod set_locale_info;
+pub use set_locale_info::{SetLocaleInfoA, SetLocaleInfoW};
 mod get_locale_info_ex;
 pub use get_locale_info_ex::GetLocaleInfoEx;
-mod get_date_format_w;
-pub use get_date_format_w::GetDateFormatW;
-mod get_time_format_w;
-pub use get_time_format_w::GetTimeFormatW;
+mod get_date_format;
+pub use get_date_format::{GetDateFormatA, GetDateFormatW};
+mod get_time_format;
+pub use get_time_format::{GetTimeFormatA, GetTimeFormatW};
 mod global_delete_atom;
 pub use global_delete_atom::GlobalDeleteAtom;
 mod global_flags;

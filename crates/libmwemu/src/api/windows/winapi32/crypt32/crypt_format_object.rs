@@ -1,15 +1,15 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptFormatObject(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
     log_red!(emu, "crypt32!CryptFormatObject arg1:0x{:x}", arg1);
-    let src = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let src = WinApiAbi::arg(emu, 0);
     if src != 0 && emu.maps.is_mapped(src) {
         let _input = emu.maps.read_string(src);
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 9);
 }

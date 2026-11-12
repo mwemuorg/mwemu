@@ -1,12 +1,12 @@
 use crate::emu;
-use crate::winapi::helper;
-use crate::winapi::winapi32::stdcall_ret;
 
 pub fn __chkstk(emu: &mut emu::Emu) {
-    let alloc_size = emu.regs().rax;
-    log_red!(emu, "kernel32!__chkstk alloc_size:0x{:x}", alloc_size);
-    helper::advance_tick(emu, 1);
-    let new_sp = emu.regs().rsp.wrapping_sub(alloc_size);
-    emu.regs_mut().rsp = new_sp;
-    stdcall_ret(emu, 1);
+    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    log_red!(emu, "kernel32!__chkstk arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

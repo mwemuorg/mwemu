@@ -2,15 +2,19 @@ use super::finish;
 use super::key_path;
 use super::open_handle;
 use super::read_name;
-use super::stack_arg;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
 pub(super) fn open_key(emu: &mut emu::Emu, api: &str, wide: bool, ex: bool) {
     let hkey = emu.regs().rcx;
     let sub = read_name(emu, emu.regs().rdx, wide).unwrap_or_default();
-    let result_ptr = if ex { stack_arg(emu, 4) } else { emu.regs().r8 };
+    let result_ptr = if ex {
+        WinApiAbi::arg(emu, 4)
+    } else {
+        emu.regs().r8
+    };
 
     let base = match key_path(hkey) {
         Ok(base) => base,

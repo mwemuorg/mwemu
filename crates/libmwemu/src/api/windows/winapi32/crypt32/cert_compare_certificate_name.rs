@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertCompareCertificateName(emu: &mut emu::Emu) {
-    let dw_cert_encoding = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p_name1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let p_name2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let dw_cert_encoding = WinApiAbi::arg(emu, 0);
+    let p_name1 = WinApiAbi::arg(emu, 1);
+    let p_name2 = WinApiAbi::arg(emu, 2);
     log_red!(
         emu,
         "crypt32!CertCompareCertificateName dw_cert_encoding:0x{:x} p_name1:0x{:x} p_name2:0x{:x}",
@@ -12,7 +13,7 @@ pub fn CertCompareCertificateName(emu: &mut emu::Emu) {
         p_name2
     );
     emu.set_last_error(0);
-    let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let h = WinApiAbi::arg(emu, 0);
     emu.regs_mut().rax = 1;
 
     for _ in 0..3 {

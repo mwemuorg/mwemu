@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptDecryptMessage(emu: &mut emu::Emu) {
     let p_decrypt_para = emu.regs().rcx;
     let pb_encrypted_blob = emu.regs().rdx;
     let cb_encrypted_blob = emu.regs().r8 as u32;
     let pb_decrypted = emu.regs().r9;
-    let pcb_decrypted = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let pp_xchg_cert = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let pcb_decrypted = WinApiAbi::arg(emu, 4);
+    let pp_xchg_cert = WinApiAbi::arg(emu, 5);
 
     let blob_data = if pb_encrypted_blob != 0 && cb_encrypted_blob > 0 {
         let len = (cb_encrypted_blob as usize).min(256);

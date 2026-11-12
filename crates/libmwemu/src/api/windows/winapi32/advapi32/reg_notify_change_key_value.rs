@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegNotifyChangeKeyValue(emu: &mut emu::Emu) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let watch_subtree = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) != 0;
-    let filter = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let event = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let async_ = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) != 0;
+    let hkey = WinApiAbi::arg(emu, 0) as u32;
+    let watch_subtree = WinApiAbi::arg(emu, 1) as u32 != 0;
+    let filter = WinApiAbi::arg(emu, 2) as u32;
+    let event = WinApiAbi::arg(emu, 3) as u32;
+    let async_ = WinApiAbi::arg(emu, 4) as u32 != 0;
     log_red!(
         emu,
         "advapi32!RegNotifyChangeKeyValue hkey:0x{:x} subtree:{} filter:0x{:x}",
@@ -13,7 +14,7 @@ pub fn RegNotifyChangeKeyValue(emu: &mut emu::Emu) {
         watch_subtree,
         filter
     );
-    let val_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let val_ptr = WinApiAbi::arg(emu, 1);
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }

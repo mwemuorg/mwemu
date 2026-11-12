@@ -1,16 +1,30 @@
 use crate::emu;
+use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::network::*;
 
 pub fn WSARecv(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    log_red!(emu, "ws2_32!WSARecv arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-    let first_param = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+    let sock = WinApiAbi::arg(emu, 0);
+    let buffers_ptr = WinApiAbi::arg(emu, 1);
+    let buffer_count = WinApiAbi::arg(emu, 2) as u32;
+    let bytes_recvd_ptr = WinApiAbi::arg(emu, 3);
+    log_red!(
+        emu,
+        "ws2_32!WSARecv sock:0x{:x} buffers:{}",
+        sock,
+        buffer_count
+    );
+    if !helper::socket_exist(sock) {
+        emu.set_last_error(WSAENOTSOCK);
+        emu.regs_mut().rax = SOCKET_ERROR;
+    } else {
+        if bytes_recvd_ptr != 0 {
+            emu.maps.write_dword(bytes_recvd_ptr, 0);
+        }
+        emu.regs_mut().rax = 0;
     }
-    for _ in 0..2 {
+    for _ in 0..7u32 {
         emu.stack_pop32(false);
     }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
 }

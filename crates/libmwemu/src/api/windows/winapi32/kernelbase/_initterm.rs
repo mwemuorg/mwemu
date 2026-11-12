@@ -1,10 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn _initterm(emu: &mut emu::Emu) {
-    let ptr1 = emu.maps.read_dword(emu.regs().rsp).unwrap_or(0);
-    let ptr2 = emu.maps.read_dword(emu.regs().rsp + 4).unwrap_or(0);
+    let ptr1 = WinApiAbi::arg(emu, 0) as u32;
+    let ptr2 = WinApiAbi::arg(emu, 1) as u32;
     log_red!(emu, "kernelbase!_initterm 0x{:x} 0x{:x}", ptr1, ptr2);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
     emu.regs_mut().rax = 0;
 }

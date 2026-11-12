@@ -337,3 +337,48 @@ fn current_handles_have_guest_pointer_width_and_preserve_last_error() {
         }
     }
 }
+
+#[test]
+fn toolhelp_next_reports_exhaustion_without_changing_the_output() {
+    const TH32CS_SNAPPROCESS: u64 = 0x0000_0002;
+    const TH32CS_SNAPMODULE: u64 = 0x0000_0008;
+    const OUTPUT_BYTES: usize = 1080;
+    for is64 in [false, true] {
+        let (mut emu, entry) = helpers::prepare_winapi(is64);
+        for (api, flags) in [
+            ("Module32Next", TH32CS_SNAPMODULE),
+            ("Module32NextW", TH32CS_SNAPMODULE),
+            ("Process32Next", TH32CS_SNAPPROCESS),
+            ("Process32NextW", TH32CS_SNAPPROCESS),
+        ] {
+            let snapshot = helpers::call_winapi_export(
+                &mut emu,
+                "kernel32.dll",
+                "CreateToolhelp32Snapshot",
+                &[flags, 0],
+            );
+            let expected = vec![0xcc; OUTPUT_BYTES];
+            assert!(emu.maps.write_bytes(entry, &expected));
+            emu.set_last_error(ERROR_SUCCESS);
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, "kernel32.dll", api, &[snapshot, entry]),
+                0
+            );
+            assert_eq!(emu.get_last_error(), ERROR_NO_MORE_FILES, "{api}");
+            assert_eq!(
+                emu.maps.read_bytes(entry, expected.len()).as_ref(),
+                expected
+            );
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, "kernel32.dll", api, &[0, entry]),
+                0
+            );
+            assert_eq!(emu.get_last_error(), ERROR_INVALID_HANDLE, "{api}");
+            assert_eq!(
+                emu.maps.read_bytes(entry, expected.len()).as_ref(),
+                expected
+            );
+            helper::handler_close(snapshot);
+        }
+    }
+}

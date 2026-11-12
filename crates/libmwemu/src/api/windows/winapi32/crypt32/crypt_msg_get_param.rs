@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptMsgGetParam(emu: &mut emu::Emu) {
-    let hmsg = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let param_type = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let index = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let pv_data = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let pcb_data = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let hmsg = WinApiAbi::arg(emu, 0);
+    let param_type = WinApiAbi::arg(emu, 1) as u32;
+    let index = WinApiAbi::arg(emu, 2) as u32;
+    let pv_data = WinApiAbi::arg(emu, 3);
+    let pcb_data = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "crypt32!CryptMsgGetParam msg:0x{:x} type:{} idx:{}",

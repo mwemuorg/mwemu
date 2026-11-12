@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CreateServiceEx(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let arg1 = WinApiAbi::arg(emu, 0) as u32;
     let hndl = helper::handler_create("CreateServiceEx");
     log_red!(emu, "advapi32!CreateServiceEx => 0x{:x}", hndl);
     emu.regs_mut().rax = hndl;

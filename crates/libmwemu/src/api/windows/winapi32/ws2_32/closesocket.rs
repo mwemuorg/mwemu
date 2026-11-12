@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn closesocket(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
 
     log_red!(emu, "ws2_32!closesocket");
 

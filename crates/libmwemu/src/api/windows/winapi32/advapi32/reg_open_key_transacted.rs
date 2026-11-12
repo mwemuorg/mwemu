@@ -1,50 +1,35 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn RegOpenKeyTransactedA(emu: &mut emu::Emu) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let subkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let sam = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let result_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let subkey = emu.maps.read_string(subkey_ptr);
+    reg_open_key_transacted(emu, "RegOpenKeyTransactedA", false);
+}
+
+fn reg_open_key_transacted(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let hkey = WinApiAbi::arg(emu, 0);
+    let subkey_ptr = WinApiAbi::arg(emu, 1);
+    let reserved = WinApiAbi::arg(emu, 2);
+    let sam = WinApiAbi::arg(emu, 3);
+    let result_ptr = WinApiAbi::arg(emu, 4);
+    let subkey = strings::read_text(emu, subkey_ptr, wide);
     let hndl = helper::handler_create(&format!("regkey_{}", subkey));
     if result_ptr != 0 {
         emu.maps.write_dword(result_ptr, hndl as u32);
     }
     log_red!(
         emu,
-        "advapi32!RegOpenKeyTransactedA hkey:0x{:x} '{}' => 0x{:x}",
+        "advapi32!{api} hkey:0x{:x} '{}' => 0x{:x}",
         hkey,
         subkey,
         hndl
     );
     emu.regs_mut().rax = 0;
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 7);
 }
 
 pub fn RegOpenKeyTransactedW(emu: &mut emu::Emu) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let subkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let reserved = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let sam = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let result_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let subkey = emu.maps.read_wide_string(subkey_ptr);
-    let hndl = helper::handler_create(&format!("regkey_{}", subkey));
-    if result_ptr != 0 {
-        emu.maps.write_dword(result_ptr, hndl as u32);
-    }
-    log_red!(
-        emu,
-        "advapi32!RegOpenKeyTransactedW hkey:0x{:x} '{}' => 0x{:x}",
-        hkey,
-        subkey,
-        hndl
-    );
-    emu.regs_mut().rax = 0;
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    reg_open_key_transacted(emu, "RegOpenKeyTransactedW", true);
 }

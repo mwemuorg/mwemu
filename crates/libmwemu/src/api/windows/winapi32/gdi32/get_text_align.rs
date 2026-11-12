@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetTextAlign(emu: &mut emu::Emu) {
     let hdc = arg(emu, 0);
-    let esp = emu.regs().get_esp();
-    let arg1 = emu.maps.read_dword(esp + 4).unwrap_or(0) as u64;
+
+    let arg1 = WinApiAbi::arg(emu, 0);
     for _ in 0..1u32 {
         emu.stack_pop32(false);
     }

@@ -1,11 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptVerifyDetachedMessageHash(emu: &mut emu::Emu) {
-    let p_hash_para = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let pb_detached_hash_blob = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let cb_detached_hash_blob = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let c_to_be_hashed = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let rgb_pb_to_be_hashed = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let p_hash_para = WinApiAbi::arg(emu, 0);
+    let pb_detached_hash_blob = WinApiAbi::arg(emu, 1);
+    let cb_detached_hash_blob = WinApiAbi::arg(emu, 2);
+    let c_to_be_hashed = WinApiAbi::arg(emu, 3);
+    let rgb_pb_to_be_hashed = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "crypt32!CryptVerifyDetachedMessageHash 0x{:x}",
@@ -13,7 +15,5 @@ pub fn CryptVerifyDetachedMessageHash(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 8);
 }

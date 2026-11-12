@@ -1,21 +1,18 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper::WinApiAbi;
 
 pub fn __C_specific_handler(emu: &mut emu::Emu) {
-    let exception_record = arg(emu, 0) as u64;
-    let establisher_frame = arg(emu, 1) as u64;
-
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
-        "kernel32!__C_specific_handler excRec:0x{:x} frame:0x{:x}",
-        exception_record,
-        establisher_frame
+        "kernel32!__C_specific_handler arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-    let first_param = arg(emu, 0) as u64;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
 }

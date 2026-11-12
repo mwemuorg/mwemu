@@ -8,5 +8,5 @@ pub fn UnregisterTouchWindow(emu: &mut emu::Emu) {
     log_red!(emu, "user32!UnregisterTouchWindow handle:0x{:x}", handle);
     helper::handler_close(handle);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 1);
 }

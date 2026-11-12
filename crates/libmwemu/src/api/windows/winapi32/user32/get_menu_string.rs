@@ -3,19 +3,18 @@ use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetMenuStringA(emu: &mut emu::Emu) {
+    get_menu_string(emu, "GetMenuStringA");
+}
+
+fn get_menu_string(emu: &mut emu::Emu, api: &str) {
     let a0 = arg(emu, 0) as u64;
     let a1 = arg(emu, 1) as u64;
-    log_red!(emu, "user32!GetMenuStringA arg0:0x{:x} arg1:0x{:x}", a0, a1);
+    log_red!(emu, "user32!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
+    stdcall_ret(emu, 5);
 }
 
 pub fn GetMenuStringW(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
-    log_red!(emu, "user32!GetMenuStringW arg0:0x{:x} arg1:0x{:x}", a0, a1);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
+    get_menu_string(emu, "GetMenuStringW");
 }

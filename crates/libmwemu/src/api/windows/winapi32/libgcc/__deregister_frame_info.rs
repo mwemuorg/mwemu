@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn __deregister_frame_info(emu: &mut emu::Emu) {
-    let p1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
+    let p1 = WinApiAbi::arg(emu, 0) as u32;
 
     log_red!(emu, "libgcc!__deregister_frame_info {:x}", p1);
 

@@ -1,21 +1,27 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegSetValueExA(emu: &mut emu::Emu) {
+    reg_set_value_ex(emu, "RegSetValueExA", false);
+}
+
+fn reg_set_value_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;
     let name_ptr = emu.regs().rdx;
     let _reserved = emu.regs().r8;
     let reg_type = emu.regs().r9;
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let data_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let name = emu.maps.read_string(name_ptr);
+    let data_ptr = WinApiAbi::arg(emu, 4);
+    let data_len = WinApiAbi::arg(emu, 5);
+    let name = strings::read_text(emu, name_ptr, wide);
     let value = if reg_type == 1 || reg_type == 2 {
-        emu.maps.read_string(data_ptr)
+        strings::read_text(emu, data_ptr, wide)
     } else {
         format!("0x{:x}", data_ptr)
     };
     log_red!(
         emu,
-        "kernelbase!RegSetValueExA hkey:0x{:x} '{}' type:{} value:'{}' len:{}",
+        "kernelbase!{api} hkey:0x{:x} '{}' type:{} value:'{}' len:{}",
         hkey,
         name,
         reg_type,
@@ -27,27 +33,5 @@ pub fn RegSetValueExA(emu: &mut emu::Emu) {
 }
 
 pub fn RegSetValueExW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let _reserved = emu.regs().r8;
-    let reg_type = emu.regs().r9;
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let data_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let name = emu.maps.read_wide_string(name_ptr);
-    let value = if reg_type == 1 || reg_type == 2 {
-        emu.maps.read_wide_string(data_ptr)
-    } else {
-        format!("0x{:x}", data_ptr)
-    };
-    log_red!(
-        emu,
-        "kernelbase!RegSetValueExW hkey:0x{:x} '{}' type:{} value:'{}' len:{}",
-        hkey,
-        name,
-        reg_type,
-        value,
-        data_len
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    reg_set_value_ex(emu, "RegSetValueExW", true);
 }

@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn QueryServiceStatusEx(emu: &mut emu::Emu) {
     let hsvc = emu.regs().rcx;
     let info_level = emu.regs().rdx;
     let buf_ptr = emu.regs().r8;
     let buf_size = emu.regs().r9;
-    let bytes_needed_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let bytes_needed_ptr = WinApiAbi::arg(emu, 4);
     // SERVICE_STATUS_PROCESS is 36 bytes
     if buf_ptr != 0 && buf_size >= 36 {
         emu.maps.write_dword(buf_ptr, 0x10); // dwServiceType = SERVICE_WIN32_OWN_PROCESS

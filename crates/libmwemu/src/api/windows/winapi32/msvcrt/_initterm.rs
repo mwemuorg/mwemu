@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn _initterm(emu: &mut emu::Emu) {
-    let start_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let end_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let start_ptr = WinApiAbi::arg(emu, 0);
+    let end_ptr = WinApiAbi::arg(emu, 1);
 
     log_red!(emu, "msvcrt!_initterm 0x{:x} - 0x{:x}", start_ptr, end_ptr);
 

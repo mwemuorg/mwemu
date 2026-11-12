@@ -6,16 +6,17 @@ use crate::winapi::common::crt;
 use crate::winapi::winapi32::kernel32;
 //use crate::endpoint;
 
-mod runtime;
-pub use runtime::*;
-mod strings;
-pub use strings::*;
 mod io;
-pub use io::*;
-mod memory;
-pub use memory::*;
 mod math;
+mod memory;
+mod runtime;
+mod strings;
+
+pub use io::*;
 pub use math::*;
+pub use memory::*;
+pub use runtime::*;
+pub use strings::*;
 
 mod str_cmp_ca;
 use str_cmp_ca::StrCmpCA;

@@ -4,19 +4,18 @@ use crate::emu;
 use crate::winapi::common::heap as heap_api;
 use crate::winapi::common::memory_ops;
 use crate::winapi::common::sections;
-use crate::winapi::common::{files, handles, modules, strings};
+use crate::winapi::common::{files, handles, modules, strings, threads};
 use crate::winapi::winapi32::kernel32;
 
 mod get_token_information;
 use get_token_information::GetTokenInformation;
-mod load_string_w;
-use load_string_w::LoadStringW;
+mod load_string;
+use load_string::{LoadStringA, LoadStringW};
 mod local_alloc;
 use local_alloc::LocalAlloc;
-mod path_combine_a;
-use path_combine_a::PathCombineA;
-mod path_combine_w;
-use path_combine_w::PathCombineW;
+mod path_combine;
+use path_combine::PathCombineA;
+use path_combine::PathCombineW;
 mod set_unhandled_exception_filter;
 use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
 mod _initterm;
@@ -43,6 +42,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         || files::dispatch(api, "kernelbase", emu)
         || strings::dispatch(api, "kernelbase", emu)
         || handles::dispatch(api, "kernelbase", emu)
+        || threads::dispatch(api, "kernelbase", emu)
     {
         return String::new();
     }
@@ -51,6 +51,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             memory_api::flush_instruction_cache(emu, "kernelbase!FlushInstructionCache")
         }
 
+        "LoadStringA" => LoadStringA(emu),
         "LoadStringW" => LoadStringW(emu),
         "SetUnhandledExceptionFilter" => SetUnhandledExceptionFilter(emu),
         "_initterm" => _initterm(emu),

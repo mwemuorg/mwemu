@@ -1,6 +1,8 @@
 use crate::context::context64::Context64;
 use crate::debug::console::Console;
 use crate::emu;
+use crate::winapi::common::ntdll;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 use crate::windows::structures;
@@ -61,7 +63,7 @@ fn NtQueueApcThread(emu: &mut emu::Emu) {
     let apc_routine = emu.regs().rdx;
     let apc_ctx = emu.regs().r8;
     let arg1 = emu.regs().r9;
-    let arg2 = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let arg2 = WinApiAbi::arg(emu, 4);
 
     log_red!(
         emu,
@@ -147,7 +149,7 @@ pub fn NtQueryInformationProcess(emu: &mut emu::Emu) {
     let info_class = emu.regs().rdx;
     let buffer = emu.regs().r8;
     let buffer_length = emu.regs().r9;
-    let return_length_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let return_length_ptr = WinApiAbi::arg(emu, 4);
 
     log_red!(
         emu,
@@ -213,8 +215,8 @@ pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
     let uncompressed_buffer = emu.regs().rdx;
     let uncompressed_buffer_size = emu.regs().r8;
     let compressed_buffer = emu.regs().r9;
-    let compressed_buffer_size = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let final_uncompressed_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let compressed_buffer_size = WinApiAbi::arg(emu, 4);
+    let final_uncompressed_size = WinApiAbi::arg(emu, 5);
 
     emu.regs_mut().rax = crate::api::windows::common::ntdll::rtl_decompress_buffer(
         emu,
@@ -254,7 +256,6 @@ fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
     emu.regs_mut().rax = 0x2c2878;
 }
 
-fn VerSetConditionMask(emu: &mut emu::Emu) {
-    log_red!(emu, "ntdll!VerSetConditionMask");
-    emu.regs_mut().rax = 0xffff;
+pub fn VerSetConditionMask(emu: &mut emu::Emu) {
+    ntdll::version_condition_mask(emu);
 }

@@ -1,251 +1,189 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::msvcrt;
 
-#[path = "../_initterm_e.rs"]
 mod _initterm_e;
 pub use _initterm_e::_initterm_e;
 
-#[path = "../_initterm.rs"]
 mod _initterm;
 pub use _initterm::_initterm;
 
-#[path = "../__p___argv.rs"]
 mod __p___argv;
 pub use __p___argv::__p___argv;
 
-#[path = "../__p___argc.rs"]
 mod __p___argc;
 pub use __p___argc::__p___argc;
 
-#[path = "../_onexit.rs"]
 mod _onexit;
 pub use _onexit::_onexit;
 
-#[path = "../_lock.rs"]
 mod _lock;
 pub use _lock::_lock;
 
-#[path = "../exit.rs"]
 mod exit;
 pub use exit::exit;
 
-#[path = "../__set_app_type.rs"]
 mod __set_app_type;
 pub use __set_app_type::__set_app_type;
 
-#[path = "../_errno.rs"]
 mod _errno;
 pub use _errno::_errno;
 
-#[path = "../__p__fmode.rs"]
 mod __p__fmode;
 pub use __p__fmode::__p__fmode;
 
-#[path = "../__getmainargs.rs"]
 mod __getmainargs;
 pub use __getmainargs::__getmainargs;
 
-#[path = "../_acmdln.rs"]
 mod _acmdln;
 pub use _acmdln::_acmdln;
 
-#[path = "../_xcpt_filter.rs"]
 mod _xcpt_filter;
 pub use _xcpt_filter::_XcptFilter;
 
-#[path = "../__dllonexit.rs"]
 mod __dllonexit;
 pub use __dllonexit::__dllonexit;
 
-#[path = "../_except_handler3.rs"]
 mod _except_handler3;
 pub use _except_handler3::_except_handler3;
 
-#[path = "../_eh_prolog.rs"]
 mod _eh_prolog;
 pub use _eh_prolog::_EH_prolog;
 
-#[path = "../_cxx_throw_exception.rs"]
 mod _cxx_throw_exception;
 pub use _cxx_throw_exception::_CxxThrowException;
 
-#[path = "../time.rs"]
 mod time;
 pub use time::time;
 
-#[path = "../localtime.rs"]
 mod localtime;
 pub use localtime::localtime;
 
-#[path = "../strftime.rs"]
 mod strftime;
 pub use strftime::strftime;
 
-#[path = "../getenv.rs"]
 mod getenv;
 pub use getenv::getenv;
 
-#[path = "../_wsystem.rs"]
 mod _wsystem;
 pub use _wsystem::_wsystem;
 
-#[path = "../__1type_info__uae_xz.rs"]
 mod __1type_info__uae_xz;
 pub use __1type_info__uae_xz::__1type_info__UAE_XZ;
 
-#[path = "../__0exception__qae_abv0__z.rs"]
 mod __0exception__qae_abv0__z;
 pub use __0exception__qae_abv0__z::__0exception__QAE_ABV0__Z;
 
-#[path = "../_cexit.rs"]
 mod _cexit;
 pub use _cexit::_cexit;
 
-#[path = "../_beginthread.rs"]
 mod _beginthread;
 pub use _beginthread::_beginthread;
 
-#[path = "../_beginthreadex.rs"]
 mod _beginthreadex;
 pub use _beginthreadex::_beginthreadex;
 
-#[path = "../_endthread.rs"]
 mod _endthread;
 pub use _endthread::_endthread;
 
-#[path = "../system.rs"]
 mod system;
 pub use system::system;
 
-#[path = "../_putenv.rs"]
 mod _putenv;
 pub use _putenv::_putenv;
 
-#[path = "../__wgetmainargs.rs"]
 mod __wgetmainargs;
 pub use __wgetmainargs::__wgetmainargs;
 
-#[path = "../_wcmdln.rs"]
 mod _wcmdln;
 pub use _wcmdln::_wcmdln;
 
-#[path = "../_except_handler4.rs"]
 mod _except_handler4;
 pub use _except_handler4::_except_handler4;
 
-#[path = "../_set_se_translator.rs"]
 mod _set_se_translator;
 pub use _set_se_translator::_set_se_translator;
 
-#[path = "../_eh_prolog3.rs"]
 mod _eh_prolog3;
 pub use _eh_prolog3::_EH_prolog3;
 
-#[path = "../clock.rs"]
 mod clock;
 pub use clock::clock;
 
-#[path = "../_time64.rs"]
 mod _time64;
 pub use _time64::_time64;
 
-#[path = "../_unlock.rs"]
 mod _unlock;
 pub use _unlock::_unlock;
 
-#[path = "../_configthreadlocale.rs"]
 mod _configthreadlocale;
 pub use _configthreadlocale::_configthreadlocale;
 
-#[path = "../_amsg_exit.rs"]
 mod _amsg_exit;
 pub use _amsg_exit::_amsg_exit;
 
-#[path = "../_crt_atexit.rs"]
 mod _crt_atexit;
 pub use _crt_atexit::_crt_atexit;
 
-#[path = "../_initialize_onexit_table.rs"]
 mod _initialize_onexit_table;
 pub use _initialize_onexit_table::_initialize_onexit_table;
 
-#[path = "../__cpp_xcpt_filter.rs"]
 mod __cpp_xcpt_filter;
 pub use __cpp_xcpt_filter::__CppXcptFilter;
 
-#[path = "../__p__environ.rs"]
 mod __p__environ;
 pub use __p__environ::__p__environ;
 
-#[path = "../_configure_narrow_argv.rs"]
 mod _configure_narrow_argv;
 pub use _configure_narrow_argv::_configure_narrow_argv;
 
-#[path = "../_set_errno.rs"]
 mod _set_errno;
 pub use _set_errno::_set_errno;
 
-#[path = "../_get_errno.rs"]
 mod _get_errno;
 pub use _get_errno::_get_errno;
 
-#[path = "../_get_initial_narrow_environment.rs"]
 mod _get_initial_narrow_environment;
 pub use _get_initial_narrow_environment::_get_initial_narrow_environment;
 
-#[path = "../_initialize_narrow_environment.rs"]
 mod _initialize_narrow_environment;
 pub use _initialize_narrow_environment::_initialize_narrow_environment;
 
-#[path = "../_localtime64.rs"]
 mod _localtime64;
 pub use _localtime64::_localtime64;
 
-#[path = "../_set_app_type.rs"]
 mod _set_app_type;
 pub use _set_app_type::_set_app_type;
 
-#[path = "../_set_invalid_parameter_handler.rs"]
 mod _set_invalid_parameter_handler;
 pub use _set_invalid_parameter_handler::_set_invalid_parameter_handler;
 
-#[path = "../_set_thread_local_invalid_parameter_handler.rs"]
 mod _set_thread_local_invalid_parameter_handler;
 pub use _set_thread_local_invalid_parameter_handler::_set_thread_local_invalid_parameter_handler;
 
-#[path = "../_time32.rs"]
 mod _time32;
 pub use _time32::_time32;
 
-#[path = "../abort.rs"]
 mod abort;
 pub use abort::abort;
 
-#[path = "../ptr.rs"]
 mod ptr;
 pub use ptr::ptr;
 
-#[path = "../signal.rs"]
 mod signal;
 pub use signal::signal;
 
-#[path = "../wcsftime.rs"]
 mod wcsftime;
 pub use wcsftime::wcsftime;
 
-#[path = "../__lconv_init.rs"]
 mod __lconv_init;
 pub use __lconv_init::__lconv_init;
 
-#[path = "../__setlc_active.rs"]
 mod __setlc_active;
 pub use __setlc_active::__setlc_active;
 
-#[path = "../_set_error_mode.rs"]
 mod _set_error_mode;
 pub use _set_error_mode::_set_error_mode;
 
-#[path = "../_set_fmode.rs"]
 mod _set_fmode;
 pub use _set_fmode::_set_fmode;
 

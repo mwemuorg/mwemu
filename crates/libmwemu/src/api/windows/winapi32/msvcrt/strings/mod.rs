@@ -1,151 +1,114 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::msvcrt;
 
-#[path = "../atoi.rs"]
 mod atoi;
 pub use atoi::atoi;
 
-#[path = "../_itoa.rs"]
 mod _itoa;
 pub use _itoa::_itoa;
 
-#[path = "../strncmp.rs"]
 mod strncmp;
 pub use strncmp::strncmp;
 
-#[path = "../toupper.rs"]
 mod toupper;
 pub use toupper::toupper;
 
-#[path = "../tolower.rs"]
 mod tolower;
 pub use tolower::tolower;
 
-#[path = "../wcslen.rs"]
 mod wcslen;
 pub use wcslen::wcslen;
 
-#[path = "../wcscpy.rs"]
 mod wcscpy;
 pub use wcscpy::wcscpy;
 
-#[path = "../wcscat.rs"]
 mod wcscat;
 pub use wcscat::wcscat;
 
-#[path = "../wcscmp.rs"]
 mod wcscmp;
 pub use wcscmp::wcscmp;
 
-#[path = "../strcmp.rs"]
 mod strcmp;
 pub use strcmp::strcmp;
 
-#[path = "../strcpy.rs"]
 mod strcpy;
 pub use strcpy::strcpy;
 
-#[path = "../strncpy.rs"]
 mod strncpy;
 pub use strncpy::strncpy;
 
-#[path = "../strcat.rs"]
 mod strcat;
 pub use strcat::strcat;
 
-#[path = "../strncat.rs"]
 mod strncat;
 pub use strncat::strncat;
 
-#[path = "../strstr.rs"]
 mod strstr;
 pub use strstr::strstr;
 
-#[path = "../strchr.rs"]
 mod strchr;
 pub use strchr::strchr;
 
-#[path = "../strrchr.rs"]
 mod strrchr;
 pub use strrchr::strrchr;
 
-#[path = "../_stricmp.rs"]
 mod _stricmp;
 pub use _stricmp::_stricmp;
 
-#[path = "../_strnicmp.rs"]
 mod _strnicmp;
 pub use _strnicmp::_strnicmp;
 
-#[path = "../strlen.rs"]
 mod strlen;
 pub use strlen::strlen;
 
-#[path = "../strtol.rs"]
 mod strtol;
 pub use strtol::strtol;
 
-#[path = "../strtoul.rs"]
 mod strtoul;
 pub use strtoul::strtoul;
 
-#[path = "../atol.rs"]
 mod atol;
 pub use atol::atol;
 
-#[path = "../wcsncpy.rs"]
 mod wcsncpy;
 pub use wcsncpy::wcsncpy;
 
-#[path = "../wcsncat.rs"]
 mod wcsncat;
 pub use wcsncat::wcsncat;
 
-#[path = "../_wcsicmp.rs"]
 mod _wcsicmp;
 pub use _wcsicmp::_wcsicmp;
 
-#[path = "../_wcsnicmp.rs"]
 mod _wcsnicmp;
 pub use _wcsnicmp::_wcsnicmp;
 
-#[path = "../_wtoi.rs"]
 mod _wtoi;
 pub use _wtoi::_wtoi;
 
-#[path = "../_wtol.rs"]
 mod _wtol;
 pub use _wtol::_wtol;
 
-#[path = "../towupper.rs"]
 mod towupper;
 pub use towupper::towupper;
 
-#[path = "../towlower.rs"]
 mod towlower;
 pub use towlower::towlower;
 
-#[path = "../mbstowcs.rs"]
 mod mbstowcs;
 pub use mbstowcs::mbstowcs;
 
-#[path = "../wcstombs.rs"]
 mod wcstombs;
 pub use wcstombs::wcstombs;
 
-#[path = "../isalpha.rs"]
 mod isalpha;
 pub use isalpha::isalpha;
 
-#[path = "../_strcmpi.rs"]
 mod _strcmpi;
 pub use _strcmpi::_strcmpi;
 
-#[path = "../str.rs"]
 mod str;
 pub use str::str;
 
-#[path = "../strtok_s.rs"]
 mod strtok_s;
 pub use strtok_s::strtok_s;
 

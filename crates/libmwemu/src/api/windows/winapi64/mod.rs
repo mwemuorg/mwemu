@@ -6,6 +6,7 @@ mod crt_stdio;
 pub(crate) mod crypt32;
 mod dnsapi;
 pub(crate) mod gdi32;
+mod iphlpapi;
 pub mod kernel32;
 pub(crate) mod kernelbase;
 pub(crate) mod msvcrt;
@@ -82,6 +83,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "advapi32.text" => advapi32::gateway(addr, emu),
         "winhttp.text" => winhttp::gateway(addr, emu),
         "dnsapi.text" => dnsapi::gateway(addr, emu),
+        "iphlpapi.text" => iphlpapi::gateway(addr, emu),
         "comctl32.text" => comctl32::gateway(addr, emu),
         "comctl64.text" => comctl64::gateway(addr, emu),
         "shell32.text" => shell32::gateway(addr, emu),

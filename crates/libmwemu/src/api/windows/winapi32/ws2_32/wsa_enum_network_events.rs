@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSAEnumNetworkEvents(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let event = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let net_events_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let event = WinApiAbi::arg(emu, 1);
+    let net_events_ptr = WinApiAbi::arg(emu, 2);
     log_red!(
         emu,
         "ws2_32!WSAEnumNetworkEvents sock:0x{:x} event:0x{:x}",

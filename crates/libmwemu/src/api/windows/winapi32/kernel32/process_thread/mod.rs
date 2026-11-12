@@ -1,245 +1,173 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../create_process.rs"]
 mod create_process;
-pub use create_process::*;
+pub use create_process::{CreateProcessA, CreateProcessW};
 
-#[path = "../add_vectored_exception_handler.rs"]
 mod add_vectored_exception_handler;
-pub use add_vectored_exception_handler::*;
+pub use add_vectored_exception_handler::AddVectoredExceptionHandler;
 
-#[path = "../create_remote_thread.rs"]
 mod create_remote_thread;
-pub use create_remote_thread::*;
+pub use create_remote_thread::CreateRemoteThread;
 
-#[path = "../create_thread.rs"]
 mod create_thread;
-pub use create_thread::*;
+pub use create_thread::CreateThread;
 
-#[path = "../create_toolhelp32_snapshot.rs"]
 mod create_toolhelp32_snapshot;
-pub use create_toolhelp32_snapshot::*;
+pub use create_toolhelp32_snapshot::CreateToolhelp32Snapshot;
 
-#[path = "../module32_first.rs"]
 mod module32_first;
-pub use module32_first::*;
+pub use module32_first::{Module32First, Module32FirstW};
 
-#[path = "../module32_first_w.rs"]
-mod module32_first_w;
-pub use module32_first_w::*;
-
-#[path = "../module32_next.rs"]
 mod module32_next;
-pub use module32_next::*;
+pub use module32_next::{Module32Next, Module32NextW};
 
-#[path = "../module32_next_w.rs"]
-mod module32_next_w;
-pub use module32_next_w::*;
-
-#[path = "../exit_process.rs"]
 mod exit_process;
-pub use exit_process::*;
+pub use exit_process::ExitProcess;
 
-#[path = "../get_current_process_id.rs"]
 mod get_current_process_id;
-pub use get_current_process_id::*;
+pub use get_current_process_id::GetCurrentProcessId;
 
-#[path = "../get_current_thread_id.rs"]
 mod get_current_thread_id;
-pub use get_current_thread_id::*;
+pub use get_current_thread_id::GetCurrentThreadId;
 
-#[path = "../get_process_affinity_mask.rs"]
 mod get_process_affinity_mask;
-pub use get_process_affinity_mask::*;
+pub use get_process_affinity_mask::GetProcessAffinityMask;
 
-#[path = "../get_thread_context.rs"]
 mod get_thread_context;
-pub use get_thread_context::*;
+pub use get_thread_context::GetThreadContext;
 
-#[path = "../get_thread_preferred_ui_languages.rs"]
 mod get_thread_preferred_ui_languages;
-pub use get_thread_preferred_ui_languages::*;
+pub use get_thread_preferred_ui_languages::GetThreadPreferredUILanguages;
 
-#[path = "../get_thread_ui_language.rs"]
 mod get_thread_ui_language;
-pub use get_thread_ui_language::*;
+pub use get_thread_ui_language::GetThreadUILanguage;
 
-#[path = "../is_debugger_present.rs"]
 mod is_debugger_present;
-pub use is_debugger_present::*;
+pub use is_debugger_present::IsDebuggerPresent;
 
-#[path = "../is_processor_feature_present.rs"]
 mod is_processor_feature_present;
-pub use is_processor_feature_present::*;
+pub use is_processor_feature_present::IsProcessorFeaturePresent;
 
-#[path = "../open_process.rs"]
 mod open_process;
-pub use open_process::*;
+pub use open_process::OpenProcess;
 
-#[path = "../open_process_token.rs"]
 mod open_process_token;
-pub use open_process_token::*;
+pub use open_process_token::OpenProcessToken;
 
-#[path = "../open_thread.rs"]
 mod open_thread;
-pub use open_thread::*;
+pub use open_thread::OpenThread;
 
-#[path = "../raise_exception.rs"]
 mod raise_exception;
-pub use raise_exception::*;
+pub use raise_exception::RaiseException;
 
-#[path = "../get_thread_id.rs"]
 mod get_thread_id;
-pub use get_thread_id::*;
+pub use get_thread_id::GetThreadId;
 
-#[path = "../resume_thread.rs"]
 mod resume_thread;
-pub use resume_thread::*;
+pub use resume_thread::ResumeThread;
 
-#[path = "../set_thread_context.rs"]
 mod set_thread_context;
-pub use set_thread_context::*;
+pub use set_thread_context::SetThreadContext;
 
-#[path = "../set_thread_locale.rs"]
 mod set_thread_locale;
-pub use set_thread_locale::*;
+pub use set_thread_locale::SetThreadLocale;
 
-#[path = "../set_unhandled_exception_filter.rs"]
 mod set_unhandled_exception_filter;
-pub use set_unhandled_exception_filter::*;
+pub use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
 
-#[path = "../terminate_process.rs"]
 mod terminate_process;
-pub use terminate_process::*;
+pub use terminate_process::TerminateProcess;
 
-#[path = "../thread32_first.rs"]
 mod thread32_first;
-pub use thread32_first::*;
+pub use thread32_first::Thread32First;
 
-#[path = "../thread32_next.rs"]
 mod thread32_next;
-pub use thread32_next::*;
+pub use thread32_next::Thread32Next;
 
-#[path = "../unhandled_exception_filter.rs"]
 mod unhandled_exception_filter;
-pub use unhandled_exception_filter::*;
+pub use unhandled_exception_filter::UnhandledExceptionFilter;
 
-#[path = "../debug_set_process_kill_on_exit.rs"]
 mod debug_set_process_kill_on_exit;
-pub use debug_set_process_kill_on_exit::*;
+pub use debug_set_process_kill_on_exit::DebugSetProcessKillOnExit;
 
-#[path = "../disable_thread_profiling.rs"]
 mod disable_thread_profiling;
-pub use disable_thread_profiling::*;
+pub use disable_thread_profiling::DisableThreadProfiling;
 
-#[path = "../enable_thread_profiling.rs"]
 mod enable_thread_profiling;
-pub use enable_thread_profiling::*;
+pub use enable_thread_profiling::EnableThreadProfiling;
 
-#[path = "../get_active_processor_count.rs"]
 mod get_active_processor_count;
-pub use get_active_processor_count::*;
+pub use get_active_processor_count::GetActiveProcessorCount;
 
-#[path = "../get_active_processor_group_count.rs"]
 mod get_active_processor_group_count;
-pub use get_active_processor_group_count::*;
+pub use get_active_processor_group_count::GetActiveProcessorGroupCount;
 
-#[path = "../get_exit_code_process_implementation.rs"]
 mod get_exit_code_process_implementation;
-pub use get_exit_code_process_implementation::*;
+pub use get_exit_code_process_implementation::GetExitCodeProcessImplementation;
 
-#[path = "../get_maximum_processor_count.rs"]
 mod get_maximum_processor_count;
-pub use get_maximum_processor_count::*;
+pub use get_maximum_processor_count::GetMaximumProcessorCount;
 
-#[path = "../get_maximum_processor_group_count.rs"]
 mod get_maximum_processor_group_count;
-pub use get_maximum_processor_group_count::*;
+pub use get_maximum_processor_group_count::GetMaximumProcessorGroupCount;
 
-#[path = "../get_named_pipe_client_process_id.rs"]
 mod get_named_pipe_client_process_id;
-pub use get_named_pipe_client_process_id::*;
+pub use get_named_pipe_client_process_id::GetNamedPipeClientProcessId;
 
-#[path = "../get_numa_node_processor_mask.rs"]
 mod get_numa_node_processor_mask;
-pub use get_numa_node_processor_mask::*;
+pub use get_numa_node_processor_mask::GetNumaNodeProcessorMask;
 
-#[path = "../get_numa_processor_node.rs"]
 mod get_numa_processor_node;
-pub use get_numa_processor_node::*;
+pub use get_numa_processor_node::GetNumaProcessorNode;
 
-#[path = "../get_numa_processor_node_ex.rs"]
 mod get_numa_processor_node_ex;
-pub use get_numa_processor_node_ex::*;
+pub use get_numa_processor_node_ex::GetNumaProcessorNodeEx;
 
-#[path = "../get_process_dep_policy.rs"]
 mod get_process_dep_policy;
-pub use get_process_dep_policy::*;
+pub use get_process_dep_policy::GetProcessDEPPolicy;
 
-#[path = "../get_process_io_counters.rs"]
 mod get_process_io_counters;
-pub use get_process_io_counters::*;
+pub use get_process_io_counters::GetProcessIoCounters;
 
-#[path = "../get_process_working_set_size.rs"]
 mod get_process_working_set_size;
-pub use get_process_working_set_size::*;
+pub use get_process_working_set_size::GetProcessWorkingSetSize;
 
-#[path = "../get_thread_selector_entry.rs"]
 mod get_thread_selector_entry;
-pub use get_thread_selector_entry::*;
+pub use get_thread_selector_entry::GetThreadSelectorEntry;
 
-#[path = "../is_thread_a_fiber.rs"]
 mod is_thread_a_fiber;
-pub use is_thread_a_fiber::*;
+pub use is_thread_a_fiber::IsThreadAFiber;
 
-#[path = "../process32_first_w.rs"]
-mod process32_first_w;
-pub use process32_first_w::*;
-
-#[path = "../process32_next.rs"]
 mod process32_next;
-pub use process32_next::*;
+pub use process32_next::{Process32Next, Process32NextW};
 
-#[path = "../process32_next_w.rs"]
-mod process32_next_w;
-pub use process32_next_w::*;
-
-#[path = "../query_thread_profiling.rs"]
 mod query_thread_profiling;
-pub use query_thread_profiling::*;
+pub use query_thread_profiling::QueryThreadProfiling;
 
-#[path = "../read_thread_profiling_data.rs"]
 mod read_thread_profiling_data;
-pub use read_thread_profiling_data::*;
+pub use read_thread_profiling_data::ReadThreadProfilingData;
 
-#[path = "../set_process_affinity_mask.rs"]
 mod set_process_affinity_mask;
-pub use set_process_affinity_mask::*;
+pub use set_process_affinity_mask::SetProcessAffinityMask;
 
-#[path = "../set_process_dep_policy.rs"]
 mod set_process_dep_policy;
-pub use set_process_dep_policy::*;
+pub use set_process_dep_policy::SetProcessDEPPolicy;
 
-#[path = "../set_process_working_set_size.rs"]
 mod set_process_working_set_size;
-pub use set_process_working_set_size::*;
+pub use set_process_working_set_size::SetProcessWorkingSetSize;
 
-#[path = "../set_thread_affinity_mask.rs"]
 mod set_thread_affinity_mask;
-pub use set_thread_affinity_mask::*;
+pub use set_thread_affinity_mask::SetThreadAffinityMask;
 
-#[path = "../set_thread_execution_state.rs"]
 mod set_thread_execution_state;
-pub use set_thread_execution_state::*;
+pub use set_thread_execution_state::SetThreadExecutionState;
 
-#[path = "../exit_thread.rs"]
 mod exit_thread;
-pub use exit_thread::*;
+pub use exit_thread::ExitThread;
 
-#[path = "../process32_first.rs"]
 mod process32_first;
-pub use process32_first::*;
+pub use process32_first::{Process32First, Process32FirstW};
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {

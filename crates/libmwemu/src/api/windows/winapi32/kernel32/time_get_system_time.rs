@@ -1,21 +1,18 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper::WinApiAbi;
 
 pub fn timeGetSystemTime(emu: &mut emu::Emu) {
-    let pmm_time = arg(emu, 0) as u64;
-    let cb_size = arg(emu, 1) as u64;
-
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
-        "kernel32!timeGetSystemTime pmmTime:0x{:x} cbSize:{}",
-        pmm_time,
-        cb_size
+        "kernel32!timeGetSystemTime arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-
-    if pmm_time != 0 {
-        emu.maps.write_dword(pmm_time, 1);
-        emu.maps.write_dword(pmm_time + 4, emu.tick as u32);
+    for _ in 0..2 {
+        emu.stack_pop32(false);
     }
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

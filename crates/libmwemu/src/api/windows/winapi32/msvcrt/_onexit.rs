@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn _onexit(emu: &mut emu::Emu) {
-    let fptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let fptr = WinApiAbi::arg(emu, 0);
 
     log_red!(emu, "msvcrt!_onexit 0x{:x}", fptr);
 

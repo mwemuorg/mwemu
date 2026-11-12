@@ -13,5 +13,5 @@ pub fn GetOpenClipboardWindow(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("getopenclipboardwindow");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 0);
 }

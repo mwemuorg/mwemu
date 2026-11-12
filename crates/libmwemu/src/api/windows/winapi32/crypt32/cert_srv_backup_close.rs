@@ -1,10 +1,11 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertSrvBackupClose(emu: &mut emu::Emu) {
-    let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let cert_ctx = WinApiAbi::arg(emu, 0);
     log_red!(emu, "crypt32!CertSrvBackupClose ctx:0x{:x}", cert_ctx);
-    let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let h = WinApiAbi::arg(emu, 0);
     if helper::handler_exist(h) {
         helper::handler_close(h);
     }

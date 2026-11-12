@@ -1,14 +1,15 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetVolumeInformationByHandleW(emu: &mut emu::Emu) {
     let root_ptr = emu.regs().rcx;
     let vol_name_ptr = emu.regs().rdx;
     let vol_name_size = emu.regs().r8;
     let serial_ptr = emu.regs().r9;
-    let max_comp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let flags_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let fs_name_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let fs_name_size = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let max_comp_ptr = WinApiAbi::arg(emu, 4);
+    let flags_ptr = WinApiAbi::arg(emu, 5);
+    let fs_name_ptr = WinApiAbi::arg(emu, 6);
+    let fs_name_size = WinApiAbi::arg(emu, 7);
     let root = if root_ptr != 0 {
         emu.maps.read_wide_string(root_ptr)
     } else {

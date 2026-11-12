@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn MapWindowPoints(emu: &mut emu::Emu) {
     let p0 = emu.regs().rcx;
@@ -13,11 +12,7 @@ pub fn MapWindowPoints(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    let handle = helper::handler_create("MapWindowPoints");
-    let out_ptr = emu.regs().r9;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
+
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

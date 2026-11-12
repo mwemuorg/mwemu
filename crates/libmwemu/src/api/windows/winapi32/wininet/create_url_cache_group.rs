@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
@@ -12,6 +13,6 @@ pub fn CreateUrlCacheGroup(emu: &mut emu::Emu) {
         a0,
         a1
     );
-    emu.regs_mut().rax = helper::handler_create("createurlcachegroup");
+    WinApiAbi::set_ret64(emu, helper::handler_create("createurlcachegroup"));
     stdcall_ret(emu, 2);
 }

@@ -1,6 +1,7 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptDeriveKey(emu: &mut emu::Emu) {
@@ -8,7 +9,7 @@ pub(super) fn CryptDeriveKey(emu: &mut emu::Emu) {
     let algid = emu.regs().rdx as u32;
     let _hbase_data = emu.regs().r8;
     let flags = emu.regs().r9 as u32;
-    let hkey_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let hkey_ptr = WinApiAbi::arg(emu, 4);
 
     let alg = get_cryptoalgorithm_name(algid);
     let mut alg_len = get_crypto_key_len(algid);

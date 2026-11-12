@@ -1,185 +1,140 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../wait_named_pipe.rs"]
 mod wait_named_pipe;
-pub use wait_named_pipe::*;
+pub use wait_named_pipe::{WaitNamedPipeA, WaitNamedPipeW};
 
-#[path = "../open_mutex.rs"]
 mod open_mutex;
-pub use open_mutex::*;
+pub use open_mutex::{OpenMutexA, OpenMutexW};
 
-#[path = "../create_waitable_timer_ex.rs"]
 mod create_waitable_timer_ex;
-pub use create_waitable_timer_ex::*;
+pub use create_waitable_timer_ex::{CreateWaitableTimerExA, CreateWaitableTimerExW};
 
-#[path = "../create_semaphore_ex.rs"]
 mod create_semaphore_ex;
-pub use create_semaphore_ex::*;
+pub use create_semaphore_ex::{CreateSemaphoreExA, CreateSemaphoreExW};
 
-#[path = "../create_semaphore.rs"]
 mod create_semaphore;
-pub use create_semaphore::*;
+pub use create_semaphore::{CreateSemaphoreA, CreateSemaphoreW};
 
-#[path = "../create_event.rs"]
 mod create_event;
-pub use create_event::*;
+pub use create_event::{CreateEventA, CreateEventW};
 
-#[path = "../create_waitable_timer.rs"]
 mod create_waitable_timer;
-pub use create_waitable_timer::*;
+pub use create_waitable_timer::{CreateWaitableTimerA, CreateWaitableTimerW};
 
-#[path = "../create_mutex.rs"]
 mod create_mutex;
-pub use create_mutex::*;
+pub use create_mutex::{CreateMutexA, CreateMutexW};
 
-#[path = "../enter_critical_section.rs"]
 mod enter_critical_section;
-pub use enter_critical_section::*;
+pub use enter_critical_section::EnterCriticalSection;
 
-#[path = "../fls_alloc.rs"]
 mod fls_alloc;
-pub use fls_alloc::*;
+pub use fls_alloc::FlsAlloc;
 
-#[path = "../fls_get_value.rs"]
 mod fls_get_value;
-pub use fls_get_value::*;
+pub use fls_get_value::FlsGetValue;
 
-#[path = "../fls_set_value.rs"]
 mod fls_set_value;
-pub use fls_set_value::*;
+pub use fls_set_value::FlsSetValue;
 
-#[path = "../initialize_critical_section.rs"]
 mod initialize_critical_section;
-pub use initialize_critical_section::*;
+pub use initialize_critical_section::InitializeCriticalSection;
 
-#[path = "../initialize_critical_section_and_spin_count.rs"]
 mod initialize_critical_section_and_spin_count;
-pub use initialize_critical_section_and_spin_count::*;
+pub use initialize_critical_section_and_spin_count::InitializeCriticalSectionAndSpinCount;
 
-#[path = "../initialize_critical_section_ex.rs"]
 mod initialize_critical_section_ex;
-pub use initialize_critical_section_ex::*;
+pub use initialize_critical_section_ex::InitializeCriticalSectionEx;
 
-#[path = "../interlocked_increment.rs"]
 mod interlocked_increment;
-pub use interlocked_increment::*;
+pub use interlocked_increment::InterlockedIncrement;
 
-#[path = "../leave_critical_section.rs"]
 mod leave_critical_section;
-pub use leave_critical_section::*;
+pub use leave_critical_section::LeaveCriticalSection;
 
-#[path = "../tls_alloc.rs"]
 mod tls_alloc;
-pub use tls_alloc::*;
+pub use tls_alloc::TlsAlloc;
 
-#[path = "../tls_free.rs"]
 mod tls_free;
-pub use tls_free::*;
+pub use tls_free::TlsFree;
 
-#[path = "../tls_get_value.rs"]
 mod tls_get_value;
-pub use tls_get_value::*;
+pub use tls_get_value::TlsGetValue;
 
-#[path = "../tls_set_value.rs"]
 mod tls_set_value;
-pub use tls_set_value::*;
+pub use tls_set_value::TlsSetValue;
 
-#[path = "../wait_for_single_object.rs"]
 mod wait_for_single_object;
-pub use wait_for_single_object::*;
+pub use wait_for_single_object::WaitForSingleObject;
 
-#[path = "../cptp_quirks_init_once.rs"]
 mod cptp_quirks_init_once;
-pub use cptp_quirks_init_once::*;
+pub use cptp_quirks_init_once::CptpQuirksInitOnce;
 
-#[path = "../init_once_get_string_table_offset.rs"]
 mod init_once_get_string_table_offset;
-pub use init_once_get_string_table_offset::*;
+pub use init_once_get_string_table_offset::InitOnceGetStringTableOffset;
 
-#[path = "../initialize16_bit_critical_section.rs"]
 mod initialize16_bit_critical_section;
-pub use initialize16_bit_critical_section::*;
+pub use initialize16_bit_critical_section::Initialize16BitCriticalSection;
 
-#[path = "../interlocked_compare_exchange.rs"]
 mod interlocked_compare_exchange;
-pub use interlocked_compare_exchange::*;
+pub use interlocked_compare_exchange::InterlockedCompareExchange;
 
-#[path = "../interlocked_decrement.rs"]
 mod interlocked_decrement;
-pub use interlocked_decrement::*;
+pub use interlocked_decrement::InterlockedDecrement;
 
-#[path = "../interlocked_exchange.rs"]
 mod interlocked_exchange;
-pub use interlocked_exchange::*;
+pub use interlocked_exchange::InterlockedExchange;
 
-#[path = "../interlocked_exchange_add.rs"]
 mod interlocked_exchange_add;
-pub use interlocked_exchange_add::*;
+pub use interlocked_exchange_add::InterlockedExchangeAdd;
 
-#[path = "../oobe_complete_wnf_wait_callback.rs"]
 mod oobe_complete_wnf_wait_callback;
-pub use oobe_complete_wnf_wait_callback::*;
+pub use oobe_complete_wnf_wait_callback::OOBECompleteWnfWaitCallback;
 
-#[path = "../register_wait_for_input_idle.rs"]
 mod register_wait_for_input_idle;
-pub use register_wait_for_input_idle::*;
+pub use register_wait_for_input_idle::RegisterWaitForInputIdle;
 
-#[path = "../register_wait_until_oobe_completed.rs"]
 mod register_wait_until_oobe_completed;
-pub use register_wait_until_oobe_completed::*;
+pub use register_wait_until_oobe_completed::RegisterWaitUntilOOBECompleted;
 
-#[path = "../set_message_waiting_indicator.rs"]
 mod set_message_waiting_indicator;
-pub use set_message_waiting_indicator::*;
+pub use set_message_waiting_indicator::SetMessageWaitingIndicator;
 
-#[path = "../trace_logging_register_ex__event_register__event_set_information.rs"]
 mod trace_logging_register_ex__event_register__event_set_information;
-pub use trace_logging_register_ex__event_register__event_set_information::*;
+pub use trace_logging_register_ex__event_register__event_set_information::TraceLoggingRegisterEx_EventRegister_EventSetInformation;
 
-#[path = "../unregister_wait.rs"]
 mod unregister_wait;
-pub use unregister_wait::*;
+pub use unregister_wait::UnregisterWait;
 
-#[path = "../unregister_wait_until_oobe_completed.rs"]
 mod unregister_wait_until_oobe_completed;
-pub use unregister_wait_until_oobe_completed::*;
+pub use unregister_wait_until_oobe_completed::UnregisterWaitUntilOOBECompleted;
 
-#[path = "../initialize_srw_lock.rs"]
 mod initialize_srw_lock;
-pub use initialize_srw_lock::*;
+pub use initialize_srw_lock::InitializeSRWLock;
 
-#[path = "../acquire_srw_lock_exclusive.rs"]
 mod acquire_srw_lock_exclusive;
-pub use acquire_srw_lock_exclusive::*;
+pub use acquire_srw_lock_exclusive::AcquireSRWLockExclusive;
 
-#[path = "../acquire_srw_lock_shared.rs"]
 mod acquire_srw_lock_shared;
-pub use acquire_srw_lock_shared::*;
+pub use acquire_srw_lock_shared::AcquireSRWLockShared;
 
-#[path = "../release_srw_lock_exclusive.rs"]
 mod release_srw_lock_exclusive;
-pub use release_srw_lock_exclusive::*;
+pub use release_srw_lock_exclusive::ReleaseSRWLockExclusive;
 
-#[path = "../release_srw_lock_shared.rs"]
 mod release_srw_lock_shared;
-pub use release_srw_lock_shared::*;
+pub use release_srw_lock_shared::ReleaseSRWLockShared;
 
-#[path = "../try_acquire_srw_lock_exclusive.rs"]
 mod try_acquire_srw_lock_exclusive;
-pub use try_acquire_srw_lock_exclusive::*;
+pub use try_acquire_srw_lock_exclusive::TryAcquireSRWLockExclusive;
 
-#[path = "../try_acquire_srw_lock_shared.rs"]
 mod try_acquire_srw_lock_shared;
-pub use try_acquire_srw_lock_shared::*;
+pub use try_acquire_srw_lock_shared::TryAcquireSRWLockShared;
 
-#[path = "../reset_event.rs"]
 mod reset_event;
-pub use reset_event::*;
+pub use reset_event::ResetEvent;
 
-#[path = "../wait_for_multiple_objects.rs"]
 mod wait_for_multiple_objects;
-pub use wait_for_multiple_objects::*;
+pub use wait_for_multiple_objects::WaitForMultipleObjects;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {

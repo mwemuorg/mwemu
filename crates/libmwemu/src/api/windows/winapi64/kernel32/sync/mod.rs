@@ -1,113 +1,86 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
-#[path = "../create_mutex.rs"]
 mod create_mutex;
-pub use create_mutex::*;
+pub use create_mutex::{CreateMutexA, CreateMutexW};
 
-#[path = "../create_event.rs"]
 mod create_event;
-pub use create_event::*;
+pub use create_event::{CreateEventA, CreateEventW};
 
-#[path = "../enter_critical_section.rs"]
 mod enter_critical_section;
-pub use enter_critical_section::*;
+pub use enter_critical_section::EnterCriticalSection;
 
-#[path = "../fls_alloc.rs"]
 mod fls_alloc;
-pub use fls_alloc::*;
+pub use fls_alloc::FlsAlloc;
 
-#[path = "../fls_get_value.rs"]
 mod fls_get_value;
-pub use fls_get_value::*;
+pub use fls_get_value::FlsGetValue;
 
-#[path = "../fls_get_value2.rs"]
 mod fls_get_value2;
-pub use fls_get_value2::*;
+pub use fls_get_value2::FlsGetValue2;
 
-#[path = "../fls_set_value.rs"]
 mod fls_set_value;
-pub use fls_set_value::*;
+pub use fls_set_value::FlsSetValue;
 
-#[path = "../init_once_begin_initialize.rs"]
 mod init_once_begin_initialize;
-pub use init_once_begin_initialize::*;
+pub use init_once_begin_initialize::InitOnceBeginInitialize;
 
-#[path = "../initialize_critical_section.rs"]
 mod initialize_critical_section;
-pub use initialize_critical_section::*;
+pub use initialize_critical_section::InitializeCriticalSection;
 
-#[path = "../initialize_critical_section_and_spin_count.rs"]
 mod initialize_critical_section_and_spin_count;
-pub use initialize_critical_section_and_spin_count::*;
+pub use initialize_critical_section_and_spin_count::InitializeCriticalSectionAndSpinCount;
 
-#[path = "../initialize_critical_section_ex.rs"]
 mod initialize_critical_section_ex;
-pub use initialize_critical_section_ex::*;
+pub use initialize_critical_section_ex::InitializeCriticalSectionEx;
 
-#[path = "../leave_critical_section.rs"]
 mod leave_critical_section;
-pub use leave_critical_section::*;
+pub use leave_critical_section::LeaveCriticalSection;
 
-#[path = "../reset_event.rs"]
 mod reset_event;
-pub use reset_event::*;
+pub use reset_event::ResetEvent;
 
-#[path = "../tls_alloc.rs"]
 mod tls_alloc;
-pub use tls_alloc::*;
+pub use tls_alloc::TlsAlloc;
 
-#[path = "../tls_free.rs"]
 mod tls_free;
-pub use tls_free::*;
+pub use tls_free::TlsFree;
 
-#[path = "../tls_get_value.rs"]
 mod tls_get_value;
-pub use tls_get_value::*;
+pub use tls_get_value::TlsGetValue;
 
-#[path = "../tls_get_value2.rs"]
 mod tls_get_value2;
-pub use tls_get_value2::*;
+pub use tls_get_value2::TlsGetValue2;
 
-#[path = "../tls_set_value.rs"]
 mod tls_set_value;
-pub use tls_set_value::*;
+pub use tls_set_value::TlsSetValue;
 
-#[path = "../wait_for_single_object.rs"]
 mod wait_for_single_object;
-pub use wait_for_single_object::*;
+pub use wait_for_single_object::WaitForSingleObject;
 
-#[path = "../wait_for_multiple_objects.rs"]
 mod wait_for_multiple_objects;
-pub use wait_for_multiple_objects::*;
+pub use wait_for_multiple_objects::WaitForMultipleObjects;
 
-#[path = "../initialize_srw_lock.rs"]
 mod initialize_srw_lock;
-pub use initialize_srw_lock::*;
+pub use initialize_srw_lock::InitializeSRWLock;
 
-#[path = "../acquire_srw_lock_exclusive.rs"]
 mod acquire_srw_lock_exclusive;
-pub use acquire_srw_lock_exclusive::*;
+pub use acquire_srw_lock_exclusive::AcquireSRWLockExclusive;
 
-#[path = "../acquire_srw_lock_shared.rs"]
 mod acquire_srw_lock_shared;
-pub use acquire_srw_lock_shared::*;
+pub use acquire_srw_lock_shared::AcquireSRWLockShared;
 
-#[path = "../release_srw_lock_exclusive.rs"]
 mod release_srw_lock_exclusive;
-pub use release_srw_lock_exclusive::*;
+pub use release_srw_lock_exclusive::ReleaseSRWLockExclusive;
 
-#[path = "../release_srw_lock_shared.rs"]
 mod release_srw_lock_shared;
-pub use release_srw_lock_shared::*;
+pub use release_srw_lock_shared::ReleaseSRWLockShared;
 
-#[path = "../try_acquire_srw_lock_exclusive.rs"]
 mod try_acquire_srw_lock_exclusive;
-pub use try_acquire_srw_lock_exclusive::*;
+pub use try_acquire_srw_lock_exclusive::TryAcquireSRWLockExclusive;
 
-#[path = "../try_acquire_srw_lock_shared.rs"]
 mod try_acquire_srw_lock_shared;
-pub use try_acquire_srw_lock_shared::*;
+pub use try_acquire_srw_lock_shared::TryAcquireSRWLockShared;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
     match api {
@@ -135,9 +108,13 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "TryAcquireSRWLockShared" => kernel32::TryAcquireSRWLockShared(emu),
         "WaitForMultipleObjects" => kernel32::WaitForMultipleObjects(emu),
         "WaitForSingleObject" => kernel32::WaitForSingleObject(emu),
-        "CreateSemaphoreA" | "CreateSemaphoreW" => kernel32::CreateSemaphoreA(emu, api),
+        "CreateSemaphoreA" => kernel32::CreateSemaphoreA(emu),
+        "CreateSemaphoreW" => kernel32::CreateSemaphoreW(emu),
+        "CreateSemaphoreExA" => kernel32::CreateSemaphoreExA(emu),
         "CreateSemaphoreExW" => kernel32::CreateSemaphoreExW(emu),
-        "CreateWaitableTimerA" | "CreateWaitableTimerW" => kernel32::CreateWaitableTimerA(emu, api),
+        "CreateWaitableTimerA" => kernel32::CreateWaitableTimerA(emu),
+        "CreateWaitableTimerW" => kernel32::CreateWaitableTimerW(emu),
+        "CreateWaitableTimerExA" => kernel32::CreateWaitableTimerExA(emu),
         "CreateWaitableTimerExW" => kernel32::CreateWaitableTimerExW(emu),
         "OpenMutexA" => kernel32::OpenMutexA(emu),
         "OpenMutexW" => kernel32::OpenMutexW(emu),

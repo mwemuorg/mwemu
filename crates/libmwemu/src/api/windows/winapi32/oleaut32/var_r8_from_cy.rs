@@ -7,5 +7,5 @@ pub fn VarR8FromCy(emu: &mut emu::Emu) {
     let _a1 = arg(emu, 1);
     log_red!(emu, "oleaut32!VarR8FromCy a0:0x{:x} a1:0x{:x}", _a0, _a1);
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }

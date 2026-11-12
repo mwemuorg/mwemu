@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetDynamicTimeZoneInformation(emu: &mut emu::Emu) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let p0 = WinApiAbi::arg(emu, 0);
     log_red!(emu, "kernel32!GetDynamicTimeZoneInformation");
     for _ in 0..1 {
         emu.stack_pop32(false);

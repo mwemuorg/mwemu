@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptDeriveKey(emu: &mut emu::Emu) {
     let h_prov = emu.regs().rcx;
     let algid = emu.regs().rdx as u32;
     let h_hash = emu.regs().r8;
     let flags = emu.regs().r9;
-    let h_key_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let h_key_ptr = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "crypt32!CryptDeriveKey prov: 0x{:x} alg: 0x{:x} hash: 0x{:x}",

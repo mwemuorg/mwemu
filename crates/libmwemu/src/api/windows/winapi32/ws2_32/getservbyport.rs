@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn getservbyport(emu: &mut emu::Emu) {
-    let port = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let proto_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let port = WinApiAbi::arg(emu, 0) as u32;
+    let proto_ptr = WinApiAbi::arg(emu, 1);
     let proto = if proto_ptr != 0 {
         emu.maps.read_string(proto_ptr)
     } else {

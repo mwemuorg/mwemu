@@ -2,10 +2,9 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi64;
 
-mod url_download_to_file_a;
-use url_download_to_file_a::URLDownloadToFileA;
-mod url_download_to_file_w;
-use url_download_to_file_w::URLDownloadToFileW;
+mod url_download_to_file;
+use url_download_to_file::URLDownloadToFileA;
+use url_download_to_file::URLDownloadToFileW;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);

@@ -2,17 +2,15 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
 
-mod launch;
-pub use launch::*;
-mod ui;
-pub use ui::*;
-mod objects;
-pub use objects::*;
 mod filesystem;
-pub use filesystem::*;
+mod launch;
+mod objects;
+mod ui;
 
-mod shell_execute_w;
-use shell_execute_w::ShellExecuteW;
+pub use filesystem::*;
+pub use launch::*;
+pub use objects::*;
+pub use ui::*;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);

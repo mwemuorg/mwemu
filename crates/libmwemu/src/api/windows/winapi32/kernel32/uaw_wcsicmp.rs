@@ -1,28 +1,18 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper::WinApiAbi;
 
 pub fn uaw_wcsicmp(emu: &mut emu::Emu) {
-    let s1_ptr = arg(emu, 0) as u64;
-    let s2_ptr = arg(emu, 1) as u64;
-
-    let s1 = emu.maps.read_wide_string(s1_ptr);
-    let s2 = emu.maps.read_wide_string(s2_ptr);
-
-    let result = match s1.to_lowercase().cmp(&s2.to_lowercase()) {
-        std::cmp::Ordering::Less => -1i64 as u64,
-        std::cmp::Ordering::Equal => 0,
-        std::cmp::Ordering::Greater => 1,
-    };
-
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
-        "kernel32!uaw_wcsicmp '{}' vs '{}' => {}",
-        s1,
-        s2,
-        result as i64
+        "kernel32!uaw_wcsicmp arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
     );
-
+    for _ in 0..2 {
+        emu.stack_pop32(false);
+    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
-    stdcall_ret(emu, 2);
+    emu.regs_mut().rax = 1;
 }

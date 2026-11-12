@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptHashCertificate(emu: &mut emu::Emu) {
-    let alg_id = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let cert_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let cert_len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let hash_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
-    let hash_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+    let alg_id = WinApiAbi::arg(emu, 1) as u32;
+    let cert_ptr = WinApiAbi::arg(emu, 2);
+    let cert_len = WinApiAbi::arg(emu, 3);
+    let hash_ptr = WinApiAbi::arg(emu, 4);
+    let hash_len_ptr = WinApiAbi::arg(emu, 5);
     for _ in 0..7u32 {
         emu.stack_pop32(false);
     }

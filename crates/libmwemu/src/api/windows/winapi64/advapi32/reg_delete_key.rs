@@ -1,19 +1,19 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn RegDeleteKeyA(emu: &mut emu::Emu) {
+    reg_delete_key(emu, "RegDeleteKeyA", false);
+}
+
+fn reg_delete_key(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;
     let subkey_ptr = emu.regs().rdx;
-    let subkey = emu.maps.read_string(subkey_ptr);
-    log_red!(emu, "advapi32!RegDeleteKeyA hkey:0x{:x} '{}'", hkey, subkey);
+    let subkey = strings::read_text(emu, subkey_ptr, wide);
+    log_red!(emu, "advapi32!{api} hkey:0x{:x} '{}'", hkey, subkey);
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }
 
 pub fn RegDeleteKeyW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let subkey = emu.maps.read_wide_string(subkey_ptr);
-    log_red!(emu, "advapi32!RegDeleteKeyW hkey:0x{:x} '{}'", hkey, subkey);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    reg_delete_key(emu, "RegDeleteKeyW", true);
 }

@@ -1,23 +1,21 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetFileAttributesExA(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_string(str_ptr);
-    log_red!(emu, "kernel32!GetFileAttributesExA '{}'  0x{:x}", s, arg2);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    get_file_attributes_ex(emu, "GetFileAttributesExA", false);
+}
+
+fn get_file_attributes_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let str_ptr = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
+    let s = strings::read_text(emu, str_ptr, wide);
+    log_red!(emu, "kernel32!{api} '{}'  0x{:x}", s, arg2);
+    stdcall_ret(emu, 3);
     emu.regs_mut().rax = 1;
 }
 
 pub fn GetFileAttributesExW(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_wide_string(str_ptr);
-    log_red!(emu, "kernel32!GetFileAttributesExW '{}'  0x{:x}", s, arg2);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    get_file_attributes_ex(emu, "GetFileAttributesExW", true);
 }

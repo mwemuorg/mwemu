@@ -1,10 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn RegCreateKeyA(emu: &mut emu::Emu) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let subkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let phk_result = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let hkey = WinApiAbi::arg(emu, 0) as u32;
+    let subkey_ptr = WinApiAbi::arg(emu, 1);
+    let phk_result = WinApiAbi::arg(emu, 2);
     let subkey = if subkey_ptr != 0 {
         emu.maps.read_string(subkey_ptr)
     } else {
@@ -27,8 +29,8 @@ pub fn RegCreateKeyA(emu: &mut emu::Emu) {
 }
 
 pub fn RegCreateKeyW(emu: &mut emu::Emu) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let subkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let hkey = WinApiAbi::arg(emu, 0);
+    let subkey_ptr = WinApiAbi::arg(emu, 1);
     let subkey = emu.maps.read_wide_string(subkey_ptr);
     let hndl = helper::handler_create(&format!("regkey_{}", subkey));
     log_red!(
@@ -39,7 +41,5 @@ pub fn RegCreateKeyW(emu: &mut emu::Emu) {
         hndl
     );
     emu.regs_mut().rax = 0;
-    for _ in 0..9 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
 }

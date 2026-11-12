@@ -1,151 +1,110 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../__tlg_create_wsz.rs"]
 mod __tlg_create_wsz;
-pub use __tlg_create_wsz::*;
+pub use __tlg_create_wsz::_TlgCreateWsz;
 
-#[path = "../_guard_check_icall_nop.rs"]
 mod _guard_check_icall_nop;
 
-#[path = "../_lclose.rs"]
 mod _lclose;
-pub use _lclose::*;
+pub use _lclose::_lclose;
 
-#[path = "../_lcreat.rs"]
 mod _lcreat;
-pub use _lcreat::*;
+pub use _lcreat::_lcreat;
 
-#[path = "../_llseek.rs"]
 mod _llseek;
-pub use _llseek::*;
+pub use _llseek::_llseek;
 
-#[path = "../_lopen.rs"]
 mod _lopen;
-pub use _lopen::*;
+pub use _lopen::_lopen;
 
-#[path = "../_lread.rs"]
 mod _lread;
-pub use _lread::*;
+pub use _lread::_lread;
 
-#[path = "../_lwrite.rs"]
 mod _lwrite;
-pub use _lwrite::*;
+pub use _lwrite::_lwrite;
 
-#[path = "../_nlg__dispatch2.rs"]
 mod _nlg__dispatch2;
 
-#[path = "../_nlg__notify.rs"]
 mod _nlg__notify;
 
-#[path = "../_tlg_enable_callback.rs"]
 mod _tlg_enable_callback;
 
-#[path = "../_tlg_keyword_on.rs"]
 mod _tlg_keyword_on;
 
-#[path = "../_tlg_write_transfer__event_write_transfer.rs"]
 mod _tlg_write_transfer__event_write_transfer;
 
-#[path = "../base_destroy_vdm_environment.rs"]
 mod base_destroy_vdm_environment;
-pub use base_destroy_vdm_environment::*;
+pub use base_destroy_vdm_environment::BaseDestroyVDMEnvironment;
 
-#[path = "../base_update_vdm_entry.rs"]
 mod base_update_vdm_entry;
-pub use base_update_vdm_entry::*;
+pub use base_update_vdm_entry::BaseUpdateVDMEntry;
 
-#[path = "../nt_vdm64_create_process_internal_w.rs"]
 mod nt_vdm64_create_process_internal_w;
-pub use nt_vdm64_create_process_internal_w::*;
+pub use nt_vdm64_create_process_internal_w::NtVdm64CreateProcessInternalW;
 
-#[path = "../nt_wow64_console_launch_server_process.rs"]
 mod nt_wow64_console_launch_server_process;
-pub use nt_wow64_console_launch_server_process::*;
+pub use nt_wow64_console_launch_server_process::NtWow64ConsoleLaunchServerProcess;
 
-#[path = "../nt_wow64_csr_base_check_run_app.rs"]
 mod nt_wow64_csr_base_check_run_app;
-pub use nt_wow64_csr_base_check_run_app::*;
+pub use nt_wow64_csr_base_check_run_app::NtWow64CsrBaseCheckRunApp;
 
-#[path = "../nt_wow64_csr_basep_create_act_ctx.rs"]
 mod nt_wow64_csr_basep_create_act_ctx;
-pub use nt_wow64_csr_basep_create_act_ctx::*;
+pub use nt_wow64_csr_basep_create_act_ctx::NtWow64CsrBasepCreateActCtx;
 
-#[path = "../nt_wow64_csr_basep_create_process.rs"]
 mod nt_wow64_csr_basep_create_process;
-pub use nt_wow64_csr_basep_create_process::*;
+pub use nt_wow64_csr_basep_create_process::NtWow64CsrBasepCreateProcess;
 
-#[path = "../nt_wow64_csr_basep_define_dos_device.rs"]
 mod nt_wow64_csr_basep_define_dos_device;
-pub use nt_wow64_csr_basep_define_dos_device::*;
+pub use nt_wow64_csr_basep_define_dos_device::NtWow64CsrBasepDefineDosDevice;
 
-#[path = "../nt_wow64_csr_basep_get_process_shutdown_param.rs"]
 mod nt_wow64_csr_basep_get_process_shutdown_param;
-pub use nt_wow64_csr_basep_get_process_shutdown_param::*;
+pub use nt_wow64_csr_basep_get_process_shutdown_param::NtWow64CsrBasepGetProcessShutdownParam;
 
-#[path = "../nt_wow64_csr_basep_nls_get_user_info.rs"]
 mod nt_wow64_csr_basep_nls_get_user_info;
-pub use nt_wow64_csr_basep_nls_get_user_info::*;
+pub use nt_wow64_csr_basep_nls_get_user_info::NtWow64CsrBasepNlsGetUserInfo;
 
-#[path = "../nt_wow64_csr_basep_nls_update_cache_count.rs"]
 mod nt_wow64_csr_basep_nls_update_cache_count;
-pub use nt_wow64_csr_basep_nls_update_cache_count::*;
+pub use nt_wow64_csr_basep_nls_update_cache_count::NtWow64CsrBasepNlsUpdateCacheCount;
 
-#[path = "../nt_wow64_csr_basep_refresh_ini_file_mapping.rs"]
 mod nt_wow64_csr_basep_refresh_ini_file_mapping;
-pub use nt_wow64_csr_basep_refresh_ini_file_mapping::*;
+pub use nt_wow64_csr_basep_refresh_ini_file_mapping::NtWow64CsrBasepRefreshIniFileMapping;
 
-#[path = "../nt_wow64_csr_basep_set_client_time_zone_information.rs"]
 mod nt_wow64_csr_basep_set_client_time_zone_information;
-pub use nt_wow64_csr_basep_set_client_time_zone_information::*;
+pub use nt_wow64_csr_basep_set_client_time_zone_information::NtWow64CsrBasepSetClientTimeZoneInformation;
 
-#[path = "../nt_wow64_csr_basep_set_process_shutdown_param.rs"]
 mod nt_wow64_csr_basep_set_process_shutdown_param;
-pub use nt_wow64_csr_basep_set_process_shutdown_param::*;
+pub use nt_wow64_csr_basep_set_process_shutdown_param::NtWow64CsrBasepSetProcessShutdownParam;
 
-#[path = "../nt_wow64_csr_basep_sound_sentry_notification.rs"]
 mod nt_wow64_csr_basep_sound_sentry_notification;
-pub use nt_wow64_csr_basep_sound_sentry_notification::*;
+pub use nt_wow64_csr_basep_sound_sentry_notification::NtWow64CsrBasepSoundSentryNotification;
 
-#[path = "../register_console_vdm.rs"]
 mod register_console_vdm;
-pub use register_console_vdm::*;
+pub use register_console_vdm::RegisterConsoleVDM;
 
-#[path = "../vdm_console_operation.rs"]
 mod vdm_console_operation;
-pub use vdm_console_operation::*;
+pub use vdm_console_operation::VDMConsoleOperation;
 
-#[path = "../vdm_operation_started.rs"]
 mod vdm_operation_started;
-pub use vdm_operation_started::*;
+pub use vdm_operation_started::VDMOperationStarted;
 
-#[path = "../wow64_enable_wow64_fs_redirection.rs"]
 mod wow64_enable_wow64_fs_redirection;
-pub use wow64_enable_wow64_fs_redirection::*;
+pub use wow64_enable_wow64_fs_redirection::Wow64EnableWow64FsRedirection;
 
-#[path = "../wow64_get_thread_selector_entry.rs"]
 mod wow64_get_thread_selector_entry;
-pub use wow64_get_thread_selector_entry::*;
+pub use wow64_get_thread_selector_entry::Wow64GetThreadSelectorEntry;
 
-#[path = "../wow64_suspend_thread.rs"]
 mod wow64_suspend_thread;
-pub use wow64_suspend_thread::*;
+pub use wow64_suspend_thread::Wow64SuspendThread;
 
-#[path = "../wow64_system_service_call.rs"]
 mod wow64_system_service_call;
-pub use wow64_system_service_call::*;
+pub use wow64_system_service_call::Wow64SystemServiceCall;
 
-#[path = "../wow64_transition_resolve.rs"]
 mod wow64_transition_resolve;
-pub use wow64_transition_resolve::*;
+pub use wow64_transition_resolve::Wow64TransitionResolve;
 
-#[path = "../write_console_input_vdma.rs"]
-mod write_console_input_vdma;
-pub use write_console_input_vdma::*;
-
-#[path = "../write_console_input_vdmw.rs"]
-mod write_console_input_vdmw;
-pub use write_console_input_vdmw::*;
+mod write_console_input_vdm;
+pub use write_console_input_vdm::{WriteConsoleInputVDMA, WriteConsoleInputVDMW};
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {
@@ -156,12 +115,12 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "_lopen" => kernel32::_lopen(emu),
         "_lread" => kernel32::_lread(emu),
         "_lwrite" => kernel32::_lwrite(emu),
-        "_hread" => kernel32::_hread_api(emu),
-        "_hwrite" => kernel32::_hwrite_api(emu),
-        "__C_specific_handler" => kernel32::__C_specific_handler_api(emu),
-        "__chkstk" => kernel32::__chkstk_api(emu),
-        "__misaligned_access" => kernel32::__misaligned_access_api(emu),
-        "_local_unwind" => kernel32::_local_unwind_api(emu),
+        "_hread" => kernel32::_hread(emu),
+        "_hwrite" => kernel32::_hwrite(emu),
+        "__C_specific_handler" => kernel32::__C_specific_handler(emu),
+        "__chkstk" => kernel32::__chkstk(emu),
+        "__misaligned_access" => kernel32::__misaligned_access(emu),
+        "_local_unwind" => kernel32::_local_unwind(emu),
         _ => return false,
     }
     true

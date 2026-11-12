@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetStringTypeExW(emu: &mut emu::Emu) {
     let _locale = emu.regs().rcx;
     let info_type = emu.regs().rdx as u32;
     let src_ptr = emu.regs().r8;
     let src_len = emu.regs().r9 as i32;
-    let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let out_ptr = WinApiAbi::arg(emu, 4);
     let src = if src_ptr != 0 {
         emu.maps.read_wide_string(src_ptr)
     } else {

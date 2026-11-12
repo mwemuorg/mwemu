@@ -3,19 +3,18 @@ use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetClassInfoA(emu: &mut emu::Emu) {
+    get_class_info(emu, "GetClassInfoA");
+}
+
+fn get_class_info(emu: &mut emu::Emu, api: &str) {
     let a0 = arg(emu, 0) as u64;
     let a1 = arg(emu, 1) as u64;
-    log_red!(emu, "user32!GetClassInfoA arg0:0x{:x} arg1:0x{:x}", a0, a1);
+    log_red!(emu, "user32!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 3);
 }
 
 pub fn GetClassInfoW(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
-    log_red!(emu, "user32!GetClassInfoW arg0:0x{:x} arg1:0x{:x}", a0, a1);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
+    get_class_info(emu, "GetClassInfoW");
 }

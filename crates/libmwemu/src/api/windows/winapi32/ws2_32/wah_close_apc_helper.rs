@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WahCloseApcHelper(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let handle = WinApiAbi::arg(emu, 0);
     log_red!(emu, "ws2_32!WahCloseApcHelper handle:0x{:x}", handle);
     helper::handler_close(handle);
     emu.regs_mut().rax = 0;

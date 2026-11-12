@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ScrollWindow(emu: &mut emu::Emu) {
     let hwnd = emu.regs().rcx;
     let x_amount = emu.regs().rdx as i32;
     let y_amount = emu.regs().r8 as i32;
     let lp_rect = emu.regs().r9;
-    let lp_clip_rect = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let lp_clip_rect = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "user32!ScrollWindow hwnd:0x{:x} dx:{} dy:{} rect:0x{:x} clip:0x{:x}",

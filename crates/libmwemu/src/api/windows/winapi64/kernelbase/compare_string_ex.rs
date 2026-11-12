@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CompareStringEx(emu: &mut emu::Emu) {
     let _locale_ptr = emu.regs().rcx;
     let _flags = emu.regs().rdx;
     let str1_ptr = emu.regs().r8;
     let _len1 = emu.regs().r9 as i32;
-    let str2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let str2_ptr = WinApiAbi::arg(emu, 4);
     let s1 = if str1_ptr != 0 {
         emu.maps.read_wide_string(str1_ptr)
     } else {

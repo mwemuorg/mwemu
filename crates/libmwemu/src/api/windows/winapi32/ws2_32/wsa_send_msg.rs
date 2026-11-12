@@ -1,11 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn WSASendMsg(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let msg_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let bytes_sent_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let msg_ptr = WinApiAbi::arg(emu, 1);
+    let flags = WinApiAbi::arg(emu, 2) as u32;
+    let bytes_sent_ptr = WinApiAbi::arg(emu, 3);
     log_red!(
         emu,
         "ws2_32!WSASendMsg sock:0x{:x} flags:0x{:x}",
@@ -21,7 +23,5 @@ pub fn WSASendMsg(emu: &mut emu::Emu) {
         }
         emu.regs_mut().rax = 0;
     }
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 6);
 }

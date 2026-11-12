@@ -1,7 +1,8 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn inet_addr(emu: &mut emu::Emu) {
-    let addr_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let addr_ptr = WinApiAbi::arg(emu, 0);
     let ip_str = emu.maps.read_string(addr_ptr);
     log_red!(emu, "ws2_32!inet_addr '{}'", ip_str);
     emu.stack_pop32(false);

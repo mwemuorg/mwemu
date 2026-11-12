@@ -1,10 +1,11 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EtwEventWriteTransfer(emu: &mut emu::Emu) {
-    let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let event_descriptor = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let activity_id = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let related_id = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let reg_handle = WinApiAbi::arg(emu, 0);
+    let event_descriptor = WinApiAbi::arg(emu, 1);
+    let activity_id = WinApiAbi::arg(emu, 2) as u32;
+    let related_id = WinApiAbi::arg(emu, 3) as u32;
     let desc_str = emu.maps.read_string(event_descriptor);
     log_red!(
         emu,

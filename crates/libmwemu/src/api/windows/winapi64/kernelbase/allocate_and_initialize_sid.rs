@@ -1,17 +1,18 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
     let p_id_authority = emu.regs().rcx;
     let n_sub_authority_count = emu.regs().rdx as u8;
     let sub0 = emu.regs().r8 as u32;
     let sub1 = emu.regs().r9 as u32;
-    let sub2 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
-    let sub3 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as u32;
-    let sub4 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as u32;
-    let sub5 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0) as u32;
-    let sub6 = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0) as u32;
-    let sub7 = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0) as u32;
-    let pp_sid = emu.maps.read_qword(emu.regs().rsp + 0x58).unwrap_or(0);
+    let sub2 = WinApiAbi::arg(emu, 4) as u32;
+    let sub3 = WinApiAbi::arg(emu, 5) as u32;
+    let sub4 = WinApiAbi::arg(emu, 6) as u32;
+    let sub5 = WinApiAbi::arg(emu, 7) as u32;
+    let sub6 = WinApiAbi::arg(emu, 8) as u32;
+    let sub7 = WinApiAbi::arg(emu, 9) as u32;
+    let pp_sid = WinApiAbi::arg(emu, 10);
 
     let count = n_sub_authority_count.min(8) as usize;
     let sid_size = (8 + count * 4) as u64;

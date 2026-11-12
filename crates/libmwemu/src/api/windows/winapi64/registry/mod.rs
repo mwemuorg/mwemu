@@ -1,5 +1,6 @@
 mod close_key;
 
+use crate::winapi::common::strings;
 use crate::windows::constants::errors::*;
 use close_key::close_key;
 mod create_key;
@@ -72,20 +73,11 @@ pub fn gateway(api: &str, emu: &mut emu::Emu) -> bool {
     true
 }
 
-fn stack_arg(emu: &emu::Emu, index: u64) -> u64 {
-    // after the gateway popped the return address, the 5th argument is at rsp+0x20
-    emu.maps
-        .read_qword(emu.regs().rsp + 0x20 + 8 * (index - 4))
-        .unwrap_or(0)
-}
-
 fn read_name(emu: &emu::Emu, ptr: u64, wide: bool) -> Option<String> {
     if ptr == 0 {
         None
-    } else if wide {
-        Some(emu.maps.read_wide_string(ptr))
     } else {
-        Some(emu.maps.read_string(ptr))
+        Some(strings::read_text(emu, ptr, wide))
     }
 }
 
@@ -182,11 +174,7 @@ fn write_name(emu: &mut emu::Emu, ptr: u64, cch_ptr: u64, name: &str, wide: bool
     if len + 1 > capacity {
         return ERROR_MORE_DATA;
     }
-    if wide {
-        emu.maps.write_wide_string(ptr, name);
-    } else {
-        emu.maps.write_string(ptr, name);
-    }
+    strings::write_string(emu, ptr, name, wide);
     emu.maps.write_dword(cch_ptr, len as u32);
     ERROR_SUCCESS
 }

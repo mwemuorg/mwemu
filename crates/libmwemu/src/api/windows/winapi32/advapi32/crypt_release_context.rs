@@ -1,9 +1,10 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn CryptReleaseContext(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let hndl = WinApiAbi::arg(emu, 0);
+    let flags = WinApiAbi::arg(emu, 1);
 
     log_red!(emu, "advapi32!CryptReleaseContext");
 

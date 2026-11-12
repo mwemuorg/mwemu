@@ -37,5 +37,5 @@ pub(super) fn BCryptSetProperty(emu: &mut emu::Emu) {
     );
 
     emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 4);
+    stdcall_ret(emu, 5);
 }

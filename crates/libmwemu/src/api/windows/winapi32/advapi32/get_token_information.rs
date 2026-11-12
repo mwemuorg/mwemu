@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetTokenInformation(emu: &mut emu::Emu) {
-    let token_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let info_class = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let info_buf = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let buf_len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let ret_len_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let token_handle = WinApiAbi::arg(emu, 0) as u32;
+    let info_class = WinApiAbi::arg(emu, 1) as u32;
+    let info_buf = WinApiAbi::arg(emu, 2);
+    let buf_len = WinApiAbi::arg(emu, 3) as u32;
+    let ret_len_ptr = WinApiAbi::arg(emu, 4);
     if ret_len_ptr != 0 {
         emu.maps.write_dword(ret_len_ptr, 4);
     }

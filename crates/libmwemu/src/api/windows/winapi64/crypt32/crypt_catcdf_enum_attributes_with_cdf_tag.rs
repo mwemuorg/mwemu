@@ -10,10 +10,7 @@ pub fn CryptCATCDFEnumAttributesWithCDFTag(emu: &mut emu::Emu) {
         "crypt32!CryptCATCDFEnumAttributesWithCDFTag arg1:0x{:x}",
         arg1
     );
-    let out_ptr = emu.regs().r9;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
+
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

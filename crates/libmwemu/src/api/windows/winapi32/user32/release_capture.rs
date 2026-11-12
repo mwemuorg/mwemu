@@ -8,5 +8,5 @@ pub fn ReleaseCapture(emu: &mut emu::Emu) {
     log_red!(emu, "user32!ReleaseCapture handle:0x{:x}", handle);
     helper::handler_close(handle);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 0);
 }

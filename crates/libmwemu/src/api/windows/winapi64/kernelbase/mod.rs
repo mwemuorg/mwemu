@@ -7,682 +7,702 @@ use crate::winapi::common::{files, handles, modules, strings};
 use crate::winapi::winapi64;
 
 mod write_console_output_character;
-pub use write_console_output_character::*;
+pub use write_console_output_character::{
+    WriteConsoleOutputCharacterA, WriteConsoleOutputCharacterW,
+};
 
 mod write_console_output;
-pub use write_console_output::*;
+pub use write_console_output::{WriteConsoleOutputA, WriteConsoleOutputW};
 
 mod write_console_input;
-pub use write_console_input::*;
+pub use write_console_input::{WriteConsoleInputA, WriteConsoleInputW};
 
 mod write_console;
-pub use write_console::*;
+pub use write_console::{WriteConsoleA, WriteConsoleW};
 
 mod ver_language_name;
-pub use ver_language_name::*;
+pub use ver_language_name::{VerLanguageNameA, VerLanguageNameW};
 
 mod ver_find_file;
-pub use ver_find_file::*;
+pub use ver_find_file::{VerFindFileA, VerFindFileW};
 
 mod url_unescape;
-pub use url_unescape::*;
+pub use url_unescape::{UrlUnescapeA, UrlUnescapeW};
 
 mod url_is_opaque;
-pub use url_is_opaque::*;
+pub use url_is_opaque::{UrlIsOpaqueA, UrlIsOpaqueW};
 
 mod url_is_no_history;
-pub use url_is_no_history::*;
+pub use url_is_no_history::{UrlIsNoHistoryA, UrlIsNoHistoryW};
 
 mod url_is;
-pub use url_is::*;
+pub use url_is::{UrlIsA, UrlIsW};
 
 mod url_hash;
-pub use url_hash::*;
+pub use url_hash::{UrlHashA, UrlHashW};
 
 mod url_get_part;
-pub use url_get_part::*;
+pub use url_get_part::{UrlGetPartA, UrlGetPartW};
 
 mod url_get_location;
-pub use url_get_location::*;
+pub use url_get_location::{UrlGetLocationA, UrlGetLocationW};
 
 mod url_escape;
-pub use url_escape::*;
+pub use url_escape::{UrlEscapeA, UrlEscapeW};
 
 mod url_create_from_path;
-pub use url_create_from_path::*;
+pub use url_create_from_path::{UrlCreateFromPathA, UrlCreateFromPathW};
 
 mod url_compare;
-pub use url_compare::*;
+pub use url_compare::{UrlCompareA, UrlCompareW};
 
 mod url_combine;
-pub use url_combine::*;
+pub use url_combine::{UrlCombineA, UrlCombineW};
 
 mod url_canonicalize;
-pub use url_canonicalize::*;
+pub use url_canonicalize::{UrlCanonicalizeA, UrlCanonicalizeW};
 
 mod url_apply_scheme;
-pub use url_apply_scheme::*;
+pub use url_apply_scheme::{UrlApplySchemeA, UrlApplySchemeW};
 
 mod str_trim;
-pub use str_trim::*;
+pub use str_trim::{StrTrimA, StrTrimW};
 
 mod str_to_int_ex;
-pub use str_to_int_ex::*;
+pub use str_to_int_ex::{StrToIntExA, StrToIntExW};
 
 mod str_to_int;
-pub use str_to_int::*;
+pub use str_to_int::{StrToIntA, StrToIntW};
 
 mod str_to_int64_ex;
-pub use str_to_int64_ex::*;
+pub use str_to_int64_ex::{StrToInt64ExA, StrToInt64ExW};
 
 mod str_str;
-pub use str_str::*;
+pub use str_str::{StrStrA, StrStrW};
 
 mod str_spn;
-pub use str_spn::*;
+pub use str_spn::{StrSpnA, StrSpnW};
 
 mod str_r_chr;
-pub use str_r_chr::*;
+pub use str_r_chr::{StrRChrA, StrRChrW};
 
 mod str_p_brk;
-pub use str_p_brk::*;
+pub use str_p_brk::{StrPBrkA, StrPBrkW};
 
 mod str_is_intl_equal;
-pub use str_is_intl_equal::*;
+pub use str_is_intl_equal::{StrIsIntlEqualA, StrIsIntlEqualW};
 
 mod str_dup;
-pub use str_dup::*;
+pub use str_dup::{StrDupA, StrDupW};
 
 mod str_chr;
-pub use str_chr::*;
+pub use str_chr::{StrChrA, StrChrW};
 
 mod str_cat_buff;
-pub use str_cat_buff::*;
+pub use str_cat_buff::{StrCatBuffA, StrCatBuffW};
 
 mod str_c_spn;
-pub use str_c_spn::*;
+pub use str_c_spn::{StrCSpnA, StrCSpnW};
 
 mod sh_reg_write_us_value;
-pub use sh_reg_write_us_value::*;
+pub use sh_reg_write_us_value::{SHRegWriteUSValueA, SHRegWriteUSValueW};
 
 mod sh_reg_set_us_value;
-pub use sh_reg_set_us_value::*;
+pub use sh_reg_set_us_value::{SHRegSetUSValueA, SHRegSetUSValueW};
 
 mod sh_reg_query_us_value;
-pub use sh_reg_query_us_value::*;
+pub use sh_reg_query_us_value::{SHRegQueryUSValueA, SHRegQueryUSValueW};
 
 mod sh_reg_query_info_us_key;
-pub use sh_reg_query_info_us_key::*;
+pub use sh_reg_query_info_us_key::{SHRegQueryInfoUSKeyA, SHRegQueryInfoUSKeyW};
 
 mod sh_reg_open_us_key;
-pub use sh_reg_open_us_key::*;
+pub use sh_reg_open_us_key::{SHRegOpenUSKeyA, SHRegOpenUSKeyW};
 
 mod sh_reg_get_us_value;
-pub use sh_reg_get_us_value::*;
+pub use sh_reg_get_us_value::{SHRegGetUSValueA, SHRegGetUSValueW};
 
 mod sh_reg_get_bool_us_value;
-pub use sh_reg_get_bool_us_value::*;
+pub use sh_reg_get_bool_us_value::{SHRegGetBoolUSValueA, SHRegGetBoolUSValueW};
 
 mod sh_reg_enum_us_value;
-pub use sh_reg_enum_us_value::*;
+pub use sh_reg_enum_us_value::{SHRegEnumUSValueA, SHRegEnumUSValueW};
 
 mod sh_reg_enum_us_key;
-pub use sh_reg_enum_us_key::*;
+pub use sh_reg_enum_us_key::{SHRegEnumUSKeyA, SHRegEnumUSKeyW};
 
 mod sh_reg_delete_us_value;
-pub use sh_reg_delete_us_value::*;
+pub use sh_reg_delete_us_value::{SHRegDeleteUSValueA, SHRegDeleteUSValueW};
 
 mod sh_reg_delete_empty_us_key;
-pub use sh_reg_delete_empty_us_key::*;
+pub use sh_reg_delete_empty_us_key::{SHRegDeleteEmptyUSKeyA, SHRegDeleteEmptyUSKeyW};
 
 mod sh_reg_create_us_key;
-pub use sh_reg_create_us_key::*;
+pub use sh_reg_create_us_key::{SHRegCreateUSKeyA, SHRegCreateUSKeyW};
 
 mod sh_expand_environment_strings;
-pub use sh_expand_environment_strings::*;
+pub use sh_expand_environment_strings::{SHExpandEnvironmentStringsA, SHExpandEnvironmentStringsW};
 
 mod set_file_attributes;
-pub use set_file_attributes::*;
+pub use set_file_attributes::{SetFileAttributesA, SetFileAttributesW};
 
 mod set_environment_variable;
-pub use set_environment_variable::*;
+pub use set_environment_variable::{SetEnvironmentVariableA, SetEnvironmentVariableW};
 
 mod set_console_title;
-pub use set_console_title::*;
+pub use set_console_title::{SetConsoleTitleA, SetConsoleTitleW};
 
 mod set_console_number_of_commands;
-pub use set_console_number_of_commands::*;
+pub use set_console_number_of_commands::{
+    SetConsoleNumberOfCommandsA, SetConsoleNumberOfCommandsW,
+};
 
 mod set_console_input_exe_name;
-pub use set_console_input_exe_name::*;
+pub use set_console_input_exe_name::{SetConsoleInputExeNameA, SetConsoleInputExeNameW};
 
 mod set_computer_name_ex;
-pub use set_computer_name_ex::*;
+pub use set_computer_name_ex::{SetComputerNameExA, SetComputerNameExW};
 
 mod set_computer_name;
-pub use set_computer_name::*;
+pub use set_computer_name::{SetComputerNameA, SetComputerNameW};
 
 mod search_path;
-pub use search_path::*;
+pub use search_path::{SearchPathA, SearchPathW};
 
 mod scroll_console_screen_buffer;
-pub use scroll_console_screen_buffer::*;
+pub use scroll_console_screen_buffer::{ScrollConsoleScreenBufferA, ScrollConsoleScreenBufferW};
 
 mod remove_directory;
-pub use remove_directory::*;
+pub use remove_directory::{RemoveDirectoryA, RemoveDirectoryW};
 
 mod remove_directory2;
-pub use remove_directory2::*;
+pub use remove_directory2::{RemoveDirectory2A, RemoveDirectory2W};
 
 mod reg_un_load_key;
-pub use reg_un_load_key::*;
+pub use reg_un_load_key::{RegUnLoadKeyA, RegUnLoadKeyW};
 
 mod reg_set_value_ex;
-pub use reg_set_value_ex::*;
+pub use reg_set_value_ex::{RegSetValueExA, RegSetValueExW};
 
 mod reg_set_key_value;
-pub use reg_set_key_value::*;
+pub use reg_set_key_value::{RegSetKeyValueA, RegSetKeyValueW};
 
 mod reg_save_key_ex;
-pub use reg_save_key_ex::*;
+pub use reg_save_key_ex::{RegSaveKeyExA, RegSaveKeyExW};
 
 mod reg_restore_key;
-pub use reg_restore_key::*;
+pub use reg_restore_key::{RegRestoreKeyA, RegRestoreKeyW};
 
 mod reg_query_value_ex;
-pub use reg_query_value_ex::*;
+pub use reg_query_value_ex::{RegQueryValueExA, RegQueryValueExW};
 
 mod reg_query_multiple_values;
-pub use reg_query_multiple_values::*;
+pub use reg_query_multiple_values::{RegQueryMultipleValuesA, RegQueryMultipleValuesW};
 
 mod reg_query_info_key;
-pub use reg_query_info_key::*;
+pub use reg_query_info_key::{RegQueryInfoKeyA, RegQueryInfoKeyW};
 
 mod reg_open_key_ex_internal;
-pub use reg_open_key_ex_internal::*;
+pub use reg_open_key_ex_internal::{RegOpenKeyExInternalA, RegOpenKeyExInternalW};
 
 mod reg_open_key_ex;
-pub use reg_open_key_ex::*;
+pub use reg_open_key_ex::{RegOpenKeyExA, RegOpenKeyExW};
 
 mod reg_load_mui_string;
-pub use reg_load_mui_string::*;
+pub use reg_load_mui_string::{RegLoadMUIStringA, RegLoadMUIStringW};
 
 mod reg_load_key;
-pub use reg_load_key::*;
+pub use reg_load_key::{RegLoadKeyA, RegLoadKeyW};
 
 mod reg_load_app_key;
-pub use reg_load_app_key::*;
+pub use reg_load_app_key::{RegLoadAppKeyA, RegLoadAppKeyW};
 
 mod reg_get_value;
-pub use reg_get_value::*;
+pub use reg_get_value::{RegGetValueA, RegGetValueW};
 
 mod reg_enum_value;
-pub use reg_enum_value::*;
+pub use reg_enum_value::{RegEnumValueA, RegEnumValueW};
 
 mod reg_enum_key_ex;
-pub use reg_enum_key_ex::*;
+pub use reg_enum_key_ex::{RegEnumKeyExA, RegEnumKeyExW};
 
 mod reg_delete_value;
-pub use reg_delete_value::*;
+pub use reg_delete_value::{RegDeleteValueA, RegDeleteValueW};
 
 mod reg_delete_tree;
-pub use reg_delete_tree::*;
+pub use reg_delete_tree::{RegDeleteTreeA, RegDeleteTreeW};
 
 mod reg_delete_key_value;
-pub use reg_delete_key_value::*;
+pub use reg_delete_key_value::{RegDeleteKeyValueA, RegDeleteKeyValueW};
 
 mod reg_delete_key_ex_internal;
-pub use reg_delete_key_ex_internal::*;
+pub use reg_delete_key_ex_internal::{RegDeleteKeyExInternalA, RegDeleteKeyExInternalW};
 
 mod reg_delete_key_ex;
-pub use reg_delete_key_ex::*;
+pub use reg_delete_key_ex::{RegDeleteKeyExA, RegDeleteKeyExW};
 
 mod reg_create_key_ex_internal;
-pub use reg_create_key_ex_internal::*;
+pub use reg_create_key_ex_internal::{RegCreateKeyExInternalA, RegCreateKeyExInternalW};
 
 mod reg_create_key_ex;
-pub use reg_create_key_ex::*;
+pub use reg_create_key_ex::{RegCreateKeyExA, RegCreateKeyExW};
 
 mod read_console_output_character;
-pub use read_console_output_character::*;
+pub use read_console_output_character::{ReadConsoleOutputCharacterA, ReadConsoleOutputCharacterW};
 
 mod read_console_output;
-pub use read_console_output::*;
+pub use read_console_output::{ReadConsoleOutputA, ReadConsoleOutputW};
 
 mod read_console_input_ex;
-pub use read_console_input_ex::*;
+pub use read_console_input_ex::{ReadConsoleInputExA, ReadConsoleInputExW};
 
 mod read_console_input;
-pub use read_console_input::*;
+pub use read_console_input::{ReadConsoleInputA, ReadConsoleInputW};
 
 mod read_console;
-pub use read_console::*;
+pub use read_console::{ReadConsoleA, ReadConsoleW};
 
 mod query_full_process_image_name;
-pub use query_full_process_image_name::*;
+pub use query_full_process_image_name::{QueryFullProcessImageNameA, QueryFullProcessImageNameW};
 
 mod peek_console_input;
-pub use peek_console_input::*;
+pub use peek_console_input::{PeekConsoleInputA, PeekConsoleInputW};
 
 mod path_unquote_spaces;
-pub use path_unquote_spaces::*;
+pub use path_unquote_spaces::{PathUnquoteSpacesA, PathUnquoteSpacesW};
 
 mod path_un_expand_env_strings;
-pub use path_un_expand_env_strings::*;
+pub use path_un_expand_env_strings::{PathUnExpandEnvStringsA, PathUnExpandEnvStringsW};
 
 mod path_strip_to_root;
-pub use path_strip_to_root::*;
+pub use path_strip_to_root::{PathStripToRootA, PathStripToRootW};
 
 mod path_strip_path;
-pub use path_strip_path::*;
+pub use path_strip_path::{PathStripPathA, PathStripPathW};
 
 mod path_skip_root;
-pub use path_skip_root::*;
+pub use path_skip_root::{PathSkipRootA, PathSkipRootW};
 
 mod path_search_and_qualify;
-pub use path_search_and_qualify::*;
+pub use path_search_and_qualify::{PathSearchAndQualifyA, PathSearchAndQualifyW};
 
 mod path_rename_extension;
-pub use path_rename_extension::*;
+pub use path_rename_extension::{PathRenameExtensionA, PathRenameExtensionW};
 
 mod path_remove_file_spec;
-pub use path_remove_file_spec::*;
+pub use path_remove_file_spec::{PathRemoveFileSpecA, PathRemoveFileSpecW};
 
 mod path_remove_extension;
-pub use path_remove_extension::*;
+pub use path_remove_extension::{PathRemoveExtensionA, PathRemoveExtensionW};
 
 mod path_remove_blanks;
-pub use path_remove_blanks::*;
+pub use path_remove_blanks::{PathRemoveBlanksA, PathRemoveBlanksW};
 
 mod path_remove_backslash;
-pub use path_remove_backslash::*;
+pub use path_remove_backslash::{PathRemoveBackslashA, PathRemoveBackslashW};
 
 mod path_relative_path_to;
-pub use path_relative_path_to::*;
+pub use path_relative_path_to::{PathRelativePathToA, PathRelativePathToW};
 
 mod path_quote_spaces;
-pub use path_quote_spaces::*;
+pub use path_quote_spaces::{PathQuoteSpacesA, PathQuoteSpacesW};
 
 mod path_parse_icon_location;
-pub use path_parse_icon_location::*;
+pub use path_parse_icon_location::{PathParseIconLocationA, PathParseIconLocationW};
 
 mod path_match_spec_ex;
-pub use path_match_spec_ex::*;
+pub use path_match_spec_ex::{PathMatchSpecExA, PathMatchSpecExW};
 
 mod path_match_spec;
-pub use path_match_spec::*;
+pub use path_match_spec::{PathMatchSpecA, PathMatchSpecW};
 
 mod path_is_valid_char;
-pub use path_is_valid_char::*;
+pub use path_is_valid_char::{PathIsValidCharA, PathIsValidCharW};
 
 mod path_is_unc_server_share;
-pub use path_is_unc_server_share::*;
+pub use path_is_unc_server_share::{PathIsUNCServerShareA, PathIsUNCServerShareW};
 
 mod path_is_unc_server;
-pub use path_is_unc_server::*;
+pub use path_is_unc_server::{PathIsUNCServerA, PathIsUNCServerW};
 
 mod path_is_same_root;
-pub use path_is_same_root::*;
+pub use path_is_same_root::{PathIsSameRootA, PathIsSameRootW};
 
 mod path_is_root;
-pub use path_is_root::*;
+pub use path_is_root::{PathIsRootA, PathIsRootW};
 
 mod path_is_relative;
-pub use path_is_relative::*;
+pub use path_is_relative::{PathIsRelativeA, PathIsRelativeW};
 
 mod path_is_prefix;
-pub use path_is_prefix::*;
+pub use path_is_prefix::{PathIsPrefixA, PathIsPrefixW};
 
 mod path_is_lfn_file_spec;
-pub use path_is_lfn_file_spec::*;
+pub use path_is_lfn_file_spec::{PathIsLFNFileSpecA, PathIsLFNFileSpecW};
 
 mod path_is_file_spec;
-pub use path_is_file_spec::*;
+pub use path_is_file_spec::{PathIsFileSpecA, PathIsFileSpecW};
 
 mod path_get_drive_number;
-pub use path_get_drive_number::*;
+pub use path_get_drive_number::{PathGetDriveNumberA, PathGetDriveNumberW};
 
 mod path_get_char_type;
-pub use path_get_char_type::*;
+pub use path_get_char_type::{PathGetCharTypeA, PathGetCharTypeW};
 
 mod path_get_args;
-pub use path_get_args::*;
+pub use path_get_args::{PathGetArgsA, PathGetArgsW};
 
 mod path_find_next_component;
-pub use path_find_next_component::*;
+pub use path_find_next_component::{PathFindNextComponentA, PathFindNextComponentW};
 
 mod path_find_file_name;
-pub use path_find_file_name::*;
+pub use path_find_file_name::{PathFindFileNameA, PathFindFileNameW};
 
 mod path_find_extension;
-pub use path_find_extension::*;
+pub use path_find_extension::{PathFindExtensionA, PathFindExtensionW};
 
 mod path_file_exists;
-pub use path_file_exists::*;
+pub use path_file_exists::{PathFileExistsA, PathFileExistsW};
 
 mod path_create_from_url;
-pub use path_create_from_url::*;
+pub use path_create_from_url::{PathCreateFromUrlA, PathCreateFromUrlW};
 
 mod path_common_prefix;
-pub use path_common_prefix::*;
+pub use path_common_prefix::{PathCommonPrefixA, PathCommonPrefixW};
 
 mod path_combine;
-pub use path_combine::*;
+pub use path_combine::{PathCombineA, PathCombineW};
 
 mod path_canonicalize;
-pub use path_canonicalize::*;
+pub use path_canonicalize::{PathCanonicalizeA, PathCanonicalizeW};
 
 mod path_append;
-pub use path_append::*;
+pub use path_append::{PathAppendA, PathAppendW};
 
 mod path_add_extension;
-pub use path_add_extension::*;
+pub use path_add_extension::{PathAddExtensionA, PathAddExtensionW};
 
 mod path_add_backslash;
-pub use path_add_backslash::*;
+pub use path_add_backslash::{PathAddBackslashA, PathAddBackslashW};
 
 mod output_debug_string;
-pub use output_debug_string::*;
+pub use output_debug_string::{OutputDebugStringA, OutputDebugStringW};
 
 mod open_event;
-pub use open_event::*;
+pub use open_event::{OpenEventA, OpenEventW};
 
 mod need_current_directory_for_exe_path;
-pub use need_current_directory_for_exe_path::*;
+pub use need_current_directory_for_exe_path::{
+    NeedCurrentDirectoryForExePathA, NeedCurrentDirectoryForExePathW,
+};
 
 mod load_string;
-pub use load_string::*;
+pub use load_string::{LoadStringA, LoadStringW};
 
 mod load_library_ex;
-pub use load_library_ex::*;
+pub use load_library_ex::{LoadLibraryExA, LoadLibraryExW};
 
 mod load_library;
-pub use load_library::*;
+pub use load_library::{LoadLibraryA, LoadLibraryW};
 
 mod load_enclave_image;
-pub use load_enclave_image::*;
+pub use load_enclave_image::{LoadEnclaveImageA, LoadEnclaveImageW};
 
 mod lc_map_string;
-pub use lc_map_string::*;
+pub use lc_map_string::{LCMapStringA, LCMapStringW};
 
 mod k32_get_process_image_file_name;
-pub use k32_get_process_image_file_name::*;
+pub use k32_get_process_image_file_name::{
+    K32GetProcessImageFileNameA, K32GetProcessImageFileNameW,
+};
 
 mod k32_get_module_file_name_ex;
-pub use k32_get_module_file_name_ex::*;
+pub use k32_get_module_file_name_ex::{K32GetModuleFileNameExA, K32GetModuleFileNameExW};
 
 mod k32_get_module_base_name;
-pub use k32_get_module_base_name::*;
+pub use k32_get_module_base_name::{K32GetModuleBaseNameA, K32GetModuleBaseNameW};
 
 mod k32_get_mapped_file_name;
-pub use k32_get_mapped_file_name::*;
+pub use k32_get_mapped_file_name::{K32GetMappedFileNameA, K32GetMappedFileNameW};
 
 mod k32_get_device_driver_file_name;
-pub use k32_get_device_driver_file_name::*;
+pub use k32_get_device_driver_file_name::{
+    K32GetDeviceDriverFileNameA, K32GetDeviceDriverFileNameW,
+};
 
 mod k32_get_device_driver_base_name;
-pub use k32_get_device_driver_base_name::*;
+pub use k32_get_device_driver_base_name::{
+    K32GetDeviceDriverBaseNameA, K32GetDeviceDriverBaseNameW,
+};
 
 mod k32_enum_page_files;
-pub use k32_enum_page_files::*;
+pub use k32_enum_page_files::{K32EnumPageFilesA, K32EnumPageFilesW};
 
 mod is_char_space;
-pub use is_char_space::*;
+pub use is_char_space::{IsCharSpaceA, IsCharSpaceW};
 
 mod internet_time_to_system_time;
-pub use internet_time_to_system_time::*;
+pub use internet_time_to_system_time::{InternetTimeToSystemTimeA, InternetTimeToSystemTimeW};
 
 mod internet_time_from_system_time;
-pub use internet_time_from_system_time::*;
+pub use internet_time_from_system_time::{
+    InternetTimeFromSystemTimeA, InternetTimeFromSystemTimeW,
+};
 
 mod get_windows_directory;
-pub use get_windows_directory::*;
+pub use get_windows_directory::{GetWindowsDirectoryA, GetWindowsDirectoryW};
 
 mod get_volume_information;
-pub use get_volume_information::*;
+pub use get_volume_information::{GetVolumeInformationA, GetVolumeInformationW};
 
 mod get_version_ex;
-pub use get_version_ex::*;
+pub use get_version_ex::{GetVersionExA, GetVersionExW};
 
 mod get_time_format;
-pub use get_time_format::*;
+pub use get_time_format::{GetTimeFormatA, GetTimeFormatW};
 
 mod get_temp_path;
-pub use get_temp_path::*;
+pub use get_temp_path::{GetTempPathA, GetTempPathW};
 
 mod get_temp_path2;
-pub use get_temp_path2::*;
+pub use get_temp_path2::{GetTempPath2A, GetTempPath2W};
 
 mod get_temp_file_name;
-pub use get_temp_file_name::*;
+pub use get_temp_file_name::{GetTempFileNameA, GetTempFileNameW};
 
 mod get_system_wow64_directory;
-pub use get_system_wow64_directory::*;
+pub use get_system_wow64_directory::{GetSystemWow64DirectoryA, GetSystemWow64DirectoryW};
 
 mod get_system_wow64_directory2;
-pub use get_system_wow64_directory2::*;
+pub use get_system_wow64_directory2::{GetSystemWow64Directory2A, GetSystemWow64Directory2W};
 
 mod get_system_windows_directory;
-pub use get_system_windows_directory::*;
+pub use get_system_windows_directory::{GetSystemWindowsDirectoryA, GetSystemWindowsDirectoryW};
 
 mod get_system_directory;
-pub use get_system_directory::*;
+pub use get_system_directory::{GetSystemDirectoryA, GetSystemDirectoryW};
 
 mod get_string_type;
-pub use get_string_type::*;
+pub use get_string_type::{GetStringTypeA, GetStringTypeW};
 
 mod get_process_image_file_name;
-pub use get_process_image_file_name::*;
+pub use get_process_image_file_name::{GetProcessImageFileNameA, GetProcessImageFileNameW};
 
 mod get_module_file_name_ex;
-pub use get_module_file_name_ex::*;
+pub use get_module_file_name_ex::{GetModuleFileNameExA, GetModuleFileNameExW};
 
 mod get_module_base_name;
-pub use get_module_base_name::*;
+pub use get_module_base_name::{GetModuleBaseNameA, GetModuleBaseNameW};
 
 mod get_mapped_file_name;
-pub use get_mapped_file_name::*;
+pub use get_mapped_file_name::{GetMappedFileNameA, GetMappedFileNameW};
 
 mod get_long_path_name;
-pub use get_long_path_name::*;
+pub use get_long_path_name::{GetLongPathNameA, GetLongPathNameW};
 
 mod get_locale_info;
-pub use get_locale_info::*;
+pub use get_locale_info::{GetLocaleInfoA, GetLocaleInfoW};
 
 mod get_gpo_list_internal;
-pub use get_gpo_list_internal::*;
+pub use get_gpo_list_internal::{GetGPOListInternalA, GetGPOListInternalW};
 
 mod get_full_path_name;
-pub use get_full_path_name::*;
+pub use get_full_path_name::{GetFullPathNameA, GetFullPathNameW};
 
 mod get_final_path_name_by_handle;
-pub use get_final_path_name_by_handle::*;
+pub use get_final_path_name_by_handle::{GetFinalPathNameByHandleA, GetFinalPathNameByHandleW};
 
 mod get_file_version_info_size_ex;
-pub use get_file_version_info_size_ex::*;
+pub use get_file_version_info_size_ex::{GetFileVersionInfoSizeExA, GetFileVersionInfoSizeExW};
 
 mod get_file_version_info_ex;
-pub use get_file_version_info_ex::*;
+pub use get_file_version_info_ex::{GetFileVersionInfoExA, GetFileVersionInfoExW};
 
 mod get_file_attributes_ex;
-pub use get_file_attributes_ex::*;
+pub use get_file_attributes_ex::{GetFileAttributesExA, GetFileAttributesExW};
 
 mod get_file_attributes;
-pub use get_file_attributes::*;
+pub use get_file_attributes::{GetFileAttributesA, GetFileAttributesW};
 
 mod get_environment_variable;
-pub use get_environment_variable::*;
+pub use get_environment_variable::{GetEnvironmentVariableA, GetEnvironmentVariableW};
 
 mod get_drive_type;
-pub use get_drive_type::*;
+pub use get_drive_type::{GetDriveTypeA, GetDriveTypeW};
 
 mod get_disk_space_information;
-pub use get_disk_space_information::*;
+pub use get_disk_space_information::{GetDiskSpaceInformationA, GetDiskSpaceInformationW};
 
 mod get_disk_free_space_ex;
-pub use get_disk_free_space_ex::*;
+pub use get_disk_free_space_ex::{GetDiskFreeSpaceExA, GetDiskFreeSpaceExW};
 
 mod get_device_driver_file_name;
-pub use get_device_driver_file_name::*;
+pub use get_device_driver_file_name::{GetDeviceDriverFileNameA, GetDeviceDriverFileNameW};
 
 mod get_device_driver_base_name;
-pub use get_device_driver_base_name::*;
+pub use get_device_driver_base_name::{GetDeviceDriverBaseNameA, GetDeviceDriverBaseNameW};
 
 mod get_date_format;
-pub use get_date_format::*;
+pub use get_date_format::{GetDateFormatA, GetDateFormatW};
 
 mod get_current_directory;
-pub use get_current_directory::*;
+pub use get_current_directory::{GetCurrentDirectoryA, GetCurrentDirectoryW};
 
 mod get_console_title;
-pub use get_console_title::*;
+pub use get_console_title::{GetConsoleTitleA, GetConsoleTitleW};
 
 mod get_console_original_title;
-pub use get_console_original_title::*;
+pub use get_console_original_title::{GetConsoleOriginalTitleA, GetConsoleOriginalTitleW};
 
 mod get_console_input_exe_name;
-pub use get_console_input_exe_name::*;
+pub use get_console_input_exe_name::{GetConsoleInputExeNameA, GetConsoleInputExeNameW};
 
 mod get_console_command_history_length;
-pub use get_console_command_history_length::*;
+pub use get_console_command_history_length::{
+    GetConsoleCommandHistoryLengthA, GetConsoleCommandHistoryLengthW,
+};
 
 mod get_console_command_history;
-pub use get_console_command_history::*;
+pub use get_console_command_history::{GetConsoleCommandHistoryA, GetConsoleCommandHistoryW};
 
 mod get_console_aliases_length;
-pub use get_console_aliases_length::*;
+pub use get_console_aliases_length::{GetConsoleAliasesLengthA, GetConsoleAliasesLengthW};
 
 mod get_console_aliases;
-pub use get_console_aliases::*;
+pub use get_console_aliases::{GetConsoleAliasesA, GetConsoleAliasesW};
 
 mod get_console_alias_exes_length;
-pub use get_console_alias_exes_length::*;
+pub use get_console_alias_exes_length::{GetConsoleAliasExesLengthA, GetConsoleAliasExesLengthW};
 
 mod get_console_alias_exes;
-pub use get_console_alias_exes::*;
+pub use get_console_alias_exes::{GetConsoleAliasExesA, GetConsoleAliasExesW};
 
 mod get_console_alias;
-pub use get_console_alias::*;
+pub use get_console_alias::{GetConsoleAliasA, GetConsoleAliasW};
 
 mod get_computer_name_ex;
-pub use get_computer_name_ex::*;
+pub use get_computer_name_ex::{GetComputerNameExA, GetComputerNameExW};
 
 mod get_compressed_file_size;
-pub use get_compressed_file_size::*;
+pub use get_compressed_file_size::{GetCompressedFileSizeA, GetCompressedFileSizeW};
 
 mod get_command_line;
-pub use get_command_line::*;
+pub use get_command_line::{GetCommandLineA, GetCommandLineW};
 
 mod get_applied_gpo_list_internal;
-pub use get_applied_gpo_list_internal::*;
+pub use get_applied_gpo_list_internal::{GetAppliedGPOListInternalA, GetAppliedGPOListInternalW};
 
 mod get_accept_languages;
-pub use get_accept_languages::*;
+pub use get_accept_languages::{GetAcceptLanguagesA, GetAcceptLanguagesW};
 
 mod free_gpo_list_internal;
-pub use free_gpo_list_internal::*;
+pub use free_gpo_list_internal::{FreeGPOListInternalA, FreeGPOListInternalW};
 
 mod free_environment_strings;
-pub use free_environment_strings::*;
+pub use free_environment_strings::{FreeEnvironmentStringsA, FreeEnvironmentStringsW};
 
 mod format_message;
-pub use format_message::*;
+pub use format_message::{FormatMessageA, FormatMessageW};
 
 mod find_next_file;
-pub use find_next_file::*;
+pub use find_next_file::{FindNextFileA, FindNextFileW};
 
 mod find_first_file_ex;
-pub use find_first_file_ex::*;
+pub use find_first_file_ex::{FindFirstFileExA, FindFirstFileExW};
 
 mod find_first_file;
-pub use find_first_file::*;
+pub use find_first_file::{FindFirstFileA, FindFirstFileW};
 
 mod find_first_change_notification;
-pub use find_first_change_notification::*;
+pub use find_first_change_notification::{
+    FindFirstChangeNotificationA, FindFirstChangeNotificationW,
+};
 
 mod fill_console_output_character;
-pub use fill_console_output_character::*;
+pub use fill_console_output_character::{FillConsoleOutputCharacterA, FillConsoleOutputCharacterW};
 
 mod fatal_app_exit;
-pub use fatal_app_exit::*;
+pub use fatal_app_exit::{FatalAppExitA, FatalAppExitW};
 
 mod expunge_console_command_history;
-pub use expunge_console_command_history::*;
+pub use expunge_console_command_history::{
+    ExpungeConsoleCommandHistoryA, ExpungeConsoleCommandHistoryW,
+};
 
 mod expand_environment_strings;
-pub use expand_environment_strings::*;
+pub use expand_environment_strings::{ExpandEnvironmentStringsA, ExpandEnvironmentStringsW};
 
 mod enum_system_locales;
-pub use enum_system_locales::*;
+pub use enum_system_locales::{EnumSystemLocalesA, EnumSystemLocalesW};
 
 mod enum_resource_types_ex;
-pub use enum_resource_types_ex::*;
+pub use enum_resource_types_ex::{EnumResourceTypesExA, EnumResourceTypesExW};
 
 mod enum_resource_names_ex;
-pub use enum_resource_names_ex::*;
+pub use enum_resource_names_ex::{EnumResourceNamesExA, EnumResourceNamesExW};
 
 mod enum_resource_names;
-pub use enum_resource_names::*;
+pub use enum_resource_names::{EnumResourceNamesA, EnumResourceNamesW};
 
 mod enum_resource_languages_ex;
-pub use enum_resource_languages_ex::*;
+pub use enum_resource_languages_ex::{EnumResourceLanguagesExA, EnumResourceLanguagesExW};
 
 mod enum_page_files;
-pub use enum_page_files::*;
+pub use enum_page_files::{EnumPageFilesA, EnumPageFilesW};
 
 mod delete_file;
-pub use delete_file::*;
+pub use delete_file::{DeleteFileA, DeleteFileW};
 
 mod delete_file2;
-pub use delete_file2::*;
+pub use delete_file2::{DeleteFile2A, DeleteFile2W};
 
 mod create_process_internal;
-pub use create_process_internal::*;
+pub use create_process_internal::{CreateProcessInternalA, CreateProcessInternalW};
 
 mod create_process_as_user;
-pub use create_process_as_user::*;
+pub use create_process_as_user::{CreateProcessAsUserA, CreateProcessAsUserW};
 
 mod create_process;
-pub use create_process::*;
+pub use create_process::{CreateProcessA, CreateProcessW};
 
 mod create_mutex_ex;
-pub use create_mutex_ex::*;
+pub use create_mutex_ex::{CreateMutexExA, CreateMutexExW};
 
 mod create_mutex;
-pub use create_mutex::*;
+pub use create_mutex::{CreateMutexA, CreateMutexW};
 
 mod create_hard_link;
-pub use create_hard_link::*;
+pub use create_hard_link::{CreateHardLinkA, CreateHardLinkW};
 
 mod create_event_ex;
-pub use create_event_ex::*;
+pub use create_event_ex::{CreateEventExA, CreateEventExW};
 
 mod create_event;
-pub use create_event::*;
+pub use create_event::{CreateEventA, CreateEventW};
 
 mod create_directory;
-pub use create_directory::*;
+pub use create_directory::{CreateDirectoryA, CreateDirectoryW};
 
 mod create_directory2;
-pub use create_directory2::*;
+pub use create_directory2::{CreateDirectory2A, CreateDirectory2W};
 
 mod compare_string;
-pub use compare_string::*;
+pub use compare_string::{CompareStringA, CompareStringW};
 
 mod char_upper_buff;
-pub use char_upper_buff::*;
+pub use char_upper_buff::{CharUpperBuffA, CharUpperBuffW};
 
 mod char_upper;
-pub use char_upper::*;
+pub use char_upper::{CharUpperA, CharUpperW};
 
 mod char_lower_buff;
-pub use char_lower_buff::*;
+pub use char_lower_buff::{CharLowerBuffA, CharLowerBuffW};
 
 mod char_lower;
-pub use char_lower::*;
+pub use char_lower::{CharLowerA, CharLowerW};
 
 mod add_console_alias;
-pub use add_console_alias::*;
+pub use add_console_alias::{AddConsoleAliasA, AddConsoleAliasW};
 
 mod appcompat;
 mod console;
@@ -848,10 +868,9 @@ mod check_is_msix_package;
 pub use check_is_msix_package::CheckIsMSIXPackage;
 mod check_token_membership;
 pub use check_token_membership::CheckTokenMembership;
-mod chr_cmp_ia;
-pub use chr_cmp_ia::ChrCmpIA;
-mod chr_cmp_iw;
-pub use chr_cmp_iw::ChrCmpIW;
+mod chr_cmp_i;
+pub use chr_cmp_i::{ChrCmpIA, ChrCmpIW};
+
 mod close_state_atom;
 pub use close_state_atom::CloseStateAtom;
 mod close_state_change_notification;
@@ -1105,11 +1124,9 @@ pub use get_file_attributes_ex_from_app_w::GetFileAttributesExFromAppW;
 mod get_file_security_w;
 pub use get_file_security_w::GetFileSecurityW;
 mod get_file_version_info_by_handle;
+pub use get_file_version_info::GetFileVersionInfoW;
 pub use get_file_version_info_by_handle::GetFileVersionInfoByHandle;
-mod get_file_version_info_size_w;
-pub use get_file_version_info_size_w::GetFileVersionInfoSizeW;
-mod get_file_version_info_w;
-pub use get_file_version_info_w::GetFileVersionInfoW;
+pub use get_file_version_info_size::GetFileVersionInfoSizeW;
 mod get_gaming_device_model_information;
 pub use get_gaming_device_model_information::GetGamingDeviceModelInformation;
 mod get_hive_path;
@@ -1526,10 +1543,9 @@ mod package_sid_from_product_id;
 pub use package_sid_from_product_id::PackageSidFromProductId;
 mod parse_application_user_model_id_a;
 pub use parse_application_user_model_id_a::ParseApplicationUserModelIdA;
-mod parse_urla;
-pub use parse_urla::ParseURLA;
-mod parse_urlw;
-pub use parse_urlw::ParseURLW;
+mod parse_url;
+pub use parse_url::{ParseURLA, ParseURLW};
+
 mod path_alloc_canonicalize;
 pub use path_alloc_canonicalize::PathAllocCanonicalize;
 mod path_alloc_combine;
@@ -1564,16 +1580,14 @@ mod path_cch_strip_to_root;
 pub use path_cch_strip_to_root::PathCchStripToRoot;
 mod path_create_from_url_alloc;
 pub use path_create_from_url_alloc::PathCreateFromUrlAlloc;
-mod path_is_unca;
-pub use path_is_unca::PathIsUNCA;
+mod path_is_unc;
+pub use path_is_unc::{PathIsUNCA, PathIsUNCW};
 mod path_is_unc_ex;
+
 pub use path_is_unc_ex::PathIsUNCEx;
-mod path_is_uncw;
-pub use path_is_uncw::PathIsUNCW;
-mod path_is_urla;
-pub use path_is_urla::PathIsURLA;
-mod path_is_urlw;
-pub use path_is_urlw::PathIsURLW;
+mod path_is_url;
+pub use path_is_url::{PathIsURLA, PathIsURLW};
+
 mod pcw_add_query_item;
 pub use pcw_add_query_item::PcwAddQueryItem;
 mod pcw_clear_counter_set_security;
@@ -1870,70 +1884,57 @@ mod shared_local_is_enabled;
 pub use shared_local_is_enabled::SharedLocalIsEnabled;
 mod special_mb_to_wc;
 pub use special_mb_to_wc::SpecialMBToWC;
-mod str_c_spn_ia;
-pub use str_c_spn_ia::StrCSpnIA;
-mod str_c_spn_iw;
-pub use str_c_spn_iw::StrCSpnIW;
+mod str_c_spn_i;
+pub use str_c_spn_i::{StrCSpnIA, StrCSpnIW};
+
 mod str_cat_chain_w;
 pub use str_cat_chain_w::StrCatChainW;
 mod str_chr_a_mb;
 pub use str_chr_a_mb::StrChrA_MB;
-mod str_chr_ia;
-pub use str_chr_ia::StrChrIA;
-mod str_chr_iw;
-pub use str_chr_iw::StrChrIW;
+mod str_chr_i;
+pub use str_chr_i::{StrChrIA, StrChrIW};
+
 mod str_chr_niw;
 pub use str_chr_niw::StrChrNIW;
 mod str_chr_nw;
 pub use str_chr_nw::StrChrNW;
-mod str_cmp_ca;
-pub use str_cmp_ca::StrCmpCA;
-mod str_cmp_cw;
-pub use str_cmp_cw::StrCmpCW;
-mod str_cmp_ica;
-pub use str_cmp_ica::StrCmpICA;
-mod str_cmp_icw;
-pub use str_cmp_icw::StrCmpICW;
+mod str_cmp_c;
+pub use str_cmp_c::{StrCmpCA, StrCmpCW};
+
+mod str_cmp_ic;
+pub use str_cmp_ic::{StrCmpICA, StrCmpICW};
+
 mod str_cmp_iw;
 pub use str_cmp_iw::StrCmpIW;
 mod str_cmp_logical_w;
 pub use str_cmp_logical_w::StrCmpLogicalW;
-mod str_cmp_na;
-pub use str_cmp_na::StrCmpNA;
-mod str_cmp_nca;
-pub use str_cmp_nca::StrCmpNCA;
-mod str_cmp_ncw;
-pub use str_cmp_ncw::StrCmpNCW;
-mod str_cmp_nia;
-pub use str_cmp_nia::StrCmpNIA;
-mod str_cmp_nica;
-pub use str_cmp_nica::StrCmpNICA;
-mod str_cmp_nicw;
-pub use str_cmp_nicw::StrCmpNICW;
-mod str_cmp_niw;
-pub use str_cmp_niw::StrCmpNIW;
-mod str_cmp_nw;
-pub use str_cmp_nw::StrCmpNW;
+mod str_cmp_n;
+pub use str_cmp_n::{StrCmpNA, StrCmpNW};
+mod str_cmp_nc;
+pub use str_cmp_nc::{StrCmpNCA, StrCmpNCW};
+
+mod str_cmp_ni;
+pub use str_cmp_ni::{StrCmpNIA, StrCmpNIW};
+mod str_cmp_nic;
+
+pub use str_cmp_nic::{StrCmpNICA, StrCmpNICW};
+
 mod str_cmp_w;
 pub use str_cmp_w::StrCmpW;
 mod str_cpy_nw;
 pub use str_cpy_nw::StrCpyNW;
-mod str_cpy_nxa;
-pub use str_cpy_nxa::StrCpyNXA;
-mod str_cpy_nxw;
-pub use str_cpy_nxw::StrCpyNXW;
-mod str_r_chr_ia;
-pub use str_r_chr_ia::StrRChrIA;
-mod str_r_chr_iw;
-pub use str_r_chr_iw::StrRChrIW;
-mod str_r_str_ia;
-pub use str_r_str_ia::StrRStrIA;
-mod str_r_str_iw;
-pub use str_r_str_iw::StrRStrIW;
-mod str_str_ia;
-pub use str_str_ia::StrStrIA;
-mod str_str_iw;
-pub use str_str_iw::StrStrIW;
+mod str_cpy_nx;
+pub use str_cpy_nx::{StrCpyNXA, StrCpyNXW};
+
+mod str_r_chr_i;
+pub use str_r_chr_i::{StrRChrIA, StrRChrIW};
+
+mod str_r_str_i;
+pub use str_r_str_i::{StrRStrIA, StrRStrIW};
+
+mod str_str_i;
+pub use str_str_i::{StrStrIA, StrStrIW};
+
 mod str_str_niw;
 pub use str_str_niw::StrStrNIW;
 mod str_str_nw;
@@ -2002,8 +2003,7 @@ mod update_package_status_for_user_sid;
 pub use update_package_status_for_user_sid::UpdatePackageStatusForUserSid;
 mod url_fixup_w;
 pub use url_fixup_w::UrlFixupW;
-mod ver_query_value_w;
-pub use ver_query_value_w::VerQueryValueW;
+pub use ver_query_value::VerQueryValueW;
 mod verify_application_user_model_id;
 pub use verify_application_user_model_id::VerifyApplicationUserModelId;
 mod verify_application_user_model_id_a;
@@ -2645,11 +2645,10 @@ pub use get_dynamic_time_zone_information::GetDynamicTimeZoneInformation;
 mod get_enabled_x_state_features;
 pub use get_enabled_x_state_features::GetEnabledXStateFeatures;
 mod get_environment_strings;
-pub use get_environment_strings::GetEnvironmentStrings;
-mod get_environment_strings_a;
-pub use get_environment_strings_a::GetEnvironmentStringsA;
-mod get_environment_strings_w;
-pub use get_environment_strings_w::GetEnvironmentStringsW;
+pub use get_environment_strings::{
+    GetEnvironmentStrings, GetEnvironmentStringsA, GetEnvironmentStringsW,
+};
+
 mod get_era_name_counted_string;
 pub use get_era_name_counted_string::GetEraNameCountedString;
 mod get_error_mode;
@@ -3729,29 +3728,17 @@ pub use __misaligned_access::__misaligned_access;
 mod _local_unwind;
 pub use _local_unwind::_local_unwind;
 mod lstrcmp;
-pub use lstrcmp::lstrcmp;
-mod lstrcmp_a;
-pub use lstrcmp_a::lstrcmpA;
-mod lstrcmp_w;
-pub use lstrcmp_w::lstrcmpW;
+pub use lstrcmp::{lstrcmp, lstrcmpA, lstrcmpW};
+
 mod lstrcmpi;
-pub use lstrcmpi::lstrcmpi;
-mod lstrcmpi_a;
-pub use lstrcmpi_a::lstrcmpiA;
-mod lstrcmpi_w;
-pub use lstrcmpi_w::lstrcmpiW;
+pub use lstrcmpi::{lstrcmpi, lstrcmpiA, lstrcmpiW};
+
 mod lstrcpyn;
-pub use lstrcpyn::lstrcpyn;
-mod lstrcpyn_a;
-pub use lstrcpyn_a::lstrcpynA;
-mod lstrcpyn_w;
-pub use lstrcpyn_w::lstrcpynW;
+pub use lstrcpyn::{lstrcpyn, lstrcpynA, lstrcpynW};
+
 mod lstrlen;
-pub use lstrlen::lstrlen;
-mod lstrlen_a;
-pub use lstrlen_a::lstrlenA;
-mod lstrlen_w;
-pub use lstrlen_w::lstrlenW;
+pub use lstrlen::{lstrlen, lstrlenA, lstrlenW};
+
 mod interlocked_compare_exchange;
 pub use interlocked_compare_exchange::InterlockedCompareExchange;
 mod interlocked_compare_exchange64;
@@ -3766,18 +3753,18 @@ mod interlocked_increment;
 pub use interlocked_increment::InterlockedIncrement;
 mod wow64_transition;
 pub use wow64_transition::Wow64Transition;
-mod get_file_version_info_a;
-use get_file_version_info_a::GetFileVersionInfoA;
-mod get_file_version_info_size_a;
-use get_file_version_info_size_a::GetFileVersionInfoSizeA;
+mod get_file_version_info;
+use get_file_version_info::GetFileVersionInfoA;
+mod get_file_version_info_size;
+use get_file_version_info_size::GetFileVersionInfoSizeA;
 mod get_token_information;
 pub use get_token_information::GetTokenInformation;
 mod local_alloc;
 use local_alloc::LocalAlloc;
 mod set_unhandled_exception_filter;
 use set_unhandled_exception_filter::SetUnhandledExceptionFilter;
-mod ver_query_value_a;
-use ver_query_value_a::VerQueryValueA;
+mod ver_query_value;
+use ver_query_value::VerQueryValueA;
 mod _exit;
 use _exit::_exit;
 mod _initterm;

@@ -1,12 +1,13 @@
 use super::parse_format_specifiers;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
     let options = emu.regs().rcx; // _In_ options
     let file = emu.regs().rdx; // _In_ FILE*
     let format = emu.regs().r8; // _In_ format string ptr
     let locale = emu.regs().r9; // _In_opt_ locale
-    let va_list = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let va_list = WinApiAbi::arg(emu, 4);
 
     // Just try to read the format string
     let fmt_str = emu.maps.read_string(format);

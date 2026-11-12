@@ -1,13 +1,14 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptGenKey(emu: &mut emu::Emu) {
-    let hprov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let algid = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let hkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let hprov = WinApiAbi::arg(emu, 0) as u32;
+    let algid = WinApiAbi::arg(emu, 1) as u32;
+    let flags = WinApiAbi::arg(emu, 2) as u32;
+    let hkey_ptr = WinApiAbi::arg(emu, 3);
 
     let uri = format!("cryptkey://{}", get_cryptoalgorithm_name(algid));
     let hndl = helper::handler_create(&uri);

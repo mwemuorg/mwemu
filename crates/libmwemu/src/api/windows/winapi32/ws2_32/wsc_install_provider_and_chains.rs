@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSCInstallProviderAndChains(emu: &mut emu::Emu) {
-    let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let err_ptr = WinApiAbi::arg(emu, 0);
     log_red!(
         emu,
         "ws2_32!WSCInstallProviderAndChains ptr:0x{:x}",

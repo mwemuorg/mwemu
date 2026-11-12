@@ -1,10 +1,11 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn PFXImportCertStore(emu: &mut emu::Emu) {
-    let pfx_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let _password_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let pfx_ptr = WinApiAbi::arg(emu, 0);
+    let _password_ptr = WinApiAbi::arg(emu, 1) as u32;
+    let flags = WinApiAbi::arg(emu, 2) as u32;
     for _ in 0..3u32 {
         emu.stack_pop32(false);
     }

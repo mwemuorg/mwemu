@@ -1,101 +1,77 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../create_act_ctx.rs"]
 mod create_act_ctx;
-pub use create_act_ctx::*;
+pub use create_act_ctx::{CreateActCtxA, CreateActCtxW};
 
-#[path = "../update_resource.rs"]
 mod update_resource;
-pub use update_resource::*;
+pub use update_resource::{UpdateResourceA, UpdateResourceW};
 
-#[path = "../load_library_ex.rs"]
 mod load_library_ex;
-pub use load_library_ex::*;
+pub use load_library_ex::{LoadLibraryExA, LoadLibraryExW};
 
-#[path = "../load_library.rs"]
 mod load_library;
-pub use load_library::*;
+pub use load_library::{LoadLibraryA, LoadLibraryW};
 
-#[path = "../find_resource.rs"]
 mod find_resource;
-pub use find_resource::*;
+pub use find_resource::{FindResourceA, FindResourceW};
 
-#[path = "../end_update_resource.rs"]
 mod end_update_resource;
-pub use end_update_resource::*;
+pub use end_update_resource::{EndUpdateResourceA, EndUpdateResourceW};
 
-#[path = "../begin_update_resource.rs"]
 mod begin_update_resource;
-pub use begin_update_resource::*;
+pub use begin_update_resource::{BeginUpdateResourceA, BeginUpdateResourceW};
 
-#[path = "../free_library.rs"]
 mod free_library;
-pub use free_library::*;
+pub use free_library::FreeLibrary;
 
-#[path = "../free_resource.rs"]
 mod free_resource;
-pub use free_resource::*;
+pub use free_resource::FreeResource;
 
-#[path = "../get_proc_address.rs"]
 mod get_proc_address;
-pub use get_proc_address::*;
+pub use get_proc_address::GetProcAddress;
 
-#[path = "../load_resource.rs"]
 mod load_resource;
-pub use load_resource::*;
+pub use load_resource::LoadResource;
 
-#[path = "../lock_resource.rs"]
 mod lock_resource;
-pub use lock_resource::*;
+pub use lock_resource::LockResource;
 
-#[path = "../sizeof_resource.rs"]
 mod sizeof_resource;
-pub use sizeof_resource::*;
+pub use sizeof_resource::SizeofResource;
 
-#[path = "../activate_act_ctx_worker.rs"]
 mod activate_act_ctx_worker;
-pub use activate_act_ctx_worker::*;
+pub use activate_act_ctx_worker::ActivateActCtxWorker;
 
-#[path = "../check_for_read_only_resource.rs"]
 mod check_for_read_only_resource;
-pub use check_for_read_only_resource::*;
+pub use check_for_read_only_resource::CheckForReadOnlyResource;
 
-#[path = "../create_act_ctx_w_worker.rs"]
 mod create_act_ctx_w_worker;
-pub use create_act_ctx_w_worker::*;
+pub use create_act_ctx_w_worker::CreateActCtxWWorker;
 
-#[path = "../deactivate_act_ctx_worker.rs"]
 mod deactivate_act_ctx_worker;
-pub use deactivate_act_ctx_worker::*;
+pub use deactivate_act_ctx_worker::DeactivateActCtxWorker;
 
-#[path = "../find_act_ctx_section_guid_worker.rs"]
 mod find_act_ctx_section_guid_worker;
-pub use find_act_ctx_section_guid_worker::*;
+pub use find_act_ctx_section_guid_worker::FindActCtxSectionGuidWorker;
 
-#[path = "../get_current_act_ctx_worker.rs"]
 mod get_current_act_ctx_worker;
-pub use get_current_act_ctx_worker::*;
+pub use get_current_act_ctx_worker::GetCurrentActCtxWorker;
 
-#[path = "../query_act_ctx_settings_w_worker.rs"]
 mod query_act_ctx_settings_w_worker;
-pub use query_act_ctx_settings_w_worker::*;
+pub use query_act_ctx_settings_w_worker::QueryActCtxSettingsWWorker;
 
-#[path = "../query_act_ctx_w_worker.rs"]
 mod query_act_ctx_w_worker;
-pub use query_act_ctx_w_worker::*;
+pub use query_act_ctx_w_worker::QueryActCtxWWorker;
 
-#[path = "../resource_data_match.rs"]
 mod resource_data_match;
-pub use resource_data_match::*;
+pub use resource_data_match::ResourceDataMatch;
 
-#[path = "../sxs_manifest.rs"]
 mod sxs_manifest;
-pub use sxs_manifest::*;
+pub use sxs_manifest::SXSManifest;
 
-#[path = "../zombify_act_ctx_worker.rs"]
 mod zombify_act_ctx_worker;
-pub use zombify_act_ctx_worker::*;
+pub use zombify_act_ctx_worker::ZombifyActCtxWorker;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {

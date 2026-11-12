@@ -3,529 +3,582 @@ use crate::emu;
 use crate::winapi::winapi64;
 
 mod wmi_set_single_item;
-pub use wmi_set_single_item::*;
+pub use wmi_set_single_item::{WmiSetSingleItemA, WmiSetSingleItemW};
 
 mod wmi_set_single_instance;
-pub use wmi_set_single_instance::*;
+pub use wmi_set_single_instance::{WmiSetSingleInstanceA, WmiSetSingleInstanceW};
 
 mod wmi_receive_notifications;
-pub use wmi_receive_notifications::*;
+pub use wmi_receive_notifications::{WmiReceiveNotificationsA, WmiReceiveNotificationsW};
 
 mod wmi_query_single_instance_multiple;
-pub use wmi_query_single_instance_multiple::*;
+pub use wmi_query_single_instance_multiple::{
+    WmiQuerySingleInstanceMultipleA, WmiQuerySingleInstanceMultipleW,
+};
 
 mod wmi_query_single_instance;
-pub use wmi_query_single_instance::*;
+pub use wmi_query_single_instance::{WmiQuerySingleInstanceA, WmiQuerySingleInstanceW};
 
 mod wmi_query_all_data_multiple;
-pub use wmi_query_all_data_multiple::*;
+pub use wmi_query_all_data_multiple::{WmiQueryAllDataMultipleA, WmiQueryAllDataMultipleW};
 
 mod wmi_query_all_data;
-pub use wmi_query_all_data::*;
+pub use wmi_query_all_data::{WmiQueryAllDataA, WmiQueryAllDataW};
 
 mod wmi_notification_registration;
-pub use wmi_notification_registration::*;
+pub use wmi_notification_registration::{
+    WmiNotificationRegistrationA, WmiNotificationRegistrationW,
+};
 
 mod wmi_mof_enumerate_resources;
-pub use wmi_mof_enumerate_resources::*;
+pub use wmi_mof_enumerate_resources::{WmiMofEnumerateResourcesA, WmiMofEnumerateResourcesW};
 
 mod wmi_file_handle_to_instance_name;
-pub use wmi_file_handle_to_instance_name::*;
+pub use wmi_file_handle_to_instance_name::{
+    WmiFileHandleToInstanceNameA, WmiFileHandleToInstanceNameW,
+};
 
 mod wmi_execute_method;
-pub use wmi_execute_method::*;
+pub use wmi_execute_method::{WmiExecuteMethodA, WmiExecuteMethodW};
 
 mod wmi_dev_inst_to_instance_name;
-pub use wmi_dev_inst_to_instance_name::*;
+pub use wmi_dev_inst_to_instance_name::{WmiDevInstToInstanceNameA, WmiDevInstToInstanceNameW};
 
 mod use_pin_for_encrypted_files;
-pub use use_pin_for_encrypted_files::*;
+pub use use_pin_for_encrypted_files::{UsePinForEncryptedFilesA, UsePinForEncryptedFilesW};
 
 mod update_trace;
-pub use update_trace::*;
+pub use update_trace::{UpdateTraceA, UpdateTraceW};
 
 mod trustee_access_to_object;
-pub use trustee_access_to_object::*;
+pub use trustee_access_to_object::{TrusteeAccessToObjectA, TrusteeAccessToObjectW};
 
 mod tree_set_named_security_info;
-pub use tree_set_named_security_info::*;
+pub use tree_set_named_security_info::{TreeSetNamedSecurityInfoA, TreeSetNamedSecurityInfoW};
 
 mod tree_reset_named_security_info;
-pub use tree_reset_named_security_info::*;
+pub use tree_reset_named_security_info::{
+    TreeResetNamedSecurityInfoA, TreeResetNamedSecurityInfoW,
+};
 
 mod stop_trace;
-pub use stop_trace::*;
+pub use stop_trace::{StopTraceA, StopTraceW};
 
 mod start_trace;
-pub use start_trace::*;
+pub use start_trace::{StartTraceA, StartTraceW};
 
 mod start_service;
-pub use start_service::*;
+pub use start_service::{StartServiceA, StartServiceW};
 
 mod set_security_info_ex;
-pub use set_security_info_ex::*;
+pub use set_security_info_ex::{SetSecurityInfoExA, SetSecurityInfoExW};
 
 mod set_named_security_info_ex;
-pub use set_named_security_info_ex::*;
+pub use set_named_security_info_ex::{SetNamedSecurityInfoExA, SetNamedSecurityInfoExW};
 
 mod set_named_security_info;
-pub use set_named_security_info::*;
+pub use set_named_security_info::{SetNamedSecurityInfoA, SetNamedSecurityInfoW};
 
 mod set_file_security;
-pub use set_file_security::*;
+pub use set_file_security::{SetFileSecurityA, SetFileSecurityW};
 
 mod set_entries_in_audit_list;
-pub use set_entries_in_audit_list::*;
+pub use set_entries_in_audit_list::{SetEntriesInAuditListA, SetEntriesInAuditListW};
 
 mod set_entries_in_acl;
-pub use set_entries_in_acl::*;
+pub use set_entries_in_acl::{SetEntriesInAclA, SetEntriesInAclW};
 
 mod set_entries_in_access_list;
-pub use set_entries_in_access_list::*;
+pub use set_entries_in_access_list::{SetEntriesInAccessListA, SetEntriesInAccessListW};
 
 mod report_event;
-pub use report_event::*;
+pub use report_event::{ReportEventA, ReportEventW};
 
 mod register_trace_guids;
-pub use register_trace_guids::*;
+pub use register_trace_guids::{RegisterTraceGuidsA, RegisterTraceGuidsW};
 
 mod register_service_ctrl_handler_ex;
-pub use register_service_ctrl_handler_ex::*;
+pub use register_service_ctrl_handler_ex::{
+    RegisterServiceCtrlHandlerExA, RegisterServiceCtrlHandlerExW,
+};
 
 mod register_service_ctrl_handler;
-pub use register_service_ctrl_handler::*;
+pub use register_service_ctrl_handler::{RegisterServiceCtrlHandlerA, RegisterServiceCtrlHandlerW};
 
 mod register_event_source;
-pub use register_event_source::*;
+pub use register_event_source::{RegisterEventSourceA, RegisterEventSourceW};
 
 mod reg_un_load_key;
-pub use reg_un_load_key::*;
+pub use reg_un_load_key::{RegUnLoadKeyA, RegUnLoadKeyW};
 
 mod reg_set_value_ex;
-pub use reg_set_value_ex::*;
+pub use reg_set_value_ex::{RegSetValueExA, RegSetValueExW};
 
 mod reg_set_value;
-pub use reg_set_value::*;
+pub use reg_set_value::{RegSetValueA, RegSetValueW};
 
 mod reg_set_key_value;
-pub use reg_set_key_value::*;
+pub use reg_set_key_value::{RegSetKeyValueA, RegSetKeyValueW};
 
 mod reg_save_key_ex;
-pub use reg_save_key_ex::*;
+pub use reg_save_key_ex::{RegSaveKeyExA, RegSaveKeyExW};
 
 mod reg_save_key;
-pub use reg_save_key::*;
+pub use reg_save_key::{RegSaveKeyA, RegSaveKeyW};
 
 mod reg_restore_key;
-pub use reg_restore_key::*;
+pub use reg_restore_key::{RegRestoreKeyA, RegRestoreKeyW};
 
 mod reg_replace_key;
-pub use reg_replace_key::*;
+pub use reg_replace_key::{RegReplaceKeyA, RegReplaceKeyW};
 
 mod reg_query_value_ex;
-pub use reg_query_value_ex::*;
+pub use reg_query_value_ex::{RegQueryValueExA, RegQueryValueExW};
 
 mod reg_query_value;
-pub use reg_query_value::*;
+pub use reg_query_value::{RegQueryValueA, RegQueryValueW};
 
 mod reg_query_multiple_values;
-pub use reg_query_multiple_values::*;
+pub use reg_query_multiple_values::{RegQueryMultipleValuesA, RegQueryMultipleValuesW};
 
 mod reg_query_info_key;
-pub use reg_query_info_key::*;
+pub use reg_query_info_key::{RegQueryInfoKeyA, RegQueryInfoKeyW};
 
 mod reg_open_key_transacted;
-pub use reg_open_key_transacted::*;
+pub use reg_open_key_transacted::{RegOpenKeyTransactedA, RegOpenKeyTransactedW};
 
 mod reg_open_key_ex;
-pub use reg_open_key_ex::*;
+pub use reg_open_key_ex::{RegOpenKeyExA, RegOpenKeyExW};
 
 mod reg_open_key;
-pub use reg_open_key::*;
+pub use reg_open_key::{RegOpenKeyA, RegOpenKeyW};
 
 mod reg_load_mui_string;
-pub use reg_load_mui_string::*;
+pub use reg_load_mui_string::{RegLoadMUIStringA, RegLoadMUIStringW};
 
 mod reg_load_key;
-pub use reg_load_key::*;
+pub use reg_load_key::{RegLoadKeyA, RegLoadKeyW};
 
 mod reg_load_app_key;
-pub use reg_load_app_key::*;
+pub use reg_load_app_key::{RegLoadAppKeyA, RegLoadAppKeyW};
 
 mod reg_get_value;
-pub use reg_get_value::*;
+pub use reg_get_value::{RegGetValueA, RegGetValueW};
 
 mod reg_enum_value;
-pub use reg_enum_value::*;
+pub use reg_enum_value::{RegEnumValueA, RegEnumValueW};
 
 mod reg_enum_key_ex;
-pub use reg_enum_key_ex::*;
+pub use reg_enum_key_ex::{RegEnumKeyExA, RegEnumKeyExW};
 
 mod reg_enum_key;
-pub use reg_enum_key::*;
+pub use reg_enum_key::{RegEnumKeyA, RegEnumKeyW};
 
 mod reg_delete_value;
-pub use reg_delete_value::*;
+pub use reg_delete_value::{RegDeleteValueA, RegDeleteValueW};
 
 mod reg_delete_tree;
-pub use reg_delete_tree::*;
+pub use reg_delete_tree::{RegDeleteTreeA, RegDeleteTreeW};
 
 mod reg_delete_key_value;
-pub use reg_delete_key_value::*;
+pub use reg_delete_key_value::{RegDeleteKeyValueA, RegDeleteKeyValueW};
 
 mod reg_delete_key_transacted;
-pub use reg_delete_key_transacted::*;
+pub use reg_delete_key_transacted::{RegDeleteKeyTransactedA, RegDeleteKeyTransactedW};
 
 mod reg_delete_key_ex;
-pub use reg_delete_key_ex::*;
+pub use reg_delete_key_ex::{RegDeleteKeyExA, RegDeleteKeyExW};
 
 mod reg_delete_key;
-pub use reg_delete_key::*;
+pub use reg_delete_key::{RegDeleteKeyA, RegDeleteKeyW};
 
 mod reg_create_key_transacted;
-pub use reg_create_key_transacted::*;
+pub use reg_create_key_transacted::{RegCreateKeyTransactedA, RegCreateKeyTransactedW};
 
 mod reg_create_key_ex;
-pub use reg_create_key_ex::*;
+pub use reg_create_key_ex::{RegCreateKeyExA, RegCreateKeyExW};
 
 mod reg_create_key;
-pub use reg_create_key::*;
+pub use reg_create_key::{RegCreateKeyA, RegCreateKeyW};
 
 mod reg_copy_tree;
-pub use reg_copy_tree::*;
+pub use reg_copy_tree::{RegCopyTreeA, RegCopyTreeW};
 
 mod reg_connect_registry_ex;
-pub use reg_connect_registry_ex::*;
+pub use reg_connect_registry_ex::{RegConnectRegistryExA, RegConnectRegistryExW};
 
 mod reg_connect_registry;
-pub use reg_connect_registry::*;
+pub use reg_connect_registry::{RegConnectRegistryA, RegConnectRegistryW};
 
 mod read_event_log;
-pub use read_event_log::*;
+pub use read_event_log::{ReadEventLogA, ReadEventLogW};
 
 mod query_trace;
-pub use query_trace::*;
+pub use query_trace::{QueryTraceA, QueryTraceW};
 
 mod query_service_lock_status;
-pub use query_service_lock_status::*;
+pub use query_service_lock_status::{QueryServiceLockStatusA, QueryServiceLockStatusW};
 
 mod query_service_config;
-pub use query_service_config::*;
+pub use query_service_config::{QueryServiceConfigA, QueryServiceConfigW};
 
 mod query_service_config2;
-pub use query_service_config2::*;
+pub use query_service_config2::{QueryServiceConfig2A, QueryServiceConfig2W};
 
 mod query_all_traces;
-pub use query_all_traces::*;
+pub use query_all_traces::{QueryAllTracesA, QueryAllTracesW};
 
 mod privileged_service_audit_alarm;
-pub use privileged_service_audit_alarm::*;
+pub use privileged_service_audit_alarm::{
+    PrivilegedServiceAuditAlarmA, PrivilegedServiceAuditAlarmW,
+};
 
 mod open_trace;
-pub use open_trace::*;
+pub use open_trace::{OpenTraceA, OpenTraceW};
 
 mod open_service;
-pub use open_service::*;
+pub use open_service::{OpenServiceA, OpenServiceW};
 
 mod open_sc_manager;
-pub use open_sc_manager::*;
+pub use open_sc_manager::{OpenSCManagerA, OpenSCManagerW};
 
 mod open_event_log;
-pub use open_event_log::*;
+pub use open_event_log::{OpenEventLogA, OpenEventLogW};
 
 mod open_encrypted_file_raw;
-pub use open_encrypted_file_raw::*;
+pub use open_encrypted_file_raw::{OpenEncryptedFileRawA, OpenEncryptedFileRawW};
 
 mod open_backup_event_log;
-pub use open_backup_event_log::*;
+pub use open_backup_event_log::{OpenBackupEventLogA, OpenBackupEventLogW};
 
 mod object_privilege_audit_alarm;
-pub use object_privilege_audit_alarm::*;
+pub use object_privilege_audit_alarm::{ObjectPrivilegeAuditAlarmA, ObjectPrivilegeAuditAlarmW};
 
 mod object_open_audit_alarm;
-pub use object_open_audit_alarm::*;
+pub use object_open_audit_alarm::{ObjectOpenAuditAlarmA, ObjectOpenAuditAlarmW};
 
 mod object_delete_audit_alarm;
-pub use object_delete_audit_alarm::*;
+pub use object_delete_audit_alarm::{ObjectDeleteAuditAlarmA, ObjectDeleteAuditAlarmW};
 
 mod object_close_audit_alarm;
-pub use object_close_audit_alarm::*;
+pub use object_close_audit_alarm::{ObjectCloseAuditAlarmA, ObjectCloseAuditAlarmW};
 
 mod lookup_security_descriptor_parts;
-pub use lookup_security_descriptor_parts::*;
+pub use lookup_security_descriptor_parts::{
+    LookupSecurityDescriptorPartsA, LookupSecurityDescriptorPartsW,
+};
 
 mod lookup_privilege_name;
-pub use lookup_privilege_name::*;
+pub use lookup_privilege_name::{LookupPrivilegeNameA, LookupPrivilegeNameW};
 
 mod lookup_privilege_display_name;
-pub use lookup_privilege_display_name::*;
+pub use lookup_privilege_display_name::{LookupPrivilegeDisplayNameA, LookupPrivilegeDisplayNameW};
 
 mod lookup_account_sid;
-pub use lookup_account_sid::*;
+pub use lookup_account_sid::{LookupAccountSidA, LookupAccountSidW};
 
 mod lookup_account_name;
-pub use lookup_account_name::*;
+pub use lookup_account_name::{LookupAccountNameA, LookupAccountNameW};
 
 mod logon_user_ex;
-pub use logon_user_ex::*;
+pub use logon_user_ex::{LogonUserExA, LogonUserExW};
 
 mod logon_user;
-pub use logon_user::*;
+pub use logon_user::{LogonUserA, LogonUserW};
 
 mod initiate_system_shutdown_ex;
-pub use initiate_system_shutdown_ex::*;
+pub use initiate_system_shutdown_ex::{InitiateSystemShutdownExA, InitiateSystemShutdownExW};
 
 mod initiate_system_shutdown;
-pub use initiate_system_shutdown::*;
+pub use initiate_system_shutdown::{InitiateSystemShutdownA, InitiateSystemShutdownW};
 
 mod initiate_shutdown;
-pub use initiate_shutdown::*;
+pub use initiate_shutdown::{InitiateShutdownA, InitiateShutdownW};
 
 mod i_sc_set_service_bits;
-pub use i_sc_set_service_bits::*;
+pub use i_sc_set_service_bits::{I_ScSetServiceBitsA, I_ScSetServiceBitsW};
 
 mod get_trustee_type;
-pub use get_trustee_type::*;
+pub use get_trustee_type::{GetTrusteeTypeA, GetTrusteeTypeW};
 
 mod get_trustee_name;
-pub use get_trustee_name::*;
+pub use get_trustee_name::{GetTrusteeNameA, GetTrusteeNameW};
 
 mod get_trustee_form;
-pub use get_trustee_form::*;
+pub use get_trustee_form::{GetTrusteeFormA, GetTrusteeFormW};
 
 mod get_service_key_name;
-pub use get_service_key_name::*;
+pub use get_service_key_name::{GetServiceKeyNameA, GetServiceKeyNameW};
 
 mod get_service_display_name;
-pub use get_service_display_name::*;
+pub use get_service_display_name::{GetServiceDisplayNameA, GetServiceDisplayNameW};
 
 mod get_security_info_ex;
-pub use get_security_info_ex::*;
+pub use get_security_info_ex::{GetSecurityInfoExA, GetSecurityInfoExW};
 
 mod get_named_security_info_ex;
-pub use get_named_security_info_ex::*;
+pub use get_named_security_info_ex::{GetNamedSecurityInfoExA, GetNamedSecurityInfoExW};
 
 mod get_named_security_info;
-pub use get_named_security_info::*;
+pub use get_named_security_info::{GetNamedSecurityInfoA, GetNamedSecurityInfoW};
 
 mod get_multiple_trustee_operation;
-pub use get_multiple_trustee_operation::*;
+pub use get_multiple_trustee_operation::{
+    GetMultipleTrusteeOperationA, GetMultipleTrusteeOperationW,
+};
 
 mod get_multiple_trustee;
-pub use get_multiple_trustee::*;
+pub use get_multiple_trustee::{GetMultipleTrusteeA, GetMultipleTrusteeW};
 
 mod get_inheritance_source;
-pub use get_inheritance_source::*;
+pub use get_inheritance_source::{GetInheritanceSourceA, GetInheritanceSourceW};
 
 mod get_file_security;
-pub use get_file_security::*;
+pub use get_file_security::{GetFileSecurityA, GetFileSecurityW};
 
 mod get_explicit_entries_from_acl;
-pub use get_explicit_entries_from_acl::*;
+pub use get_explicit_entries_from_acl::{GetExplicitEntriesFromAclA, GetExplicitEntriesFromAclW};
 
 mod get_effective_rights_from_acl;
-pub use get_effective_rights_from_acl::*;
+pub use get_effective_rights_from_acl::{GetEffectiveRightsFromAclA, GetEffectiveRightsFromAclW};
 
 mod get_current_hw_profile;
-pub use get_current_hw_profile::*;
+pub use get_current_hw_profile::{GetCurrentHwProfileA, GetCurrentHwProfileW};
 
 mod get_audited_permissions_from_acl;
-pub use get_audited_permissions_from_acl::*;
+pub use get_audited_permissions_from_acl::{
+    GetAuditedPermissionsFromAclA, GetAuditedPermissionsFromAclW,
+};
 
 mod get_access_permissions_for_object;
-pub use get_access_permissions_for_object::*;
+pub use get_access_permissions_for_object::{
+    GetAccessPermissionsForObjectA, GetAccessPermissionsForObjectW,
+};
 
 mod flush_trace;
-pub use flush_trace::*;
+pub use flush_trace::{FlushTraceA, FlushTraceW};
 
 mod file_encryption_status;
-pub use file_encryption_status::*;
+pub use file_encryption_status::{FileEncryptionStatusA, FileEncryptionStatusW};
 
 mod enum_services_status_ex;
-pub use enum_services_status_ex::*;
+pub use enum_services_status_ex::{EnumServicesStatusExA, EnumServicesStatusExW};
 
 mod enum_services_status;
-pub use enum_services_status::*;
+pub use enum_services_status::{EnumServicesStatusA, EnumServicesStatusW};
 
 mod enum_dependent_services;
-pub use enum_dependent_services::*;
+pub use enum_dependent_services::{EnumDependentServicesA, EnumDependentServicesW};
 
 mod encrypt_file;
-pub use encrypt_file::*;
+pub use encrypt_file::{EncryptFileA, EncryptFileW};
 
 mod decrypt_file;
-pub use decrypt_file::*;
+pub use decrypt_file::{DecryptFileA, DecryptFileW};
 
 mod crypt_verify_signature;
-pub use crypt_verify_signature::*;
+pub use crypt_verify_signature::{CryptVerifySignatureA, CryptVerifySignatureW};
 
 mod crypt_set_provider_ex;
-pub use crypt_set_provider_ex::*;
+pub use crypt_set_provider_ex::{CryptSetProviderExA, CryptSetProviderExW};
 
 mod crypt_set_provider;
-pub use crypt_set_provider::*;
+pub use crypt_set_provider::{CryptSetProviderA, CryptSetProviderW};
 
 mod crypt_get_default_provider;
-pub use crypt_get_default_provider::*;
+pub use crypt_get_default_provider::{CryptGetDefaultProviderA, CryptGetDefaultProviderW};
 
 mod crypt_enum_providers;
-pub use crypt_enum_providers::*;
+pub use crypt_enum_providers::{CryptEnumProvidersA, CryptEnumProvidersW};
 
 mod crypt_enum_provider_types;
-pub use crypt_enum_provider_types::*;
+pub use crypt_enum_provider_types::{CryptEnumProviderTypesA, CryptEnumProviderTypesW};
 
 mod crypt_acquire_context;
-pub use crypt_acquire_context::*;
+pub use crypt_acquire_context::{CryptAcquireContextA, CryptAcquireContextW};
 
 mod cred_write_domain_credentials;
-pub use cred_write_domain_credentials::*;
+pub use cred_write_domain_credentials::{CredWriteDomainCredentialsA, CredWriteDomainCredentialsW};
 
 mod cred_write;
-pub use cred_write::*;
+pub use cred_write::{CredWriteA, CredWriteW};
 
 mod cred_unprotect;
-pub use cred_unprotect::*;
+pub use cred_unprotect::{CredUnprotectA, CredUnprotectW};
 
 mod cred_unmarshal_credential;
-pub use cred_unmarshal_credential::*;
+pub use cred_unmarshal_credential::{CredUnmarshalCredentialA, CredUnmarshalCredentialW};
 
 mod cred_rename;
-pub use cred_rename::*;
+pub use cred_rename::{CredRenameA, CredRenameW};
 
 mod cred_read_domain_credentials;
-pub use cred_read_domain_credentials::*;
+pub use cred_read_domain_credentials::{CredReadDomainCredentialsA, CredReadDomainCredentialsW};
 
 mod cred_read;
-pub use cred_read::*;
+pub use cred_read::{CredReadA, CredReadW};
 
 mod cred_protect;
-pub use cred_protect::*;
+pub use cred_protect::{CredProtectA, CredProtectW};
 
 mod cred_marshal_credential;
-pub use cred_marshal_credential::*;
+pub use cred_marshal_credential::{CredMarshalCredentialA, CredMarshalCredentialW};
 
 mod cred_is_protected;
-pub use cred_is_protected::*;
+pub use cred_is_protected::{CredIsProtectedA, CredIsProtectedW};
 
 mod cred_is_marshaled_credential;
-pub use cred_is_marshaled_credential::*;
+pub use cred_is_marshaled_credential::{CredIsMarshaledCredentialA, CredIsMarshaledCredentialW};
 
 mod cred_get_target_info;
-pub use cred_get_target_info::*;
+pub use cred_get_target_info::{CredGetTargetInfoA, CredGetTargetInfoW};
 
 mod cred_find_best_credential;
-pub use cred_find_best_credential::*;
+pub use cred_find_best_credential::{CredFindBestCredentialA, CredFindBestCredentialW};
 
 mod cred_enumerate;
-pub use cred_enumerate::*;
+pub use cred_enumerate::{CredEnumerateA, CredEnumerateW};
 
 mod cred_delete;
-pub use cred_delete::*;
+pub use cred_delete::{CredDeleteA, CredDeleteW};
 
 mod create_service;
-pub use create_service::*;
+pub use create_service::{CreateServiceA, CreateServiceW};
 
 mod create_process_as_user;
-pub use create_process_as_user::*;
+pub use create_process_as_user::{CreateProcessAsUserA, CreateProcessAsUserW};
 
 mod convert_string_sid_to_sid;
-pub use convert_string_sid_to_sid::*;
+pub use convert_string_sid_to_sid::{ConvertStringSidToSidA, ConvertStringSidToSidW};
 
 mod convert_string_security_descriptor_to_security_descriptor;
-pub use convert_string_security_descriptor_to_security_descriptor::*;
+pub use convert_string_security_descriptor_to_security_descriptor::{
+    ConvertStringSecurityDescriptorToSecurityDescriptorA,
+    ConvertStringSecurityDescriptorToSecurityDescriptorW,
+};
 
 mod convert_string_sd_to_sd_root_domain;
-pub use convert_string_sd_to_sd_root_domain::*;
+pub use convert_string_sd_to_sd_root_domain::{
+    ConvertStringSDToSDRootDomainA, ConvertStringSDToSDRootDomainW,
+};
 
 mod convert_string_sd_to_sd_domain;
-pub use convert_string_sd_to_sd_domain::*;
+pub use convert_string_sd_to_sd_domain::{ConvertStringSDToSDDomainA, ConvertStringSDToSDDomainW};
 
 mod convert_sid_to_string_sid;
-pub use convert_sid_to_string_sid::*;
+pub use convert_sid_to_string_sid::{ConvertSidToStringSidA, ConvertSidToStringSidW};
 
 mod convert_security_descriptor_to_string_security_descriptor;
-pub use convert_security_descriptor_to_string_security_descriptor::*;
+pub use convert_security_descriptor_to_string_security_descriptor::{
+    ConvertSecurityDescriptorToStringSecurityDescriptorA,
+    ConvertSecurityDescriptorToStringSecurityDescriptorW,
+};
 
 mod convert_security_descriptor_to_access_named;
-pub use convert_security_descriptor_to_access_named::*;
+pub use convert_security_descriptor_to_access_named::{
+    ConvertSecurityDescriptorToAccessNamedA, ConvertSecurityDescriptorToAccessNamedW,
+};
 
 mod convert_security_descriptor_to_access;
-pub use convert_security_descriptor_to_access::*;
+pub use convert_security_descriptor_to_access::{
+    ConvertSecurityDescriptorToAccessA, ConvertSecurityDescriptorToAccessW,
+};
 
 mod convert_sd_to_string_sd_root_domain;
-pub use convert_sd_to_string_sd_root_domain::*;
+pub use convert_sd_to_string_sd_root_domain::{
+    ConvertSDToStringSDRootDomainA, ConvertSDToStringSDRootDomainW,
+};
 
 mod convert_access_to_security_descriptor;
-pub use convert_access_to_security_descriptor::*;
+pub use convert_access_to_security_descriptor::{
+    ConvertAccessToSecurityDescriptorA, ConvertAccessToSecurityDescriptorW,
+};
 
 mod control_trace;
-pub use control_trace::*;
+pub use control_trace::{ControlTraceA, ControlTraceW};
 
 mod control_service_ex;
-pub use control_service_ex::*;
+pub use control_service_ex::{ControlServiceExA, ControlServiceExW};
 
 mod clear_event_log;
-pub use clear_event_log::*;
+pub use clear_event_log::{ClearEventLogA, ClearEventLogW};
 
 mod change_service_config;
-pub use change_service_config::*;
+pub use change_service_config::{ChangeServiceConfigA, ChangeServiceConfigW};
 
 mod change_service_config2;
-pub use change_service_config2::*;
+pub use change_service_config2::{ChangeServiceConfig2A, ChangeServiceConfig2W};
 
 mod build_trustee_with_sid;
-pub use build_trustee_with_sid::*;
+pub use build_trustee_with_sid::{BuildTrusteeWithSidA, BuildTrusteeWithSidW};
 
 mod build_trustee_with_objects_and_sid;
-pub use build_trustee_with_objects_and_sid::*;
+pub use build_trustee_with_objects_and_sid::{
+    BuildTrusteeWithObjectsAndSidA, BuildTrusteeWithObjectsAndSidW,
+};
 
 mod build_trustee_with_objects_and_name;
-pub use build_trustee_with_objects_and_name::*;
+pub use build_trustee_with_objects_and_name::{
+    BuildTrusteeWithObjectsAndNameA, BuildTrusteeWithObjectsAndNameW,
+};
 
 mod build_trustee_with_name;
-pub use build_trustee_with_name::*;
+pub use build_trustee_with_name::{BuildTrusteeWithNameA, BuildTrusteeWithNameW};
 
 mod build_security_descriptor;
-pub use build_security_descriptor::*;
+pub use build_security_descriptor::{BuildSecurityDescriptorA, BuildSecurityDescriptorW};
 
 mod build_impersonate_trustee;
-pub use build_impersonate_trustee::*;
+pub use build_impersonate_trustee::{BuildImpersonateTrusteeA, BuildImpersonateTrusteeW};
 
 mod build_impersonate_explicit_access_with_name;
-pub use build_impersonate_explicit_access_with_name::*;
+pub use build_impersonate_explicit_access_with_name::{
+    BuildImpersonateExplicitAccessWithNameA, BuildImpersonateExplicitAccessWithNameW,
+};
 
 mod build_explicit_access_with_name;
-pub use build_explicit_access_with_name::*;
+pub use build_explicit_access_with_name::{
+    BuildExplicitAccessWithNameA, BuildExplicitAccessWithNameW,
+};
 
 mod backup_event_log;
-pub use backup_event_log::*;
+pub use backup_event_log::{BackupEventLogA, BackupEventLogW};
 
 mod audit_set_global_sacl;
-pub use audit_set_global_sacl::*;
+pub use audit_set_global_sacl::{AuditSetGlobalSaclA, AuditSetGlobalSaclW};
 
 mod audit_query_global_sacl;
-pub use audit_query_global_sacl::*;
+pub use audit_query_global_sacl::{AuditQueryGlobalSaclA, AuditQueryGlobalSaclW};
 
 mod audit_lookup_sub_category_name;
-pub use audit_lookup_sub_category_name::*;
+pub use audit_lookup_sub_category_name::{
+    AuditLookupSubCategoryNameA, AuditLookupSubCategoryNameW,
+};
 
 mod audit_lookup_category_name;
-pub use audit_lookup_category_name::*;
+pub use audit_lookup_category_name::{AuditLookupCategoryNameA, AuditLookupCategoryNameW};
 
 mod access_check_by_type_result_list_and_audit_alarm_by_handle;
-pub use access_check_by_type_result_list_and_audit_alarm_by_handle::*;
+pub use access_check_by_type_result_list_and_audit_alarm_by_handle::{
+    AccessCheckByTypeResultListAndAuditAlarmByHandleA,
+    AccessCheckByTypeResultListAndAuditAlarmByHandleW,
+};
 
 mod access_check_by_type_result_list_and_audit_alarm;
-pub use access_check_by_type_result_list_and_audit_alarm::*;
+pub use access_check_by_type_result_list_and_audit_alarm::{
+    AccessCheckByTypeResultListAndAuditAlarmA, AccessCheckByTypeResultListAndAuditAlarmW,
+};
 
 mod access_check_by_type_and_audit_alarm;
-pub use access_check_by_type_and_audit_alarm::*;
+pub use access_check_by_type_and_audit_alarm::{
+    AccessCheckByTypeAndAuditAlarmA, AccessCheckByTypeAndAuditAlarmW,
+};
 
 mod access_check_and_audit_alarm;
-pub use access_check_and_audit_alarm::*;
+pub use access_check_and_audit_alarm::{AccessCheckAndAuditAlarmA, AccessCheckAndAuditAlarmW};
 
 mod abort_system_shutdown;
-pub use abort_system_shutdown::*;
+pub use abort_system_shutdown::{AbortSystemShutdownA, AbortSystemShutdownW};
 
 mod a_sha_final;
 mod accounts;
@@ -959,8 +1012,8 @@ mod logon_secondary_user_into_session_w;
 pub use logon_secondary_user_into_session_w::LogonSecondaryUserIntoSessionW;
 mod logon_user_ex_ex_w;
 pub use logon_user_ex_ex_w::LogonUserExExW;
-mod lookup_privilege_value_a;
-pub use lookup_privilege_value_a::LookupPrivilegeValueA;
+mod lookup_privilege_value;
+pub use lookup_privilege_value::LookupPrivilegeValueA;
 mod lsa_add_account_rights;
 pub use lsa_add_account_rights::LsaAddAccountRights;
 mod lsa_add_privileges_to_account;
@@ -1154,11 +1207,10 @@ pub use notify_boot_config_status::NotifyBootConfigStatus;
 mod notify_change_event_log;
 pub use notify_change_event_log::NotifyChangeEventLog;
 mod notify_service_status_change;
-pub use notify_service_status_change::NotifyServiceStatusChange;
-mod notify_service_status_change_a;
-pub use notify_service_status_change_a::NotifyServiceStatusChangeA;
-mod notify_service_status_change_w;
-pub use notify_service_status_change_w::NotifyServiceStatusChangeW;
+pub use notify_service_status_change::{
+    NotifyServiceStatusChange, NotifyServiceStatusChangeA, NotifyServiceStatusChangeW,
+};
+
 mod np_get_user_name;
 pub use np_get_user_name::NpGetUserName;
 mod open_process_token;
@@ -1232,9 +1284,7 @@ pub use perf_stop_provider::PerfStopProvider;
 mod privilege_check;
 pub use privilege_check::PrivilegeCheck;
 mod process_idle_tasks;
-pub use process_idle_tasks::ProcessIdleTasks;
-mod process_idle_tasks_w;
-pub use process_idle_tasks_w::ProcessIdleTasksW;
+pub use process_idle_tasks::{ProcessIdleTasks, ProcessIdleTasksW};
 mod process_trace;
 pub use process_trace::ProcessTrace;
 mod query_local_user_service_name;
@@ -1525,20 +1575,16 @@ mod crypt_import_key;
 use crypt_import_key::CryptImportKey;
 mod crypt_release_context;
 pub use crypt_release_context::CryptReleaseContext;
-mod crypt_sign_hash_a;
-use crypt_sign_hash_a::CryptSignHashA;
-mod crypt_sign_hash_w;
-use crypt_sign_hash_w::CryptSignHashW;
-mod get_user_name_a;
-use get_user_name_a::GetUserNameA;
-mod get_user_name_w;
-use get_user_name_w::GetUserNameW;
-mod lookup_privilege_value_w;
-use lookup_privilege_value_w::LookupPrivilegeValueW;
-mod start_service_ctrl_dispatcher_a;
-use start_service_ctrl_dispatcher_a::StartServiceCtrlDispatcherA;
-mod start_service_ctrl_dispatcher_w;
-use start_service_ctrl_dispatcher_w::StartServiceCtrlDispatcherW;
+mod crypt_sign_hash;
+use crypt_sign_hash::CryptSignHashA;
+use crypt_sign_hash::CryptSignHashW;
+mod get_user_name;
+use get_user_name::GetUserNameA;
+use get_user_name::GetUserNameW;
+use lookup_privilege_value::LookupPrivilegeValueW;
+mod start_service_ctrl_dispatcher;
+use start_service_ctrl_dispatcher::StartServiceCtrlDispatcherA;
+use start_service_ctrl_dispatcher::StartServiceCtrlDispatcherW;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);

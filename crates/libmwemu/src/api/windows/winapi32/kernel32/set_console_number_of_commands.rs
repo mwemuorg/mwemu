@@ -1,15 +1,16 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn SetConsoleNumberOfCommandsA(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_string(str_ptr);
-    log_red!(
-        emu,
-        "kernel32!SetConsoleNumberOfCommandsA '{}'  0x{:x}",
-        s,
-        arg2
-    );
+    set_console_number_of_commands(emu, "SetConsoleNumberOfCommandsA", false);
+}
+
+fn set_console_number_of_commands(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let str_ptr = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
+    let s = strings::read_text(emu, str_ptr, wide);
+    log_red!(emu, "kernel32!{api} '{}'  0x{:x}", s, arg2);
     for _ in 0..2 {
         emu.stack_pop32(false);
     }
@@ -17,17 +18,5 @@ pub fn SetConsoleNumberOfCommandsA(emu: &mut emu::Emu) {
 }
 
 pub fn SetConsoleNumberOfCommandsW(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_wide_string(str_ptr);
-    log_red!(
-        emu,
-        "kernel32!SetConsoleNumberOfCommandsW '{}'  0x{:x}",
-        s,
-        arg2
-    );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    set_console_number_of_commands(emu, "SetConsoleNumberOfCommandsW", true);
 }

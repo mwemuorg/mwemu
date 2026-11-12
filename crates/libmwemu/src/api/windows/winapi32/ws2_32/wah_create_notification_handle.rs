@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WahCreateNotificationHandle(emu: &mut emu::Emu) {
-    let table_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let table_ptr = WinApiAbi::arg(emu, 0);
     log_red!(
         emu,
         "ws2_32!WahCreateNotificationHandle ptr:0x{:x}",

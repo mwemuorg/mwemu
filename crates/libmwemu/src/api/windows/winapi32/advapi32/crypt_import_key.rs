@@ -1,14 +1,15 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn CryptImportKey(emu: &mut emu::Emu) {
-    let _hprov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let data_len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let _hpubkey = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let _flags = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let hkey_ptr = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
+    let _hprov = WinApiAbi::arg(emu, 0);
+    let data_ptr = WinApiAbi::arg(emu, 1);
+    let data_len = WinApiAbi::arg(emu, 2) as u32;
+    let _hpubkey = WinApiAbi::arg(emu, 3);
+    let _flags = WinApiAbi::arg(emu, 4) as u32;
+    let hkey_ptr = WinApiAbi::arg(emu, 5);
 
     let algid = if data_len >= 12 {
         emu.maps.read_dword(data_ptr + 8).unwrap_or(0x6801)

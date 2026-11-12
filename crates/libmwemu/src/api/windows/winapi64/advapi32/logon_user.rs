@@ -1,20 +1,26 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn LogonUserA(emu: &mut emu::Emu) {
+    logon_user(emu, "LogonUserA", false);
+}
+
+fn logon_user(emu: &mut emu::Emu, api: &str, wide: bool) {
     let username_ptr = emu.regs().rcx;
     let domain_ptr = emu.regs().rdx;
     let _password_ptr = emu.regs().r8;
     let _logon_type = emu.regs().r9;
-    let _logon_provider = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let token_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _logon_provider = WinApiAbi::arg(emu, 4);
+    let token_ptr = WinApiAbi::arg(emu, 5);
     let user = if username_ptr != 0 && username_ptr > 0xffff {
-        emu.maps.read_string(username_ptr)
+        strings::read_text(emu, username_ptr, wide)
     } else {
         String::from("unknown")
     };
     let domain = if domain_ptr != 0 && domain_ptr > 0xffff {
-        emu.maps.read_string(domain_ptr)
+        strings::read_text(emu, domain_ptr, wide)
     } else {
         String::from(".")
     };
@@ -24,7 +30,7 @@ pub fn LogonUserA(emu: &mut emu::Emu) {
     }
     log_red!(
         emu,
-        "advapi32!LogonUserA user:'{}' domain:'{}' => token:0x{:x}",
+        "advapi32!{api} user:'{}' domain:'{}' => token:0x{:x}",
         user,
         domain,
         token
@@ -34,33 +40,5 @@ pub fn LogonUserA(emu: &mut emu::Emu) {
 }
 
 pub fn LogonUserW(emu: &mut emu::Emu) {
-    let username_ptr = emu.regs().rcx;
-    let domain_ptr = emu.regs().rdx;
-    let _password_ptr = emu.regs().r8;
-    let _logon_type = emu.regs().r9;
-    let _logon_provider = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let token_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let user = if username_ptr != 0 && username_ptr > 0xffff {
-        emu.maps.read_wide_string(username_ptr)
-    } else {
-        String::from("unknown")
-    };
-    let domain = if domain_ptr != 0 && domain_ptr > 0xffff {
-        emu.maps.read_wide_string(domain_ptr)
-    } else {
-        String::from(".")
-    };
-    let token = helper::handler_create("logon_token");
-    if token_ptr != 0 {
-        emu.maps.write_qword(token_ptr, token);
-    }
-    log_red!(
-        emu,
-        "advapi32!LogonUserW user:'{}' domain:'{}' => token:0x{:x}",
-        user,
-        domain,
-        token
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    logon_user(emu, "LogonUserW", true);
 }

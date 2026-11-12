@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EqualSid(emu: &mut emu::Emu) {
-    let sid1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let sid2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let sid1 = WinApiAbi::arg(emu, 0);
+    let sid2 = WinApiAbi::arg(emu, 1);
     let equal = if sid1 != 0 && sid2 != 0 {
         let count1 = emu.maps.read_byte(sid1 + 1).unwrap_or(0) as u64;
         let count2 = emu.maps.read_byte(sid2 + 1).unwrap_or(0) as u64;
@@ -31,7 +32,7 @@ pub fn EqualSid(emu: &mut emu::Emu) {
         sid2,
         equal as u32
     );
-    let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let h = WinApiAbi::arg(emu, 0);
     emu.regs_mut().rax = 1;
     for _ in 0..2 {
         emu.stack_pop32(false);

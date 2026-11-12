@@ -1,38 +1,30 @@
+mod free_addr_info;
+pub use free_addr_info::{FreeAddrInfoW, freeaddrinfo};
+mod get_addr_info;
+pub use get_addr_info::{GetAddrInfoW, getaddrinfo};
+mod get_host_name;
+pub use get_host_name::{GetHostNameW, gethostname};
+mod get_name_info;
 use crate::api::windows::common::fallback;
 use crate::emu;
+pub use get_name_info::{GetNameInfoW, getnameinfo};
 //use crate::endpoint;
 use crate::winapi::winapi64;
 
 mod free_addr_info_ex;
-pub use free_addr_info_ex::FreeAddrInfoEx;
-mod free_addr_info_ex_w;
-pub use free_addr_info_ex_w::FreeAddrInfoExW;
-mod free_addr_info_w;
-pub use free_addr_info_w::FreeAddrInfoW;
-mod get_addr_info_ex_a;
-pub use get_addr_info_ex_a::GetAddrInfoExA;
+pub use free_addr_info_ex::{FreeAddrInfoEx, FreeAddrInfoExW};
+mod get_addr_info_ex;
+pub use get_addr_info_ex::{GetAddrInfoExA, GetAddrInfoExW};
 mod get_addr_info_ex_cancel;
 pub use get_addr_info_ex_cancel::GetAddrInfoExCancel;
 mod get_addr_info_ex_overlapped_result;
+
 pub use get_addr_info_ex_overlapped_result::GetAddrInfoExOverlappedResult;
-mod get_addr_info_ex_w;
-pub use get_addr_info_ex_w::GetAddrInfoExW;
-mod get_addr_info_w;
-pub use get_addr_info_w::GetAddrInfoW;
-mod get_host_name_w;
-pub use get_host_name_w::GetHostNameW;
-mod get_name_info_w;
-pub use get_name_info_w::GetNameInfoW;
-mod inet_ntop_w;
-pub use inet_ntop_w::InetNtopW;
-mod inet_pton_w;
-pub use inet_pton_w::InetPtonW;
 mod process_socket_notifications;
 pub use process_socket_notifications::ProcessSocketNotifications;
-mod set_addr_info_ex_a;
-pub use set_addr_info_ex_a::SetAddrInfoExA;
-mod set_addr_info_ex_w;
-pub use set_addr_info_ex_w::SetAddrInfoExW;
+mod set_addr_info_ex;
+pub use set_addr_info_ex::{SetAddrInfoExA, SetAddrInfoExW};
+
 mod wep;
 pub use wep::WEP;
 mod wpu_complete_overlapped_request;
@@ -41,10 +33,9 @@ mod wpu_get_provider_path_ex;
 pub use wpu_get_provider_path_ex::WPUGetProviderPathEx;
 mod wsa_accept;
 pub use wsa_accept::WSAAccept;
-mod wsa_address_to_string_a;
-pub use wsa_address_to_string_a::WSAAddressToStringA;
-mod wsa_address_to_string_w;
-pub use wsa_address_to_string_w::WSAAddressToStringW;
+mod wsa_address_to_string;
+pub use wsa_address_to_string::{WSAAddressToStringA, WSAAddressToStringW};
+
 mod wsa_advertise_provider;
 pub use wsa_advertise_provider::WSAAdvertiseProvider;
 mod wsa_async_get_host_by_addr;
@@ -73,30 +64,27 @@ mod wsa_connect;
 pub use wsa_connect::WSAConnect;
 mod wsa_connect_by_list;
 pub use wsa_connect_by_list::WSAConnectByList;
-mod wsa_connect_by_name_a;
-pub use wsa_connect_by_name_a::WSAConnectByNameA;
-mod wsa_connect_by_name_w;
-pub use wsa_connect_by_name_w::WSAConnectByNameW;
+mod wsa_connect_by_name;
+pub use wsa_connect_by_name::{WSAConnectByNameA, WSAConnectByNameW};
+
 mod wsa_create_event;
 pub use wsa_create_event::WSACreateEvent;
-mod wsa_duplicate_socket_a;
-pub use wsa_duplicate_socket_a::WSADuplicateSocketA;
-mod wsa_duplicate_socket_w;
-pub use wsa_duplicate_socket_w::WSADuplicateSocketW;
-mod wsa_enum_name_space_providers_a;
-pub use wsa_enum_name_space_providers_a::WSAEnumNameSpaceProvidersA;
-mod wsa_enum_name_space_providers_ex_a;
-pub use wsa_enum_name_space_providers_ex_a::WSAEnumNameSpaceProvidersExA;
-mod wsa_enum_name_space_providers_ex_w;
-pub use wsa_enum_name_space_providers_ex_w::WSAEnumNameSpaceProvidersExW;
-mod wsa_enum_name_space_providers_w;
-pub use wsa_enum_name_space_providers_w::WSAEnumNameSpaceProvidersW;
+mod wsa_duplicate_socket;
+pub use wsa_duplicate_socket::{WSADuplicateSocketA, WSADuplicateSocketW};
+
+mod wsa_enum_name_space_providers;
+pub use wsa_enum_name_space_providers::{WSAEnumNameSpaceProvidersA, WSAEnumNameSpaceProvidersW};
+mod wsa_enum_name_space_providers_ex;
+
+pub use wsa_enum_name_space_providers_ex::{
+    WSAEnumNameSpaceProvidersExA, WSAEnumNameSpaceProvidersExW,
+};
+
 mod wsa_enum_network_events;
 pub use wsa_enum_network_events::WSAEnumNetworkEvents;
-mod wsa_enum_protocols_a;
-pub use wsa_enum_protocols_a::WSAEnumProtocolsA;
-mod wsa_enum_protocols_w;
-pub use wsa_enum_protocols_w::WSAEnumProtocolsW;
+mod wsa_enum_protocols;
+pub use wsa_enum_protocols::{WSAEnumProtocolsA, WSAEnumProtocolsW};
+
 mod wsa_event_select;
 pub use wsa_event_select::WSAEventSelect;
 mod wsa_get_last_error;
@@ -105,38 +93,35 @@ mod wsa_get_overlapped_result;
 pub use wsa_get_overlapped_result::WSAGetOverlappedResult;
 mod wsa_get_qos_by_name;
 pub use wsa_get_qos_by_name::WSAGetQOSByName;
-mod wsa_get_service_class_info_a;
-pub use wsa_get_service_class_info_a::WSAGetServiceClassInfoA;
-mod wsa_get_service_class_info_w;
-pub use wsa_get_service_class_info_w::WSAGetServiceClassInfoW;
-mod wsa_get_service_class_name_by_class_id_a;
-pub use wsa_get_service_class_name_by_class_id_a::WSAGetServiceClassNameByClassIdA;
-mod wsa_get_service_class_name_by_class_id_w;
-pub use wsa_get_service_class_name_by_class_id_w::WSAGetServiceClassNameByClassIdW;
+mod wsa_get_service_class_info;
+pub use wsa_get_service_class_info::{WSAGetServiceClassInfoA, WSAGetServiceClassInfoW};
+
+mod wsa_get_service_class_name_by_class_id;
+pub use wsa_get_service_class_name_by_class_id::{
+    WSAGetServiceClassNameByClassIdA, WSAGetServiceClassNameByClassIdW,
+};
+
 mod wsa_htonl;
 pub use wsa_htonl::WSAHtonl;
 mod wsa_htons;
 pub use wsa_htons::WSAHtons;
-mod wsa_install_service_class_a;
-pub use wsa_install_service_class_a::WSAInstallServiceClassA;
-mod wsa_install_service_class_w;
-pub use wsa_install_service_class_w::WSAInstallServiceClassW;
+mod wsa_install_service_class;
+pub use wsa_install_service_class::{WSAInstallServiceClassA, WSAInstallServiceClassW};
+
 mod wsa_ioctl;
 pub use wsa_ioctl::WSAIoctl;
 mod wsa_is_blocking;
 pub use wsa_is_blocking::WSAIsBlocking;
 mod wsa_join_leaf;
 pub use wsa_join_leaf::WSAJoinLeaf;
-mod wsa_lookup_service_begin_a;
-pub use wsa_lookup_service_begin_a::WSALookupServiceBeginA;
-mod wsa_lookup_service_begin_w;
-pub use wsa_lookup_service_begin_w::WSALookupServiceBeginW;
+mod wsa_lookup_service_begin;
+pub use wsa_lookup_service_begin::{WSALookupServiceBeginA, WSALookupServiceBeginW};
+
 mod wsa_lookup_service_end;
 pub use wsa_lookup_service_end::WSALookupServiceEnd;
-mod wsa_lookup_service_next_a;
-pub use wsa_lookup_service_next_a::WSALookupServiceNextA;
-mod wsa_lookup_service_next_w;
-pub use wsa_lookup_service_next_w::WSALookupServiceNextW;
+mod wsa_lookup_service_next;
+pub use wsa_lookup_service_next::{WSALookupServiceNextA, WSALookupServiceNextW};
+
 mod wsansp_ioctl;
 pub use wsansp_ioctl::WSANSPIoctl;
 mod wsa_ntohl;
@@ -171,16 +156,13 @@ mod wsa_set_event;
 pub use wsa_set_event::WSASetEvent;
 mod wsa_set_last_error;
 pub use wsa_set_last_error::WSASetLastError;
-mod wsa_set_service_a;
-pub use wsa_set_service_a::WSASetServiceA;
-mod wsa_set_service_w;
-pub use wsa_set_service_w::WSASetServiceW;
-mod wsa_socket_w;
-pub use wsa_socket_w::WSASocketW;
-mod wsa_string_to_address_a;
-pub use wsa_string_to_address_a::WSAStringToAddressA;
-mod wsa_string_to_address_w;
-pub use wsa_string_to_address_w::WSAStringToAddressW;
+mod wsa_set_service;
+pub use wsa_set_service::{WSASetServiceA, WSASetServiceW};
+
+pub use wsa_socket::{WSASocketA, WSASocketW};
+mod wsa_string_to_address;
+pub use wsa_string_to_address::{WSAStringToAddressA, WSAStringToAddressW};
+
 mod wsa_unadvertise_provider;
 pub use wsa_unadvertise_provider::WSAUnadvertiseProvider;
 mod wsa_unhook_blocking_hook;
@@ -319,14 +301,8 @@ mod wah_write_lsp_event;
 pub use wah_write_lsp_event::WahWriteLSPEvent;
 mod __wsafd_is_set;
 pub use __wsafd_is_set::__WSAFDIsSet;
-mod freeaddrinfo;
-pub use freeaddrinfo::freeaddrinfo;
 mod gethostbyaddr;
 pub use gethostbyaddr::gethostbyaddr;
-mod gethostname;
-pub use gethostname::gethostname;
-mod getnameinfo;
-pub use getnameinfo::getnameinfo;
 mod getpeername;
 pub use getpeername::getpeername;
 mod getprotobyname;
@@ -344,9 +320,9 @@ pub use htonl::htonl;
 mod inet_ntoa;
 pub use inet_ntoa::inet_ntoa;
 mod inet_ntop;
-pub use inet_ntop::inet_ntop;
+pub use inet_ntop::{InetNtopW, inet_ntop};
 mod inet_pton;
-pub use inet_pton::inet_pton;
+pub use inet_pton::{InetPtonW, inet_pton};
 mod ioctlsocket;
 pub use ioctlsocket::ioctlsocket;
 mod ntohl;
@@ -359,28 +335,12 @@ mod shutdown;
 pub use shutdown::shutdown;
 mod wsc_install_provider_and_chains;
 pub use wsc_install_provider_and_chains::WSCInstallProviderAndChains;
-mod wsa_socket_a_api;
-pub use wsa_socket_a_api::WsaSocketA_api;
-mod wsa_startup_api;
-pub use wsa_startup_api::WsaStartup_api;
-mod get_sock_name;
-use get_sock_name::GetSockName;
-mod wsa_accept_2;
-use wsa_accept_2::WsaAccept;
-mod wsa_connect_2;
-use wsa_connect_2::WsaConnect;
-mod wsa_htons_2;
-use wsa_htons_2::WsaHtons;
-mod wsa_recv_2;
-use wsa_recv_2::WsaRecv;
-mod wsa_recv_from_2;
-use wsa_recv_from_2::WsaRecvFrom;
 mod wsa_send;
-use wsa_send::WsaSend;
-mod wsa_socket_a;
-use wsa_socket_a::WsaSocketA;
+use wsa_send::WSASend;
+mod wsa_socket;
+
 mod wsa_startup;
-pub use wsa_startup::WsaStartup;
+pub use wsa_startup::WSAStartup;
 mod accept;
 pub use accept::accept;
 mod bind;
@@ -389,8 +349,6 @@ mod closesocket;
 pub use closesocket::closesocket;
 mod connect;
 pub use connect::connect;
-mod getaddrinfo;
-pub use getaddrinfo::getaddrinfo;
 mod gethostbyname;
 pub use gethostbyname::gethostbyname;
 mod getsockopt;
@@ -418,13 +376,12 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
     match api {
-        "WSAStartup" => WsaStartup(emu),
-        "WSASocketA" => WsaSocketA(emu),
+        "WSAStartup" => WSAStartup(emu),
+        "WSASocketA" => WSASocketA(emu),
         "connect" => connect(emu),
         "recv" => recv(emu),
         "send" => send(emu),
         "socket" => socket(emu),
-        "WsaHtons" => WsaHtons(emu),
         "htons" => htons(emu),
         "inet_addr" => inet_addr(emu),
         "bind" => bind(emu),
@@ -433,16 +390,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "closesocket" => closesocket(emu),
         "setsockopt" => setsockopt(emu),
         "getsockopt" => getsockopt(emu),
-        "WsaAccept" => WsaAccept(emu),
-        "GetSockName" => GetSockName(emu),
         "gethostbyname" => gethostbyname(emu),
         "getaddrinfo" => getaddrinfo(emu),
         "sendto" => sendto(emu),
         "recvfrom" => recvfrom(emu),
-        "WsaRecv" => WsaRecv(emu),
-        "WsaRecvFrom" => WsaRecvFrom(emu),
-        "WsaConnect" => WsaConnect(emu),
-        "WsaSend" | "WSASend" => WsaSend(emu),
+        "WSASend" => WSASend(emu),
         "FreeAddrInfoEx" => FreeAddrInfoEx(emu),
         "FreeAddrInfoExW" => FreeAddrInfoExW(emu),
         "FreeAddrInfoW" => FreeAddrInfoW(emu),
@@ -621,8 +573,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "select" => select(emu),
         "shutdown" => shutdown(emu),
         "WSCInstallProviderAndChains" => WSCInstallProviderAndChains(emu),
-        "WsaSocketA" => WsaSocketA_api(emu),
-        "WsaStartup" => WsaStartup_api(emu),
 
         _ => return fallback::unimplemented(addr, api, emu),
     }

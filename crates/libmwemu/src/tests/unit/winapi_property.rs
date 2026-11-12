@@ -7,7 +7,9 @@ use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::tests::helpers::{register_export_module, run_with_timeout, setup};
+use crate::tests::helpers::{
+    call_winapi_export, prepare_winapi, register_export_module, run_with_timeout, setup,
+};
 use crate::winapi::{winapi32, winapi64};
 use crate::{emu32, emu64};
 
@@ -49,6 +51,11 @@ impl DllDef {
 }
 
 const DLLS_64: &[DllDef] = &[
+    DllDef {
+        name: "iphlpapi",
+        section: "iphlpapi.text",
+        sources: &[include_str!("../../api/windows/common/iphlpapi.rs")],
+    },
     DllDef {
         name: "ucrtbase",
         section: "ucrtbase.text",
@@ -216,11 +223,6 @@ const DLLS_64: &[DllDef] = &[
         sources: &[include_str!("../../api/windows/winapi64/shlwapi/mod.rs")],
     },
     DllDef {
-        name: "iphlpapi",
-        section: "iphlpapi.text",
-        sources: &[include_str!("../../api/windows/winapi64/iphlpapi/mod.rs")],
-    },
-    DllDef {
         name: "dnsapi",
         section: "dnsapi.text",
         sources: &[include_str!("../../api/windows/winapi64/dnsapi/mod.rs")],
@@ -238,6 +240,11 @@ const DLLS_64: &[DllDef] = &[
 ];
 
 const DLLS_32: &[DllDef] = &[
+    DllDef {
+        name: "iphlpapi",
+        section: "iphlpapi.text",
+        sources: &[include_str!("../../api/windows/common/iphlpapi.rs")],
+    },
     DllDef {
         name: "kernel32",
         section: "kernel32.text",
@@ -809,4 +816,130 @@ fn kernelbase_preserves_the_unimplemented_api_result() {
         winapi64::kernelbase::gateway(MODULE64 + 0x100, &mut emu),
         "missingkernelbaseapi"
     );
+}
+
+#[test]
+fn winapi_stdcall_discards_sdk_dword_slots() {
+    setup();
+    let (mut emu, _) = prepare_winapi(false);
+    // Counts are DWORD slots: COORD is one, CY/TRACEHANDLE are two.
+    let cases = [
+        ("advapi32.dll", "AbortSystemShutdownA", 1),
+        ("advapi32.dll", "AbortSystemShutdownW", 1),
+        ("advapi32.dll", "AccessCheck", 8),
+        ("advapi32.dll", "ControlTraceW", 5),
+        ("kernel32.dll", "GetEnabledXStateFeatures", 0),
+        ("kernel32.dll", "GetThreadEnabledXStateFeatures", 0),
+        ("kernel32.dll", "GetPhysicallyInstalledSystemMemory", 1),
+        ("user32.dll", "EnumWindows", 2),
+        ("user32.dll", "EnumChildWindows", 3),
+        ("user32.dll", "SetWindowPos", 7),
+        ("user32.dll", "GetDlgItem", 2),
+        ("ole32.dll", "CoWaitForMultipleHandles", 5),
+        ("oleaut32.dll", "VarI4FromCy", 3),
+        ("crypt32.dll", "CertCompareCertificate", 3),
+        ("crypt32.dll", "CertVerifyCertificateChainPolicy", 4),
+        ("wininet.dll", "InternetSetOptionA", 4),
+        ("wininet.dll", "InternetQueryOptionW", 4),
+        ("ws2_32.dll", "WSAWaitForMultipleEvents", 5),
+        ("winmm.dll", "timeBeginPeriod", 1),
+        ("winmm.dll", "mciSendStringW", 4),
+        ("gdiplus.dll", "GdiplusStartup", 3),
+    ];
+    let stack = emu.regs().rsp;
+    emu.maps.write_dword(stack, SENTINEL as u32);
+    for (library, api, words) in cases {
+        call_winapi_export(&mut emu, library, api, &vec![0; words]);
+        assert_eq!(emu.maps.read_dword(stack), Some(SENTINEL as u32), "{api}");
+    }
+}
+
+#[test]
+fn winapi_output_writes_respect_argument_positions_and_types() {
+    setup();
+    let (mut emu, data) = prepare_winapi(true);
+    emu.maps.write_qword(data, SENTINEL);
+    emu.maps
+        .write_qword(data + size_of::<u64>() as u64, SENTINEL);
+    call_winapi_export(
+        &mut emu,
+        "advapi32.dll",
+        "GetEventLogInformation",
+        &[0, 0, 0, 0, data, data + 8],
+    );
+    assert_eq!(emu.maps.read_dword(data), Some(0));
+    assert_eq!(
+        emu.maps.read_dword(data + 4),
+        Some((SENTINEL >> u32::BITS) as u32)
+    );
+    assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL));
+    // LockFile's fifth argument is a DWORD count, never an output pointer.
+    call_winapi_export(
+        &mut emu,
+        "kernelbase.dll",
+        "LockFile",
+        &[0, 0, 0, 0, data + 8],
+    );
+    assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL));
+    // These register arguments are flags, sizes or application data, not outputs.
+    for (library, api, arguments) in [
+        (
+            "kernel32.dll",
+            "InitializeCriticalSectionEx",
+            vec![0, 0, data + 8],
+        ),
+        ("advapi32.dll", "EventProviderEnabled", vec![0, 0, data + 8]),
+        ("user32.dll", "EnumChildWindows", vec![0, 0, data + 8]),
+        ("kernelbase.dll", "WaitOnAddress", vec![0, 0, 0, data + 8]),
+    ] {
+        call_winapi_export(&mut emu, library, api, &arguments);
+        assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL), "{api}");
+    }
+    for (library, api, arguments) in [
+        ("advapi32.dll", "EventAccessQuery", vec![0, 0, data]),
+        ("ws2_32.dll", "WSCEnumProtocols32", vec![0, 0, data, 0]),
+    ] {
+        emu.maps.write_qword(data, SENTINEL);
+        call_winapi_export(&mut emu, library, api, &arguments);
+        assert_eq!(
+            emu.maps.read_dword(data + 4),
+            Some((SENTINEL >> u32::BITS) as u32),
+            "{api}"
+        );
+        assert_eq!(emu.maps.read_qword(data + 8), Some(SENTINEL), "{api}");
+    }
+}
+
+#[test]
+fn winapi_qword_results_replace_both_halves_on_x86() {
+    setup();
+    let mut emu = emu32();
+    for (library, api, arguments) in [
+        ("advapi32.dll", "GetTraceLoggerHandle", vec![0]),
+        ("kernel32.dll", "GetEnabledXStateFeatures", vec![]),
+        ("kernel32.dll", "GetThreadEnabledXStateFeatures", vec![]),
+        ("wininet.dll", "CreateUrlCacheGroup", vec![0, 0]),
+    ] {
+        emu.regs_mut().rdx = u32::MAX as u64;
+        call_winapi_export(&mut emu, library, api, &arguments);
+        assert_eq!(emu.regs().rdx, 0, "{api} must replace EDX");
+    }
+    const HIGH_MASK: u64 = 0x1234_5678_0000_0000;
+    const VER_MAJORVERSION: u64 = 2;
+    const VER_GREATER_EQUAL: u64 = 3;
+    for library in ["kernel32.dll", "ntdll.dll"] {
+        call_winapi_export(
+            &mut emu,
+            library,
+            "VerSetConditionMask",
+            &[
+                HIGH_MASK as u32 as u64,
+                HIGH_MASK >> u32::BITS,
+                VER_MAJORVERSION,
+                VER_GREATER_EQUAL,
+            ],
+        );
+        let mask = (emu.regs().get_edx() << u32::BITS) | emu.regs().get_eax();
+        assert_eq!(mask, HIGH_MASK | (VER_GREATER_EQUAL << 3));
+    }
 }

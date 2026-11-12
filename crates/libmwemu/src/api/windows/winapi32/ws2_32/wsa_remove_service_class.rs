@@ -1,10 +1,11 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSARemoveServiceClass(emu: &mut emu::Emu) {
-    let class_id_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let class_id_ptr = WinApiAbi::arg(emu, 0);
     log_red!(emu, "ws2_32!WSARemoveServiceClass ptr:0x{:x}", class_id_ptr);
-    let h = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let h = WinApiAbi::arg(emu, 0);
     if helper::handler_exist(h) {
         helper::handler_close(h);
     }

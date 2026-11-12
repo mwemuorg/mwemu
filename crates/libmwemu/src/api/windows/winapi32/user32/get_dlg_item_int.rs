@@ -8,5 +8,5 @@ pub fn GetDlgItemInt(emu: &mut emu::Emu) {
     let a1 = arg(emu, 1) as u64;
     log_red!(emu, "user32!GetDlgItemInt arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.regs_mut().rax = helper::handler_create("getdlgitemint");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 4);
 }

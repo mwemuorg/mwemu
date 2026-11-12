@@ -1,7 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CertSerializeCTLStoreElement(emu: &mut emu::Emu) {
-    let cert_ctx = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let cert_ctx = WinApiAbi::arg(emu, 0);
     log_red!(
         emu,
         "crypt32!CertSerializeCTLStoreElement ctx:0x{:x}",
@@ -9,7 +11,5 @@ pub fn CertSerializeCTLStoreElement(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 4);
 }

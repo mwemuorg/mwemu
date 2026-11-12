@@ -1,29 +1,19 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn SetFileAttributesA(emu: &mut emu::Emu) {
+    set_file_attributes(emu, "SetFileAttributesA", false);
+}
+
+fn set_file_attributes(emu: &mut emu::Emu, api: &str, wide: bool) {
     let path_ptr = emu.regs().rcx;
     let attrs = emu.regs().rdx;
-    let path = emu.maps.read_string(path_ptr);
-    log_red!(
-        emu,
-        "kernelbase!SetFileAttributesA '{}' attrs:0x{:x}",
-        path,
-        attrs
-    );
+    let path = strings::read_text(emu, path_ptr, wide);
+    log_red!(emu, "kernelbase!{api} '{}' attrs:0x{:x}", path, attrs);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }
 
 pub fn SetFileAttributesW(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let attrs = emu.regs().rdx;
-    let path = emu.maps.read_wide_string(path_ptr);
-    log_red!(
-        emu,
-        "kernelbase!SetFileAttributesW '{}' attrs:0x{:x}",
-        path,
-        attrs
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    set_file_attributes(emu, "SetFileAttributesW", true);
 }

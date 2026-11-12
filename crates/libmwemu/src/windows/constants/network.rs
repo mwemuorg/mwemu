@@ -1,6 +1,14 @@
+pub const AF_UNSPEC: u32 = 0;
 pub const AF_INET: u32 = 2;
+pub const AF_INET6: u32 = 23;
 pub const SOCK_STREAM: u32 = 1;
 pub const IPPROTO_TCP: u32 = 6;
+
+// FIXED_INFO node types
+pub const BROADCAST_NODETYPE: u32 = 0x0001;
+pub const PEER_TO_PEER_NODETYPE: u32 = 0x0002;
+pub const MIXED_NODETYPE: u32 = 0x0004;
+pub const HYBRID_NODETYPE: u32 = 0x0008;
 // ntdll: 0x76dc7070
 pub const INTERNET_OPTION_ALTER_IDENTITY: u32 = 80;
 pub const INTERNET_OPTION_ASYNC: u32 = 30;
@@ -28,3 +36,15 @@ pub const INTERNET_OPTION_DATA_RECEIVE_TIMEOUT: u32 = 8;
 pub const INTERNET_OPTION_DATA_SEND_TIMEOUT: u32 = 7;
 // https://docs.microsoft.com/en-us/windows/win32/wininet/api-flags
 pub const INTERNET_FLAG_SECURE: u64 = 0x00800000;
+
+// Winsock data and return values
+pub const WSADESCRIPTION_LEN: usize = 256;
+pub const WSASYS_STATUS_LEN: usize = 128;
+pub const SOCKET_ERROR: u64 = 0xffff_ffff;
+
+// Name lookup flags
+pub const NI_NOFQDN: u32 = 0x01;
+pub const NI_NUMERICHOST: u32 = 0x02;
+pub const NI_NAMEREQD: u32 = 0x04;
+pub const NI_NUMERICSERV: u32 = 0x08;
+pub const NI_DGRAM: u32 = 0x10;

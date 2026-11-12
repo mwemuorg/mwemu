@@ -1,13 +1,14 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptCreateHash(emu: &mut emu::Emu) {
-    let h_prov = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let algid = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let h_key = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let _flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let h_hash_ptr = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let h_prov = WinApiAbi::arg(emu, 0);
+    let algid = WinApiAbi::arg(emu, 1) as u32;
+    let h_key = WinApiAbi::arg(emu, 2);
+    let _flags = WinApiAbi::arg(emu, 3) as u32;
+    let h_hash_ptr = WinApiAbi::arg(emu, 4);
     let alg_name = match algid {
         0x8001 => "MD2",
         0x8002 => "MD4",

@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSACancelAsyncRequest(emu: &mut emu::Emu) {
-    let async_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let async_handle = WinApiAbi::arg(emu, 0);
     log_red!(
         emu,
         "ws2_32!WSACancelAsyncRequest handle:0x{:x}",

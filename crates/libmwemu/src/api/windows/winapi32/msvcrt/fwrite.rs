@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn fwrite(emu: &mut emu::Emu) {
-    let buff_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let size = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let nemb = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let file = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
+    let buff_ptr = WinApiAbi::arg(emu, 0);
+    let size = WinApiAbi::arg(emu, 1) as u32;
+    let nemb = WinApiAbi::arg(emu, 2) as u32;
+    let file = WinApiAbi::arg(emu, 3) as u32;
 
     let filename = helper::handler_get_uri(file as u64);
     let total = (size as u64) * (nemb as u64);

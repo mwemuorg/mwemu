@@ -1,10 +1,16 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn K32EnumPageFilesA(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_string(str_ptr);
-    log_red!(emu, "kernel32!K32EnumPageFilesA '{}'  0x{:x}", s, arg2);
+    k32_enum_page_files(emu, "K32EnumPageFilesA", false);
+}
+
+fn k32_enum_page_files(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let str_ptr = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
+    let s = strings::read_text(emu, str_ptr, wide);
+    log_red!(emu, "kernel32!{api} '{}'  0x{:x}", s, arg2);
     for _ in 0..2 {
         emu.stack_pop32(false);
     }
@@ -12,12 +18,5 @@ pub fn K32EnumPageFilesA(emu: &mut emu::Emu) {
 }
 
 pub fn K32EnumPageFilesW(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_wide_string(str_ptr);
-    log_red!(emu, "kernel32!K32EnumPageFilesW '{}'  0x{:x}", s, arg2);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    k32_enum_page_files(emu, "K32EnumPageFilesW", true);
 }

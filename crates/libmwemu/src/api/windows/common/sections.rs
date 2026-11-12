@@ -4,6 +4,7 @@ use crate::maps::virtual_memory::{
     ALLOCATION_GRANULARITY, Allocation, MemoryKind, PAGE_SIZE, PageState, align_up,
 };
 use crate::winapi::common::memory::{self, Call};
+use crate::winapi::common::strings;
 use crate::winapi::common::trace;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
@@ -224,10 +225,8 @@ pub(crate) fn create_file_mapping(emu: &mut Emu, wide: bool) {
     let ptr = call.arg(emu, 5);
     let name = if ptr == 0 {
         String::new()
-    } else if wide {
-        emu.maps.read_wide_string(ptr)
     } else {
-        emu.maps.read_string(ptr)
+        strings::read_text(emu, ptr, wide)
     };
     let file = if file == u64::MAX || file == u32::MAX as u64 {
         None
@@ -266,11 +265,7 @@ pub(crate) fn open_file_mapping(emu: &mut Emu, wide: bool) {
     let call = Call::Api;
     let access = call.arg(emu, 0) as u32;
     let name_ptr = call.arg(emu, 2);
-    let name = if wide {
-        emu.maps.read_wide_string(name_ptr)
-    } else {
-        emu.maps.read_string(name_ptr)
-    };
+    let name = strings::read_text(emu, name_ptr, wide);
     let result = (|| {
         let protection = view_protection(access)?;
         let mut section = emu

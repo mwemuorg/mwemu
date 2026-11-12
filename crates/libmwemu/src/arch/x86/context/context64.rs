@@ -1,6 +1,7 @@
 use crate::fpu::FPU;
 use crate::maps::Maps;
 use crate::regs64::Regs64;
+use crate::windows::constants::exceptions::{CONTEXT_CONTROL, CONTEXT_INTEGER};
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-context
 
@@ -47,6 +48,88 @@ pub struct Context64 {
 }
 
 impl Context64 {
+    const RAX_OFFSET: u64 = 120;
+    const RCX_OFFSET: u64 = 128;
+    const RDX_OFFSET: u64 = 136;
+    const RBX_OFFSET: u64 = 144;
+    const RBP_OFFSET: u64 = 160;
+    const RSI_OFFSET: u64 = 168;
+    const RDI_OFFSET: u64 = 176;
+    const R8_OFFSET: u64 = 184;
+    const R9_OFFSET: u64 = 192;
+    const R10_OFFSET: u64 = 200;
+    const R11_OFFSET: u64 = 208;
+    const R12_OFFSET: u64 = 216;
+    const R13_OFFSET: u64 = 224;
+    const R14_OFFSET: u64 = 232;
+    const R15_OFFSET: u64 = 240;
+    const RSP_OFFSET: u64 = 152;
+    const RIP_OFFSET: u64 = 248;
+    const DR0_OFFSET: u64 = 72;
+    const DR1_OFFSET: u64 = 80;
+    const DR2_OFFSET: u64 = 88;
+    const DR3_OFFSET: u64 = 96;
+    const DR6_OFFSET: u64 = 104;
+    const DR7_OFFSET: u64 = 112;
+    pub const INTEGER_CONTROL_SIZE: u64 = 0x100;
+
+    /// Transfer only the supported register groups selected by ContextFlags.
+    pub(crate) fn load_selected(&mut self, addr: u64, maps: &Maps, flags: u32) {
+        if flags & CONTEXT_INTEGER == CONTEXT_INTEGER {
+            self.rax = maps.read_qword(addr + Self::RAX_OFFSET).unwrap_or(0);
+            self.rcx = maps.read_qword(addr + Self::RCX_OFFSET).unwrap_or(0);
+            self.rdx = maps.read_qword(addr + Self::RDX_OFFSET).unwrap_or(0);
+            self.rbx = maps.read_qword(addr + Self::RBX_OFFSET).unwrap_or(0);
+            self.rbp = maps.read_qword(addr + Self::RBP_OFFSET).unwrap_or(0);
+            self.rsi = maps.read_qword(addr + Self::RSI_OFFSET).unwrap_or(0);
+            self.rdi = maps.read_qword(addr + Self::RDI_OFFSET).unwrap_or(0);
+            self.r8 = maps.read_qword(addr + Self::R8_OFFSET).unwrap_or(0);
+            self.r9 = maps.read_qword(addr + Self::R9_OFFSET).unwrap_or(0);
+            self.r10 = maps.read_qword(addr + Self::R10_OFFSET).unwrap_or(0);
+            self.r11 = maps.read_qword(addr + Self::R11_OFFSET).unwrap_or(0);
+            self.r12 = maps.read_qword(addr + Self::R12_OFFSET).unwrap_or(0);
+            self.r13 = maps.read_qword(addr + Self::R13_OFFSET).unwrap_or(0);
+            self.r14 = maps.read_qword(addr + Self::R14_OFFSET).unwrap_or(0);
+            self.r15 = maps.read_qword(addr + Self::R15_OFFSET).unwrap_or(0);
+        }
+        if flags & CONTEXT_CONTROL == CONTEXT_CONTROL {
+            self.rsp = maps.read_qword(addr + Self::RSP_OFFSET).unwrap_or(0);
+            self.rip = maps.read_qword(addr + Self::RIP_OFFSET).unwrap_or(0);
+            self.eflags = maps.read_dword(addr + Self::EFLAGS_OFFSET).unwrap_or(0);
+        }
+    }
+
+    fn save_registers(&self, addr: u64, maps: &mut Maps, flags: u32) {
+        if flags & CONTEXT_INTEGER == CONTEXT_INTEGER {
+            maps.write_qword(addr + Self::RAX_OFFSET, self.rax);
+            maps.write_qword(addr + Self::RCX_OFFSET, self.rcx);
+            maps.write_qword(addr + Self::RDX_OFFSET, self.rdx);
+            maps.write_qword(addr + Self::RBX_OFFSET, self.rbx);
+            maps.write_qword(addr + Self::RBP_OFFSET, self.rbp);
+            maps.write_qword(addr + Self::RSI_OFFSET, self.rsi);
+            maps.write_qword(addr + Self::RDI_OFFSET, self.rdi);
+            maps.write_qword(addr + Self::R8_OFFSET, self.r8);
+            maps.write_qword(addr + Self::R9_OFFSET, self.r9);
+            maps.write_qword(addr + Self::R10_OFFSET, self.r10);
+            maps.write_qword(addr + Self::R11_OFFSET, self.r11);
+            maps.write_qword(addr + Self::R12_OFFSET, self.r12);
+            maps.write_qword(addr + Self::R13_OFFSET, self.r13);
+            maps.write_qword(addr + Self::R14_OFFSET, self.r14);
+            maps.write_qword(addr + Self::R15_OFFSET, self.r15);
+        }
+        if flags & CONTEXT_CONTROL == CONTEXT_CONTROL {
+            maps.write_qword(addr + Self::RSP_OFFSET, self.rsp);
+            maps.write_qword(addr + Self::RIP_OFFSET, self.rip);
+        }
+    }
+
+    pub(crate) fn save_selected(&self, addr: u64, maps: &mut Maps, flags: u32, eflags: u32) {
+        self.save_registers(addr, maps, flags);
+        if flags & CONTEXT_CONTROL == CONTEXT_CONTROL {
+            maps.write_dword(addr + Self::EFLAGS_OFFSET, eflags);
+        }
+    }
+
     pub const FLAGS_OFFSET: u64 = 0x30;
     pub const EFLAGS_OFFSET: u64 = 0x44;
 
@@ -141,61 +224,25 @@ impl Context64 {
         */
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
-        maps.write_qword(addr + 72, self.dr0);
-        maps.write_qword(addr + 80, self.dr1);
-        maps.write_qword(addr + 88, self.dr2);
-        maps.write_qword(addr + 96, self.dr3);
-        maps.write_qword(addr + 104, self.dr6);
-        maps.write_qword(addr + 112, self.dr7);
+        maps.write_qword(addr + Self::DR0_OFFSET, self.dr0);
+        maps.write_qword(addr + Self::DR1_OFFSET, self.dr1);
+        maps.write_qword(addr + Self::DR2_OFFSET, self.dr2);
+        maps.write_qword(addr + Self::DR3_OFFSET, self.dr3);
+        maps.write_qword(addr + Self::DR6_OFFSET, self.dr6);
+        maps.write_qword(addr + Self::DR7_OFFSET, self.dr7);
 
-        maps.write_qword(addr + 120, self.rax);
-        maps.write_qword(addr + 128, self.rcx);
-        maps.write_qword(addr + 136, self.rdx);
-        maps.write_qword(addr + 144, self.rbx);
-        maps.write_qword(addr + 152, self.rsp);
-        maps.write_qword(addr + 160, self.rbp);
-        maps.write_qword(addr + 168, self.rsi);
-        maps.write_qword(addr + 176, self.rdi);
-
-        maps.write_qword(addr + 184, self.r8);
-        maps.write_qword(addr + 192, self.r9);
-        maps.write_qword(addr + 200, self.r10);
-        maps.write_qword(addr + 208, self.r11);
-        maps.write_qword(addr + 216, self.r12);
-        maps.write_qword(addr + 224, self.r13);
-        maps.write_qword(addr + 232, self.r14);
-        maps.write_qword(addr + 240, self.r15);
-
-        maps.write_qword(addr + 248, self.rip);
+        self.save_registers(addr, maps, CONTEXT_CONTROL | CONTEXT_INTEGER);
     }
 
     pub fn load(&mut self, addr: u64, maps: &mut Maps) {
-        self.dr0 = maps.read_qword(addr + 72).unwrap_or(0);
-        self.dr1 = maps.read_qword(addr + 80).unwrap_or(0);
-        self.dr2 = maps.read_qword(addr + 88).unwrap_or(0);
-        self.dr3 = maps.read_qword(addr + 96).unwrap_or(0);
-        self.dr6 = maps.read_qword(addr + 104).unwrap_or(0);
-        self.dr7 = maps.read_qword(addr + 112).unwrap_or(0);
+        self.dr0 = maps.read_qword(addr + Self::DR0_OFFSET).unwrap_or(0);
+        self.dr1 = maps.read_qword(addr + Self::DR1_OFFSET).unwrap_or(0);
+        self.dr2 = maps.read_qword(addr + Self::DR2_OFFSET).unwrap_or(0);
+        self.dr3 = maps.read_qword(addr + Self::DR3_OFFSET).unwrap_or(0);
+        self.dr6 = maps.read_qword(addr + Self::DR6_OFFSET).unwrap_or(0);
+        self.dr7 = maps.read_qword(addr + Self::DR7_OFFSET).unwrap_or(0);
 
-        self.rax = maps.read_qword(addr + 120).unwrap_or(0);
-        self.rcx = maps.read_qword(addr + 128).unwrap_or(0);
-        self.rdx = maps.read_qword(addr + 136).unwrap_or(0);
-        self.rbx = maps.read_qword(addr + 144).unwrap_or(0);
-        self.rsp = maps.read_qword(addr + 152).unwrap_or(0);
-        self.rbp = maps.read_qword(addr + 160).unwrap_or(0);
-        self.rsi = maps.read_qword(addr + 168).unwrap_or(0);
-        self.rdi = maps.read_qword(addr + 176).unwrap_or(0);
-
-        self.r8 = maps.read_qword(addr + 184).unwrap_or(0);
-        self.r9 = maps.read_qword(addr + 192).unwrap_or(0);
-        self.r10 = maps.read_qword(addr + 200).unwrap_or(0);
-        self.r11 = maps.read_qword(addr + 208).unwrap_or(0);
-        self.r12 = maps.read_qword(addr + 216).unwrap_or(0);
-        self.r13 = maps.read_qword(addr + 224).unwrap_or(0);
-        self.r14 = maps.read_qword(addr + 232).unwrap_or(0);
-        self.r15 = maps.read_qword(addr + 240).unwrap_or(0);
-
-        self.rip = maps.read_qword(addr + 248).unwrap_or(0);
+        self.load_selected(addr, maps, CONTEXT_CONTROL | CONTEXT_INTEGER);
     }
 
     pub fn sync(&self, regs: &mut Regs64) {

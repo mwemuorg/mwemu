@@ -10,3 +10,19 @@ pub fn DeleteUrlCacheEntry(emu: &mut emu::Emu) {
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 1);
 }
+
+pub fn DeleteUrlCacheEntryA(emu: &mut emu::Emu) {
+    delete_url_cache_entry(emu, "DeleteUrlCacheEntryA");
+}
+
+fn delete_url_cache_entry(emu: &mut emu::Emu, api: &str) {
+    let handle = arg(emu, 0) as u64;
+    log_red!(emu, "wininet!{api} handle:0x{:x}", handle);
+    helper::handler_close(handle);
+    emu.regs_mut().rax = 1;
+    stdcall_ret(emu, 1);
+}
+
+pub fn DeleteUrlCacheEntryW(emu: &mut emu::Emu) {
+    delete_url_cache_entry(emu, "DeleteUrlCacheEntryW");
+}

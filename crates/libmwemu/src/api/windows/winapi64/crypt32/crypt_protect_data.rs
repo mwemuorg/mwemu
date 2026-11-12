@@ -1,14 +1,15 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptProtectData(emu: &mut emu::Emu) {
     let p_data_in = emu.regs().rcx;
     let sz_data_descr = emu.regs().rdx;
     let _p_optional_entropy = emu.regs().r8;
     let _pv_reserved = emu.regs().r9;
-    let _p_prompt_struct = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let _dw_flags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let p_data_out = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let _p_prompt_struct = WinApiAbi::arg(emu, 4);
+    let _dw_flags = WinApiAbi::arg(emu, 5);
+    let p_data_out = WinApiAbi::arg(emu, 6);
 
     let descr = if sz_data_descr != 0 {
         emu.maps.read_wide_string(sz_data_descr)

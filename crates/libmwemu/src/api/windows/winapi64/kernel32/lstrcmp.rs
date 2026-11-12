@@ -1,12 +1,10 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::strings;
 
-pub fn lstrcmpA(emu: &mut emu::Emu) {
-    let s1_ptr = emu.regs().rcx;
-    let s2_ptr = emu.regs().rdx;
+pub fn lstrcmpA(emu: &mut Emu) {
+    strings::compare(emu, "kernel32!lstrcmpA", false, false);
+}
 
-    let s1 = emu.maps.read_string(s1_ptr);
-    let s2 = emu.maps.read_string(s2_ptr);
-
-    log_red!(emu, "kernel32!lstrcmp '{}' '{}'", s1, s2);
-    emu.regs_mut().rax = s1.cmp(&s2) as u64;
+pub fn lstrcmpW(emu: &mut Emu) {
+    strings::compare(emu, "kernel32!lstrcmpW", true, false);
 }

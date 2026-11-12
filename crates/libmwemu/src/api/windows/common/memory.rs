@@ -22,13 +22,7 @@ pub(crate) enum Call {
 
 impl Call {
     pub(crate) fn arg(self, emu: &Emu, index: usize) -> u64 {
-        if !emu.cfg.arch.is_64bits() {
-            return emu
-                .maps
-                .read_dword(emu.regs().get_esp() + index as u64 * 4)
-                .unwrap_or(0) as u64;
-        }
-        if matches!(self, Self::Syscall) && index >= 4 {
+        if matches!(self, Self::Syscall) && emu.cfg.arch.is_64bits() && index >= 4 {
             emu.maps
                 .read_qword(emu.regs().rsp + 0x28 + (index as u64 - 4) * 8)
                 .unwrap_or(0)
@@ -39,10 +33,8 @@ impl Call {
 
     pub(crate) fn finish(self, emu: &mut Emu, value: u64, args: usize) {
         WinApiAbi::set_ret(emu, value);
-        if matches!(self, Self::Api) && !emu.cfg.arch.is_64bits() {
-            for _ in 0..args {
-                emu.stack_pop32(false);
-            }
+        if matches!(self, Self::Api) {
+            WinApiAbi::stdcall_ret(emu, args);
         }
     }
 }

@@ -6,5 +6,5 @@ pub fn BstrFromVector(emu: &mut emu::Emu) {
     let _a0 = arg(emu, 0);
     log_red!(emu, "oleaut32!BstrFromVector a0:0x{:x}", _a0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 2);
 }

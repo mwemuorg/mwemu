@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EventAccessControl(emu: &mut emu::Emu) {
     let arg1 = emu.regs().rcx;
     let arg2 = emu.regs().rdx;
     let arg3 = emu.regs().r8;
     let arg4 = emu.regs().r9;
-    let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let arg5 = WinApiAbi::arg(emu, 4);
     log_red!(emu, "advapi32!EventAccessControl 0x{:x}", arg1);
     let first_param = emu.regs().rcx;
     if first_param != 0 && emu.maps.is_mapped(first_param) {

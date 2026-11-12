@@ -1,11 +1,9 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
-#[path = "../__2_yapeax_k_z.rs"]
 mod __2_yapeax_k_z;
 pub use __2_yapeax_k_z::__2_YAPEAX_K_Z;
 
-#[path = "../realloc.rs"]
 mod realloc;
 pub use realloc::realloc;
 

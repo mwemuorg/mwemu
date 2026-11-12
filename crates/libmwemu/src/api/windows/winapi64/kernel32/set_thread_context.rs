@@ -1,14 +1,12 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::{threads, trace};
 
-pub fn SetThreadContext(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let context = emu.regs().rdx;
-    log_red!(
+pub fn SetThreadContext(emu: &mut Emu) {
+    trace::api(
         emu,
-        "kernel32!SetThreadContext h:0x{:x} ctx:0x{:x}",
-        handle,
-        context
+        "kernel32!SetThreadContext",
+        "thread context",
+        true,
+        threads::set_thread_context,
     );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
 }

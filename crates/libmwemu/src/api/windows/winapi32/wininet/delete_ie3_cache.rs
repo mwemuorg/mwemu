@@ -8,5 +8,5 @@ pub fn DeleteIE3Cache(emu: &mut emu::Emu) {
     log_red!(emu, "wininet!DeleteIE3Cache handle:0x{:x}", handle);
     helper::handler_close(handle);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 4);
 }

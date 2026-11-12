@@ -1,9 +1,9 @@
 use crate::utils::helpers::unlikely;
+use crate::winapi::common::threads;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
 
 use crate::{
-    console::Console,
     emu::Emu,
     exception::types::{ExceptionType, MemoryAccess},
     winapi::winapi32,
@@ -87,10 +87,8 @@ impl Emu {
         }
 
         if unlikely(addr == RETURN_THREAD as u64) {
-            log::trace!("/!\\ Thread returned, continuing the main thread");
-            self.regs_mut().rip = self.main_thread_cont;
-            Console::spawn_console(self);
-            self.force_break = true;
+            let code = self.regs().get_eax() as u32;
+            threads::finish_thread(self, code);
             return true;
         }
 
@@ -433,10 +431,8 @@ impl Emu {
         self.force_reload = true;
 
         if addr == RETURN_THREAD as u64 {
-            log::trace!("/!\\ Thread returned, continuing the main thread");
-            self.regs_mut().rip = self.main_thread_cont;
-            Console::spawn_console(self);
-            self.force_break = true;
+            let code = self.regs().get_eax() as u32;
+            threads::finish_thread(self, code);
             return true;
         }
 

@@ -1,21 +1,17 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetDateFormatEx(emu: &mut emu::Emu) {
     let _locale_ptr = emu.regs().rcx;
     let _flags = emu.regs().rdx;
     let _date_ptr = emu.regs().r8;
     let _format_ptr = emu.regs().r9;
-    let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+    let buf_ptr = WinApiAbi::arg(emu, 4);
+    let buf_size = WinApiAbi::arg(emu, 5) as i32;
     let date = "11/01/2026";
-    if buf_ptr != 0 && buf_size > 0 {
-        emu.maps.write_wide_string(buf_ptr, date);
-    }
+    let written = strings::write_text(emu, buf_ptr, buf_size, date, true);
     log_red!(emu, "kernelbase!GetDateFormatEx => '{}'", date);
-    let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = (date.len() + 1) as u64;
+
+    emu.regs_mut().rax = written;
 }

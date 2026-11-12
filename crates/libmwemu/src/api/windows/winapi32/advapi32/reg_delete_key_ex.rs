@@ -1,23 +1,21 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn RegDeleteKeyExA(emu: &mut emu::Emu) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let name = emu.maps.read_string(name_ptr);
-    log_red!(emu, "advapi32!RegDeleteKeyExA hkey:0x{:x} '{}'", hkey, name);
+    reg_delete_key_ex(emu, "RegDeleteKeyExA", false);
+}
+
+fn reg_delete_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let hkey = WinApiAbi::arg(emu, 0);
+    let name_ptr = WinApiAbi::arg(emu, 1);
+    let name = strings::read_text(emu, name_ptr, wide);
+    log_red!(emu, "advapi32!{api} hkey:0x{:x} '{}'", hkey, name);
     emu.regs_mut().rax = 0;
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 4);
 }
 
 pub fn RegDeleteKeyExW(emu: &mut emu::Emu) {
-    let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let name = emu.maps.read_wide_string(name_ptr);
-    log_red!(emu, "advapi32!RegDeleteKeyExW hkey:0x{:x} '{}'", hkey, name);
-    emu.regs_mut().rax = 0;
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    reg_delete_key_ex(emu, "RegDeleteKeyExW", true);
 }

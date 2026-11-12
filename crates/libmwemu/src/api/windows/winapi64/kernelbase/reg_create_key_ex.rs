@@ -1,17 +1,23 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
+    reg_create_key_ex(emu, "RegCreateKeyExA", false);
+}
+
+fn reg_create_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;
     let subkey_ptr = emu.regs().rdx;
     let _reserved = emu.regs().r8;
     let _class = emu.regs().r9;
-    let _options = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _sam = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let _security = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
-    let disp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
-    let subkey = emu.maps.read_string(subkey_ptr);
+    let _options = WinApiAbi::arg(emu, 4);
+    let _sam = WinApiAbi::arg(emu, 5);
+    let _security = WinApiAbi::arg(emu, 6);
+    let result_ptr = WinApiAbi::arg(emu, 7);
+    let disp_ptr = WinApiAbi::arg(emu, 8);
+    let subkey = strings::read_text(emu, subkey_ptr, wide);
     let hndl = helper::handler_create(&format!("regkey_{}", subkey));
     if result_ptr != 0 {
         emu.maps.write_qword(result_ptr, hndl);
@@ -21,7 +27,7 @@ pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
     }
     log_red!(
         emu,
-        "kernelbase!RegCreateKeyExA hkey:0x{:x} '{}' => 0x{:x}",
+        "kernelbase!{api} hkey:0x{:x} '{}' => 0x{:x}",
         hkey,
         subkey,
         hndl
@@ -31,30 +37,5 @@ pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
 }
 
 pub fn RegCreateKeyExW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let _reserved = emu.regs().r8;
-    let _class = emu.regs().r9;
-    let _options = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _sam = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let _security = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
-    let disp_ptr = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
-    let subkey = emu.maps.read_wide_string(subkey_ptr);
-    let hndl = helper::handler_create(&format!("regkey_{}", subkey));
-    if result_ptr != 0 {
-        emu.maps.write_qword(result_ptr, hndl);
-    }
-    if disp_ptr != 0 {
-        emu.maps.write_dword(disp_ptr, 2);
-    }
-    log_red!(
-        emu,
-        "kernelbase!RegCreateKeyExW hkey:0x{:x} '{}' => 0x{:x}",
-        hkey,
-        subkey,
-        hndl
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    reg_create_key_ex(emu, "RegCreateKeyExW", true);
 }

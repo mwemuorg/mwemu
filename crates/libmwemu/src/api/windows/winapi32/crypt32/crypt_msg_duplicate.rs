@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptMsgDuplicate(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
     log_red!(emu, "crypt32!CryptMsgDuplicate arg1:0x{:x}", arg1);
     let handle = helper::handler_create("CryptMsgDuplicate");
     emu.set_last_error(0);

@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetCurrencyFormatW(emu: &mut emu::Emu) {
     let _locale = emu.regs().rcx;
     let _flags = emu.regs().rdx;
     let value_ptr = emu.regs().r8;
     let _format_ptr = emu.regs().r9;
-    let buf_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let buf_size = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+    let buf_ptr = WinApiAbi::arg(emu, 4);
+    let buf_size = WinApiAbi::arg(emu, 5) as i32;
     let value = if value_ptr != 0 {
         emu.maps.read_wide_string(value_ptr)
     } else {

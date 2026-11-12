@@ -2,6 +2,7 @@ use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::sections;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants::errors::*;
 
@@ -33,10 +34,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
-    let dos_path_name_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let nt_path_name_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let nt_file_name_part_ptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let curdir_ptr = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64; // DirectoryInfo
+    let dos_path_name_ptr = WinApiAbi::arg(emu, 0);
+    let nt_path_name_ptr = WinApiAbi::arg(emu, 1);
+    let nt_file_name_part_ptr = WinApiAbi::arg(emu, 2) as u32;
+    let curdir_ptr = WinApiAbi::arg(emu, 3); // DirectoryInfo
 
     let dos_path_name = emu.maps.read_wide_string(dos_path_name_ptr);
 
@@ -139,17 +140,17 @@ __kernel_entry NTSTATUS NtCreateFile(
 );
 */
 fn NtCreateFile(emu: &mut emu::Emu) {
-    let out_handle_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let access_mask = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let oattrib = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let iostat = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let alloc_sz = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let fattrib = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0);
-    let share_access = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0);
-    let create_disp = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0);
-    let create_opt = emu.maps.read_dword(emu.regs().get_esp() + 32).unwrap_or(0);
-    let ea_buff = emu.maps.read_dword(emu.regs().get_esp() + 36).unwrap_or(0);
-    let ea_len = emu.maps.read_dword(emu.regs().get_esp() + 40).unwrap_or(0);
+    let out_handle_ptr = WinApiAbi::arg(emu, 0);
+    let access_mask = WinApiAbi::arg(emu, 1) as u32;
+    let oattrib = WinApiAbi::arg(emu, 2);
+    let iostat = WinApiAbi::arg(emu, 3) as u32;
+    let alloc_sz = WinApiAbi::arg(emu, 4) as u32;
+    let fattrib = WinApiAbi::arg(emu, 5) as u32;
+    let share_access = WinApiAbi::arg(emu, 6) as u32;
+    let create_disp = WinApiAbi::arg(emu, 7) as u32;
+    let create_opt = WinApiAbi::arg(emu, 8) as u32;
+    let ea_buff = WinApiAbi::arg(emu, 9) as u32;
+    let ea_len = WinApiAbi::arg(emu, 10) as u32;
 
     let obj_name_ptr = emu.maps.read_dword(oattrib + 8).unwrap_or(0) as u64;
     let filename = emu.maps.read_wide_string(obj_name_ptr);
@@ -169,9 +170,9 @@ fn NtCreateFile(emu: &mut emu::Emu) {
 }
 
 fn RtlFreeHeap(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let base_addr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let handle = WinApiAbi::arg(emu, 0);
+    let flags = WinApiAbi::arg(emu, 1) as u32;
+    let base_addr = WinApiAbi::arg(emu, 2);
 
     log_red!(emu, "ntdll!RtlFreeHeap 0x{}", base_addr);
 
@@ -202,11 +203,11 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
 }
 
 fn NtQueryInformationFile(emu: &mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let stat = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let fileinfo = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let fileinfocls = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
+    let handle = WinApiAbi::arg(emu, 0);
+    let stat = WinApiAbi::arg(emu, 1) as u32;
+    let fileinfo = WinApiAbi::arg(emu, 2) as u32;
+    let len = WinApiAbi::arg(emu, 3) as u32;
+    let fileinfocls = WinApiAbi::arg(emu, 4) as u32;
 
     log_red!(emu, "ntdll!NtQueryInformationFile");
 
@@ -218,15 +219,15 @@ fn NtQueryInformationFile(emu: &mut emu::Emu) {
 }
 
 fn NtReadFile(emu: &mut emu::Emu) {
-    let file_hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let ev_hndl = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let apc_rout = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-    let apc_ctx = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
-    let stat = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0);
-    let buff = emu.maps.read_dword(emu.regs().get_esp() + 20).unwrap_or(0) as u64;
-    let len = emu.maps.read_dword(emu.regs().get_esp() + 24).unwrap_or(0) as usize;
-    let off = emu.maps.read_dword(emu.regs().get_esp() + 28).unwrap_or(0);
-    let key = emu.maps.read_dword(emu.regs().get_esp() + 32).unwrap_or(0);
+    let file_hndl = WinApiAbi::arg(emu, 0);
+    let ev_hndl = WinApiAbi::arg(emu, 1);
+    let apc_rout = WinApiAbi::arg(emu, 2) as u32;
+    let apc_ctx = WinApiAbi::arg(emu, 3) as u32;
+    let stat = WinApiAbi::arg(emu, 4) as u32;
+    let buff = WinApiAbi::arg(emu, 5);
+    let len = WinApiAbi::arg(emu, 6) as usize;
+    let off = WinApiAbi::arg(emu, 7) as u32;
+    let key = WinApiAbi::arg(emu, 8) as u32;
 
     let file = helper::handler_get_uri(file_hndl);
 
@@ -249,7 +250,7 @@ fn NtReadFile(emu: &mut emu::Emu) {
 }
 
 fn NtClose(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let hndl = WinApiAbi::arg(emu, 0);
 
     let uri = helper::handler_get_uri(hndl);
     log_red!(emu, "ntdll!NtClose hndl: 0x{:x} uri: {}", hndl, uri);

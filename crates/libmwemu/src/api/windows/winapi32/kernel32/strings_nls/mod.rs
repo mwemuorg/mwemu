@@ -1,220 +1,153 @@
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
-#[path = "../set_environment_strings.rs"]
 mod set_environment_strings;
-pub use set_environment_strings::*;
+pub use set_environment_strings::{SetEnvironmentStringsA, SetEnvironmentStringsW};
 
-#[path = "../lc_map_string.rs"]
 mod lc_map_string;
-pub use lc_map_string::*;
+pub use lc_map_string::{LCMapStringA, LCMapStringW};
 
-#[path = "../get_string_type.rs"]
 mod get_string_type;
-pub use get_string_type::*;
+pub use get_string_type::{GetStringTypeA, GetStringTypeW};
 
-#[path = "../fold_string.rs"]
 mod fold_string;
-pub use fold_string::*;
+pub use fold_string::{FoldStringA, FoldStringW};
 
-#[path = "../find_act_ctx_section_string.rs"]
 mod find_act_ctx_section_string;
-pub use find_act_ctx_section_string::*;
+pub use find_act_ctx_section_string::{FindActCtxSectionStringA, FindActCtxSectionStringW};
 
-#[path = "../compare_string.rs"]
 mod compare_string;
-pub use compare_string::*;
+pub use compare_string::{CompareStringA, CompareStringW};
 
-#[path = "../write_profile_string.rs"]
 mod write_profile_string;
-pub use write_profile_string::*;
+pub use write_profile_string::{WriteProfileStringA, WriteProfileStringW};
 
-#[path = "../write_private_profile_string.rs"]
 mod write_private_profile_string;
-pub use write_private_profile_string::*;
+pub use write_private_profile_string::{WritePrivateProfileStringA, WritePrivateProfileStringW};
 
-#[path = "../string_length_worker.rs"]
 mod string_length_worker;
-pub use string_length_worker::*;
+pub use string_length_worker::{StringLengthWorkerA, StringLengthWorkerW};
 
-#[path = "../string_copy_worker.rs"]
 mod string_copy_worker;
-pub use string_copy_worker::*;
+pub use string_copy_worker::{StringCopyWorkerA, StringCopyWorkerW};
 
-#[path = "../lstrcmp.rs"]
 mod lstrcmp;
-pub use lstrcmp::*;
+pub use lstrcmp::{lstrcmpA, lstrcmpW};
 
-#[path = "../is_bad_string_ptr.rs"]
 mod is_bad_string_ptr;
-pub use is_bad_string_ptr::*;
+pub use is_bad_string_ptr::{IsBadStringPtrA, IsBadStringPtrW};
 
-#[path = "../get_profile_string.rs"]
 mod get_profile_string;
-pub use get_profile_string::*;
+pub use get_profile_string::{GetProfileStringA, GetProfileStringW};
 
-#[path = "../get_private_profile_string.rs"]
 mod get_private_profile_string;
-pub use get_private_profile_string::*;
+pub use get_private_profile_string::{GetPrivateProfileStringA, GetPrivateProfileStringW};
 
-#[path = "../get_locale_info.rs"]
 mod get_locale_info;
-pub use get_locale_info::*;
+pub use get_locale_info::{GetLocaleInfoA, GetLocaleInfoW};
 
-#[path = "../free_environment_strings.rs"]
 mod free_environment_strings;
-pub use free_environment_strings::*;
+pub use free_environment_strings::{FreeEnvironmentStringsA, FreeEnvironmentStringsW};
 
-#[path = "../expand_environment_strings.rs"]
 mod expand_environment_strings;
-pub use expand_environment_strings::*;
+pub use expand_environment_strings::{ExpandEnvironmentStringsA, ExpandEnvironmentStringsW};
 
-#[path = "../get_environment_strings.rs"]
 mod get_environment_strings;
-pub use get_environment_strings::*;
+pub use get_environment_strings::{
+    GetEnvironmentStrings, GetEnvironmentStringsA, GetEnvironmentStringsW,
+};
 
-#[path = "../get_environment_strings_w.rs"]
-mod get_environment_strings_w;
-pub use get_environment_strings_w::*;
-
-#[path = "../lstrcat.rs"]
 mod lstrcat;
-pub use lstrcat::*;
+pub use lstrcat::{lstrcat, lstrcatA, lstrcatW};
 
-#[path = "../lstrcmpi_a.rs"]
-mod lstrcmpi_a;
-pub use lstrcmpi_a::*;
+mod lstrcmpi;
+pub use lstrcmpi::{lstrcmpi, lstrcmpiA, lstrcmpiW};
 
-#[path = "../lstrcpy.rs"]
 mod lstrcpy;
-pub use lstrcpy::*;
+pub use lstrcpy::{lstrcpy, lstrcpyA, lstrcpyW};
 
-#[path = "../lstrlen.rs"]
 mod lstrlen;
-pub use lstrlen::*;
+pub use lstrlen::{lstrlen, lstrlenA, lstrlenW};
 
-#[path = "../multi_byte_to_wide_char.rs"]
 mod multi_byte_to_wide_char;
-pub use multi_byte_to_wide_char::*;
+pub use multi_byte_to_wide_char::MultiByteToWideChar;
 
-#[path = "../wide_char_to_multi_byte.rs"]
 mod wide_char_to_multi_byte;
-pub use wide_char_to_multi_byte::*;
+pub use wide_char_to_multi_byte::WideCharToMultiByte;
 
-#[path = "../find_act_ctx_section_string_w_worker.rs"]
 mod find_act_ctx_section_string_w_worker;
-pub use find_act_ctx_section_string_w_worker::*;
+pub use find_act_ctx_section_string_w_worker::FindActCtxSectionStringWWorker;
 
-#[path = "../load_string_base_w.rs"]
 mod load_string_base_w;
-pub use load_string_base_w::*;
+pub use load_string_base_w::LoadStringBaseW;
 
-#[path = "../open_sort_id_key.rs"]
 mod open_sort_id_key;
-pub use open_sort_id_key::*;
+pub use open_sort_id_key::OpenSortIdKey;
 
-#[path = "../sort_change_case.rs"]
 mod sort_change_case;
-pub use sort_change_case::*;
+pub use sort_change_case::SortChangeCase;
 
-#[path = "../sort_compare_string.rs"]
 mod sort_compare_string;
-pub use sort_compare_string::*;
+pub use sort_compare_string::SortCompareString;
 
-#[path = "../sort_find_string.rs"]
 mod sort_find_string;
-pub use sort_find_string::*;
+pub use sort_find_string::SortFindString;
 
-#[path = "../sort_get_hash_code.rs"]
 mod sort_get_hash_code;
-pub use sort_get_hash_code::*;
+pub use sort_get_hash_code::SortGetHashCode;
 
-#[path = "../sort_is_defined_string.rs"]
 mod sort_is_defined_string;
-pub use sort_is_defined_string::*;
+pub use sort_is_defined_string::SortIsDefinedString;
 
-#[path = "../string_cb_cat_ex_w.rs"]
 mod string_cb_cat_ex_w;
-pub use string_cb_cat_ex_w::*;
+pub use string_cb_cat_ex_w::StringCbCatExW;
 
-#[path = "../string_cb_copy_ex_w.rs"]
 mod string_cb_copy_ex_w;
-pub use string_cb_copy_ex_w::*;
+pub use string_cb_copy_ex_w::StringCbCopyExW;
 
-#[path = "../string_cb_copy_w.rs"]
 mod string_cb_copy_w;
-pub use string_cb_copy_w::*;
+pub use string_cb_copy_w::StringCbCopyW;
 
-#[path = "../string_cch_cat_w.rs"]
 mod string_cch_cat_w;
-pub use string_cch_cat_w::*;
+pub use string_cch_cat_w::StringCchCatW;
 
-#[path = "../string_cch_copy_ex_w.rs"]
 mod string_cch_copy_ex_w;
-pub use string_cch_copy_ex_w::*;
+pub use string_cch_copy_ex_w::StringCchCopyExW;
 
-#[path = "../string_cch_copy_nw.rs"]
 mod string_cch_copy_nw;
-pub use string_cch_copy_nw::*;
+pub use string_cch_copy_nw::StringCchCopyNW;
 
-#[path = "../string_cch_copy_w.rs"]
 mod string_cch_copy_w;
-pub use string_cch_copy_w::*;
+pub use string_cch_copy_w::StringCchCopyW;
 
-#[path = "../string_cch_length_w.rs"]
 mod string_cch_length_w;
-pub use string_cch_length_w::*;
+pub use string_cch_length_w::StringCchLengthW;
 
-#[path = "../string_copy_worker_w_2_0.rs"]
 mod string_copy_worker_w_2_0;
-pub use string_copy_worker_w_2_0::*;
+pub use string_copy_worker_w_2_0::StringCopyWorkerW_2_0;
 
-#[path = "../string_ex_validate_dest_w.rs"]
 mod string_ex_validate_dest_w;
-pub use string_ex_validate_dest_w::*;
+pub use string_ex_validate_dest_w::StringExValidateDestW;
 
-#[path = "../string_table.rs"]
 mod string_table;
-pub use string_table::*;
+pub use string_table::StringTable;
 
-#[path = "../string_v_printf_worker_w.rs"]
 mod string_v_printf_worker_w;
-pub use string_v_printf_worker_w::*;
+pub use string_v_printf_worker_w::StringVPrintfWorkerW;
 
-#[path = "../string_v_printf_worker_w_0.rs"]
 mod string_v_printf_worker_w_0;
 
-#[path = "../string_validate_dest_and_length_w.rs"]
 mod string_validate_dest_and_length_w;
-pub use string_validate_dest_and_length_w::*;
+pub use string_validate_dest_and_length_w::StringValidateDestAndLengthW;
 
-#[path = "../lstrlen_w.rs"]
-mod lstrlen_w;
-pub use lstrlen_w::*;
-
-#[path = "../lstrcpy_w.rs"]
-mod lstrcpy_w;
-pub use lstrcpy_w::*;
-
-#[path = "../lstrcpyn.rs"]
 mod lstrcpyn;
-pub use lstrcpyn::*;
+pub use lstrcpyn::{lstrcpyn, lstrcpynA, lstrcpynW};
 
-#[path = "../lstrcat_w.rs"]
-mod lstrcat_w;
-pub use lstrcat_w::*;
-
-#[path = "../lstrcmpi_w.rs"]
-mod lstrcmpi_w;
-pub use lstrcmpi_w::*;
-
-#[path = "../get_user_default_lcid.rs"]
 mod get_user_default_lcid;
-pub use get_user_default_lcid::*;
+pub use get_user_default_lcid::GetUserDefaultLCID;
 
-#[path = "../get_thread_locale.rs"]
 mod get_thread_locale;
-pub use get_thread_locale::*;
+pub use get_thread_locale::GetThreadLocale;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
     match api {
@@ -226,8 +159,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "GetLocaleInfoA" => kernel32::GetLocaleInfoA(emu),
         "GetLocaleInfoW" => kernel32::GetLocaleInfoW(emu),
         "GetUserDefaultLCID" => kernel32::GetUserDefaultLCID(emu),
-        "lstrlenA" => kernel32::lstrlen(emu),
-        "lstrcatA" => kernel32::lstrcat(emu),
+        "lstrlenA" => kernel32::lstrlenA(emu),
+        "lstrcatA" => kernel32::lstrcatA(emu),
         "GetACP" => kernel32::GetACP(emu),
         "GetCPInfo" => kernel32::GetCPInfo(emu),
         "GetOEMCP" => kernel32::GetOEMCP(emu),
@@ -382,20 +315,17 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "VerLanguageNameW" => kernel32::VerLanguageNameW(emu),
         "VerifyScripts" => kernel32::VerifyScripts(emu),
         "lstrcmpi" => kernel32::lstrcmpi(emu),
-        "lstrcpyA" => kernel32::lstrcpyA_api(emu),
-        "lstrcpynA" => kernel32::lstrcpynA_api(emu),
-        "lstrcpynW" => kernel32::lstrcpynW_api(emu),
-        "GetUserDefaultLangId" => kernel32::GetUserDefaultLangId(emu),
-        "LStrCmpI" => kernel32::LStrCmpI(emu),
-        "LStrCmpIW" => kernel32::LStrCmpIW(emu),
-        "uaw_lstrcmpW" => kernel32::uaw_lstrcmpW_api(emu),
-        "uaw_lstrcmpiW" => kernel32::uaw_lstrcmpiW_api(emu),
-        "uaw_lstrlenW" => kernel32::uaw_lstrlenW_api(emu),
-        "uaw_wcschr" => kernel32::uaw_wcschr_api(emu),
-        "uaw_wcscpy" => kernel32::uaw_wcscpy_api(emu),
-        "uaw_wcsicmp" => kernel32::uaw_wcsicmp_api(emu),
-        "uaw_wcslen" => kernel32::uaw_wcslen_api(emu),
-        "uaw_wcsrchr" => kernel32::uaw_wcsrchr_api(emu),
+        "lstrcpyA" => kernel32::lstrcpyA(emu),
+        "lstrcpynA" => kernel32::lstrcpynA(emu),
+        "lstrcpynW" => kernel32::lstrcpynW(emu),
+        "uaw_lstrcmpW" => kernel32::uaw_lstrcmpW(emu),
+        "uaw_lstrcmpiW" => kernel32::uaw_lstrcmpiW(emu),
+        "uaw_lstrlenW" => kernel32::uaw_lstrlenW(emu),
+        "uaw_wcschr" => kernel32::uaw_wcschr(emu),
+        "uaw_wcscpy" => kernel32::uaw_wcscpy(emu),
+        "uaw_wcsicmp" => kernel32::uaw_wcsicmp(emu),
+        "uaw_wcslen" => kernel32::uaw_wcslen(emu),
+        "uaw_wcsrchr" => kernel32::uaw_wcsrchr(emu),
         _ => return false,
     }
     true

@@ -2,14 +2,15 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi64;
 
-mod launch;
-pub use launch::*;
 mod filesystem;
-pub use filesystem::*;
-mod ui;
-pub use ui::*;
+mod launch;
 mod objects;
+mod ui;
+
+pub use filesystem::*;
+pub use launch::*;
 pub use objects::*;
+pub use ui::*;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);

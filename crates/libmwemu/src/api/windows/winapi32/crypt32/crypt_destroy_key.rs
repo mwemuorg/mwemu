@@ -1,9 +1,10 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptDestroyKey(emu: &mut emu::Emu) {
-    let h_key = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let h_key = WinApiAbi::arg(emu, 0);
     for _ in 0..1u32 {
         emu.stack_pop32(false);
     }

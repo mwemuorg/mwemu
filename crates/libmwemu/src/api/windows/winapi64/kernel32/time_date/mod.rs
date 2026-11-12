@@ -18,7 +18,9 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "QueryPerformanceFrequency" => kernel32::QueryPerformanceFrequency(emu),
         "SystemTimeToFileTime" => kernel32::SystemTimeToFileTime(emu),
         "SystemTimeToTzSpecificLocalTime" => kernel32::SystemTimeToTzSpecificLocalTime(emu),
+        "GetDateFormatA" => kernel32::GetDateFormatA(emu),
         "GetDateFormatW" => kernel32::GetDateFormatW(emu),
+        "GetTimeFormatA" => kernel32::GetTimeFormatA(emu),
         "GetTimeFormatW" => kernel32::GetTimeFormatW(emu),
         _ => return false,
     }

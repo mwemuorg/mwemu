@@ -60,3 +60,15 @@ pub const FORMAT_MESSAGE_FROM_STRING: u32 = 0x0400;
 pub const FORMAT_MESSAGE_FROM_HMODULE: u32 = 0x0800;
 pub const FORMAT_MESSAGE_FROM_SYSTEM: u32 = 0x1000;
 pub const FORMAT_MESSAGE_ARGUMENT_ARRAY: u32 = 0x2000;
+
+// Keyboard translation modes and supported control keys.
+pub const MAPVK_VK_TO_VSC: u32 = 0x00;
+pub const MAPVK_VSC_TO_VK: u32 = 0x01;
+pub const MAPVK_VK_TO_CHAR: u32 = 0x02;
+pub const MAPVK_VSC_TO_VK_EX: u32 = 0x03;
+pub const MAPVK_VK_TO_VSC_EX: u32 = 0x04;
+pub const VK_BACK: u32 = 0x08;
+pub const VK_TAB: u32 = 0x09;
+pub const VK_RETURN: u32 = 0x0d;
+pub const VK_ESCAPE: u32 = 0x1b;
+pub const VK_SPACE: u32 = 0x20;

@@ -1,3 +1,4 @@
+pub(crate) mod automation;
 pub(crate) mod bstr;
 pub(crate) mod buffers;
 pub(crate) mod crt;
@@ -7,6 +8,7 @@ pub(crate) mod fallback;
 pub(crate) mod files;
 pub(crate) mod handles;
 pub(crate) mod heap;
+pub(crate) mod iphlpapi;
 pub(crate) mod memory;
 pub(crate) mod memory_ops;
 pub(crate) mod modules;
@@ -14,6 +16,10 @@ pub(crate) mod nt_api;
 pub(crate) mod ntdll;
 pub(crate) mod sections;
 pub(crate) mod strings;
+pub(crate) mod threads;
 pub(crate) mod trace;
 pub(crate) mod virtual_alloc;
 pub(crate) mod virtual_protect;
+pub(crate) mod winsock;
+
+pub mod input;

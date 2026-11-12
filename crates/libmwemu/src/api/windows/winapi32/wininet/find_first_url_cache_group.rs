@@ -13,5 +13,5 @@ pub fn FindFirstUrlCacheGroup(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("findfirsturlcachegroup");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 6);
 }

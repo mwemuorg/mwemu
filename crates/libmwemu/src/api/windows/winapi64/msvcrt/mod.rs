@@ -5,16 +5,17 @@ use crate::winapi::common::buffers;
 use crate::winapi::common::crt;
 use crate::winapi::winapi64::kernel32;
 
-mod runtime;
-pub use runtime::*;
-mod strings;
-pub use strings::*;
 mod io;
-pub use io::*;
-mod memory;
-pub use memory::*;
 mod math;
+mod memory;
+mod runtime;
+mod strings;
+
+pub use io::*;
 pub use math::*;
+pub use memory::*;
+pub use runtime::*;
+pub use strings::*;
 
 fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
     buffers::allocate(emu, size, 16, 0, BufferKind::Crt)

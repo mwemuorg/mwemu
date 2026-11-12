@@ -1,14 +1,20 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegOpenKeyExA(emu: &mut emu::Emu) {
+    reg_open_key_ex(emu, "RegOpenKeyExA", false);
+}
+
+fn reg_open_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;
     let subkey_ptr = emu.regs().rdx;
     let _reserved = emu.regs().r8;
     let _sam = emu.regs().r9;
-    let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let result_ptr = WinApiAbi::arg(emu, 4);
     let subkey = if subkey_ptr != 0 {
-        emu.maps.read_string(subkey_ptr)
+        strings::read_text(emu, subkey_ptr, wide)
     } else {
         String::new()
     };
@@ -18,7 +24,7 @@ pub fn RegOpenKeyExA(emu: &mut emu::Emu) {
     }
     log_red!(
         emu,
-        "advapi32!RegOpenKeyExA hkey:0x{:x} '{}' => 0x{:x}",
+        "advapi32!{api} hkey:0x{:x} '{}' => 0x{:x}",
         hkey,
         subkey,
         hndl
@@ -27,26 +33,5 @@ pub fn RegOpenKeyExA(emu: &mut emu::Emu) {
 }
 
 pub fn RegOpenKeyExW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let _reserved = emu.regs().r8;
-    let _sam = emu.regs().r9;
-    let result_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let subkey = if subkey_ptr != 0 {
-        emu.maps.read_wide_string(subkey_ptr)
-    } else {
-        String::new()
-    };
-    let hndl = helper::handler_create(&format!("registry://{}", subkey));
-    if result_ptr != 0 {
-        emu.maps.write_qword(result_ptr, hndl);
-    }
-    log_red!(
-        emu,
-        "advapi32!RegOpenKeyExW hkey:0x{:x} '{}' => 0x{:x}",
-        hkey,
-        subkey,
-        hndl
-    );
-    emu.regs_mut().rax = 0;
+    reg_open_key_ex(emu, "RegOpenKeyExW", true);
 }

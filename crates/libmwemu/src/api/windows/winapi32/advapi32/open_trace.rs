@@ -1,45 +1,26 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn OpenTraceA(emu: &mut emu::Emu) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    open_trace(emu, "OpenTraceA", false);
+}
+
+fn open_trace(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let p0 = WinApiAbi::arg(emu, 0);
+    let p1 = WinApiAbi::arg(emu, 1);
+    let p2 = WinApiAbi::arg(emu, 2);
     let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_string(p0)
+        strings::read_text(emu, p0, wide)
     } else {
         format!("0x{:x}", p0)
     };
-    log_red!(
-        emu,
-        "advapi32!OpenTraceA '{}'  p1:0x{:x} p2:0x{:x}",
-        s,
-        p1,
-        p2
-    );
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    log_red!(emu, "advapi32!{api} '{}'  p1:0x{:x} p2:0x{:x}", s, p1, p2);
+    stdcall_ret(emu, 1);
     emu.regs_mut().rax = 1;
 }
 
 pub fn OpenTraceW(emu: &mut emu::Emu) {
-    let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let p2 = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_wide_string(p0)
-    } else {
-        format!("0x{:x}", p0)
-    };
-    log_red!(
-        emu,
-        "advapi32!OpenTraceW '{}'  p1:0x{:x} p2:0x{:x}",
-        s,
-        p1,
-        p2
-    );
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    open_trace(emu, "OpenTraceW", true);
 }

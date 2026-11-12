@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CopySid(emu: &mut emu::Emu) {
-    let dest_len = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let dest_sid = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let src_sid = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
+    let dest_len = WinApiAbi::arg(emu, 0);
+    let dest_sid = WinApiAbi::arg(emu, 1);
+    let src_sid = WinApiAbi::arg(emu, 2);
     if src_sid != 0 && dest_sid != 0 {
         let sub_count = emu.maps.read_byte(src_sid + 1).unwrap_or(1) as u64;
         let sid_len = 8 + sub_count * 4;

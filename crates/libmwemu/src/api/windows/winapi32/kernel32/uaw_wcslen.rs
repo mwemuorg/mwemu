@@ -1,15 +1,17 @@
 use crate::emu;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn uaw_wcslen(emu: &mut emu::Emu) {
-    let wstr = arg(emu, 0) as u64;
-
-    let s = emu.maps.read_wide_string(wstr);
-    let len = s.encode_utf16().count();
-
-    log_red!(emu, "kernel32!uaw_wcslen str:0x{:x} len:{}", wstr, len);
-
-    emu.set_last_error(0);
-    emu.regs_mut().rax = len as u64;
+    let arg1 = WinApiAbi::arg(emu, 0);
+    let arg2 = WinApiAbi::arg(emu, 1);
+    log_red!(
+        emu,
+        "kernel32!uaw_wcslen arg1:0x{:x} arg2:0x{:x}",
+        arg1,
+        arg2
+    );
     stdcall_ret(emu, 1);
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
 }

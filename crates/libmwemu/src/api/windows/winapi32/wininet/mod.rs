@@ -43,38 +43,31 @@ mod app_cache_get_manifest_url;
 pub use app_cache_get_manifest_url::AppCacheGetManifestUrl;
 mod app_cache_lookup;
 pub use app_cache_lookup::AppCacheLookup;
-mod commit_url_cache_entry_a;
-pub use commit_url_cache_entry_a::CommitUrlCacheEntryA;
+mod commit_url_cache_entry;
+pub use commit_url_cache_entry::{CommitUrlCacheEntryA, CommitUrlCacheEntryW};
 mod commit_url_cache_entry_binary_blob;
+
 pub use commit_url_cache_entry_binary_blob::CommitUrlCacheEntryBinaryBlob;
-mod commit_url_cache_entry_w;
-pub use commit_url_cache_entry_w::CommitUrlCacheEntryW;
 mod create_md5_sso_hash;
 pub use create_md5_sso_hash::CreateMD5SSOHash;
-mod create_url_cache_container_a;
-pub use create_url_cache_container_a::CreateUrlCacheContainerA;
-mod create_url_cache_container_w;
-pub use create_url_cache_container_w::CreateUrlCacheContainerW;
-mod create_url_cache_entry_a;
-pub use create_url_cache_entry_a::CreateUrlCacheEntryA;
+mod create_url_cache_container;
+pub use create_url_cache_container::{CreateUrlCacheContainerA, CreateUrlCacheContainerW};
+
+mod create_url_cache_entry;
+pub use create_url_cache_entry::{CreateUrlCacheEntryA, CreateUrlCacheEntryW};
 mod create_url_cache_entry_ex_w;
+
 pub use create_url_cache_entry_ex_w::CreateUrlCacheEntryExW;
-mod create_url_cache_entry_w;
-pub use create_url_cache_entry_w::CreateUrlCacheEntryW;
 mod create_url_cache_group;
 pub use create_url_cache_group::CreateUrlCacheGroup;
 mod delete_ie3_cache;
 pub use delete_ie3_cache::DeleteIE3Cache;
-mod delete_url_cache_container_a;
-pub use delete_url_cache_container_a::DeleteUrlCacheContainerA;
-mod delete_url_cache_container_w;
-pub use delete_url_cache_container_w::DeleteUrlCacheContainerW;
+mod delete_url_cache_container;
+pub use delete_url_cache_container::{DeleteUrlCacheContainerA, DeleteUrlCacheContainerW};
+
 mod delete_url_cache_entry;
-pub use delete_url_cache_entry::DeleteUrlCacheEntry;
-mod delete_url_cache_entry_a;
-pub use delete_url_cache_entry_a::DeleteUrlCacheEntryA;
-mod delete_url_cache_entry_w;
-pub use delete_url_cache_entry_w::DeleteUrlCacheEntryW;
+pub use delete_url_cache_entry::{DeleteUrlCacheEntry, DeleteUrlCacheEntryA, DeleteUrlCacheEntryW};
+
 mod delete_url_cache_group;
 pub use delete_url_cache_group::DeleteUrlCacheGroup;
 mod delete_wpad_cache_for_networks;
@@ -95,148 +88,121 @@ mod dll_unregister_server;
 pub use dll_unregister_server::DllUnregisterServer;
 mod find_close_url_cache;
 pub use find_close_url_cache::FindCloseUrlCache;
-mod find_first_url_cache_container_a;
-pub use find_first_url_cache_container_a::FindFirstUrlCacheContainerA;
-mod find_first_url_cache_container_w;
-pub use find_first_url_cache_container_w::FindFirstUrlCacheContainerW;
-mod find_first_url_cache_entry_a;
-pub use find_first_url_cache_entry_a::FindFirstUrlCacheEntryA;
-mod find_first_url_cache_entry_ex_a;
-pub use find_first_url_cache_entry_ex_a::FindFirstUrlCacheEntryExA;
-mod find_first_url_cache_entry_ex_w;
-pub use find_first_url_cache_entry_ex_w::FindFirstUrlCacheEntryExW;
-mod find_first_url_cache_entry_w;
-pub use find_first_url_cache_entry_w::FindFirstUrlCacheEntryW;
+mod find_first_url_cache_container;
+pub use find_first_url_cache_container::{
+    FindFirstUrlCacheContainerA, FindFirstUrlCacheContainerW,
+};
+
+mod find_first_url_cache_entry;
+pub use find_first_url_cache_entry::{FindFirstUrlCacheEntryA, FindFirstUrlCacheEntryW};
+mod find_first_url_cache_entry_ex;
+
+pub use find_first_url_cache_entry_ex::{FindFirstUrlCacheEntryExA, FindFirstUrlCacheEntryExW};
+
 mod find_first_url_cache_group;
 pub use find_first_url_cache_group::FindFirstUrlCacheGroup;
-mod find_next_url_cache_container_a;
-pub use find_next_url_cache_container_a::FindNextUrlCacheContainerA;
-mod find_next_url_cache_container_w;
-pub use find_next_url_cache_container_w::FindNextUrlCacheContainerW;
-mod find_next_url_cache_entry_a;
-pub use find_next_url_cache_entry_a::FindNextUrlCacheEntryA;
-mod find_next_url_cache_entry_ex_a;
-pub use find_next_url_cache_entry_ex_a::FindNextUrlCacheEntryExA;
-mod find_next_url_cache_entry_ex_w;
-pub use find_next_url_cache_entry_ex_w::FindNextUrlCacheEntryExW;
-mod find_next_url_cache_entry_w;
-pub use find_next_url_cache_entry_w::FindNextUrlCacheEntryW;
+mod find_next_url_cache_container;
+pub use find_next_url_cache_container::{FindNextUrlCacheContainerA, FindNextUrlCacheContainerW};
+
+mod find_next_url_cache_entry;
+pub use find_next_url_cache_entry::{FindNextUrlCacheEntryA, FindNextUrlCacheEntryW};
+mod find_next_url_cache_entry_ex;
+
+pub use find_next_url_cache_entry_ex::{FindNextUrlCacheEntryExA, FindNextUrlCacheEntryExW};
+
 mod find_next_url_cache_group;
 pub use find_next_url_cache_group::FindNextUrlCacheGroup;
 mod force_nexus_lookup;
 pub use force_nexus_lookup::ForceNexusLookup;
 mod force_nexus_lookup_ex_w;
 pub use force_nexus_lookup_ex_w::ForceNexusLookupExW;
-mod free_url_cache_space_a;
-pub use free_url_cache_space_a::FreeUrlCacheSpaceA;
-mod free_url_cache_space_w;
-pub use free_url_cache_space_w::FreeUrlCacheSpaceW;
-mod ftp_command_a;
-pub use ftp_command_a::FtpCommandA;
-mod ftp_command_w;
-pub use ftp_command_w::FtpCommandW;
-mod ftp_create_directory_a;
-pub use ftp_create_directory_a::FtpCreateDirectoryA;
-mod ftp_create_directory_w;
-pub use ftp_create_directory_w::FtpCreateDirectoryW;
-mod ftp_delete_file_a;
-pub use ftp_delete_file_a::FtpDeleteFileA;
-mod ftp_delete_file_w;
-pub use ftp_delete_file_w::FtpDeleteFileW;
-mod ftp_find_first_file_a;
-pub use ftp_find_first_file_a::FtpFindFirstFileA;
-mod ftp_find_first_file_w;
-pub use ftp_find_first_file_w::FtpFindFirstFileW;
-mod ftp_get_current_directory_a;
-pub use ftp_get_current_directory_a::FtpGetCurrentDirectoryA;
-mod ftp_get_current_directory_w;
-pub use ftp_get_current_directory_w::FtpGetCurrentDirectoryW;
-mod ftp_get_file_a;
-pub use ftp_get_file_a::FtpGetFileA;
+mod free_url_cache_space;
+pub use free_url_cache_space::{FreeUrlCacheSpaceA, FreeUrlCacheSpaceW};
+
+mod ftp_command;
+pub use ftp_command::{FtpCommandA, FtpCommandW};
+
+mod ftp_create_directory;
+pub use ftp_create_directory::{FtpCreateDirectoryA, FtpCreateDirectoryW};
+
+mod ftp_delete_file;
+pub use ftp_delete_file::{FtpDeleteFileA, FtpDeleteFileW};
+
+mod ftp_find_first_file;
+pub use ftp_find_first_file::{FtpFindFirstFileA, FtpFindFirstFileW};
+
+mod ftp_get_current_directory;
+pub use ftp_get_current_directory::{FtpGetCurrentDirectoryA, FtpGetCurrentDirectoryW};
+
+mod ftp_get_file;
+pub use ftp_get_file::{FtpGetFileA, FtpGetFileW};
 mod ftp_get_file_ex;
 pub use ftp_get_file_ex::FtpGetFileEx;
 mod ftp_get_file_size;
+
 pub use ftp_get_file_size::FtpGetFileSize;
-mod ftp_get_file_w;
-pub use ftp_get_file_w::FtpGetFileW;
-mod ftp_open_file_a;
-pub use ftp_open_file_a::FtpOpenFileA;
-mod ftp_open_file_w;
-pub use ftp_open_file_w::FtpOpenFileW;
-mod ftp_put_file_a;
-pub use ftp_put_file_a::FtpPutFileA;
+mod ftp_open_file;
+pub use ftp_open_file::{FtpOpenFileA, FtpOpenFileW};
+
+mod ftp_put_file;
+pub use ftp_put_file::{FtpPutFileA, FtpPutFileW};
 mod ftp_put_file_ex;
+
 pub use ftp_put_file_ex::FtpPutFileEx;
-mod ftp_put_file_w;
-pub use ftp_put_file_w::FtpPutFileW;
-mod ftp_remove_directory_a;
-pub use ftp_remove_directory_a::FtpRemoveDirectoryA;
-mod ftp_remove_directory_w;
-pub use ftp_remove_directory_w::FtpRemoveDirectoryW;
-mod ftp_rename_file_a;
-pub use ftp_rename_file_a::FtpRenameFileA;
-mod ftp_rename_file_w;
-pub use ftp_rename_file_w::FtpRenameFileW;
-mod ftp_set_current_directory_a;
-pub use ftp_set_current_directory_a::FtpSetCurrentDirectoryA;
-mod ftp_set_current_directory_w;
-pub use ftp_set_current_directory_w::FtpSetCurrentDirectoryW;
+mod ftp_remove_directory;
+pub use ftp_remove_directory::{FtpRemoveDirectoryA, FtpRemoveDirectoryW};
+
+mod ftp_rename_file;
+pub use ftp_rename_file::{FtpRenameFileA, FtpRenameFileW};
+
+mod ftp_set_current_directory;
+pub use ftp_set_current_directory::{FtpSetCurrentDirectoryA, FtpSetCurrentDirectoryW};
+
 mod get_proxy_dll_info;
 pub use get_proxy_dll_info::GetProxyDllInfo;
-mod get_url_cache_config_info_a;
-pub use get_url_cache_config_info_a::GetUrlCacheConfigInfoA;
-mod get_url_cache_config_info_w;
-pub use get_url_cache_config_info_w::GetUrlCacheConfigInfoW;
+mod get_url_cache_config_info;
+pub use get_url_cache_config_info::{GetUrlCacheConfigInfoA, GetUrlCacheConfigInfoW};
+
 mod get_url_cache_entry_binary_blob;
 pub use get_url_cache_entry_binary_blob::GetUrlCacheEntryBinaryBlob;
-mod get_url_cache_entry_info_a;
-pub use get_url_cache_entry_info_a::GetUrlCacheEntryInfoA;
-mod get_url_cache_entry_info_ex_a;
-pub use get_url_cache_entry_info_ex_a::GetUrlCacheEntryInfoExA;
-mod get_url_cache_entry_info_ex_w;
-pub use get_url_cache_entry_info_ex_w::GetUrlCacheEntryInfoExW;
-mod get_url_cache_entry_info_w;
-pub use get_url_cache_entry_info_w::GetUrlCacheEntryInfoW;
-mod get_url_cache_group_attribute_a;
-pub use get_url_cache_group_attribute_a::GetUrlCacheGroupAttributeA;
-mod get_url_cache_group_attribute_w;
-pub use get_url_cache_group_attribute_w::GetUrlCacheGroupAttributeW;
+mod get_url_cache_entry_info;
+pub use get_url_cache_entry_info::{GetUrlCacheEntryInfoA, GetUrlCacheEntryInfoW};
+mod get_url_cache_entry_info_ex;
+
+pub use get_url_cache_entry_info_ex::{GetUrlCacheEntryInfoExA, GetUrlCacheEntryInfoExW};
+
+mod get_url_cache_group_attribute;
+pub use get_url_cache_group_attribute::{GetUrlCacheGroupAttributeA, GetUrlCacheGroupAttributeW};
+
 mod get_url_cache_header_data;
 pub use get_url_cache_header_data::GetUrlCacheHeaderData;
-mod gopher_create_locator_a;
-pub use gopher_create_locator_a::GopherCreateLocatorA;
-mod gopher_create_locator_w;
-pub use gopher_create_locator_w::GopherCreateLocatorW;
-mod gopher_find_first_file_a;
-pub use gopher_find_first_file_a::GopherFindFirstFileA;
-mod gopher_find_first_file_w;
-pub use gopher_find_first_file_w::GopherFindFirstFileW;
-mod gopher_get_attribute_a;
-pub use gopher_get_attribute_a::GopherGetAttributeA;
-mod gopher_get_attribute_w;
-pub use gopher_get_attribute_w::GopherGetAttributeW;
-mod gopher_get_locator_type_a;
-pub use gopher_get_locator_type_a::GopherGetLocatorTypeA;
-mod gopher_get_locator_type_w;
-pub use gopher_get_locator_type_w::GopherGetLocatorTypeW;
-mod gopher_open_file_a;
-pub use gopher_open_file_a::GopherOpenFileA;
-mod gopher_open_file_w;
-pub use gopher_open_file_w::GopherOpenFileW;
-mod http_add_request_headers_a;
-pub use http_add_request_headers_a::HttpAddRequestHeadersA;
-mod http_add_request_headers_w;
-pub use http_add_request_headers_w::HttpAddRequestHeadersW;
+mod gopher_create_locator;
+pub use gopher_create_locator::{GopherCreateLocatorA, GopherCreateLocatorW};
+
+mod gopher_find_first_file;
+pub use gopher_find_first_file::{GopherFindFirstFileA, GopherFindFirstFileW};
+
+mod gopher_get_attribute;
+pub use gopher_get_attribute::{GopherGetAttributeA, GopherGetAttributeW};
+
+mod gopher_get_locator_type;
+pub use gopher_get_locator_type::{GopherGetLocatorTypeA, GopherGetLocatorTypeW};
+
+mod gopher_open_file;
+pub use gopher_open_file::{GopherOpenFileA, GopherOpenFileW};
+
+mod http_add_request_headers;
+pub use http_add_request_headers::{HttpAddRequestHeadersA, HttpAddRequestHeadersW};
+
 mod http_check_dav_compliance;
 pub use http_check_dav_compliance::HttpCheckDavCompliance;
 mod http_close_dependency_handle;
 pub use http_close_dependency_handle::HttpCloseDependencyHandle;
 mod http_duplicate_dependency_handle;
 pub use http_duplicate_dependency_handle::HttpDuplicateDependencyHandle;
-mod http_end_request_a;
-pub use http_end_request_a::HttpEndRequestA;
-mod http_end_request_w;
-pub use http_end_request_w::HttpEndRequestW;
+mod http_end_request;
+pub use http_end_request::{HttpEndRequestA, HttpEndRequestW};
+
 mod http_get_server_credentials;
 pub use http_get_server_credentials::HttpGetServerCredentials;
 mod http_get_tunnel_socket;
@@ -253,10 +219,9 @@ mod http_push_enable;
 pub use http_push_enable::HttpPushEnable;
 mod http_push_wait;
 pub use http_push_wait::HttpPushWait;
-mod http_send_request_ex_a;
-pub use http_send_request_ex_a::HttpSendRequestExA;
-mod http_send_request_ex_w;
-pub use http_send_request_ex_w::HttpSendRequestExW;
+mod http_send_request_ex;
+pub use http_send_request_ex::{HttpSendRequestExA, HttpSendRequestExW};
+
 mod http_web_socket_close;
 pub use http_web_socket_close::HttpWebSocketClose;
 mod http_web_socket_complete_upgrade;
@@ -271,10 +236,9 @@ mod http_web_socket_shutdown;
 pub use http_web_socket_shutdown::HttpWebSocketShutdown;
 mod increment_url_cache_header_data;
 pub use increment_url_cache_header_data::IncrementUrlCacheHeaderData;
-mod internet_alg_id_to_string_a;
-pub use internet_alg_id_to_string_a::InternetAlgIdToStringA;
-mod internet_alg_id_to_string_w;
-pub use internet_alg_id_to_string_w::InternetAlgIdToStringW;
+mod internet_alg_id_to_string;
+pub use internet_alg_id_to_string::{InternetAlgIdToStringA, InternetAlgIdToStringW};
+
 mod internet_attempt_connect;
 pub use internet_attempt_connect::InternetAttemptConnect;
 mod internet_autodial;
@@ -283,46 +247,38 @@ mod internet_autodial_callback;
 pub use internet_autodial_callback::InternetAutodialCallback;
 mod internet_autodial_hangup;
 pub use internet_autodial_hangup::InternetAutodialHangup;
-mod internet_canonicalize_url_a;
-pub use internet_canonicalize_url_a::InternetCanonicalizeUrlA;
-mod internet_canonicalize_url_w;
-pub use internet_canonicalize_url_w::InternetCanonicalizeUrlW;
-mod internet_check_connection_a;
-pub use internet_check_connection_a::InternetCheckConnectionA;
-mod internet_check_connection_w;
-pub use internet_check_connection_w::InternetCheckConnectionW;
+mod internet_canonicalize_url;
+pub use internet_canonicalize_url::{InternetCanonicalizeUrlA, InternetCanonicalizeUrlW};
+
+mod internet_check_connection;
+pub use internet_check_connection::{InternetCheckConnectionA, InternetCheckConnectionW};
+
 mod internet_clear_all_per_site_cookie_decisions;
 pub use internet_clear_all_per_site_cookie_decisions::InternetClearAllPerSiteCookieDecisions;
-mod internet_combine_url_a;
-pub use internet_combine_url_a::InternetCombineUrlA;
-mod internet_combine_url_w;
-pub use internet_combine_url_w::InternetCombineUrlW;
+mod internet_combine_url;
+pub use internet_combine_url::{InternetCombineUrlA, InternetCombineUrlW};
+
 mod internet_confirm_zone_crossing;
-pub use internet_confirm_zone_crossing::InternetConfirmZoneCrossing;
-mod internet_confirm_zone_crossing_a;
-pub use internet_confirm_zone_crossing_a::InternetConfirmZoneCrossingA;
-mod internet_confirm_zone_crossing_w;
-pub use internet_confirm_zone_crossing_w::InternetConfirmZoneCrossingW;
+pub use internet_confirm_zone_crossing::{
+    InternetConfirmZoneCrossing, InternetConfirmZoneCrossingA, InternetConfirmZoneCrossingW,
+};
+
 mod internet_convert_url_from_wire_to_wide_char;
 pub use internet_convert_url_from_wire_to_wide_char::InternetConvertUrlFromWireToWideChar;
-mod internet_create_url_a;
-pub use internet_create_url_a::InternetCreateUrlA;
-mod internet_create_url_w;
-pub use internet_create_url_w::InternetCreateUrlW;
+mod internet_create_url;
+pub use internet_create_url::{InternetCreateUrlA, InternetCreateUrlW};
+
 mod internet_dial;
-pub use internet_dial::InternetDial;
-mod internet_dial_a;
-pub use internet_dial_a::InternetDialA;
-mod internet_dial_w;
-pub use internet_dial_w::InternetDialW;
-mod internet_enum_per_site_cookie_decision_a;
-pub use internet_enum_per_site_cookie_decision_a::InternetEnumPerSiteCookieDecisionA;
-mod internet_enum_per_site_cookie_decision_w;
-pub use internet_enum_per_site_cookie_decision_w::InternetEnumPerSiteCookieDecisionW;
-mod internet_find_next_file_a;
-pub use internet_find_next_file_a::InternetFindNextFileA;
-mod internet_find_next_file_w;
-pub use internet_find_next_file_w::InternetFindNextFileW;
+pub use internet_dial::{InternetDial, InternetDialA, InternetDialW};
+
+mod internet_enum_per_site_cookie_decision;
+pub use internet_enum_per_site_cookie_decision::{
+    InternetEnumPerSiteCookieDecisionA, InternetEnumPerSiteCookieDecisionW,
+};
+
+mod internet_find_next_file;
+pub use internet_find_next_file::{InternetFindNextFileA, InternetFindNextFileW};
+
 mod internet_fortezza_command;
 pub use internet_fortezza_command::InternetFortezzaCommand;
 mod internet_free_cookies;
@@ -336,123 +292,110 @@ pub use internet_get_cert_by_urla::InternetGetCertByURLA;
 mod internet_get_connected_state;
 pub use internet_get_connected_state::InternetGetConnectedState;
 mod internet_get_connected_state_ex;
-pub use internet_get_connected_state_ex::InternetGetConnectedStateEx;
-mod internet_get_connected_state_ex_a;
-pub use internet_get_connected_state_ex_a::InternetGetConnectedStateExA;
-mod internet_get_connected_state_ex_w;
-pub use internet_get_connected_state_ex_w::InternetGetConnectedStateExW;
-mod internet_get_cookie_a;
-pub use internet_get_cookie_a::InternetGetCookieA;
+pub use internet_get_connected_state_ex::{
+    InternetGetConnectedStateEx, InternetGetConnectedStateExA, InternetGetConnectedStateExW,
+};
+
+mod internet_get_cookie;
+pub use internet_get_cookie::{InternetGetCookieA, InternetGetCookieW};
 mod internet_get_cookie_ex2;
 pub use internet_get_cookie_ex2::InternetGetCookieEx2;
-mod internet_get_cookie_ex_a;
-pub use internet_get_cookie_ex_a::InternetGetCookieExA;
-mod internet_get_cookie_ex_w;
-pub use internet_get_cookie_ex_w::InternetGetCookieExW;
-mod internet_get_cookie_w;
-pub use internet_get_cookie_w::InternetGetCookieW;
-mod internet_get_last_response_info_a;
-pub use internet_get_last_response_info_a::InternetGetLastResponseInfoA;
-mod internet_get_last_response_info_w;
-pub use internet_get_last_response_info_w::InternetGetLastResponseInfoW;
-mod internet_get_per_site_cookie_decision_a;
-pub use internet_get_per_site_cookie_decision_a::InternetGetPerSiteCookieDecisionA;
-mod internet_get_per_site_cookie_decision_w;
-pub use internet_get_per_site_cookie_decision_w::InternetGetPerSiteCookieDecisionW;
+mod internet_get_cookie_ex;
+
+pub use internet_get_cookie_ex::{InternetGetCookieExA, InternetGetCookieExW};
+
+mod internet_get_last_response_info;
+pub use internet_get_last_response_info::{
+    InternetGetLastResponseInfoA, InternetGetLastResponseInfoW,
+};
+
+mod internet_get_per_site_cookie_decision;
+pub use internet_get_per_site_cookie_decision::{
+    InternetGetPerSiteCookieDecisionA, InternetGetPerSiteCookieDecisionW,
+};
+
 mod internet_get_proxy_for_url;
 pub use internet_get_proxy_for_url::InternetGetProxyForUrl;
 mod internet_get_security_info_by_url;
-pub use internet_get_security_info_by_url::InternetGetSecurityInfoByURL;
-mod internet_get_security_info_by_urla;
-pub use internet_get_security_info_by_urla::InternetGetSecurityInfoByURLA;
-mod internet_get_security_info_by_urlw;
-pub use internet_get_security_info_by_urlw::InternetGetSecurityInfoByURLW;
+pub use internet_get_security_info_by_url::{
+    InternetGetSecurityInfoByURL, InternetGetSecurityInfoByURLA, InternetGetSecurityInfoByURLW,
+};
+
 mod internet_go_online;
-pub use internet_go_online::InternetGoOnline;
-mod internet_go_online_a;
-pub use internet_go_online_a::InternetGoOnlineA;
-mod internet_go_online_w;
-pub use internet_go_online_w::InternetGoOnlineW;
+pub use internet_go_online::{InternetGoOnline, InternetGoOnlineA, InternetGoOnlineW};
+
 mod internet_hang_up;
 pub use internet_hang_up::InternetHangUp;
 mod internet_initialize_auto_proxy_dll;
 pub use internet_initialize_auto_proxy_dll::InternetInitializeAutoProxyDll;
 mod internet_lock_request_file;
 pub use internet_lock_request_file::InternetLockRequestFile;
-mod internet_open_url_a;
-pub use internet_open_url_a::InternetOpenUrlA;
-mod internet_open_url_w;
-pub use internet_open_url_w::InternetOpenUrlW;
+mod internet_open_url;
+pub use internet_open_url::{InternetOpenUrlA, InternetOpenUrlW};
+
 mod internet_query_data_available;
 pub use internet_query_data_available::InternetQueryDataAvailable;
 mod internet_query_fortezza_status;
 pub use internet_query_fortezza_status::InternetQueryFortezzaStatus;
-mod internet_security_protocol_to_string_a;
-pub use internet_security_protocol_to_string_a::InternetSecurityProtocolToStringA;
-mod internet_security_protocol_to_string_w;
-pub use internet_security_protocol_to_string_w::InternetSecurityProtocolToStringW;
-mod internet_set_cookie_a;
-pub use internet_set_cookie_a::InternetSetCookieA;
+mod internet_security_protocol_to_string;
+pub use internet_security_protocol_to_string::{
+    InternetSecurityProtocolToStringA, InternetSecurityProtocolToStringW,
+};
+
+mod internet_set_cookie;
+pub use internet_set_cookie::{InternetSetCookieA, InternetSetCookieW};
 mod internet_set_cookie_ex2;
 pub use internet_set_cookie_ex2::InternetSetCookieEx2;
-mod internet_set_cookie_ex_a;
-pub use internet_set_cookie_ex_a::InternetSetCookieExA;
-mod internet_set_cookie_ex_w;
-pub use internet_set_cookie_ex_w::InternetSetCookieExW;
-mod internet_set_cookie_w;
-pub use internet_set_cookie_w::InternetSetCookieW;
+mod internet_set_cookie_ex;
+
+pub use internet_set_cookie_ex::{InternetSetCookieExA, InternetSetCookieExW};
+
 mod internet_set_dial_state;
-pub use internet_set_dial_state::InternetSetDialState;
-mod internet_set_dial_state_a;
-pub use internet_set_dial_state_a::InternetSetDialStateA;
-mod internet_set_dial_state_w;
-pub use internet_set_dial_state_w::InternetSetDialStateW;
+pub use internet_set_dial_state::{
+    InternetSetDialState, InternetSetDialStateA, InternetSetDialStateW,
+};
+
 mod internet_set_file_pointer;
 pub use internet_set_file_pointer::InternetSetFilePointer;
-mod internet_set_option_ex_a;
-pub use internet_set_option_ex_a::InternetSetOptionExA;
-mod internet_set_option_ex_w;
-pub use internet_set_option_ex_w::InternetSetOptionExW;
-mod internet_set_per_site_cookie_decision_a;
-pub use internet_set_per_site_cookie_decision_a::InternetSetPerSiteCookieDecisionA;
-mod internet_set_per_site_cookie_decision_w;
-pub use internet_set_per_site_cookie_decision_w::InternetSetPerSiteCookieDecisionW;
+mod internet_set_option_ex;
+pub use internet_set_option_ex::{InternetSetOptionExA, InternetSetOptionExW};
+
+mod internet_set_per_site_cookie_decision;
+pub use internet_set_per_site_cookie_decision::{
+    InternetSetPerSiteCookieDecisionA, InternetSetPerSiteCookieDecisionW,
+};
+
 mod internet_set_secure_legacy_servers_app_compat;
 pub use internet_set_secure_legacy_servers_app_compat::InternetSetSecureLegacyServersAppCompat;
 mod internet_show_security_info_by_url;
-pub use internet_show_security_info_by_url::InternetShowSecurityInfoByURL;
-mod internet_show_security_info_by_urla;
-pub use internet_show_security_info_by_urla::InternetShowSecurityInfoByURLA;
-mod internet_show_security_info_by_urlw;
-pub use internet_show_security_info_by_urlw::InternetShowSecurityInfoByURLW;
+pub use internet_show_security_info_by_url::{
+    InternetShowSecurityInfoByURL, InternetShowSecurityInfoByURLA, InternetShowSecurityInfoByURLW,
+};
+
 mod internet_time_from_system_time;
-pub use internet_time_from_system_time::InternetTimeFromSystemTime;
-mod internet_time_from_system_time_a;
-pub use internet_time_from_system_time_a::InternetTimeFromSystemTimeA;
-mod internet_time_from_system_time_w;
-pub use internet_time_from_system_time_w::InternetTimeFromSystemTimeW;
+pub use internet_time_from_system_time::{
+    InternetTimeFromSystemTime, InternetTimeFromSystemTimeA, InternetTimeFromSystemTimeW,
+};
+
 mod internet_time_to_system_time;
-pub use internet_time_to_system_time::InternetTimeToSystemTime;
-mod internet_time_to_system_time_a;
-pub use internet_time_to_system_time_a::InternetTimeToSystemTimeA;
-mod internet_time_to_system_time_w;
-pub use internet_time_to_system_time_w::InternetTimeToSystemTimeW;
+pub use internet_time_to_system_time::{
+    InternetTimeToSystemTime, InternetTimeToSystemTimeA, InternetTimeToSystemTimeW,
+};
+
 mod _get_file_extension_from_url;
 pub use _get_file_extension_from_url::_GetFileExtensionFromUrl;
 mod internet_unlock_request_file;
 pub use internet_unlock_request_file::InternetUnlockRequestFile;
 mod internet_write_file;
 pub use internet_write_file::InternetWriteFile;
-mod internet_write_file_ex_a;
-pub use internet_write_file_ex_a::InternetWriteFileExA;
-mod internet_write_file_ex_w;
-pub use internet_write_file_ex_w::InternetWriteFileExW;
+mod internet_write_file_ex;
+pub use internet_write_file_ex::{InternetWriteFileExA, InternetWriteFileExW};
+
 mod is_host_in_proxy_bypass_list;
 pub use is_host_in_proxy_bypass_list::IsHostInProxyBypassList;
-mod is_url_cache_entry_expired_a;
-pub use is_url_cache_entry_expired_a::IsUrlCacheEntryExpiredA;
-mod is_url_cache_entry_expired_w;
-pub use is_url_cache_entry_expired_w::IsUrlCacheEntryExpiredW;
+mod is_url_cache_entry_expired;
+pub use is_url_cache_entry_expired::{IsUrlCacheEntryExpiredA, IsUrlCacheEntryExpiredW};
+
 mod load_url_cache_content;
 pub use load_url_cache_content::LoadUrlCacheContent;
 mod parse_x509_encoded_certificate_for_list_box_entry;
@@ -469,34 +412,30 @@ mod register_url_cache_notification;
 pub use register_url_cache_notification::RegisterUrlCacheNotification;
 mod resume_suspended_download;
 pub use resume_suspended_download::ResumeSuspendedDownload;
-mod retrieve_url_cache_entry_file_a;
-pub use retrieve_url_cache_entry_file_a::RetrieveUrlCacheEntryFileA;
-mod retrieve_url_cache_entry_file_w;
-pub use retrieve_url_cache_entry_file_w::RetrieveUrlCacheEntryFileW;
-mod retrieve_url_cache_entry_stream_a;
-pub use retrieve_url_cache_entry_stream_a::RetrieveUrlCacheEntryStreamA;
-mod retrieve_url_cache_entry_stream_w;
-pub use retrieve_url_cache_entry_stream_w::RetrieveUrlCacheEntryStreamW;
+mod retrieve_url_cache_entry_file;
+pub use retrieve_url_cache_entry_file::{RetrieveUrlCacheEntryFileA, RetrieveUrlCacheEntryFileW};
+
+mod retrieve_url_cache_entry_stream;
+pub use retrieve_url_cache_entry_stream::{
+    RetrieveUrlCacheEntryStreamA, RetrieveUrlCacheEntryStreamW,
+};
+
 mod run_once_url_cache;
 pub use run_once_url_cache::RunOnceUrlCache;
-mod set_url_cache_config_info_a;
-pub use set_url_cache_config_info_a::SetUrlCacheConfigInfoA;
-mod set_url_cache_config_info_w;
-pub use set_url_cache_config_info_w::SetUrlCacheConfigInfoW;
+mod set_url_cache_config_info;
+pub use set_url_cache_config_info::{SetUrlCacheConfigInfoA, SetUrlCacheConfigInfoW};
+
 mod set_url_cache_entry_group;
-pub use set_url_cache_entry_group::SetUrlCacheEntryGroup;
-mod set_url_cache_entry_group_a;
-pub use set_url_cache_entry_group_a::SetUrlCacheEntryGroupA;
-mod set_url_cache_entry_group_w;
-pub use set_url_cache_entry_group_w::SetUrlCacheEntryGroupW;
-mod set_url_cache_entry_info_a;
-pub use set_url_cache_entry_info_a::SetUrlCacheEntryInfoA;
-mod set_url_cache_entry_info_w;
-pub use set_url_cache_entry_info_w::SetUrlCacheEntryInfoW;
-mod set_url_cache_group_attribute_a;
-pub use set_url_cache_group_attribute_a::SetUrlCacheGroupAttributeA;
-mod set_url_cache_group_attribute_w;
-pub use set_url_cache_group_attribute_w::SetUrlCacheGroupAttributeW;
+pub use set_url_cache_entry_group::{
+    SetUrlCacheEntryGroup, SetUrlCacheEntryGroupA, SetUrlCacheEntryGroupW,
+};
+
+mod set_url_cache_entry_info;
+pub use set_url_cache_entry_info::{SetUrlCacheEntryInfoA, SetUrlCacheEntryInfoW};
+
+mod set_url_cache_group_attribute;
+pub use set_url_cache_group_attribute::{SetUrlCacheGroupAttributeA, SetUrlCacheGroupAttributeW};
+
 mod set_url_cache_header_data;
 pub use set_url_cache_header_data::SetUrlCacheHeaderData;
 mod show_certificate;
@@ -508,11 +447,10 @@ pub use show_security_info::ShowSecurityInfo;
 mod show_x509_encoded_certificate;
 pub use show_x509_encoded_certificate::ShowX509EncodedCertificate;
 mod unlock_url_cache_entry_file;
-pub use unlock_url_cache_entry_file::UnlockUrlCacheEntryFile;
-mod unlock_url_cache_entry_file_a;
-pub use unlock_url_cache_entry_file_a::UnlockUrlCacheEntryFileA;
-mod unlock_url_cache_entry_file_w;
-pub use unlock_url_cache_entry_file_w::UnlockUrlCacheEntryFileW;
+pub use unlock_url_cache_entry_file::{
+    UnlockUrlCacheEntryFile, UnlockUrlCacheEntryFileA, UnlockUrlCacheEntryFileW,
+};
+
 mod unlock_url_cache_entry_stream;
 pub use unlock_url_cache_entry_stream::UnlockUrlCacheEntryStream;
 mod update_url_cache_content_path;
@@ -556,13 +494,11 @@ pub use url_cache_set_global_limit::UrlCacheSetGlobalLimit;
 mod url_cache_update_entry_extra_data;
 pub use url_cache_update_entry_extra_data::UrlCacheUpdateEntryExtraData;
 mod url_zones_detach;
+pub use request::{HttpQueryInfoA, HttpQueryInfoW};
 pub use url_zones_detach::UrlZonesDetach;
-mod http_query_info_w;
-pub use http_query_info_w::HttpQueryInfoW;
-mod internet_query_option_a;
-pub use internet_query_option_a::InternetQueryOptionA;
-mod internet_query_option_w;
-pub use internet_query_option_w::InternetQueryOptionW;
+mod internet_query_option;
+pub use internet_query_option::{InternetQueryOptionA, InternetQueryOptionW};
+
 mod internet_set_status_callback;
 pub use internet_set_status_callback::InternetSetStatusCallback;
 
@@ -584,7 +520,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "InternetErrorDlg" => teardown::internet_error_dlg(emu),
         "InternetReadFileExA" => teardown::internet_read_file_ex_a(emu),
         "InternetReadFileExW" => teardown::internet_read_file_ex_w(emu),
-        "HttpQueryInfoA" => request::http_query_info_a(emu),
+        "HttpQueryInfoA" => HttpQueryInfoA(emu),
         "InternetCloseHandle" => teardown::internet_close_handle(emu),
         "InternetCrackUrlA" => url::internet_crack_url_a(emu),
         "InternetCrackUrlW" => url::internet_crack_url_w(emu),
@@ -878,32 +814,4 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     }
 
     String::new()
-}
-
-pub(super) fn pop_stack32(emu: &mut emu::Emu, count: usize) {
-    for _ in 0..count {
-        emu.stack_pop32(false);
-    }
-}
-
-pub(super) fn read_stack_dword(emu: &mut emu::Emu, offset: u64, _what: &str) -> u32 {
-    emu.maps
-        .read_dword(emu.regs().get_esp() + offset)
-        .unwrap_or(0)
-}
-
-pub(super) fn read_ansi_string_if_present(emu: &mut emu::Emu, ptr: u64) -> String {
-    if ptr == 0 {
-        String::new()
-    } else {
-        emu.maps.read_string(ptr)
-    }
-}
-
-pub(super) fn read_wide_string_if_present(emu: &mut emu::Emu, ptr: u64) -> String {
-    if ptr == 0 {
-        String::new()
-    } else {
-        emu.maps.read_wide_string(ptr)
-    }
 }

@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn setsockopt(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let level = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let optname = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let optval = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
-    let optlen = emu.maps.read_dword(emu.regs().get_esp() + 16).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let level = WinApiAbi::arg(emu, 1);
+    let optname = WinApiAbi::arg(emu, 2);
+    let optval = WinApiAbi::arg(emu, 3);
+    let optlen = WinApiAbi::arg(emu, 4);
 
     let val = emu.maps.read_dword(optval).unwrap_or_default();
 

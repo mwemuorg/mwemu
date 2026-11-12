@@ -1,7 +1,7 @@
 use super::finish;
 use super::key_path;
-use super::stack_arg;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
@@ -33,12 +33,12 @@ pub(super) fn query_info_key(emu: &mut emu::Emu, api: &str) {
         (10, 0),
     ];
     for (index, value) in fields {
-        let ptr = stack_arg(emu, index);
+        let ptr = WinApiAbi::arg(emu, index);
         if ptr != 0 {
             emu.maps.write_dword(ptr, value);
         }
     }
-    let time_ptr = stack_arg(emu, 11);
+    let time_ptr = WinApiAbi::arg(emu, 11);
     if time_ptr != 0 {
         emu.maps.write_qword(time_ptr, 0);
     }

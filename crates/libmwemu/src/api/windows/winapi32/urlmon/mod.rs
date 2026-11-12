@@ -2,10 +2,9 @@ use crate::emu;
 use crate::serialization;
 use crate::winapi::winapi32::kernel32;
 
-mod url_download_to_file_a;
-use url_download_to_file_a::URLDownloadToFileA;
-mod url_download_to_file_w;
-use url_download_to_file_w::URLDownloadToFileW;
+mod url_download_to_file;
+use url_download_to_file::URLDownloadToFileA;
+use url_download_to_file::URLDownloadToFileW;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);

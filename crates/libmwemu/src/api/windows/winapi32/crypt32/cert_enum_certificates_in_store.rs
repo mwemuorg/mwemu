@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CertEnumCertificatesInStore(emu: &mut emu::Emu) {
-    let store = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let prev_ctx = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let store = WinApiAbi::arg(emu, 0);
+    let prev_ctx = WinApiAbi::arg(emu, 1);
     log_red!(
         emu,
         "crypt32!CertEnumCertificatesInStore store:0x{:x} prev:0x{:x}",

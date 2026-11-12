@@ -1,9 +1,10 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn fopen(emu: &mut emu::Emu) {
-    let filepath_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let mode_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let filepath_ptr = WinApiAbi::arg(emu, 0);
+    let mode_ptr = WinApiAbi::arg(emu, 1);
 
     if filepath_ptr == 0 || mode_ptr == 0 {
         emu.regs_mut().rax = 0xffffffff;

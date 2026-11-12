@@ -1,9 +1,10 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSASendDisconnect(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let data_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let data_ptr = WinApiAbi::arg(emu, 1);
     log_red!(emu, "ws2_32!WSASendDisconnect sock:0x{:x}", sock);
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038);

@@ -1,7 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn WSCEnumNameSpaceProviders32(emu: &mut emu::Emu) {
-    let err_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let err_ptr = WinApiAbi::arg(emu, 0);
     log_red!(
         emu,
         "ws2_32!WSCEnumNameSpaceProviders32 ptr:0x{:x}",
@@ -9,7 +11,5 @@ pub fn WSCEnumNameSpaceProviders32(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 2);
 }

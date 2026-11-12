@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptImportKey(emu: &mut emu::Emu) {
     let h_prov = emu.regs().rcx;
@@ -15,7 +16,7 @@ pub fn CryptImportKey(emu: &mut emu::Emu) {
         h_pub_key
     );
     // 5th arg: flags, 6th arg: phKey
-    let h_key_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let h_key_ptr = WinApiAbi::arg(emu, 5);
     let h_key = helper::handler_create("importedkey");
     if h_key_ptr != 0 {
         emu.maps.write_qword(h_key_ptr, h_key);

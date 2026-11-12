@@ -1,27 +1,21 @@
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
-#[path = "../_eh_prolog3.rs"]
 mod _eh_prolog3;
 pub use _eh_prolog3::_EH_prolog3;
 
-#[path = "../_putenv.rs"]
 mod _putenv;
 pub use _putenv::_putenv;
 
-#[path = "../_wputenv.rs"]
 mod _wputenv;
 pub use _wputenv::_wputenv;
 
-#[path = "../_eh_prolog.rs"]
 mod _eh_prolog;
 pub use _eh_prolog::_EH_prolog;
 
-#[path = "../_putenv_s.rs"]
 mod _putenv_s;
 pub use _putenv_s::_putenv_s;
 
-#[path = "../system.rs"]
 mod system;
 pub use system::system;
 

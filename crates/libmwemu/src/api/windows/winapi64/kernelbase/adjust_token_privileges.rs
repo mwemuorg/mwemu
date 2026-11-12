@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn AdjustTokenPrivileges(emu: &mut emu::Emu) {
     let token = emu.regs().rcx;
     let disable_all = emu.regs().rdx;
     let new_state = emu.regs().r8;
     let buf_len = emu.regs().r9;
-    let prev_state = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let ret_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let prev_state = WinApiAbi::arg(emu, 4);
+    let ret_len = WinApiAbi::arg(emu, 5);
     log_red!(
         emu,
         "kernelbase!AdjustTokenPrivileges token:0x{:x} disable_all:{} new:0x{:x}",

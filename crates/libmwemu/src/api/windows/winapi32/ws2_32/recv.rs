@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn recv(emu: &mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let buff = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let mut len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let flags = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0) as u64;
+    let sock = WinApiAbi::arg(emu, 0);
+    let buff = WinApiAbi::arg(emu, 1);
+    let mut len = WinApiAbi::arg(emu, 2);
+    let flags = WinApiAbi::arg(emu, 3);
 
     log_red!(emu, "ws2_32!recv   buff: 0x{:x} sz: {}", buff, len);
 
