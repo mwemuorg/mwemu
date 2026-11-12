@@ -1,4 +1,6 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetStringTypeA(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -18,17 +20,15 @@ pub fn GetStringTypeA(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 5);
     emu.regs_mut().rax = 1;
 }
 
 pub fn GetStringTypeW(emu: &mut emu::Emu) {
-    let info_type = emu.maps.read_dword(emu.regs().rsp).unwrap_or(0);
-    let str_ptr = emu.maps.read_dword(emu.regs().rsp + 4).unwrap_or(0) as u64;
-    let sz = emu.maps.read_dword(emu.regs().rsp + 8).unwrap_or(0);
-    let char_type = emu.maps.read_dword(emu.regs().rsp + 12).unwrap_or(0);
+    let info_type = WinApiAbi::arg(emu, 0) as u32;
+    let str_ptr = WinApiAbi::arg(emu, 1);
+    let sz = WinApiAbi::arg(emu, 2) as u32;
+    let char_type = WinApiAbi::arg(emu, 3) as u32;
 
     let ustr = emu.maps.read_wide_string(str_ptr);
 

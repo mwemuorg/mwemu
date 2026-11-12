@@ -17,7 +17,4 @@ pub fn getc(emu: &mut emu::Emu, api: &str) {
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0xffff_ffff; // EOF
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

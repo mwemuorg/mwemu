@@ -16,7 +16,4 @@ pub fn _strnicmp(emu: &mut emu::Emu) {
         result
     );
     emu.regs_mut().rax = result as u64;
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

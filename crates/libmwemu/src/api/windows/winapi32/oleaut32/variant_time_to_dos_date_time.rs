@@ -1,17 +1,6 @@
-use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::emu::Emu;
+use crate::winapi::common::automation;
 
-pub fn VariantTimeToDosDateTime(emu: &mut emu::Emu) {
-    let _a0 = arg(emu, 0);
-    let _a1 = arg(emu, 1);
-    let _a2 = arg(emu, 2);
-    log_red!(
-        emu,
-        "oleaut32!VariantTimeToDosDateTime a0:0x{:x} a1:0x{:x}",
-        _a0,
-        _a1
-    );
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 3);
+pub fn VariantTimeToDosDateTime(emu: &mut Emu) {
+    automation::to_dos_time(emu);
 }

@@ -6,8 +6,6 @@ pub fn _get_errno(emu: &mut emu::Emu) {
         emu.maps.write_dword(out_ptr, 0);
     }
     log_red!(emu, "msvcrt!_get_errno => 0");
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = 0;
 }

@@ -1,41 +1,26 @@
 use crate::emu;
 
 pub fn HttpSendRequestExA(emu: &mut emu::Emu) {
+    http_send_request_ex(emu, "HttpSendRequestExA");
+}
+
+fn http_send_request_ex(emu: &mut emu::Emu, api: &str) {
     let handle = emu.regs().rcx;
     let buffers_in = emu.regs().rdx;
     let buffers_out = emu.regs().r8;
     let flags = emu.regs().r9;
     log_red!(
         emu,
-        "wininet!HttpSendRequestExA handle:0x{:x} buf_in:0x{:x} flags:0x{:x}",
+        "wininet!{api} handle:0x{:x} buf_in:0x{:x} flags:0x{:x}",
         handle,
         buffers_in,
         flags
     );
-    let out_ptr = emu.regs().r9;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
+
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }
 
 pub fn HttpSendRequestExW(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let buffers_in = emu.regs().rdx;
-    let buffers_out = emu.regs().r8;
-    let flags = emu.regs().r9;
-    log_red!(
-        emu,
-        "wininet!HttpSendRequestExW handle:0x{:x} buf_in:0x{:x} flags:0x{:x}",
-        handle,
-        buffers_in,
-        flags
-    );
-    let out_ptr = emu.regs().r9;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    http_send_request_ex(emu, "HttpSendRequestExW");
 }

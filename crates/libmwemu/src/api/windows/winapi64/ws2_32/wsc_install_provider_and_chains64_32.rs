@@ -1,14 +1,14 @@
 use crate::emu;
-use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn WSCInstallProviderAndChains64_32(emu: &mut emu::Emu) {
     let arg1 = emu.regs().rcx;
     let arg2 = emu.regs().rdx;
     let arg3 = emu.regs().r8;
     let arg4 = emu.regs().r9;
-    let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let arg5 = WinApiAbi::arg(emu, 4);
+    let arg6 = WinApiAbi::arg(emu, 5);
+    let arg7 = WinApiAbi::arg(emu, 6);
     log_red!(
         emu,
         "ws2_32!WSCInstallProviderAndChains64_32 arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
@@ -16,11 +16,7 @@ pub fn WSCInstallProviderAndChains64_32(emu: &mut emu::Emu) {
         arg2,
         arg3
     );
-    let handle = helper::handler_create("WSCInstallProviderAndChains64_32");
-    let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
+
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
 }

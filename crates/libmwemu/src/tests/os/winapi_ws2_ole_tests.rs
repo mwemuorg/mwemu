@@ -14,7 +14,7 @@ fn wsa_startup_64() {
     helpers::setup();
     let mut emu = emu64();
     let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::WSAStartup, &[0x0202, 0]);
-    assert_eq!(ret, 0, "WSAStartup should return 0 (success)");
+    assert_eq!(ret, WSAEFAULT, "WSAStartup requires writable WSADATA");
 }
 
 #[test]
@@ -222,8 +222,11 @@ fn socket_lifecycle_64() {
 fn wsa_startup_32() {
     helpers::setup();
     let mut emu = emu32();
-    let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::WsaStartup, &[0x0202, 0]);
-    assert_eq!(ret, 0, "WSAStartup 32-bit should return 0");
+    let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::WSAStartup, &[0x0202, 0]);
+    assert_eq!(
+        ret as u64, WSAEFAULT,
+        "WSAStartup requires writable WSADATA"
+    );
 }
 
 #[test]
@@ -538,4 +541,197 @@ fn co_create_instance_64() {
     );
     let ppv = emu.maps.read_qword(ppv_addr).unwrap();
     assert_eq!(ppv, 0, "ppv must be set to NULL");
+}
+
+#[test]
+fn automation_conversions_use_typed_arguments_and_exact_output_widths() {
+    struct Conversion {
+        api: &'static str,
+        value: f64,
+        single: bool,
+        output: Vec<u8>,
+    }
+    helpers::setup();
+    let cases = [
+        Conversion {
+            api: "VarI2FromR8",
+            value: 2.5,
+            single: false,
+            output: 2i16.to_le_bytes().to_vec(),
+        },
+        Conversion {
+            api: "VarI4FromR8",
+            value: 3.5,
+            single: false,
+            output: 4i32.to_le_bytes().to_vec(),
+        },
+        Conversion {
+            api: "VarI8FromR8",
+            value: -4_294_967_297.0,
+            single: false,
+            output: (-4_294_967_297i64).to_le_bytes().to_vec(),
+        },
+        Conversion {
+            api: "VarUI1FromR4",
+            value: 254.5,
+            single: true,
+            output: vec![254],
+        },
+        Conversion {
+            api: "VarBoolFromR8",
+            value: -1.5,
+            single: false,
+            output: (-1i16).to_le_bytes().to_vec(),
+        },
+        Conversion {
+            api: "VarR4FromR8",
+            value: 1.25,
+            single: false,
+            output: 1.25f32.to_le_bytes().to_vec(),
+        },
+        Conversion {
+            api: "VarR8FromR4",
+            value: 1.5,
+            single: true,
+            output: 1.5f64.to_le_bytes().to_vec(),
+        },
+        Conversion {
+            api: "VarCyFromR8",
+            value: 1.25,
+            single: false,
+            output: 12500i64.to_le_bytes().to_vec(),
+        },
+    ];
+    const CANARY: u8 = 0xa5;
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        for case in &cases {
+            emu.maps.fill_range(data, CANARY, 32);
+            let arguments = if is64 {
+                emu.regs_mut().xmm0 = if case.single {
+                    (case.value as f32).to_bits() as u128
+                } else {
+                    case.value.to_bits() as u128
+                };
+                vec![0x1234, data]
+            } else {
+                let mut words: Vec<u64> = if case.single {
+                    vec![(case.value as f32).to_bits() as u64]
+                } else {
+                    helpers::f64_arguments32(&[case.value])
+                        .into_iter()
+                        .map(u64::from)
+                        .collect()
+                };
+                words.push(data);
+                words
+            };
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, "oleaut32.dll", case.api, &arguments),
+                S_OK,
+                "{}",
+                case.api
+            );
+            for (index, &byte) in case.output.iter().enumerate() {
+                assert_eq!(
+                    emu.maps.read_byte(data + index as u64),
+                    Some(byte),
+                    "{}",
+                    case.api
+                );
+            }
+            assert_eq!(
+                emu.maps.read_byte(data + case.output.len() as u64),
+                Some(CANARY),
+                "{} output overrun",
+                case.api
+            );
+        }
+        emu.maps.fill_range(data, CANARY, 16);
+        let arguments = if is64 {
+            emu.regs_mut().xmm0 = f64::NAN.to_bits() as u128;
+            vec![0, data]
+        } else {
+            let mut words: Vec<u64> = helpers::f64_arguments32(&[f64::NAN])
+                .into_iter()
+                .map(u64::from)
+                .collect();
+            words.push(data);
+            words
+        };
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "oleaut32.dll", "VarI4FromR8", &arguments),
+            DISP_E_OVERFLOW
+        );
+        assert_eq!(
+            emu.maps.read_dword(data),
+            Some(u32::from_le_bytes([CANARY; 4]))
+        );
+    }
+}
+
+#[test]
+fn automation_mixed_fp_arguments_math_and_dates() {
+    helpers::setup();
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let power_arguments = if is64 {
+            emu.regs_mut().xmm0 = 2.0f64.to_bits() as u128;
+            emu.regs_mut().xmm1 = 5.0f64.to_bits() as u128;
+            vec![0, 0, data]
+        } else {
+            let mut words: Vec<u64> = helpers::f64_arguments32(&[2.0, 5.0])
+                .into_iter()
+                .map(u64::from)
+                .collect();
+            words.push(data);
+            words
+        };
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "oleaut32.dll", "VarR8Pow", &power_arguments),
+            S_OK
+        );
+        assert_eq!(emu.maps.read_qword(data), Some(32.0f64.to_bits()));
+        let compare_arguments = if is64 {
+            emu.regs_mut().xmm0 = 1.5f32.to_bits() as u128;
+            emu.regs_mut().xmm1 = 2.5f64.to_bits() as u128;
+            vec![0, 0]
+        } else {
+            let mut words = vec![1.5f32.to_bits() as u64];
+            words.extend(helpers::f64_arguments32(&[2.5]).into_iter().map(u64::from));
+            words
+        };
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "oleaut32.dll", "VarR4CmpR8", &compare_arguments),
+            0
+        );
+        for (value, year, month, day, hour) in [(2.5, 1900, 1, 1, 12), (-1.25, 1899, 12, 29, 6)] {
+            emu.maps.fill_range(data, 0xa5, 32);
+            let arguments = if is64 {
+                emu.regs_mut().xmm0 = f64::to_bits(value) as u128;
+                vec![0, data]
+            } else {
+                let mut words: Vec<u64> = helpers::f64_arguments32(&[value])
+                    .into_iter()
+                    .map(u64::from)
+                    .collect();
+                words.push(data);
+                words
+            };
+            assert_eq!(
+                helpers::call_winapi_export(
+                    &mut emu,
+                    "oleaut32.dll",
+                    "VariantTimeToSystemTime",
+                    &arguments
+                ),
+                1
+            );
+            assert_eq!(emu.maps.read_word(data), Some(year));
+            assert_eq!(emu.maps.read_word(data + 2), Some(month));
+            assert_eq!(emu.maps.read_word(data + 6), Some(day));
+            assert_eq!(emu.maps.read_word(data + 8), Some(hour));
+            assert_eq!(emu.maps.read_word(data + 16), Some(0xa5a5));
+        }
+    }
 }

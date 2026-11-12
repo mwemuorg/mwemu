@@ -6,7 +6,4 @@ pub fn fprintf(emu: &mut emu::Emu) {
     let fmt = emu.maps.read_string(fmt_ptr);
     log_red!(emu, "msvcrt!fprintf fmt:'{}'", fmt);
     emu.regs_mut().rax = fmt.len() as u64;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
 }

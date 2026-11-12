@@ -1,15 +1,16 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptDecryptAndVerifyMessageSignature(emu: &mut emu::Emu) {
     let p_decrypt_para = emu.regs().rcx;
     let p_verify_para = emu.regs().rdx;
     let dw_signer_index = emu.regs().r8 as u32;
     let pb_encrypted_blob = emu.regs().r9;
-    let cb_encrypted_blob = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as u32;
-    let ppb_decrypted = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let pcb_decrypted = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let pp_xchg_cert = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let pp_signer_cert = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let cb_encrypted_blob = WinApiAbi::arg(emu, 4) as u32;
+    let ppb_decrypted = WinApiAbi::arg(emu, 5);
+    let pcb_decrypted = WinApiAbi::arg(emu, 6);
+    let pp_xchg_cert = WinApiAbi::arg(emu, 7);
+    let pp_signer_cert = WinApiAbi::arg(emu, 8);
 
     let blob_data = if pb_encrypted_blob != 0 && cb_encrypted_blob > 0 {
         let len = (cb_encrypted_blob as usize).min(256);

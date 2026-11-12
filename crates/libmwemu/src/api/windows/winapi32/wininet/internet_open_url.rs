@@ -13,7 +13,7 @@ pub fn InternetOpenUrlA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("internetopenurla");
-    stdcall_ret(emu, 4);
+    stdcall_ret(emu, 6);
 }
 
 pub fn InternetOpenUrlW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn InternetOpenUrlW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("internetopenurlw");
-    stdcall_ret(emu, 4);
+    stdcall_ret(emu, 6);
 }

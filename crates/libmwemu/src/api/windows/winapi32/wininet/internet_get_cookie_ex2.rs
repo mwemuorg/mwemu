@@ -13,5 +13,5 @@ pub fn InternetGetCookieEx2(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 4);
+    stdcall_ret(emu, 5);
 }

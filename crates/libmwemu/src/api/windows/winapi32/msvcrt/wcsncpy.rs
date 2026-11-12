@@ -16,8 +16,6 @@ pub fn wcsncpy(emu: &mut emu::Emu) {
         truncated,
         n
     );
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = dst;
 }

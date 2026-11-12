@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 use crate::windows::constants::errors::*;
 
 pub fn VerifyVersionInfoA(emu: &mut emu::Emu) {
@@ -10,16 +11,12 @@ pub fn VerifyVersionInfoA(emu: &mut emu::Emu) {
 
     emu.regs_mut().rax = ERROR_SUCCESS;
 
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 4);
 }
 
 pub fn VerifyVersionInfoW(emu: &mut emu::Emu) {
     log_red!(emu, "kernel32!VerifyVersionInfoW");
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    stdcall_ret(emu, 4);
     emu.regs_mut().rax = 0xffff;
 }

@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn RegCreateKeyA(emu: &mut emu::Emu) {
     let hkey = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
@@ -39,7 +40,5 @@ pub fn RegCreateKeyW(emu: &mut emu::Emu) {
         hndl
     );
     emu.regs_mut().rax = 0;
-    for _ in 0..9 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
 }

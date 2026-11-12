@@ -13,5 +13,5 @@ pub fn OpenInputDesktop(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("openinputdesktop");
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 3);
 }

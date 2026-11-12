@@ -10,7 +10,4 @@ pub fn _snprintf(emu: &mut emu::Emu, api: &str) {
         emu.maps.write_string(buf, &fmt);
     }
     emu.regs_mut().rax = fmt.len() as u64;
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

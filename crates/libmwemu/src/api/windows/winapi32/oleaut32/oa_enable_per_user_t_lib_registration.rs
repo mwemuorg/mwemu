@@ -10,5 +10,5 @@ pub fn OaEnablePerUserTLibRegistration(emu: &mut emu::Emu) {
         _a0
     );
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 0);
 }

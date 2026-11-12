@@ -13,5 +13,5 @@ pub fn CreateIconFromResourceEx(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createiconfromresourceex");
-    stdcall_ret(emu, 8);
+    stdcall_ret(emu, 7);
 }

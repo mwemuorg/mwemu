@@ -1,11 +1,6 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::crt;
 
-pub fn fmod(emu: &mut emu::Emu) {
-    let x = f64::from_bits(emu.regs().rcx);
-    let y = f64::from_bits(emu.regs().rdx);
-    let result = x % y;
-    log_red!(emu, "msvcrt!fmod {} {} => {}", x, y, result);
-    emu.fpu_mut().set_st(0, result);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+pub fn fmod(emu: &mut Emu) {
+    crt::math_binary(emu, "fmod", |left, right| left % right);
 }

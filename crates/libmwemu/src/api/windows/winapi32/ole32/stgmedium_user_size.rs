@@ -12,5 +12,5 @@ pub fn STGMEDIUM_UserSize(emu: &mut emu::Emu) {
         _a1
     );
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }

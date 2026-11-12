@@ -1,6 +1,7 @@
 use crate::emu::Emu;
 use crate::maps::virtual_memory::MemoryKind;
 use crate::winapi::common::memory::{Call, writable_pointer, write_pointer};
+use crate::winapi::common::strings;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::process::*;
 
@@ -90,11 +91,7 @@ fn module_base(emu: &mut Emu, name_ptr: u64, wide: bool, from_address: bool) -> 
             .filter(|allocation| allocation.kind == MemoryKind::Image)
             .map(|allocation| allocation.base);
     }
-    let name = if wide {
-        emu.maps.read_wide_string(name_ptr)
-    } else {
-        emu.maps.read_string(name_ptr)
-    };
+    let name = strings::read_text(emu, name_ptr, wide);
     let name = normalize_library_name(&name, true)?;
     if let Some(module) = emu.export_indexes.get_by_name(&name) {
         return Some(module.base);

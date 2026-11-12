@@ -12,5 +12,5 @@ pub fn HttpWebSocketQueryCloseStatus(emu: &mut emu::Emu) {
     );
     helper::handler_close(handle);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 5);
 }

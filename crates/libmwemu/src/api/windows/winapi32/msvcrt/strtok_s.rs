@@ -18,7 +18,4 @@ pub fn strtok_s(emu: &mut emu::Emu) {
         log_red!(emu, "msvcrt!strtok_s '{}' delim:'{}' => null", s, delim);
         emu.regs_mut().rax = 0;
     }
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

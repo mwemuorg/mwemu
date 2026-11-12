@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn WSAIoctl(emu: &mut emu::Emu) {
     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -18,7 +19,5 @@ pub fn WSAIoctl(emu: &mut emu::Emu) {
     } else {
         emu.regs_mut().rax = 0;
     }
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 9);
 }

@@ -1,19 +1,25 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn TextOutA(emu: &mut emu::Emu) {
+    text_out(emu, "TextOutA", false);
+}
+
+fn text_out(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hdc = emu.regs().rcx;
     let x = emu.regs().rdx as i32;
     let y = emu.regs().r8 as i32;
     let text_ptr = emu.regs().r9;
-    let count = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+    let count = WinApiAbi::arg(emu, 4) as i32;
     let text = if text_ptr != 0 {
-        emu.maps.read_string(text_ptr)
+        strings::read_text(emu, text_ptr, wide)
     } else {
         String::new()
     };
     log_red!(
         emu,
-        "gdi32!TextOutA hdc:0x{:x} x:{} y:{} count:{} text:'{}'",
+        "gdi32!{api} hdc:0x{:x} x:{} y:{} count:{} text:'{}'",
         hdc,
         x,
         y,
@@ -24,24 +30,5 @@ pub fn TextOutA(emu: &mut emu::Emu) {
 }
 
 pub fn TextOutW(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let x = emu.regs().rdx as i32;
-    let y = emu.regs().r8 as i32;
-    let text_ptr = emu.regs().r9;
-    let count = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
-    let text = if text_ptr != 0 {
-        emu.maps.read_wide_string(text_ptr)
-    } else {
-        String::new()
-    };
-    log_red!(
-        emu,
-        "gdi32!TextOutW hdc:0x{:x} x:{} y:{} count:{} text:'{}'",
-        hdc,
-        x,
-        y,
-        count,
-        text
-    );
-    emu.regs_mut().rax = 1;
+    text_out(emu, "TextOutW", true);
 }

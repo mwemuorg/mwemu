@@ -13,7 +13,7 @@ pub fn CreateUrlCacheEntryA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createurlcacheentrya");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }
 
 pub fn CreateUrlCacheEntryW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn CreateUrlCacheEntryW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createurlcacheentryw");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }

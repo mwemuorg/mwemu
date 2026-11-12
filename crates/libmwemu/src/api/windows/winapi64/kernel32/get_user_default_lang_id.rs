@@ -1,9 +1,7 @@
-use crate::emu;
-use crate::winapi::helper;
+use crate::emu::Emu;
+use crate::windows::constants::nls::*;
 
-pub fn GetUserDefaultLangId(emu: &mut emu::Emu) {
+pub fn GetUserDefaultLangID(emu: &mut Emu) {
     log_red!(emu, "kernel32!GetUserDefaultLangID");
-    helper::advance_tick(emu, 1);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0x0409;
+    emu.regs_mut().rax = EN_US_LOCALE as u64;
 }

@@ -19,7 +19,4 @@ pub fn fseek(emu: &mut emu::Emu) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }
     emu.regs_mut().rax = if new_pos >= 0 { 0 } else { u64::MAX };
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

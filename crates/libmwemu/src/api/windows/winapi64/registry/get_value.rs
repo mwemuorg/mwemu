@@ -3,10 +3,10 @@ use super::data_out;
 use super::finish;
 use super::key_path;
 use super::read_name;
-use super::stack_arg;
 use super::type_flag;
 use super::write_data;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
@@ -15,9 +15,9 @@ pub(super) fn get_value(emu: &mut emu::Emu, api: &str, wide: bool) {
     let sub = read_name(emu, emu.regs().rdx, wide).unwrap_or_default();
     let name = read_name(emu, emu.regs().r8, wide).unwrap_or_default();
     let flags = emu.regs().r9 as u32;
-    let type_ptr = stack_arg(emu, 4);
-    let data_ptr = stack_arg(emu, 5);
-    let size_ptr = stack_arg(emu, 6);
+    let type_ptr = WinApiAbi::arg(emu, 4);
+    let data_ptr = WinApiAbi::arg(emu, 5);
+    let size_ptr = WinApiAbi::arg(emu, 6);
 
     let base = match key_path(hkey) {
         Ok(base) => base,

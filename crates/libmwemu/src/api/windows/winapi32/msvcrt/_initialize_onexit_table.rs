@@ -9,7 +9,4 @@ pub fn _initialize_onexit_table(emu: &mut emu::Emu) {
     }
     log_red!(emu, "msvcrt!_initialize_onexit_table tbl:0x{:x}", table_ptr);
     emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

@@ -8,8 +8,6 @@ pub fn swprintf(emu: &mut emu::Emu) {
         emu.maps.write_wide_string(buf, &fmt);
     }
     log_red!(emu, "msvcrt!swprintf fmt:'{}'", fmt);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = fmt.len() as u64;
 }

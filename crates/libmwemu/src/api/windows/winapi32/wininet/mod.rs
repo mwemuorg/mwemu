@@ -474,9 +474,8 @@ pub use url_cache_set_global_limit::UrlCacheSetGlobalLimit;
 mod url_cache_update_entry_extra_data;
 pub use url_cache_update_entry_extra_data::UrlCacheUpdateEntryExtraData;
 mod url_zones_detach;
+pub use request::{HttpQueryInfoA, HttpQueryInfoW};
 pub use url_zones_detach::UrlZonesDetach;
-mod http_query_info_w;
-pub use http_query_info_w::HttpQueryInfoW;
 mod internet_query_option;
 pub use internet_query_option::InternetQueryOptionA;
 pub use internet_query_option::InternetQueryOptionW;
@@ -501,7 +500,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "InternetErrorDlg" => teardown::internet_error_dlg(emu),
         "InternetReadFileExA" => teardown::internet_read_file_ex_a(emu),
         "InternetReadFileExW" => teardown::internet_read_file_ex_w(emu),
-        "HttpQueryInfoA" => request::http_query_info_a(emu),
+        "HttpQueryInfoA" => HttpQueryInfoA(emu),
         "InternetCloseHandle" => teardown::internet_close_handle(emu),
         "InternetCrackUrlA" => url::internet_crack_url_a(emu),
         "InternetCrackUrlW" => url::internet_crack_url_w(emu),

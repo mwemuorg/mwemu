@@ -11,5 +11,5 @@ pub fn CoRevokeInitializeSpy(emu: &mut emu::Emu) {
         helper::handler_close(h);
     }
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 2);
 }

@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn EtwEventEnabled(emu: &mut emu::Emu) {
     let reg_handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -14,9 +15,7 @@ pub fn EtwEventEnabled(emu: &mut emu::Emu) {
         reg_handle,
         level
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

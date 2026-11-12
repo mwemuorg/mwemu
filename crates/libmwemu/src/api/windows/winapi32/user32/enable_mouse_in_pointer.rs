@@ -13,5 +13,5 @@ pub fn EnableMouseInPointer(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("enablemouseinpointer");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 1);
 }

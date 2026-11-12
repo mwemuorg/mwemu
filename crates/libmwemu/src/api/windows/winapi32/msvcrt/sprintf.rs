@@ -8,8 +8,6 @@ pub fn sprintf(emu: &mut emu::Emu) {
         emu.maps.write_string(buf, &fmt);
     }
     log_red!(emu, "msvcrt!sprintf fmt:'{}'", fmt);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = fmt.len() as u64;
 }

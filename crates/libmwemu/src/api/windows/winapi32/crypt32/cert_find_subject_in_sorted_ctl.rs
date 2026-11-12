@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CertFindSubjectInSortedCTL(emu: &mut emu::Emu) {
     let esp = emu.regs().get_esp();
@@ -7,9 +8,7 @@ pub fn CertFindSubjectInSortedCTL(emu: &mut emu::Emu) {
     let arg2 = emu.maps.read_dword(esp + 8).unwrap_or(0) as u64;
     let arg3 = emu.maps.read_dword(esp + 12).unwrap_or(0) as u64;
     let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 5);
     log_red!(
         emu,
         "crypt32!CertFindSubjectInSortedCTL arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",

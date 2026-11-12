@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ToAsciiEx(emu: &mut emu::Emu) {
     let virt_key = emu.regs().rcx as u32;
     let scan_code = emu.regs().rdx as u32;
     let _lp_key_state = emu.regs().r8;
     let lp_char = emu.regs().r9;
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let _hkl = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let _flags = WinApiAbi::arg(emu, 4);
+    let _hkl = WinApiAbi::arg(emu, 5);
     let ch = if (0x20..=0x7e).contains(&virt_key) {
         virt_key as u8
     } else {

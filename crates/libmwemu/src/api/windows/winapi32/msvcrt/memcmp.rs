@@ -25,9 +25,7 @@ pub fn memcmp(emu: &mut emu::Emu) {
     if first_param != 0 && emu.maps.is_mapped(first_param) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+
     emu.set_last_error(0);
     emu.regs_mut().rax = result as u32 as u64;
 }

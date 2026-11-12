@@ -27,7 +27,4 @@ pub fn fgets(emu: &mut emu::Emu) {
     } else {
         emu.regs_mut().rax = 0;
     }
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

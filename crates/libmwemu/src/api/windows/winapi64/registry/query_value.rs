@@ -2,9 +2,9 @@ use super::data_out;
 use super::finish;
 use super::key_path;
 use super::read_name;
-use super::stack_arg;
 use super::write_data;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
@@ -12,8 +12,8 @@ pub(super) fn query_value(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;
     let name = read_name(emu, emu.regs().rdx, wide).unwrap_or_default();
     let type_ptr = emu.regs().r9;
-    let data_ptr = stack_arg(emu, 4);
-    let size_ptr = stack_arg(emu, 5);
+    let data_ptr = WinApiAbi::arg(emu, 4);
+    let size_ptr = WinApiAbi::arg(emu, 5);
 
     let path = match key_path(hkey) {
         Ok(path) => path,

@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetTokenInformation(emu: &mut emu::Emu) {
     let token_handle = emu.regs().rcx;
     let info_class = emu.regs().rdx;
     let info_buf = emu.regs().r8;
     let buf_len = emu.regs().r9;
-    let ret_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let ret_len_ptr = WinApiAbi::arg(emu, 4);
 
     let needed: u32 = match info_class {
         1 => 44, // TokenUser: TOKEN_USER (SID ptr + attrs)

@@ -1,12 +1,18 @@
+mod free_addr_info;
+pub use free_addr_info::{FreeAddrInfoW, freeaddrinfo};
+mod get_addr_info;
+pub use get_addr_info::{GetAddrInfoW, getaddrinfo};
+mod get_host_name;
+pub use get_host_name::{GetHostNameW, gethostname};
+mod get_name_info;
 use crate::api::windows::common::fallback;
 use crate::emu;
+pub use get_name_info::{GetNameInfoW, getnameinfo};
 //use crate::endpoint;
 use crate::winapi::winapi32::kernel32;
 
 mod free_addr_info_ex;
 pub use free_addr_info_ex::*;
-mod free_addr_info_w;
-pub use free_addr_info_w::FreeAddrInfoW;
 mod get_addr_info_ex;
 pub use get_addr_info_ex::GetAddrInfoExA;
 mod get_addr_info_ex_cancel;
@@ -14,12 +20,6 @@ pub use get_addr_info_ex_cancel::GetAddrInfoExCancel;
 mod get_addr_info_ex_overlapped_result;
 pub use get_addr_info_ex::GetAddrInfoExW;
 pub use get_addr_info_ex_overlapped_result::GetAddrInfoExOverlappedResult;
-mod get_addr_info_w;
-pub use get_addr_info_w::GetAddrInfoW;
-mod get_host_name_w;
-pub use get_host_name_w::GetHostNameW;
-mod get_name_info_w;
-pub use get_name_info_w::GetNameInfoW;
 mod process_socket_notifications;
 pub use process_socket_notifications::ProcessSocketNotifications;
 mod set_addr_info_ex;
@@ -299,14 +299,8 @@ mod wah_write_lsp_event;
 pub use wah_write_lsp_event::WahWriteLSPEvent;
 mod __wsafd_is_set;
 pub use __wsafd_is_set::__WSAFDIsSet;
-mod freeaddrinfo;
-pub use freeaddrinfo::freeaddrinfo;
 mod gethostbyaddr;
 pub use gethostbyaddr::gethostbyaddr;
-mod gethostname;
-pub use gethostname::gethostname;
-mod getnameinfo;
-pub use getnameinfo::getnameinfo;
 mod getprotobyname;
 pub use getprotobyname::getprotobyname;
 mod getprotobynumber;
@@ -323,28 +317,12 @@ mod inet_ntop;
 pub use inet_ntop::*;
 mod inet_pton;
 pub use inet_pton::*;
-mod get_sock_name;
-use get_sock_name::GetSockName;
-mod wsa_accept_2;
-use wsa_accept_2::WsaAccept;
-mod wsa_connect_2;
-use wsa_connect_2::WsaConnect;
 mod wsa_get_last_error;
-use wsa_get_last_error::WsaGetLastError;
-mod wsa_htons_2;
-use wsa_htons_2::WsaHtons;
-mod wsa_recv_2;
-use wsa_recv_2::WsaRecv;
-mod wsa_recv_from_2;
-use wsa_recv_from_2::WsaRecvFrom;
+use wsa_get_last_error::WSAGetLastError;
 mod wsa_send;
-use wsa_send::WsaSend;
+use wsa_send::WSASend;
 mod wsa_set_last_error;
-use wsa_set_last_error::WsaSetLastError;
-mod wsa_socket_a_2;
-use wsa_socket_a_2::WsaSocketA;
-mod wsa_startup_2;
-pub use wsa_startup_2::WsaStartup;
+use wsa_set_last_error::WSASetLastError;
 mod accept;
 use accept::accept;
 mod bind;
@@ -353,8 +331,6 @@ mod closesocket;
 pub use closesocket::closesocket;
 mod connect;
 pub use connect::connect;
-mod getaddrinfo;
-use getaddrinfo::getaddrinfo;
 mod gethostbyname;
 pub use gethostbyname::gethostbyname;
 mod getpeername;
@@ -396,10 +372,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
     match api {
-        "WsaStartup" => WsaStartup(emu),
-        "WsaSocketA" => WsaSocketA(emu),
         "socket" => socket(emu),
-        "WsaHtons" => WsaHtons(emu),
         "htons" => htons(emu),
         "inet_addr" => inet_addr(emu),
         "connect" => connect(emu),
@@ -411,24 +384,12 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "closesocket" => closesocket(emu),
         "setsockopt" => setsockopt(emu),
         "getsockopt" => getsockopt(emu),
-        "WsaAccept" => WsaAccept(emu),
         "getaddrinfo" => getaddrinfo(emu),
 
-        /*
-        0x774834b5 => sendto(emu),
-        0x7748b6dc => recvfrom(emu),
-        0x77487089 => WsaRecv(emu),
-        0x7748cba6 => WsaRecvFrom(emu),
-        0x7748cc3f => WsaConnect(emu),
-        */
         "gethostbyname" => gethostbyname(emu),
         "sendto" => sendto(emu),
         "recvfrom" => recvfrom(emu),
-        "WsaConnect" => WsaConnect(emu),
-        "WsaRecv" => WsaRecv(emu),
-        "WsaRecvFrom" => WsaRecvFrom(emu),
-        "WsaSend" | "WSASend" => WsaSend(emu),
-        "GetSockName" => GetSockName(emu),
+        "WSASend" => WSASend(emu),
         "htonl" => htonl(emu),
         "ntohl" => ntohl(emu),
         "ntohs" => ntohs(emu),
@@ -436,8 +397,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "ioctlsocket" => ioctlsocket(emu),
         "shutdown" => shutdown(emu),
         "getpeername" => getpeername(emu),
-        "WSAGetLastError" => WsaGetLastError(emu),
-        "WSASetLastError" => WsaSetLastError(emu),
+        "WSAGetLastError" => WSAGetLastError(emu),
+        "WSASetLastError" => WSASetLastError(emu),
         "FreeAddrInfoEx" => FreeAddrInfoEx(emu),
         "FreeAddrInfoExW" => FreeAddrInfoExW(emu),
         "FreeAddrInfoW" => FreeAddrInfoW(emu),

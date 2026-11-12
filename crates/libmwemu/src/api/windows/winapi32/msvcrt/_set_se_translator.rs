@@ -9,7 +9,4 @@ pub fn _set_se_translator(emu: &mut emu::Emu, api: &str) {
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

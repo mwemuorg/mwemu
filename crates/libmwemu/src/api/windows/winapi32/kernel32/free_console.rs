@@ -9,7 +9,4 @@ pub fn FreeConsole(emu: &mut emu::Emu) {
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

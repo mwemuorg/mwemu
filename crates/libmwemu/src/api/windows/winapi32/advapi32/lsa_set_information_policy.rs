@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn LsaSetInformationPolicy(emu: &mut emu::Emu) {
     let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -13,9 +14,7 @@ pub fn LsaSetInformationPolicy(emu: &mut emu::Emu) {
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

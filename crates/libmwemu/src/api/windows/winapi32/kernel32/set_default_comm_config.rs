@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 use crate::windows::constants::errors::*;
 
 pub fn SetDefaultCommConfigA(emu: &mut emu::Emu) {
@@ -22,8 +23,6 @@ pub fn SetDefaultCommConfigW(emu: &mut emu::Emu) {
     let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     let s = emu.maps.read_wide_string(str_ptr);
     log_red!(emu, "kernel32!SetDefaultCommConfigW '{}'  0x{:x}", s, arg2);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
     emu.regs_mut().rax = 1;
 }

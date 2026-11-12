@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn SHEnumerateUnreadMailAccountsW(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -14,8 +15,6 @@ pub fn SHEnumerateUnreadMailAccountsW(emu: &mut emu::Emu) {
         s,
         p1
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 4);
     emu.regs_mut().rax = 1;
 }

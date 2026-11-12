@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptExportKey(emu: &mut emu::Emu) {
@@ -6,8 +7,8 @@ pub fn BCryptExportKey(emu: &mut emu::Emu) {
     let _h_export_key = emu.regs().rdx;
     let psz_blob_type = emu.regs().r8;
     let pb_output = emu.regs().r9;
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as usize;
-    let pcb_result = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let cb_output = WinApiAbi::arg(emu, 4) as usize;
+    let pcb_result = WinApiAbi::arg(emu, 5);
 
     let blob_type = emu.maps.read_wide_string(psz_blob_type);
     log_red!(emu, "bcrypt!BCryptExportKey type={}", blob_type);

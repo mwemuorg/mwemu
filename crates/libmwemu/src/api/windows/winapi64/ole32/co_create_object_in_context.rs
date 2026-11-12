@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CoCreateObjectInContext(emu: &mut emu::Emu) {
     let clsid_ptr = emu.regs().rcx;
     let outer = emu.regs().rdx;
     let ctx = emu.regs().r8;
     let iid_ptr = emu.regs().r9;
-    let ppv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let ppv = WinApiAbi::arg(emu, 5);
     let hndl = helper::handler_create("com_object");
     let ppv_addr = ppv;
     if ppv_addr != 0 {

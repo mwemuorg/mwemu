@@ -1,27 +1,23 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn RegQueryValueA(emu: &mut emu::Emu) {
+    reg_query_value(emu, "RegQueryValueA", false);
+}
+
+fn reg_query_value(emu: &mut emu::Emu, api: &str, wide: bool) {
     let hkey = emu.regs().rcx;
     let name_ptr = emu.regs().rdx;
     let reserved = emu.regs().r8;
     let type_ptr = emu.regs().r9;
-    let name = emu.maps.read_string(name_ptr);
+    let name = strings::read_text(emu, name_ptr, wide);
     if type_ptr != 0 {
         emu.maps.write_dword(type_ptr, 1); // REG_SZ
     }
-    log_red!(emu, "advapi32!RegQueryValueA hkey:0x{:x} '{}'", hkey, name);
+    log_red!(emu, "advapi32!{api} hkey:0x{:x} '{}'", hkey, name);
     emu.regs_mut().rax = 2;
 }
 
 pub fn RegQueryValueW(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let reserved = emu.regs().r8;
-    let type_ptr = emu.regs().r9;
-    let name = emu.maps.read_wide_string(name_ptr);
-    if type_ptr != 0 {
-        emu.maps.write_dword(type_ptr, 1); // REG_SZ
-    }
-    log_red!(emu, "advapi32!RegQueryValueW hkey:0x{:x} '{}'", hkey, name);
-    emu.regs_mut().rax = 2;
+    reg_query_value(emu, "RegQueryValueW", true);
 }

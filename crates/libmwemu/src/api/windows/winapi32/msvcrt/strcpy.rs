@@ -8,8 +8,6 @@ pub fn strcpy(emu: &mut emu::Emu) {
         emu.maps.write_string(dst, &s);
     }
     log_red!(emu, "msvcrt!strcpy dst:0x{:x} '{}'", dst, s);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = dst;
 }

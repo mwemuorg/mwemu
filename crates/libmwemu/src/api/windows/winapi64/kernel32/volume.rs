@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::windows::constants::system::*;
 
 // The emulated machine has one fixed NTFS volume, C:.
@@ -16,11 +17,7 @@ const ERROR_BAD_LENGTH: u64 = 24;
 const ERROR_FILENAME_EXCED_RANGE: u64 = 206;
 
 fn read_text(emu: &emu::Emu, ptr: u64, wide: bool) -> String {
-    if wide {
-        emu.maps.read_wide_string(ptr)
-    } else {
-        emu.maps.read_string(ptr)
-    }
+    strings::read_text(emu, ptr, wide)
 }
 
 /// Write `s` to a buffer of `size` characters; false when it does not fit.
@@ -33,11 +30,7 @@ fn write_text(emu: &mut emu::Emu, ptr: u64, size: usize, s: &str, wide: bool) ->
     if len + 1 > size {
         return false;
     }
-    if wide {
-        emu.maps.write_wide_string(ptr, s);
-    } else {
-        emu.maps.write_string(ptr, s);
-    }
+    strings::write_string(emu, ptr, s, wide);
     true
 }
 

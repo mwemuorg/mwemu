@@ -7,7 +7,4 @@ pub fn sscanf(emu: &mut emu::Emu, api: &str) {
     let fmt = emu.maps.read_string(fmt_ptr);
     log_red!(emu, "msvcrt!{} buf:'{}' fmt:'{}'", api, s, fmt);
     emu.regs_mut().rax = 1;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
 }

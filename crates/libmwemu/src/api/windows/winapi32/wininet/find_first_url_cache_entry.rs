@@ -13,7 +13,7 @@ pub fn FindFirstUrlCacheEntryA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentrya");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }
 
 pub fn FindFirstUrlCacheEntryW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn FindFirstUrlCacheEntryW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("findfirsturlcacheentryw");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }

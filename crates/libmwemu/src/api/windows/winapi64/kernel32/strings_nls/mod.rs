@@ -5,9 +5,9 @@ use crate::winapi::winapi64::kernel32;
 mod compare_string;
 pub use compare_string::*;
 
-#[path = "../find_act_ctx_section_string_w.rs"]
-mod find_act_ctx_section_string_w;
-pub use find_act_ctx_section_string_w::*;
+#[path = "../find_act_ctx_section_string.rs"]
+mod find_act_ctx_section_string;
+pub use find_act_ctx_section_string::*;
 
 #[path = "../lstrcat.rs"]
 mod lstrcat;
@@ -43,23 +43,25 @@ pub use format_message::*;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
     match api {
+        "GetUserDefaultLangID" => kernel32::GetUserDefaultLangID(emu),
+        "lstrcmpi" => kernel32::lstrcmpi(emu),
+        "lstrcmpiA" => kernel32::lstrcmpiA(emu),
         "GetACP" => kernel32::GetACP(emu),
         "GetCPInfo" => kernel32::GetCPInfo(emu),
         "GetLocaleInfoA" => kernel32::GetLocaleInfoA(emu),
         "GetLocaleInfoW" => kernel32::GetLocaleInfoW(emu),
         "GetStringTypeW" => kernel32::GetStringTypeW(emu),
-        "GetUserDefaultLangId" => kernel32::GetUserDefaultLangId(emu),
         "GetUserDefaultLCID" => kernel32::GetUserDefaultLCID(emu),
         "GlobalAddAtomA" => kernel32::GlobalAddAtomA(emu),
         "IsValidCodePage" => kernel32::IsValidCodePage(emu),
+        "LCMapStringA" => kernel32::LCMapStringA(emu),
         "LCMapStringW" => kernel32::LCMapStringW(emu),
         "lstrcatA" => kernel32::lstrcatA(emu),
         "lstrcatW" => kernel32::lstrcatW(emu),
-        "LStrCmpI" => kernel32::LStrCmpI(emu),
-        "lstrcmpiW" => kernel32::LStrCmpIW(emu),
-        "LStrCmpIW" => kernel32::LStrCmpIW(emu),
+        "lstrcmpiW" => kernel32::lstrcmpiW(emu),
         "lstrcpy" => kernel32::lstrcpy(emu),
         "lstrcpyn" => kernel32::lstrcpyn(emu),
+        "lstrcpyA" => kernel32::lstrcpyA(emu),
         "lstrcpyW" => kernel32::lstrcpyW(emu),
         "lstrlen" => kernel32::lstrlenA(emu),
         "lstrlenA" => kernel32::lstrlenA(emu),

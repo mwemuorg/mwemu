@@ -17,8 +17,6 @@ pub fn strstr(emu: &mut emu::Emu) {
         needle,
         result
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = result;
 }

@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
@@ -524,4 +525,29 @@ pub(crate) fn rtl_decompress_buffer(
             STATUS_BAD_COMPRESSION_BUFFER
         }
     }
+}
+
+pub(crate) fn version_condition_mask(emu: &mut emu::Emu) {
+    const VER_CONDITION_MASK: u64 = 7;
+    const VER_NUM_BITS_PER_CONDITION: u32 = 3;
+    let mut mask = WinApiAbi::arg64(emu, 0);
+    let type_index = if emu.cfg.arch.is_64bits() { 1 } else { 2 };
+    let type_mask = WinApiAbi::arg(emu, type_index) as u32;
+    let condition = WinApiAbi::arg(emu, type_index + 1) & VER_CONDITION_MASK;
+    // The documented contract selects one OSVERSIONINFOEX member per call.
+    if type_mask != 0 && condition != 0 {
+        let member = type_mask.trailing_zeros();
+        if member < u8::BITS {
+            mask |= condition << (member * VER_NUM_BITS_PER_CONDITION);
+        }
+    }
+    log_red!(
+        emu,
+        "VerSetConditionMask type:0x{:x} condition:{} => 0x{:x}",
+        type_mask,
+        condition,
+        mask
+    );
+    WinApiAbi::set_ret64(emu, mask);
+    WinApiAbi::stdcall_ret(emu, 4);
 }

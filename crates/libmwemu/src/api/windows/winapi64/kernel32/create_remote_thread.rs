@@ -2,15 +2,16 @@ use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::threading::context::ThreadContext;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CreateRemoteThread(emu: &mut emu::Emu) {
     let proc_hndl = emu.regs().rcx;
     let sec = emu.regs().rdx;
     let stack_size = emu.regs().r8;
     let addr = emu.regs().r9;
-    let param = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let out_tid = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let param = WinApiAbi::arg(emu, 4);
+    let flags = WinApiAbi::arg(emu, 5);
+    let out_tid = WinApiAbi::arg(emu, 6);
 
     log_red!(
         emu,

@@ -4,29 +4,81 @@ use std::sync::Mutex;
 use crate::emu;
 use crate::emu::Emu;
 
-/// Windows API ABI helper — Microsoft x64 for x86_64, AAPCS64 for AArch64.
+/// Argument and result adaptation for Windows API hooks. The engine has already
+/// removed the return address. On x86 an argument index denotes a DWORD slot;
+/// on x64 it denotes a parameter position (including the four register slots).
 pub struct WinApiAbi;
 
 impl WinApiAbi {
+    const DWORD_BYTES: u64 = size_of::<u32>() as u64;
+    const QWORD_BYTES: u64 = size_of::<u64>() as u64;
+    const X64_REGISTER_ARGS: usize = 4;
+    const ARM64_REGISTER_ARGS: usize = 8;
+
     #[inline]
-    pub fn arg(emu: &Emu, idx: usize) -> u64 {
+    pub fn arg(emu: &Emu, index: usize) -> u64 {
         if emu.cfg.arch.is_aarch64() {
-            emu.regs_aarch64().x[idx]
+            if index < Self::ARM64_REGISTER_ARGS {
+                emu.regs_aarch64().x[index]
+            } else {
+                let address = emu.regs_aarch64().sp
+                    + (index - Self::ARM64_REGISTER_ARGS) as u64 * Self::QWORD_BYTES;
+                emu.maps.read_qword(address).unwrap_or(0)
+            }
+        } else if !emu.cfg.arch.is_64bits() {
+            let address = emu.regs().get_esp() + index as u64 * Self::DWORD_BYTES;
+            emu.maps.read_dword(address).unwrap_or(0) as u64
         } else {
-            match idx {
+            match index {
                 0 => emu.regs().rcx,
                 1 => emu.regs().rdx,
                 2 => emu.regs().r8,
                 3 => emu.regs().r9,
                 _ => {
-                    // Stack args: shadow space (32 bytes) + 8 bytes per extra arg.
-                    // The engine pops the return address before calling the gateway,
-                    // so rsp already points past it.
-                    let rsp = emu.regs().rsp;
-                    let addr = rsp + 0x20 + ((idx as u64 - 4) * 8);
-                    emu.maps.read_qword(addr).unwrap_or(0)
+                    // The register slots account for the x64 shadow space.
+                    let address = emu.regs().rsp + index as u64 * Self::QWORD_BYTES;
+                    emu.maps.read_qword(address).unwrap_or(0)
                 }
             }
+        }
+    }
+
+    /// A 64-bit integer occupies two consecutive DWORD slots on x86.
+    pub fn arg64(emu: &Emu, index: usize) -> u64 {
+        if emu.cfg.arch.is_64bits() {
+            Self::arg(emu, index)
+        } else {
+            let address = emu.regs().get_esp() + index as u64 * Self::DWORD_BYTES;
+            emu.maps.read_qword(address).unwrap_or(0)
+        }
+    }
+
+    /// Typed FP arguments need both the x64 parameter position and the x86
+    /// DWORD offset: preceding doubles consume two x86 slots, but one on x64.
+    pub fn f64_arg(emu: &Emu, index: usize, x86_word: usize) -> f64 {
+        f64::from_bits(Self::fp_bits(emu, index, x86_word, true))
+    }
+
+    pub fn f32_arg(emu: &Emu, index: usize, x86_word: usize) -> f32 {
+        f32::from_bits(Self::fp_bits(emu, index, x86_word, false) as u32)
+    }
+
+    fn fp_bits(emu: &Emu, index: usize, x86_word: usize, double: bool) -> u64 {
+        if !emu.cfg.arch.is_64bits() {
+            if double {
+                Self::arg64(emu, x86_word)
+            } else {
+                Self::arg(emu, x86_word)
+            }
+        } else if index < Self::X64_REGISTER_ARGS {
+            match index {
+                0 => emu.regs().xmm0 as u64,
+                1 => emu.regs().xmm1 as u64,
+                2 => emu.regs().xmm2 as u64,
+                _ => emu.regs().xmm3 as u64,
+            }
+        } else {
+            Self::arg(emu, index)
         }
     }
 
@@ -36,6 +88,36 @@ impl WinApiAbi {
             emu.regs_aarch64_mut().x[0] = value;
         } else {
             emu.regs_mut().rax = value;
+        }
+    }
+
+    /// Return a QWORD in EDX:EAX on x86 and in the integer return register on x64.
+    pub fn set_ret64(emu: &mut Emu, value: u64) {
+        if emu.cfg.arch.is_64bits() {
+            Self::set_ret(emu, value);
+        } else {
+            emu.regs_mut().rax = value as u32 as u64;
+            emu.regs_mut().rdx = value >> u32::BITS;
+        }
+    }
+
+    pub fn set_f64_ret(emu: &mut Emu, value: f64) {
+        if emu.cfg.arch.is_64bits() {
+            emu.regs_mut().xmm0 = value.to_bits() as u128;
+        } else {
+            // A normal C return pushes a new x87 value; it does not replace the
+            // caller's previous ST0 (unlike the _CI* intrinsic convention).
+            emu.fpu_mut().push_f64(value);
+        }
+    }
+
+    /// Only stdcall hooks discard arguments. Count DWORDs, not parameters:
+    /// doubles and 64-bit integers occupy two words on x86. cdecl must not call this.
+    pub fn stdcall_ret(emu: &mut Emu, words: usize) {
+        if !emu.cfg.arch.is_64bits() {
+            for _ in 0..words {
+                emu.stack_pop32(false);
+            }
         }
     }
 }

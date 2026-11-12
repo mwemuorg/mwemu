@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn SHParseDisplayName(emu: &mut emu::Emu) {
     let psz_name = emu.regs().rcx;
     let pbc = emu.regs().rdx;
     let ppidl = emu.regs().r8;
     let sfgao_in = emu.regs().r9;
-    let psfgao_out = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let psfgao_out = WinApiAbi::arg(emu, 4);
     let name = emu.maps.read_wide_string(psz_name);
     let hndl = helper::handler_create(&format!("pidl://{}", name));
     if ppidl != 0 {

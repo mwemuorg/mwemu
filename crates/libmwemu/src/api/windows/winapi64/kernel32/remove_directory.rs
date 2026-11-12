@@ -1,15 +1,17 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn RemoveDirectoryA(emu: &mut emu::Emu) {
-    let path = emu.maps.read_string(emu.regs().rcx);
-    log_red!(emu, "kernel32!RemoveDirectoryA '{}'", path);
+    remove_directory(emu, "RemoveDirectoryA", false);
+}
+
+fn remove_directory(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let path = strings::read_text(emu, emu.regs().rcx, wide);
+    log_red!(emu, "kernel32!{api} '{}'", path);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }
 
 pub fn RemoveDirectoryW(emu: &mut emu::Emu) {
-    let path = emu.maps.read_wide_string(emu.regs().rcx);
-    log_red!(emu, "kernel32!RemoveDirectoryW '{}'", path);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    remove_directory(emu, "RemoveDirectoryW", true);
 }

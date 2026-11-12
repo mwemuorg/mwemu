@@ -1,8 +1,9 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::arg;
 
 pub fn LockResource(emu: &mut emu::Emu) {
-    let hResData = emu.regs().rcx;
+    let hResData = arg(emu, 0) as u64;
 
     emu.stack_pop32(false);
 

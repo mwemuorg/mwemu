@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptCATAdminEnumCatalogFromHash(emu: &mut emu::Emu) {
     let h_cat_admin = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -13,7 +14,5 @@ pub fn CryptCATAdminEnumCatalogFromHash(emu: &mut emu::Emu) {
     );
     let hndl = helper::handler_create("CryptCATAdminEnumCatalogFromHash");
     emu.regs_mut().rax = hndl;
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 5);
 }

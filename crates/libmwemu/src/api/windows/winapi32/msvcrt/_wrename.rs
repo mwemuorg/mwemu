@@ -7,7 +7,4 @@ pub fn _wrename(emu: &mut emu::Emu) {
     let new_name = emu.maps.read_wide_string(new_ptr);
     log_red!(emu, "msvcrt!_wrename '{}' => '{}'", old_name, new_name);
     emu.regs_mut().rax = 0;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
 }

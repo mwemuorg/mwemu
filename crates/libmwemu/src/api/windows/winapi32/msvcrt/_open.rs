@@ -6,7 +6,4 @@ pub fn _open(emu: &mut emu::Emu, api: &str) {
     let path = emu.maps.read_string(path_ptr);
     log_red!(emu, "msvcrt!{} '{}'", api, path);
     emu.regs_mut().rax = helper::handler_create(&path);
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

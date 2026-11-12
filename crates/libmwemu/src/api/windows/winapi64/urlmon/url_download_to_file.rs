@@ -1,41 +1,26 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn URLDownloadToFileA(emu: &mut emu::Emu) {
+    url_download_to_file(emu, "URLDownloadToFileA", false);
+}
+
+fn url_download_to_file(emu: &mut emu::Emu, api: &str, wide: bool) {
     let pcaller = emu.regs().rcx;
     let sz_url = emu.regs().rdx;
     let sz_filename = emu.regs().r8;
     let dw_reserved = emu.regs().r9;
-    let lpfn_cb = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let lpfn_cb = WinApiAbi::arg(emu, 4);
 
-    let url = emu.maps.read_string(sz_url);
-    let filename = emu.maps.read_string(sz_filename);
+    let url = strings::read_text(emu, sz_url, wide);
+    let filename = strings::read_text(emu, sz_filename, wide);
 
-    log_red!(
-        emu,
-        "urlmon!URLDownloadToFileA url: {} filename: {}",
-        url,
-        filename
-    );
+    log_red!(emu, "urlmon!{api} url: {} filename: {}", url, filename);
 
     emu.regs_mut().rax = 0; // S_OK
 }
 
 pub(super) fn URLDownloadToFileW(emu: &mut emu::Emu) {
-    let pcaller = emu.regs().rcx;
-    let sz_url = emu.regs().rdx;
-    let sz_filename = emu.regs().r8;
-    let dw_reserved = emu.regs().r9;
-    let lpfn_cb = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-
-    let url = emu.maps.read_wide_string(sz_url);
-    let filename = emu.maps.read_wide_string(sz_filename);
-
-    log_red!(
-        emu,
-        "urlmon!URLDownloadToFileW url: {} filename: {}",
-        url,
-        filename
-    );
-
-    emu.regs_mut().rax = 0; // S_OK
+    url_download_to_file(emu, "URLDownloadToFileW", true);
 }

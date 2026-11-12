@@ -1,12 +1,17 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub(super) fn MessageBoxA(emu: &mut emu::Emu) {
+    message_box(emu, "MessageBoxA", false);
+}
+
+fn message_box(emu: &mut emu::Emu, api: &str, wide: bool) {
     let titleptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
     let msgptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let msg = emu.maps.read_string(msgptr);
-    let title = emu.maps.read_string(titleptr);
+    let msg = strings::read_text(emu, msgptr, wide);
+    let title = strings::read_text(emu, titleptr, wide);
 
-    log_red!(emu, "user32!MessageBoxA {} {}", title, msg);
+    log_red!(emu, "user32!{api} {} {}", title, msg);
 
     emu.regs_mut().rax = 0;
     for _ in 0..4 {
@@ -15,15 +20,5 @@ pub(super) fn MessageBoxA(emu: &mut emu::Emu) {
 }
 
 pub(super) fn MessageBoxW(emu: &mut emu::Emu) {
-    let titleptr = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0) as u64;
-    let msgptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let msg = emu.maps.read_wide_string(msgptr);
-    let title = emu.maps.read_wide_string(titleptr);
-
-    log_red!(emu, "user32!MessageBoxW {} {}", title, msg);
-
-    emu.regs_mut().rax = 0;
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    message_box(emu, "MessageBoxW", true);
 }

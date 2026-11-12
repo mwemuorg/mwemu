@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn LookupAccountSidA(emu: &mut emu::Emu) {
     let name_ptr = emu.regs().r8;
     let name_sz_ptr = emu.regs().r9;
-    let domain_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let domain_sz_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let use_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let domain_ptr = WinApiAbi::arg(emu, 4);
+    let domain_sz_ptr = WinApiAbi::arg(emu, 5);
+    let use_ptr = WinApiAbi::arg(emu, 6);
     log_red!(emu, "advapi32!LookupAccountSidA -> user/DESKTOP");
     let user = "user";
     let domain = "DESKTOP";
@@ -31,9 +32,9 @@ pub fn LookupAccountSidA(emu: &mut emu::Emu) {
 pub fn LookupAccountSidW(emu: &mut emu::Emu) {
     let name_ptr = emu.regs().r8;
     let name_sz_ptr = emu.regs().r9;
-    let domain_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let domain_sz_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let use_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let domain_ptr = WinApiAbi::arg(emu, 4);
+    let domain_sz_ptr = WinApiAbi::arg(emu, 5);
+    let use_ptr = WinApiAbi::arg(emu, 6);
     log_red!(emu, "advapi32!LookupAccountSidW -> user/DESKTOP");
     let user = "user";
     let domain = "DESKTOP";

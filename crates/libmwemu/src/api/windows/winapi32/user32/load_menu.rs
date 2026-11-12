@@ -8,7 +8,7 @@ pub fn LoadMenuA(emu: &mut emu::Emu) {
     let a1 = arg(emu, 1) as u64;
     log_red!(emu, "user32!LoadMenuA arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.regs_mut().rax = helper::handler_create("loadmenua");
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 2);
 }
 
 pub fn LoadMenuW(emu: &mut emu::Emu) {
@@ -16,5 +16,5 @@ pub fn LoadMenuW(emu: &mut emu::Emu) {
     let a1 = arg(emu, 1) as u64;
     log_red!(emu, "user32!LoadMenuW arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.regs_mut().rax = helper::handler_create("loadmenuw");
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 2);
 }

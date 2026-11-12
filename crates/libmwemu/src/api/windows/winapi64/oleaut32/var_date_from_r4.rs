@@ -1,9 +1,6 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::automation::{self, FloatWidth, Number};
 
-pub fn VarDateFromR4(emu: &mut emu::Emu) {
-    let src = emu.regs().rcx;
-    let dst = emu.regs().rdx;
-    log_red!(emu, "oleaut32!VarDateFromR4 src:0x{:x}", src);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+pub fn VarDateFromR4(emu: &mut Emu) {
+    automation::convert(emu, "VarDateFromR4", FloatWidth::Single, Number::Date);
 }

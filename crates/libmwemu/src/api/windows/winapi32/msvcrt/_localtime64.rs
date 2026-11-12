@@ -30,8 +30,6 @@ pub fn _localtime64(emu: &mut emu::Emu) {
         emu.maps.write_dword(tm_addr + 32, 0); // tm_isdst
     }
     log_red!(emu, "msvcrt!_localtime64 => 0x{:x}", tm_addr);
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = tm_addr;
 }

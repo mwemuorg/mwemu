@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn RegQueryValueExA(emu: &mut emu::Emu) {
     let _hkey = emu.regs().rcx;
     let value_ptr = emu.regs().rdx;
     let _reserved = emu.regs().r8;
     let type_ptr = emu.regs().r9;
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let data_size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let data_ptr = WinApiAbi::arg(emu, 4);
+    let data_size_ptr = WinApiAbi::arg(emu, 5);
     let value = if value_ptr != 0 {
         emu.maps.read_string(value_ptr)
     } else {
@@ -30,8 +31,8 @@ pub fn RegQueryValueExW(emu: &mut emu::Emu) {
     let value_ptr = emu.regs().rdx;
     let _reserved = emu.regs().r8;
     let type_ptr = emu.regs().r9;
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let data_size_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let data_ptr = WinApiAbi::arg(emu, 4);
+    let data_size_ptr = WinApiAbi::arg(emu, 5);
     let value = if value_ptr != 0 {
         emu.maps.read_wide_string(value_ptr)
     } else {

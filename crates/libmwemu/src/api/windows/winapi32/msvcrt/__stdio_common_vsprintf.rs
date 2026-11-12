@@ -16,8 +16,6 @@ pub fn __stdio_common_vsprintf(emu: &mut emu::Emu) {
     if buf != 0 && !fmt.is_empty() {
         emu.maps.write_string(buf, &fmt);
     }
-    for _ in 0..6u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = fmt.len() as u64;
 }

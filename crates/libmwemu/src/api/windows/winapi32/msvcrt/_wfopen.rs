@@ -14,8 +14,6 @@ pub fn _wfopen(emu: &mut emu::Emu) {
         mode,
         hndl
     );
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = hndl;
 }

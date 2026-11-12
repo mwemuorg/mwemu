@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
@@ -6,11 +7,8 @@ pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
     let dw_flags = emu.regs().rdx;
     let utf8_ptr = emu.regs().r8;
     let cb_multi_byte = emu.regs().r9 as i64;
-    let wide_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let cch_wide_char = emu
-        .maps
-        .read_dword(emu.regs().rsp + 0x28) // yes, read only half of the stack item
-        .unwrap_or(0) as i32;
+    let wide_ptr = WinApiAbi::arg(emu, 4);
+    let cch_wide_char = WinApiAbi::arg(emu, 5) as i32;
 
     let raw_bytes: Vec<u8> = if utf8_ptr > 0 {
         if cb_multi_byte == -1 {

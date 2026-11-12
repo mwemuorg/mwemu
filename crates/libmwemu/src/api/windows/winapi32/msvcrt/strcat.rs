@@ -10,8 +10,6 @@ pub fn strcat(emu: &mut emu::Emu) {
         emu.maps.write_string(dst, &result);
     }
     log_red!(emu, "msvcrt!strcat => '{}'", result);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = dst;
 }

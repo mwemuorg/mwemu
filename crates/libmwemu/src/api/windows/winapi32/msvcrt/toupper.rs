@@ -7,8 +7,6 @@ pub fn toupper(emu: &mut emu::Emu) {
     } else {
         c
     };
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = result as u64;
 }

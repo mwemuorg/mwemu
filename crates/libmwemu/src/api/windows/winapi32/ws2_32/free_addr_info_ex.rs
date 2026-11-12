@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn FreeAddrInfoEx(emu: &mut emu::Emu) {
     let handle = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -15,4 +16,5 @@ pub fn FreeAddrInfoExW(emu: &mut emu::Emu) {
     let info_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     log_red!(emu, "ws2_32!FreeAddrInfoExW ptr:0x{:x}", info_ptr);
     helper::handler_close(info_ptr);
+    stdcall_ret(emu, 1);
 }

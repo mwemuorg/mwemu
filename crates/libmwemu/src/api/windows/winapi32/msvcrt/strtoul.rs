@@ -7,8 +7,6 @@ pub fn strtoul(emu: &mut emu::Emu) {
     let s = emu.maps.read_string(str_ptr);
     let val = u64::from_str_radix(s.trim(), base).unwrap_or(0);
     log_red!(emu, "msvcrt!strtoul '{}' base:{} => {}", s, base, val);
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = val;
 }

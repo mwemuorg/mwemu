@@ -13,7 +13,7 @@ pub fn CreateDialogIndirectParamA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createdialogindirectparama");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }
 
 pub fn CreateDialogIndirectParamW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn CreateDialogIndirectParamW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createdialogindirectparamw");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }

@@ -11,10 +11,7 @@ pub fn SHGetPathFromIDListEx(emu: &mut emu::Emu) {
         psz_path,
         cch_path
     );
-    let out_ptr = emu.regs().r8;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
-    }
+
     if psz_path != 0 && cch_path > 0 {
         emu.maps
             .write_wide_string(psz_path, "C:\\Users\\User\\Desktop");

@@ -1,13 +1,14 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CreateFileMappingNumaW(emu: &mut emu::Emu) {
     let file_handle = emu.regs().rcx;
     let security = emu.regs().rdx;
     let protect = emu.regs().r8;
     let max_size_high = emu.regs().r9;
-    let max_size_low = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let name_ptr = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let max_size_low = WinApiAbi::arg(emu, 5);
+    let name_ptr = WinApiAbi::arg(emu, 6);
     let name = if name_ptr != 0 {
         emu.maps.read_wide_string(name_ptr)
     } else {

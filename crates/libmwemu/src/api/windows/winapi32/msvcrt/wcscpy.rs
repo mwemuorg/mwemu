@@ -8,8 +8,6 @@ pub fn wcscpy(emu: &mut emu::Emu) {
         emu.maps.write_wide_string(dst, &s);
     }
     log_red!(emu, "msvcrt!wcscpy dst:0x{:x} '{}'", dst, s);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = dst;
 }

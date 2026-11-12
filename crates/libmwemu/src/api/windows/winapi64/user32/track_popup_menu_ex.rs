@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn TrackPopupMenuEx(emu: &mut emu::Emu) {
     let hmenu = emu.regs().rcx;
     let flags = emu.regs().rdx as u32;
     let x = emu.regs().r8 as i32;
     let y = emu.regs().r9 as i32;
-    let hwnd = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let _lptpm = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let hwnd = WinApiAbi::arg(emu, 4);
+    let _lptpm = WinApiAbi::arg(emu, 4);
     log_red!(
         emu,
         "user32!TrackPopupMenuEx hmenu:0x{:x} flags:0x{:x} x:{} y:{} hwnd:0x{:x}",

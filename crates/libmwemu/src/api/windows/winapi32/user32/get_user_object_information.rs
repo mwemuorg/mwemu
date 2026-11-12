@@ -13,7 +13,7 @@ pub fn GetUserObjectInformationA(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
+    stdcall_ret(emu, 5);
 }
 
 pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {

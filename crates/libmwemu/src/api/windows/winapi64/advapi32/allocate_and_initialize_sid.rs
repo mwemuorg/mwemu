@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
     let _id_authority = emu.regs().rcx;
@@ -6,14 +7,14 @@ pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
     let sub_auths: [u32; 8] = [
         emu.regs().r8 as u32,
         emu.regs().r9 as u32,
-        emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as u32,
-        emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32,
-        emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as u32,
-        emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as u32,
-        emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0) as u32,
-        emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0) as u32,
+        WinApiAbi::arg(emu, 4) as u32,
+        WinApiAbi::arg(emu, 5) as u32,
+        WinApiAbi::arg(emu, 6) as u32,
+        WinApiAbi::arg(emu, 7) as u32,
+        WinApiAbi::arg(emu, 8) as u32,
+        WinApiAbi::arg(emu, 9) as u32,
     ];
-    let psid_ptr = emu.maps.read_qword(emu.regs().rsp + 0x50).unwrap_or(0);
+    let psid_ptr = WinApiAbi::arg(emu, 10);
     let sid_len = 8 + sub_count as u64 * 4;
     if let Some(base) = emu.maps.alloc(sid_len) {
         let name = format!("sid_{:x}", base);

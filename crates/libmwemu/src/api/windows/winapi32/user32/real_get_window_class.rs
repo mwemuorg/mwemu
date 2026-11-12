@@ -17,29 +17,18 @@ pub fn RealGetWindowClass(emu: &mut emu::Emu) {
 }
 
 pub fn RealGetWindowClassA(emu: &mut emu::Emu) {
+    real_get_window_class(emu, "RealGetWindowClassA");
+}
+
+fn real_get_window_class(emu: &mut emu::Emu, api: &str) {
     let a0 = arg(emu, 0) as u64;
     let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "user32!RealGetWindowClassA arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
+    log_red!(emu, "user32!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }
 
 pub fn RealGetWindowClassW(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "user32!RealGetWindowClassW arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    real_get_window_class(emu, "RealGetWindowClassW");
 }

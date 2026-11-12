@@ -1,3 +1,4 @@
+pub(crate) mod automation;
 pub(crate) mod bstr;
 pub(crate) mod buffers;
 pub(crate) mod crt;
@@ -19,3 +20,4 @@ pub(crate) mod threads;
 pub(crate) mod trace;
 pub(crate) mod virtual_alloc;
 pub(crate) mod virtual_protect;
+pub(crate) mod winsock;

@@ -8,5 +8,5 @@ pub fn DdeUninitialize(emu: &mut emu::Emu) {
     log_red!(emu, "user32!DdeUninitialize handle:0x{:x}", handle);
     helper::handler_close(handle);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 1);
 }

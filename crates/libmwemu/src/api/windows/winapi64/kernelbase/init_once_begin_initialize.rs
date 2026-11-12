@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn InitOnceBeginInitialize(emu: &mut emu::Emu) {
     let p0 = emu.regs().rcx;
@@ -14,7 +15,7 @@ pub fn InitOnceBeginInitialize(emu: &mut emu::Emu) {
         p3
     );
     let handle = helper::handler_create("InitOnceBeginInitialize");
-    let out_ptr = emu.regs().r9;
+    let out_ptr = WinApiAbi::arg(emu, 3);
     if out_ptr != 0 {
         emu.maps.write_qword(out_ptr, handle);
     }

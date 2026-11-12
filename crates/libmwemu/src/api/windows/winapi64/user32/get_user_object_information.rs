@@ -5,6 +5,7 @@ use super::WSF_VISIBLE;
 use super::wide_z;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 pub fn GetUserObjectInformationA(emu: &mut emu::Emu) {
@@ -32,7 +33,7 @@ pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
     let index = emu.regs().rdx & 0xffff_ffff;
     let info = emu.regs().r8;
     let length = emu.regs().r9 & 0xffff_ffff;
-    let needed_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let needed_ptr = WinApiAbi::arg(emu, 4);
 
     log_red!(
         emu,

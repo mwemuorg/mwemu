@@ -1,13 +1,14 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptExportKey(emu: &mut emu::Emu) {
     let hkey = emu.regs().rcx;
     let _hexp_key = emu.regs().rdx;
     let blob_type = emu.regs().r8 as u32;
     let _flags = emu.regs().r9;
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let data_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let data_ptr = WinApiAbi::arg(emu, 4);
+    let data_len_ptr = WinApiAbi::arg(emu, 5);
     log_red!(
         emu,
         "advapi32!CryptExportKey key: 0x{:x} type: {}",

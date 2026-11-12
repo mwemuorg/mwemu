@@ -13,5 +13,5 @@ pub fn InternetInitializeAutoProxyDll(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("internetinitializeautoproxydll");
-    stdcall_ret(emu, 3);
+    stdcall_ret(emu, 1);
 }

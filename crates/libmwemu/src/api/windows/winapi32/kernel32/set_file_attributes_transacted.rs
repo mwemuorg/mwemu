@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 use crate::windows::constants::errors::*;
 
 pub fn SetFileAttributesTransactedA(emu: &mut emu::Emu) {
@@ -11,9 +12,7 @@ pub fn SetFileAttributesTransactedA(emu: &mut emu::Emu) {
         s,
         arg2
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
     emu.regs_mut().rax = 1;
 }
 

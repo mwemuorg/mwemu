@@ -21,7 +21,7 @@ pub fn WSAAccept(emu: &mut emu::Emu) {
         }
         emu.regs_mut().rax = new_sock;
     }
-    for _ in 0..4u32 {
+    for _ in 0..5u32 {
         emu.stack_pop32(false);
     }
 }

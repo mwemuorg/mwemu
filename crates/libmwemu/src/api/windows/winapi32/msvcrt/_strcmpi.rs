@@ -7,8 +7,6 @@ pub fn _strcmpi(emu: &mut emu::Emu) {
     let s2 = emu.maps.read_string(s2_ptr).to_lowercase();
     let result = s1.cmp(&s2) as i32;
     log_red!(emu, "msvcrt!_strcmpi '{}' '{}' => {}", s1, s2, result);
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = result as u64;
 }

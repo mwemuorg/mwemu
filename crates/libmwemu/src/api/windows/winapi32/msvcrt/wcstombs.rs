@@ -14,7 +14,4 @@ pub fn wcstombs(emu: &mut emu::Emu, api: &str) {
     }
     log_red!(emu, "msvcrt!{} '{}' => {}", api, ws, copy_len);
     emu.regs_mut().rax = copy_len as u64;
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

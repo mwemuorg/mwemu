@@ -2,6 +2,7 @@ use super::bcrypt_algo_to_calg;
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptHash(emu: &mut emu::Emu) {
@@ -9,9 +10,9 @@ pub fn BCryptHash(emu: &mut emu::Emu) {
     let _pb_secret = emu.regs().rdx;
     let _cb_secret = emu.regs().r8 as usize;
     let pb_input = emu.regs().r9;
-    let cb_input = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as usize;
-    let pb_output = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let cb_output = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
+    let cb_input = WinApiAbi::arg(emu, 4) as usize;
+    let pb_output = WinApiAbi::arg(emu, 5);
+    let cb_output = WinApiAbi::arg(emu, 6) as usize;
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);

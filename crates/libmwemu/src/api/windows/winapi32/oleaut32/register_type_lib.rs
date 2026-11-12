@@ -8,5 +8,5 @@ pub fn RegisterTypeLib(emu: &mut emu::Emu) {
     log_red!(emu, "oleaut32!RegisterTypeLib a0:0x{:x}", _a0);
     let _h = helper::handler_create("oleaut32://RegisterTypeLib");
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 3);
 }

@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn InternetOpenA(emu: &mut emu::Emu) {
     let uagent_ptr = emu.regs().rcx;
     let access = emu.regs().rdx;
     let proxy_ptr = emu.regs().r8;
     let proxybypass_ptr = emu.regs().r9;
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let flags = WinApiAbi::arg(emu, 4);
 
     let mut uagent = "".to_string();
     let mut proxy = "".to_string();
@@ -47,7 +48,7 @@ pub fn InternetOpenW(emu: &mut emu::Emu) {
     let access = emu.regs().rdx;
     let proxy_ptr = emu.regs().r8;
     let proxybypass_ptr = emu.regs().r9;
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let flags = WinApiAbi::arg(emu, 4);
 
     let mut uagent = "".to_string();
     let mut proxy = "".to_string();

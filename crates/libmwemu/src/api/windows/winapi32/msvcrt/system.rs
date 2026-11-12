@@ -5,7 +5,4 @@ pub fn system(emu: &mut emu::Emu) {
     let cmd = emu.maps.read_string(cmd_ptr);
     log_red!(emu, "msvcrt!system '{}'", cmd);
     emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

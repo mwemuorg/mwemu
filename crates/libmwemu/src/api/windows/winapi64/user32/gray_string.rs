@@ -1,22 +1,28 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GrayStringA(emu: &mut emu::Emu) {
+    gray_string(emu, "GrayStringA", false);
+}
+
+fn gray_string(emu: &mut emu::Emu, api: &str, wide: bool) {
     let p0 = emu.regs().rcx;
     let p1 = emu.regs().rdx;
     let p2 = emu.regs().r8;
     let p3 = emu.regs().r9;
-    let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let p6 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let p7 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let p4 = WinApiAbi::arg(emu, 4);
+    let p5 = WinApiAbi::arg(emu, 5);
+    let p6 = WinApiAbi::arg(emu, 6);
+    let p7 = WinApiAbi::arg(emu, 7);
     let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_string(p0)
+        strings::read_text(emu, p0, wide)
     } else {
         format!("0x{:x}", p0)
     };
     log_red!(
         emu,
-        "user32!GrayStringA '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
+        "user32!{api} '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
         s,
         p1,
         p2,
@@ -27,27 +33,5 @@ pub fn GrayStringA(emu: &mut emu::Emu) {
 }
 
 pub fn GrayStringW(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let p2 = emu.regs().r8;
-    let p3 = emu.regs().r9;
-    let p4 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let p5 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let p6 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let p7 = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
-    let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_wide_string(p0)
-    } else {
-        format!("0x{:x}", p0)
-    };
-    log_red!(
-        emu,
-        "user32!GrayStringW '{}' p1:0x{:x} p2:0x{:x} p3:0x{:x}",
-        s,
-        p1,
-        p2,
-        p3
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    gray_string(emu, "GrayStringW", true);
 }

@@ -5,8 +5,6 @@ pub fn strlen(emu: &mut emu::Emu) {
     let s = emu.maps.read_string(s_ptr);
     let len = s.len();
     log_red!(emu, "msvcrt!strlen '{}' => {}", s, len);
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = len as u64;
 }

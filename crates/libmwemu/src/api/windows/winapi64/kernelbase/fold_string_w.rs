@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn FoldStringW(emu: &mut emu::Emu) {
     let _flags = emu.regs().rcx as u32;
     let src_ptr = emu.regs().rdx;
     let src_len = emu.regs().r8 as i32;
     let dst_ptr = emu.regs().r9;
-    let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+    let dst_len = WinApiAbi::arg(emu, 4) as i32;
     let src = if src_ptr != 0 {
         emu.maps.read_wide_string(src_ptr)
     } else {

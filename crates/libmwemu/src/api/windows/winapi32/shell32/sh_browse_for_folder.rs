@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn SHBrowseForFolder(emu: &mut emu::Emu) {
     let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -28,9 +29,7 @@ pub fn SHBrowseForFolderA(emu: &mut emu::Emu) {
     );
     let handle = helper::handler_create("shbrowseforfoldera");
     emu.regs_mut().rax = handle;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 1);
 }
 
 pub fn SHBrowseForFolderW(emu: &mut emu::Emu) {
@@ -44,7 +43,5 @@ pub fn SHBrowseForFolderW(emu: &mut emu::Emu) {
     );
     let handle = helper::handler_create("shbrowseforfolderw");
     emu.regs_mut().rax = handle;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 1);
 }

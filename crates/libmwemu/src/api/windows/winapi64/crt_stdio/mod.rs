@@ -1,5 +1,6 @@
 mod clearerr;
 
+use crate::winapi::common::strings;
 use crate::windows::constants::security::*;
 use clearerr::clearerr;
 mod errno_location;
@@ -175,11 +176,7 @@ fn with_stream<T>(file: u64, f: impl FnOnce(&mut Stream) -> T) -> Option<T> {
 }
 
 fn read_text(emu: &emu::Emu, ptr: u64, wide: bool) -> String {
-    if wide {
-        emu.maps.read_wide_string(ptr)
-    } else {
-        emu.maps.read_string(ptr)
-    }
+    strings::read_text(emu, ptr, wide)
 }
 
 /// Open `path` with an fopen mode string; the new FILE* or an errno value.

@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn EventRegister(emu: &mut emu::Emu) {
     let arg1 = emu.regs().rcx;
@@ -8,7 +9,7 @@ pub fn EventRegister(emu: &mut emu::Emu) {
     let arg4 = emu.regs().r9;
     log_red!(emu, "advapi32!EventRegister 0x{:x}", arg1);
     let handle = helper::handler_create("EventRegister");
-    let out_ptr = emu.regs().r9;
+    let out_ptr = WinApiAbi::arg(emu, 3);
     if out_ptr != 0 {
         emu.maps.write_qword(out_ptr, handle);
     }

@@ -8,5 +8,5 @@ pub fn CoAddRefServerProcess(emu: &mut emu::Emu) {
     log_red!(emu, "ole32!CoAddRefServerProcess a0:0x{:x}", _a0);
     let _h = helper::handler_create("ole32://CoAddRefServerProcess");
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 0);
 }

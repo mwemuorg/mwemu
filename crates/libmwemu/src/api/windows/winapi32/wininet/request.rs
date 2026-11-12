@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::common::memory::Call;
 use crate::winapi::helper;
 use crate::windows::constants::network::*;
 
@@ -196,22 +197,22 @@ pub(super) fn http_send_request_w(emu: &mut emu::Emu) {
     emu.regs_mut().rax = 1;
 }
 
-pub(super) fn http_query_info_a(emu: &mut emu::Emu) {
-    let _hrequest = read_stack_dword(emu, 0, "wininet!HttpQueryInfoA cannot read hrequest") as u64;
-    let _infolvl = read_stack_dword(emu, 4, "wininet!HttpQueryInfoA cannot read infolvl") as u64;
-    let buff = read_stack_dword(emu, 8, "wininet!HttpQueryInfoA cannot read buffer") as u64;
-    let buff_len =
-        read_stack_dword(emu, 12, "wininet!HttpQueryInfoA cannot read buffer len") as u64;
-    let _index = read_stack_dword(emu, 16, "wininet!HttpQueryInfoA cannot read index") as u64;
+pub fn HttpQueryInfoA(emu: &mut emu::Emu) {
+    http_query_info(emu, "HttpQueryInfoA");
+}
 
+pub fn HttpQueryInfoW(emu: &mut emu::Emu) {
+    http_query_info(emu, "HttpQueryInfoW");
+}
+
+fn http_query_info(emu: &mut emu::Emu, api: &str) {
+    let buffer = Call::Api.arg(emu, 2);
+    let length = Call::Api.arg(emu, 3);
     log_red!(
         emu,
-        "wininet!HttpQueryInfoA buff: 0x{:x} sz:{}",
-        buff,
-        buff_len
+        "wininet!{api} buffer:0x{:x} length:0x{:x}",
+        buffer,
+        length
     );
-
-    pop_stack32(emu, 5);
-
-    emu.regs_mut().rax = 1;
+    Call::Api.finish(emu, 1, 5);
 }

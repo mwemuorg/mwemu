@@ -3,29 +3,18 @@ use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GopherGetLocatorTypeA(emu: &mut emu::Emu) {
+    gopher_get_locator_type(emu, "GopherGetLocatorTypeA");
+}
+
+fn gopher_get_locator_type(emu: &mut emu::Emu, api: &str) {
     let a0 = arg(emu, 0) as u64;
     let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "wininet!GopherGetLocatorTypeA arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
+    log_red!(emu, "wininet!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
     stdcall_ret(emu, 2);
 }
 
 pub fn GopherGetLocatorTypeW(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "wininet!GopherGetLocatorTypeW arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    gopher_get_locator_type(emu, "GopherGetLocatorTypeW");
 }

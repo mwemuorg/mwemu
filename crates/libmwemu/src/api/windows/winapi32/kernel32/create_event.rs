@@ -1,11 +1,12 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CreateEventA(emu: &mut emu::Emu) {
-    let ev_attr_ptr = emu.maps.read_dword(emu.regs().rsp).unwrap_or(0) as u64;
-    let bManualReset = emu.maps.read_dword(emu.regs().rsp + 4).unwrap_or(0);
-    let bInitialState = emu.maps.read_dword(emu.regs().rsp + 8).unwrap_or(0);
-    let name_ptr = emu.maps.read_dword(emu.regs().rsp + 12).unwrap_or(0) as u64;
+    let ev_attr_ptr = WinApiAbi::arg(emu, 0);
+    let bManualReset = WinApiAbi::arg(emu, 1) as u32;
+    let bInitialState = WinApiAbi::arg(emu, 2) as u32;
+    let name_ptr = WinApiAbi::arg(emu, 3);
 
     let name = emu.maps.read_string(name_ptr);
 

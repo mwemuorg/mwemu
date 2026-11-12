@@ -1,25 +1,22 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn CreateDirectoryA(emu: &mut emu::Emu) {
+    create_directory(emu, "CreateDirectoryA", false);
+}
+
+fn create_directory(emu: &mut emu::Emu, api: &str, wide: bool) {
     let path_ptr = emu.regs().rcx;
     let _security = emu.regs().rdx;
 
-    let path = emu.maps.read_string(path_ptr);
+    let path = strings::read_text(emu, path_ptr, wide);
 
-    log_red!(emu, "kernel32!CreateDirectoryA `{}`", path);
+    log_red!(emu, "kernel32!{api} `{}`", path);
 
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }
 
 pub fn CreateDirectoryW(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let _security = emu.regs().rdx;
-
-    let path = emu.maps.read_wide_string(path_ptr);
-
-    log_red!(emu, "kernel32!CreateDirectoryW `{}`", path);
-
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    create_directory(emu, "CreateDirectoryW", true);
 }

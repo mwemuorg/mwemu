@@ -7,7 +7,4 @@ pub fn freopen(emu: &mut emu::Emu) {
     let hndl = helper::handler_create(&path);
     log_red!(emu, "msvcrt!freopen '{}' => 0x{:x}", path, hndl);
     emu.regs_mut().rax = hndl;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

@@ -2,7 +2,7 @@ use crate::emu;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
-pub(super) fn WsaSend(emu: &mut emu::Emu) {
+pub(super) fn WSASend(emu: &mut emu::Emu) {
     let sock = arg(emu, 0) as u64;
     let buffers = arg(emu, 1) as u64;
     let count = arg(emu, 2);

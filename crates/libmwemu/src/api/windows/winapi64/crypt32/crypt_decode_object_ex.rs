@@ -1,14 +1,15 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub(super) fn CryptDecodeObjectEx(emu: &mut emu::Emu) {
     let encoding_type = emu.regs().rcx;
     let struct_type = emu.regs().rdx;
     let encoded = emu.regs().r8;
     let cb_encoded = emu.regs().r9;
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let decode_para = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let pv_struct_info = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let pcb_struct_info = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let flags = WinApiAbi::arg(emu, 4);
+    let decode_para = WinApiAbi::arg(emu, 5);
+    let pv_struct_info = WinApiAbi::arg(emu, 6);
+    let pcb_struct_info = WinApiAbi::arg(emu, 7);
 
     log_red!(
         emu,

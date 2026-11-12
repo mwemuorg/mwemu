@@ -10,7 +10,4 @@ pub fn ftell(emu: &mut emu::Emu) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }
     emu.regs_mut().rax = pos as u64;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

@@ -48,7 +48,7 @@ clippy:
 	cargo clippy --locked $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
 
 api-modules:
-	python3 scripts/test_api_modules.py
+	python3 scripts/check_api_modules.py --self-test
 	python3 scripts/check_api_modules.py $(CARGO_TARGET)
 
 clippy-release:

@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 use crate::windows::constants::errors::*;
 
 pub fn WaitNamedPipeA(emu: &mut emu::Emu) {
@@ -23,7 +24,5 @@ pub fn WaitNamedPipeW(emu: &mut emu::Emu) {
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 2);
 }

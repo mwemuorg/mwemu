@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetCPInfo(emu: &mut emu::Emu) {
-    let codepage = emu.maps.read_dword(emu.regs().rsp).unwrap_or(0);
-    let info_ptr = emu.maps.read_dword(emu.regs().rsp + 4).unwrap_or(0);
+    let codepage = WinApiAbi::arg(emu, 0) as u32;
+    let info_ptr = WinApiAbi::arg(emu, 1) as u32;
 
     log_red!(emu, "kernel32!GetCPInfo {} 0x{}", codepage, info_ptr);
 

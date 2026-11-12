@@ -18,7 +18,4 @@ pub fn _itoa(emu: &mut emu::Emu, api: &str) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }
     emu.regs_mut().rax = buf;
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

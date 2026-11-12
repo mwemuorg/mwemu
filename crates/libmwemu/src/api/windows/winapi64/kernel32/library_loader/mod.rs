@@ -60,6 +60,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "BeginUpdateResourceW" => kernel32::BeginUpdateResourceW(emu),
         "CreateActCtxA" => kernel32::CreateActCtxA(emu),
         "CreateActCtxW" => kernel32::CreateActCtxW(emu),
+        "FindActCtxSectionStringA" => kernel32::FindActCtxSectionStringA(emu),
         "FindActCtxSectionStringW" => kernel32::FindActCtxSectionStringW(emu),
         "FindResourceA" => kernel32::FindResourceA(emu),
         "FindResourceW" => kernel32::FindResourceW(emu),

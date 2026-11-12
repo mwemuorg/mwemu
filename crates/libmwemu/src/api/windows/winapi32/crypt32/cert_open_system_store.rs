@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::winapi::helper;
 use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
@@ -20,12 +21,16 @@ pub fn CertOpenSystemStore(emu: &mut emu::Emu) {
 }
 
 pub fn CertOpenSystemStoreA(emu: &mut emu::Emu) {
+    cert_open_system_store(emu, "CertOpenSystemStoreA", false);
+}
+
+fn cert_open_system_store(emu: &mut emu::Emu, api: &str, wide: bool) {
     let _hprov = arg(emu, 0);
     let subsystem = arg(emu, 1) as u64;
 
-    let name = emu.maps.read_string(subsystem);
+    let name = strings::read_text(emu, subsystem, wide);
 
-    log_red!(emu, "crypt32!CertOpenSystemStoreA subsystem: {}", name);
+    log_red!(emu, "crypt32!{api} subsystem: {}", name);
 
     let handle = helper::handler_create(&format!("cert_sys_store://{}", name));
     emu.regs_mut().rax = handle;
@@ -33,14 +38,5 @@ pub fn CertOpenSystemStoreA(emu: &mut emu::Emu) {
 }
 
 pub fn CertOpenSystemStoreW(emu: &mut emu::Emu) {
-    let _hprov = arg(emu, 0);
-    let subsystem = arg(emu, 1) as u64;
-
-    let name = emu.maps.read_wide_string(subsystem);
-
-    log_red!(emu, "crypt32!CertOpenSystemStoreW subsystem: {}", name);
-
-    let handle = helper::handler_create(&format!("cert_sys_store://{}", name));
-    emu.regs_mut().rax = handle;
-    stdcall_ret(emu, 2);
+    cert_open_system_store(emu, "CertOpenSystemStoreW", true);
 }

@@ -3,7 +3,7 @@ use crate::winapi::winapi32::msvcrt::allocate_memory;
 
 pub fn localtime(emu: &mut emu::Emu) {
     let time_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    emu.stack_pop32(false);
+
     let timestamp = if time_ptr != 0 {
         emu.maps.read_dword(time_ptr).unwrap_or(0) as i64
     } else {

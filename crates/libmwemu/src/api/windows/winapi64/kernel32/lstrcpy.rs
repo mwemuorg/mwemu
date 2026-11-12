@@ -1,35 +1,39 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::strings;
 
-pub fn lstrcpy(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let src = emu.regs().rdx;
-
-    let s = emu.maps.read_string(src);
-    emu.maps.write_string(dst, &s);
-    emu.maps.write_byte(dst + (s.len() as u64), 0);
-
-    log_red!(emu, "kernel32!lstrcpy 0x{:x} 0x{:x} {}", dst, src, &s);
-
-    if s.is_empty() {
-        emu.regs_mut().rax = 0;
-    } else {
-        emu.regs_mut().rax = dst;
-    }
+pub fn lstrcpy(emu: &mut Emu) {
+    copy(emu, false, "lstrcpy");
 }
 
-pub fn lstrcpyW(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let src = emu.regs().rdx;
+pub fn lstrcpyA(emu: &mut Emu) {
+    copy(emu, false, "lstrcpyA");
+}
 
-    let s = emu.maps.read_wide_string(src);
-    emu.maps.write_wide_string(dst, &s);
-    emu.maps.write_byte(dst + (s.len() as u64 * 2), 0);
+pub fn lstrcpyW(emu: &mut Emu) {
+    copy(emu, true, "lstrcpyW");
+}
 
-    log_red!(emu, "kernel32!lstrcpyW 0x{:x} 0x{:x} {}", dst, src, &s);
-
-    if s.is_empty() {
-        emu.regs_mut().rax = 0;
+fn copy(emu: &mut Emu, wide: bool, api: &str) {
+    let destination = emu.regs().rcx;
+    let source = emu.regs().rdx;
+    let text = strings::read_text(emu, source, wide);
+    let bytes = strings::encode_text(&format!("{text}\0"), wide);
+    log_red!(
+        emu,
+        "kernel32!{} destination:0x{:x} source:0x{:x}",
+        api,
+        destination,
+        source
+    );
+    emu.regs_mut().rax = if destination != 0
+        && source != 0
+        && emu
+            .maps
+            .validate_write_range(destination, bytes.len() as u64)
+        && emu.maps.write_bytes(destination, &bytes)
+    {
+        destination
     } else {
-        emu.regs_mut().rax = dst;
-    }
+        0
+    };
 }

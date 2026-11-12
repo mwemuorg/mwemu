@@ -13,7 +13,7 @@ pub fn GopherOpenFileA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("gopheropenfilea");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }
 
 pub fn GopherOpenFileW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn GopherOpenFileW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("gopheropenfilew");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }

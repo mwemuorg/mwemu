@@ -8,7 +8,4 @@ pub fn _beginthreadex(emu: &mut emu::Emu) {
     log_red!(emu, "msvcrt!_beginthreadex start:0x{:x}", start);
     let hndl = helper::handler_create("msvcrt://_beginthreadex");
     emu.regs_mut().rax = hndl;
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

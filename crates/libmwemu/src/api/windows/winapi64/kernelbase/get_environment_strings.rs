@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::winapi::helper;
 
 pub fn GetEnvironmentStrings(emu: &mut emu::Emu) {
@@ -10,29 +11,18 @@ pub fn GetEnvironmentStrings(emu: &mut emu::Emu) {
 }
 
 pub fn GetEnvironmentStringsA(emu: &mut emu::Emu) {
+    get_environment_strings(emu, "GetEnvironmentStringsA", false);
+}
+
+fn get_environment_strings(emu: &mut emu::Emu, api: &str, wide: bool) {
     let str_ptr = emu.regs().rcx;
     let arg2 = emu.regs().rdx;
-    let name = emu.maps.read_string(str_ptr);
-    log_red!(
-        emu,
-        "kernelbase!GetEnvironmentStringsA '{}' 0x{:x}",
-        name,
-        arg2
-    );
+    let name = strings::read_text(emu, str_ptr, wide);
+    log_red!(emu, "kernelbase!{api} '{}' 0x{:x}", name, arg2);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }
 
 pub fn GetEnvironmentStringsW(emu: &mut emu::Emu) {
-    let str_ptr = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
-    let name = emu.maps.read_wide_string(str_ptr);
-    log_red!(
-        emu,
-        "kernelbase!GetEnvironmentStringsW '{}' 0x{:x}",
-        name,
-        arg2
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    get_environment_strings(emu, "GetEnvironmentStringsW", true);
 }

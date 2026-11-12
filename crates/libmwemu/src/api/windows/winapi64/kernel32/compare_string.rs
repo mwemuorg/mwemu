@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CompareStringA(emu: &mut emu::Emu) {
     let locale = emu.regs().rcx;
     let flags = emu.regs().rdx;
     let s1_ptr = emu.regs().r8;
     let _len1 = emu.regs().r9 as i32;
-    let s2_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let _len2 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+    let s2_ptr = WinApiAbi::arg(emu, 4);
+    let _len2 = WinApiAbi::arg(emu, 5) as i32;
     let str1 = emu.maps.read_string(s1_ptr);
     let str2 = if s2_ptr != 0 {
         emu.maps.read_string(s2_ptr)
@@ -53,12 +54,8 @@ pub fn CompareStringW(emu: &mut emu::Emu) {
     let lp_string1 = emu.regs().r8;
     let cch_count1 = emu.regs().r9 as i32; // ✅ Fixed: no multiplication
 
-    // Get stack parameters
-    let lp_string2_addr = emu.regs().rsp + 0x20;
-    let cch_count2_addr = emu.regs().rsp + 0x28;
-
-    let lp_string2 = emu.maps.read_qword(lp_string2_addr).unwrap_or(0);
-    let cch_count2 = emu.maps.read_dword(cch_count2_addr).unwrap_or(0) as i32; // ✅ Fixed: no multiplication
+    let lp_string2 = WinApiAbi::arg(emu, 4);
+    let cch_count2 = WinApiAbi::arg(emu, 5) as i32;
 
     log_red!(
         emu,

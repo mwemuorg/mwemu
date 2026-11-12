@@ -1,37 +1,23 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn ExpungeConsoleCommandHistoryA(emu: &mut emu::Emu) {
+    expunge_console_command_history(emu, "ExpungeConsoleCommandHistoryA", false);
+}
+
+fn expunge_console_command_history(emu: &mut emu::Emu, api: &str, wide: bool) {
     let p0 = emu.regs().rcx;
     let p1 = emu.regs().rdx;
     let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_string(p0)
+        strings::read_text(emu, p0, wide)
     } else {
         format!("0x{:x}", p0)
     };
-    log_red!(
-        emu,
-        "kernelbase!ExpungeConsoleCommandHistoryA '{}'  p1:0x{:x}",
-        s,
-        p1
-    );
+    log_red!(emu, "kernelbase!{api} '{}'  p1:0x{:x}", s, p1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }
 
 pub fn ExpungeConsoleCommandHistoryW(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_wide_string(p0)
-    } else {
-        format!("0x{:x}", p0)
-    };
-    log_red!(
-        emu,
-        "kernelbase!ExpungeConsoleCommandHistoryW '{}'  p1:0x{:x}",
-        s,
-        p1
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    expunge_console_command_history(emu, "ExpungeConsoleCommandHistoryW", true);
 }

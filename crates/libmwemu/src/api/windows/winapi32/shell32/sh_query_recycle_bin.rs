@@ -1,14 +1,13 @@
 use crate::emu;
 
 pub fn SHQueryRecycleBinA(emu: &mut emu::Emu) {
+    sh_query_recycle_bin(emu, "SHQueryRecycleBinA");
+}
+
+fn sh_query_recycle_bin(emu: &mut emu::Emu, api: &str) {
     let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    log_red!(
-        emu,
-        "shell32!SHQueryRecycleBinA arg1:0x{:x} arg2:0x{:x}",
-        arg1,
-        arg2
-    );
+    log_red!(emu, "shell32!{api} arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     for _ in 0..2u32 {
@@ -17,17 +16,5 @@ pub fn SHQueryRecycleBinA(emu: &mut emu::Emu) {
 }
 
 pub fn SHQueryRecycleBinW(emu: &mut emu::Emu) {
-    let arg1 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    log_red!(
-        emu,
-        "shell32!SHQueryRecycleBinW arg1:0x{:x} arg2:0x{:x}",
-        arg1,
-        arg2
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    sh_query_recycle_bin(emu, "SHQueryRecycleBinW");
 }

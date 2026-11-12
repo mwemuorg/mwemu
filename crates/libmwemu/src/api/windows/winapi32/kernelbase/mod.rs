@@ -9,8 +9,8 @@ use crate::winapi::winapi32::kernel32;
 
 mod get_token_information;
 use get_token_information::GetTokenInformation;
-mod load_string_w;
-use load_string_w::LoadStringW;
+mod load_string;
+use load_string::{LoadStringA, LoadStringW};
 mod local_alloc;
 use local_alloc::LocalAlloc;
 mod path_combine;
@@ -51,6 +51,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
             memory_api::flush_instruction_cache(emu, "kernelbase!FlushInstructionCache")
         }
 
+        "LoadStringA" => LoadStringA(emu),
         "LoadStringW" => LoadStringW(emu),
         "SetUnhandledExceptionFilter" => SetUnhandledExceptionFilter(emu),
         "_initterm" => _initterm(emu),

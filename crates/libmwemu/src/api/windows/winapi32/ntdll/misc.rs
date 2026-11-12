@@ -1,6 +1,7 @@
 use crate::context::context32::Context32;
 use crate::debug::console::Console;
 use crate::emu;
+use crate::winapi::common::ntdll;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants::errors::*;
 
@@ -160,13 +161,8 @@ fn RtlSetUnhandledExceptionFilter(emu: &mut emu::Emu) {
     emu.regs_mut().rax = 1;
 }
 
-fn VerSetConditionMask(emu: &mut emu::Emu) {
-    log_red!(emu, "ntdll!VerSetConditionMask");
-
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 0xffff;
+pub fn VerSetConditionMask(emu: &mut emu::Emu) {
+    ntdll::version_condition_mask(emu);
 }
 
 fn NtQueryInformationProcess(emu: &mut emu::Emu) {

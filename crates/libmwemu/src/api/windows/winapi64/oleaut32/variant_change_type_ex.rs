@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn VariantChangeTypeEx(emu: &mut emu::Emu) {
     let pvarg_dest = emu.regs().rcx;
     let pvarg_src = emu.regs().rdx;
-    let vt = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as u16;
+    let vt = WinApiAbi::arg(emu, 4) as u16;
     log_red!(
         emu,
         "oleaut32!VariantChangeTypeEx dest: 0x{:x} src: 0x{:x} vt: {}",

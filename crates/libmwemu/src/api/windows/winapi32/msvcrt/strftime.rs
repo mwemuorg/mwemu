@@ -13,7 +13,4 @@ pub fn strftime(emu: &mut emu::Emu) {
         let _ = emu.maps.read_dword(first_param).unwrap_or(0);
     }
     emu.regs_mut().rax = s.len() as u64;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
 }

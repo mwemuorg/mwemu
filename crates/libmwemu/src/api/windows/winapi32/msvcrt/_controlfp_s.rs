@@ -7,7 +7,4 @@ pub fn _controlfp_s(emu: &mut emu::Emu) {
     }
     log_red!(emu, "msvcrt!_controlfp_s");
     emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

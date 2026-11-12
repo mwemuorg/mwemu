@@ -13,5 +13,5 @@ pub fn CreateMD5SSOHash(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createmd5ssohash");
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 4);
 }

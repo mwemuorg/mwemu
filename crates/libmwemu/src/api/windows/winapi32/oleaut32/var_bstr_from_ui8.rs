@@ -8,5 +8,5 @@ pub fn VarBstrFromUI8(emu: &mut emu::Emu) {
     let _a2 = arg(emu, 2);
     log_red!(emu, "oleaut32!VarBstrFromUI8 a0:0x{:x} a1:0x{:x}", _a0, _a1);
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 4);
+    stdcall_ret(emu, 5);
 }

@@ -12,5 +12,5 @@ pub fn HICON_UserMarshal64(emu: &mut emu::Emu) {
         _a1
     );
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }

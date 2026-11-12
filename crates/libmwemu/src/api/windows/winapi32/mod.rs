@@ -23,20 +23,17 @@ pub(crate) mod wininet;
 pub(crate) mod ws2_32;
 
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 /// The `i`-th (0-based) stdcall argument of the API being emulated. The
 /// gateway already consumed the return address, so arguments start at `esp`.
 pub(crate) fn arg(emu: &emu::Emu, i: u64) -> u32 {
-    emu.maps
-        .read_dword(emu.regs().get_esp() + i * 4)
-        .unwrap_or(0)
+    WinApiAbi::arg(emu, i as usize) as u32
 }
 
-/// stdcall: the callee removes its `n` arguments from the stack.
+/// stdcall: the callee removes `n` DWORD slots (wide arguments occupy two).
 pub(crate) fn stdcall_ret(emu: &mut emu::Emu, n: u32) {
-    for _ in 0..n {
-        emu.stack_pop32(false);
-    }
+    WinApiAbi::stdcall_ret(emu, n as usize);
 }
 
 pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
@@ -99,6 +96,18 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                     log::warn!("winmm: unimplemented API {}", api_name);
                 }
             }
+            let words = match api_name {
+                "timeBeginPeriod" | "timeEndPeriod" | "waveInClose" | "waveInStart"
+                | "waveInStop" => 1,
+                "waveInAddBuffer"
+                | "waveInPrepareHeader"
+                | "waveInUnprepareHeader"
+                | "PlaySoundW" => 3,
+                "mciSendStringA" | "mciSendStringW" => 4,
+                "waveInOpen" => 6,
+                _ => 0,
+            };
+            stdcall_ret(emu, words);
             String::new()
         }
         "gdi32.text" => gdi32::gateway(addr, emu),
@@ -143,6 +152,12 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
                     emu.regs_mut().rax = 0;
                 }
             }
+            let words = match api_name {
+                "GdiplusStartup" => 3,
+                "GdipAlloc" | "GdipFree" => 1,
+                _ => 0,
+            };
+            stdcall_ret(emu, words);
             String::new()
         }
         "libgcc_s_dw2-1.text" => libgcc::gateway(addr, emu),

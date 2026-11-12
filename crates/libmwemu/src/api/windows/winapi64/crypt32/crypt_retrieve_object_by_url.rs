@@ -1,16 +1,17 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptRetrieveObjectByUrl(emu: &mut emu::Emu) {
     let arg1 = emu.regs().rcx;
     let arg2 = emu.regs().rdx;
     let arg3 = emu.regs().r8;
     let arg4 = emu.regs().r9;
-    let arg5 = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let arg6 = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let arg7 = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let arg8 = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let arg5 = WinApiAbi::arg(emu, 4);
+    let arg6 = WinApiAbi::arg(emu, 5);
+    let arg7 = WinApiAbi::arg(emu, 6);
+    let arg8 = WinApiAbi::arg(emu, 7);
     log_red!(emu, "crypt32!CryptRetrieveObjectByUrl arg1:0x{:x}", arg1);
-    let out_ptr = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let out_ptr = WinApiAbi::arg(emu, 7);
     if out_ptr != 0 {
         emu.maps.write_qword(out_ptr, 0);
     }

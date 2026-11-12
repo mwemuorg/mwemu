@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
     let code_page = emu.regs().rcx;
     let flags = emu.regs().rdx;
     let mb_str = emu.regs().r8;
     let mb_len = emu.regs().r9 as i32;
-    let wc_str = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let wc_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+    let wc_str = WinApiAbi::arg(emu, 4);
+    let wc_len = WinApiAbi::arg(emu, 5) as i32;
     let s = emu.maps.read_string(mb_str);
     let slen = s.len();
     if wc_str != 0 && wc_len > 0 {

@@ -3,6 +3,7 @@ use crate::api::windows::common::memory::Call;
 use crate::emu;
 use crate::winapi::common::sections;
 use crate::winapi::common::{crt, memory_ops};
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants::errors::*;
 
@@ -125,8 +126,8 @@ fn RtlDeleteFunctionTable(emu: &mut emu::Emu) {
 fn RtlInstallFunctionTableCallback(emu: &mut emu::Emu) {
     let table_id = arg(emu, 0);
     let base = arg(emu, 1);
-    let length = arg(emu, 2);
-    let callback = arg(emu, 3);
+    let length = WinApiAbi::arg(emu, 4) as u32;
+    let callback = WinApiAbi::arg(emu, 5) as u32;
     log_red!(
         emu,
         "ntdll!RtlInstallFunctionTableCallback id:0x{:x} base:0x{:x} len:0x{:x} cb:0x{:x}",
@@ -136,7 +137,7 @@ fn RtlInstallFunctionTableCallback(emu: &mut emu::Emu) {
         callback
     );
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 8);
 }
 
 fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {

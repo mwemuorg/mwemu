@@ -22,5 +22,5 @@ pub(super) fn BCryptExportKey(emu: &mut emu::Emu) {
     }
 
     emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 7);
 }

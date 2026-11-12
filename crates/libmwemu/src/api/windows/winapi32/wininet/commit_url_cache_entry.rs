@@ -3,29 +3,18 @@ use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CommitUrlCacheEntryA(emu: &mut emu::Emu) {
+    commit_url_cache_entry(emu, "CommitUrlCacheEntryA");
+}
+
+fn commit_url_cache_entry(emu: &mut emu::Emu, api: &str) {
     let a0 = arg(emu, 0) as u64;
     let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "wininet!CommitUrlCacheEntryA arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
+    log_red!(emu, "wininet!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 10);
+    stdcall_ret(emu, 11);
 }
 
 pub fn CommitUrlCacheEntryW(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "wininet!CommitUrlCacheEntryW arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 10);
+    commit_url_cache_entry(emu, "CommitUrlCacheEntryW");
 }

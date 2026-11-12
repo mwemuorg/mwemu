@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptVerifySignature(emu: &mut emu::Emu) {
@@ -6,9 +7,9 @@ pub fn BCryptVerifySignature(emu: &mut emu::Emu) {
     let _padding_info = emu.regs().rdx;
     let pb_hash = emu.regs().r8;
     let cb_hash = emu.regs().r9 as u32;
-    let pb_signature = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let cb_signature = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as u32;
+    let pb_signature = WinApiAbi::arg(emu, 4);
+    let cb_signature = WinApiAbi::arg(emu, 5) as u32;
+    let _flags = WinApiAbi::arg(emu, 6) as u32;
 
     log_red!(
         emu,

@@ -14,9 +14,7 @@ pub fn RegDisablePredefinedCache(emu: &mut emu::Emu) {
     if helper::handler_exist(h) {
         helper::handler_close(h);
     }
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

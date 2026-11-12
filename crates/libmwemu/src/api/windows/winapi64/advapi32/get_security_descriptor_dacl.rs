@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetSecurityDescriptorDacl(emu: &mut emu::Emu) {
     let p0 = emu.regs().rcx;
@@ -12,9 +13,9 @@ pub fn GetSecurityDescriptorDacl(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    let out_ptr = emu.regs().r9;
+    let out_ptr = WinApiAbi::arg(emu, 3);
     if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, 0);
+        emu.maps.write_dword(out_ptr, 0);
     }
     for _ in 0..4 {}
     emu.set_last_error(0);

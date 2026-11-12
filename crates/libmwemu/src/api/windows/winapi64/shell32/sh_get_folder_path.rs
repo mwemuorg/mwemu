@@ -1,9 +1,10 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi64::shell32::csidl_to_path;
 
 pub fn SHGetFolderPathA(emu: &mut emu::Emu) {
     let csidl = emu.regs().rdx as i32;
-    let psz_path = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let psz_path = WinApiAbi::arg(emu, 4);
 
     log_red!(emu, "shell32!SHGetFolderPathA csidl: 0x{:x}", csidl);
 
@@ -36,7 +37,7 @@ pub fn SHGetFolderPathW(emu: &mut emu::Emu) {
     let csidl = emu.regs().rdx as i32;
     let h_token = emu.regs().r8;
     let dw_flags = emu.regs().r9 as u32;
-    let psz_path = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let psz_path = WinApiAbi::arg(emu, 4);
 
     log_red!(
         emu,

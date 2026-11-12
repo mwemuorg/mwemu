@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn OleLoadFromStream(emu: &mut emu::Emu) {
     let arg1 = emu.regs().rcx;
@@ -12,7 +13,7 @@ pub fn OleLoadFromStream(emu: &mut emu::Emu) {
         arg2
     );
     let handle = helper::handler_create("OleLoadFromStream");
-    let out_ptr = emu.regs().r8;
+    let out_ptr = WinApiAbi::arg(emu, 2);
     if out_ptr != 0 {
         emu.maps.write_qword(out_ptr, handle);
     }

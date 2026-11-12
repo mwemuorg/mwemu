@@ -14,7 +14,4 @@ pub fn strncat(emu: &mut emu::Emu) {
     emu.maps.write_byte(offset + copy_len as u64, 0);
     log_red!(emu, "msvcrt!strncat 0x{:x} '{}' {}", dst, src_s, n);
     emu.regs_mut().rax = dst;
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
 }

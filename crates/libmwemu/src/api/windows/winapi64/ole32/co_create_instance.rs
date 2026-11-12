@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi64::ole32::read_guid_string;
 
 pub fn CoCreateInstance(emu: &mut emu::Emu) {
@@ -6,7 +7,7 @@ pub fn CoCreateInstance(emu: &mut emu::Emu) {
     let _punk_outer = emu.regs().rdx;
     let dw_cls_context = emu.regs().r8;
     let riid = emu.regs().r9;
-    let ppv = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let ppv = WinApiAbi::arg(emu, 4);
 
     let clsid_str = if rclsid != 0 {
         read_guid_string(emu, rclsid)

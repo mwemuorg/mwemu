@@ -15,7 +15,4 @@ pub fn _controlfp(emu: &mut emu::Emu) {
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = 0x0009_001f; // default x87 control word
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
 }

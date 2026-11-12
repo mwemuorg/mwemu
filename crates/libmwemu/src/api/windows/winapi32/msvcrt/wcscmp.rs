@@ -7,8 +7,6 @@ pub fn wcscmp(emu: &mut emu::Emu) {
     let s2 = emu.maps.read_wide_string(s2_ptr);
     let result = s1.cmp(&s2) as i32;
     log_red!(emu, "msvcrt!wcscmp '{}' '{}' => {}", s1, s2, result);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = result as u32 as u64;
 }

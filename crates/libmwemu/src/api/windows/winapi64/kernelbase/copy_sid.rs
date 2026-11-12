@@ -1,5 +1,4 @@
 use crate::emu;
-use crate::winapi::helper;
 
 pub fn CopySid(emu: &mut emu::Emu) {
     let dest_len = emu.regs().rcx as usize;
@@ -21,10 +20,6 @@ pub fn CopySid(emu: &mut emu::Emu) {
         dest_ptr,
         src_ptr
     );
-    let handle = helper::handler_create("CopySid");
-    let out_ptr = emu.regs().r8;
-    if out_ptr != 0 {
-        emu.maps.write_qword(out_ptr, handle);
-    }
+
     emu.regs_mut().rax = 1;
 }

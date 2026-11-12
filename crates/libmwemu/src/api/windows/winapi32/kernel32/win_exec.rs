@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn WinExec(emu: &mut emu::Emu) {
     let cmdline_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -9,5 +10,5 @@ pub fn WinExec(emu: &mut emu::Emu) {
     log_red!(emu, "WinExec  '{}'", cmdline);
 
     emu.regs_mut().rax = 0;
-    emu.stack_pop32(false);
+    stdcall_ret(emu, 2);
 }

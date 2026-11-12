@@ -13,5 +13,5 @@ pub fn GetClipboardOwner(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 0);
 }

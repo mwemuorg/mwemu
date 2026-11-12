@@ -36,3 +36,15 @@ pub const INTERNET_OPTION_DATA_RECEIVE_TIMEOUT: u32 = 8;
 pub const INTERNET_OPTION_DATA_SEND_TIMEOUT: u32 = 7;
 // https://docs.microsoft.com/en-us/windows/win32/wininet/api-flags
 pub const INTERNET_FLAG_SECURE: u64 = 0x00800000;
+
+// Winsock data and return values
+pub const WSADESCRIPTION_LEN: usize = 256;
+pub const WSASYS_STATUS_LEN: usize = 128;
+pub const SOCKET_ERROR: u64 = 0xffff_ffff;
+
+// Name lookup flags
+pub const NI_NOFQDN: u32 = 0x01;
+pub const NI_NUMERICHOST: u32 = 0x02;
+pub const NI_NAMEREQD: u32 = 0x04;
+pub const NI_NUMERICSERV: u32 = 0x08;
+pub const NI_DGRAM: u32 = 0x10;

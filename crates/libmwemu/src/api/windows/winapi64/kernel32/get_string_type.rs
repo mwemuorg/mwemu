@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn GetStringTypeA(emu: &mut emu::Emu) {
     let locale = emu.regs().rcx;
     let dw_info_type = emu.regs().rdx as u32;
     let lp_src_str = emu.regs().r8;
     let cch_src = emu.regs().r9 as i32;
-    let lp_char_type = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let lp_char_type = WinApiAbi::arg(emu, 4);
 
     let actual_len = if cch_src == -1 {
         let s = emu.maps.read_string(lp_src_str);

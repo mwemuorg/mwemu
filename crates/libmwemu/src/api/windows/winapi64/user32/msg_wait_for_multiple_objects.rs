@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn MsgWaitForMultipleObjects(emu: &mut emu::Emu) {
     let count = emu.regs().rcx as u32;
     let handles = emu.regs().rdx;
     let wait_all = emu.regs().r8 != 0;
     let ms = emu.regs().r9 as u32;
-    let wake_mask = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as u32;
+    let wake_mask = WinApiAbi::arg(emu, 4) as u32;
     helper::advance_tick(emu, ms as u64);
     log_red!(
         emu,

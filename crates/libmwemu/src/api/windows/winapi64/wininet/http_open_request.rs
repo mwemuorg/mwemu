@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::network::*;
 
 pub(super) fn HttpOpenRequestA(emu: &mut emu::Emu) {
@@ -7,10 +8,10 @@ pub(super) fn HttpOpenRequestA(emu: &mut emu::Emu) {
     let method_ptr = emu.regs().rdx;
     let path_ptr = emu.regs().r8;
     let version_ptr = emu.regs().r9;
-    let referrer_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let access_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let ctx = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let referrer_ptr = WinApiAbi::arg(emu, 4);
+    let access_ptr = WinApiAbi::arg(emu, 5);
+    let flags = WinApiAbi::arg(emu, 6);
+    let ctx = WinApiAbi::arg(emu, 7);
 
     let mut method = "".to_string();
     let mut path = "".to_string();
@@ -79,10 +80,10 @@ pub(super) fn HttpOpenRequestW(emu: &mut emu::Emu) {
     let method_ptr = emu.regs().rdx;
     let path_ptr = emu.regs().r8;
     let version_ptr = emu.regs().r9;
-    let referrer_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let access_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let flags = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let ctx = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
+    let referrer_ptr = WinApiAbi::arg(emu, 4);
+    let access_ptr = WinApiAbi::arg(emu, 5);
+    let flags = WinApiAbi::arg(emu, 6);
+    let ctx = WinApiAbi::arg(emu, 7);
 
     let mut method = "".to_string();
     let mut path = "".to_string();

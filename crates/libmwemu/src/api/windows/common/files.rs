@@ -1,3 +1,4 @@
+use crate::winapi::common::strings;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::process::*;
@@ -40,11 +41,7 @@ pub(crate) fn create_file(emu: &mut Emu, api: &str, wide: bool) {
     let share = call.arg(emu, 2) as u32;
     let disposition = call.arg(emu, 4) as u32;
     let attributes = call.arg(emu, 5) as u32;
-    let name = if wide {
-        emu.maps.read_wide_string(name_ptr)
-    } else {
-        emu.maps.read_string(name_ptr)
-    };
+    let name = strings::read_text(emu, name_ptr, wide);
     log_red!(
         emu,
         "{} '{}' access:0x{:x} share:0x{:x} disposition:{} attributes:0x{:x}",
@@ -392,10 +389,8 @@ pub(crate) fn get_disk_free_space(emu: &mut Emu, api: &str, wide: bool) {
     ];
     let root = if root_ptr == 0 {
         emu.cfg.cwd_path.clone()
-    } else if wide {
-        emu.maps.read_wide_string(root_ptr)
     } else {
-        emu.maps.read_string(root_ptr)
+        strings::read_text(emu, root_ptr, wide)
     };
     log_red!(emu, "{} root:'{}'", api, root);
     if outputs.iter().any(|(address, _)| {
@@ -419,11 +414,7 @@ pub(crate) fn get_disk_free_space(emu: &mut Emu, api: &str, wide: bool) {
 pub(crate) fn set_current_directory(emu: &mut Emu, api: &str, wide: bool) {
     let call = Call::Api;
     let path_ptr = call.arg(emu, 0);
-    let path = if wide {
-        emu.maps.read_wide_string(path_ptr)
-    } else {
-        emu.maps.read_string(path_ptr)
-    };
+    let path = strings::read_text(emu, path_ptr, wide);
     log_red!(emu, "{} path:'{}'", api, path);
     if path.is_empty() {
         emu.set_last_error(ERROR_PATH_NOT_FOUND);

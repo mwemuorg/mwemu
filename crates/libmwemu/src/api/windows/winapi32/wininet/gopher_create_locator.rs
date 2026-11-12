@@ -13,7 +13,7 @@ pub fn GopherCreateLocatorA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("gophercreatelocatora");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 7);
 }
 
 pub fn GopherCreateLocatorW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn GopherCreateLocatorW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("gophercreatelocatorw");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 7);
 }

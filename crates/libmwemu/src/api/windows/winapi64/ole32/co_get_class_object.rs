@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CoGetClassObject(emu: &mut emu::Emu) {
     let clsid_ptr = emu.regs().rcx;
     let ctx = emu.regs().rdx;
     let server_info = emu.regs().r8;
     let iid_ptr = emu.regs().r9;
-    let ppv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let ppv = WinApiAbi::arg(emu, 4);
     let hndl = helper::handler_create("com_class_factory");
     if ppv != 0 {
         emu.maps.write_qword(ppv, hndl);

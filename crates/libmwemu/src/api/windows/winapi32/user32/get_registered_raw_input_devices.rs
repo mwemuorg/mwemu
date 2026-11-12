@@ -13,5 +13,5 @@ pub fn GetRegisteredRawInputDevices(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("getregisteredrawinputdevices");
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }

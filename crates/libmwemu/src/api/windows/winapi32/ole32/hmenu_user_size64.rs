@@ -7,5 +7,5 @@ pub fn HMENU_UserSize64(emu: &mut emu::Emu) {
     let _a1 = arg(emu, 1);
     log_red!(emu, "ole32!HMENU_UserSize64 a0:0x{:x} a1:0x{:x}", _a0, _a1);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 3);
 }

@@ -16,8 +16,6 @@ pub fn __acrt_iob_func(emu: &mut emu::Emu) {
         index,
         hndl
     );
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = hndl;
 }

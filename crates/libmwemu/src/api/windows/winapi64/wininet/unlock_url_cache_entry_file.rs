@@ -20,14 +20,13 @@ pub fn UnlockUrlCacheEntryFile(emu: &mut emu::Emu) {
 }
 
 pub fn UnlockUrlCacheEntryFileA(emu: &mut emu::Emu) {
+    unlock_url_cache_entry_file(emu, "UnlockUrlCacheEntryFileA");
+}
+
+fn unlock_url_cache_entry_file(emu: &mut emu::Emu, api: &str) {
     let arg1 = emu.regs().rcx;
     let arg2 = emu.regs().rdx;
-    log_red!(
-        emu,
-        "wininet!UnlockUrlCacheEntryFileA arg1:0x{:x} arg2:0x{:x}",
-        arg1,
-        arg2
-    );
+    log_red!(emu, "wininet!{api} arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
     let h = emu.regs().rcx;
     if helper::handler_exist(h) {
         helper::handler_close(h);
@@ -37,18 +36,5 @@ pub fn UnlockUrlCacheEntryFileA(emu: &mut emu::Emu) {
 }
 
 pub fn UnlockUrlCacheEntryFileW(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
-    log_red!(
-        emu,
-        "wininet!UnlockUrlCacheEntryFileW arg1:0x{:x} arg2:0x{:x}",
-        arg1,
-        arg2
-    );
-    let h = emu.regs().rcx;
-    if helper::handler_exist(h) {
-        helper::handler_close(h);
-    }
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    unlock_url_cache_entry_file(emu, "UnlockUrlCacheEntryFileW");
 }

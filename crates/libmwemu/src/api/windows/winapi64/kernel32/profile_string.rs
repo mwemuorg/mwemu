@@ -1,4 +1,6 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::profile_store;
 
 // Profile ("INI") APIs over profile_store. The non-private variants work on
@@ -86,8 +88,8 @@ fn get_string(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
     let key = opt_text(emu, emu.regs().rdx, wide);
     let default = opt_text(emu, emu.regs().r8, wide).unwrap_or_default();
     let out = emu.regs().r9;
-    let size = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) & 0xffff_ffff;
-    let file = profile_file(emu, private, emu.regs().rsp + 0x28, wide);
+    let size = WinApiAbi::arg(emu, 4) & 0xffff_ffff;
+    let file = profile_file(emu, private, wide);
 
     // section / key enumeration (NULL names) is not modelled: answer the default
     let value = match (&section, &key) {
@@ -176,13 +178,9 @@ fn get_int(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
     emu.regs_mut().rax = value;
 }
 
-/// lpFileName for the private APIs (read from `slot`), win.ini otherwise.
-fn profile_file(emu: &mut emu::Emu, private: bool, slot: u64, wide: bool) -> String {
-    let ptr = if private {
-        emu.maps.read_qword(slot).unwrap_or(0)
-    } else {
-        0
-    };
+/// Filename argument for private profile APIs, win.ini otherwise.
+fn profile_file(emu: &mut emu::Emu, private: bool, wide: bool) -> String {
+    let ptr = if private { WinApiAbi::arg(emu, 5) } else { 0 };
     opt_text(emu, ptr, wide).unwrap_or_else(|| profile_store::WIN_INI.to_string())
 }
 
@@ -200,10 +198,8 @@ fn parse_leading_int(text: &str) -> u64 {
 fn opt_text(emu: &mut emu::Emu, ptr: u64, wide: bool) -> Option<String> {
     if ptr == 0 {
         None
-    } else if wide {
-        Some(emu.maps.read_wide_string(ptr))
     } else {
-        Some(emu.maps.read_string(ptr))
+        Some(strings::read_text(emu, ptr, wide))
     }
 }
 

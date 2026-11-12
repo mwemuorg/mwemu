@@ -1,10 +1,15 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn DeleteFile2A(emu: &mut emu::Emu) {
+    delete_file2(emu, "DeleteFile2A", false);
+}
+
+fn delete_file2(emu: &mut emu::Emu, api: &str, wide: bool) {
     let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_string(str_ptr);
-    log_red!(emu, "kernel32!DeleteFile2A '{}'  0x{:x}", s, arg2);
+    let s = strings::read_text(emu, str_ptr, wide);
+    log_red!(emu, "kernel32!{api} '{}'  0x{:x}", s, arg2);
     for _ in 0..2 {
         emu.stack_pop32(false);
     }
@@ -12,12 +17,5 @@ pub fn DeleteFile2A(emu: &mut emu::Emu) {
 }
 
 pub fn DeleteFile2W(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_wide_string(str_ptr);
-    log_red!(emu, "kernel32!DeleteFile2W '{}'  0x{:x}", s, arg2);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    delete_file2(emu, "DeleteFile2W", true);
 }

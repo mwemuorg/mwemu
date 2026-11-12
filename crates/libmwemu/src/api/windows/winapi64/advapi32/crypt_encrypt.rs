@@ -1,14 +1,15 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptEncrypt(emu: &mut emu::Emu) {
     let hkey = emu.regs().rcx;
     let _hhash = emu.regs().rdx;
     let _bfinal = emu.regs().r8;
     let _flags = emu.regs().r9 as u32;
-    let data_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let data_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _buff_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let data_ptr = WinApiAbi::arg(emu, 4);
+    let data_len_ptr = WinApiAbi::arg(emu, 5);
+    let _buff_len = WinApiAbi::arg(emu, 6);
 
     if data_ptr != 0 && data_len_ptr != 0 {
         let data_len = emu.maps.read_dword(data_len_ptr).unwrap_or(0) as usize;

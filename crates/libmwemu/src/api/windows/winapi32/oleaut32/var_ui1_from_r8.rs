@@ -1,11 +1,11 @@
-use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::emu::Emu;
+use crate::winapi::common::automation::{self, FloatWidth, Number};
 
-pub fn VarUI1FromR8(emu: &mut emu::Emu) {
-    let _a0 = arg(emu, 0);
-    let _a1 = arg(emu, 1);
-    log_red!(emu, "oleaut32!VarUI1FromR8 a0:0x{:x} a1:0x{:x}", _a0, _a1);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+pub fn VarUI1FromR8(emu: &mut Emu) {
+    automation::convert(
+        emu,
+        "VarUI1FromR8",
+        FloatWidth::Double,
+        Number::Unsigned(u8::BITS),
+    );
 }

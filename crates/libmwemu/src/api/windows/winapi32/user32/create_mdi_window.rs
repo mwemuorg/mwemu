@@ -13,7 +13,7 @@ pub fn CreateMDIWindowA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createmdiwindowa");
-    stdcall_ret(emu, 4);
+    stdcall_ret(emu, 10);
 }
 
 pub fn CreateMDIWindowW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn CreateMDIWindowW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createmdiwindoww");
-    stdcall_ret(emu, 4);
+    stdcall_ret(emu, 10);
 }

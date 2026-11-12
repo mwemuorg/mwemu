@@ -14,8 +14,6 @@ pub fn __stdio_common_vsscanf(emu: &mut emu::Emu) {
         s,
         fmt
     );
-    for _ in 0..6u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = 1; // number of fields read
 }

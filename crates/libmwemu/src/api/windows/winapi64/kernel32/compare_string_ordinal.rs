@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CompareStringOrdinal(emu: &mut emu::Emu) {
     let s1 = emu.regs().rcx;
     let len1 = emu.regs().rdx as i64;
     let s2 = emu.regs().r8;
     let _len2 = emu.regs().r9 as i64;
-    let ignore_case = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let ignore_case = WinApiAbi::arg(emu, 4);
     let str1 = emu.maps.read_wide_string(s1);
     let str2 = emu.maps.read_wide_string(s2);
     let r = if ignore_case != 0 {

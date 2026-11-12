@@ -13,5 +13,5 @@ pub fn CoWaitForMultipleObjects(emu: &mut emu::Emu) {
         _a1
     );
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }

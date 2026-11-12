@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn SHGetFolderPathAndSubDirA(emu: &mut emu::Emu) {
     let hwnd = emu.regs().rcx;
     let csidl = emu.regs().rdx as i32;
     let htoken = emu.regs().r8;
     let dw_flags = emu.regs().r9;
-    let psz_sub_dir = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let psz_path = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let psz_sub_dir = WinApiAbi::arg(emu, 4);
+    let psz_path = WinApiAbi::arg(emu, 5);
     let sub_dir = if psz_sub_dir != 0 {
         emu.maps.read_string(psz_sub_dir)
     } else {
@@ -32,8 +33,8 @@ pub fn SHGetFolderPathAndSubDirW(emu: &mut emu::Emu) {
     let csidl = emu.regs().rdx as i32;
     let htoken = emu.regs().r8;
     let dw_flags = emu.regs().r9;
-    let psz_sub_dir = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let psz_path = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let psz_sub_dir = WinApiAbi::arg(emu, 4);
+    let psz_path = WinApiAbi::arg(emu, 5);
     let sub_dir = if psz_sub_dir != 0 {
         emu.maps.read_wide_string(psz_sub_dir)
     } else {

@@ -7,8 +7,6 @@ pub fn time(emu: &mut emu::Emu) {
         emu.maps.write_dword(time_ptr, tick);
     }
     log_red!(emu, "msvcrt!time => {}", tick);
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = tick as u64;
 }

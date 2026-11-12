@@ -1,13 +1,14 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptSignHash(emu: &mut emu::Emu) {
     let h_hash = emu.regs().rcx;
     let key_spec = emu.regs().rdx as u32;
     let _desc_ptr = emu.regs().r8;
     let flags = emu.regs().r9 as u32;
-    let sig_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let sig_len_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let sig_ptr = WinApiAbi::arg(emu, 4);
+    let sig_len_ptr = WinApiAbi::arg(emu, 5);
     log_red!(
         emu,
         "crypt32!CryptSignHash hash:0x{:x} spec:{} flags:0x{:x}",

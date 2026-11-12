@@ -12,5 +12,5 @@ pub fn RevokeDragDrop(emu: &mut emu::Emu) {
         helper::handler_close(h);
     }
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 1);
 }

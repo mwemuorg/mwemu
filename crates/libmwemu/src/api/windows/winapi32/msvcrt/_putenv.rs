@@ -5,7 +5,4 @@ pub fn _putenv(emu: &mut emu::Emu, api: &str) {
     let s = emu.maps.read_string(ptr);
     log_red!(emu, "msvcrt!{} '{}'", api, s);
     emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

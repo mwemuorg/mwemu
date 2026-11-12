@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
+import unittest
 
 
 def dependencies(dep_info, root):
@@ -67,12 +69,68 @@ def current_compilation(root, target=None, offline=False):
     return {library_dep_info(artifact) for artifact in artifacts}
 
 
+class ApiModulesTests(unittest.TestCase):
+    def test_make_paths_and_path_attributes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            dep = root / "libmwemu.d"
+            dep.write_text("output: ignored\ncrates/api/mod.rs:\n"
+                           "crates/api/group/../name\\ with\\ space.rs:\n"
+                           "crates\\api\\other.rs:\n", encoding="utf-8")
+            self.assertEqual(dependencies(dep, root), {
+                (root / "crates/api/mod.rs").resolve(),
+                (root / "crates/api/name with space.rs").resolve(),
+                (root / "crates/api/other.rs").resolve(),
+            })
+
+    def test_orphan_is_reported_and_non_rust_files_are_ignored(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            active, orphan = root / "mod.rs", root / "orphan.rs"
+            for path in (active, orphan, root / "reference.h"):
+                path.touch()
+            self.assertEqual(orphan_sources(root, {active.resolve()}), [orphan.resolve()])
+            self.assertEqual(orphan_sources(root, {active.resolve(), orphan.resolve()}), [])
+
+    def test_invalid_dep_info_fails_closed(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            dep = root / "invalid.d"
+            dep.write_text("output: no Rust inputs\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                dependencies(dep, root)
+
+    def test_only_the_reported_artifact_dependency_file_is_used(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            stale = root / "libmwemu-old.d"
+            stale.touch()
+            artifact = {"filenames": [str(root / "liblibmwemu-new.rmeta")]}
+            with self.assertRaises(ValueError):
+                library_dep_info(artifact)
+            current = root / "libmwemu-new.d"
+            current.touch()
+            self.assertEqual(library_dep_info(artifact), current)
+
+
+def run_self_tests():
+    suite = unittest.defaultTestLoader.loadTestsFromTestCase(ApiModulesTests)
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    return 0 if result.wasSuccessful() else 1
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--self-test", action="store_true",
+                        help="test the checker without running Cargo")
     parser.add_argument("--target")
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--report", type=Path)
     args = parser.parse_args()
+    if args.self_test:
+        if args.target or args.offline or args.report:
+            parser.error("--self-test cannot be combined with --target, --offline or --report")
+        return run_self_tests()
     root = Path(__file__).resolve().parents[1]
     try:
         dep_files = current_compilation(root, args.target, args.offline)

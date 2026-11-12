@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CertCreateSelfSignCertificate(emu: &mut emu::Emu) {
     let esp = emu.regs().get_esp();
@@ -9,9 +10,7 @@ pub fn CertCreateSelfSignCertificate(emu: &mut emu::Emu) {
     let arg4 = emu.maps.read_dword(esp + 16).unwrap_or(0) as u64;
     let arg5 = emu.maps.read_dword(esp + 20).unwrap_or(0) as u64;
     let arg6 = emu.maps.read_dword(esp + 24).unwrap_or(0) as u64;
-    for _ in 0..6u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 8);
     log_red!(
         emu,
         "crypt32!CertCreateSelfSignCertificate arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x}",

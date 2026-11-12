@@ -1,12 +1,11 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn SetFileValidData(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let p1 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
     log_red!(emu, "kernel32!SetFileValidData p1:0x{:x}", p1);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

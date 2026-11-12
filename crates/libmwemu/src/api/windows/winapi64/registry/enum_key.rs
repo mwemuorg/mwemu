@@ -1,8 +1,8 @@
 use super::finish;
 use super::key_path;
-use super::stack_arg;
 use super::write_name;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
@@ -11,8 +11,8 @@ pub(super) fn enum_key(emu: &mut emu::Emu, api: &str, wide: bool) {
     let index = emu.regs().rdx as u32 as usize;
     let name_ptr = emu.regs().r8;
     let cch_ptr = emu.regs().r9;
-    let class_cch_ptr = stack_arg(emu, 6);
-    let time_ptr = stack_arg(emu, 7);
+    let class_cch_ptr = WinApiAbi::arg(emu, 6);
+    let time_ptr = WinApiAbi::arg(emu, 7);
 
     let path = match key_path(hkey) {
         Ok(path) => path,

@@ -1,9 +1,6 @@
-use crate::emu;
+use crate::emu::Emu;
+use crate::winapi::common::automation;
 
-pub fn VarCyCmpR8(emu: &mut emu::Emu) {
-    let src = emu.regs().rcx;
-    let dst = emu.regs().rdx;
-    log_red!(emu, "oleaut32!VarCyCmpR8 src:0x{:x}", src);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+pub fn VarCyCmpR8(emu: &mut Emu) {
+    automation::compare_currency(emu);
 }

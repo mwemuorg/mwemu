@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CoRegisterClassObject(emu: &mut emu::Emu) {
     let rclsid = emu.regs().rcx;
     let punk = emu.regs().rdx;
     let cls_ctx = emu.regs().r8;
     let flags = emu.regs().r9;
-    let pdw_register = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let pdw_register = WinApiAbi::arg(emu, 4);
     let hndl = helper::handler_create("com_class_registration");
     if pdw_register != 0 {
         emu.maps.write_dword(pdw_register, hndl as u32);

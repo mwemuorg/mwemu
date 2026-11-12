@@ -610,7 +610,7 @@ fn ws2_32_wsa_startup_64() {
     let mut emu = emu64();
 
     let ret = helpers::call_winapi64(&mut emu, winapi64::ws2_32::WSAStartup, &[0x0202, 0]);
-    assert_eq!(ret, 0, "WsaStartup returns 0 (success)");
+    assert_eq!(ret, WSAEFAULT, "WSAStartup requires writable WSADATA");
 }
 
 #[test]
@@ -656,8 +656,11 @@ fn ws2_32_wsa_startup_32() {
     helpers::setup();
     let mut emu = emu32();
 
-    let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::WsaStartup, &[0x0202, 0]);
-    assert_eq!(ret, 0, "WsaStartup 32-bit returns 0");
+    let ret = helpers::call_winapi32(&mut emu, winapi32::ws2_32::WSAStartup, &[0x0202, 0]);
+    assert_eq!(
+        ret as u64, WSAEFAULT,
+        "WSAStartup requires writable WSADATA"
+    );
 }
 
 #[test]

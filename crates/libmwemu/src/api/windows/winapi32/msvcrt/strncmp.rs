@@ -10,8 +10,6 @@ pub fn strncmp(emu: &mut emu::Emu) {
     let cmp2: String = s2.chars().take(n).collect();
     let result = cmp1.cmp(&cmp2) as i32;
     log_red!(emu, "msvcrt!strncmp '{}' '{}' {} => {}", s1, s2, n, result);
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = result as u32 as u64;
 }

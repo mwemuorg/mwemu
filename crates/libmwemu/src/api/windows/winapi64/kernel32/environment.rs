@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::winapi::common::strings;
 use crate::winapi::environment_store;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::system::*;
@@ -7,11 +8,7 @@ use crate::windows::constants::system::*;
 // Environment APIs over environment_store. Sizes are in characters.
 
 fn read_text(emu: &emu::Emu, ptr: u64, wide: bool) -> String {
-    if wide {
-        emu.maps.read_wide_string(ptr)
-    } else {
-        emu.maps.read_string(ptr)
-    }
+    strings::read_text(emu, ptr, wide)
 }
 
 fn char_len(s: &str, wide: bool) -> usize {
@@ -29,11 +26,7 @@ fn write_text(emu: &mut emu::Emu, ptr: u64, size: usize, s: &str, wide: bool) ->
     if ptr == 0 || len + 1 > size {
         return (len + 1) as u64;
     }
-    if wide {
-        emu.maps.write_wide_string(ptr, s);
-    } else {
-        emu.maps.write_string(ptr, s);
-    }
+    strings::write_string(emu, ptr, s, wide);
     len as u64
 }
 

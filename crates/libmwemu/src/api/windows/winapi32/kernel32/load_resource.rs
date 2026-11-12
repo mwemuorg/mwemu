@@ -1,8 +1,9 @@
 use crate::emu;
+use crate::winapi::winapi32::arg;
 
 pub fn LoadResource(emu: &mut emu::Emu) {
-    let hModule = emu.regs().rcx;
-    let hResInfo = emu.regs().rdx;
+    let hModule = arg(emu, 0) as u64;
+    let hResInfo = arg(emu, 1) as u64;
 
     log_red!(
         emu,

@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CertGetCertificateChain(emu: &mut emu::Emu) {
     let engine = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -21,7 +22,5 @@ pub fn CertGetCertificateChain(emu: &mut emu::Emu) {
         hndl
     );
     emu.regs_mut().rax = 1;
-    for _ in 0..7u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 8);
 }

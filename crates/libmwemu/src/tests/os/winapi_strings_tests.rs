@@ -462,3 +462,195 @@ fn computer_name_rejects_unwritable_outputs_without_partial_writes() {
         assert_eq!(emu.maps.read_dword(data), Some(MARKER));
     }
 }
+
+#[test]
+fn canonical_string_exports_handle_empty_and_unicode_strings() {
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let right = data + 128;
+        for wide in [false, true] {
+            let name = if wide { "lstrcmpiW" } else { "lstrcmpiA" };
+            if wide {
+                emu.maps.write_wide_string(data, "Alpha");
+                emu.maps.write_wide_string(right, "beta");
+            } else {
+                emu.maps.write_string(data, "Alpha");
+                emu.maps.write_string(right, "beta");
+            }
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, "kernel32.dll", name, &[data, right]) as u32
+                    as i32,
+                -1
+            );
+            assert_eq!(
+                helpers::call_winapi_export(&mut emu, "kernel32.dll", name, &[data, data]),
+                0
+            );
+        }
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, "kernel32.dll", "GetUserDefaultLangID", &[]),
+            EN_US_LOCALE as u64
+        );
+        if is64 {
+            for (name, wide, text) in [("lstrcpyA", false, ""), ("lstrcpyW", true, "x😀y")] {
+                if wide {
+                    emu.maps.write_wide_string(data, text);
+                } else {
+                    emu.maps.write_string(data, text);
+                }
+                assert_eq!(
+                    helpers::call_winapi_export(&mut emu, "kernel32.dll", name, &[right, data]),
+                    right
+                );
+                let copied = if wide {
+                    emu.maps.read_wide_string(right)
+                } else {
+                    emu.maps.read_string(right)
+                };
+                assert_eq!(copied, text);
+            }
+        }
+    }
+}
+
+#[test]
+fn paired_locale_exports_use_stack_arguments_and_bound_output() {
+    let (mut emu, data) = helpers::prepare_winapi(true);
+    let output = data + 256;
+    for (library, name, wide, text) in [
+        ("kernel32.dll", "GetDateFormatA", false, "01/01/2024"),
+        ("kernel32.dll", "GetDateFormatW", true, "01/01/2024"),
+        ("kernel32.dll", "GetTimeFormatA", false, "00:00:00"),
+        ("kernel32.dll", "GetTimeFormatW", true, "00:00:00"),
+        ("kernelbase.dll", "GetDateFormatA", false, "11/01/2026"),
+        ("kernelbase.dll", "GetDateFormatW", true, "11/01/2026"),
+        ("kernelbase.dll", "GetTimeFormatA", false, "12:00:00"),
+        ("kernelbase.dll", "GetTimeFormatW", true, "12:00:00"),
+        ("kernelbase.dll", "GetTimeFormatEx", true, "12:00:00"),
+    ] {
+        let required = text.len() as u64 + 1;
+        assert_eq!(
+            helpers::call_winapi_export(
+                &mut emu,
+                library,
+                name,
+                &[LOCALE_USER_DEFAULT, 0, 0, 0, 0, 0]
+            ),
+            required
+        );
+        emu.maps.memset(output, 0xa5, 64);
+        assert_eq!(
+            helpers::call_winapi_export(
+                &mut emu,
+                library,
+                name,
+                &[LOCALE_USER_DEFAULT, 0, 0, 0, output, required - 1]
+            ),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_INSUFFICIENT_BUFFER);
+        assert_eq!(emu.maps.read_byte(output), Some(0xa5));
+        assert_eq!(
+            helpers::call_winapi_export(
+                &mut emu,
+                library,
+                name,
+                &[LOCALE_USER_DEFAULT, 0, 0, 0, output, required]
+            ),
+            required
+        );
+        assert_eq!(
+            if wide {
+                emu.maps.read_wide_string(output)
+            } else {
+                emu.maps.read_string(output)
+            },
+            text
+        );
+        assert_eq!(
+            emu.maps
+                .read_byte(output + required * if wide { 2 } else { 1 }),
+            Some(0xa5)
+        );
+    }
+    for (name, wide) in [("LCMapStringA", false), ("LCMapStringW", true)] {
+        if wide {
+            emu.maps.write_wide_string(data, "mixed");
+        } else {
+            emu.maps.write_string(data, "mixed");
+        }
+        assert_eq!(
+            helpers::call_winapi_export(
+                &mut emu,
+                "kernel32.dll",
+                name,
+                &[
+                    LOCALE_USER_DEFAULT,
+                    LCMAP_UPPERCASE as u64,
+                    data,
+                    u32::MAX as u64,
+                    output,
+                    6
+                ]
+            ),
+            6
+        );
+        assert_eq!(
+            if wide {
+                emu.maps.read_wide_string(output)
+            } else {
+                emu.maps.read_string(output)
+            },
+            "MIXED"
+        );
+    }
+}
+
+#[test]
+fn wsprintf_aw_reads_variadic_slots_without_callee_cleanup() {
+    helpers::setup();
+    for is64 in [false, true] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        for wide in [false, true] {
+            let format = "%s %u %08X %d";
+            let text = if wide { "hello Ж" } else { "hello" };
+            let string = data + 0x100;
+            let output = data + 0x400;
+            if wide {
+                emu.maps.write_wide_string(data, format);
+                emu.maps.write_wide_string(string, text);
+            } else {
+                emu.maps.write_string(data, format);
+                emu.maps.write_string(string, text);
+            }
+            let api = if wide { "wsprintfW" } else { "wsprintfA" };
+            let arguments = [output, data, string, 7, 42, (-3i32) as u32 as u64];
+            let stack = emu.regs().rsp;
+            if is64 {
+                helpers::call_winapi_export(&mut emu, "user32.dll", api, &arguments);
+            } else {
+                let words: Vec<u32> = arguments.iter().map(|&arg| arg as u32).collect();
+                helpers::call_winapi32(
+                    &mut emu,
+                    |e| helpers::invoke_winapi_export(e, "user32.dll", api),
+                    &words,
+                );
+                assert_eq!(
+                    emu.regs().rsp,
+                    stack - (words.len() * size_of::<u32>()) as u64
+                );
+                for _ in &words {
+                    emu.stack_pop32(false);
+                }
+            }
+            let actual = if wide {
+                emu.maps.read_wide_string(output)
+            } else {
+                emu.maps.read_string(output)
+            };
+            assert_eq!(actual, format!("{text} 7 0000002A -3"));
+            assert_eq!(emu.regs().get_eax() as usize, actual.encode_utf16().count());
+            assert_eq!(emu.regs().rsp, stack);
+        }
+    }
+}

@@ -1,12 +1,13 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn SHGetKnownFolderItem(emu: &mut emu::Emu) {
     let rfid = emu.regs().rcx;
     let flags = emu.regs().rdx;
     let htoken = emu.regs().r8;
     let riid = emu.regs().r9;
-    let ppv = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let ppv = WinApiAbi::arg(emu, 4);
     let hndl = helper::handler_create("IShellItem://knownfolder");
     if ppv != 0 {
         emu.maps.write_qword(ppv, hndl);

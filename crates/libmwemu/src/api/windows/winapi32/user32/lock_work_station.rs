@@ -13,5 +13,5 @@ pub fn LockWorkStation(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("lockworkstation");
-    stdcall_ret(emu, 1);
+    stdcall_ret(emu, 0);
 }

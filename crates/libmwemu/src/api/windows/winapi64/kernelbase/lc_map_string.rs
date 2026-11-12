@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn LCMapStringA(emu: &mut emu::Emu) {
     let _locale = emu.regs().rcx as u32;
     let flags = emu.regs().rdx as u32;
     let src_ptr = emu.regs().r8;
     let _src_len = emu.regs().r9 as i32;
-    let dst_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+    let dst_ptr = WinApiAbi::arg(emu, 4);
+    let dst_len = WinApiAbi::arg(emu, 5) as i32;
     let src = if src_ptr != 0 {
         emu.maps.read_string(src_ptr)
     } else {
@@ -39,8 +40,8 @@ pub fn LCMapStringW(emu: &mut emu::Emu) {
     let flags = emu.regs().rdx as u32;
     let src_ptr = emu.regs().r8;
     let src_len = emu.regs().r9 as i32;
-    let dst_ptr = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as i32;
+    let dst_ptr = WinApiAbi::arg(emu, 4);
+    let dst_len = WinApiAbi::arg(emu, 5) as i32;
     let src = if src_ptr != 0 {
         emu.maps.read_wide_string(src_ptr)
     } else {

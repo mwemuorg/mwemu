@@ -22,7 +22,4 @@ pub fn fread(emu: &mut emu::Emu) {
     }
     helper::handler_set_eof(fp);
     emu.regs_mut().rax = 0;
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
 }

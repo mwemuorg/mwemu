@@ -1,12 +1,13 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn MoveWindow(emu: &mut emu::Emu) {
     let hwnd = emu.regs().rcx;
     let x = emu.regs().rdx as i32;
     let y = emu.regs().r8 as i32;
     let width = emu.regs().r9 as i32;
-    let height = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as i32;
-    let repaint = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let height = WinApiAbi::arg(emu, 4) as i32;
+    let repaint = WinApiAbi::arg(emu, 5);
     log_red!(
         emu,
         "user32!MoveWindow hwnd:0x{:x} x:{} y:{} w:{} h:{} repaint:{}",

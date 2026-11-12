@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn SetSecurityInfo(emu: &mut emu::Emu) {
     let p0 = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -16,9 +17,7 @@ pub fn SetSecurityInfo(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    for _ in 0..8 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 7);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }

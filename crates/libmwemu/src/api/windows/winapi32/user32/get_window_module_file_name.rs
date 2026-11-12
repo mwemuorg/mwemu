@@ -17,29 +17,18 @@ pub fn GetWindowModuleFileName(emu: &mut emu::Emu) {
 }
 
 pub fn GetWindowModuleFileNameA(emu: &mut emu::Emu) {
+    get_window_module_file_name(emu, "GetWindowModuleFileNameA");
+}
+
+fn get_window_module_file_name(emu: &mut emu::Emu, api: &str) {
     let a0 = arg(emu, 0) as u64;
     let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "user32!GetWindowModuleFileNameA arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
+    log_red!(emu, "user32!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
     stdcall_ret(emu, 3);
 }
 
 pub fn GetWindowModuleFileNameW(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "user32!GetWindowModuleFileNameW arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 3);
+    get_window_module_file_name(emu, "GetWindowModuleFileNameW");
 }

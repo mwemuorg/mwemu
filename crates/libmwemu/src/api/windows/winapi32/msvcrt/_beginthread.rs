@@ -6,7 +6,4 @@ pub fn _beginthread(emu: &mut emu::Emu) {
     log_red!(emu, "msvcrt!_beginthread start:0x{:x}", start);
     let hndl = helper::handler_create("msvcrt://_beginthread");
     emu.regs_mut().rax = hndl;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

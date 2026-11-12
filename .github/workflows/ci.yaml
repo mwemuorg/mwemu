@@ -81,7 +81,7 @@ jobs:
 
       - name: Check Windows API module coverage
         run: |
-          python3 scripts/test_api_modules.py
+          python3 scripts/check_api_modules.py --self-test
           python3 scripts/check_api_modules.py --target x86_64-unknown-linux-gnu
 
   test:

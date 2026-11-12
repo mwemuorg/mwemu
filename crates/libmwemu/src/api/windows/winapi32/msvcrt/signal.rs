@@ -10,7 +10,4 @@ pub fn signal(emu: &mut emu::Emu) {
     }
     helper::advance_tick(emu, 1);
     emu.regs_mut().rax = 1;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

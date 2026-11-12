@@ -7,8 +7,6 @@ pub fn _time32(emu: &mut emu::Emu) {
         emu.maps.write_dword(timer_ptr, time_val);
     }
     log_red!(emu, "msvcrt!_time32 => {}", time_val);
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = time_val as u64;
 }

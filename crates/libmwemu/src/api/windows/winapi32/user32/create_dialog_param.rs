@@ -13,7 +13,7 @@ pub fn CreateDialogParamA(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createdialogparama");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }
 
 pub fn CreateDialogParamW(emu: &mut emu::Emu) {
@@ -26,5 +26,5 @@ pub fn CreateDialogParamW(emu: &mut emu::Emu) {
         a1
     );
     emu.regs_mut().rax = helper::handler_create("createdialogparamw");
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 5);
 }

@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::system::FORMAT_MESSAGE_ALLOCATE_BUFFER;
 
 pub fn FormatMessageA(emu: &mut emu::Emu) {
@@ -6,8 +7,8 @@ pub fn FormatMessageA(emu: &mut emu::Emu) {
     let _source = emu.regs().rdx;
     let msg_id = emu.regs().r8 as u32;
     let _lang_id = emu.regs().r9;
-    let lp_buffer = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let n_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let lp_buffer = WinApiAbi::arg(emu, 4);
+    let n_size = WinApiAbi::arg(emu, 5);
 
     log_red!(
         emu,
@@ -81,8 +82,8 @@ pub fn FormatMessageW(emu: &mut emu::Emu) {
     let _source = emu.regs().rdx;
     let msg_id = emu.regs().r8 as u32;
     let _lang_id = emu.regs().r9;
-    let lp_buffer = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let n_size = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
+    let lp_buffer = WinApiAbi::arg(emu, 4);
+    let n_size = WinApiAbi::arg(emu, 5);
 
     log_red!(
         emu,

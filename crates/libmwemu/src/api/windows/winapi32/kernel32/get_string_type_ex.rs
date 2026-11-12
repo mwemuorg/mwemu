@@ -1,23 +1,20 @@
 use crate::emu;
+use crate::winapi::common::strings;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetStringTypeExA(emu: &mut emu::Emu) {
+    get_string_type_ex(emu, "GetStringTypeExA", false);
+}
+
+fn get_string_type_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
     let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
     let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_string(str_ptr);
-    log_red!(emu, "kernel32!GetStringTypeExA '{}'  0x{:x}", s, arg2);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    let s = strings::read_text(emu, str_ptr, wide);
+    log_red!(emu, "kernel32!{api} '{}'  0x{:x}", s, arg2);
+    stdcall_ret(emu, 5);
     emu.regs_mut().rax = 1;
 }
 
 pub fn GetStringTypeExW(emu: &mut emu::Emu) {
-    let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let arg2 = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let s = emu.maps.read_wide_string(str_ptr);
-    log_red!(emu, "kernel32!GetStringTypeExW '{}'  0x{:x}", s, arg2);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    get_string_type_ex(emu, "GetStringTypeExW", true);
 }

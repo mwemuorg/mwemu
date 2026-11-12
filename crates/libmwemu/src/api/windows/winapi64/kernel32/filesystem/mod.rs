@@ -85,9 +85,9 @@ pub use volume::*;
 mod file_time;
 pub use file_time::*;
 
-#[path = "../query_dos_device_w.rs"]
-mod query_dos_device_w;
-pub use query_dos_device_w::*;
+#[path = "../query_dos_device.rs"]
+mod query_dos_device;
+pub use query_dos_device::*;
 
 #[path = "../are_file_api_is_ansi.rs"]
 mod are_file_api_is_ansi;
@@ -109,9 +109,9 @@ pub use file_time_to_system_time::*;
 mod find_close;
 pub use find_close::*;
 
-#[path = "../find_first_file_ex_w.rs"]
-mod find_first_file_ex_w;
-pub use find_first_file_ex_w::*;
+#[path = "../find_first_file_ex.rs"]
+mod find_first_file_ex;
+pub use find_first_file_ex::*;
 
 #[path = "../get_file_type.rs"]
 mod get_file_type;
@@ -157,6 +157,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "DisconnectNamedPipe" => kernel32::DisconnectNamedPipe(emu),
         "FindClose" => kernel32::FindClose(emu),
         "FindFirstFileA" => kernel32::FindFirstFileA(emu),
+        "FindFirstFileExA" => kernel32::FindFirstFileExA(emu),
         "FindFirstFileExW" => kernel32::FindFirstFileExW(emu),
         "FindFirstFileW" => kernel32::FindFirstFileW(emu),
         "FindNextFileA" => kernel32::FindNextFileA(emu),
@@ -181,6 +182,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetTempPathW" => kernel32::GetTempPathW(emu),
         "GetWindowsDirectoryA" => kernel32::GetWindowsDirectoryA(emu),
         "GetWindowsDirectoryW" => kernel32::GetWindowsDirectoryW(emu),
+        "QueryDosDeviceA" => kernel32::QueryDosDeviceA(emu),
         "QueryDosDeviceW" => kernel32::QueryDosDeviceW(emu),
         "MoveFileA" => kernel32::MoveFileA(emu),
         "MoveFileW" => kernel32::MoveFileW(emu),
@@ -199,6 +201,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetShortPathNameW" => kernel32::GetShortPathNameW(emu),
         "SearchPathA" => kernel32::SearchPathA(emu),
         "SearchPathW" => kernel32::SearchPathW(emu),
+        "CopyFileExA" => kernel32::CopyFileExA(emu),
         "CopyFileExW" => kernel32::CopyFileExW(emu),
         "MoveFileExA" => kernel32::MoveFileExA(emu),
         "MoveFileExW" => kernel32::MoveFileExW(emu),

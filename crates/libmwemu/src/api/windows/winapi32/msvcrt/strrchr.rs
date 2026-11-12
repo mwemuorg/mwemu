@@ -10,8 +10,6 @@ pub fn strrchr(emu: &mut emu::Emu) {
         None => 0,
     };
     log_red!(emu, "msvcrt!strrchr '{}' '{}' => 0x{:x}", s, c, result);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = result;
 }

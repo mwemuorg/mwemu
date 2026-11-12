@@ -1,6 +1,7 @@
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi64;
 use crate::winapi::window_table;
 use crate::windows::constants::errors::*;
@@ -2055,11 +2056,7 @@ fn title_arg(emu: &mut emu::Emu, ptr: u64, wide: bool) -> Option<String> {
 }
 
 fn read_text(emu: &mut emu::Emu, ptr: u64, wide: bool) -> String {
-    if wide {
-        emu.maps.read_wide_string(ptr)
-    } else {
-        emu.maps.read_string(ptr)
-    }
+    strings::read_text(emu, ptr, wide)
 }
 
 /*
@@ -2141,16 +2138,10 @@ fn find_window(
     emu.regs_mut().rax = hwnd;
 }
 
-/// hWndParent is CreateWindowEx's 9th argument.
-const CREATE_WINDOW_PARENT_OFF: u64 = 0x40;
-
 /// Shared body of CreateWindowEx{A,W}: records the window, HWND in rax.
 fn create_window(emu: &mut emu::Emu, api: &str, wide: bool) {
     let (class_ptr, title_ptr) = (emu.regs().rdx, emu.regs().r8);
-    let parent = emu
-        .maps
-        .read_qword(emu.regs().rsp + CREATE_WINDOW_PARENT_OFF)
-        .unwrap_or(0);
+    let parent = WinApiAbi::arg(emu, 8);
     let class = class_arg(emu, class_ptr, wide).unwrap_or_default();
     let title = title_arg(emu, title_ptr, wide).unwrap_or_default();
     let hwnd = window_table::create_window(parent, &class, &title);

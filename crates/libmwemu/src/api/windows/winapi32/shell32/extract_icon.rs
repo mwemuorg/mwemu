@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn ExtractIconA(emu: &mut emu::Emu) {
     let str_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -12,9 +13,7 @@ pub fn ExtractIconA(emu: &mut emu::Emu) {
     log_red!(emu, "shell32!ExtractIconA '{}' arg2:0x{:x}", s, arg2);
     let handle = helper::handler_create("extracticona");
     emu.regs_mut().rax = handle;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
 }
 
 pub fn ExtractIconW(emu: &mut emu::Emu) {
@@ -28,7 +27,5 @@ pub fn ExtractIconW(emu: &mut emu::Emu) {
     log_red!(emu, "shell32!ExtractIconW '{}' arg2:0x{:x}", s, arg2);
     let handle = helper::handler_create("extracticonw");
     emu.regs_mut().rax = handle;
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 3);
 }

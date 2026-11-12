@@ -1,27 +1,23 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn DdeInitializeA(emu: &mut emu::Emu) {
+    dde_initialize(emu, "DdeInitializeA", false);
+}
+
+fn dde_initialize(emu: &mut emu::Emu, api: &str, wide: bool) {
     let p0 = emu.regs().rcx;
     let p1 = emu.regs().rdx;
     let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_string(p0)
+        strings::read_text(emu, p0, wide)
     } else {
         format!("0x{:x}", p0)
     };
-    log_red!(emu, "user32!DdeInitializeA '{}'  p1:0x{:x}", s, p1);
+    log_red!(emu, "user32!{api} '{}'  p1:0x{:x}", s, p1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
 }
 
 pub fn DdeInitializeW(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let s = if p0 != 0 && p0 > 0xffff {
-        emu.maps.read_wide_string(p0)
-    } else {
-        format!("0x{:x}", p0)
-    };
-    log_red!(emu, "user32!DdeInitializeW '{}'  p1:0x{:x}", s, p1);
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    dde_initialize(emu, "DdeInitializeW", true);
 }

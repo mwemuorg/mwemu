@@ -1,12 +1,18 @@
+mod free_addr_info;
+pub use free_addr_info::{FreeAddrInfoW, freeaddrinfo};
+mod get_addr_info;
+pub use get_addr_info::{GetAddrInfoW, getaddrinfo};
+mod get_host_name;
+pub use get_host_name::{GetHostNameW, gethostname};
+mod get_name_info;
 use crate::api::windows::common::fallback;
 use crate::emu;
+pub use get_name_info::{GetNameInfoW, getnameinfo};
 //use crate::endpoint;
 use crate::winapi::winapi64;
 
 mod free_addr_info_ex;
 pub use free_addr_info_ex::*;
-mod free_addr_info_w;
-pub use free_addr_info_w::FreeAddrInfoW;
 mod get_addr_info_ex;
 pub use get_addr_info_ex::GetAddrInfoExA;
 mod get_addr_info_ex_cancel;
@@ -14,12 +20,6 @@ pub use get_addr_info_ex_cancel::GetAddrInfoExCancel;
 mod get_addr_info_ex_overlapped_result;
 pub use get_addr_info_ex::GetAddrInfoExW;
 pub use get_addr_info_ex_overlapped_result::GetAddrInfoExOverlappedResult;
-mod get_addr_info_w;
-pub use get_addr_info_w::GetAddrInfoW;
-mod get_host_name_w;
-pub use get_host_name_w::GetHostNameW;
-mod get_name_info_w;
-pub use get_name_info_w::GetNameInfoW;
 mod process_socket_notifications;
 pub use process_socket_notifications::ProcessSocketNotifications;
 mod set_addr_info_ex;
@@ -297,14 +297,8 @@ mod wah_write_lsp_event;
 pub use wah_write_lsp_event::WahWriteLSPEvent;
 mod __wsafd_is_set;
 pub use __wsafd_is_set::__WSAFDIsSet;
-mod freeaddrinfo;
-pub use freeaddrinfo::freeaddrinfo;
 mod gethostbyaddr;
 pub use gethostbyaddr::gethostbyaddr;
-mod gethostname;
-pub use gethostname::gethostname;
-mod getnameinfo;
-pub use getnameinfo::getnameinfo;
 mod getpeername;
 pub use getpeername::getpeername;
 mod getprotobyname;
@@ -337,25 +331,12 @@ mod shutdown;
 pub use shutdown::shutdown;
 mod wsc_install_provider_and_chains;
 pub use wsc_install_provider_and_chains::WSCInstallProviderAndChains;
-mod get_sock_name;
-use get_sock_name::GetSockName;
-mod wsa_accept_2;
-use wsa_accept_2::WsaAccept;
-mod wsa_connect_2;
-use wsa_connect_2::WsaConnect;
-mod wsa_htons_2;
-use wsa_htons_2::WsaHtons;
-mod wsa_recv_2;
-use wsa_recv_2::WsaRecv;
-mod wsa_recv_from_2;
-use wsa_recv_from_2::WsaRecvFrom;
 mod wsa_send;
-use wsa_send::WsaSend;
+use wsa_send::WSASend;
 mod wsa_socket;
-use wsa_socket::WSASocketA;
-pub use wsa_socket::WsaSocketA;
+pub use wsa_socket::WSASocketA;
 mod wsa_startup;
-pub use wsa_startup::{WSAStartup, WsaStartup};
+pub use wsa_startup::WSAStartup;
 mod accept;
 pub use accept::accept;
 mod bind;
@@ -364,8 +345,6 @@ mod closesocket;
 pub use closesocket::closesocket;
 mod connect;
 pub use connect::connect;
-mod getaddrinfo;
-pub use getaddrinfo::getaddrinfo;
 mod gethostbyname;
 pub use gethostbyname::gethostbyname;
 mod getsockopt;
@@ -399,7 +378,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "recv" => recv(emu),
         "send" => send(emu),
         "socket" => socket(emu),
-        "WsaHtons" => WsaHtons(emu),
         "htons" => htons(emu),
         "inet_addr" => inet_addr(emu),
         "bind" => bind(emu),
@@ -408,16 +386,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "closesocket" => closesocket(emu),
         "setsockopt" => setsockopt(emu),
         "getsockopt" => getsockopt(emu),
-        "WsaAccept" => WsaAccept(emu),
-        "GetSockName" => GetSockName(emu),
         "gethostbyname" => gethostbyname(emu),
         "getaddrinfo" => getaddrinfo(emu),
         "sendto" => sendto(emu),
         "recvfrom" => recvfrom(emu),
-        "WsaRecv" => WsaRecv(emu),
-        "WsaRecvFrom" => WsaRecvFrom(emu),
-        "WsaConnect" => WsaConnect(emu),
-        "WsaSend" | "WSASend" => WsaSend(emu),
+        "WSASend" => WSASend(emu),
         "FreeAddrInfoEx" => FreeAddrInfoEx(emu),
         "FreeAddrInfoExW" => FreeAddrInfoExW(emu),
         "FreeAddrInfoW" => FreeAddrInfoW(emu),
@@ -596,8 +569,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "select" => select(emu),
         "shutdown" => shutdown(emu),
         "WSCInstallProviderAndChains" => WSCInstallProviderAndChains(emu),
-        "WsaSocketA" => WsaSocketA(emu),
-        "WsaStartup" => WsaStartup(emu),
 
         _ => return fallback::unimplemented(addr, api, emu),
     }

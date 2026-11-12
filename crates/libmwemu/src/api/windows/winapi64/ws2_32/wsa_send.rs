@@ -1,6 +1,6 @@
 use crate::emu;
 
-pub(super) fn WsaSend(emu: &mut emu::Emu) {
+pub(super) fn WSASend(emu: &mut emu::Emu) {
     let sock = emu.regs().rcx;
     let buffers = emu.regs().rdx;
     let count = emu.regs().r8 as u32;

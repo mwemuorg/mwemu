@@ -2,11 +2,15 @@ use crate::emu;
 use crate::windows::constants::errors::*;
 
 pub fn GetAtomNameA(emu: &mut emu::Emu) {
+    get_atom_name(emu, "GetAtomNameA");
+}
+
+fn get_atom_name(emu: &mut emu::Emu, api: &str) {
     let _nAtom = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
     let _lpBuffer = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
     let _nSize = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
 
-    log_red!(emu, "kernel32!GetAtomNameA");
+    log_red!(emu, "kernel32!{api}");
 
     emu.regs_mut().rax = ERROR_SUCCESS;
 
@@ -16,15 +20,5 @@ pub fn GetAtomNameA(emu: &mut emu::Emu) {
 }
 
 pub fn GetAtomNameW(emu: &mut emu::Emu) {
-    let _nAtom = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-    let _lpBuffer = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
-    let _nSize = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
-
-    log_red!(emu, "kernel32!GetAtomNameW");
-
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    get_atom_name(emu, "GetAtomNameW");
 }

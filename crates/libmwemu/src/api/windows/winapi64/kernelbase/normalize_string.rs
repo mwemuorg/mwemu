@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn NormalizeString(emu: &mut emu::Emu) {
     let norm_form = emu.regs().rcx as u32;
     let src_ptr = emu.regs().rdx;
     let src_len = emu.regs().r8 as i32;
     let dst_ptr = emu.regs().r9;
-    let dst_len = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0) as i32;
+    let dst_len = WinApiAbi::arg(emu, 4) as i32;
     let src = emu.maps.read_wide_string(src_ptr);
     let actual_len = (src.len() + 1) as i32;
     if dst_len == 0 {

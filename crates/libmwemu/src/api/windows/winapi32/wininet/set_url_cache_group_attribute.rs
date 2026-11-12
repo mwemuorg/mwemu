@@ -3,29 +3,18 @@ use crate::winapi::winapi32::arg;
 use crate::winapi::winapi32::stdcall_ret;
 
 pub fn SetUrlCacheGroupAttributeA(emu: &mut emu::Emu) {
+    set_url_cache_group_attribute(emu, "SetUrlCacheGroupAttributeA");
+}
+
+fn set_url_cache_group_attribute(emu: &mut emu::Emu, api: &str) {
     let a0 = arg(emu, 0) as u64;
     let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "wininet!SetUrlCacheGroupAttributeA arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
+    log_red!(emu, "wininet!{api} arg0:0x{:x} arg1:0x{:x}", a0, a1);
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    stdcall_ret(emu, 6);
 }
 
 pub fn SetUrlCacheGroupAttributeW(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
-    log_red!(
-        emu,
-        "wininet!SetUrlCacheGroupAttributeW arg0:0x{:x} arg1:0x{:x}",
-        a0,
-        a1
-    );
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    set_url_cache_group_attribute(emu, "SetUrlCacheGroupAttributeW");
 }

@@ -1,6 +1,7 @@
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
@@ -8,10 +9,10 @@ pub fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
     let pb_password = emu.regs().rdx;
     let cb_password = emu.regs().r8 as usize;
     let pb_salt = emu.regs().r9;
-    let cb_salt = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as usize;
-    let iterations = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(1);
-    let pb_derived_key = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let cb_derived_key = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0) as usize;
+    let cb_salt = WinApiAbi::arg(emu, 4) as usize;
+    let iterations = WinApiAbi::arg(emu, 5);
+    let pb_derived_key = WinApiAbi::arg(emu, 6);
+    let cb_derived_key = WinApiAbi::arg(emu, 7) as usize;
 
     if pb_derived_key != 0 && cb_derived_key > 0 {
         let pwd = if pb_password != 0 && cb_password > 0 {

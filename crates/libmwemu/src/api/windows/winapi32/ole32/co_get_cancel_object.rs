@@ -8,5 +8,5 @@ pub fn CoGetCancelObject(emu: &mut emu::Emu) {
     let _a2 = arg(emu, 2);
     log_red!(emu, "ole32!CoGetCancelObject a0:0x{:x} a1:0x{:x}", _a0, _a1);
     emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 6);
+    stdcall_ret(emu, 3);
 }

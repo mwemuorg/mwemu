@@ -1,13 +1,14 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn ToUnicodeEx(emu: &mut emu::Emu) {
     let virt_key = emu.regs().rcx as u32;
     let scan_code = emu.regs().rdx as u32;
     let _lp_key_state = emu.regs().r8;
     let pwsz_buff = emu.regs().r9;
-    let cch_buff = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0) as i32;
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let _hkl = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0);
+    let cch_buff = WinApiAbi::arg(emu, 4) as i32;
+    let _flags = WinApiAbi::arg(emu, 5);
+    let _hkl = WinApiAbi::arg(emu, 6);
     let ch = if (0x20..=0x7e).contains(&virt_key) {
         virt_key as u16
     } else {

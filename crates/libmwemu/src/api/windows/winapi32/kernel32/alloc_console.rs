@@ -7,7 +7,4 @@ pub fn AllocConsole(emu: &mut emu::Emu) {
     emu.set_last_error(0);
     let handle = helper::handler_create("allocconsole");
     emu.regs_mut().rax = handle;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

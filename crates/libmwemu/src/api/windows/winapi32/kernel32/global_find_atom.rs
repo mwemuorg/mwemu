@@ -1,12 +1,17 @@
 use crate::emu;
+use crate::winapi::common::strings;
 use crate::windows::constants::errors::*;
 
 pub fn GlobalFindAtomA(emu: &mut emu::Emu) {
+    global_find_atom(emu, "GlobalFindAtomA", false);
+}
+
+fn global_find_atom(emu: &mut emu::Emu, api: &str, wide: bool) {
     let lpString = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
 
-    let lpString = emu.maps.read_string(lpString as u64);
+    let lpString = strings::read_text(emu, lpString as u64, wide);
 
-    log_red!(emu, "kernel32!GlobalFindAtomA {}", lpString);
+    log_red!(emu, "kernel32!{api} {}", lpString);
 
     emu.regs_mut().rax = ERROR_SUCCESS;
 
@@ -16,15 +21,5 @@ pub fn GlobalFindAtomA(emu: &mut emu::Emu) {
 }
 
 pub fn GlobalFindAtomW(emu: &mut emu::Emu) {
-    let lpString = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
-
-    let lpString = emu.maps.read_wide_string(lpString as u64);
-
-    log_red!(emu, "kernel32!GlobalFindAtomW {}", lpString);
-
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    global_find_atom(emu, "GlobalFindAtomW", true);
 }

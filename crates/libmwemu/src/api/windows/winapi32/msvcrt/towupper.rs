@@ -11,7 +11,4 @@ pub fn towupper(emu: &mut emu::Emu) {
     }
     emu.set_last_error(0);
     emu.regs_mut().rax = upper as u32 as u64;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
 }

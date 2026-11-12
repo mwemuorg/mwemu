@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptGetProvParam(emu: &mut emu::Emu) {
     let _hprov = emu.regs().rcx;
     let param = emu.regs().rdx;
     let data_ptr = emu.regs().r8;
     let data_len_ptr = emu.regs().r9;
-    let _flags = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let _flags = WinApiAbi::arg(emu, 4);
     log_red!(emu, "advapi32!CryptGetProvParam param:{}", param);
     match param {
         4 => {

@@ -10,8 +10,6 @@ pub fn wcsftime(emu: &mut emu::Emu) {
         emu.maps.write_wide_string(wcs, &fmt);
     }
     log_red!(emu, "msvcrt!wcsftime fmt:'{}' => {}", fmt, fmt.len());
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+
     emu.regs_mut().rax = fmt.len() as u64;
 }

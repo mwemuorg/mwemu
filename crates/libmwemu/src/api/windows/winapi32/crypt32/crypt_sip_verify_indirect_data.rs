@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CryptSIPVerifyIndirectData(emu: &mut emu::Emu) {
     let p_subject_info = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
@@ -13,7 +14,5 @@ pub fn CryptSIPVerifyIndirectData(emu: &mut emu::Emu) {
     );
     emu.set_last_error(0);
     emu.regs_mut().rax = 1;
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    stdcall_ret(emu, 2);
 }

@@ -1,5 +1,6 @@
 use crate::emu::Emu;
 use crate::winapi::common::memory::Call;
+use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::*;
 
@@ -339,4 +340,179 @@ pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
     };
     handler(emu, &format!("{library}!{api}"));
     true
+}
+
+/// Read an API string using the emulator's existing ANSI or UTF-16 decoder.
+pub(crate) fn read_text(emu: &Emu, address: u64, wide: bool) -> String {
+    if wide {
+        emu.maps.read_wide_string(address)
+    } else {
+        emu.maps.read_string(address)
+    }
+}
+
+pub(crate) fn encode_text(text: &str, wide: bool) -> Vec<u8> {
+    if wide {
+        text.encode_utf16().flat_map(u16::to_le_bytes).collect()
+    } else {
+        text.as_bytes().to_vec()
+    }
+}
+
+/// Size-query and bounded output for a null-terminated API string.
+pub(crate) fn write_text(
+    emu: &mut Emu,
+    address: u64,
+    capacity: i32,
+    text: &str,
+    wide: bool,
+) -> u64 {
+    let bytes = encode_text(&format!("{text}\0"), wide);
+    let count = bytes.len()
+        / if wide {
+            size_of::<u16>()
+        } else {
+            size_of::<u8>()
+        };
+    if capacity == 0 {
+        return count as u64;
+    }
+    let error = if capacity < 0 || address == 0 {
+        ERROR_INVALID_PARAMETER
+    } else if (capacity as usize) < count {
+        ERROR_INSUFFICIENT_BUFFER
+    } else if !emu.maps.validate_write_range(address, bytes.len() as u64)
+        || !emu.maps.write_bytes(address, &bytes)
+    {
+        ERROR_NOACCESS
+    } else {
+        return count as u64;
+    };
+    emu.set_last_error(error);
+    0
+}
+
+pub(crate) fn compare_ignore_case(emu: &mut Emu, api: &str, wide: bool) {
+    let left = read_text(emu, Call::Api.arg(emu, 0), wide).to_lowercase();
+    let right = read_text(emu, Call::Api.arg(emu, 1), wide).to_lowercase();
+    let result = match left.cmp(&right) {
+        std::cmp::Ordering::Less => -1i32,
+        std::cmp::Ordering::Equal => 0,
+        std::cmp::Ordering::Greater => 1,
+    };
+    log_red!(emu, "kernel32!{} '{}' '{}' ={}", api, left, right, result);
+    Call::Api.finish(emu, result as u32 as u64, 2);
+}
+
+/// Unbounded API string output. Callers with a capacity must check it first or
+/// use write_text; this adapter preserves the existing maps writer semantics.
+pub(crate) fn write_string(emu: &mut Emu, address: u64, text: &str, wide: bool) {
+    if wide {
+        emu.maps.write_wide_string(address, text);
+    } else {
+        emu.maps.write_string(address, text);
+    }
+}
+
+/// The integer/string subset of wsprintf. Unlike wvsprintf, its trailing
+/// arguments are passed directly by the caller, not through a va_list pointer.
+pub(crate) fn wsprintf(emu: &mut Emu, api: &str, wide: bool) {
+    const BUFFER_CHARACTERS: i32 = 1024;
+    let destination = WinApiAbi::arg(emu, 0);
+    let format = read_text(emu, WinApiAbi::arg(emu, 1), wide);
+    let mut position = 2;
+    let mut characters = format.chars().peekable();
+    let mut result = String::new();
+    while let Some(character) = characters.next() {
+        if character != '%' {
+            result.push(character);
+            continue;
+        }
+        if characters.peek() == Some(&'%') {
+            characters.next();
+            result.push('%');
+            continue;
+        }
+        let left_justify = characters.next_if_eq(&'-').is_some();
+        let zero_pad = characters.next_if_eq(&'0').is_some();
+        let mut width = 0usize;
+        while let Some(digit) = characters.peek().and_then(|c| c.to_digit(10)) {
+            width = (width * 10 + digit as usize).min(BUFFER_CHARACTERS as usize);
+            characters.next();
+        }
+        let mut precision = None;
+        if characters.next_if_eq(&'.').is_some() {
+            let mut length = 0usize;
+            while let Some(digit) = characters.peek().and_then(|c| c.to_digit(10)) {
+                length = (length * 10 + digit as usize).min(BUFFER_CHARACTERS as usize);
+                characters.next();
+            }
+            precision = Some(length);
+        }
+        let modifier = characters.next_if(|c| matches!(c, 'h' | 'l' | 'w'));
+        let Some(specifier) = characters.next() else {
+            break;
+        };
+        let argument = WinApiAbi::arg(emu, position);
+        position += 1;
+        let text_wide = match modifier {
+            Some('h') => false,
+            Some('l' | 'w') => true,
+            _ => {
+                if matches!(specifier, 'S' | 'C') {
+                    !wide
+                } else {
+                    wide
+                }
+            }
+        };
+        let mut field = match specifier {
+            's' | 'S' => read_text(emu, argument, text_wide),
+            'c' | 'C' => char::from_u32(if text_wide {
+                argument as u16 as u32
+            } else {
+                argument as u8 as u32
+            })
+            .unwrap_or(char::REPLACEMENT_CHARACTER)
+            .to_string(),
+            'd' | 'i' => (argument as i32).to_string(),
+            'u' => (argument as u32).to_string(),
+            'x' => format!("{:x}", argument as u32),
+            'X' => format!("{:X}", argument as u32),
+            _ => {
+                result.push('%');
+                result.push(specifier);
+                continue;
+            }
+        };
+        if matches!(specifier, 's' | 'S')
+            && let Some(limit) = precision
+        {
+            field = field.chars().take(limit).collect();
+        }
+        let padding = width.saturating_sub(field.chars().count());
+        let fill = if zero_pad && !left_justify && !matches!(specifier, 's' | 'S' | 'c' | 'C') {
+            '0'
+        } else {
+            ' '
+        };
+        if !left_justify {
+            if fill == '0' && field.starts_with('-') {
+                result.push('-');
+                field.remove(0);
+            }
+            result.extend(std::iter::repeat_n(fill, padding));
+        }
+        result.push_str(&field);
+        if left_justify {
+            result.extend(std::iter::repeat_n(' ', padding));
+        }
+        if result.len() > BUFFER_CHARACTERS as usize * size_of::<u16>() {
+            break;
+        }
+    }
+    let written = write_text(emu, destination, BUFFER_CHARACTERS, &result, wide);
+    log_red!(emu, "user32!{} format:'{}' => '{}'", api, format, result);
+    // wsprintf is cdecl even when exported by user32.
+    WinApiAbi::set_ret(emu, written.saturating_sub(1));
 }

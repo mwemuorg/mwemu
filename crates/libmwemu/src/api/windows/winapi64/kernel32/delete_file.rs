@@ -1,31 +1,21 @@
 use crate::emu;
+use crate::winapi::common::strings;
 
 pub fn DeleteFileA(emu: &mut emu::Emu) {
+    delete_file(emu, "DeleteFileA", false);
+}
+
+fn delete_file(emu: &mut emu::Emu, api: &str, wide: bool) {
     let filename_ptr = emu.regs().rcx;
 
-    let filename = emu.maps.read_string(filename_ptr);
+    let filename = strings::read_text(emu, filename_ptr, wide);
 
-    log_red!(
-        emu,
-        "kernel32!DeleteFileA `{}` (stub: not deleting)",
-        filename
-    );
+    log_red!(emu, "kernel32!{api} `{}` (stub: not deleting)", filename);
 
     emu.set_last_error(0);
     emu.regs_mut().rax = 1; // Success
 }
 
 pub fn DeleteFileW(emu: &mut emu::Emu) {
-    let filename_ptr = emu.regs().rcx;
-
-    let filename = emu.maps.read_wide_string(filename_ptr);
-
-    log_red!(
-        emu,
-        "kernel32!DeleteFileW `{}` (stub: not deleting)",
-        filename
-    );
-
-    emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    delete_file(emu, "DeleteFileW", true);
 }

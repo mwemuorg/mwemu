@@ -1,11 +1,12 @@
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 
 pub fn CryptXmlGetAlgorithmInfo(emu: &mut emu::Emu) {
     let arg1 = emu.regs().rcx;
     let arg2 = emu.regs().rdx;
     let arg3 = emu.regs().r8;
     log_red!(emu, "crypt32!CryptXmlGetAlgorithmInfo arg1:0x{:x}", arg1);
-    let out_ptr = emu.regs().r8;
+    let out_ptr = WinApiAbi::arg(emu, 2);
     if out_ptr != 0 {
         emu.maps.write_qword(out_ptr, 0);
     }
