@@ -36,6 +36,10 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 12. avoid unwrap, expect, panic, etc
 
 
+## Skills
+
+- [windows-api-emulation](.agents/skills/windows-api-emulation/SKILL.md): Use when implementing, reviewing, or refactoring Windows API, NT API, or Windows CRT emulation handlers.
+
 ## Testing
 
 `cargo test` (if there is no test folder `make tests` will download it)
