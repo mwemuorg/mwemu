@@ -1,5 +1,7 @@
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
+use crate::windows::constants::errors::STATUS_ACCESS_VIOLATION;
+use crate::windows::constants::exceptions::*;
 use crate::{emu32, tests::helpers};
 
 const CODE: u64 = 0x400000;
@@ -26,7 +28,7 @@ fn emulator(handler: &[u8]) -> Emu {
         .unwrap();
     emu.maps.write_bytes(CODE, &[0x89, 0x08, 0x90]); // mov [eax], ecx; nop
     emu.maps.write_bytes(HANDLER, handler);
-    emu.maps.write_dword(REGISTRATION, u32::MAX);
+    emu.maps.write_dword(REGISTRATION, EXCEPTION_CHAIN_END);
     emu.maps.write_dword(REGISTRATION + 4, HANDLER as u32);
     emu.set_seh(REGISTRATION);
     emu.set_pc(CODE);
@@ -74,12 +76,17 @@ fn seh32_passes_windows_arguments_and_fault_time_context() {
     assert_eq!(argument(&emu, 2), REGISTRATION);
     assert!(emu.maps.is_mapped(argument(&emu, 4)));
     assert_ne!(record, context);
-    assert_eq!(dword(&emu, record), 0xc0000005);
+    assert_eq!(dword(&emu, record), STATUS_ACCESS_VIOLATION);
     assert_eq!(dword(&emu, record + 4), 0); // ExceptionFlags
     assert_eq!(dword(&emu, record + 8), 0); // nested ExceptionRecord
     assert_eq!(dword(&emu, record + 12), CODE);
-    assert_eq!(dword(&emu, record + 16), 0); // no supplied exception parameters
-    assert_eq!(dword(&emu, context), 0x10003);
+    assert_eq!(dword(&emu, record + 16), 2); // NumberParameters
+    assert_eq!(dword(&emu, record + 20), EXCEPTION_WRITE_FAULT); // write access
+    assert_eq!(dword(&emu, record + 24), 0); // faulting address
+    assert_eq!(
+        dword(&emu, context),
+        (WOW64_CONTEXT_CONTROL | WOW64_CONTEXT_INTEGER) as u64
+    );
     assert_eq!(dword(&emu, context + CONTEXT_EIP), CODE);
     assert_eq!(dword(&emu, context + CONTEXT_ESP), esp);
     assert_eq!(dword(&emu, context + CONTEXT_EFLAGS), 0x246);
@@ -138,7 +145,7 @@ fn seh32_helper_ret_does_not_finish_the_handler() {
 fn seh32_continue_search_calls_next_registration_with_same_records() {
     let mut emu = emulator(&[0xb8, 1, 0, 0, 0, 0xc3]); // return ContinueSearch
     emu.maps.write_dword(REGISTRATION, NEXT_REGISTRATION as u32);
-    emu.maps.write_dword(NEXT_REGISTRATION, u32::MAX);
+    emu.maps.write_dword(NEXT_REGISTRATION, EXCEPTION_CHAIN_END);
     emu.maps
         .write_dword(NEXT_REGISTRATION + 4, NEXT_HANDLER as u32);
     emu.maps.write_bytes(NEXT_HANDLER, &[0x31, 0xc0, 0xc3]);
@@ -199,7 +206,7 @@ fn seh32_nested_dispatch_restores_outer_handler_context() {
 
 #[test]
 fn seh32_exhausted_or_invalid_chain_stops_without_retrying_fault() {
-    for next in [0, u32::MAX, 0x900000] {
+    for next in [0, EXCEPTION_CHAIN_END, 0x900000] {
         let mut emu = emulator(&[0xb8, 1, 0, 0, 0, 0xc3]);
         emu.maps.write_dword(REGISTRATION, next);
         let esp = emu.regs().get_esp();

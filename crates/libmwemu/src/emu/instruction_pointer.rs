@@ -3,7 +3,11 @@ use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
 
 use crate::{
-    console::Console, emu::Emu, exception::types::ExceptionType, winapi::winapi32, winapi::winapi64,
+    console::Console,
+    emu::Emu,
+    exception::types::{ExceptionType, MemoryAccess},
+    winapi::winapi32,
+    winapi::winapi64,
 };
 
 impl Emu {
@@ -96,11 +100,11 @@ impl Emu {
                 if self.os.is_linux() {
                     return false;
                 }
-                // No PE64 (e.g. a Mach-O guest): there is no IAT to resolve against.
-                let Some(pe64) = self.pe64.as_ref() else {
-                    return false;
-                };
-                let import = pe64.import_addr_to_dll_and_name(addr);
+                let import = self
+                    .pe64
+                    .as_ref()
+                    .map(|pe| pe.import_addr_to_dll_and_name(addr))
+                    .unwrap_or_default();
                 return if !import.is_empty() {
                     let (dll, api) = import.split_once('!').unwrap_or(("", ""));
 
@@ -166,7 +170,13 @@ impl Emu {
                         addr,
                         self.filename
                     );
-                    self.exception(ExceptionType::SettingRipToNonMappedAddr);
+                    self.regs_mut().rip = addr;
+                    self.memory_exception(
+                        ExceptionType::SettingRipToNonMappedAddr,
+                        addr,
+                        1,
+                        MemoryAccess::Execute,
+                    );
                     false
                 };
             }
@@ -436,11 +446,11 @@ impl Emu {
                 if self.os.is_linux() {
                     return false;
                 }
-                // No PE32 (e.g. a Mach-O guest): there is no IAT to resolve against.
-                let Some(pe32) = self.pe32.as_ref() else {
-                    return false;
-                };
-                let api_name = pe32.import_addr_to_name(addr as u32);
+                let api_name = self
+                    .pe32
+                    .as_ref()
+                    .map(|pe| pe.import_addr_to_name(addr as u32))
+                    .unwrap_or_default();
                 return if !api_name.is_empty() {
                     // winapi emulation case
                     if self.cfg.emulate_winapi {
@@ -467,7 +477,13 @@ impl Emu {
                     true
                 } else {
                     log::error!("/!\\ setting eip to non mapped addr 0x{:x}", addr);
-                    self.exception(ExceptionType::SettingRipToNonMappedAddr);
+                    self.regs_mut().rip = addr;
+                    self.memory_exception(
+                        ExceptionType::SettingRipToNonMappedAddr,
+                        addr,
+                        1,
+                        MemoryAccess::Execute,
+                    );
                     false
                 };
             }

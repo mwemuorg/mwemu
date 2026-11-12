@@ -18,15 +18,11 @@
 use crate::context::context64::Context64;
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::windows::constants::errors::*;
+use crate::windows::constants::exceptions::*;
 
 const BLOCK_SIZE: u64 = 0x1000;
 const RECORD_OFF: u64 = 0x10;
 const CONTEXT_OFF: u64 = 0x100;
-const CONTEXT_FLAGS_OFF: u64 = 0x30;
-const CONTEXT_EFLAGS_OFF: u64 = 0x44;
-const CONTEXT_FULL: u32 = 0x0010_000b;
-pub const EXCEPTION_MAXIMUM_PARAMETERS: usize = 15;
 
 /// Dispatch a raised exception to the VEH list.
 /// Returns true when a handler answered EXCEPTION_CONTINUE_EXECUTION and the
@@ -117,6 +113,8 @@ fn write_context(emu: &mut emu::Emu, addr: u64) {
     let ctx = Context64::new(emu.regs());
     ctx.save(addr, &mut emu.maps);
     let eflags = emu.flags().dump();
-    emu.maps.write_dword(addr + CONTEXT_FLAGS_OFF, CONTEXT_FULL);
-    emu.maps.write_dword(addr + CONTEXT_EFLAGS_OFF, eflags);
+    emu.maps
+        .write_dword(addr + Context64::FLAGS_OFFSET, CONTEXT_FULL);
+    emu.maps
+        .write_dword(addr + Context64::EFLAGS_OFFSET, eflags);
 }

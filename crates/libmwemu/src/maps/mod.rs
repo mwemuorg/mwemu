@@ -491,21 +491,32 @@ impl Maps {
 
     /// Check every covered region before an operation mutates memory.
     pub fn can_access_range(&self, addr: u64, len: usize, required: Permission) -> bool {
+        self.first_inaccessible_address(addr, len, required)
+            .is_none()
+    }
+
+    pub(crate) fn first_inaccessible_address(
+        &self,
+        addr: u64,
+        len: usize,
+        required: Permission,
+    ) -> Option<u64> {
         let Some(end) = addr.checked_add(len as u64) else {
-            return false;
+            return Some(addr);
         };
         let mut cursor = addr;
         while cursor < end {
             let Some(mem) = self.get_mem_by_addr(cursor) else {
-                return false;
+                return Some(cursor);
             };
             let size = (end.min(mem.get_bottom()) - cursor) as usize;
-            if mem.accessible_prefix(cursor, size, required) != size {
-                return false;
+            let accessible = mem.accessible_prefix(cursor, size, required);
+            if accessible != size {
+                return Some(cursor + accessible as u64);
             }
             cursor += size as u64;
         }
-        true
+        None
     }
 
     pub fn write_128bits_le(&mut self, addr: u64, value: u128) -> bool {

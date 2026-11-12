@@ -7,6 +7,7 @@ use iced_x86::{Decoder, DecoderOptions, Instruction};
 
 use crate::debug::console::Console;
 use crate::emu::decoded_instruction::DecodedInstruction;
+use crate::emu::execution::x86::decode::ensure_instruction_cache_populated_x86;
 use crate::engine;
 use crate::err::MwemuError;
 use crate::serialization;
@@ -56,6 +57,10 @@ impl Emu {
 
         // code
         let rip = self.regs().rip;
+        if !self.check_instruction_fetch(rip) {
+            self.advance_pc_x86(0);
+            return false;
+        }
         let code = match self.maps.get_mem_by_addr(rip) {
             Some(c) => c,
             None => {
@@ -157,7 +162,6 @@ impl Emu {
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
-        self.ensure_run_start_pc_mapped(self.pc())?;
 
         self.is_running.store(1, atomic::Ordering::Relaxed);
         self.install_ctrlc_handler_if_enabled();
@@ -215,7 +219,19 @@ impl Emu {
                 }
                 */
 
-                super::decode::ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)?;
+                if let Err(error) =
+                    ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)
+                {
+                    if !self.process_terminated
+                        && self.force_reload
+                        && self.eh_ctx() != 0
+                        && self.pc() != pc
+                    {
+                        self.force_reload = false;
+                        continue;
+                    }
+                    return Err(error);
+                }
 
                 // Inner decode loop
                 let mut sz: usize = 0;
@@ -522,6 +538,7 @@ impl Emu {
                         self.run_until_ret && x86_ins.mnemonic() == iced_x86::Mnemonic::Ret;
 
                     // --- Emulate ---
+                    let previous_fault_count = self.fault_count;
                     let emulation_ok = engine::emulate_instruction(self, &x86_ins, sz, false);
                     self.last_instruction_size = sz;
 
@@ -561,7 +578,9 @@ impl Emu {
 
                     // --- Failure handling ---
                     if !emulation_ok {
-                        self.fault_count += 1;
+                        if self.fault_count == previous_fault_count {
+                            self.fault_count += 1;
+                        }
                         if self.force_reload && self.eh_ctx() != 0 && self.pc() != addr {
                             // The instruction failed, but exception delivery moved PC
                             // to a handler. Re-fetch there instead of stopping or

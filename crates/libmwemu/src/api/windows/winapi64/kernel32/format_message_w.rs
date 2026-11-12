@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::windows::constants::system::FORMAT_MESSAGE_ALLOCATE_BUFFER;
 
 pub fn FormatMessageW(emu: &mut emu::Emu) {
     let flags = emu.regs().rcx as u32;
@@ -18,8 +19,6 @@ pub fn FormatMessageW(emu: &mut emu::Emu) {
     );
 
     let msg = error_message_w(msg_id);
-
-    const FORMAT_MESSAGE_ALLOCATE_BUFFER: u32 = 0x00000100;
 
     if flags & FORMAT_MESSAGE_ALLOCATE_BUFFER != 0 {
         let byte_len = (msg.len() + 1) * 2;
