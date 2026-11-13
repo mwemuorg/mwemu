@@ -159,7 +159,7 @@ test_tls:
 	cargo run --release -- -f  test/exe64win_mingw.bin -6 -v
 test_golang:
 	cargo test --locked --package libmwemu $(CARGO_TARGET) -- tests::loaders::elf64::elf64lin_go
-test_sys:
+test_sys: windows-driver
 	cargo run --release -- -f drivers/windows/tlm/tlm.sys -6 --ioctl 0x80002010:304d4c540010000000100000000000000000000000000000:24 -vv
 test_speed: all samples
 	bash -c 'time ./target/release/mwemu -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'

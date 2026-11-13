@@ -7,7 +7,18 @@
 
 CC      := x86_64-w64-mingw32-gcc
 TESTDIR ?= $(CURDIR)/../../../test
-DDK     ?= /usr/x86_64-w64-mingw32/include/ddk
+
+# Locate the mingw-w64 DDK headers so this works on Linux
+# (/usr/x86_64-w64-mingw32/include/ddk) and on macOS/Homebrew
+# (/opt/homebrew/Cellar/mingw-w64/*/toolchain-x86_64/.../include/ddk) alike.
+# The DDK headers live under the sysroot, not in gcc's internal search dirs,
+# so we derive the sysroot from the compiler and fall back to its install
+# prefix (dirname of the gcc binary, minus /bin) if -print-sysroot is empty.
+SYSROOT := $(shell $(CC) -print-sysroot 2>/dev/null)
+DDK ?= $(firstword $(wildcard \
+    $(SYSROOT)/x86_64-w64-mingw32/include/ddk \
+    $(SYSROOT)/include/ddk \
+    /usr/x86_64-w64-mingw32/include/ddk))
 
 CFLAGS  = -O1 -Wall -Wextra -Wno-unused-parameter -fno-stack-protector -mno-stack-arg-probe \
           -fno-asynchronous-unwind-tables -fno-builtin -ffreestanding \
