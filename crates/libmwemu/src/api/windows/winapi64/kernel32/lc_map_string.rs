@@ -70,6 +70,7 @@ fn map_string(
     };
     if flags != 0 {
         if wide {
+            #[allow(clippy::chunks_exact_to_as_chunks)]
             let words: Vec<u16> = bytes
                 .chunks_exact(size_of::<u16>())
                 .map(|b| u16::from_le_bytes([b[0], b[1]]))

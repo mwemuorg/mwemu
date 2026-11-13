@@ -32,6 +32,7 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
         })
         .filter(|value| value.kind == REG_SZ)
         .is_some_and(|value| {
+            #[allow(clippy::chunks_exact_to_as_chunks)]
             let words: Vec<u16> = value
                 .data
                 .chunks_exact(size_of::<u16>())

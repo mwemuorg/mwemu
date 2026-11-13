@@ -212,6 +212,13 @@ pub struct Regs64 {
 
     pub gs: u64,
     pub fs: u64,
+    pub kernel_gs_base: u64,
+    pub gdt_base: u64,
+    pub gdt_limit: u16,
+    pub idt_base: u64,
+    pub idt_limit: u16,
+    pub ldt_selector: u16,
+    pub tr_selector: u16,
 }
 
 impl Default for Regs64 {
@@ -250,11 +257,11 @@ impl Regs64 {
             r14: 0,
             r15: 0,
 
-            cr0: 0,
+            cr0: 0x8001_003b,
             cr1: 0,
             cr2: 0,
-            cr3: 0,
-            cr4: 0,
+            cr3: 0x1a_a000,
+            cr4: 0x0017_06f8,
             cr5: 0,
             cr6: 0,
             cr7: 0,
@@ -320,6 +327,13 @@ impl Regs64 {
 
             gs: 0,
             fs: 0,
+            kernel_gs_base: 0xfffff780_00000000,
+            gdt_base: 0xfffff800_00b95000,
+            gdt_limit: 0x6f,
+            idt_base: 0xfffff800_00b96000,
+            idt_limit: 0x0fff,
+            ldt_selector: 0,
+            tr_selector: 0x40,
         }
     }
 
@@ -1245,20 +1259,21 @@ impl Regs64 {
             Register::ES => 0,
             Register::FS => 0,
             Register::GS => 0,
-            Register::DR0 => 0,
-            Register::DR1 => 0,
-            Register::DR2 => 0,
-            Register::DR3 => 0,
+            Register::DR0 => self.dr0,
+            Register::DR1 => self.dr1,
+            Register::DR2 => self.dr2,
+            Register::DR3 => self.dr3,
             Register::DR4 => 0,
             Register::DR5 => 0,
-            Register::DR6 => 0,
-            Register::DR7 => 0,
-            Register::CR0 => 0,
-            Register::CR1 => 0,
-            Register::CR2 => 0,
-            Register::CR3 => 0,
-            Register::CR4 => 0,
-            Register::CR5 => 0,
+            Register::DR6 => self.dr6,
+            Register::DR7 => self.dr7,
+            Register::CR0 => self.cr0,
+            Register::CR1 => self.cr1,
+            Register::CR2 => self.cr2,
+            Register::CR3 => self.cr3,
+            Register::CR4 => self.cr4,
+            Register::CR5 => self.cr5,
+            Register::CR8 => self.cr8,
 
             _ => {
                 log::warn!("get_reg: unsupported register {:?}", reg);
@@ -1349,20 +1364,21 @@ impl Regs64 {
             Register::FS => {}
             Register::GS => {}
             Register::DS => {}
-            Register::DR0 => {}
-            Register::DR1 => {}
-            Register::DR2 => {}
-            Register::DR3 => {}
+            Register::DR0 => self.dr0 = value,
+            Register::DR1 => self.dr1 = value,
+            Register::DR2 => self.dr2 = value,
+            Register::DR3 => self.dr3 = value,
             Register::DR4 => {}
             Register::DR5 => {}
-            Register::DR6 => {}
-            Register::DR7 => {}
-            Register::CR0 => {}
+            Register::DR6 => self.dr6 = value,
+            Register::DR7 => self.dr7 = value,
+            Register::CR0 => self.cr0 = value,
             Register::CR1 => {}
-            Register::CR2 => {}
-            Register::CR3 => {}
-            Register::CR4 => {}
+            Register::CR2 => self.cr2 = value,
+            Register::CR3 => self.cr3 = value,
+            Register::CR4 => self.cr4 = value,
             Register::CR5 => {}
+            Register::CR8 => self.cr8 = value,
             _ => {
                 log::warn!("set_reg: unsupported register {:?}", reg);
             }

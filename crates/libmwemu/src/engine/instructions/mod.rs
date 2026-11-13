@@ -395,6 +395,7 @@ pub mod popfq;
 pub mod por;
 pub mod prefetchnta;
 pub mod prefetchw;
+pub mod privileged;
 pub mod psadbw;
 pub mod pshufb;
 pub mod pshufd;
