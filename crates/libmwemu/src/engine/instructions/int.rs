@@ -46,7 +46,12 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             0x29 => {
                 log::trace!("call_stack = {:?}", emu.call_stack());
                 log::trace!("int 0x29: __fastfail {}", emu.regs().rcx);
-                emu.stop();
+                if emu.kernel_driver_active() {
+                    let code = emu.regs().rcx;
+                    emu.kernel_abort(format!("__fastfail({}) {}", code, fastfail_name(code)));
+                } else {
+                    emu.stop();
+                }
                 return false;
             }
 
@@ -78,4 +83,22 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     }
     true
+}
+
+/// Names of the common `__fastfail` codes, for the abort report.
+fn fastfail_name(code: u64) -> &'static str {
+    match code {
+        0 => "FAST_FAIL_LEGACY_GS_VIOLATION",
+        1 => "FAST_FAIL_VTGUARD_CHECK_FAILURE",
+        2 => "FAST_FAIL_STACK_COOKIE_CHECK_FAILURE",
+        3 => "FAST_FAIL_CORRUPT_LIST_ENTRY",
+        4 => "FAST_FAIL_INCORRECT_STACK",
+        5 => "FAST_FAIL_INVALID_ARG",
+        6 => "FAST_FAIL_GS_COOKIE_INIT",
+        7 => "FAST_FAIL_FATAL_APP_EXIT",
+        8 => "FAST_FAIL_RANGE_CHECK_FAILURE",
+        9 => "FAST_FAIL_UNSAFE_REGISTRY_ACCESS",
+        10 => "FAST_FAIL_GUARD_ICALL_CHECK_FAILURE",
+        _ => "",
+    }
 }

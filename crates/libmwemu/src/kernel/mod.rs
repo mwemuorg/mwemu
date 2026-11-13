@@ -282,6 +282,10 @@ pub struct KernelEnv {
     /// A driver polling a device register or an MSR bit that never changes
     /// would otherwise spin forever; 0 disables the budget.
     pub call_budget: u64,
+    /// Why the current kernel call ended abnormally (bugcheck, fast-fail,
+    /// unhandled exception, raised status). Taken by `kernel_call`, which
+    /// turns it into an error instead of a return value.
+    pub abort: Option<String>,
     next_stub: u64,
     next_data: u64,
 }
@@ -317,6 +321,7 @@ impl KernelEnv {
             ports: HashMap::new(),
             win: windows::WinEnv::default(),
             call_budget: 5_000_000,
+            abort: None,
             next_stub: layout.stub_base,
             next_data: layout.data_base,
         }
@@ -843,6 +848,13 @@ impl Emu {
             }
         }
 
+        // A kernel call is a fresh entry into the driver: an earlier call that
+        // ended in a bugcheck or fast-fail must not poison this one.
+        self.process_terminated = false;
+        if let Some(k) = self.kernel.as_mut() {
+            k.abort = None;
+        }
+
         // Per-call instruction budget, on top of whatever the caller set.
         let budget = self.kernel.as_ref().map(|k| k.call_budget).unwrap_or(0);
         let saved_limit = self.cfg.max_instructions;
@@ -863,6 +875,13 @@ impl Emu {
         };
 
         self.cfg.max_instructions = saved_limit;
+        if let Some(reason) = self.kernel.as_mut().and_then(|k| k.abort.take()) {
+            self.process_terminated = false;
+            return Err(MwemuError::new(&format!(
+                "kernel call 0x{:x} aborted: {}",
+                addr, reason
+            )));
+        }
         let exhausted = budget != 0
             && saved_limit != limit
             && limit.is_some_and(|l| self.instruction_count >= l);
@@ -880,6 +899,29 @@ impl Emu {
             )));
         }
         result
+    }
+
+    /// End the current kernel call abnormally: a bugcheck, a fast-fail, an
+    /// unhandled exception or a raised status. The run stops, the reason is
+    /// logged and recorded, and `kernel_call` reports it as an error rather
+    /// than returning whatever happened to be in `rax`.
+    pub fn kernel_abort(&mut self, reason: String) {
+        log::error!(
+            "kernel: {} at 0x{:x} (step {}) — the call is aborted",
+            reason,
+            self.pc(),
+            self.pos
+        );
+        self.kernel_log_line(format!("ABORT: {}", reason));
+        if let Some(k) = self.kernel.as_mut() {
+            k.abort = Some(reason);
+        }
+        self.stop();
+    }
+
+    /// True while a driver (not just the user-mode heap ledger) is loaded.
+    pub fn kernel_driver_active(&self) -> bool {
+        self.kernel.as_ref().is_some_and(|k| !k.ledger_only)
     }
 
     /// Set the instruction budget of one `kernel_call` (0 = unlimited).

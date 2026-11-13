@@ -270,6 +270,13 @@ impl Emu {
     }
 
     pub(crate) fn dispatch_unhandled_exception(&mut self, record: &ExceptionRecord) {
+        if self.kernel_driver_active() {
+            self.kernel_abort(format!(
+                "unhandled exception 0x{:x} at 0x{:x}",
+                record.code, record.address
+            ));
+            return;
+        }
         if self.uef() != 0 {
             self.call_exception_handler(record, self.uef(), HandlerKind::Uef, 0);
         } else {

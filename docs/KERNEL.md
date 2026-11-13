@@ -232,6 +232,15 @@ because `IoGetCurrentIrpStackLocation`, `ExInitializeFastMutex`,
   what it reached — the BYOVD starting point.
 - Every request runs under an instruction budget (`kernel_set_call_budget`,
   default 5M) so a driver polling a register cannot hang the run.
+- A bugcheck, `__fastfail` (`int 0x29`), raised status, `ProbeForRead`
+  violation or unhandled exception *aborts* the call: `kernel_call` (and so
+  every `kernel_ioctl`) returns an error naming the cause instead of whatever
+  was in `rax`, the reason is logged as `ABORT:` in the kernel log, and the
+  next call starts clean. A fuzzer therefore cannot mistake a crash for a
+  successful request.
+- `MmGetSystemRoutineAddress` resolves names in the modelled surface to
+  stubs and returns NULL for anything else, so a driver probing for an
+  optional API takes its fallback path.
 
 ### Privileged operations
 

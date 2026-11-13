@@ -100,7 +100,7 @@ fn create_device(emu: &mut Emu, symbol: &str, out_index: usize) {
     let out = emu.kernel_arg(out_index);
     let name = read_unicode_string(emu, name_us);
     if symbol == "IoCreateDeviceSecure" {
-        let sddl = emu.maps.read_wide_string(emu.kernel_arg(6));
+        let sddl = read_unicode_string(emu, emu.kernel_arg(6));
         log::info!("IoCreateDeviceSecure: SDDL '{}'", sddl);
     }
     let total = DEVICE_OBJECT_SIZE + (ext as u64).next_multiple_of(16);

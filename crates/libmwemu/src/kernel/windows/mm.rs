@@ -43,6 +43,25 @@ pub fn pci_key(bus: u64, slot: u64, offset: u64) -> u64 {
     0x5043_0000_0000_0000 | ((bus & 0xff) << 24) | ((slot & 0xffff) << 8) | (offset & 0xff)
 }
 
+/// `MmGetSystemRoutineAddress` semantics: a name the kernel exports resolves
+/// to an interceptable stub (or data storage); anything else is NULL, so a
+/// driver probing for an optional API takes its fallback path exactly as it
+/// would on a kernel without that export. Only the modelled surface counts
+/// as exported — an unmodelled real export would be a silent stub anyway.
+fn resolve_system_routine(emu: &mut Emu, name: &str) -> u64 {
+    if name.is_empty() {
+        return 0;
+    }
+    if is_implemented(name) || data_symbol_size(name).is_some() {
+        return emu.kernel_resolve_import(name).unwrap_or(0);
+    }
+    log::info!(
+        "MmGetSystemRoutineAddress: '{}' is not in the modelled surface, returning NULL",
+        name
+    );
+    0
+}
+
 pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
     match symbol {
         // MmMapIoSpace(PhysicalAddress, NumberOfBytes, CacheType)
@@ -170,22 +189,14 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         // at run time is intercepted exactly like one that imports it.
         "MmGetSystemRoutineAddress" => {
             let name = read_unicode_string(emu, emu.kernel_arg(0));
-            let addr = if name.is_empty() {
-                0
-            } else {
-                emu.kernel_resolve_import(&name).unwrap_or(0)
-            };
+            let addr = resolve_system_routine(emu, &name);
             log::info!("MmGetSystemRoutineAddress: '{}' -> 0x{:x}", name, addr);
             emu.kernel_log_line(format!("MmGetSystemRoutineAddress({})", name));
             emu.set_kernel_ret(addr);
         }
         "MmGetSystemRoutineAddressEx" => {
             let name = read_unicode_string(emu, emu.kernel_arg(1));
-            let addr = if name.is_empty() {
-                0
-            } else {
-                emu.kernel_resolve_import(&name).unwrap_or(0)
-            };
+            let addr = resolve_system_routine(emu, &name);
             emu.set_kernel_ret(addr);
         }
 
@@ -356,14 +367,10 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
                     || addr.wrapping_add(len) < addr
                     || !addr.is_multiple_of(align))
             {
-                log::error!(
-                    "{}: 0x{:x} ({} bytes) is not a valid user address — STATUS_ACCESS_VIOLATION would be raised",
-                    symbol,
-                    addr,
-                    len
-                );
-                emu.kernel_log_line(format!("{}: access violation on 0x{:x}", symbol, addr));
-                emu.stop();
+                emu.kernel_abort(format!(
+                    "{}(0x{:x}, {}) raised STATUS_ACCESS_VIOLATION — no SEH dispatch in kernel mode",
+                    symbol, addr, len
+                ));
             }
             emu.set_kernel_ret(0);
         }
@@ -466,9 +473,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             );
         }
         "HalReturnToFirmware" => {
-            log::error!("HalReturnToFirmware: the driver asked to reboot");
-            emu.kernel_log_line("HalReturnToFirmware".to_string());
-            emu.stop();
+            emu.kernel_abort("HalReturnToFirmware: the driver asked to reboot".to_string());
         }
         _ => return false,
     }

@@ -930,13 +930,10 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             } else {
                 "exception record".to_string()
             };
-            log::error!(
-                "{}: {} — no SEH dispatch in kernel mode, stopping",
-                symbol,
-                what
-            );
-            emu.kernel_log_line(format!("{} ({})", symbol, what));
-            emu.stop();
+            emu.kernel_abort(format!(
+                "{} ({}) — no SEH dispatch in kernel mode",
+                symbol, what
+            ));
         }
         "RtlAssert" => {
             let msg = emu.maps.read_string(emu.kernel_arg(0));

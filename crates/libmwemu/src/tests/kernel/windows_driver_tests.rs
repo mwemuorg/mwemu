@@ -10,6 +10,7 @@ use crate::emu::Emu;
 use crate::emu64;
 use crate::kernel::guard::FindingKind;
 use crate::kernel::windows::structs::{IRP_MJ_CLOSE, IRP_MJ_CREATE, IRP_MJ_DEVICE_CONTROL};
+use crate::maps::mem64::Permission;
 use crate::tests::helpers;
 
 const TLM_MAGIC: u32 = 0x544c4d30;
@@ -367,4 +368,73 @@ fn driver_unload_releases_everything() {
         "unload should free every channel: {:?}",
         leaks
     );
+}
+
+/// A kernel stub is only intercepted when control *branches* into it, as a
+/// driver's `call [__imp_X]` does; setting PC on it directly would run its
+/// `ret`. This builds `mov rax, stub; jmp rax` in an executable page: the
+/// jump is intercepted and the stack (shadow space, stacked arguments,
+/// return address) is exactly what `kernel_call` laid out.
+fn call_through(emu: &mut Emu, api: &str) -> u64 {
+    let stub = emu.kernel_stub_for(api).expect("kernel stub");
+    let page = emu
+        .maps
+        .create_map(
+            &format!("tramp.{}", api),
+            0x2000_0000
+                + (emu.maps.get_map_by_name("tramp.KeBugCheckEx").is_some() as u64) * 0x1000,
+            0x1000,
+            Permission::READ_WRITE_EXECUTE,
+        )
+        .expect("trampoline page")
+        .get_base();
+    let mut code = vec![0x48, 0xb8];
+    code.extend_from_slice(&stub.to_le_bytes());
+    code.extend_from_slice(&[0xff, 0xe0]);
+    emu.maps.write_bytes(page, &code);
+    page
+}
+
+/// A bugcheck, a fast-fail or a raised status ends the call with an error,
+/// not with whatever was in rax, and the driver can be driven again
+/// afterwards: a fuzzer must not mistake a crash for a successful request.
+#[test]
+fn bugcheck_is_an_error_and_the_driver_stays_usable() {
+    let Some(mut emu) = boot_driver() else { return };
+    let bugcheck = call_through(&mut emu, "KeBugCheckEx");
+    let err = emu
+        .kernel_call(bugcheck, &[0x7e, 1, 2, 3, 4])
+        .expect_err("a bugcheck must not look like a return value");
+    assert!(err.message.contains("KeBugCheckEx"), "{}", err.message);
+    assert!(
+        emu.kernel
+            .as_ref()
+            .expect("kernel env")
+            .log
+            .iter()
+            .any(|l| l.starts_with("ABORT:")),
+        "the abort is in the kernel log"
+    );
+
+    let id = create_channel(&mut emu, "after-crash", 64);
+    assert_eq!(id, 1, "requests keep working after an aborted call");
+}
+
+/// `MmGetSystemRoutineAddress` returns NULL for a name the kernel does not
+/// export, so a driver probing for an optional API takes its fallback path.
+#[test]
+fn system_routine_lookup_is_null_for_unknown_names() {
+    let Some(mut emu) = boot_driver() else { return };
+    let us = crate::kernel::windows::alloc_user_buffer(&mut emu, 0x100, "name");
+    let buf = us + 0x20;
+    emu.maps.write_wide_string(buf, "ExAllocatePool2");
+    crate::kernel::windows::write_unicode_header(&mut emu, us, buf, 15 * 2, 0x40);
+    let lookup = call_through(&mut emu, "MmGetSystemRoutineAddress");
+    let known = emu.kernel_call(lookup, &[us]).expect("lookup");
+    assert_ne!(known, 0, "a modelled export resolves");
+
+    emu.maps.write_wide_string(buf, "ZwNoSuchRoutine");
+    crate::kernel::windows::write_unicode_header(&mut emu, us, buf, 15 * 2, 0x40);
+    let unknown = emu.kernel_call(lookup, &[us]).expect("lookup");
+    assert_eq!(unknown, 0, "an unknown name is NULL");
 }

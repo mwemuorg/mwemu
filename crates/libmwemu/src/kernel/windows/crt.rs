@@ -957,9 +957,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         | "__report_rangecheckfailure"
         | "abort"
         | "_invoke_watson" => {
-            log::error!("{}: the driver aborted", symbol);
-            emu.kernel_log_line(format!("{} called", symbol));
-            emu.stop();
+            emu.kernel_abort(format!("{} called", symbol));
         }
         "rand" => {
             let v = emu.pos.wrapping_mul(1_103_515_245).wrapping_add(12345);

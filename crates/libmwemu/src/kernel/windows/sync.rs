@@ -630,9 +630,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
                 "*** STOP: 0x{:08X} (0x{:x}, 0x{:x}, 0x{:x}, 0x{:x})",
                 code, a, b, c, d
             );
-            log::error!("{}: {}", symbol, line);
-            emu.kernel_log_line(line);
-            emu.stop();
+            emu.kernel_abort(format!("{} {}", symbol, line));
         }
         "ExRaiseStatus" | "ExRaiseAccessViolation" | "ExRaiseDatatypeMisalignment" => {
             let status = if symbol == "ExRaiseStatus" {
@@ -640,13 +638,10 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             } else {
                 STATUS_ACCESS_VIOLATION
             };
-            log::error!(
-                "{}: 0x{:x} — no SEH dispatch in kernel mode, stopping",
-                symbol,
-                status
-            );
-            emu.kernel_log_line(format!("{}(0x{:x})", symbol, status));
-            emu.stop();
+            emu.kernel_abort(format!(
+                "{}(0x{:x}) — no SEH dispatch in kernel mode",
+                symbol, status
+            ));
         }
         _ => return false,
     }
