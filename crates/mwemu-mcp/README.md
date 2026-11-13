@@ -118,7 +118,9 @@ Inspect: `mwemu_disassemble`, `mwemu_call_stack`, `mwemu_prev_mnemonic`,
 Kernel mode (drivers): `mwemu_kernel_load_module`*, `mwemu_kernel_init`,
 `mwemu_kernel_exit`, `mwemu_kernel_call`, `mwemu_kernel_symbols`,
 `mwemu_kernel_findings`, `mwemu_kernel_heap`, `mwemu_kernel_log`,
-`mwemu_kernel_run_deferred`, `mwemu_kernel_leak_check`, `mwemu_kernel_surface`.
+`mwemu_kernel_run_deferred`, `mwemu_kernel_leak_check`, `mwemu_kernel_surface`;
+Windows drivers: `mwemu_kernel_driver`, `mwemu_kernel_ioctl`, `mwemu_kernel_send_irp`,
+`mwemu_kernel_scan_ioctls`, `mwemu_kernel_privops`, `mwemu_kernel_preset`.
 
 `*` = disk-gated (sandbox mode disables them).
 
@@ -181,6 +183,27 @@ BUG: KMWEMU: use-after-free (read) in tlm_channel of size 8 at addr 0xffff888000
 
 `mwemu_kernel_surface` lists the kernel API that is implemented, grouped by
 subsystem, so you can tell in advance whether a given driver will run.
+
+### Windows drivers: which IOCTL is the primitive?
+
+A `.sys` goes through the same `mwemu_kernel_load_module`; `mwemu_kernel_init`
+then runs `DriverEntry` with a real `DRIVER_OBJECT`. From there the I/O
+manager's side of the conversation is yours:
+
+```
+mwemu_kernel_load_module {"path": "vendor.sys"}
+mwemu_kernel_init                                   -> DriverEntry
+mwemu_kernel_driver                                 -> devices, \DosDevices links, IRP_MJ_* table
+mwemu_kernel_scan_ioctls                            -> every code found in the code, what each reaches
+mwemu_kernel_ioctl   {"code":"0x9c402118","hex":"820000c0","output_len":8}
+mwemu_kernel_privops                                -> rdmsr/wrmsr, in/out, MmMapIoSpace, PCI, ...
+```
+
+Each IOCTL result names the NTSTATUS, `IoStatus`, the output buffer, the
+privileged operations the request performed and any pool finding it caused —
+the BYOVD (bring-your-own-vulnerable-driver) assessment in one call per code.
+`mwemu_kernel_preset` sets an MSR, port or PCI byte so a capability probe
+passes.
 
 ## Example (raw JSON-RPC over stdio)
 

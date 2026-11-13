@@ -95,23 +95,10 @@ pub fn format(emu: &mut Emu, fmt_addr: u64, first_arg: usize) -> String {
     out
 }
 
-/// Variadic argument `idx` of the current call: the first six travel in
-/// registers, the rest sit above the return address on the stack.
+/// Variadic argument `idx` of the current call. `kernel_arg` knows the
+/// kernel's convention, including where the stacked arguments live.
 fn read_vararg(emu: &Emu, idx: usize) -> u64 {
-    let in_regs = if emu.cfg.arch.is_aarch64() { 8 } else { 6 };
-    if idx < in_regs {
-        return emu.kernel_arg(idx);
-    }
-    // `gateway_return` was already consumed, so the stack pointer points at the
-    // first stacked argument.
-    let sp = if emu.cfg.arch.is_aarch64() {
-        emu.regs_aarch64().sp
-    } else {
-        emu.regs().rsp
-    };
-    emu.maps
-        .read_qword(sp + ((idx - in_regs) as u64) * 8)
-        .unwrap_or(0)
+    emu.kernel_arg(idx)
 }
 
 pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {

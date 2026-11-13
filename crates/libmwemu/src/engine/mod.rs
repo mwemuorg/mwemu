@@ -1107,6 +1107,13 @@ pub fn emulate_instruction(
         Mnemonic::Enter => instructions::enter::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Lsl => instructions::lsl::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Rdmsr => instructions::rdmsr::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Wrmsr => instructions::wrmsr::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Rdpmc => instructions::rdpmc::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::In => instructions::in_::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Out => instructions::out::execute(emu, ins, instruction_sz, rep_step),
+        Mnemonic::Cli | Mnemonic::Sti => {
+            instructions::cli::execute(emu, ins, instruction_sz, rep_step)
+        }
         Mnemonic::Ud0 => instructions::ud::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Ud1 => instructions::ud::execute(emu, ins, instruction_sz, rep_step),
         Mnemonic::Ud2 => instructions::ud::execute(emu, ins, instruction_sz, rep_step),

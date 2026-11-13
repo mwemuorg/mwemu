@@ -149,6 +149,8 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("noloops", "", "noloops", "stop emulation when any address executes more than --loop-limit times (default 10000)"))
         .arg(clap_arg!("loop_limit", "", "loop-limit", "set the per-address iteration limit for --noloops (default 10000)", "N"))
         .arg(clap_arg!("nocolors", "n", "nocolors", "print without colors for redirecting to a file >out"))
+        .arg(clap_arg!("ioctl_scan", "", "ioctl-scan", "kernel driver (.sys): after DriverEntry, harvest the IOCTL codes from the driver's code and send each one, reporting the privileged operations (MSR, port I/O, physical memory) it reaches"))
+        .arg(clap_arg!("ioctl", "", "ioctl", "kernel driver (.sys): after DriverEntry send one IOCTL. CODE[:INPUT_HEX[:OUTPUT_LEN]], e.g. 0x9c402404:4142434400000000:64", "SPEC"))
         .arg(clap_arg!("string", "s", "string", "monitor string on a specific address", "ADDRESS"))
         .arg(clap_arg!("inspect", "i", "inspect", "monitor memory like: -i 'dword ptr [ebp + 0x24]", "DIRECTION"))
         //.arg(clap_arg!("endpoint", "e", "endpoint", "perform communications with the endpoint, use tor or vpn!"))
@@ -733,6 +735,102 @@ fn main() -> process::ExitCode {
 }
 
 /// Load the binary and drive it in the mode the command line selected
+/// What a Windows driver exposed after DriverEntry, then the requests the
+/// user asked for (`--ioctl`, `--ioctl-scan`) and every privileged operation
+/// they reached: the summary a BYOVD assessment starts from.
+fn report_windows_driver(emu: &mut Emu, matches: &ArgMatches) {
+    for d in emu.kernel_devices() {
+        println!(
+            "device   {:<40} 0x{:x} type 0x{:x} ext {}",
+            d.name, d.addr, d.device_type, d.extension_size
+        );
+    }
+    for (link, target) in emu.kernel_symlinks() {
+        println!("symlink  {} -> {}", link, target);
+    }
+    for (_, name, addr) in emu.kernel_dispatch_table() {
+        println!("dispatch {:<32} 0x{:x}", name, addr);
+    }
+    let unresolved = emu
+        .kernel
+        .as_ref()
+        .map(|k| k.module.unresolved.clone())
+        .unwrap_or_default();
+    if !unresolved.is_empty() {
+        println!("imports without implementation: {}", unresolved.join(", "));
+    }
+    let after_init = emu.kernel_privops().len();
+    for p in emu.kernel_privops() {
+        println!("privileged (DriverEntry): {}", p.report());
+    }
+
+    if let Some(spec) = matches.value_of("ioctl") {
+        let mut parts = spec.split(':');
+        let code = parts
+            .next()
+            .and_then(|c| u32::from_str_radix(c.trim_start_matches("0x"), 16).ok());
+        let input: Vec<u8> = parts
+            .next()
+            .map(|h| {
+                (0..h.len())
+                    .step_by(2)
+                    .filter_map(|i| u8::from_str_radix(h.get(i..i + 2).unwrap_or(""), 16).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let out_len: usize = parts.next().and_then(|n| n.parse().ok()).unwrap_or(0x100);
+        match code {
+            Some(code) => match emu.kernel_ioctl(0, code, &input, out_len) {
+                Ok(r) => {
+                    println!(
+                        "ioctl 0x{:08x} -> status 0x{:08x} (io 0x{:08x}) information {}{}",
+                        code,
+                        r.status,
+                        r.io_status,
+                        r.information,
+                        r.error
+                            .as_ref()
+                            .map(|e| format!(" fault: {e}"))
+                            .unwrap_or_default()
+                    );
+                    let shown = r
+                        .output
+                        .iter()
+                        .take(64)
+                        .map(|b| format!("{:02x}", b))
+                        .collect::<String>();
+                    if !shown.is_empty() {
+                        println!("output: {}", shown);
+                    }
+                    for p in &r.privops {
+                        println!("privileged: {}", p.report());
+                    }
+                    if !r.unimplemented.is_empty() {
+                        println!("unimplemented kernel API: {}", r.unimplemented.join(", "));
+                    }
+                }
+                Err(e) => println!("ioctl 0x{:08x} could not be delivered: {}", code, e),
+            },
+            None => println!("--ioctl: cannot parse control code in '{}'", spec),
+        }
+    }
+
+    if matches.is_present("ioctl_scan") {
+        let candidates = emu.kernel_ioctl_candidates();
+        println!(
+            "ioctl scan: {} candidate code(s) harvested from the driver's code",
+            candidates.len()
+        );
+        for probe in emu.kernel_scan_ioctls(0, 0x1000) {
+            println!("{}", probe.report());
+        }
+        let reached: Vec<_> = emu.kernel_privops().iter().skip(after_init).collect();
+        if reached.is_empty() {
+            println!("no privileged operation reached from the scanned IOCTLs");
+        }
+    }
+}
+
 /// (script, GDB server, kernel module init, or a plain run).
 fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::ExitCode {
     // load code
@@ -818,6 +916,13 @@ fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::Exit
             match emu.run_module_init() {
                 Ok(ret) => log::info!("module init returned {} (0 = success)", ret as i64),
                 Err(e) => log::error!("module init error: {}", e),
+            }
+            if emu
+                .kernel
+                .as_ref()
+                .is_some_and(|k| k.os == libmwemu::kernel::KernelOs::Windows)
+            {
+                report_windows_driver(emu, matches);
             }
             let findings = emu.kernel_findings();
             if findings.is_empty() {

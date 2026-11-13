@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity api-modules
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver windows-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity api-modules
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -60,6 +60,12 @@ clippy-release:
 # themselves when the artefact is absent, so this is optional.
 driver:
 	$(MAKE) -C drivers/linux/tlm install TESTDIR=$(abspath $(TEST_DIR))
+
+# Windows kernel-mode test target: builds drivers/windows/tlm into
+# test/windows_uaf_driver.sys with mingw-w64 (x86_64-w64-mingw32-gcc and its
+# DDK headers). The Windows driver tests skip when the artefact is absent.
+windows-driver:
+	$(MAKE) -C drivers/windows/tlm install TESTDIR=$(abspath $(TEST_DIR))
 
 # macOS kext test target: builds drivers/macos/tlm into
 # test/macos_uaf_driver.kext (arm64e). Needs the macOS SDK + clang; the

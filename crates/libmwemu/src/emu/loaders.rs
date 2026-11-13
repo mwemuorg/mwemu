@@ -20,6 +20,7 @@ mod kext;
 mod ko;
 mod macho;
 mod pe;
+mod sys;
 pub use pe::{MappedPe64, PeLoadInfo};
 mod pe_stub;
 pub(crate) mod pe_stub_exports;
@@ -411,6 +412,29 @@ impl Emu {
             }
 
             self.set_pc(ep);
+
+        // Windows kernel driver (.sys): a native-subsystem PE64 importing
+        // ntoskrnl. Checked before the generic PE64 branch, which would set up
+        // a user-mode process around it. Loading links the driver against the
+        // emulated kernel and leaves PC at DriverEntry.
+        } else if !self.cfg.shellcode
+            && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_AMD64)
+            && sys::is_kernel_driver(&raw)
+        {
+            log::trace!("PE64 kernel driver detected.");
+            self.maps.clear();
+            match self.load_sys_driver(filename) {
+                Ok(_) => {
+                    let retpad = self.kernel.as_ref().map(|k| k.layout.retpad()).unwrap_or(0);
+                    if let Some(init) = self.kernel.as_ref().and_then(|k| k.module.init) {
+                        self.stack_push64(retpad);
+                        self.set_pc(init);
+                    }
+                }
+                Err(err) => {
+                    return Err(MwemuError::new(&format!("cannot load driver: {err}")));
+                }
+            }
 
         // PE64 x86_64
         } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_AMD64) {

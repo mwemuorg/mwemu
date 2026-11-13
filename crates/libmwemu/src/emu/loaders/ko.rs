@@ -37,6 +37,11 @@ impl Emu {
         let raw = std::fs::read(filename)
             .map_err(|e| MwemuError::new(&format!("cannot read {}: {}", filename, e)))?;
 
+        // A Windows driver takes the PE path; everything below is ET_REL.
+        if super::sys::is_kernel_driver(&raw) {
+            return self.load_sys_driver(filename);
+        }
+
         let mut elf = Elf64::parse(&raw)
             .map_err(|e| MwemuError::new(&format!("{} is not a valid ELF64: {}", filename, e)))?;
         if !elf.is_relocatable() {
@@ -181,6 +186,11 @@ impl Emu {
     /// Run the module's init function, as `insmod` would. Returns its result
     /// (0 on success, a negative errno otherwise).
     pub fn run_module_init(&mut self) -> Result<u64, MwemuError> {
+        // DriverEntry takes a DRIVER_OBJECT and a registry path the kernel
+        // builds; the Windows harness owns that.
+        if matches!(self.kernel.as_ref().map(|k| k.os), Some(KernelOs::Windows)) {
+            return self.run_driver_entry();
+        }
         let init = self
             .kernel
             .as_ref()
@@ -192,6 +202,9 @@ impl Emu {
 
     /// Run the module's exit function, as `rmmod` would.
     pub fn run_module_exit(&mut self) -> Result<u64, MwemuError> {
+        if matches!(self.kernel.as_ref().map(|k| k.os), Some(KernelOs::Windows)) {
+            return self.run_driver_unload();
+        }
         let exit = self
             .kernel
             .as_ref()

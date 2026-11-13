@@ -299,6 +299,145 @@ pub fn t_surface(s: &mut Server, a: &Value) -> Result<Value, String> {
     Ok(json!({ "os": os, "groups": groups }))
 }
 
+// --- Windows drivers -----------------------------------------------------------
+
+fn privop_json(p: &libmwemu::kernel::PrivilegedOp) -> Value {
+    json!({
+        "kind": p.kind,
+        "address": hx(p.addr),
+        "value": hx(p.value),
+        "size": p.size,
+        "pc": hx(p.rip),
+        "step": p.pos,
+        "report": p.report(),
+    })
+}
+
+fn irp_result_json(r: &libmwemu::kernel::windows::irp::IrpResult) -> Value {
+    json!({
+        "status": format!("0x{:08x}", r.status),
+        "io_status": format!("0x{:08x}", r.io_status),
+        "information": r.information,
+        "completed": r.completed,
+        "succeeded": r.succeeded(),
+        "error": r.error,
+        "output_hex": r.output.iter().map(|b| format!("{b:02x}")).collect::<String>(),
+        "privileged_ops": r.privops.iter().map(privop_json).collect::<Vec<_>>(),
+        "unimplemented_apis": r.unimplemented,
+    })
+}
+
+/// What a Windows driver exposed after DriverEntry: devices, symbolic links
+/// and the dispatch routines it installed.
+pub fn t_driver(s: &mut Server, _a: &Value) -> Result<Value, String> {
+    let emu = s.emu()?;
+    let kernel = emu
+        .kernel
+        .as_ref()
+        .ok_or_else(|| "no kernel module loaded".to_string())?;
+    Ok(json!({
+        "driver_object": hx(emu.kernel_driver_object()),
+        "devices": emu.kernel_devices().iter().map(|d| json!({
+            "name": d.name,
+            "address": hx(d.addr),
+            "device_type": format!("0x{:x}", d.device_type),
+            "extension_size": d.extension_size,
+        })).collect::<Vec<_>>(),
+        "symlinks": emu.kernel_symlinks().iter().map(|(l, t)| json!({ "link": l, "target": t })).collect::<Vec<_>>(),
+        "dispatch": emu.kernel_dispatch_table().iter().map(|(i, name, addr)| json!({
+            "major": i,
+            "name": name,
+            "address": hx(*addr),
+        })).collect::<Vec<_>>(),
+        "unload": kernel.module.exit.map(hx),
+        "unresolved_imports": kernel.module.unresolved,
+        "callbacks": kernel.win.callbacks.iter().map(|c| json!({
+            "api": c.api, "function": hx(c.func), "context": hx(c.context),
+        })).collect::<Vec<_>>(),
+    }))
+}
+
+/// Send one IOCTL to a device the driver created.
+pub fn t_ioctl(s: &mut Server, a: &Value) -> Result<Value, String> {
+    let code = req_u64(a, "code")? as u32;
+    let device = opt_u64(a, "device")?.unwrap_or(0);
+    let input = if a.get("hex").is_some() || a.get("bytes").is_some() {
+        get_bytes(a)?
+    } else {
+        Vec::new()
+    };
+    let output_len = opt_u64(a, "output_len")?.unwrap_or(0x100) as usize;
+    let before = finding_count(s);
+    let emu = s.emu_mut()?;
+    let r = emu
+        .kernel_ioctl(device, code, &input, output_len)
+        .map_err(|e| format!("cannot deliver the IOCTL: {e}"))?;
+    let mut v = irp_result_json(&r);
+    v["code"] = json!(format!("0x{:08x}", code));
+    v["findings"] = findings_since(s, before);
+    Ok(v)
+}
+
+/// Send a bufferless request: IRP_MJ_CREATE (0), IRP_MJ_CLOSE (2), IRP_MJ_CLEANUP (0x12), ...
+pub fn t_send_irp(s: &mut Server, a: &Value) -> Result<Value, String> {
+    let major = req_u64(a, "major")? as u8;
+    let minor = opt_u64(a, "minor")?.unwrap_or(0) as u8;
+    let device = opt_u64(a, "device")?.unwrap_or(0);
+    let before = finding_count(s);
+    let emu = s.emu_mut()?;
+    let r = emu
+        .kernel_send_irp(device, major, minor)
+        .map_err(|e| format!("cannot deliver the request: {e}"))?;
+    let mut v = irp_result_json(&r);
+    v["findings"] = findings_since(s, before);
+    Ok(v)
+}
+
+/// Every privileged operation recorded so far (MSR, port I/O, physical memory).
+pub fn t_privops(s: &mut Server, _a: &Value) -> Result<Value, String> {
+    let emu = s.emu()?;
+    let ops = emu.kernel_privops();
+    Ok(json!({
+        "count": ops.len(),
+        "operations": ops.iter().map(privop_json).collect::<Vec<_>>(),
+    }))
+}
+
+/// Harvest the IOCTL codes from the driver's code and send each one.
+pub fn t_scan_ioctls(s: &mut Server, a: &Value) -> Result<Value, String> {
+    let device = opt_u64(a, "device")?.unwrap_or(0);
+    let output_len = opt_u64(a, "output_len")?.unwrap_or(0x1000) as usize;
+    let emu = s.emu_mut()?;
+    let candidates = emu.kernel_ioctl_candidates();
+    let probes = emu.kernel_scan_ioctls(device, output_len);
+    Ok(json!({
+        "candidates": candidates.iter().map(|c| format!("0x{:08x}", c)).collect::<Vec<_>>(),
+        "probes": probes.iter().map(|p| {
+            let mut v = irp_result_json(&p.result);
+            v["code"] = json!(format!("0x{:08x}", p.code));
+            v["input_len"] = json!(p.input_len);
+            v["report"] = json!(p.report());
+            v
+        }).collect::<Vec<_>>(),
+    }))
+}
+
+/// Preset an MSR, an I/O port or a PCI config byte the driver will read.
+pub fn t_preset(s: &mut Server, a: &Value) -> Result<Value, String> {
+    let value = req_u64(a, "value")?;
+    let emu = s.emu_mut()?;
+    if let Some(msr) = opt_u64(a, "msr")? {
+        emu.kernel_set_msr(msr as u32, value);
+    } else if let Some(port) = opt_u64(a, "port")? {
+        emu.kernel_set_port(port as u16, value);
+    } else if let Some(addr) = opt_u64(a, "register")? {
+        emu.kernel_set_register(addr, value);
+    } else {
+        return Err("provide 'msr', 'port' or 'register'".to_string());
+    }
+    Ok(json!({ "ok": true }))
+}
+
 // --- schemas -----------------------------------------------------------------
 
 fn obj(props: Value, required: &[&str]) -> Value {
@@ -316,8 +455,54 @@ pub fn sc_empty() -> Value {
 
 pub fn sc_load_module() -> Value {
     obj(
-        json!({ "path": { "type": "string", "description": "Path to the .ko file" } }),
+        json!({ "path": { "type": "string", "description": "Path to the driver: a Linux .ko, a Windows .sys or a macOS kext" } }),
         &["path"],
+    )
+}
+
+pub fn sc_ioctl() -> Value {
+    obj(
+        json!({
+            "code": { "type": ["string","integer"], "description": "IOCTL control code, e.g. \"0x9c402118\"" },
+            "hex": { "type": "string", "description": "Input buffer as hex" },
+            "bytes": { "type": "array", "items": { "type": "integer" }, "description": "Input buffer as bytes" },
+            "output_len": { "type": "integer", "description": "Size of the caller's output buffer (default 256)" },
+            "device": { "type": ["string","integer"], "description": "DEVICE_OBJECT address; default: the first device the driver created" }
+        }),
+        &["code"],
+    )
+}
+
+pub fn sc_send_irp() -> Value {
+    obj(
+        json!({
+            "major": { "type": "integer", "description": "IRP_MJ_* index: 0 create, 2 close, 0x12 cleanup, 0x10 shutdown" },
+            "minor": { "type": "integer", "description": "Minor function (default 0)" },
+            "device": { "type": ["string","integer"], "description": "DEVICE_OBJECT address; default: the first device" }
+        }),
+        &["major"],
+    )
+}
+
+pub fn sc_scan_ioctls() -> Value {
+    obj(
+        json!({
+            "device": { "type": ["string","integer"], "description": "DEVICE_OBJECT address; default: the first device" },
+            "output_len": { "type": "integer", "description": "Output buffer size for every probe (default 4096)" }
+        }),
+        &[],
+    )
+}
+
+pub fn sc_preset() -> Value {
+    obj(
+        json!({
+            "msr": { "type": ["string","integer"], "description": "MSR index to preset" },
+            "port": { "type": ["string","integer"], "description": "I/O port to preset" },
+            "register": { "type": ["string","integer"], "description": "Device register / PCI config key to preset" },
+            "value": { "type": ["string","integer"], "description": "Value the driver will read" }
+        }),
+        &["value"],
     )
 }
 

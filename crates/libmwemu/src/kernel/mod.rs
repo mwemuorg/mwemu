@@ -32,6 +32,7 @@ use std::collections::HashMap;
 use rs_header::elf::relocatable::{RelSection, RelSymbol};
 
 use crate::emu::Emu;
+use crate::err::MwemuError;
 use crate::kernel::guard::Finding;
 use crate::kernel::heap::{KernelHeap, Region};
 use crate::kernel::layout::{KernelLayout, STUB_SLOT};
@@ -162,8 +163,68 @@ pub struct DeferredCall {
     pub kind: String,
     /// Callback address inside the module.
     pub func: u64,
-    /// Single argument the callback receives.
-    pub arg: u64,
+    /// Arguments the callback receives, in calling-convention order.
+    pub args: Vec<u64>,
+}
+
+/// One privileged operation an emulated driver performed.
+///
+/// A BYOVD (bring-your-own-vulnerable-driver) hunt is a search for exactly
+/// these: an IOCTL that reaches an MSR write, a port write, a physical-memory
+/// mapping or a copy from arbitrary physical memory is the primitive. They are
+/// logged, not blocked, so one run shows which request reaches which primitive.
+#[derive(Debug, Clone)]
+pub struct PrivilegedOp {
+    /// `rdmsr`, `wrmsr`, `in`, `out`, `map_io_space`, `phys_read`, ...
+    pub kind: &'static str,
+    /// Instruction that performed it (inside the driver or a kernel stub).
+    pub rip: u64,
+    /// Emulation step.
+    pub pos: u64,
+    /// MSR index, port number or physical address.
+    pub addr: u64,
+    /// Value written, or value returned for a read.
+    pub value: u64,
+    /// Access width in bytes (0 when not meaningful).
+    pub size: u64,
+}
+
+impl PrivilegedOp {
+    pub fn report(&self) -> String {
+        match self.kind {
+            "rdmsr" => format!(
+                "rdmsr 0x{:x} -> 0x{:x}  at 0x{:x} (step {})",
+                self.addr, self.value, self.rip, self.pos
+            ),
+            "wrmsr" => format!(
+                "wrmsr 0x{:x} <- 0x{:x}  at 0x{:x} (step {})",
+                self.addr, self.value, self.rip, self.pos
+            ),
+            "in" => format!(
+                "in  port 0x{:x} ({} B) -> 0x{:x}  at 0x{:x} (step {})",
+                self.addr, self.size, self.value, self.rip, self.pos
+            ),
+            "out" => format!(
+                "out port 0x{:x} ({} B) <- 0x{:x}  at 0x{:x} (step {})",
+                self.addr, self.size, self.value, self.rip, self.pos
+            ),
+            "pci_read" | "pci_write" => format!(
+                "{} bus {} slot 0x{:x} offset 0x{:x} ({} B) value=0x{:x}  at 0x{:x} (step {})",
+                self.kind,
+                (self.addr >> 24) & 0xff,
+                (self.addr >> 8) & 0xffff,
+                self.addr & 0xff,
+                self.size,
+                self.value,
+                self.rip,
+                self.pos
+            ),
+            _ => format!(
+                "{} phys=0x{:x} size=0x{:x} value=0x{:x}  at 0x{:x} (step {})",
+                self.kind, self.addr, self.size, self.value, self.rip, self.pos
+            ),
+        }
+    }
 }
 
 /// Everything the emulated kernel owns for one run.
@@ -206,6 +267,21 @@ pub struct KernelEnv {
     /// If set, the allocation whose 0-based index equals this returns NULL,
     /// modelling a kmalloc failure so a driver's error/cleanup path runs.
     pub fail_alloc_index: Option<u64>,
+    /// Privileged operations the driver performed (MSR, port I/O, physical
+    /// memory), in order. See [`PrivilegedOp`].
+    pub privops: Vec<PrivilegedOp>,
+    /// Model-specific registers: index -> value. Writes store, reads return
+    /// the stored value (default 0), so a driver's write-then-read-back of an
+    /// MSR stays coherent.
+    pub msrs: HashMap<u32, u64>,
+    /// I/O ports: port -> last value written (reads return it, default 0).
+    pub ports: HashMap<u16, u64>,
+    /// Windows-specific object state (driver object, devices, handles).
+    pub win: windows::WinEnv,
+    /// Instructions one `kernel_call` may execute before it is abandoned.
+    /// A driver polling a device register or an MSR bit that never changes
+    /// would otherwise spin forever; 0 disables the budget.
+    pub call_budget: u64,
     next_stub: u64,
     next_data: u64,
 }
@@ -236,6 +312,11 @@ impl KernelEnv {
             registers: HashMap::new(),
             alloc_count: 0,
             fail_alloc_index: None,
+            privops: Vec::new(),
+            msrs: HashMap::new(),
+            ports: HashMap::new(),
+            win: windows::WinEnv::default(),
+            call_budget: 5_000_000,
             next_stub: layout.stub_base,
             next_data: layout.data_base,
         }
@@ -404,13 +485,20 @@ impl Emu {
         let os = self.kernel.as_ref()?.os;
         let data_size = match os {
             KernelOs::Linux => linux::data_symbol_size(name),
-            // The Windows and macOS surfaces import data through the image's
-            // import table rather than by name, so nothing is classified here
-            // yet; a function stub is the safe default.
-            KernelOs::Windows | KernelOs::MacOS => None,
+            KernelOs::Windows => windows::data_symbol_size(name),
+            // The XNU surface imports data through the image's fixups rather
+            // than by name, so nothing is classified here yet; a function stub
+            // is the safe default.
+            KernelOs::MacOS => None,
         };
         match data_size {
-            Some(size) => self.kernel_data_for(name, size),
+            Some(size) => {
+                let addr = self.kernel_data_for(name, size)?;
+                if os == KernelOs::Windows {
+                    windows::init_data_symbol(self, name, addr);
+                }
+                Some(addr)
+            }
             None => self.kernel_stub_for(name),
         }
     }
@@ -421,10 +509,10 @@ impl Emu {
             return;
         }
         log::info!(
-            "kernel: queued {} callback 0x{:x}(0x{:x})",
+            "kernel: queued {} callback 0x{:x}({:x?})",
             call.kind,
             call.func,
-            call.arg
+            call.args
         );
         if let Some(kernel) = self.kernel.as_mut() {
             kernel.deferred.push(call);
@@ -463,12 +551,12 @@ impl Emu {
                 break;
             };
             log::info!(
-                "kernel: running {} callback 0x{:x}(0x{:x})",
+                "kernel: running {} callback 0x{:x}({:x?})",
                 call.kind,
                 call.func,
-                call.arg
+                call.args
             );
-            if let Err(e) = self.kernel_call(call.func, &[call.arg]) {
+            if let Err(e) = self.kernel_call(call.func, &call.args) {
                 log::warn!("kernel: {} callback failed: {}", call.kind, e);
             }
             ran += 1;
@@ -743,7 +831,7 @@ impl Emu {
     ///
     /// Linux and XNU kernel code is plain SysV / AAPCS64; a Windows driver uses
     /// the Microsoft x64 convention, the same one user-mode PE code uses.
-    pub fn kernel_call(&mut self, addr: u64, args: &[u64]) -> Result<u64, crate::err::MwemuError> {
+    pub fn kernel_call(&mut self, addr: u64, args: &[u64]) -> Result<u64, MwemuError> {
         // Return to the pad so the callee's `ret` lands on a mapped address
         // that ends the run cleanly.
         if let Some(kernel) = self.kernel.as_ref() {
@@ -755,12 +843,49 @@ impl Emu {
             }
         }
 
-        if self.cfg.arch.is_aarch64() {
+        // Per-call instruction budget, on top of whatever the caller set.
+        let budget = self.kernel.as_ref().map(|k| k.call_budget).unwrap_or(0);
+        let saved_limit = self.cfg.max_instructions;
+        let limit = if budget == 0 {
+            saved_limit
+        } else {
+            let mine = self.instruction_count.saturating_add(budget);
+            Some(saved_limit.map_or(mine, |l| l.min(mine)))
+        };
+        self.cfg.max_instructions = limit;
+
+        let result = if self.cfg.arch.is_aarch64() {
             self.aarch64_call64(addr, args)
         } else if matches!(self.kernel.as_ref().map(|k| k.os), Some(KernelOs::Windows)) {
             self.call64(addr, args)
         } else {
             self.linux_call64(addr, args)
+        };
+
+        self.cfg.max_instructions = saved_limit;
+        let exhausted = budget != 0
+            && saved_limit != limit
+            && limit.is_some_and(|l| self.instruction_count >= l);
+        if exhausted {
+            log::warn!(
+                "kernel call 0x{:x} exceeded its budget of {} instructions at 0x{:x} — abandoned (a polling loop?)",
+                addr,
+                budget,
+                self.pc()
+            );
+            return Err(MwemuError::new(&format!(
+                "kernel call exceeded its budget of {} instructions at 0x{:x}",
+                budget,
+                self.pc()
+            )));
+        }
+        result
+    }
+
+    /// Set the instruction budget of one `kernel_call` (0 = unlimited).
+    pub fn kernel_set_call_budget(&mut self, instructions: u64) {
+        if let Some(k) = self.kernel.as_mut() {
+            k.call_budget = instructions;
         }
     }
 
@@ -773,9 +898,173 @@ impl Emu {
         }
     }
 
-    /// Read argument `idx` of a kernel API call (SysV / AAPCS64 order).
+    /// Read argument `idx` of a kernel API call in the kernel's own calling
+    /// convention: SysV for Linux, AAPCS64 on AArch64, Microsoft x64 for a
+    /// Windows driver (rcx, rdx, r8, r9, then the stack above the 32-byte
+    /// shadow space).
     pub fn kernel_arg(&self, idx: usize) -> u64 {
+        let is_windows = matches!(self.kernel.as_ref().map(|k| k.os), Some(KernelOs::Windows));
+        if is_windows && !self.cfg.arch.is_aarch64() {
+            let regs = self.regs();
+            return match idx {
+                0 => regs.rcx,
+                1 => regs.rdx,
+                2 => regs.r8,
+                3 => regs.r9,
+                // The gateway already popped the return address, so rsp points
+                // at the shadow space; stack argument N sits at
+                // [rsp + 0x20 + (N - 4) * 8].
+                n => self
+                    .maps
+                    .read_qword(regs.rsp + 0x20 + ((n as u64) - 4) * 8)
+                    .unwrap_or(0),
+            };
+        }
         crate::api::abi::ApiAbi::from_emu(self).arg(self, idx)
+    }
+
+    /// Turn the kernel API call being handled into a call of driver code.
+    ///
+    /// Some kernel APIs are "run this now on my behalf" (`KeIpiGenericCall`,
+    /// `KeExpandKernelStackAndCallout`). Running the callback nested inside the
+    /// gateway would need a re-entrant run loop; instead the stub becomes a
+    /// tail call: the original return address goes back on the stack, the
+    /// arguments go in the convention's registers, and execution continues in
+    /// the callback, whose own `ret` returns to the driver with its result as
+    /// the API's result. Only meaningful from inside a gateway handler.
+    pub fn kernel_tail_call(&mut self, func: u64, args: &[u64]) {
+        self.kernel_check_call_target(func);
+        let ret = self.gateway_return;
+        if self.cfg.arch.is_aarch64() {
+            for (i, a) in args.iter().enumerate().take(8) {
+                self.regs_aarch64_mut().x[i] = *a;
+            }
+            self.regs_aarch64_mut().x[30] = ret;
+            self.regs_aarch64_mut().pc = func;
+            return;
+        }
+        let windows = matches!(self.kernel.as_ref().map(|k| k.os), Some(KernelOs::Windows));
+        let order: &[fn(&mut crate::arch::x86::regs::Regs64, u64)] = if windows {
+            &[
+                |r, v| r.rcx = v,
+                |r, v| r.rdx = v,
+                |r, v| r.r8 = v,
+                |r, v| r.r9 = v,
+            ]
+        } else {
+            &[
+                |r, v| r.rdi = v,
+                |r, v| r.rsi = v,
+                |r, v| r.rdx = v,
+                |r, v| r.rcx = v,
+                |r, v| r.r8 = v,
+                |r, v| r.r9 = v,
+            ]
+        };
+        for (set, a) in order.iter().zip(args.iter()) {
+            set(self.regs_mut(), *a);
+        }
+        self.stack_push64(ret);
+        self.regs_mut().rip = func;
+    }
+
+    /// Record a privileged operation (MSR, port, physical memory access).
+    pub fn kernel_privop(&mut self, kind: &'static str, addr: u64, value: u64, size: u64) {
+        let rip = self.pc();
+        let pos = self.pos;
+        if self.cfg.verbose >= 1 {
+            log::info!(
+                "{}** {} privileged: {} addr=0x{:x} value=0x{:x} size={}{}",
+                self.colors.light_purple,
+                pos,
+                kind,
+                addr,
+                value,
+                size,
+                self.colors.nc
+            );
+        }
+        if let Some(k) = self.kernel.as_mut() {
+            k.privops.push(PrivilegedOp {
+                kind,
+                rip,
+                pos,
+                addr,
+                value,
+                size,
+            });
+        }
+    }
+
+    /// Privileged operations recorded so far, in order.
+    pub fn kernel_privops(&self) -> &[PrivilegedOp] {
+        match self.kernel.as_ref() {
+            Some(k) => &k.privops,
+            None => &[],
+        }
+    }
+
+    /// Model-specific register read (default 0 if never written or preset).
+    pub fn kernel_msr_read(&mut self, index: u32) -> u64 {
+        let v = self
+            .kernel
+            .as_ref()
+            .and_then(|k| k.msrs.get(&index).copied())
+            .unwrap_or(0);
+        self.kernel_privop("rdmsr", index as u64, v, 8);
+        v
+    }
+
+    /// Model-specific register write.
+    pub fn kernel_msr_write(&mut self, index: u32, value: u64) {
+        self.kernel_privop("wrmsr", index as u64, value, 8);
+        if let Some(k) = self.kernel.as_mut() {
+            k.msrs.insert(index, value);
+        }
+    }
+
+    /// Preset an MSR so a driver's capability probe reads what it expects.
+    pub fn kernel_set_msr(&mut self, index: u32, value: u64) {
+        if let Some(k) = self.kernel.as_mut() {
+            k.msrs.insert(index, value);
+        }
+    }
+
+    /// I/O port read: returns the last value written to that port (default 0).
+    pub fn kernel_port_in(&mut self, port: u16, size: u64) -> u64 {
+        let mask = if size >= 8 {
+            u64::MAX
+        } else {
+            (1u64 << (size * 8)) - 1
+        };
+        let v = self
+            .kernel
+            .as_ref()
+            .and_then(|k| k.ports.get(&port).copied())
+            .unwrap_or(0)
+            & mask;
+        self.kernel_privop("in", port as u64, v, size);
+        v
+    }
+
+    /// I/O port write.
+    pub fn kernel_port_out(&mut self, port: u16, value: u64, size: u64) {
+        let mask = if size >= 8 {
+            u64::MAX
+        } else {
+            (1u64 << (size * 8)) - 1
+        };
+        self.kernel_privop("out", port as u64, value & mask, size);
+        if let Some(k) = self.kernel.as_mut() {
+            k.ports.insert(port, value & mask);
+        }
+    }
+
+    /// Preset an I/O port so a driver's device probe reads what it expects.
+    pub fn kernel_set_port(&mut self, port: u16, value: u64) {
+        if let Some(k) = self.kernel.as_mut() {
+            k.ports.insert(port, value);
+        }
     }
 
     /// Capture a driver ops struct handed to a `*_register_driver` call.

@@ -194,16 +194,121 @@ drivers.
 x86_64 kexts use classic external relocations (`LC_DYSYMTAB`) rather than
 chained fixups, so only arm64e kexts take this path for now.
 
-## Windows
+## Windows (`.sys`)
 
-The surface is declared and its allocators implemented, so a `.sys` inherits the
-lifetime analysis as soon as its loader lands: `ExAllocatePool2`,
-`ExAllocatePoolWithTag`, `ExFreePool`, `ExFreePoolWithTag`,
-`MmAllocateContiguousMemory`, `RtlCopyMemory`, `RtlZeroMemory`,
-`DbgPrint`/`DbgPrintEx`. Declared and still to implement: the MDL, IO manager,
-object manager and synchronisation groups (`libmwemu::kernel::windows::SURFACE`).
-What is missing is the *loader*: a `.sys` is a PE with a `DriverEntry`, so it
-needs the PE path with kernel-space placement rather than the ET_REL path.
+A `.sys` is a PE64 with `DriverEntry` as its entry point and imports from
+`ntoskrnl.exe`, `HAL.dll`, `FLTMGR.SYS`, `WDFLDR.SYS`. The loader
+(`Emu::load_sys_driver`, `emu/loaders/sys.rs`, auto-detected by
+`load_code`/`load_kernel_module` from the native subsystem plus the kernel
+imports) maps the image at the kernel module base, applies the base
+relocations, seeds `__security_cookie` through the Load Config directory
+(the driver's own `__security_init_cookie` fast-fails otherwise) and binds
+every import to the emulated kernel: a stub for a function, zeroed storage
+for a data export (`IoDeviceObjectType`, `SeExports`, `NtBuildNumber`, …).
+Only x64 drivers for now.
+
+A driver is driven the way the I/O manager drives it, and the objects it
+reads are built with the real x64 layouts (`kernel/windows/structs.rs`),
+because `IoGetCurrentIrpStackLocation`, `ExInitializeFastMutex`,
+`MmGetSystemAddressForMdlSafe` and friends are inline in the DDK headers:
+
+- `Emu::run_module_init()` / `run_driver_entry()` builds a `DRIVER_OBJECT`
+  (every `MajorFunction` slot pre-filled with `IopInvalidDeviceRequest`) and
+  a registry path, calls `DriverEntry`, then captures the dispatch table
+  (exposed as module symbols `IRP_MJ_DEVICE_CONTROL`, …), `DriverUnload`,
+  `AddDevice` and the devices created through `IoCreateDevice(Secure)`.
+- `Emu::kernel_ioctl(device, code, input, output_len)` sends
+  `IRP_MJ_DEVICE_CONTROL` with the buffering the control code's method asks
+  for (buffered: `SystemBuffer`; direct: `MdlAddress`; neither:
+  `Type3InputBuffer`/`UserBuffer`), with the caller's buffers mapped in the
+  user-mode range so `ProbeForRead`/`MmUserProbeAddress` checks behave. The
+  result carries the NTSTATUS, `IoStatus`, the output buffer, whether
+  `IofCompleteRequest` ran, and the privileged operations the request made.
+  `kernel_create`/`kernel_close`/`kernel_read`/`kernel_write`/`kernel_send_irp`
+  cover the other requests a user-mode client can send.
+- `Emu::kernel_ioctl_candidates()` harvests control codes from the driver's
+  code (immediates and `add/sub reg, -base; cmp reg, range` switch tables);
+  `kernel_scan_ioctls()` sends each with several input sizes and reports
+  what it reached — the BYOVD starting point.
+- Every request runs under an instruction budget (`kernel_set_call_budget`,
+  default 5M) so a driver polling a register cannot hang the run.
+
+### Privileged operations
+
+A BYOVD (bring-your-own-vulnerable-driver) hunt is a search for an IOCTL
+that hands user mode a ring-0 primitive. Those are logged, not blocked, in
+`KernelEnv::privops` (`Emu::kernel_privops()`, each with the faulting PC and
+step): `rdmsr`/`wrmsr` (the MSR file is modelled, `kernel_set_msr` presets
+one), `in`/`out` (`kernel_set_port`), `map_io_space`/`unmap_io_space`
+(`MmMapIoSpace`, `MmMapVideoDisplay`, `ZwMapViewOfSection` on
+`\Device\PhysicalMemory`), `phys_read` (`MmCopyMemory`), `virt_to_phys`,
+`pci_read`/`pci_write` (`HalGetBusDataByOffset`), `ipi_call`
+(`KeIpiGenericCall`). `cli`/`sti`, `rdpmc` and the port and MSR instructions
+are implemented in the engine for kernel mode. A physical-memory window is a
+pool chunk, so a stale use after `MmUnmapIoSpace` reports like any other
+use-after-free.
+
+CLI: `mwemu -f driver.sys -6` runs DriverEntry and prints devices, links and
+dispatch; `--ioctl CODE[:INPUT_HEX[:OUT_LEN]]` sends one request;
+`--ioctl-scan` runs the scan. MCP: `mwemu_kernel_driver`, `mwemu_kernel_ioctl`,
+`mwemu_kernel_send_irp`, `mwemu_kernel_scan_ioctls`, `mwemu_kernel_privops`,
+`mwemu_kernel_preset`. Python: `kernel_ioctl`, `kernel_devices`,
+`kernel_dispatch_table`, `kernel_scan_ioctls`, `kernel_privops`,
+`kernel_set_msr`, `kernel_set_port`.
+
+### Implemented Windows surface
+
+`libmwemu::kernel::windows::SURFACE` (and `mwemu_kernel_surface` with
+`os=windows`) lists it at run time, grouped by file:
+
+- **pool** — every `ExAllocatePool*`/`ExFreePool*` spelling, `MmAllocate*`,
+  lookaside lists (the header's `Allocate`/`Free` point at the pool stubs so
+  the DDK's inline `ExAllocateFromNPagedLookasideList` works), `SLIST`
+  push/pop/flush in the real 16-byte x64 layout, `ExInterlocked*List`.
+- **io** — `IoCreateDevice`/`IoCreateDeviceSecure`, symbolic links,
+  `IofCompleteRequest`, IRP allocation/initialisation, stack-location helpers,
+  `IoBuildDeviceIoControlRequest`, `IofCallDriver` (a modelled lower driver
+  completes it), MDLs, work items (queued, not run), device interfaces,
+  remove locks, `IoGetDeviceObjectPointer` against the driver's own devices.
+- **mm** — `MmMapIoSpace`, `MmCopyMemory`, `MmGetPhysicalAddress`,
+  `MmGetSystemRoutineAddress` (resolves to an interceptable stub, so a
+  run-time lookup of `ZwQuerySystemInformation` is still intercepted), MDL
+  probe/lock/map, `MmAllocatePagesForMdl`, `ProbeForRead`/`Write`, HAL bus
+  data and address translation.
+- **rtl** — `UNICODE_STRING`/`ANSI_STRING` family, `RtlGetVersion` (Windows
+  10 22H2), registry helpers (answer "not found" so defaults apply), the
+  security-descriptor/ACL/SID group that `wdmsec`'s statically linked
+  `IoCreateDeviceSecure` depends on, `RtlImageNtHeader`/
+  `RtlImageDirectoryEntryToData`, bitmaps, AVL table stubs.
+- **crt** — `memcpy`/`memset`/`strlen`/`wcs*`/`_wcsnicmp`/…, the `printf`
+  family (narrow, wide, `va_list`; `%ws`, `%wZ`, `%Z`, `%I64x`), `DbgPrint`/
+  `DbgPrintEx`/`vDbgPrintEx`, `__C_specific_handler`.
+- **sync** — spin locks, fast mutexes, ERESOURCE, push locks, rundown
+  protection (uncontended by construction), events/semaphores/mutexes
+  (modelled for real), DPCs and timers (queued, drained by
+  `kernel_run_deferred`), `KeIpiGenericCall` and
+  `KeExpandKernelStackAndCallout` (tail calls into the driver), processor,
+  affinity and time queries, `KeBugCheckEx` (stops the run).
+- **misc** — `Ps*` (a fake System process and thread, notify routines
+  recorded, system threads queued), `Ob*` (handles remembered), `Se*`,
+  `Zw*` (registry and files answered benignly; `ZwQuerySystemInformation`
+  reports a one-module kernel; `\Device\PhysicalMemory` sections logged),
+  `Cm*`, `Flt*`, `Etw*`, `Po*`, `WdfVersionBind` (fills the `WdfFunctions`
+  table with per-index stubs; the KMDF object model itself is not modelled,
+  so a pure KMDF driver gets through DriverEntry but never sees
+  `EvtDeviceAdd`).
+
+An import outside the surface still resolves to a stub that returns 0 and
+is listed in `module.unresolved` at load time and `KernelEnv::unimplemented`
+when called. Not modelled yet: SEH dispatch in kernel mode (`__try` around
+`ProbeForRead` ends the run instead of unwinding), `mov cr*`, APC delivery,
+x86 (32-bit) and ARM64 drivers, the KMDF object model.
+
+`drivers/windows/tlm` is the Windows twin of the Linux target: the same
+stale-hot-channel use-after-free plus an `MmMapIoSpace` and an
+`rdmsr`/`wrmsr` IOCTL behind a magic value. `make windows-driver` builds it
+with mingw-w64 into `test/windows_uaf_driver.sys` and
+`cargo test -p libmwemu tests::kernel::windows` drives it end to end.
 
 ## Using it
 
@@ -211,7 +316,7 @@ Rust:
 
 ```rust
 let mut emu = libmwemu::emu64();
-emu.load_kernel_module("driver.ko")?;
+emu.load_kernel_module("driver.ko")?;   // or driver.sys: the format is detected
 emu.run_module_init()?;                       // insmod
 emu.call_module_symbol("drv_ioctl", &[0, cmd, argp])?;
 for f in emu.kernel_findings() {
@@ -219,11 +324,22 @@ for f in emu.kernel_findings() {
 }
 ```
 
+Windows:
+
+```rust
+let mut emu = libmwemu::emu64();
+emu.load_kernel_module("driver.sys")?;
+emu.run_module_init()?;                                   // DriverEntry
+let r = emu.kernel_ioctl(0, 0x9c402118, &0xc000_0082u32.to_le_bytes(), 8)?;
+for op in &r.privops { println!("{}", op.report()); }      // rdmsr 0xc0000082 -> ...
+```
+
 CLI — links the module and leaves PC at its init, so a plain run does what
 `insmod` does:
 
 ```sh
 mwemu -f driver.ko -6 -v
+mwemu -f driver.sys -6 --ioctl-scan
 ```
 
 MCP — see the kernel-mode section of `crates/mwemu-mcp/README.md`.

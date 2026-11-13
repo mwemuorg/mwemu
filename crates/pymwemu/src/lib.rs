@@ -121,6 +121,27 @@ pub struct Emu {
     emu: libmwemu::emu::Emu,
 }
 
+impl Emu {
+    fn irp_result_to_py(
+        py: Python<'_>,
+        r: &libmwemu::kernel::windows::irp::IrpResult,
+    ) -> PyResult<Py<PyAny>> {
+        let d = pyo3::types::PyDict::new(py);
+        d.set_item("status", r.status)?;
+        d.set_item("io_status", r.io_status)?;
+        d.set_item("information", r.information)?;
+        d.set_item("output", pyo3::types::PyBytes::new(py, &r.output))?;
+        d.set_item("completed", r.completed)?;
+        d.set_item("error", r.error.clone())?;
+        d.set_item(
+            "privops",
+            r.privops.iter().map(|p| p.report()).collect::<Vec<_>>(),
+        )?;
+        d.set_item("unimplemented", r.unimplemented.clone())?;
+        Ok(d.into_any().unbind())
+    }
+}
+
 #[gen_stub_pymethods]
 #[pymethods]
 #[allow(deprecated)]
@@ -723,6 +744,116 @@ impl Emu {
     /// Current value of a device register (0 if never written or preset).
     fn kernel_get_register(&self, addr: u64) -> u64 {
         self.emu.kernel_get_register(addr)
+    }
+
+    // ---- kernel-mode: Windows drivers (.sys) ------------------------------
+
+    /// Devices the driver created in DriverEntry: `(name, address,
+    /// device_type, extension_size)`. The first one is the default target of
+    /// `kernel_ioctl`.
+    fn kernel_devices(&self) -> Vec<(String, u64, u32, u32)> {
+        self.emu
+            .kernel_devices()
+            .into_iter()
+            .map(|d| (d.name, d.addr, d.device_type, d.extension_size))
+            .collect()
+    }
+
+    /// `\DosDevices\X -> \Device\Y` symbolic links the driver created.
+    fn kernel_symlinks(&self) -> Vec<(String, String)> {
+        self.emu.kernel_symlinks()
+    }
+
+    /// The IRP_MJ_* dispatch routines the driver installed:
+    /// `(major, name, address)`.
+    fn kernel_dispatch_table(&self) -> Vec<(u8, String, u64)> {
+        self.emu
+            .kernel_dispatch_table()
+            .into_iter()
+            .map(|(i, n, a)| (i, n.to_string(), a))
+            .collect()
+    }
+
+    /// Send IRP_MJ_DEVICE_CONTROL `code` with `input` to `device` (0 = the
+    /// first device), as DeviceIoControl would, with the buffering the
+    /// control code's method asks for. Returns a dict: status, io_status,
+    /// information, output (bytes), completed, error, privops (list of
+    /// report strings), unimplemented (kernel APIs with no implementation).
+    fn kernel_ioctl(
+        &mut self,
+        py: Python<'_>,
+        code: u32,
+        input: Vec<u8>,
+        output_len: usize,
+        device: Option<u64>,
+    ) -> PyResult<Py<PyAny>> {
+        let r = self
+            .emu
+            .kernel_ioctl(device.unwrap_or(0), code, &input, output_len)
+            .map_err(|e| PyValueError::new_err(e.message))?;
+        Self::irp_result_to_py(py, &r)
+    }
+
+    /// Send a bufferless IRP: 0 = create, 2 = close, 0x12 = cleanup, 0x10 = shutdown.
+    fn kernel_send_irp(
+        &mut self,
+        py: Python<'_>,
+        major: u8,
+        minor: Option<u8>,
+        device: Option<u64>,
+    ) -> PyResult<Py<PyAny>> {
+        let r = self
+            .emu
+            .kernel_send_irp(device.unwrap_or(0), major, minor.unwrap_or(0))
+            .map_err(|e| PyValueError::new_err(e.message))?;
+        Self::irp_result_to_py(py, &r)
+    }
+
+    /// IOCTL control codes harvested from the driver's own code.
+    fn kernel_ioctl_candidates(&self) -> Vec<u32> {
+        self.emu.kernel_ioctl_candidates()
+    }
+
+    /// Send every harvested IOCTL code with several input sizes. Returns a
+    /// list of `(code, input_len, report)`; the report names the status and
+    /// the privileged operations the request reached.
+    fn kernel_scan_ioctls(
+        &mut self,
+        device: Option<u64>,
+        output_len: Option<usize>,
+    ) -> Vec<(u32, usize, String)> {
+        self.emu
+            .kernel_scan_ioctls(device.unwrap_or(0), output_len.unwrap_or(0x1000))
+            .into_iter()
+            .map(|p| (p.code, p.input_len, p.report()))
+            .collect()
+    }
+
+    /// Privileged operations the driver performed so far, as
+    /// `(kind, address, value, size, pc, step)`: kind is rdmsr, wrmsr, in,
+    /// out, map_io_space, unmap_io_space, phys_read, pci_read, pci_write, ...
+    fn kernel_privops(&self) -> Vec<(String, u64, u64, u64, u64, u64)> {
+        self.emu
+            .kernel_privops()
+            .iter()
+            .map(|p| (p.kind.to_string(), p.addr, p.value, p.size, p.rip, p.pos))
+            .collect()
+    }
+
+    /// Preset an MSR the driver will read.
+    fn kernel_set_msr(&mut self, index: u32, value: u64) {
+        self.emu.kernel_set_msr(index, value);
+    }
+
+    /// Preset an I/O port the driver will read.
+    fn kernel_set_port(&mut self, port: u16, value: u64) {
+        self.emu.kernel_set_port(port, value);
+    }
+
+    /// Instruction budget of one kernel call / request (0 = unlimited); a
+    /// driver polling a register that never changes stops here.
+    fn kernel_set_call_budget(&mut self, instructions: u64) {
+        self.emu.kernel_set_call_budget(instructions);
     }
 
     fn kernel_registered_drivers(&self) -> Vec<(String, String, u64, u64, String, u64)> {

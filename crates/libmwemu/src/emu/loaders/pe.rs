@@ -447,7 +447,11 @@ impl Emu {
     }
 }
 
-fn image_regions<'a>(module: &str, raw: &'a [u8], layout: ImageLayout<'_>) -> Vec<ImageRegion<'a>> {
+pub(crate) fn image_regions<'a>(
+    module: &str,
+    raw: &'a [u8],
+    layout: ImageLayout<'_>,
+) -> Vec<ImageRegion<'a>> {
     if layout.is_flat() {
         // Windows maps low-alignment images as one executable copy-on-write
         // view. Use the existing writable approximation until image COW exists.
