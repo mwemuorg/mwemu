@@ -42,6 +42,15 @@ impl Emu {
             return self.load_sys_driver(filename);
         }
 
+        // If it looks like a PE but didn't pass the kernel-driver check,
+        // give a specific message instead of the confusing "not a valid ELF64".
+        if raw.len() >= 2 && raw[0] == b'M' && raw[1] == b'Z' {
+            return Err(MwemuError::new(&format!(
+                "{} is a PE but not a recognized kernel driver (check arch=x64, subsystem=NATIVE, no ntdll.dll import)",
+                filename
+            )));
+        }
+
         let mut elf = Elf64::parse(&raw)
             .map_err(|e| MwemuError::new(&format!("{} is not a valid ELF64: {}", filename, e)))?;
         if !elf.is_relocatable() {

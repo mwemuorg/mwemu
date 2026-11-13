@@ -77,13 +77,7 @@ pub fn is_kernel_driver(raw: &[u8]) -> bool {
         .iter()
         .map(|d| d.name.trim().to_ascii_lowercase())
         .collect();
-    if imports.iter().any(|n| n == "ntdll.dll") {
-        return false;
-    }
-    imports.is_empty()
-        || imports
-            .iter()
-            .any(|n| KERNEL_LIBRARIES.contains(&n.as_str()))
+    !imports.iter().any(|n| n == "ntdll.dll")
 }
 
 impl Emu {

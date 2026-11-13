@@ -1132,9 +1132,168 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         }
         "RtlIsNameLegalDOS8Dot3" => emu.set_kernel_ret(1),
         "RtlSetBitMapEx" | "RtlCopyLuid" => emu.set_kernel_ret(0),
+
+        // --- FsRtl --------------------------------------------------------------------
+        // FsRtlIsNameInExpression(Expression, Name, IgnoreCase, UpcaseTable)
+        "FsRtlIsNameInExpression" | "FsRtlIsNameInExpressionPrivate" => {
+            let expr_us = emu.kernel_arg(0);
+            let name_us = emu.kernel_arg(1);
+            let ignore_case = emu.kernel_arg(2) != 0;
+            let expr = read_unicode_string(emu, expr_us);
+            let name = read_unicode_string(emu, name_us);
+            let result = fsrtl_name_match(&expr, &name, ignore_case);
+            log::info!(
+                "FsRtlIsNameInExpression: '{}' vs '{}' case_insensitive={} -> {}",
+                expr,
+                name,
+                ignore_case,
+                result
+            );
+            emu.set_kernel_ret(result as u64);
+        }
+        "FsRtlIsDbcsInExpression" => {
+            let expr = read_ansi_string(emu, emu.kernel_arg(0));
+            let name = read_ansi_string(emu, emu.kernel_arg(1));
+            let result = fsrtl_name_match(&expr, &name, false);
+            emu.set_kernel_ret(result as u64);
+        }
+        "FsRtlNotifyVolumeEvent"
+        | "FsRtlNotifyVolumeEventEx"
+        | "FsRtlNotifyCleanup"
+        | "FsRtlNotifyCleanupAll"
+        | "FsRtlNotifyFilterChangeDirectory"
+        | "FsRtlNotifyFilterReportChange"
+        | "FsRtlNotifyFullChangeDirectory"
+        | "FsRtlNotifyFullReportChange"
+        | "FsRtlNotifyInitializeSync"
+        | "FsRtlNotifyUninitializeSync"
+        | "FsRtlRegisterFileSystemFilterCallbacks"
+        | "FsRtlRegisterUncProvider"
+        | "FsRtlRegisterUncProviderEx"
+        | "FsRtlDeregisterUncProvider"
+        | "FsRtlCancellableWaitForSingleObject"
+        | "FsRtlCancellableWaitForMultipleObjects"
+        | "FsRtlFreeExtraCreateParameter"
+        | "FsRtlFreeExtraCreateParameterList"
+        | "FsRtlTeardownPerStreamContexts"
+        | "FsRtlTeardownPerFileContexts"
+        | "FsRtlRemovePerStreamContext"
+        | "FsRtlInsertPerStreamContext"
+        | "FsRtlAcquireFileExclusive"
+        | "FsRtlReleaseFile"
+        | "FsRtlPostPagingFileStackOverflow"
+        | "FsRtlPostStackOverflow"
+        | "FsRtlMdlReadDev"
+        | "FsRtlMdlReadCompleteDev"
+        | "FsRtlPrepareMdlWriteDev"
+        | "FsRtlMdlWriteCompleteDev" => {
+            emu.set_kernel_ret(0);
+        }
+        "FsRtlAllocateExtraCreateParameterList"
+        | "FsRtlAllocateExtraCreateParameter"
+        | "FsRtlAllocateExtraCreateParameterFromLookasideList"
+        | "FsRtlAllocatePoolWithTag"
+        | "FsRtlAllocateResource" => {
+            let size = match symbol {
+                "FsRtlAllocatePoolWithTag" => emu.kernel_arg(1).max(1),
+                _ => 0x100,
+            };
+            let p = emu.kernel_alloc(Region::Slab, size, "fsrtl", symbol, true);
+            emu.set_kernel_ret(p);
+        }
+        "FsRtlIsNtstatusExpected" => emu.set_kernel_ret(1),
+        "FsRtlIsPagingFile" | "FsRtlIsSystemPagingFile" => emu.set_kernel_ret(0),
+        "FsRtlAreNamesEqual" => {
+            let a = read_unicode_string(emu, emu.kernel_arg(0));
+            let b = read_unicode_string(emu, emu.kernel_arg(1));
+            let ignore_case = emu.kernel_arg(2) != 0;
+            let eq = if ignore_case {
+                a.eq_ignore_ascii_case(&b)
+            } else {
+                a == b
+            };
+            emu.set_kernel_ret(eq as u64);
+        }
         _ => return false,
     }
     true
+}
+
+/// NTFS/FsRtl wildcard matching: `*` matches any sequence, `?` matches
+/// exactly one character, `"` matches any single character including `.`,
+/// and the DOS_DOT (`"`) / DOS_STAR (`<`) / DOS_QM (`>`) semantics from
+/// the Windows kernel.
+fn fsrtl_name_match(expression: &str, name: &str, ignore_case: bool) -> bool {
+    let expr: Vec<char> = expression.chars().collect();
+    let name: Vec<char> = if ignore_case {
+        name.to_uppercase().chars().collect()
+    } else {
+        name.chars().collect()
+    };
+    let expr: Vec<char> = if ignore_case {
+        expression.to_uppercase().chars().collect()
+    } else {
+        expr
+    };
+    fsrtl_match_recursive(&expr, &name, 0, 0)
+}
+
+fn fsrtl_match_recursive(expr: &[char], name: &[char], mut ei: usize, mut ni: usize) -> bool {
+    while ei < expr.len() {
+        match expr[ei] {
+            '*' => {
+                ei += 1;
+                if ei == expr.len() {
+                    return true;
+                }
+                for ni2 in ni..=name.len() {
+                    if fsrtl_match_recursive(expr, name, ei, ni2) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            '?' => {
+                if ni >= name.len() {
+                    return false;
+                }
+                ei += 1;
+                ni += 1;
+            }
+            // DOS_DOT: matches `.` or the end-of-name when the name has no
+            // trailing dot.
+            '"' => {
+                if ni < name.len() && name[ni] == '.' {
+                    ni += 1;
+                }
+                ei += 1;
+            }
+            // DOS_STAR `<`: matches zero or more characters until the last `.`.
+            '<' => {
+                ei += 1;
+                if let Some(last_dot) = name[ni..].iter().rposition(|c| *c == '.') {
+                    ni += last_dot;
+                } else {
+                    ni = name.len();
+                }
+            }
+            // DOS_QM `>`: matches any single character, or nothing at end.
+            '>' => {
+                if ni < name.len() && name[ni] != '.' {
+                    ni += 1;
+                }
+                ei += 1;
+            }
+            c => {
+                if ni >= name.len() || name[ni] != c {
+                    return false;
+                }
+                ei += 1;
+                ni += 1;
+            }
+        }
+    }
+    ni == name.len()
 }
 
 /// Howard Hinnant's days-to-civil, for `RtlTimeToTimeFields`.
@@ -1286,4 +1445,32 @@ pub const SURFACE: &[&str] = &[
     "RtlEnumerateGenericTableAvl",
     "RtlNumberGenericTableElementsAvl",
     "RtlIsNameLegalDOS8Dot3",
+    "FsRtlIsNameInExpression",
+    "FsRtlIsNameInExpressionPrivate",
+    "FsRtlIsDbcsInExpression",
+    "FsRtlAreNamesEqual",
+    "FsRtlIsNtstatusExpected",
+    "FsRtlIsPagingFile",
+    "FsRtlIsSystemPagingFile",
+    "FsRtlNotifyVolumeEvent",
+    "FsRtlNotifyCleanup",
+    "FsRtlNotifyFilterChangeDirectory",
+    "FsRtlNotifyFilterReportChange",
+    "FsRtlNotifyFullChangeDirectory",
+    "FsRtlNotifyFullReportChange",
+    "FsRtlNotifyInitializeSync",
+    "FsRtlNotifyUninitializeSync",
+    "FsRtlRegisterFileSystemFilterCallbacks",
+    "FsRtlRegisterUncProvider",
+    "FsRtlRegisterUncProviderEx",
+    "FsRtlDeregisterUncProvider",
+    "FsRtlCancellableWaitForSingleObject",
+    "FsRtlCancellableWaitForMultipleObjects",
+    "FsRtlAllocateExtraCreateParameterList",
+    "FsRtlAllocateExtraCreateParameter",
+    "FsRtlFreeExtraCreateParameter",
+    "FsRtlFreeExtraCreateParameterList",
+    "FsRtlTeardownPerStreamContexts",
+    "FsRtlAcquireFileExclusive",
+    "FsRtlReleaseFile",
 ];
