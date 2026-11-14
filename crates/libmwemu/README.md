@@ -24,9 +24,6 @@ https://github.com/mwemuorg/mwemu
 
 ## Usage
 
-Download the maps from:
-https://github.com/mwemuorg/mwemu
-
 Create an emu32 or emu64 and set the maps folder.
 
 ```rust
