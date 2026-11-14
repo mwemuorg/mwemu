@@ -1,13 +1,11 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// ADCX dest, src: dest = dest + src + f_cf; only f_cf is updated.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
+
     let d = match emu.get_operand_value(ins, 0, true) {
         Some(v) => v,
         None => return false,
@@ -21,8 +19,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     let sum = d as u128 + s as u128 + cin;
     let mask = (1u128 << sz) - 1;
     emu.flags_mut().f_cf = (sum >> sz) & 1 == 1;
-    if !emu.set_operand_value(ins, 0, (sum & mask) as u64) {
-        return false;
-    }
-    true
+    emu.set_operand_value(ins, 0, (sum & mask) as u64)
 }

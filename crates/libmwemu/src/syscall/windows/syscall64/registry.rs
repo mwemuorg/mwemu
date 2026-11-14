@@ -1,5 +1,6 @@
 use crate::emu::Emu;
-use crate::windows::constants::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::syscalls::*;
 
 use super::sync;
 

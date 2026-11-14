@@ -1,4 +1,5 @@
 use crate::utils::helpers::{likely, unlikely};
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::cmp;
 use std::collections::HashMap;
@@ -13,7 +14,7 @@ const O1HEAP_ALIGNMENT: usize = 256; // Must be a power of 2
 const FRAGMENT_SIZE_MIN: usize = 256;
 const FRAGMENT_SIZE_MAX: usize = (usize::MAX >> 1) + 1;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct O1HeapDiagnostics {
     pub capacity: usize,
     pub allocated: usize,
@@ -25,12 +26,13 @@ pub struct O1HeapDiagnostics {
 /// Plain-data copy of an `O1Heap`: the fragment list in address order plus
 /// the offsets indexed by `hashes`. Rebuilding from it gives a heap that
 /// shares no nodes with the original (an `Rc` clone would share them).
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct O1HeapSnapshot {
     base: u64,
     diagnostics: O1HeapDiagnostics,
     fragments: Vec<(u32, u32, bool)>, // (offset, size, used)
     hash_keys: Vec<u32>,
+    requests: HashMap<u64, usize>,
 }
 
 /// Result of a successful reallocation.
@@ -77,6 +79,7 @@ impl Fragment {
 
 pub struct O1Heap {
     base: u64,
+    requests: HashMap<u64, usize>,
     bins: Vec<PRFrag>, // bins store the offset to the fragment, but not the pointer
     hashes: HashMap<u32, RCFrag, nohash_hasher::BuildNoHashHasher<u32>>,
     nonempty_bin_mask: usize,
@@ -149,6 +152,7 @@ impl O1Heap {
             HashMap::default();
         let mut heap = Self {
             base,
+            requests: HashMap::new(),
             bins: vec![None; NUM_BINS_MAX],
             hashes,
             nonempty_bin_mask: 0,
@@ -228,6 +232,7 @@ impl O1Heap {
             diagnostics: self.diagnostics.clone(),
             fragments,
             hash_keys,
+            requests: self.requests.clone(),
         }
     }
 
@@ -237,6 +242,7 @@ impl O1Heap {
     pub fn from_snapshot(snap: &O1HeapSnapshot) -> Self {
         let mut heap = Self {
             base: snap.base,
+            requests: snap.requests.clone(),
             bins: vec![None; NUM_BINS_MAX],
             hashes: HashMap::default(),
             nonempty_bin_mask: 0,
@@ -280,6 +286,31 @@ impl O1Heap {
     /// * `Some(usize)` - An offset into the heap's memory arena if successful
     /// * `None` - If there is insufficient memory or the request is invalid
     pub fn allocate(&mut self, amount: usize) -> Option<u64> {
+        let address = self.allocate_fragment(amount)?;
+        self.requests.insert(address, amount);
+        Some(address)
+    }
+
+    pub fn requested_size(&self, address: u64) -> Option<usize> {
+        self.requests.get(&address).copied()
+    }
+
+    pub fn record_request(&mut self, address: u64, size: usize) {
+        if self.check_fragment_exists(address) {
+            self.requests.insert(address, size);
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.requests.clear();
+        self.hashes.clear();
+        self.bins.fill(None);
+        self.nonempty_bin_mask = 0;
+        self.diagnostics.allocated = 0;
+        self.diagnostics.capacity = 0;
+    }
+
+    fn allocate_fragment(&mut self, amount: usize) -> Option<u64> {
         if unlikely(amount == 0) {
             return None;
         }
@@ -394,7 +425,7 @@ impl O1Heap {
     /// active allocated fragment. Returns false for addresses below the arena
     /// base, unmapped pointers, free fragments, or stale hash entries.
     pub fn check_fragment_exists(&self, addr: u64) -> bool {
-        if addr < self.base {
+        if addr < self.base || addr - self.base >= self.diagnostics.capacity as u64 {
             return false;
         }
         let offset = (addr - self.base) as u32;
@@ -409,7 +440,7 @@ impl O1Heap {
     /// or already freed. The returned size is the rounded fragment size, which
     /// is the maximum valid copy range for the allocation.
     pub fn allocation_size(&self, addr: u64) -> Option<usize> {
-        if addr < self.base {
+        if addr < self.base || addr - self.base >= self.diagnostics.capacity as u64 {
             return None;
         }
         let offset = (addr - self.base) as u32;
@@ -421,6 +452,10 @@ impl O1Heap {
     }
 
     pub fn free(&mut self, address: u64) {
+        if !self.check_fragment_exists(address) {
+            return;
+        }
+        self.requests.remove(&address);
         let offset = (address - self.base) as u32;
         let frag_rc = match self.find_fragment_by_offset(offset) {
             Some(frag) => frag,
@@ -549,6 +584,13 @@ impl O1Heap {
     /// fragment and frees the old one. The caller performs the reported copy.
     /// All fragment sizes are rounded powers of two, matching `allocate`.
     pub fn reallocate(&mut self, address: u64, new_amount: usize) -> Option<ReallocResult> {
+        let result = self.reallocate_fragment(address, new_amount)?;
+        self.requests.remove(&address);
+        self.requests.insert(result.new_addr, new_amount);
+        Some(result)
+    }
+
+    fn reallocate_fragment(&mut self, address: u64, new_amount: usize) -> Option<ReallocResult> {
         if unlikely(new_amount == 0) {
             self.free(address);
             return None;

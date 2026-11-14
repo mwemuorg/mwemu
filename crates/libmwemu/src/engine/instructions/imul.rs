@@ -12,8 +12,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     debug_assert!(ins.op_count() == 1 || ins.op_count() == 2 || ins.op_count() == 3);
 
     if ins.op_count() == 1 {
-        // 1 param
-
         let value0 = match emu.get_operand_value(ins, 0, true) {
             Some(v) => v,
             None => return false,
@@ -34,8 +32,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             }
         }
     } else if ins.op_count() == 2 {
-        // 2 params
-
         let value0 = match emu.get_operand_value(ins, 0, true) {
             Some(v) => v,
             None => return false,
@@ -62,8 +58,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             return false;
         }
     } else {
-        // 3 params
-
         let value1 = match emu.get_operand_value(ins, 1, true) {
             Some(v) => v,
             None => return false,

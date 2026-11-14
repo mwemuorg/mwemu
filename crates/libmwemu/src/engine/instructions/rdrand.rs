@@ -2,13 +2,8 @@ use crate::color;
 use crate::emu::Emu;
 use iced_x86::Instruction;
 
-/// RDRAND — read a hardware-generated random value into the destination
-/// register (16/32/64-bit) and report success in CF.
-///
-/// On real silicon CF=0 means "no entropy available, retry"; guests loop on
-/// RDRAND until CF=1, so the emulator always succeeds to avoid a spin. The
-/// value comes from the emulator's random source (`Emu::set_seed` makes it
-/// reproducible).
+// Always report success to avoid guest entropy-retry loops.
+// Uses the emulator RNG, reproducible through Emu::set_seed.
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     emu.show_instruction(
         color!("Red"),
@@ -28,7 +23,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         return false;
     }
 
-    // Success: CF=1; OF, SF, ZF, AF, PF are cleared (Intel SDM Vol. 2).
     let flags = emu.flags_mut();
     flags.f_cf = true;
     flags.f_of = false;

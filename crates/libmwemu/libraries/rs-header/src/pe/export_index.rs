@@ -12,6 +12,7 @@
 //! - PE32 callers must narrow the resolved address back to `u32` after
 //!   validation; the parser itself does not enforce a guest pointer width.
 
+use crate::pe::image::ImageLayout;
 use crate::pe::readers::{read_c_string, read_u16_le, read_u32_le};
 use crate::pe::shared::ImageSectionHeader;
 
@@ -87,127 +88,102 @@ pub fn build_export_index(
     export_dir_va: u32,
     export_dir_size: u32,
 ) -> Option<ExportIndexData> {
-    if export_dir_va == 0 || export_dir_size < 40 {
+    parse_export_index(raw.len(), export_dir_va, export_dir_size, |rva| {
+        raw.get(vaddr_to_off(sections, rva)?..)
+    })
+}
+
+/// Parse exports using the loaded image's headers, alignment and initialized ranges.
+pub fn build_image_export_index(
+    raw: &[u8],
+    layout: ImageLayout<'_>,
+    export_dir_va: u32,
+    export_dir_size: u32,
+) -> Option<ExportIndexData> {
+    parse_export_index(raw.len(), export_dir_va, export_dir_size, |rva| {
+        layout.data_at(raw, rva)
+    })
+}
+
+fn parse_export_index<'a>(
+    raw_size: usize,
+    export_dir_va: u32,
+    export_dir_size: u32,
+    data_at: impl Fn(u32) -> Option<&'a [u8]>,
+) -> Option<ExportIndexData> {
+    const DIRECTORY_SIZE: usize = 40;
+    const RVA_SIZE: usize = size_of::<u32>();
+    const ORDINAL_SIZE: usize = size_of::<u16>();
+    if export_dir_va == 0 || export_dir_size < DIRECTORY_SIZE as u32 {
         return None;
     }
-
-    let export_off = vaddr_to_off(sections, export_dir_va)?;
-    if export_off.checked_add(40)? > raw.len() {
+    let directory = data_at(export_dir_va)?.get(..DIRECTORY_SIZE)?;
+    let base = read_u32_le(directory, 16);
+    let functions = read_u32_le(directory, 20)
+        .min(MAX_EXPORT_FUNCTIONS)
+        .min((raw_size / RVA_SIZE) as u32);
+    let names = read_u32_le(directory, 24)
+        .min(MAX_EXPORT_NAMES)
+        .min((raw_size / RVA_SIZE) as u32);
+    let function_rva = read_u32_le(directory, 28);
+    if function_rva == 0 {
         return None;
     }
-
-    let base = read_u32_le(raw, export_off + 16);
-    let number_of_functions = read_u32_le(raw, export_off + 20);
-    let number_of_names = read_u32_le(raw, export_off + 24);
-    let address_of_functions = read_u32_le(raw, export_off + 28);
-    let address_of_names = read_u32_le(raw, export_off + 32);
-    let address_of_name_ordinals = read_u32_le(raw, export_off + 36);
-
-    // Defensive caps: cap by the explicit limits, by raw length / 4 (each
-    // function-table entry is 4 bytes), and by our hard ceiling.
-    let nof = number_of_functions.min(MAX_EXPORT_FUNCTIONS);
-    let raw_func_cap = (raw.len() / 4) as u32;
-    let nof = nof.min(raw_func_cap);
-    let non = number_of_names.min(MAX_EXPORT_NAMES);
-    let raw_name_cap = (raw.len() / 4) as u32;
-    let non = non.min(raw_name_cap);
-
-    // Convert each table VA to its raw offset and bounds-check there. The
-    // function/name/ordinal table RVAs are VAs in the section space, NOT raw
-    // offsets, so checking them against raw.len() directly would always fail
-    // for non-zero section bases.
-    let func_table_off = vaddr_to_off(sections, address_of_functions)?;
-    let func_table_end = func_table_off.checked_add((nof as usize).checked_mul(4)?)?;
-    if address_of_functions == 0 || func_table_end > raw.len() {
-        return None;
-    }
-
-    let name_table_off = vaddr_to_off(sections, address_of_names)?;
-    let name_table_end = name_table_off.checked_add((non as usize).checked_mul(4)?)?;
-    if address_of_names == 0 || name_table_end > raw.len() {
-        return None;
-    }
-
-    let ord_table_off = vaddr_to_off(sections, address_of_name_ordinals)?;
-    let ord_table_end = ord_table_off.checked_add((non as usize).checked_mul(2)?)?;
-    if address_of_name_ordinals == 0 || ord_table_end > raw.len() {
-        return None;
-    }
-
-    let mut ordinal_targets: Vec<Option<ExportTarget>> = Vec::with_capacity(nof as usize);
-    for i in 0..nof {
-        let func_off = func_table_off + (i as usize) * 4;
-        let rva = read_u32_le(raw, func_off);
-
-        if rva == 0 {
-            ordinal_targets.push(None);
-            continue;
-        }
-
-        if export_dir_size != 0
-            && rva >= export_dir_va
-            && rva < export_dir_va.saturating_add(export_dir_size)
+    let function_table = data_at(function_rva)?.get(..functions as usize * RVA_SIZE)?;
+    let mut ordinal_targets = Vec::with_capacity(functions as usize);
+    for entry in function_table.chunks_exact(RVA_SIZE) {
+        let rva = read_u32_le(entry, 0);
+        let target = if rva == 0 {
+            None
+        } else if (rva as u64) >= export_dir_va as u64
+            && (rva as u64) < export_dir_va as u64 + export_dir_size as u64
         {
-            // Forwarder: read the NUL-terminated string at the RVA in raw
-            // bytes. If it is empty / out of range we record `None` (treated
-            // as unresolved) rather than fabricating a target the resolver
-            // would have to fall back from anyway.
-            let fwd_off = match vaddr_to_off(sections, rva) {
-                Some(o) => o,
-                None => {
-                    ordinal_targets.push(None);
-                    continue;
-                }
-            };
-            if fwd_off >= raw.len() {
-                ordinal_targets.push(None);
-                continue;
-            }
-            let value = read_c_string(raw, fwd_off);
-            if value.is_empty() {
-                ordinal_targets.push(None);
-                continue;
-            }
-            ordinal_targets.push(Some(ExportTarget::Forwarder { value }));
+            data_at(rva)
+                .map(|data| read_c_string(data, 0))
+                .filter(|name| !name.is_empty())
+                .map(|value| ExportTarget::Forwarder { value })
         } else {
-            ordinal_targets.push(Some(ExportTarget::Direct { rva }));
-        }
-    }
-
-    let mut named_exports: Vec<NamedExport> = Vec::with_capacity(non as usize);
-    for i in 0..non {
-        let name_ptr_off = name_table_off + (i as usize) * 4;
-        let name_ord_off = ord_table_off + (i as usize) * 2;
-
-        let name_rva = read_u32_le(raw, name_ptr_off);
-        let ord_idx = read_u16_le(raw, name_ord_off) as u32;
-
-        if ord_idx >= nof {
-            // Malformed: name points outside the function table. Skip.
-            continue;
-        }
-
-        let name_off = match vaddr_to_off(sections, name_rva) {
-            Some(o) => o,
-            None => continue,
+            Some(ExportTarget::Direct { rva })
         };
-        if name_off >= raw.len() {
-            continue;
-        }
-        let name = read_c_string(raw, name_off);
-        if name.is_empty() {
-            continue;
-        }
-
-        named_exports.push(NamedExport {
-            name,
-            ordinal_index: ord_idx,
-        });
+        ordinal_targets.push(target);
     }
 
+    let mut named_exports = Vec::with_capacity(names as usize);
+    if names != 0 {
+        let name_rva = read_u32_le(directory, 32);
+        let ordinal_rva = read_u32_le(directory, 36);
+        if name_rva == 0 || ordinal_rva == 0 {
+            return None;
+        }
+        let name_table = data_at(name_rva)?.get(..names as usize * RVA_SIZE)?;
+        let ordinal_table = data_at(ordinal_rva)?.get(..names as usize * ORDINAL_SIZE)?;
+        for (name, ordinal) in name_table
+            .chunks_exact(RVA_SIZE)
+            .zip(ordinal_table.chunks_exact(ORDINAL_SIZE))
+        {
+            let ordinal_index = read_u16_le(ordinal, 0) as u32;
+            if ordinal_index >= functions {
+                continue;
+            }
+            let name_rva = read_u32_le(name, 0);
+            if name_rva == 0 {
+                continue;
+            }
+            let Some(data) = data_at(name_rva) else {
+                continue;
+            };
+            let name = read_c_string(data, 0);
+            if !name.is_empty() {
+                named_exports.push(NamedExport {
+                    name,
+                    ordinal_index,
+                });
+            }
+        }
+    }
     Some(ExportIndexData {
         export_base: base,
-        number_of_functions: nof,
+        number_of_functions: functions,
         ordinal_targets,
         named_exports,
     })
@@ -225,7 +201,10 @@ fn vaddr_to_off(sections: &[ImageSectionHeader], vaddr: u32) -> Option<usize> {
             if offset_within_section >= sect.size_of_raw_data {
                 return None;
             }
-            return Some((sect.pointer_to_raw_data + offset_within_section) as usize);
+            return sect
+                .pointer_to_raw_data
+                .checked_add(offset_within_section)
+                .map(|offset| offset as usize);
         }
     }
     None

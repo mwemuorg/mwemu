@@ -2,6 +2,7 @@
 //! See design/PE_EXTRACTION.md for the architecture.
 
 pub mod export_index;
+pub mod image;
 mod loader;
 pub mod pe32;
 pub mod pe64;

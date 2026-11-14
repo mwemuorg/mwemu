@@ -1,14 +1,11 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// PMOVSXBD: sign-extend the low 4 8-bit lanes of the source into 32-bit lanes.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
+    let src = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
     let mut result = 0u128;
     for i in 0..4 {
         let raw = (src >> (i * 8)) & ((1u128 << 8) - 1);
@@ -20,6 +17,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         };
         result |= (ext & ((1u128 << 32) - 1)) << (i * 32);
     }
-    emu.set_operand_xmm_value_128(ins, 0, result);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, result)
 }

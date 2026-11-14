@@ -24,7 +24,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 }
             };
 
-            emu.set_operand_xmm_value_128(ins, 0, source);
+            emu.set_operand_xmm_value_128(ins, 0, source)
         }
         256 => {
             let source = match emu.get_operand_ymm_value_256(ins, 1, true) {
@@ -35,12 +35,11 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 }
             };
 
-            emu.set_operand_ymm_value_256(ins, 0, source);
+            emu.set_operand_ymm_value_256(ins, 0, source)
         }
         _ => {
             log::warn!("vmovdqa: unsupported operand size {}", sz_max);
-            return false;
+            false
         }
     }
-    true
 }

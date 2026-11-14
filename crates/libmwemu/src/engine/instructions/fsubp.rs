@@ -1,16 +1,14 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::fpu::f80::F80;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
     let st0_idx = 0; // src, always ST(0)
-    let st1_idx = emu.get_operand_value(ins, 0, false).unwrap_or(1) as usize; // dest
+    let st1_idx = try_operand!(emu.get_operand_value(ins, 0, false)) as usize; // dest
     log::trace!("st0_idx: {}, st1_idx: {}", st0_idx, st1_idx);
 
     let st0 = emu.fpu_mut().get_st_f80_copy(st0_idx);
@@ -23,7 +21,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         emu.fpu_mut().sub(st1_idx, st0_idx);
     }
 
-    emu.fpu_mut().pop_f64(); // pops ST(0) properly
+    emu.fpu_mut().pop_f64();
     emu.sync_fpu_ip();
     true
 }

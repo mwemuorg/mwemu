@@ -1,3 +1,8 @@
+use crate::maps::mem64::Permission;
+use crate::tests::helpers;
+use crate::winapi::{winapi32, winapi64};
+use crate::{emu32, emu64};
+
 // End-to-end lifecycle and forwarder-resolution tests for the export-name
 // registry. These exercise the public `ExportIndexRegistry` API the same way
 // `Emu::load_pe32` / `load_pe64` / `dynamic_unlink_module` use it.
@@ -442,4 +447,255 @@ fn resolve_ordinal_in_module_does_not_scan_other_modules() {
 
     // Unknown module returns 0 even if the ordinal exists elsewhere.
     assert_eq!(reg.resolve_ordinal_in_module("missing", 1), 0);
+}
+
+// Regression: the export-index refactor inverted the IS_INTRESOURCE test, so
+// every name pointer (>= 0x10000) was classified as an ordinal and by-name
+// GetProcAddress always returned NULL. lpProcName is an ordinal only when its
+// high word is zero.
+#[test]
+fn get_proc_address_by_name_and_ordinal_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x30000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    ) as u64;
+    assert_eq!(by_name, base + 0x1500, "by-name lookup returned NULL");
+
+    // export_base is 5, so ordinal 5 maps to function-table slot 0.
+    let by_ordinal = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, 5],
+    ) as u64;
+    assert_eq!(by_ordinal, base + 0x1500, "by-ordinal lookup returned NULL");
+}
+
+// The exact IS_INTRESOURCE boundary: 0xFFFF is the highest possible ordinal,
+// 0x10000 is the lowest possible name pointer. With the inverted predicate,
+// 0x10000 was masked to ordinal 0 and returned NULL.
+#[test]
+fn get_proc_address_intresource_boundary_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    // A name string mapped exactly at 0x10000 must go through the name path.
+    let name_ptr = 0x10000u64;
+    emu.maps
+        .create_map("gpa_boundary", name_ptr, 0x1000, Permission::READ_WRITE)
+        .expect("cannot map 0x10000");
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    ) as u64;
+    assert_eq!(
+        by_name,
+        base + 0x1500,
+        "0x10000 must be treated as a name pointer"
+    );
+
+    // 0xFFFF is an ordinal (unknown here) — must return 0, and must never be
+    // dereferenced as a string pointer (0xFFFF is unmapped).
+    let by_ordinal = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, 0xFFFF],
+    );
+    assert_eq!(by_ordinal, 0, "unknown ordinal must resolve to NULL");
+}
+
+// The export-index registry lookup is case-insensitive, matching the
+// pre-index PEB-scanner behavior the emulator has always had.
+#[test]
+fn get_proc_address_case_insensitive_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x30000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "CREATEfileA");
+
+    let addr = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    ) as u64;
+    assert_eq!(addr, base + 0x1500, "lookup must be case-insensitive");
+}
+
+// A registered handle whose module does not export the requested name must
+// return NULL honoring the handle, not silently fall back to a global search.
+#[test]
+fn get_proc_address_missing_export_honors_handle_32() {
+    helpers::setup();
+    let mut emu = emu32();
+
+    let base = 0x70100000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x30000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "NotExported");
+
+    let addr = helpers::call_winapi32(
+        &mut emu,
+        winapi32::kernel32::GetProcAddress,
+        &[base as u32, name_ptr as u32],
+    );
+    assert_eq!(
+        addr, 0,
+        "missing export must return NULL for a known handle"
+    );
+}
+
+// Regression: the 64-bit ordinal mask (0xFFFF_0000_0000_0000) was never set by
+// real arguments, so the ordinal path was unreachable and ordinal calls did
+// read_string(ordinal) -> NULL. lpProcName is an ordinal only when its high
+// word is zero.
+#[test]
+fn get_proc_address_by_name_and_ordinal_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let base = 0x7ff0_0010_0000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x300000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[base, name_ptr],
+    );
+    assert_eq!(by_name, base + 0x1500, "by-name lookup returned NULL");
+
+    // export_base is 5, so ordinal 5 maps to function-table slot 0.
+    let by_ordinal =
+        helpers::call_winapi64(&mut emu, winapi64::kernel32::GetProcAddress, &[base, 5]);
+    assert_eq!(by_ordinal, base + 0x1500, "by-ordinal lookup returned NULL");
+}
+
+// The exact IS_INTRESOURCE boundary on 64 bits: 0xFFFF is the highest
+// possible ordinal, 0x10000 the lowest possible name pointer.
+#[test]
+fn get_proc_address_intresource_boundary_64() {
+    helpers::setup();
+    let mut emu = emu64();
+
+    let base = 0x7ff0_0010_0000u64;
+    helpers::register_fake_export_module(&mut emu, base);
+
+    let name_ptr = 0x10000u64;
+    emu.maps
+        .create_map("gpa_boundary", name_ptr, 0x1000, Permission::READ_WRITE)
+        .expect("cannot map 0x10000");
+    emu.maps.write_string(name_ptr, "CreateFileA");
+
+    let by_name = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[base, name_ptr],
+    );
+    assert_eq!(
+        by_name,
+        base + 0x1500,
+        "0x10000 must be treated as a name pointer"
+    );
+
+    let by_ordinal = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[base, 0xFFFF],
+    );
+    assert_eq!(by_ordinal, 0, "unknown ordinal must resolve to NULL");
+}
+
+// GetProcAddress must chase export forwarders (`OTHER.Symbol`) through the
+// registry, both by name and by ordinal.
+#[test]
+fn get_proc_address_forwarder_64() {
+    use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
+
+    helpers::setup();
+    let mut emu = emu64();
+
+    let fake_base = 0x7ff0_0010_0000u64;
+    let backing_base = 0x7ff0_0200_0000u64;
+
+    // fake.dll exports "ViaFwd" (ordinal 1) forwarding to backing.TargetFn.
+    let fake = ExportIndexData {
+        export_base: 1,
+        number_of_functions: 1,
+        ordinal_targets: vec![Some(ExportTarget::Forwarder {
+            value: "backing.TargetFn".to_string(),
+        })],
+        named_exports: vec![NamedExport {
+            name: "ViaFwd".to_string(),
+            ordinal_index: 0,
+        }],
+    };
+    // backing.dll exports "TargetFn" at backing_base + 0x2000.
+    let backing = ExportIndexData {
+        export_base: 1,
+        number_of_functions: 1,
+        ordinal_targets: vec![Some(ExportTarget::Direct { rva: 0x2000 })],
+        named_exports: vec![NamedExport {
+            name: "TargetFn".to_string(),
+            ordinal_index: 0,
+        }],
+    };
+    helpers::register_export_module(&mut emu, "fake.dll", fake_base, &fake);
+    helpers::register_export_module(&mut emu, "backing.dll", backing_base, &backing);
+
+    let name_ptr = 0x300000u64;
+    emu.maps
+        .create_map("gpa_name", name_ptr, 0x1000, Permission::READ_WRITE);
+    emu.maps.write_string(name_ptr, "ViaFwd");
+
+    let by_name = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[fake_base, name_ptr],
+    );
+    assert_eq!(
+        by_name,
+        backing_base + 0x2000,
+        "forwarder by name must resolve into backing.dll"
+    );
+
+    let by_ordinal = helpers::call_winapi64(
+        &mut emu,
+        winapi64::kernel32::GetProcAddress,
+        &[fake_base, 1],
+    );
+    assert_eq!(
+        by_ordinal,
+        backing_base + 0x2000,
+        "forwarder by ordinal must resolve into backing.dll"
+    );
 }

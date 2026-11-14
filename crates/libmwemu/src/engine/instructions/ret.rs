@@ -1,7 +1,9 @@
 use crate::debug::console::Console;
 use crate::emu::Emu;
+use crate::exception::seh32;
 use crate::winapi::{winapi32, winapi64};
-use crate::windows::constants::LIBS64_MIN;
+use crate::windows::constants::memory::*;
+
 use crate::{color, exception::handlers as exception};
 use iced_x86::Instruction;
 
@@ -66,7 +68,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             }
 
             emu.regs_mut().rsp += arg;
-            //emu.stack_lvl[emu.stack_lvl_idx] -= arg as i32 / 8;
         } else {
             if !arg.is_multiple_of(4) {
                 log::trace!("weird ret argument!");
@@ -75,16 +76,16 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
             let esp = emu.regs().get_esp() + arg;
             emu.regs_mut().set_esp(esp);
-            //emu.stack_lvl[emu.stack_lvl_idx] -= arg as i32 / 4;
         }
     }
 
-    emu.call_stack_mut().pop();
-
-    if emu.eh_ctx() != 0 {
-        exception::exit(emu);
+    if emu.eh_ctx() != 0
+        && (seh32::handle_return(emu, ret_addr) || exception::handle_return(emu, ret_addr))
+    {
         return true;
     }
+
+    emu.call_stack_mut().pop();
 
     // Undo the SSDT shadow-space padding applied in `call.rs` whenever the
     // matching RET goes back to the PE-side caller. The pad stack only holds
@@ -104,5 +105,4 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     } else {
         emu.set_eip(ret_addr, false)
     }
-    //true
 }

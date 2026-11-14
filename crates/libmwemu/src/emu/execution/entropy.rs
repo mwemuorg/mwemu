@@ -45,7 +45,7 @@ impl Emu {
         }
 
         let mut counts = [0usize; 256];
-        for &b in data {
+        for &b in data.iter() {
             counts[b as usize] += 1;
         }
         let len = data.len() as f64;

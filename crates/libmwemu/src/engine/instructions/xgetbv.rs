@@ -11,7 +11,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     match emu.regs().get_ecx() {
         0 => {
             emu.regs_mut().set_edx(0);
-            emu.regs_mut().set_eax(0x1f); //7
+            emu.regs_mut().set_eax(0x1f);
         }
         _ => {
             emu.regs_mut().set_edx(0);

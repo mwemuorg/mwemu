@@ -1,10 +1,11 @@
 use crate::emu;
+use crate::syscall::linux::constants::syscalls::*;
+
 use crate::winapi::helper;
-use crate::windows::constants;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
-        constants::NR64_SOCKET => handle_syscall64_socket(emu),
+        NR64_SOCKET => handle_syscall64_socket(emu),
         _ => return false,
     }
 

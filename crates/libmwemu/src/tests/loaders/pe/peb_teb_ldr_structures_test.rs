@@ -51,9 +51,9 @@ pub fn peb_teb_ldr_structures_test() {
         ldr_struct.in_load_order_module_list.flink as u64,
         &emu.maps,
     );
-    let ntdll_addr = emu.maps.get_mem("ntdll.pe").get_base();
+    let main_base = emu.maps.get_mem("exe32win_minecraft.pe").get_base();
 
-    assert_eq!(peb_struct.image_base_addr, ntdll_addr as u32);
+    assert_eq!(peb_struct.image_base_addr, main_base as u32);
     assert_eq!(peb_struct.ldr, ldr_addr as u32);
     assert_eq!(peb_struct.being_debugged, 0);
 
@@ -220,8 +220,6 @@ pub fn peb_teb_ldr_structures_test() {
     emu.cfg.maps_folder = win_maps!(64);
     emu.load_code(&sample!("exe64win_msgbox.bin"));
 
-    let ntdll_addr = emu.maps.get_mem("ntdll.pe").get_base();
-
     let peb = emu.maps.get_mem("peb");
     let peb_addr = peb.get_base();
     assert!(peb_addr > 0x1000);
@@ -248,7 +246,8 @@ pub fn peb_teb_ldr_structures_test() {
     let peb_struct = structures::PEB64::load(peb_addr, &emu.maps);
     let mut teb_struct = structures::TEB64::load(teb_addr, &emu.maps);
 
-    assert_eq!(peb_struct.image_base_addr, ntdll_addr);
+    let main_base64 = emu.maps.get_mem("exe64win_msgbox.pe").get_base();
+    assert_eq!(peb_struct.image_base_addr, main_base64);
     assert_eq!(peb_struct.ldr, ldr_addr);
     assert_eq!(peb_struct.being_debugged, 0);
 

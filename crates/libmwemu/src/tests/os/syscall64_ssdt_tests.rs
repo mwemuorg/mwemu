@@ -1,9 +1,14 @@
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::*;
+use crate::windows::constants::syscalls::*;
 use std::sync::atomic::Ordering;
 
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::syscall::windows::syscall64;
 use crate::tests::helpers;
-use crate::windows::constants::*;
+
 use crate::*;
 
 fn setup_emu64_syscall() -> emu::Emu {
@@ -45,6 +50,50 @@ fn nt_query_virtual_memory_success_writes_output() {
         crate::windows::structures::MemoryBasicInformation64::SIZE
     );
     assert_eq!(emu.maps.read_qword(0x500100).unwrap_or(0), 0x400000);
+}
+
+#[test]
+fn nt_map_view_of_section_preserves_page_permissions() {
+    helpers::setup();
+    let cases = [
+        (PAGE_NOACCESS, Permission::NONE),
+        (PAGE_READONLY, Permission::READ),
+        (PAGE_READWRITE, Permission::READ_WRITE),
+        (PAGE_WRITECOPY, Permission::READ_WRITE),
+        (PAGE_EXECUTE, Permission::EXECUTE),
+        (PAGE_EXECUTE_READ, Permission::READ_EXECUTE),
+        (PAGE_EXECUTE_READWRITE, Permission::READ_WRITE_EXECUTE),
+        (PAGE_EXECUTE_WRITECOPY, Permission::READ_WRITE_EXECUTE),
+        (PAGE_EXECUTE_READ | PAGE_NOCACHE, Permission::READ_EXECUTE),
+    ];
+    for (protection, expected) in cases {
+        let mut emu = setup_emu64_syscall();
+        let section_handle = 0x100;
+        let rsp = emu.regs().rsp;
+        let base_ptr = rsp + 0x100;
+        let size_ptr = base_ptr + 8;
+
+        // An empty section name selects the placeholder-view path without loading a DLL.
+        emu.section_handles.insert(section_handle, String::new());
+        assert!(emu.maps.write_qword(base_ptr, 0));
+        assert!(emu.maps.write_qword(size_ptr, PAGE_SIZE));
+        assert!(emu.maps.write_qword(rsp + 0x38, size_ptr));
+        assert!(emu.maps.write_dword(rsp + 0x40, VIEW_SHARE));
+        assert!(emu.maps.write_dword(rsp + 0x50, protection));
+        emu.regs_mut().rax = WIN64_NTMAPVIEWOFSECTION;
+        emu.regs_mut().rcx = section_handle;
+        emu.regs_mut().rdx = NT_CURRENT_PROCESS;
+        emu.regs_mut().r8 = base_ptr;
+        emu.regs_mut().r9 = 0;
+
+        syscall64::gateway(&mut emu);
+
+        assert_eq!(emu.regs().rax, STATUS_SUCCESS, "protection {protection:#x}");
+        let base = emu.maps.read_qword(base_ptr).expect("mapped base");
+        let map = emu.maps.get_mem_by_addr(base).expect("mapped section view");
+        assert_eq!(map.permission(), expected, "protection {protection:#x}");
+        assert_eq!(emu.maps.read_qword(size_ptr), Some(PAGE_SIZE));
+    }
 }
 
 #[test]
@@ -117,7 +166,10 @@ fn nt_write_then_read_virtual_memory_roundtrip() {
         emu.maps.read_qword(0x550088).unwrap_or(0),
         u64::try_from(payload.len()).expect("payload length fits u64")
     );
-    assert_eq!(emu.maps.read_bytes(0x550100, payload.len()), payload);
+    assert_eq!(
+        emu.maps.read_bytes(0x550100, payload.len()).as_ref(),
+        payload
+    );
 }
 
 #[test]
@@ -1544,7 +1596,7 @@ fn qsi_module_information_writes_ntoskrnl_payload() {
     let name_off = emu.maps.read_word(0x80012A).unwrap_or(0);
     assert!(name_off > 0);
     let path_bytes = emu.maps.read_bytes(0x80012C + u64::from(name_off), 13);
-    assert_eq!(path_bytes, b"ntoskrnl.exe\0");
+    assert_eq!(path_bytes.as_ref(), b"ntoskrnl.exe\0");
 }
 
 #[test]
@@ -1722,4 +1774,113 @@ fn qsi_process_information_enumerates_live_threads() {
     // Sleeping -> ThreadState=Waiting (5), WaitReason=DelayExecution (4).
     assert_eq!(emu.maps.read_dword(t3 + 0x44).unwrap_or(0), 5);
     assert_eq!(emu.maps.read_dword(t3 + 0x48).unwrap_or(0), 4);
+}
+
+#[test]
+fn file_section_syscalls_map_content_and_unmap_the_view() {
+    let mut emu = setup_emu64_syscall();
+    let image = 0x600000;
+    let file = 0x123;
+    let header_offset = 0x80;
+    let marker_offset = 0x300;
+    let marker = 0x0123_4567_89ab_cdef;
+    let sp = emu.regs().rsp;
+    let handle_ptr = sp + 0x100;
+    let base_ptr = handle_ptr + 8;
+    let size_ptr = base_ptr + 8;
+    emu.maps
+        .create_map("fixture.pe", image, PAGE_SIZE, Permission::READ_WRITE)
+        .unwrap();
+    emu.maps.write_dword(image + 0x3c, header_offset);
+    emu.maps
+        .write_dword(image + header_offset as u64 + 0x50, PAGE_SIZE as u32);
+    emu.maps.write_qword(image + marker_offset, marker);
+    emu.file_handles.insert(file, "fixture.dll".into());
+    emu.regs_mut().rax = WIN64_NTCREATESECTION;
+    emu.regs_mut().rcx = handle_ptr;
+    emu.maps.write_qword(sp + 0x28, PAGE_READONLY as u64);
+    emu.maps.write_qword(sp + 0x30, SEC_IMAGE as u64);
+    emu.maps.write_qword(sp + 0x38, file);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    let section = emu.maps.read_qword(handle_ptr).unwrap();
+    assert!(emu.file_section_names.contains_key(&section));
+    assert!(!emu.section_handles.contains_key(&section));
+    emu.maps.write_qword(base_ptr, 0);
+    emu.maps.write_qword(size_ptr, 0);
+    emu.regs_mut().rax = WIN64_NTMAPVIEWOFSECTION;
+    emu.regs_mut().rcx = section;
+    emu.regs_mut().rdx = NT_CURRENT_PROCESS;
+    emu.regs_mut().r8 = base_ptr;
+    emu.regs_mut().r9 = 0;
+    emu.maps.write_qword(sp + 0x28, 0);
+    emu.maps.write_qword(sp + 0x30, 0);
+    emu.maps.write_qword(sp + 0x38, size_ptr);
+    emu.maps.write_qword(sp + 0x40, VIEW_SHARE as u64);
+    emu.maps.write_qword(sp + 0x48, 0);
+    emu.maps.write_qword(sp + 0x50, PAGE_READONLY as u64);
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    let view = emu.maps.read_qword(base_ptr).unwrap();
+    assert_ne!(view, image);
+    assert_eq!(emu.maps.read_qword(size_ptr), Some(PAGE_SIZE));
+    assert_eq!(emu.maps.read_qword(view + marker_offset), Some(marker));
+    assert_eq!(
+        emu.section_view_dll.get(&view).map(String::as_str),
+        Some("fixture.dll")
+    );
+    emu.regs_mut().rax = WIN64_NTUNMAPVIEWOFSECTION;
+    emu.regs_mut().rcx = NT_CURRENT_PROCESS;
+    emu.regs_mut().rdx = view;
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_SUCCESS);
+    assert!(!emu.maps.is_mapped(view));
+    assert_eq!(emu.maps.read_qword(image + marker_offset), Some(marker));
+}
+
+#[test]
+fn file_section_mapping_rejects_invalid_outputs_ranges_and_missing_images() {
+    let mut emu = setup_emu64_syscall();
+    let image = 0x600000;
+    let section = 0x123;
+    let header_offset = 0x80;
+    let sp = emu.regs().rsp;
+    let base_ptr = sp + 0x100;
+    let size_ptr = base_ptr + 8;
+    emu.maps
+        .create_map("fixture.pe", image, PAGE_SIZE, Permission::READ_WRITE)
+        .unwrap();
+    emu.maps.write_dword(image + 0x3c, header_offset);
+    emu.maps
+        .write_dword(image + header_offset as u64 + 0x50, PAGE_SIZE as u32);
+    emu.file_section_names.insert(section, "fixture.dll".into());
+    for (output, requested_base, requested_size, expected) in [
+        (1, 0, 0, STATUS_ACCESS_VIOLATION),
+        (base_ptr, image + 1, 0, STATUS_MAPPED_ALIGNMENT),
+        (base_ptr, image, 0, STATUS_CONFLICTING_ADDRESSES),
+        (base_ptr, 0, u64::MAX, STATUS_NO_MEMORY),
+    ] {
+        emu.maps.write_qword(base_ptr, requested_base);
+        emu.maps.write_qword(size_ptr, requested_size);
+        emu.maps.write_qword(sp + 0x38, size_ptr);
+        emu.maps.write_qword(sp + 0x50, PAGE_READONLY as u64);
+        emu.regs_mut().rax = WIN64_NTMAPVIEWOFSECTION;
+        emu.regs_mut().rcx = section;
+        emu.regs_mut().rdx = NT_CURRENT_PROCESS;
+        emu.regs_mut().r8 = output;
+        syscall64::gateway(&mut emu);
+        assert_eq!(emu.regs().rax, expected);
+        assert_eq!(emu.maps.read_qword(base_ptr), Some(requested_base));
+        assert_eq!(emu.maps.read_qword(size_ptr), Some(requested_size));
+    }
+    emu.file_section_names.insert(section, "absent.dll".into());
+    emu.maps.write_qword(base_ptr, 0);
+    emu.maps.write_qword(size_ptr, 0);
+    emu.regs_mut().rax = WIN64_NTMAPVIEWOFSECTION;
+    emu.regs_mut().rcx = section;
+    emu.regs_mut().rdx = NT_CURRENT_PROCESS;
+    emu.regs_mut().r8 = base_ptr;
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_INVALID_IMAGE_FORMAT);
+    assert_eq!(emu.maps.read_qword(base_ptr), Some(0));
 }

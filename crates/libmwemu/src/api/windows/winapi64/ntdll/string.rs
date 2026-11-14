@@ -8,6 +8,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "sscanf" => sscanf(emu),
         "RtlInitUnicodeString" => RtlInitUnicodeString(emu),
         "RtlInitAnsiString" => RtlInitAnsiString(emu),
+        "strcat" => strcat(emu),
         _ => return false,
     }
     true
@@ -114,4 +115,11 @@ pub fn RtlInitAnsiString(emu: &mut emu::Emu) {
     }
 
     emu.regs_mut().rax = 0;
+}
+
+fn strcat(emu: &mut emu::Emu) {
+    let dst = emu.regs().rcx;
+    let src = emu.regs().rdx;
+    ntdll::strcat(emu, dst, src);
+    emu.regs_mut().rax = dst;
 }

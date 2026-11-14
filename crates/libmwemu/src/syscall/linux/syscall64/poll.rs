@@ -7,19 +7,15 @@
 
 use crate::api::windows::helper;
 use crate::emu;
-use crate::windows::constants;
+use crate::syscall::linux::constants::syscalls::*;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
-        constants::NR64_EPOLL_CREATE | constants::NR64_EPOLL_CREATE1 => {
-            new_fd(emu, "epoll:", "epoll_create")
-        }
-        constants::NR64_EVENTFD | constants::NR64_EVENTFD2 => new_fd(emu, "eventfd:", "eventfd"),
-        constants::NR64_EPOLL_CTL => epoll_ctl(emu),
-        constants::NR64_EPOLL_WAIT | constants::NR64_EPOLL_PWAIT | constants::NR64_EPOLL_PWAIT2 => {
-            epoll_wait(emu)
-        }
-        constants::NR64_PIPE | constants::NR64_PIPE2 => pipe(emu),
+        NR64_EPOLL_CREATE | NR64_EPOLL_CREATE1 => new_fd(emu, "epoll:", "epoll_create"),
+        NR64_EVENTFD | NR64_EVENTFD2 => new_fd(emu, "eventfd:", "eventfd"),
+        NR64_EPOLL_CTL => epoll_ctl(emu),
+        NR64_EPOLL_WAIT | NR64_EPOLL_PWAIT | NR64_EPOLL_PWAIT2 => epoll_wait(emu),
+        NR64_PIPE | NR64_PIPE2 => pipe(emu),
         _ => return false,
     }
     true

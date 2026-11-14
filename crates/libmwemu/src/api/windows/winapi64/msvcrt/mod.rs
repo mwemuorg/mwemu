@@ -1,0 +1,118 @@
+use crate::emu;
+use crate::maps::buffers::BufferKind;
+use crate::serialization;
+use crate::winapi::common::buffers;
+use crate::winapi::common::crt;
+use crate::winapi::winapi64::kernel32;
+
+mod io;
+mod math;
+mod memory;
+mod runtime;
+mod strings;
+
+pub use io::*;
+pub use math::*;
+pub use memory::*;
+pub use runtime::*;
+pub use strings::*;
+
+fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
+    buffers::allocate(emu, size, 16, 0, BufferKind::Crt)
+}
+
+fn release(emu: &mut emu::Emu, addr: u64) {
+    buffers::free(emu, addr, BufferKind::Crt);
+}
+
+// --- Native execution helpers (kept from the original 64-bit msvcrt) ---
+
+const NATIVE_SECTIONS: [&str; 2] = ["msvcrt.text", "msvcrtfothk"];
+
+const LOGGED_FUNCTIONS: [&str; 8] = [
+    "__set_app_type",
+    "malloc",
+    "realloc",
+    "_errno",
+    "_lock",
+    "__dllonexit",
+    "_msize",
+    "_initterm",
+];
+
+pub(crate) fn is_native_section(section_name: &str) -> bool {
+    NATIVE_SECTIONS.contains(&section_name)
+}
+
+pub(crate) fn log_native_call(emu: &mut emu::Emu, addr: u64) {
+    let Some(fn_name) = emu.export_indexes.resolve_address_module("msvcrt", addr) else {
+        return;
+    };
+    if !LOGGED_FUNCTIONS.contains(&fn_name) {
+        return;
+    }
+    log_red!(emu, "executing msvcrt!{}", fn_name);
+}
+
+// --- 64-bit CRT gateway ---
+
+pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
+    let api = kernel32::guess_api_name(emu, addr);
+    let api = api.split("!").last().unwrap_or(&api);
+    gateway_by_name(api, emu)
+}
+
+pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
+    if crt::dispatch(api, emu) {
+        return String::new();
+    }
+    if runtime::dispatch(api, emu)
+        || strings::dispatch(api, emu)
+        || io::dispatch(api, emu)
+        || memory::dispatch(api, emu)
+        || math::dispatch(api, emu)
+    {
+        return String::new();
+    }
+
+    let rip = emu.regs().rip;
+    if emu.cfg.skip_unimplemented {
+        let nparams = emu.banzai.get_params(api);
+        log::warn!(
+            "banzai: skipping unimplemented API {} (nparams={}) at 0x{:x}",
+            api,
+            nparams,
+            rip
+        );
+        emu.regs_mut().rax = 0;
+        return String::new();
+    }
+
+    if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
+        serialization::Serialization::dump(
+            emu,
+            emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
+        );
+    }
+
+    log::error!("attempt to call unimplemented API {}", api);
+    log::warn!("calling unimplemented API {} at 0x{:x}", api, rip);
+    api.to_ascii_lowercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_sections_match_exact_loader_names() {
+        assert!(is_native_section("msvcrt.text"));
+        assert!(is_native_section("msvcrtfothk"));
+        assert!(!is_native_section("msvcrt.rdata"));
+        assert!(!is_native_section("msvcrt.data"));
+        assert!(!is_native_section(""));
+        assert!(!is_native_section("MSVCRT.TEXT"));
+        assert!(!is_native_section("msvcrt.text "));
+        assert!(!is_native_section("kernel32.text"));
+    }
+}

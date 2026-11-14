@@ -1,13 +1,13 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::engine::instructions::avx;
 use iced_x86::Instruction;
-// VPERMILPS: per-128-lane f32 permute; imm8 selects, or a variable index vector.
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
+    // Each permutation stays within its 128-bit half.
+
     if ins.op_kind(2) == iced_x86::OpKind::Register || ins.op_kind(2) == iced_x86::OpKind::Memory {
         avx::binop(emu, ins, |a, b| {
             let g = |n: u32| (a >> (n * 32)) & 0xffffffff;

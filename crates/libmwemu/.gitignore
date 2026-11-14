@@ -58,3 +58,6 @@ CACHEDIR.TARGET
 .cargo/registry
 
 .kilo/
+
+# Keep Rust source files visible to Git regardless of artifact ignore patterns.
+!src/**/*.rs

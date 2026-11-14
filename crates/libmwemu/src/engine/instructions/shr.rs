@@ -16,8 +16,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     };
 
     if ins.op_count() == 1 {
-        // 1 param
-
         let sz = emu.get_operand_sz(ins, 0);
         let result = match sz {
             64 => emu.flags_overwrite_mut().shr1p64(value0),
@@ -34,8 +32,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             return false;
         }
     } else {
-        // 2 params
-
         let value1 = match emu.get_operand_value(ins, 1, true) {
             Some(v) => v,
             None => return false,
@@ -52,8 +48,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 return false;
             }
         };
-
-        //log::trace!("0x{:x} SHR 0x{:x} >> 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
 
         if !emu.set_operand_value(ins, 0, result) {
             return false;

@@ -26,7 +26,7 @@ impl Default for LdrDataTableEntry64 {
 
 impl LdrDataTableEntry64 {
     pub fn size() -> u64 {
-        0x100
+        0x120
     }
 
     pub fn new() -> LdrDataTableEntry64 {

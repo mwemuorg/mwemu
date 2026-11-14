@@ -4,6 +4,8 @@
 //! clone + futex + per-thread exit, vfork + execve + wait4, and the netpoll
 //! fds (epoll, eventfd, pipe) plus clock_gettime.
 
+use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::syscall64;
 use crate::tests::helpers;
 use crate::*;
 use std::cell::RefCell;
@@ -502,4 +504,28 @@ fn epoll_eventfd_pipe_pseudo_fds_and_clock_gettime() {
         real_s > 1_600_000_000,
         "CLOCK_REALTIME is the host wall clock"
     );
+}
+
+#[test]
+fn socket_operation_on_eventfd_returns_enotsock() {
+    const LINUX_ENOTSOCK: i64 = 88;
+    helpers::setup();
+    let mut emu = emu64();
+    emu.os = arch::OperatingSystem::Linux;
+    emu.regs_mut().rax = NR64_EVENTFD2;
+    emu.regs_mut().rdi = 0;
+    emu.regs_mut().rsi = 0;
+    syscall64::gateway(&mut emu);
+    let fd = emu.regs().rax;
+
+    emu.regs_mut().rax = NR64_LISTEN;
+    emu.regs_mut().rdi = fd;
+    emu.regs_mut().rsi = 1;
+    syscall64::gateway(&mut emu);
+    let result = emu.regs().rax as i64;
+
+    emu.regs_mut().rax = NR64_CLOSE;
+    emu.regs_mut().rdi = fd;
+    syscall64::gateway(&mut emu);
+    assert_eq!(result, -LINUX_ENOTSOCK);
 }

@@ -1,16 +1,12 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// PCMPESTRM xmm1, xmm2/m128, imm8 : SSE4.2 packed compare of explicit-length (EAX/EDX)
-// strings, returning a mask in XMM0 and setting flags.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
 
-    let op0 = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
+    let op0 = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
     let op1 = match emu.get_operand_xmm_value_128(ins, 1, true) {
         Some(v) => v,
         None => return false,
@@ -112,7 +108,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         _ => intres1 & mask,
     };
 
-    // Build the XMM0 result.
     let result: u128 = if unit_mask {
         // expand each set bit into a full element (0xFF byte / 0xFFFF word)
         let mut r: u128 = 0;

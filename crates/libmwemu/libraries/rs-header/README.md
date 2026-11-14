@@ -188,4 +188,4 @@ extraction architecture.
 
 ## License
 
-GPL-3.0-only
+Apache-2.0

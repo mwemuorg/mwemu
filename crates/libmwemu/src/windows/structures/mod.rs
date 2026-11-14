@@ -1,5 +1,4 @@
 mod act_ctx_section_keyed_data32;
-mod act_ctx_section_keyed_data64;
 mod cp_info;
 mod cpp_eh_record;
 mod eh3_exception_registration;
@@ -50,7 +49,6 @@ mod unicode_string64;
 mod vs_fixedfileinfo;
 mod vs_versioninfo;
 
-pub use act_ctx_section_keyed_data64::*;
 pub use cp_info::*;
 pub use cpp_eh_record::*;
 pub use eh3_exception_registration::*;

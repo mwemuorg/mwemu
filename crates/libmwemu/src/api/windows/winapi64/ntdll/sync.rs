@@ -4,7 +4,8 @@ use crate::winapi::winapi64::kernel32::{
     self, EnterCriticalSection, InitializeCriticalSection, LeaveCriticalSection, TlsAlloc, TlsFree,
     TlsGetValue, TlsSetValue,
 };
-use crate::windows::constants;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -75,12 +76,12 @@ fn RtlQueueWorkItem(emu: &mut emu::Emu) {
         flags
     );
 
-    if fptr > constants::LIBS_BARRIER64 {
+    if fptr > LIBS_BARRIER64 {
         let name = kernel32::guess_api_name(emu, fptr);
         log::trace!("api: {} ", name);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtWaitForSingleObject(emu: &mut emu::Emu) {
@@ -144,5 +145,5 @@ pub fn NtDelayExecution(emu: &mut emu::Emu) {
 
     helper::advance_tick(emu, millis);
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }

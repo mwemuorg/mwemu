@@ -4,7 +4,11 @@
 //! they decrypt a buffer with `rep movs`/`movdqu`/an API call and jump into it.
 //! Every store path that can land in executable memory is covered here.
 
+use crate::tests::helpers::{call_winapi_export as call, prepare_winapi as prepare};
+use crate::winapi::helper;
 use crate::*;
+use iced_x86::{Decoder, DecoderOptions};
+use itertools::iproduct;
 
 fn run_code(code: &[u8]) -> Emu {
     let mut emu = emu64();
@@ -142,4 +146,58 @@ fn instruction_cache_high_page_index_does_not_panic() {
     emu.load_code_bytes(&code);
     emu.run(None).unwrap();
     assert_eq!(emu.regs().get_eax(), 1);
+}
+
+/// The cache allocates its tables on the first insertion, so an emulator that
+/// has not executed anything holds an empty one. Probing and invalidating it
+/// must still work: API handlers do both on emulators that never ran.
+#[test]
+fn unused_instruction_cache_can_be_probed_and_invalidated() {
+    let mut emu = emu64();
+    let cache = emu.instruction_cache();
+    assert!(!cache.lookup_entry(0x1000, 0));
+    cache.invalidate_range(0x1000, 0x2000, 16);
+    cache.invalidate_range(0, u64::MAX, 16);
+    cache.invalidate_all();
+    cache.flush_cache_line(0);
+    assert!(!cache.can_decode());
+
+    // The first block that runs allocates it and is cached as usual.
+    emu.load_code_bytes(&[0x90, 0xf4]); // nop ; hlt
+    let base = emu.pc();
+    let _ = emu.run(None);
+    assert!(emu.instruction_cache().lookup_entry(base, 0));
+}
+
+#[test]
+fn flushing_instruction_cache_preserves_handles_and_invalidates_decoded_code() {
+    for (is64, library, all) in iproduct!(
+        [false, true],
+        ["kernel32.dll", "kernelbase.dll"],
+        [false, true]
+    ) {
+        let (mut emu, data) = prepare(is64);
+        let process = helper::handler_create("process://flush-cache-regression");
+        let mut decoder = Decoder::with_ip(
+            if is64 { 64 } else { 32 },
+            &[0x90],
+            data,
+            DecoderOptions::NONE,
+        );
+        emu.instruction_cache()
+            .insert_x86_from_decoder(&mut decoder, 1, data);
+        assert!(emu.instruction_cache().lookup_entry(data, 0));
+        assert_eq!(
+            call(
+                &mut emu,
+                library,
+                "FlushInstructionCache",
+                &[process, if all { 0 } else { data }, 1]
+            ),
+            1
+        );
+        assert!(helper::handler_exist(process));
+        assert!(!emu.instruction_cache().lookup_entry(data, 0));
+        assert!(helper::handler_close(process));
+    }
 }

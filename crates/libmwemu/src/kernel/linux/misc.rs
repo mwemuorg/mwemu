@@ -24,7 +24,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             emu.kernel_defer(DeferredCall {
                 kind: "work".to_string(),
                 func,
-                arg: work,
+                args: vec![work],
             });
             emu.set_kernel_ret(1);
         }
@@ -38,7 +38,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             emu.kernel_defer(DeferredCall {
                 kind: "delayed_work".to_string(),
                 func,
-                arg: work,
+                args: vec![work],
             });
             emu.set_kernel_ret(1);
         }
@@ -80,7 +80,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             emu.kernel_defer(DeferredCall {
                 kind: "timer".to_string(),
                 func,
-                arg: timer,
+                args: vec![timer],
             });
             emu.set_kernel_ret(0);
         }
@@ -99,7 +99,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             emu.kernel_defer(DeferredCall {
                 kind: "rcu".to_string(),
                 func,
-                arg: head,
+                args: vec![head],
             });
             emu.set_kernel_ret(0);
         }

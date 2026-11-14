@@ -13,24 +13,32 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 1. MWEMU should be able to emulate the maximum number of instructions possible.
 
-2. no usafe blocks and no unsafe dependencies or risky of supply chain attacks.
+2. no unsafe blocks and no unsafe dependencies or risky of supply chain attacks.
 
-3. keep it offline except microsoft symbols server, but also dont spam them.
+3. keep it offline except Microsoft symbols server, but also don't spam them.
 
 4. every function 1 unique purpose
 
-5. keep it simple, no unneeded overcomplications
+5. keep it simple, no unneeded over-complications
 
 6. easy to use API
 
 7. don't break any test, unless the test is bad implemented.
 
-8. Please, use that format: cargo fmt --all -- --check
+8. Please, use that format: make fmt  and make clippy
 
 9. Don't do commits unless the user ask for it.
 
-10. check TEST.md after finishing implementations
+10. check TEST.md before pushing to git or when changes are ready.
 
+11. CI cannot do tests that needs dll's that would spam the symbol server.
+
+12. avoid unwrap, expect, panic, etc
+
+
+## Skills
+
+- [windows-api-emulation](.agents/skills/windows-api-emulation/SKILL.md): Use when implementing, reviewing, or refactoring Windows API, NT API, or Windows CRT emulation handlers.
 
 ## Testing
 

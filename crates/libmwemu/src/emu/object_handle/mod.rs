@@ -1,7 +1,10 @@
+use crate::maps::mem64::Permission;
 pub(crate) use file_handle::FileHandle;
 pub(crate) use heap_handle::HeapHandle;
 pub(crate) use mapping_handle::MappingHandle;
+use serde::{Deserialize, Serialize};
 use slab::Slab;
+use std::collections::BTreeMap;
 
 pub mod file_handle;
 pub mod heap_handle;
@@ -16,12 +19,13 @@ handle id to get the right handle. In the document, it doesn't specific that the
 
 */
 
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SectionHandle {
     pub name: String,
     pub max_size: u64,
     pub protection: u32,
-    pub mapped_addr: Option<u64>,
-    pub mapped_size: u64,
+    pub storage: u64,
+    pub access: Option<Permission>,
 }
 
 enum HandleType {
@@ -34,10 +38,26 @@ enum HandleType {
     SectionHandle(SectionHandle),
 }
 
+#[derive(Serialize, Deserialize)]
+pub(crate) enum MemoryHandle {
+    Reserved,
+    Heap(HeapHandle),
+    Section(SectionHandle),
+    Mapping(MappingHandle),
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct MemoryHandles {
+    entries: Vec<(usize, MemoryHandle)>,
+    process_heap_key: Option<u32>,
+    sections: BTreeMap<u64, SectionHandle>,
+}
+
 pub struct HandleManagement {
     number_of_handle: usize,
     handle_types: Slab<HandleType>,
     process_heap_key: Option<u32>,
+    sections: BTreeMap<u64, SectionHandle>,
 }
 
 impl Default for HandleManagement {
@@ -54,6 +74,54 @@ impl HandleManagement {
             handle_types,
             number_of_handle: 0,
             process_heap_key: None,
+            sections: BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn memory_snapshot(&self) -> MemoryHandles {
+        let entries = self
+            .handle_types
+            .iter()
+            .map(|(key, handle)| {
+                let saved = match handle {
+                    HandleType::HeapHandle(heap) => MemoryHandle::Heap(heap.clone()),
+                    HandleType::SectionHandle(section) => MemoryHandle::Section(section.clone()),
+                    HandleType::MappingHandle(mapping) => MemoryHandle::Mapping(mapping.clone()),
+                    _ => MemoryHandle::Reserved,
+                };
+                (key, saved)
+            })
+            .collect();
+        MemoryHandles {
+            entries,
+            process_heap_key: self.process_heap_key,
+            sections: self.sections.clone(),
+        }
+    }
+
+    pub(crate) fn from_memory_snapshot(snapshot: MemoryHandles) -> Self {
+        let handle_types: Slab<_> = snapshot
+            .entries
+            .into_iter()
+            .map(|(key, handle)| {
+                let restored = match handle {
+                    MemoryHandle::Reserved => HandleType::Reserved,
+                    MemoryHandle::Heap(heap) => HandleType::HeapHandle(heap),
+                    MemoryHandle::Section(section) => HandleType::SectionHandle(section),
+                    MemoryHandle::Mapping(mapping) => HandleType::MappingHandle(mapping),
+                };
+                (key, restored)
+            })
+            .collect();
+        let number_of_handle = handle_types
+            .iter()
+            .filter(|(_, h)| !matches!(h, HandleType::Reserved))
+            .count();
+        Self {
+            handle_types,
+            number_of_handle,
+            process_heap_key: snapshot.process_heap_key,
+            sections: snapshot.sections,
         }
     }
 
@@ -119,6 +187,12 @@ impl HandleManagement {
     }
 
     pub fn remove_mapping_handle(&mut self, key: u32) -> Option<MappingHandle> {
+        if !matches!(
+            self.handle_types.get(key as usize),
+            Some(HandleType::MappingHandle(_))
+        ) {
+            return None;
+        }
         if let Some(handle_type) = self.handle_types.try_remove(key as usize) {
             match handle_type {
                 HandleType::MappingHandle(mh) => {
@@ -134,6 +208,7 @@ impl HandleManagement {
             None
         }
     }
+
     pub fn insert_heap_handle(&mut self, heap_handle: HeapHandle) -> u32 {
         let key = self
             .handle_types
@@ -143,6 +218,12 @@ impl HandleManagement {
     }
 
     pub fn remove_heap_handle(&mut self, key: u32) -> Option<HeapHandle> {
+        if !matches!(
+            self.handle_types.get(key as usize),
+            Some(HandleType::HeapHandle(_))
+        ) {
+            return None;
+        }
         if let Some(handle_type) = self.handle_types.try_remove(key as usize) {
             match handle_type {
                 HandleType::HeapHandle(hh) => {
@@ -258,7 +339,55 @@ impl HandleManagement {
         }
     }
 
+    pub fn section_handle(&self, key: u64) -> Option<&SectionHandle> {
+        let key = usize::try_from(key).ok()?;
+        match self.handle_types.get(key) {
+            Some(HandleType::SectionHandle(section)) => Some(section),
+            _ => None,
+        }
+    }
+
+    pub fn named_section(&self, name: &str) -> Option<&SectionHandle> {
+        self.sections
+            .values()
+            .find(|section| !name.is_empty() && section.name == name)
+    }
+
+    pub fn forget_section(&mut self, storage: u64) {
+        self.sections.remove(&storage);
+    }
+
+    pub fn section_uses_storage(&self, id: u64) -> bool {
+        self.handle_types
+            .iter()
+            .any(|(_, h)| matches!(h, HandleType::SectionHandle(s) if s.storage == id))
+    }
+
+    pub fn close_handle(&mut self, key: u64) -> bool {
+        let Ok(key) = usize::try_from(key) else {
+            return false;
+        };
+        if !matches!(
+            self.handle_types.get(key),
+            Some(
+                HandleType::FileHandle(_)
+                    | HandleType::MappingHandle(_)
+                    | HandleType::SectionHandle(_)
+            )
+        ) {
+            return false;
+        }
+        if let Some(HandleType::FileHandle(mut file)) = self.handle_types.try_remove(key) {
+            file.close();
+        }
+        self.number_of_handle -= 1;
+        true
+    }
+
     pub fn insert_section_handle(&mut self, section: SectionHandle) -> u32 {
+        self.sections
+            .entry(section.storage)
+            .or_insert_with(|| section.clone());
         let key = self.handle_types.insert(HandleType::SectionHandle(section));
         self.number_of_handle += 1;
         key as u32
@@ -276,6 +405,12 @@ impl HandleManagement {
     }
 
     pub fn remove_section_handle(&mut self, key: u32) -> Option<SectionHandle> {
+        if !matches!(
+            self.handle_types.get(key as usize),
+            Some(HandleType::SectionHandle(_))
+        ) {
+            return None;
+        }
         if let Some(handle_type) = self.handle_types.try_remove(key as usize) {
             match handle_type {
                 HandleType::SectionHandle(sh) => {

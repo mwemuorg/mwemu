@@ -1,12 +1,22 @@
+use crate::winapi::{winapi32, winapi64};
+use crate::{emu32, emu64};
+use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 use std::io::Write as _;
-use std::path::PathBuf;
-use std::sync::Once;
+use std::path::{Path, PathBuf};
+use std::sync::{Once, OnceLock};
+
+use crate::emu::object_handle::file_handle::init_file_system;
+use tempfile::TempDir;
+
+#[path = "../../libraries/rs-header/tests/fixtures/mod.rs"]
+mod pe_fixtures;
+pub use pe_fixtures::{LOADER32, LOADER64};
 
 static INIT: Once = Once::new();
 
 pub fn setup() {
     INIT.call_once(|| {
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("error"))
+        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("off"))
             .format(|buf, record| writeln!(buf, "{}", record.args()))
             .init();
     });
@@ -277,7 +287,7 @@ fn ensure_stack(emu: &mut Emu) {
 /// already been popped, so `rsp` points at the base of the 32-byte shadow space
 /// and the 5th+ stack arguments live at `rsp+0x20`, `rsp+0x28`, ... The first
 /// four arguments go in `rcx`, `rdx`, `r8`, `r9`. Returns the hook's `rax`.
-pub fn call_winapi64(emu: &mut Emu, func: fn(&mut Emu), args: &[u64]) -> u64 {
+pub fn call_winapi64(emu: &mut Emu, func: impl FnOnce(&mut Emu), args: &[u64]) -> u64 {
     ensure_stack(emu);
 
     let reg_setters: [fn(&mut Emu, u64); 4] = [
@@ -341,11 +351,124 @@ pub fn register_fake_export_module(emu: &mut Emu, base: u64) {
 /// presents it: the return address has already been popped, so arguments sit at
 /// `[esp+0]`, `[esp+4]`, ... (the hook pops them itself). Arguments are pushed
 /// right-to-left. Returns the hook's `eax`.
-pub fn call_winapi32(emu: &mut Emu, func: fn(&mut Emu), args: &[u32]) -> u32 {
+pub fn call_winapi32(emu: &mut Emu, func: impl FnOnce(&mut Emu), args: &[u32]) -> u32 {
     ensure_stack(emu);
     for &a in args.iter().rev() {
         emu.stack_push32(a);
     }
     func(emu);
     emu.regs().get_eax() as u32
+}
+
+/// Keep the global file-system root alive while independent API tests use it.
+pub fn file_system_root() -> &'static Path {
+    static ROOT: OnceLock<TempDir> = OnceLock::new();
+    ROOT.get_or_init(|| {
+        let root = tempfile::tempdir().unwrap();
+        init_file_system(Some(root.path())).unwrap();
+        root
+    })
+    .path()
+}
+
+pub const WINAPI_MODULE_BASE: u64 = 0x7000_0000;
+const EXPORT: u64 = WINAPI_MODULE_BASE + 0x100;
+const KERNELBASE_EXPORT: u64 = EXPORT + 0x10000;
+const USER32_EXPORT: u64 = EXPORT + 0x20000;
+const IPHLPAPI_EXPORT: u64 = EXPORT + 0x30000;
+const WS2_32_EXPORT: u64 = EXPORT + 0x40000;
+const SHLWAPI_EXPORT: u64 = EXPORT + 0x50000;
+const WININET_EXPORT: u64 = EXPORT + 0x60000;
+const ADVAPI32_EXPORT: u64 = EXPORT + 0x70000;
+const OLE32_EXPORT: u64 = EXPORT + 0x80000;
+const OLEAUT32_EXPORT: u64 = EXPORT + 0x90000;
+const CRYPT32_EXPORT: u64 = EXPORT + 0xa0000;
+const WINMM_EXPORT: u64 = EXPORT + 0xb0000;
+const GDIPLUS_EXPORT: u64 = EXPORT + 0xc0000;
+const MSVCRT_EXPORT: u64 = EXPORT + 0xd0000;
+const NTDLL_EXPORT: u64 = EXPORT + 0xe0000;
+const DATA_SIZE: u64 = 0x1000;
+
+pub fn prepare_winapi(is64: bool) -> (Emu, u64) {
+    let mut emu = if is64 { emu64() } else { emu32() };
+    emu.cfg.console_enabled = false;
+    if is64 {
+        emu.init_stack64();
+    } else {
+        emu.init_stack32();
+    }
+    let data = if is64 { 0x1_3000_0000 } else { 0x3000_0000 };
+    emu.maps
+        .create_map("api_data", data, DATA_SIZE, Permission::READ_WRITE)
+        .unwrap();
+    (emu, data)
+}
+
+/// Invoke an export with registers/stack already prepared by the test.
+pub fn invoke_winapi_export(emu: &mut Emu, library: &str, name: &str) {
+    let exports = ExportIndexData {
+        export_base: 1,
+        number_of_functions: 1,
+        ordinal_targets: vec![Some(ExportTarget::Direct { rva: 0x100 })],
+        named_exports: vec![NamedExport {
+            name: name.into(),
+            ordinal_index: 0,
+        }],
+    };
+    let address = match library {
+        "kernel32.dll" => EXPORT,
+        "kernelbase.dll" => KERNELBASE_EXPORT,
+        "user32.dll" => USER32_EXPORT,
+        "iphlpapi.dll" => IPHLPAPI_EXPORT,
+        "ws2_32.dll" => WS2_32_EXPORT,
+        "shlwapi.dll" => SHLWAPI_EXPORT,
+        "wininet.dll" => WININET_EXPORT,
+        "advapi32.dll" => ADVAPI32_EXPORT,
+        "ole32.dll" => OLE32_EXPORT,
+        "oleaut32.dll" => OLEAUT32_EXPORT,
+        "crypt32.dll" => CRYPT32_EXPORT,
+        "winmm.dll" => WINMM_EXPORT,
+        "gdiplus.dll" => GDIPLUS_EXPORT,
+        "msvcrt.dll" => MSVCRT_EXPORT,
+        "ntdll.dll" => NTDLL_EXPORT,
+        _ => panic!("unexpected library: {library}"),
+    };
+    register_export_module(emu, library, address - 0x100, &exports);
+    let section = format!("{}.text", library.trim_end_matches(".dll"));
+    if emu.cfg.arch.is_64bits() {
+        winapi64::gateway(address, &section, emu);
+    } else {
+        winapi32::gateway(address as u32, &section, emu);
+    }
+}
+
+pub fn f64_arguments32(values: &[f64]) -> Vec<u32> {
+    values
+        .iter()
+        .flat_map(|value| {
+            let bits = value.to_bits();
+            [bits as u32, (bits >> u32::BITS) as u32]
+        })
+        .collect()
+}
+
+pub fn call_winapi_export(emu: &mut Emu, library: &str, name: &str, args: &[u64]) -> u64 {
+    let handler = |emu: &mut Emu| invoke_winapi_export(emu, library, name);
+    ensure_stack(emu);
+    let sp = emu.regs().rsp;
+    let result = if emu.cfg.arch.is_64bits() {
+        call_winapi64(emu, handler, args)
+    } else {
+        call_winapi32(
+            emu,
+            handler,
+            &args.iter().map(|a| *a as u32).collect::<Vec<_>>(),
+        ) as u64
+    };
+    assert_eq!(
+        emu.regs().rsp,
+        sp,
+        "{library}!{name} must preserve the caller stack"
+    );
+    result
 }

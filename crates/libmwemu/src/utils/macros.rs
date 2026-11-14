@@ -85,3 +85,13 @@ macro_rules! log_orange {
         }
     };
 }
+
+/// Propagate an unavailable operand through an instruction handler's bool result.
+macro_rules! try_operand {
+    ($value:expr) => {
+        match $value {
+            Some(value) => value,
+            None => return false,
+        }
+    };
+}

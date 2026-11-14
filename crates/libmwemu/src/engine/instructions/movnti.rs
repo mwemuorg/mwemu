@@ -1,5 +1,6 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
@@ -10,7 +11,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         None => {
             emu.show_instruction_comment(
                 color!("LightCyan"),
-                &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
+                &DecodedInstruction::X86(*ins),
                 "error",
             );
             return false;
@@ -18,18 +19,9 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     };
     emu.show_instruction_comment(
         color!("LightCyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
+        &DecodedInstruction::X86(*ins),
         &format!("0x{:x}", value1),
     );
 
-    /*
-    if emu.pos == 189464541 {
-        let addr = emu.get_operand_value(ins, 1, false).unwrap();
-        log::trace!("-----> [0x{:x}]", addr);
-    }*/
-
-    if !emu.set_operand_value(ins, 0, value1) {
-        return false;
-    }
-    true
+    emu.set_operand_value(ins, 0, value1)
 }

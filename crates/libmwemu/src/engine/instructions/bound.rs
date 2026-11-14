@@ -31,5 +31,4 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     log::trace!("Bound unimplemented");
     false
     // https://www.felixcloutier.com/x86/bound
-    //true
 }

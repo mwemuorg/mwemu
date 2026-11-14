@@ -1,4 +1,5 @@
-use crate::{emu::Emu, windows::constants, windows::structures::MemoryOperation};
+use crate::windows::constants::nls::*;
+use crate::{emu::Emu, windows::structures::MemoryOperation};
 
 impl Emu {
     /// This is not used on the emulation.
@@ -58,7 +59,7 @@ impl Emu {
                 if self.cfg.verbose >= 1 {
                     log::trace!("ACCESS TO CURRENT LOCALE");
                 }
-                return constants::EN_US_LOCALE as u64;
+                return EN_US_LOCALE as u64;
             }
 
             if value == 0xc0 {

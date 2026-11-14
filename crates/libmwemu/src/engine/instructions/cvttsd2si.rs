@@ -1,14 +1,10 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// CVTTSD2SI r32/r64, xmm/m64 : convert a scalar double to a signed integer
-// with truncation (toward zero).
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
 
     let dst_sz = emu.get_operand_sz(ins, 0);
     let src = match emu.get_operand_xmm_value_128(ins, 1, true) {
@@ -29,6 +25,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
         ((f.trunc() as i32) as u32) as u64
     };
 
-    emu.set_operand_value(ins, 0, result);
-    true
+    emu.set_operand_value(ins, 0, result)
 }

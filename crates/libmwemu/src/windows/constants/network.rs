@@ -1,0 +1,50 @@
+pub const AF_UNSPEC: u32 = 0;
+pub const AF_INET: u32 = 2;
+pub const AF_INET6: u32 = 23;
+pub const SOCK_STREAM: u32 = 1;
+pub const IPPROTO_TCP: u32 = 6;
+
+// FIXED_INFO node types
+pub const BROADCAST_NODETYPE: u32 = 0x0001;
+pub const PEER_TO_PEER_NODETYPE: u32 = 0x0002;
+pub const MIXED_NODETYPE: u32 = 0x0004;
+pub const HYBRID_NODETYPE: u32 = 0x0008;
+// ntdll: 0x76dc7070
+pub const INTERNET_OPTION_ALTER_IDENTITY: u32 = 80;
+pub const INTERNET_OPTION_ASYNC: u32 = 30;
+pub const INTERNET_OPTION_ASYNC_ID: u32 = 15;
+pub const INTERNET_OPTION_ASYNC_PRIORITY: u32 = 16;
+pub const INTERNET_OPTION_BYPASS_EDITED_ENTRY: u32 = 64;
+pub const INTERNET_OPTION_CACHE_STREAM_HANDLE: u32 = 27;
+pub const INTERNET_OPTION_CACHE_TIMESTAMPS: u32 = 69;
+pub const INTERNET_OPTION_CALLBACK: u32 = 1;
+pub const INTERNET_OPTION_CALLBACK_FILTER: u32 = 54;
+pub const INTERNET_OPTION_CLIENT_CERT_CONTEXT: u32 = 84;
+pub const INTERNET_OPTION_CODEPAGE: u32 = 68;
+pub const INTERNET_OPTION_CODEPAGE_PATH: u32 = 100;
+pub const INTERNET_OPTION_CODEPAGE_EXTRA: u32 = 101;
+pub const INTERNET_OPTION_COMPRESSED_CONTENT_LENGTH: u32 = 147;
+pub const INTERNET_OPTION_CONNECT_BACKOFF: u32 = 4;
+pub const INTERNET_OPTION_CONNECT_RETRIES: u32 = 3;
+pub const INTERNET_OPTION_CONNECT_TIME: u32 = 55;
+pub const INTERNET_OPTION_CONNECT_TIMEOUT: u32 = 2;
+pub const INTERNET_OPTION_CONNECTED_STATE: u32 = 50;
+pub const INTERNET_OPTION_CONTEXT_VALUE: u32 = 45;
+pub const INTERNET_OPTION_CONTROL_RECEIVE_TIMEOUT: u32 = 6;
+pub const INTERNET_OPTION_CONTROL_SEND_TIMEOUT: u32 = 5;
+pub const INTERNET_OPTION_DATA_RECEIVE_TIMEOUT: u32 = 8;
+pub const INTERNET_OPTION_DATA_SEND_TIMEOUT: u32 = 7;
+// https://docs.microsoft.com/en-us/windows/win32/wininet/api-flags
+pub const INTERNET_FLAG_SECURE: u64 = 0x00800000;
+
+// Winsock data and return values
+pub const WSADESCRIPTION_LEN: usize = 256;
+pub const WSASYS_STATUS_LEN: usize = 128;
+pub const SOCKET_ERROR: u64 = 0xffff_ffff;
+
+// Name lookup flags
+pub const NI_NOFQDN: u32 = 0x01;
+pub const NI_NUMERICHOST: u32 = 0x02;
+pub const NI_NAMEREQD: u32 = 0x04;
+pub const NI_NUMERICSERV: u32 = 0x08;
+pub const NI_DGRAM: u32 = 0x10;

@@ -5,27 +5,46 @@ use std::{
 
 use crate::emu::Emu;
 use crate::serialization::emu::SerializableEmu;
+use crate::serialization::legacy_maps::{LegacySerializableMaps, RangeMem64};
+use crate::serialization::native::NativeSnapshot;
 
 pub mod emu;
 mod fpu;
 mod instant;
+mod legacy_maps;
 pub mod maps;
 mod minidump;
+mod native;
 mod pe32;
 mod pe64;
 mod thread_context;
+
+const NATIVE_V3_MAGIC: &[u8; 8] = b"MWEMU\0\x03\0";
+const NATIVE_V2_MAGIC: &[u8; 8] = b"MWEMU\0\x02\0";
 
 pub struct Serialization;
 
 impl Serialization {
     pub fn serialize(emu: &Emu) -> Vec<u8> {
-        let serialized = SerializableEmu::from(emu);
-        bitcode::serialize(&serialized).unwrap()
+        let serialized = NativeSnapshot::from(emu);
+        let mut data = NATIVE_V3_MAGIC.to_vec();
+        data.extend(bitcode::serialize(&serialized).unwrap());
+        data
     }
 
     pub fn deserialize(data: &[u8]) -> Emu {
-        let deserialized: SerializableEmu = bitcode::deserialize(data).unwrap();
-        deserialized.into()
+        if let Some(payload) = data.strip_prefix(NATIVE_V3_MAGIC) {
+            let state: NativeSnapshot = bitcode::deserialize(payload).unwrap();
+            state.into()
+        } else if let Some(payload) = data.strip_prefix(NATIVE_V2_MAGIC) {
+            let state: SerializableEmu<LegacySerializableMaps<RangeMem64>> =
+                bitcode::deserialize(payload).unwrap();
+            state.into()
+        } else {
+            let state: SerializableEmu<LegacySerializableMaps> =
+                bitcode::deserialize(data).unwrap();
+            state.into()
+        }
     }
 
     /// Directory where the per-map `.bin` dumps are written: the parent
@@ -42,8 +61,7 @@ impl Serialization {
         let dump_dir = Self::dump_dir(filename);
         std::fs::create_dir_all(&dump_dir).unwrap();
 
-        let serialized = SerializableEmu::from(emu);
-        let data = bitcode::serialize(&serialized).unwrap();
+        let data = Self::serialize(emu);
         let mut file = File::create(filename).unwrap();
         file.write_all(&data).unwrap();
         file.flush().unwrap();

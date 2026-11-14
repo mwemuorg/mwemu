@@ -1,16 +1,14 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Red"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Red"), &DecodedInstruction::X86(*ins));
     debug_assert!(ins.op_count() == 3);
 
-    let value1 = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-    let value2 = emu.get_operand_value(ins, 2, true).unwrap_or(0);
+    let value1 = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+    let value2 = try_operand!(emu.get_operand_value(ins, 2, true));
 
     let low_qword = value1 & 0xFFFFFFFFFFFFFFFF;
     let hw0 = (value1 >> 64) & 0xFFFF;
@@ -27,6 +25,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     let result = low_qword | ((high_qword as u128) << 64);
 
-    emu.set_operand_xmm_value_128(ins, 0, result);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, result)
 }

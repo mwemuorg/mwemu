@@ -8,8 +8,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
     );
 
-    //log::trace!("\tlahf: flags = {:?}", emu.flags);
-
     let mut result: u8 = 0;
     set_bit!(result, 0, emu.flag_cf() as u8);
     set_bit!(result, 1, true as u8);

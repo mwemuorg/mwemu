@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use iced_x86::Register;
 
 use crate::arch::Arch;
@@ -6,7 +7,7 @@ use crate::err::MwemuError;
 use crate::loaders::macho::macho64::Macho64;
 use crate::maps::mem64::Permission;
 use crate::winapi::winapi64;
-use crate::windows::constants;
+
 use crate::windows::peb::{peb32, peb64};
 use rs_header::elf::elf32::Elf32;
 use rs_header::elf::elf64::Elf64;
@@ -19,6 +20,8 @@ mod kext;
 mod ko;
 mod macho;
 mod pe;
+mod sys;
+pub use pe::{MappedPe64, PeLoadInfo};
 mod pe_stub;
 pub(crate) mod pe_stub_exports;
 
@@ -167,7 +170,7 @@ impl Emu {
             } else {
                 entry_raw
             };
-            if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+            if self.cfg.entry_point != CFG_DEFAULT_BASE {
                 self.regs_mut().rip = self.cfg.entry_point;
             } else {
                 self.regs_mut().rip = resolved_entry;
@@ -285,8 +288,8 @@ impl Emu {
                 }
             }
 
-            self.init_win32(clear_registers, clear_flags);
-            let (base, _pe_off) = self.load_pe32(filename, true, 0);
+            self.init_win32(clear_registers, clear_flags)?;
+            let base = self.load_pe32(filename, true, 0)?.base as u32;
             let ep = self.regs().rip;
             // TLS callbacks (stdcall): push Reserved, Reason, hModule, ret-addr
             if !self.tls_callbacks.is_empty() {
@@ -390,8 +393,8 @@ impl Emu {
 
             let clear_registers = false;
             let clear_flags = false;
-            self.init_win32(clear_registers, clear_flags);
-            let (base, _pe_off) = self.load_pe64(filename, true, 0);
+            self.init_win32(clear_registers, clear_flags)?;
+            let base = self.load_pe64(filename, true, 0)?.base;
             let ep = self.pc();
 
             match self.pe64 {
@@ -409,6 +412,29 @@ impl Emu {
             }
 
             self.set_pc(ep);
+
+        // Windows kernel driver (.sys): a native-subsystem PE64 importing
+        // ntoskrnl. Checked before the generic PE64 branch, which would set up
+        // a user-mode process around it. Loading links the driver against the
+        // emulated kernel and leaves PC at DriverEntry.
+        } else if !self.cfg.shellcode
+            && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_AMD64)
+            && sys::is_kernel_driver(&raw)
+        {
+            log::trace!("PE64 kernel driver detected.");
+            self.maps.clear();
+            match self.load_sys_driver(filename) {
+                Ok(_) => {
+                    let retpad = self.kernel.as_ref().map(|k| k.layout.retpad()).unwrap_or(0);
+                    if let Some(init) = self.kernel.as_ref().and_then(|k| k.module.init) {
+                        self.stack_push64(retpad);
+                        self.set_pc(init);
+                    }
+                }
+                Err(err) => {
+                    return Err(MwemuError::new(&format!("cannot load driver: {err}")));
+                }
+            }
 
         // PE64 x86_64
         } else if !self.cfg.shellcode && pe_machine_type(&raw) == Some(IMAGE_FILE_MACHINE_AMD64) {
@@ -430,8 +456,8 @@ impl Emu {
                 }
             }
 
-            self.init_win32(clear_registers, clear_flags);
-            let (base, _pe_off) = self.load_pe64(filename, true, 0);
+            self.init_win32(clear_registers, clear_flags)?;
+            let base = self.load_pe64(filename, true, 0)?.base;
             let ep = self.regs().rip;
 
             match self.pe64 {
@@ -492,6 +518,10 @@ impl Emu {
                     // Rip: entry point — NtContinue will redirect execution here
                     let _ = self.maps.write_qword(ctx_addr + 0xF8, ep);
 
+                    crate::windows::peb::peb64::ensure_ntdll_loader_globals(self);
+                    crate::syscall::windows::syscall64::memory::patch_ntdll_load_reason_checks(
+                        self,
+                    );
                     let _ = self.call64(ldr_init, &[ctx_addr, ntdll_base, 0]);
                     self.ldr_init_done = true;
                     if self.process_terminated {
@@ -690,22 +720,26 @@ impl Emu {
             log::trace!("shellcode detected.");
             let clear_registers = false; // TODO: this needs to be more dynamic, like if we have a register set via args or not
             let clear_flags = false; // TODO: this needs to be more dynamic, like if we have a flag set via args or not
-            self.init_win32(clear_registers, clear_flags);
+            self.init_win32(clear_registers, clear_flags)?;
             let exe_name = self.cfg.exe_name.clone();
+            let exe_path = self.cfg.get_maps_folder(&exe_name);
             if self.cfg.is_x64() {
-                let (base, _pe_off) =
-                    self.load_pe64(&format!("{}/{}", self.cfg.maps_folder, exe_name), false, 0);
-                peb64::update_ldr_entry_base(&exe_name, base, self);
+                match self.load_pe64(&exe_path, false, 0) {
+                    Ok(image) => peb64::update_ldr_entry_base(&exe_name, image.base, self),
+                    Err(error) => log::warn!("cannot load shellcode process image: {error}"),
+                }
             } else {
-                let (base, _pe_off) =
-                    self.load_pe32(&format!("{}/{}", self.cfg.maps_folder, exe_name), false, 0);
-                peb32::update_ldr_entry_base(&exe_name, base as u64, self);
+                match self.load_pe32(&exe_path, false, 0) {
+                    Ok(image) => peb32::update_ldr_entry_base(&exe_name, image.base, self),
+                    Err(error) => log::warn!("cannot load shellcode process image: {error}"),
+                }
             }
 
+            let code_sz = raw.len().max(1) as u64;
             let code_map = match self.maps.create_map(
                 "code",
                 self.cfg.code_base_addr,
-                0,
+                code_sz,
                 Permission::READ_WRITE_EXECUTE,
             ) {
                 Ok(m) => m,
@@ -725,11 +759,11 @@ impl Emu {
             code.extend(0xffff); // this could overlap an existing map
         }
 
-        if self.cfg.entry_point != constants::CFG_DEFAULT_BASE {
+        if self.cfg.entry_point != CFG_DEFAULT_BASE {
             self.regs_mut().rip = self.cfg.entry_point;
         }
 
-        /*if self.cfg.code_base_addr != constants::CFG_DEFAULT_BASE {
+        /*if self.cfg.code_base_addr != CFG_DEFAULT_BASE {
             let code = self.maps.get_mem("code");
             code.update_base(self.cfg.code_base_addr);
             code.update_bottom(self.cfg.code_base_addr + code.size() as u64);

@@ -1,15 +1,12 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// HADDPD: horizontal f64 pairwise operation (dest pairs -> low, src -> high).
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let dest = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
+    let dest = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+    let src = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
     let mut result = 0u128;
     let d0 = f64::from_bits((dest & 0xffff_ffff_ffff_ffff) as u64);
     let d1 = f64::from_bits(((dest >> 64) & 0xffff_ffff_ffff_ffff) as u64);
@@ -19,6 +16,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     for (i, &val) in out.iter().enumerate() {
         result |= (val.to_bits() as u128) << (i * 64);
     }
-    emu.set_operand_xmm_value_128(ins, 0, result);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, result)
 }

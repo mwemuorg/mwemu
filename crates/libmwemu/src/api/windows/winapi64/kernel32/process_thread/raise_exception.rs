@@ -1,0 +1,30 @@
+use crate::emu;
+use crate::exception::raise;
+use crate::windows::constants::exceptions::EXCEPTION_MAXIMUM_PARAMETERS;
+
+pub fn RaiseException(emu: &mut emu::Emu) {
+    let code = emu.regs().rcx as u32;
+    let flags = emu.regs().rdx as u32;
+    let num_args = emu.regs().r8 as u32;
+    let args_ptr = emu.regs().r9;
+
+    log_red!(
+        emu,
+        "kernel32!RaiseException code:0x{:08x} flags:0x{:x} nArgs:{} pArgs:0x{:x}",
+        code,
+        flags,
+        num_args,
+        args_ptr
+    );
+
+    let count = (num_args as usize).min(EXCEPTION_MAXIMUM_PARAMETERS);
+    let params: Vec<u64> = (0..count as u64)
+        .map(|i| emu.maps.read_qword(args_ptr + i * 8).unwrap_or(0))
+        .collect();
+
+    if raise::raise64(emu, code, flags, &params) {
+        return;
+    }
+
+    emu.regs_mut().rax = 0;
+}

@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use std::io::Write as _;
 use std::sync::atomic;
 
@@ -6,12 +7,12 @@ use iced_x86::{Decoder, DecoderOptions, Instruction};
 
 use crate::debug::console::Console;
 use crate::emu::decoded_instruction::DecodedInstruction;
+use crate::emu::execution::x86::decode::ensure_instruction_cache_populated_x86;
 use crate::engine;
 use crate::err::MwemuError;
 use crate::serialization;
 use crate::syscall::windows::syscall64::memory as win_syscall64_memory;
 use crate::utils::helpers::unlikely;
-use crate::windows::constants;
 
 use super::Emu;
 
@@ -56,6 +57,10 @@ impl Emu {
 
         // code
         let rip = self.regs().rip;
+        if !self.check_instruction_fetch(rip) {
+            self.advance_pc_x86(0);
+            return false;
+        }
         let code = match self.maps.get_mem_by_addr(rip) {
             Some(c) => c,
             None => {
@@ -69,7 +74,10 @@ impl Emu {
         };
 
         // block
-        let block = code.read_from(rip).to_vec(); // reduce code block for more speed
+        let block = code.read_code(rip, BLOCK_LEN).to_vec();
+        if block.is_empty() {
+            return false;
+        }
 
         // decoder
         let mut decoder;
@@ -115,7 +123,11 @@ impl Emu {
             }
         }
         // emulate
-        let result_ok = engine::emulate_instruction(self, &ins, sz, true);
+        let result_ok = if Self::is_rep_string_instruction(&ins) {
+            self.execute_x86_rep_fully(&ins, sz)
+        } else {
+            engine::emulate_instruction(self, &ins, sz, true)
+        };
         //tracing::trace_instruction(self, self.pos);
         self.last_instruction_size = sz;
 
@@ -132,7 +144,9 @@ impl Emu {
         }
 
         // update eip/rip
-        self.advance_pc_x86(sz);
+        if result_ok || self.force_reload {
+            self.advance_pc_x86(sz);
+        }
 
         result_ok
     }
@@ -148,7 +162,6 @@ impl Emu {
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
-        self.ensure_run_start_pc_mapped(self.pc())?;
 
         self.is_running.store(1, atomic::Ordering::Relaxed);
         self.install_ctrlc_handler_if_enabled();
@@ -183,8 +196,8 @@ impl Emu {
 
         let arch = if is_x64 { 64 } else { 32 };
         let mut x86_ins: Instruction = Instruction::default();
-        let mut block: Vec<u8> = Vec::with_capacity(constants::BLOCK_LEN + 1);
-        block.resize(constants::BLOCK_LEN, 0x0);
+        let mut block: Vec<u8> = Vec::with_capacity(BLOCK_LEN + 1);
+        block.resize(BLOCK_LEN, 0x0);
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
@@ -206,7 +219,19 @@ impl Emu {
                 }
                 */
 
-                super::decode::ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)?;
+                if let Err(error) =
+                    ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)
+                {
+                    if !self.process_terminated
+                        && self.force_reload
+                        && self.eh_ctx() != 0
+                        && self.pc() != pc
+                    {
+                        self.force_reload = false;
+                        continue;
+                    }
+                    return Err(error);
+                }
 
                 // Inner decode loop
                 let mut sz: usize = 0;
@@ -484,9 +509,9 @@ impl Emu {
                         let skip = !hook_fn(self, hook_pc, &decoded, sz);
                         self.hooks.hook_on_pre_instruction = Some(hook_fn);
                         if skip {
-                            // Check can_decode for next iteration
-                            inner_running = self.instruction_cache_can_decode();
-                            continue;
+                            self.rep = None;
+                            self.advance_pc_x86(sz);
+                            break;
                         }
                     }
 
@@ -513,6 +538,7 @@ impl Emu {
                         self.run_until_ret && x86_ins.mnemonic() == iced_x86::Mnemonic::Ret;
 
                     // --- Emulate ---
+                    let previous_fault_count = self.fault_count;
                     let emulation_ok = engine::emulate_instruction(self, &x86_ins, sz, false);
                     self.last_instruction_size = sz;
 
@@ -521,7 +547,11 @@ impl Emu {
                     }
 
                     // --- x86 REP post-execution state machine ---
-                    self.update_x86_rep_state_after_execution(x86_ins);
+                    if emulation_ok {
+                        self.update_x86_rep_state_after_execution(x86_ins);
+                    } else {
+                        self.rep = None;
+                    }
 
                     // --- Post-instruction hook ---
                     if let Some(mut hook_fn) = self.hooks.hook_on_post_instruction.take() {
@@ -548,7 +578,16 @@ impl Emu {
 
                     // --- Failure handling ---
                     if !emulation_ok {
-                        self.fault_count += 1;
+                        if self.fault_count == previous_fault_count {
+                            self.fault_count += 1;
+                        }
+                        if self.force_reload && self.eh_ctx() != 0 && self.pc() != addr {
+                            // The instruction failed, but exception delivery moved PC
+                            // to a handler. Re-fetch there instead of stopping or
+                            // advancing past its first instruction.
+                            self.force_reload = false;
+                            break;
+                        }
                         if self.cfg.soft_exception_recovery
                             && !self.process_terminated
                             && self.is_running.load(atomic::Ordering::Relaxed) == 1

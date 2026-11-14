@@ -1,3 +1,4 @@
+use crate::windows::constants::system::*;
 use std::io::Write as _;
 
 use crate::{
@@ -5,7 +6,6 @@ use crate::{
     flags::Flags,
     regs_aarch64::{FlagsNZCV, RegsAarch64},
     regs64::Regs64,
-    windows::constants,
 };
 
 impl Emu {
@@ -322,9 +322,7 @@ impl Emu {
 
         let mut s = self.maps.read_string(addr);
         self.maps.filter_string(&mut s);
-        let bytes = self
-            .maps
-            .read_string_of_bytes(addr, constants::NUM_BYTES_TRACE);
+        let bytes = self.maps.read_string_of_bytes(addr, NUM_BYTES_TRACE);
         log::trace!(
             "\tmem_inspect: pc = {:x} (0x{:x}): 0x{:x} {} '{}' {{{}}}",
             self.pc(),

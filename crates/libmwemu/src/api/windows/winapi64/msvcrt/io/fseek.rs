@@ -1,0 +1,23 @@
+use crate::emu;
+use crate::winapi::helper;
+
+pub fn fseek(emu: &mut emu::Emu) {
+    let fp = emu.regs().rcx;
+    let offset = emu.regs().rdx as i32 as i64;
+    let origin = emu.regs().r8 as u32;
+    let new_pos = helper::handler_seek(fp, offset, origin);
+    log_red!(
+        emu,
+        "msvcrt!fseek fp:0x{:x} offset:{} origin:{} => pos:{}",
+        fp,
+        offset,
+        origin,
+        new_pos
+    );
+    let first_param = emu.regs().rcx;
+    if first_param != 0 && emu.maps.is_mapped(first_param) {
+        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
+    }
+    emu.set_last_error(0);
+    emu.regs_mut().rax = if new_pos >= 0 { 0 } else { u64::MAX };
+}

@@ -1,13 +1,10 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// BLSMSK dest, src: dest = (src - 1) XOR src  (mask up to & including lowest set bit)
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
 
     let src = match emu.get_operand_value(ins, 1, true) {
         Some(v) => v,
@@ -24,6 +21,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     emu.flags_mut().f_zf = result == 0;
     emu.flags_mut().f_sf = (result >> (sz - 1)) & 1 == 1;
 
-    emu.set_operand_value(ins, 0, result);
-    true
+    emu.set_operand_value(ins, 0, result)
 }

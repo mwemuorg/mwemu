@@ -90,6 +90,7 @@ fn elf64lin_go_goroutines_timers_exec() {
     };
 
     let mut emu = emu64();
+    emu.cfg.console_enabled = false;
     emu.max_pos = Some(50_000_000);
     emu.load_code(bin.to_str().expect("utf-8 path"));
     assert!(emu.os.is_linux());

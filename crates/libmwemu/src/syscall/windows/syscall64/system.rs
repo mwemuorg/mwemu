@@ -1,5 +1,7 @@
 use crate::emu::Emu;
-use crate::windows::constants::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::syscalls::*;
+use crate::windows::constants::system;
 
 /// Synthetic kernel image base/size/full path used by `SystemModuleInformation`
 /// and `SystemModuleInformationEx`. The values are stable across runs.
@@ -344,7 +346,7 @@ pub fn nt_query_system_information(emu: &mut Emu) {
     );
 
     match class {
-        SYSTEM_BASIC_INFORMATION | SYSTEM_EMULATION_BASIC_INFORMATION => {
+        system::SYSTEM_BASIC_INFORMATION | SYSTEM_EMULATION_BASIC_INFORMATION => {
             if !validate_modeled_output_buffer(emu, info, len, ret_len_ptr, SYSTEM_BASIC_INFO_SIZE)
             {
                 return;
@@ -894,7 +896,7 @@ pub fn nt_manage_hot_patch(emu: &mut Emu) {
         info
     );
 
-    emu.regs_mut().rax = STATUS_NOT_SUPPORTED;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 /// `NtQueryDebugFilterState(ComponentId, Level)` — returns FALSE (0) to indicate

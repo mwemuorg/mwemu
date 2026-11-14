@@ -9,8 +9,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     );
     emu.flags_mut().f_tf = false;
     let flags = emu.flags().dump() as u64;
-    if !emu.stack_push64(flags) {
-        return false;
-    }
-    true
+    emu.push_instruction(flags, u64::BITS)
 }

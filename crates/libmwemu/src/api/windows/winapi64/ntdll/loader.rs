@@ -1,11 +1,12 @@
 use crate::api::windows::winapi64;
 use crate::emu;
 use crate::winapi::helper;
-use crate::windows::constants;
+use crate::winapi::helper::WinApiAbi;
+use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
-        "LdrLoadDll" => LdrLoadDll(emu),
+        "LdrLoadDll" | "LdrLoadDll_gul" => LdrLoadDll(emu),
         "LdrGetDllHandleEx" => LdrGetDllHandleEx(emu),
         _ => return false,
     }
@@ -24,7 +25,7 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
         emu.maps.write_qword(libaddr_ptr, base);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
@@ -32,7 +33,7 @@ fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
     let path_ptr = emu.regs().rdx;
     let characteristics = emu.regs().r8;
     let dll_name_ptr = emu.regs().r9;
-    let out_hndl = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let out_hndl = WinApiAbi::arg(emu, 4);
 
     let dll_name = emu.maps.read_wide_string(dll_name_ptr);
 

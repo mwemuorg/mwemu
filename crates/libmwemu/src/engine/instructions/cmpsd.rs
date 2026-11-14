@@ -1,18 +1,16 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
     // SSE2 CMPSD (scalar-double compare) shares this mnemonic with the string
     // CMPSD; the SSE form is the one with three operands (xmm, xmm/m64, imm8).
     if ins.op_count() == 3 {
-        emu.show_instruction(
-            color!("Cyan"),
-            &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-        );
-        let dest = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-        let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-        let pred = emu.get_operand_value(ins, 2, true).unwrap_or(0) as u8 & 7;
+        emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
+        let dest = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+        let src = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+        let pred = try_operand!(emu.get_operand_value(ins, 2, true)) as u8 & 7;
         let a = f64::from_bits((dest & 0xffff_ffff_ffff_ffff) as u64);
         let b = f64::from_bits((src & 0xffff_ffff_ffff_ffff) as u64);
         let t = match pred {
@@ -27,8 +25,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         };
         let low: u128 = if t { 0xffff_ffff_ffff_ffff } else { 0 };
         let result = (dest & !(0xffff_ffff_ffff_ffffu128)) | low;
-        emu.set_operand_xmm_value_128(ins, 0, result);
-        return true;
+        return emu.set_operand_xmm_value_128(ins, 0, result);
     }
 
     let value0: u32;
@@ -36,16 +33,10 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     if emu.rep.is_some() {
         if emu.rep.unwrap_or(0) == 0 || emu.cfg.verbose >= 3 {
-            emu.show_instruction(
-                color!("LightCyan"),
-                &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-            );
+            emu.show_instruction(color!("LightCyan"), &DecodedInstruction::X86(*ins));
         }
     } else {
-        emu.show_instruction(
-            color!("LightCyan"),
-            &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-        );
+        emu.show_instruction(color!("LightCyan"), &DecodedInstruction::X86(*ins));
     }
 
     if emu.cfg.is_x64() {
@@ -76,7 +67,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rdi = v;
         }
     } else {
-        // 32bits
         value0 = match emu.maps.read_dword(emu.regs().get_esi()) {
             Some(v) => v,
             None => {

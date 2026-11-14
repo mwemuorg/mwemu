@@ -1,0 +1,46 @@
+use crate::emu::Emu;
+use crate::winapi::winapi64::user32;
+
+pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
+    match api {
+        "DdeAbandonTransaction" => user32::DdeAbandonTransaction(emu),
+        "DdeAccessData" => user32::DdeAccessData(emu),
+        "DdeAddData" => user32::DdeAddData(emu),
+        "DdeClientTransaction" => user32::DdeClientTransaction(emu),
+        "DdeCmpStringHandles" => user32::DdeCmpStringHandles(emu),
+        "DdeConnect" => user32::DdeConnect(emu),
+        "DdeConnectList" => user32::DdeConnectList(emu),
+        "DdeCreateDataHandle" => user32::DdeCreateDataHandle(emu),
+        "DdeCreateStringHandleA" => user32::DdeCreateStringHandleA(emu),
+        "DdeCreateStringHandleW" => user32::DdeCreateStringHandleW(emu),
+        "DdeDisconnect" => user32::DdeDisconnect(emu),
+        "DdeDisconnectList" => user32::DdeDisconnectList(emu),
+        "DdeEnableCallback" => user32::DdeEnableCallback(emu),
+        "DdeFreeDataHandle" => user32::DdeFreeDataHandle(emu),
+        "DdeFreeStringHandle" => user32::DdeFreeStringHandle(emu),
+        "DdeGetData" => user32::DdeGetData(emu),
+        "DdeGetLastError" => user32::DdeGetLastError(emu),
+        "DdeGetQualityOfService" => user32::DdeGetQualityOfService(emu),
+        "DdeImpersonateClient" => user32::DdeImpersonateClient(emu),
+        "DdeInitializeA" => user32::DdeInitializeA(emu),
+        "DdeInitializeW" => user32::DdeInitializeW(emu),
+        "DdeKeepStringHandle" => user32::DdeKeepStringHandle(emu),
+        "DdeNameService" => user32::DdeNameService(emu),
+        "DdePostAdvise" => user32::DdePostAdvise(emu),
+        "DdeQueryConvInfo" => user32::DdeQueryConvInfo(emu),
+        "DdeQueryNextServer" => user32::DdeQueryNextServer(emu),
+        "DdeQueryStringA" => user32::DdeQueryStringA(emu),
+        "DdeQueryStringW" => user32::DdeQueryStringW(emu),
+        "DdeReconnect" => user32::DdeReconnect(emu),
+        "DdeSetQualityOfService" => user32::DdeSetQualityOfService(emu),
+        "DdeSetUserHandle" => user32::DdeSetUserHandle(emu),
+        "DdeUnaccessData" => user32::DdeUnaccessData(emu),
+        "DdeUninitialize" => user32::DdeUninitialize(emu),
+        "FreeDDElParam" => user32::FreeDDElParam(emu),
+        "PackDDElParam" => user32::PackDDElParam(emu),
+        "ReuseDDElParam" => user32::ReuseDDElParam(emu),
+        "UnpackDDElParam" => user32::UnpackDDElParam(emu),
+        _ => return false,
+    }
+    true
+}

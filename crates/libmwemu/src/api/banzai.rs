@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use csv::ReaderBuilder;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -17,6 +18,21 @@ impl Banzai {
     pub fn new() -> Self {
         Self {
             api_params: HashMap::new(),
+        }
+    }
+
+    /// Load the headerless API/DWORD table; later entries retain overwrite semantics.
+    pub(crate) fn load(&mut self, path: &str) {
+        match ReaderBuilder::new().has_headers(false).from_path(path) {
+            Ok(mut reader) => {
+                for record in reader.deserialize::<(String, i32)>() {
+                    match record {
+                        Ok((api, words)) => self.add(&api, words),
+                        Err(error) => log::warn!("error parsing banzai.csv record: {}", error),
+                    }
+                }
+            }
+            Err(error) => log::error!("banzai.csv not found in maps folder: {}", error),
         }
     }
 

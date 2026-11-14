@@ -1,3 +1,4 @@
+use crate::windows::constants::memory::*;
 use ahash::AHashMap;
 use std::io::Write as _;
 use std::sync::atomic;
@@ -8,7 +9,6 @@ use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::engine;
 use crate::err::MwemuError;
 use crate::serialization;
-use crate::windows::constants;
 
 use super::{Emu, assert_aarch64_arch};
 
@@ -55,8 +55,8 @@ impl Emu {
         let mut window_counter: u64 = 0;
 
         let mut aarch64_ins = yaxpeax_arm::armv8::a64::Instruction::default();
-        let mut block: Vec<u8> = Vec::with_capacity(constants::BLOCK_LEN + 1);
-        block.resize(constants::BLOCK_LEN, 0x0);
+        let mut block: Vec<u8> = Vec::with_capacity(BLOCK_LEN + 1);
+        block.resize(BLOCK_LEN, 0x0);
 
         loop {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {

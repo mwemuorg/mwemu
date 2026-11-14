@@ -1,16 +1,15 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
-// PCLMULQDQ: carry-less multiply of the two 64-bit halves selected by imm8[0]
-// (dest) and imm8[4] (src).
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Blue"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    let dest = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
-    let imm = emu.get_operand_value(ins, 2, true).unwrap_or(0);
+    emu.show_instruction(color!("Blue"), &DecodedInstruction::X86(*ins));
+
+    let dest = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true));
+    let src = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
+    // Immediate bits 0 and 4 select the destination and source qwords.
+    let imm = try_operand!(emu.get_operand_value(ins, 2, true));
     let a = ((dest >> (if imm & 1 != 0 { 64 } else { 0 })) & 0xffff_ffff_ffff_ffff) as u64;
     let b = ((src >> (if imm & 0x10 != 0 { 64 } else { 0 })) & 0xffff_ffff_ffff_ffff) as u64;
     let mut result = 0u128;
@@ -19,6 +18,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
             result ^= (a as u128) << i;
         }
     }
-    emu.set_operand_xmm_value_128(ins, 0, result);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, result)
 }

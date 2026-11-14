@@ -1,4 +1,4 @@
-.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity
+.PHONY: all tests test-ci clippy clippy-release smoke maps sloppy samples symbols driver macos-driver windows-driver test_macos test_golang test_speed test_fuzz fmt msrv complexity api-modules
 
 # Extra Cargo target arguments for cross-target checks. On Apple Silicon, use
 # CARGO_TARGET="--target x86_64-apple-darwin" as required by AGENTS.md.
@@ -47,6 +47,10 @@ test-ci:
 clippy:
 	cargo clippy --locked $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
 
+api-modules:
+	python3 scripts/check_api_modules.py --self-test
+	python3 scripts/check_api_modules.py $(CARGO_TARGET)
+
 clippy-release:
 	cargo clippy --locked --release $(CI_PACKAGES) --all-targets $(CARGO_TARGET) -- -D warnings
 
@@ -56,6 +60,12 @@ clippy-release:
 # themselves when the artefact is absent, so this is optional.
 driver:
 	$(MAKE) -C drivers/linux/tlm install TESTDIR=$(abspath $(TEST_DIR))
+
+# Windows kernel-mode test target: builds drivers/windows/tlm into
+# test/windows_uaf_driver.sys with mingw-w64 (x86_64-w64-mingw32-gcc and its
+# DDK headers). The Windows driver tests skip when the artefact is absent.
+windows-driver:
+	$(MAKE) -C drivers/windows/tlm install TESTDIR=$(abspath $(TEST_DIR))
 
 # macOS kext test target: builds drivers/macos/tlm into
 # test/macos_uaf_driver.kext (arm64e). Needs the macOS SDK + clang; the
@@ -148,7 +158,9 @@ test_enigma:
 test_tls:
 	cargo run --release -- -f  test/exe64win_mingw.bin -6 -v
 test_golang:
-	cargo test --locked --verbose --package libmwemu $(CARGO_TARGET) -- tests::loaders::elf64::elf64lin_go
+	cargo test --locked --package libmwemu $(CARGO_TARGET) -- tests::loaders::elf64::elf64lin_go
+test_sys: windows-driver
+	cargo run --release -- -f drivers/windows/tlm/tlm.sys -6 --ioctl 0x80002010:304d4c540010000000100000000000000000000000000000:24 -vv
 test_speed: all samples
 	bash -c 'time ./target/release/mwemu -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'
 	@echo "[speed] 20,000,000 instructions emulated successfully."
@@ -167,7 +179,7 @@ test_fuzz:
 
 
 fmt:
-	cargo fmt --all -- --check
+	cargo fmt --all
 
 msrv:
 	cargo +1.95 check --locked $(CARGO_TARGET)

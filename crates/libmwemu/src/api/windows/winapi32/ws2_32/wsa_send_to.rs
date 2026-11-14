@@ -1,0 +1,30 @@
+use crate::emu;
+use crate::winapi::helper;
+use crate::winapi::helper::WinApiAbi;
+use crate::winapi::winapi32::stdcall_ret;
+
+pub fn WSASendTo(emu: &mut emu::Emu) {
+    let sock = WinApiAbi::arg(emu, 0);
+    let buffers_ptr = WinApiAbi::arg(emu, 1);
+    let buffer_count = WinApiAbi::arg(emu, 2) as u32;
+    let bytes_sent_ptr = WinApiAbi::arg(emu, 3);
+    log_red!(
+        emu,
+        "ws2_32!WSASendTo sock:0x{:x} buffers:{}",
+        sock,
+        buffer_count
+    );
+    if !helper::socket_exist(sock) {
+        emu.set_last_error(10038);
+        emu.regs_mut().rax = 0xFFFFFFFF;
+    } else {
+        if buffers_ptr != 0 && buffer_count > 0 {
+            let buf_len = emu.maps.read_dword(buffers_ptr).unwrap_or(0);
+            if bytes_sent_ptr != 0 {
+                emu.maps.write_dword(bytes_sent_ptr, buf_len);
+            }
+        }
+        emu.regs_mut().rax = 0;
+    }
+    stdcall_ret(emu, 9);
+}

@@ -1,6 +1,8 @@
 use crate::emu;
+use crate::syscall::linux::constants::errors::*;
+use crate::syscall::linux::constants::syscalls::*;
+
 use crate::winapi::helper;
-use crate::windows::constants;
 
 macro_rules! syscall_name {
     ($name:literal) => {
@@ -260,7 +262,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
         102 => {
             match emu.regs().rbx as u32 {
-                constants::SYS_SOCKET => {
+                SYS_SOCKET => {
                     let sock = helper::socket_create();
                     let fam = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let typ = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
@@ -279,7 +281,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                     emu.regs_mut().rax = sock;
                 }
 
-                constants::SYS_BIND => {
+                SYS_BIND => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
                     let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
@@ -312,13 +314,13 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                     } else {
                         emu.regs_mut().rax = 0;
                     }
                 }
 
-                constants::SYS_CONNECT => {
+                SYS_CONNECT => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
                     let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
@@ -351,7 +353,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                         return;
                     }
 
@@ -367,7 +369,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                     emu.regs_mut().rax = 0;
                 }
 
-                constants::SYS_LISTEN => {
+                SYS_LISTEN => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let conns = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
 
@@ -379,13 +381,13 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                     } else {
                         emu.regs_mut().rax = 0;
                     }
                 }
 
-                constants::SYS_ACCEPT => {
+                SYS_ACCEPT => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let sockaddr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
                     let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
@@ -410,27 +412,27 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                     } else {
                         emu.regs_mut().rax = 0;
                     }
                 }
 
-                constants::SYS_GETSOCKNAME => {
+                SYS_GETSOCKNAME => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     trace_socketcall32_args(emu, "getsockname", &[("sock", sock.to_string())]);
                     log::warn!("getsockname: stub, not implemented");
                 }
 
-                constants::SYS_GETPEERNAME => {
+                SYS_GETPEERNAME => {
                     trace_socketcall32(emu, "getpeername");
                 }
 
-                constants::SYS_SOCKETPAIR => {
+                SYS_SOCKETPAIR => {
                     trace_socketcall32(emu, "socketpair");
                 }
 
-                constants::SYS_SEND => {
+                SYS_SEND => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let buf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
                     let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
@@ -449,7 +451,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                         return;
                     }
 
@@ -466,7 +468,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                     emu.regs_mut().rax = len as u64;
                 }
 
-                constants::SYS_RECV => {
+                SYS_RECV => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let buf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
                     let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
@@ -485,7 +487,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                         return;
                     }
 
@@ -503,7 +505,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
                     emu.regs_mut().rax = len as u64; //TODO: avoid loops
                 }
 
-                constants::SYS_SENDTO => {
+                SYS_SENDTO => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let buf = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0);
                     let len = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
@@ -557,13 +559,13 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                     } else {
                         emu.regs_mut().rax = len as u64;
                     }
                 }
 
-                constants::SYS_RECVFROM => {
+                SYS_RECVFROM => {
                     let sock = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0);
                     let buf = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
                     let len = emu.maps.read_dword(emu.regs().get_esp() + 12).unwrap_or(0);
@@ -595,42 +597,42 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
 
                     if !helper::socket_exist(sock as u64) {
                         log::trace!("\tbad socket/");
-                        emu.regs_mut().rax = constants::ENOTSOCK;
+                        emu.regs_mut().rax = ENOTSOCK;
                     } else {
                         emu.regs_mut().rax = len as u64; //TODO: avoid loops
                     }
                 }
 
-                constants::SYS_SHUTDOWN => {
+                SYS_SHUTDOWN => {
                     trace_socketcall32(emu, "shutdown");
                     //endpoint::sock_close();
                 }
 
-                constants::SYS_SETSOCKOPT => {
+                SYS_SETSOCKOPT => {
                     trace_socketcall32(emu, "setsockopt");
                 }
 
-                constants::SYS_GETSOCKOPT => {
+                SYS_GETSOCKOPT => {
                     trace_socketcall32(emu, "getsockopt");
                 }
 
-                constants::SYS_SENDMSG => {
+                SYS_SENDMSG => {
                     trace_socketcall32(emu, "sendmsg");
                 }
 
-                constants::SYS_RECVMSG => {
+                SYS_RECVMSG => {
                     trace_socketcall32(emu, "recvmsg");
                 }
 
-                constants::SYS_ACCEPT4 => {
+                SYS_ACCEPT4 => {
                     trace_socketcall32(emu, "accept4");
                 }
 
-                constants::SYS_RECVMMSG => {
+                SYS_RECVMMSG => {
                     trace_socketcall32(emu, "recvmmsg");
                 }
 
-                constants::SYS_SENDMMSG => {
+                SYS_SENDMMSG => {
                     trace_socketcall32(emu, "sendmmsg");
                 }
 

@@ -1,0 +1,12 @@
+use crate::emu;
+use crate::winapi::helper::WinApiAbi;
+
+pub fn _time64(emu: &mut emu::Emu) {
+    let t_ptr = WinApiAbi::arg(emu, 0);
+    let now = 0x6718_0000u64;
+    if t_ptr != 0 {
+        emu.maps.write_qword(t_ptr, now);
+    }
+    log_red!(emu, "msvcrt!_time64 => 0x{:x}", now);
+    WinApiAbi::set_ret64(emu, now);
+}

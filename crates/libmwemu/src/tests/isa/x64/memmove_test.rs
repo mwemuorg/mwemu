@@ -403,7 +403,7 @@ fn memmove_non_overlapping_copy() {
 
     // Verify the copy
     let copied_data = emu.maps.read_bytes(dest_addr, test_pattern.len());
-    assert_eq!(copied_data, test_pattern);
+    assert_eq!(copied_data.as_ref(), test_pattern);
 
     // The memmove implementation might not return dest in RAX
     // Let's just verify the data was copied correctly

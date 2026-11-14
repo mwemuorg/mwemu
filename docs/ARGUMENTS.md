@@ -21,6 +21,10 @@ The maps are TEB and PEB and other structures, and also memory headers and libra
 
 Use the console m command to see the memory maps.
 
+## Banzai
+
+`--banzai` allows skipping Windows APIs without full or partial handlers in the emulator. See [Windows API fallback](WINDOWS_API.md) for details.
+
 ## Verbose
 
 Without verbose only the Windows API and Linux syscalls are shown in red.

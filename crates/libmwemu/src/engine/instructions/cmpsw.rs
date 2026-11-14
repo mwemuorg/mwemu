@@ -48,7 +48,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             emu.regs_mut().rdi = v;
         }
     } else {
-        // 32bits
         value0 = match emu.maps.read_word(emu.regs().get_esi()) {
             Some(v) => v,
             None => {

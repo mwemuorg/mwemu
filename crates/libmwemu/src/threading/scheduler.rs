@@ -189,7 +189,9 @@ impl ThreadScheduler {
         }
 
         // Advance instruction pointer
-        emu.advance_pc(sz);
+        if result_ok || emu.force_reload {
+            emu.advance_pc(sz);
+        }
 
         result_ok
     }

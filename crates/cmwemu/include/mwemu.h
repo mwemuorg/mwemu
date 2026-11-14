@@ -207,7 +207,8 @@ void mwemu_load_maps(struct MwemuEmu *emu, const char *folder);
 // Returns 1 on success, 0 on failure (network/cache; see `mwemu_last_error`).
 int32_t mwemu_load_maps_from_winver(struct MwemuEmu *emu, const char *version);
 
-// Initialize the Windows environment (PEB/TEB/LDR/DLLs) for 32-bit.
+// Initialize the Windows environment (PEB/TEB/LDR/DLLs).
+// Initialization failures are available through `mwemu_last_error`.
 void mwemu_init_win32(struct MwemuEmu *emu);
 
 // Initialize the Linux environment (optionally with dynamic linking).

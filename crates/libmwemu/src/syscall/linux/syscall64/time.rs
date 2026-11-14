@@ -2,15 +2,16 @@
 //! schedule timers (Go's runtime does all three) need `nanotime()` to move.
 
 use crate::emu;
-use crate::windows::constants;
+use crate::syscall::linux::constants::syscalls::*;
+
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const CLOCK_REALTIME: u64 = 0;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
-        constants::NR64_CLOCK_GETTIME => clock_gettime(emu),
-        constants::NR64_GETTIMEOFDAY => gettimeofday(emu),
+        NR64_CLOCK_GETTIME => clock_gettime(emu),
+        NR64_GETTIMEOFDAY => gettimeofday(emu),
         _ => return false,
     }
     true

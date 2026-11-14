@@ -1,4 +1,4 @@
-use crate::api::windows::common::kernel32 as kernel32_common;
+use crate::api::windows::common::modules;
 use crate::api::windows::export_index::IndexedExport;
 use crate::emu;
 use crate::windows::peb::peb64;
@@ -119,9 +119,7 @@ fn resolve_in_module_exports_depth(
     flink.load(emu);
     let first_ptr = flink.get_ptr();
     loop {
-        if flink.export_table_rva > 0
-            && kernel32_common::module_name_matches(&flink.mod_name, &want)
-        {
+        if flink.export_table_rva > 0 && modules::module_name_matches(&flink.mod_name, &want) {
             for i in 0..flink.num_of_funcs {
                 if flink.pe_hdr == 0 {
                     continue;
@@ -177,7 +175,7 @@ pub fn resolve_api_name_in_module(emu: &mut emu::Emu, module: &str, name: &str) 
 fn resolve_api_name_in_module_inner(emu: &mut emu::Emu, module_lc: &str, name: &str) -> u64 {
     let module_lc = module_lc.to_string();
 
-    if kernel32_common::is_api_set_contract(&module_lc) {
+    if modules::is_api_set_contract(&module_lc) {
         // 1) Try the apiset stub itself (host-side index first).
         let addr = emu.export_indexes.resolve_name_in_module(&module_lc, name);
         if addr != 0 {
@@ -188,7 +186,7 @@ fn resolve_api_name_in_module_inner(emu: &mut emu::Emu, module_lc: &str, name: &
             return addr;
         }
         // 2) The contract's host DLLs.
-        let fallback_modules = kernel32_common::api_set_hosts(&module_lc);
+        let fallback_modules = modules::api_set_hosts(&module_lc);
         for m in fallback_modules {
             // Index-first, scanner fallback.
             let addr = emu.export_indexes.resolve_name_in_module(m, name);
@@ -237,13 +235,13 @@ pub(crate) fn resolve_forwarded_export_string_depth(
     if dll_part.is_empty() || sym_part.is_empty() {
         return 0;
     }
-    let Some(dll) = kernel32_common::normalize_library_name(dll_part, false) else {
+    let Some(dll) = modules::normalize_library_name(dll_part, false) else {
         return 0;
     };
     // Avoid re-entering the PE loader during export resolution (can recurse from delay-load binding).
     // Forwarders should resolve against already-linked modules in the current LDR state.
-    let mapped_dll = if kernel32_common::is_api_set_contract(&dll) {
-        let hosts = kernel32_common::api_set_hosts(&dll);
+    let mapped_dll = if modules::is_api_set_contract(&dll) {
+        let hosts = modules::api_set_hosts(&dll);
         let loaded = hosts
             .iter()
             .find(|host| peb64::get_module_base(host, emu).is_some());

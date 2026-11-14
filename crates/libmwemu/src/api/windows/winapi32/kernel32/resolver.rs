@@ -1,4 +1,4 @@
-use crate::api::windows::common::kernel32 as kernel32_common;
+use crate::api::windows::common::modules;
 use crate::api::windows::export_index::IndexedExport;
 use crate::emu;
 use crate::windows::peb::peb32;
@@ -49,7 +49,7 @@ pub fn resolve_api_name_in_module(emu: &mut emu::Emu, module: &str, name: &str) 
     // API set DLL names (api-ms-win-*, ext-ms-*) are virtual contracts.
     // Resolve by function name globally like 64-bit path does.
     let module_lc = module.to_lowercase();
-    if kernel32_common::is_api_set_contract(&module_lc) {
+    if modules::is_api_set_contract(&module_lc) {
         let addr = emu.export_indexes.resolve_name_global(name);
         if addr != 0 {
             return addr;

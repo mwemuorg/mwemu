@@ -1,16 +1,14 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::engine::instructions::avx;
 use iced_x86::Instruction;
-// VCVTPH2PS: packed f16 -> f32 (dest width sets lane count).
+
 pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
     let dsz = emu.get_operand_sz(ins, 0);
     let n = dsz / 32;
-    let src = emu.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0);
+    let src = try_operand!(emu.get_operand_xmm_value_128(ins, 1, true));
     let mut lo = 0u128;
     let mut hi = 0u128;
     for i in 0..n {
@@ -28,5 +26,4 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _s: usize, _r: bool) -> bool {
     } else {
         emu.set_operand_ymm_value_256(ins, 0, avx::from_pair(lo, hi))
     }
-    true
 }

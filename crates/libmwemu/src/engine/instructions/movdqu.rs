@@ -16,6 +16,5 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         }
     };
 
-    emu.set_operand_xmm_value_128(ins, 0, source);
-    true
+    emu.set_operand_xmm_value_128(ins, 0, source)
 }

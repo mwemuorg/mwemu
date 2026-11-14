@@ -1,11 +1,11 @@
 use crate::emu;
-use crate::windows::constants;
+use crate::syscall::linux::constants::syscalls::*;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
-        constants::NR64_BRK => handle_syscall64_brk(emu),
-        constants::NR64_NANOSLEEP => handle_syscall64_nanosleep(emu),
-        constants::NR64_MREMAP => handle_syscall64_mremap(emu),
+        NR64_BRK => handle_syscall64_brk(emu),
+        NR64_NANOSLEEP => handle_syscall64_nanosleep(emu),
+        NR64_MREMAP => handle_syscall64_mremap(emu),
         _ => return false,
     }
 

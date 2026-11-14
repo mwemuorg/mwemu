@@ -1,3 +1,6 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct MappingHandle {
     pub name: String,
     pub file_handle: Option<u32>, // Handle to the file being mapped (None if paging file)

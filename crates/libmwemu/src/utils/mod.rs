@@ -1,5 +1,6 @@
 #[macro_use]
 pub mod macros;
+pub mod bits;
 pub mod colors;
 pub mod helpers;
 

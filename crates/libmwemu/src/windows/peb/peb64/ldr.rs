@@ -5,7 +5,7 @@ use crate::windows::structures::LdrDataTableEntry64;
 use crate::windows::structures::OrdinalTable;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-const NTDLL_LDRP_HASH_TABLE_RVA64: u64 = 0x16a140;
+const NTDLL_LDRP_HASH_TABLE_RVA64: u64 = 0x1D3120;
 const NTDLL_LDRP_HASH_BUCKETS64: u64 = 32;
 const LDR_HASH_LINKS_OFFSET64: u64 = 0x70;
 const NTDLL_LDRP_GLOBAL_2680_RVA64: u64 = 0x1d2680;
@@ -378,6 +378,39 @@ pub fn dynamic_link_module(base: u64, pe_off: u32, libname: &str, emu: &mut emu:
     emu.maps.write_qword(sentinel_load + 8, space_addr);
     emu.maps.write_qword(sentinel_mem + 8, space_addr + 0x10);
     emu.maps.write_qword(sentinel_init + 8, space_addr + 0x20);
+
+    insert_ldr_hash_entry(emu, space_addr, libname);
+}
+
+fn insert_ldr_hash_entry(emu: &mut emu::Emu, entry: u64, libname: &str) {
+    let Some(ntdll_map) = emu.maps.get_map_by_name("ntdll.pe") else {
+        return;
+    };
+    let table = ntdll_map.get_base() + NTDLL_LDRP_HASH_TABLE_RVA64;
+    let bucket = ldr_hash_bucket_index(libname);
+    let head = table + bucket * 0x10;
+
+    if !emu.maps.is_mapped(head) {
+        return;
+    }
+
+    let hash_links = entry + LDR_HASH_LINKS_OFFSET64;
+    let old_flink = emu.maps.read_qword(head).unwrap_or(head);
+    let tail = if old_flink == 0 || old_flink == head {
+        head
+    } else {
+        emu.maps.read_qword(head + 8).unwrap_or(head)
+    };
+
+    emu.maps.write_qword(hash_links, head);
+    emu.maps.write_qword(hash_links + 8, tail);
+    if tail != head {
+        emu.maps.write_qword(tail, hash_links);
+    }
+    emu.maps.write_qword(head + 8, hash_links);
+    if old_flink == 0 || old_flink == head {
+        emu.maps.write_qword(head, hash_links);
+    }
 }
 
 pub fn create_ldr_entry(
@@ -430,6 +463,10 @@ pub fn create_ldr_entry(
     let full_libname = "C:\\Windows\\System32\\".to_string() + libname;
 
     let mut ldr = LdrDataTableEntry64::new();
+    // hash_links default to self-referencing; insert_ldr_hash_entry (called by
+    // dynamic_link_module) or rebuild_ldr_hash_table patches them into the
+    // correct LdrpHashTable bucket.
+    let hash_links_addr = space_addr + LDR_HASH_LINKS_OFFSET64;
     if next_flink != 0 {
         ldr.in_load_order_links.flink = next_flink;
         ldr.in_load_order_links.blink = prev_flink;
@@ -437,8 +474,6 @@ pub fn create_ldr_entry(
         ldr.in_memory_order_links.blink = prev_flink + 0x10;
         ldr.in_initialization_order_links.flink = next_flink + 0x20;
         ldr.in_initialization_order_links.blink = prev_flink + 0x20;
-        ldr.hash_links.flink = next_flink + 0x7f;
-        ldr.hash_links.blink = prev_flink + 0x7f;
     } else {
         ldr.in_load_order_links.flink = space_addr;
         ldr.in_load_order_links.blink = space_addr;
@@ -446,9 +481,9 @@ pub fn create_ldr_entry(
         ldr.in_memory_order_links.blink = space_addr + 0x10;
         ldr.in_initialization_order_links.flink = space_addr + 0x20;
         ldr.in_initialization_order_links.blink = space_addr + 0x20;
-        ldr.hash_links.flink = space_addr + 0x7f;
-        ldr.hash_links.blink = space_addr + 0x7f;
     }
+    ldr.hash_links.flink = hash_links_addr;
+    ldr.hash_links.blink = hash_links_addr;
     ldr.dll_base = base_addr;
     ldr.entry_point = entry_point;
     ldr.size_of_image = image_sz;
@@ -459,11 +494,12 @@ pub fn create_ldr_entry(
     ldr.base_dll_name.maximum_length = libname.len() as u16 * 2 + 2;
     ldr.base_dll_name.buffer =
         space_addr + LdrDataTableEntry64::size() + full_libname.len() as u64 * 2 + 10;
-    ldr.flags = 0;
-    ldr.load_count = 0;
+    // LDRP_IMAGE_DLL | LDRP_ENTRY_PROCESSED | LDRP_PROCESS_ATTACH_CALLED
+    // | LDRP_LOAD_NOTIFICATIONS_SENT — tells the real ntdll loader that
+    // this module is fully loaded and doesn't need re-processing.
+    ldr.flags = 0x00_0C_40_04;
+    ldr.load_count = 0xFFFF;
     ldr.tls_index = 0;
-    ldr.hash_links.flink = next_flink;
-    ldr.hash_links.blink = prev_flink;
     mem.write_wide_string(
         space_addr + LdrDataTableEntry64::size(),
         &(full_libname.clone() + "\x00\x00"),
@@ -473,6 +509,35 @@ pub fn create_ldr_entry(
         &(libname.to_string() + "\x00"),
     );
     ldr.save(space_addr, &mut emu.maps);
+
+    // Win11 parallel loader checks [entry+0x10C] (LoadReason) against 9;
+    // set it so the check passes and the parallel-load retry path is skipped.
+    emu.maps.write_dword(space_addr + 0x10C, 9);
+
+    // Create a DDAG node so Win11's parallel loader treats this module as
+    // fully loaded (State = 9 = LdrModulesReadyToRun, LoadCount = -1).
+    {
+        static DDAG_SEQ: AtomicU32 = AtomicU32::new(1000);
+        let ddag_sz: u64 = 0x60;
+        if let Some(ddag_addr) = emu.maps.alloc(ddag_sz) {
+            let seq = DDAG_SEQ.fetch_add(1, Ordering::Relaxed);
+            if emu
+                .maps
+                .create_map(
+                    &format!("ddag_node.{}", seq),
+                    ddag_addr,
+                    ddag_sz,
+                    Permission::READ_WRITE,
+                )
+                .is_ok()
+            {
+                emu.maps.write_dword(ddag_addr + 0x18, 0xFFFF_FFFF);
+                emu.maps.write_dword(ddag_addr + 0x38, 9);
+                emu.maps
+                    .write_qword(space_addr + LDR_DDAG_NODE_OFFSET, ddag_addr);
+            }
+        }
+    }
 
     space_addr
 }
@@ -613,7 +678,7 @@ pub fn populate_nls_upcase_table(emu: &mut emu::Emu) {
     }
 }
 
-fn ensure_ntdll_loader_globals(emu: &mut emu::Emu) {
+pub fn ensure_ntdll_loader_globals(emu: &mut emu::Emu) {
     let Some(ntdll_map) = emu.maps.get_map_by_name("ntdll.pe") else {
         return;
     };

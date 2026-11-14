@@ -1,5 +1,6 @@
 use crate::api::windows::common::ntdll;
 use crate::emu;
+use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use scan_fmt::scan_fmt_some;
 
@@ -10,14 +11,15 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "strcat" => strcat(emu),
         "sscanf" => sscanf(emu),
         "RtlInitAnsiString" => RtlInitAnsiString(emu),
+        "RtlInitUnicodeString" => RtlInitUnicodeString(emu),
         _ => return false,
     }
     true
 }
 
 fn stricmp(emu: &mut emu::Emu) {
-    let str1ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let str2ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let str1ptr = WinApiAbi::arg(emu, 0);
+    let str2ptr = WinApiAbi::arg(emu, 1);
     ntdll::stricmp(emu, str1ptr, str2ptr);
 
     for _ in 0..2 {
@@ -26,7 +28,7 @@ fn stricmp(emu: &mut emu::Emu) {
 }
 
 fn strlen(emu: &mut emu::Emu) {
-    let s_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
+    let s_ptr = WinApiAbi::arg(emu, 0);
 
     let len = ntdll::strlen(emu, s_ptr);
     emu.stack_pop32(false);
@@ -34,8 +36,8 @@ fn strlen(emu: &mut emu::Emu) {
 }
 
 fn strcat(emu: &mut emu::Emu) {
-    let dst_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let src_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
+    let dst_ptr = WinApiAbi::arg(emu, 0);
+    let src_ptr = WinApiAbi::arg(emu, 1);
 
     let dst_cont_ptr = ntdll::strcat(emu, dst_ptr, src_ptr);
 
@@ -45,9 +47,9 @@ fn strcat(emu: &mut emu::Emu) {
 }
 
 fn sscanf(emu: &mut emu::Emu) {
-    let buffer_ptr = emu.maps.read_dword(emu.regs().get_esp()).unwrap_or(0) as u64;
-    let fmt_ptr = emu.maps.read_dword(emu.regs().get_esp() + 4).unwrap_or(0) as u64;
-    let list = emu.maps.read_dword(emu.regs().get_esp() + 8).unwrap_or(0);
+    let buffer_ptr = WinApiAbi::arg(emu, 0);
+    let fmt_ptr = WinApiAbi::arg(emu, 1);
+    let list = WinApiAbi::arg(emu, 2) as u32;
 
     let buffer = emu.maps.read_string(buffer_ptr);
     let fmt = emu.maps.read_string(fmt_ptr);
@@ -68,6 +70,24 @@ fn sscanf(emu: &mut emu::Emu) {
     let _params = scan_fmt_some!(b, &rust_fmt, i32);
 
     log::warn!("sscanf: stub, not fully implemented");
+}
+
+fn RtlInitUnicodeString(emu: &mut emu::Emu) {
+    let dest_ptr = arg(emu, 0) as u64;
+    let source_ptr = arg(emu, 1) as u64;
+    if source_ptr == 0 {
+        emu.maps.write_qword(dest_ptr, 0);
+        log_red!(emu, "ntdll!RtlInitUnicodeString (null source)");
+    } else {
+        let s = emu.maps.read_wide_string(source_ptr);
+        let byte_len = (s.len() * 2) as u16;
+        emu.maps.write_word(dest_ptr, byte_len);
+        emu.maps
+            .write_word(dest_ptr + 2, byte_len.saturating_add(2));
+        emu.maps.write_dword(dest_ptr + 4, source_ptr as u32);
+        log_red!(emu, "ntdll!RtlInitUnicodeString `{}` len: {}", s, byte_len);
+    }
+    stdcall_ret(emu, 2);
 }
 
 fn RtlInitAnsiString(emu: &mut emu::Emu) {

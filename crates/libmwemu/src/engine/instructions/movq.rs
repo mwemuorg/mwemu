@@ -1,46 +1,10 @@
-use crate::color;
-use crate::emu::Emu;
 use iced_x86::Instruction;
 
-pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Green"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
-    debug_assert!(ins.op_count() == 2);
+use crate::color;
+use crate::emu::{Emu, decoded_instruction::DecodedInstruction};
+use crate::engine::instructions::simd;
 
-    let sz0 = emu.get_operand_sz(ins, 0);
-    let sz1 = emu.get_operand_sz(ins, 1);
-    let value1: u128 = if sz1 == 128 {
-        match emu.get_operand_xmm_value_128(ins, 1, true) {
-            Some(v) => v,
-            None => {
-                log::trace!("error getting xmm value1");
-                return false;
-            }
-        }
-    } else if sz1 < 128 {
-        match emu.get_operand_value(ins, 1, true) {
-            Some(v) => v as u128,
-            None => {
-                log::trace!("error getting xmm value1");
-                return false;
-            }
-        }
-    } else {
-        log::warn!("movq: ymm/zmm not supported");
-        return false;
-    };
-
-    if sz0 == 128 {
-        // MOVQ moves only 64 bits; when the destination is an XMM register bits
-        // [127:64] are zeroed, they are not left untouched.
-        emu.set_operand_xmm_value_128(ins, 0, value1 & 0xFFFF_FFFF_FFFF_FFFF);
-    } else if sz0 < 128 {
-        emu.set_operand_value(ins, 0, value1 as u64);
-    } else {
-        log::warn!("movq: ymm/zmm not supported");
-        return false;
-    }
-    true
+pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
+    emu.show_instruction(color!("Green"), &DecodedInstruction::X86(*ins));
+    simd::move_scalar(emu, ins, u64::BITS)
 }

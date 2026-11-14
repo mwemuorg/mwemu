@@ -1,7 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Emulated Win32 heap object backing a handle from `HeapCreate`/`GetProcessHeap`.
 ///
 /// `arena` is an index into `Emu::heap_arenas`; arena 0 is always the
 /// process heap (the one `Emu::heap_mut()` returns).
+#[derive(Clone, Serialize, Deserialize)]
 pub struct HeapHandle {
     pub initSZ: usize,
     pub maxSZ: usize,

@@ -1,7 +1,10 @@
+use crate::winapi::common::sections;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::syscalls::*;
+
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::emu::Emu;
-use crate::windows::constants::*;
 
 static NEXT_FAKE_SYNC_HANDLE: AtomicU64 = AtomicU64::new(0x1000);
 
@@ -195,6 +198,10 @@ pub fn nt_create_timer2(emu: &mut Emu) {
 /// `NtClose` — RCX `Handle`.
 pub fn nt_close(emu: &mut Emu) {
     let handle = emu.regs().rcx;
+    if sections::close(emu, handle) {
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
 
     log_orange!(
         emu,
@@ -202,6 +209,10 @@ pub fn nt_close(emu: &mut Emu) {
         WIN64_NTCLOSE,
         handle
     );
+
+    if let Some(dll_name) = emu.section_handles.remove(&handle) {
+        emu.last_closed_section_dll = Some(dll_name);
+    }
 
     emu.regs_mut().rax = STATUS_SUCCESS;
 }

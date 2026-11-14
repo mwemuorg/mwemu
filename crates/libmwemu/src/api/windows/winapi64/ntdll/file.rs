@@ -1,10 +1,13 @@
+use crate::winapi::common::sections;
+use crate::winapi::helper::WinApiAbi;
+use crate::windows::constants::errors::*;
+
 use std::fs::File;
 use std::io::{Read as _, Seek as _, SeekFrom};
 
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::helper;
-use crate::windows::constants;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -71,7 +74,7 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
                     .is_err()
                 {
                     log::error!("ntdll!RtlDosPathNameToNtPathName_U_WithStatus: cannot create map");
-                    emu.regs_mut().rax = constants::STATUS_NO_MEMORY;
+                    emu.regs_mut().rax = STATUS_NO_MEMORY;
                     return;
                 }
 
@@ -128,13 +131,13 @@ fn NtCreateFile(emu: &mut emu::Emu) {
     let access_mask = emu.regs().rdx;
     let oattrib = emu.regs().r8;
     let iostat = emu.regs().r9;
-    let alloc_sz = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let fattrib = emu.maps.read_dword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let share_access = emu.maps.read_dword(emu.regs().rsp + 0x30).unwrap_or(0);
-    let create_disp = emu.maps.read_dword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let create_opt = emu.maps.read_dword(emu.regs().rsp + 0x40).unwrap_or(0);
-    let ea_buff = emu.maps.read_qword(emu.regs().rsp + 0x48).unwrap_or(0);
-    let ea_len = emu.maps.read_dword(emu.regs().rsp + 0x50).unwrap_or(0);
+    let alloc_sz = WinApiAbi::arg(emu, 4);
+    let fattrib = WinApiAbi::arg(emu, 5) as u32;
+    let share_access = WinApiAbi::arg(emu, 6) as u32;
+    let create_disp = WinApiAbi::arg(emu, 7) as u32;
+    let create_opt = WinApiAbi::arg(emu, 8) as u32;
+    let ea_buff = WinApiAbi::arg(emu, 9);
+    let ea_len = WinApiAbi::arg(emu, 10) as u32;
 
     log_red!(
         emu,
@@ -290,7 +293,7 @@ fn NtCreateFile(emu: &mut emu::Emu) {
             .write_qword(out_hndl_ptr, helper::handler_create(&filename) as u64);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtQueryInformationFile(emu: &mut emu::Emu) {
@@ -298,11 +301,11 @@ fn NtQueryInformationFile(emu: &mut emu::Emu) {
     let stat = emu.regs().rdx;
     let fileinfo = emu.regs().r8;
     let len = emu.regs().r9;
-    let fileinfoctls = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let fileinfoctls = WinApiAbi::arg(emu, 4);
 
     log_red!(emu, "ntdll!NtQueryInformationFile");
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtSetInformationFile(emu: &mut emu::Emu) {
@@ -310,7 +313,7 @@ fn NtSetInformationFile(emu: &mut emu::Emu) {
     let io_status_block = emu.regs().rdx;
     let file_information = emu.regs().r8;
     let length = emu.regs().r9;
-    let file_information_class = emu.maps.read_dword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let file_information_class = WinApiAbi::arg(emu, 4) as u32;
 
     log_red!(
         emu,
@@ -320,7 +323,7 @@ fn NtSetInformationFile(emu: &mut emu::Emu) {
         length
     );
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 /*
@@ -341,18 +344,18 @@ fn NtReadFile(emu: &mut emu::Emu) {
     let ev_hndl = emu.regs().rdx;
     let apc_rout = emu.regs().r8;
     let apc_ctx = emu.regs().r9;
-    let stat = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let buff = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
-    let off = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let key = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let stat = WinApiAbi::arg(emu, 4);
+    let buff = WinApiAbi::arg(emu, 5);
+    let len = WinApiAbi::arg(emu, 6) as usize;
+    let off = WinApiAbi::arg(emu, 7);
+    let key = WinApiAbi::arg(emu, 8);
 
     let file_offset = if off != 0 {
         match emu.maps.read_qword(off) {
             Some(offset_value) => offset_value,
             None => {
                 log_red!(emu, "Failed to read file offset from 0x{:x}", off);
-                emu.regs_mut().rax = constants::STATUS_INVALID_PARAMETER;
+                emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
                 return;
             }
         }
@@ -379,7 +382,7 @@ fn NtReadFile(emu: &mut emu::Emu) {
             Ok(f) => f,
             Err(e) => {
                 log::warn!("NtReadFile: cannot open {}: {}", emu.filename, e);
-                emu.regs_mut().rax = constants::STATUS_OBJECT_NAME_NOT_FOUND;
+                emu.regs_mut().rax = STATUS_OBJECT_NAME_NOT_FOUND;
                 return;
             }
         };
@@ -400,18 +403,18 @@ fn NtReadFile(emu: &mut emu::Emu) {
         }
 
         if bytes_read == len {
-            emu.regs_mut().rax = constants::STATUS_SUCCESS;
+            emu.regs_mut().rax = STATUS_SUCCESS;
         } else if bytes_read == 0 {
-            emu.regs_mut().rax = constants::STATUS_END_OF_FILE;
+            emu.regs_mut().rax = STATUS_END_OF_FILE;
         } else {
-            emu.regs_mut().rax = constants::STATUS_SUCCESS;
+            emu.regs_mut().rax = STATUS_SUCCESS;
         }
     } else {
         log::warn!("NtReadFile: unsupported file read {}", filename);
         emu.regs_mut().rax = 0xC0000001; // STATUS_UNSUCCESSFUL
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtWriteFile(emu: &mut emu::Emu) {
@@ -419,11 +422,11 @@ fn NtWriteFile(emu: &mut emu::Emu) {
     let ev_hndl = emu.regs().rdx;
     let apc_rout = emu.regs().r8;
     let apc_ctx = emu.regs().r9;
-    let io_status = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
-    let buff = emu.maps.read_qword(emu.regs().rsp + 0x28).unwrap_or(0);
-    let len = emu.maps.read_qword(emu.regs().rsp + 0x30).unwrap_or(0) as usize;
-    let off = emu.maps.read_qword(emu.regs().rsp + 0x38).unwrap_or(0);
-    let key = emu.maps.read_qword(emu.regs().rsp + 0x40).unwrap_or(0);
+    let io_status = WinApiAbi::arg(emu, 4);
+    let buff = WinApiAbi::arg(emu, 5);
+    let len = WinApiAbi::arg(emu, 6) as usize;
+    let off = WinApiAbi::arg(emu, 7);
+    let key = WinApiAbi::arg(emu, 8);
 
     log_red!(
         emu,
@@ -438,7 +441,7 @@ fn NtWriteFile(emu: &mut emu::Emu) {
             emu.maps.write_dword(io_status, 0);
             emu.maps.write_qword(io_status + 8, 0);
         }
-        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        emu.regs_mut().rax = STATUS_SUCCESS;
         return;
     }
 
@@ -455,7 +458,7 @@ fn NtWriteFile(emu: &mut emu::Emu) {
                     emu.maps.write_dword(io_status, 0);
                     emu.maps.write_qword(io_status + 8, written as u64);
                 }
-                emu.regs_mut().rax = constants::STATUS_SUCCESS;
+                emu.regs_mut().rax = STATUS_SUCCESS;
             }
             Err(e) => {
                 log::warn!("NtWriteFile: write error: {}", e);
@@ -467,7 +470,7 @@ fn NtWriteFile(emu: &mut emu::Emu) {
         },
         None => {
             log::warn!("NtWriteFile: invalid handle 0x{:x}", file_hndl);
-            emu.regs_mut().rax = constants::STATUS_INVALID_HANDLE;
+            emu.regs_mut().rax = STATUS_INVALID_HANDLE;
         }
     }
 }
@@ -476,12 +479,15 @@ fn NtClose(emu: &mut emu::Emu) {
     let hndl = emu.regs().rcx;
 
     let uri = helper::handler_get_uri(hndl);
-
     log_red!(emu, "ntdll!NtClose hndl: 0x{:x} uri: {}", hndl, uri);
+    if sections::close(emu, hndl) {
+        emu.regs_mut().rax = STATUS_SUCCESS;
+        return;
+    }
 
     if uri.is_empty() {
-        emu.regs_mut().rax = constants::STATUS_INVALID_HANDLE;
+        emu.regs_mut().rax = STATUS_INVALID_HANDLE;
     } else {
-        emu.regs_mut().rax = constants::STATUS_SUCCESS;
+        emu.regs_mut().rax = STATUS_SUCCESS;
     }
 }

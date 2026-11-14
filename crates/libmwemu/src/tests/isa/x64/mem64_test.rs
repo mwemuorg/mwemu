@@ -17,7 +17,7 @@ pub fn mem64_test() {
     assert_eq!(mem.size(), 1024);
 
     mem.write_bytes(0x400010, &[1, 2, 3, 4]);
-    assert_eq!(mem.read_bytes(0x400010, 4), &[1, 2, 3, 4]);
+    assert_eq!(mem.read_bytes(0x400010, 4).as_ref(), &[1, 2, 3, 4]);
 
     mem.write_byte(0x400010, 0x12);
     assert_eq!(mem.read_byte(0x400010), 0x12);

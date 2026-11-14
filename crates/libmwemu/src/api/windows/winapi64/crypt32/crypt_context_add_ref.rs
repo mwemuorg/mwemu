@@ -1,0 +1,11 @@
+use crate::emu;
+
+pub fn CryptContextAddRef(emu: &mut emu::Emu) {
+    let arg1 = emu.regs().rcx;
+    let arg2 = emu.regs().rdx;
+    let arg3 = emu.regs().r8;
+    log_red!(emu, "crypt32!CryptContextAddRef arg1:0x{:x}", arg1);
+
+    emu.set_last_error(0);
+    emu.regs_mut().rax = 1;
+}

@@ -1,5 +1,7 @@
 use crate::emu::Emu;
-use crate::windows::constants::*;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::files::*;
+use crate::windows::constants::syscalls::*;
 
 mod alpc;
 pub(crate) mod memory;
@@ -50,7 +52,6 @@ pub(crate) fn resolve_maps_dll(emu: &Emu, basename: &str) -> Option<std::path::P
 /// the mapping. `gateway()` then translates the incoming `nr` via this map
 /// so cross-build ntdlls Just Work without rewriting every `WIN64_*` const.
 pub fn build_syscall_translation_table(emu: &mut Emu) {
-    use crate::windows::constants::*;
     let ntdll_pe = match emu.maps.get_map_by_name("ntdll.pe") {
         Some(m) => m,
         None => return,
@@ -335,6 +336,7 @@ pub fn gateway(emu: &mut Emu) {
                 .next()
                 .unwrap_or("")
                 .to_lowercase();
+
             let resolved = resolve_maps_dll(emu, &basename);
             if let Some(path) = resolved {
                 if file_info_ptr != 0 && emu.maps.is_mapped(file_info_ptr) {
@@ -343,14 +345,13 @@ pub fn gateway(emu: &mut Emu) {
                     // loader only checks them against its own cache, so a fixed
                     // recent value is good enough for any single emulation.
                     const FAKE_FILETIME: u64 = 0x01DA_0000_0000_0000; // ~2023
-                    const FILE_ATTRIBUTE_NORMAL: u32 = 0x80;
                     let _ = emu.maps.write_qword(file_info_ptr, FAKE_FILETIME);
                     let _ = emu.maps.write_qword(file_info_ptr + 0x08, FAKE_FILETIME);
                     let _ = emu.maps.write_qword(file_info_ptr + 0x10, FAKE_FILETIME);
                     let _ = emu.maps.write_qword(file_info_ptr + 0x18, FAKE_FILETIME);
                     let _ = emu
                         .maps
-                        .write_dword(file_info_ptr + 0x20, FILE_ATTRIBUTE_NORMAL);
+                        .write_dword(file_info_ptr + 0x20, FILE_ATTRIBUTE_NORMAL as u32);
                 }
                 log_orange!(
                     emu,
@@ -370,22 +371,7 @@ pub fn gateway(emu: &mut Emu) {
                 emu.regs_mut().rax = STATUS_OBJECT_NAME_NOT_FOUND;
             }
         }
-        // `NtAreMappedFilesTheSame` (0x8e on some Windows builds, 0x90 on others):
-        // the loader calls this right after mapping a KnownDll section to check
-        // whether the freshly section-mapped view and the on-disk file are the
-        // same image. For the genuine System32 DLLs we serve via --iso they ARE
-        // the same file, so the correct answer is STATUS_SUCCESS. Answering
-        // STATUS_NOT_SAME_DEVICE makes ntdll reject the KnownDll mapping, fall
-        // back to relocating the disk copy itself, and then fail re-validation
-        // with STATUS_INVALID_IMAGE_FORMAT — which aborts process init.
-        0x8e | 0x90 => {
-            log_orange!(
-                emu,
-                "syscall 0x{:x}: NtAreMappedFilesTheSame (stub → SAME / SUCCESS)",
-                nr,
-            );
-            emu.regs_mut().rax = STATUS_SUCCESS;
-        }
+        0x8e | 0x90 => memory::nt_are_mapped_files_the_same(emu),
         // `NtConnectPort` (0xa4): the CSR client (`CsrClientConnectToServer`,
         // called from kernelbase's DLL init) connects to the CSRSS API port.
         // There is no CSRSS to talk to, but the connect MUST succeed — returning

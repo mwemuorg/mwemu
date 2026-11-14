@@ -1,25 +1,12 @@
 use super::PE64;
 use crate::pe::loader::PeLoader;
-use crate::pe::readers::{
-    read_u16_le as read_u16_le_shared, read_u32_le as read_u32_le_shared,
-    read_u64_le as read_u64_le_shared,
-};
+use crate::pe::readers::{read_u16_le, read_u32_le, read_u64_le};
+use crate::pe::shared::IMAGE_DIRECTORY_ENTRY_BASERELOC;
 
-macro_rules! read_u16_le {
-    ($raw:expr, $off:expr) => {
-        read_u16_le_shared(($raw).as_ref(), $off)
-    };
-}
-macro_rules! read_u32_le {
-    ($raw:expr, $off:expr) => {
-        read_u32_le_shared(($raw).as_ref(), $off)
-    };
-}
-macro_rules! read_u64_le {
-    ($raw:expr, $off:expr) => {
-        read_u64_le_shared(($raw).as_ref(), $off)
-    };
-}
+const BLOCK_HEADER_SIZE: usize = 8;
+const RELOCATION_OFFSET_MASK: u16 = 0x0fff;
+const RELOCATION_TYPE_SHIFT: u32 = 12;
+const RELOCATION_DIR64: u16 = 10;
 
 impl PE64 {
     /// True when the image carries a base relocation directory, i.e. it can be
@@ -27,78 +14,57 @@ impl PE64 {
     pub fn has_relocations(&self) -> bool {
         self.opt
             .data_directory
-            .get(crate::pe::pe32::IMAGE_DIRECTORY_ENTRY_BASERELOC)
+            .get(IMAGE_DIRECTORY_ENTRY_BASERELOC)
             .is_some_and(|dir| dir.virtual_address != 0 && dir.size != 0)
     }
 
-    /// Apply ADDR64 base relocations: read the un-relocated value from the file
-    /// image `raw`, add the load delta, and patch the result into guest memory
-    /// via `loader` (the section was mapped verbatim from `raw`, so the original
-    /// value matches).
+    /// Rebase initialized image values through the same layout used to map them.
     pub fn apply_relocations<L: PeLoader>(&self, raw: &[u8], loader: &mut L, base_addr: u64) {
-        if self.opt.data_directory.len() <= crate::pe::pe32::IMAGE_DIRECTORY_ENTRY_BASERELOC {
+        let Some(directory) = self.opt.data_directory.get(IMAGE_DIRECTORY_ENTRY_BASERELOC) else {
+            return;
+        };
+        if directory.virtual_address == 0 || directory.size == 0 {
             return;
         }
-        let reloc_dir = &self.opt.data_directory[crate::pe::pe32::IMAGE_DIRECTORY_ENTRY_BASERELOC];
-        let reloc_va = reloc_dir.virtual_address;
-        let reloc_sz = reloc_dir.size;
-
-        if reloc_va == 0 || reloc_sz == 0 {
-            return;
-        }
-
         let delta = base_addr.wrapping_sub(self.opt.image_base);
         if delta == 0 {
             return;
         }
-
-        let mut off = PE64::vaddr_to_off(&self.sect_hdr, reloc_va) as usize;
-        if off == 0 {
+        let layout = self.image_layout();
+        let Some(data) = layout.data_at(raw, directory.virtual_address) else {
             return;
-        }
-
-        let end_off = off + reloc_sz as usize;
+        };
+        let Some(mut blocks) = data.get(..directory.size as usize) else {
+            return;
+        };
         log::trace!("applying base relocations (delta 0x{:x})...", delta);
-
-        while off < end_off && off + 8 <= raw.len() {
-            let page_va = read_u32_le!(raw, off);
-            let block_sz = read_u32_le!(raw, off + 4);
-
-            if page_va == 0 && block_sz == 0 {
+        while blocks.len() >= BLOCK_HEADER_SIZE {
+            let page = read_u32_le(blocks, 0);
+            let size = read_u32_le(blocks, 4) as usize;
+            if size < BLOCK_HEADER_SIZE || size > blocks.len() {
                 break;
             }
-            if block_sz < 8 {
-                break;
-            }
-
-            let entries_count = (block_sz - 8) / 2;
-            let mut entry_off = off + 8;
-
-            for _ in 0..entries_count {
-                if entry_off + 2 > raw.len() {
-                    break;
+            for entry in blocks[BLOCK_HEADER_SIZE..size].chunks_exact(size_of::<u16>()) {
+                let entry = read_u16_le(entry, 0);
+                if entry >> RELOCATION_TYPE_SHIFT != RELOCATION_DIR64 {
+                    continue;
                 }
-                let entry = read_u16_le!(raw, entry_off);
-                let reloc_type = entry >> 12;
-                let reloc_offset = entry & 0x0FFF;
-
-                if reloc_type == 10 {
-                    let target_rva = page_va + reloc_offset as u32;
-                    let target_off = PE64::vaddr_to_off(&self.sect_hdr, target_rva) as usize;
-
-                    if target_off > 0 && target_off + 8 <= raw.len() {
-                        let original_val = read_u64_le!(raw, target_off);
-                        let new_val = original_val.wrapping_add(delta);
-                        let patch_addr = base_addr + target_rva as u64;
-                        loader.write_qword(patch_addr, new_val);
-                    }
-                }
-                entry_off += 2;
+                let Some(rva) = page.checked_add((entry & RELOCATION_OFFSET_MASK) as u32) else {
+                    continue;
+                };
+                let Some(value) = layout
+                    .data_at(raw, rva)
+                    .and_then(|data| data.get(..size_of::<u64>()))
+                else {
+                    continue;
+                };
+                let Some(address) = (base_addr).checked_add(rva as u64) else {
+                    continue;
+                };
+                loader.write_qword(address, read_u64_le(value, 0).wrapping_add(delta));
             }
-
-            off += block_sz as usize;
+            blocks = &blocks[size..];
         }
-
         log::trace!("base relocations applied.");
     }
 }

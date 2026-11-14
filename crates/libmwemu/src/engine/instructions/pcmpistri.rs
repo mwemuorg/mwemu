@@ -1,16 +1,12 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
-// PCMPISTRI xmm1, xmm2/m128, imm8 : SSE4.2 packed compare of implicit-length
-// (null-terminated) strings, returning an index in ECX and setting flags.
 pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_step: bool) -> bool {
-    emu.show_instruction(
-        color!("Cyan"),
-        &crate::emu::decoded_instruction::DecodedInstruction::X86(*ins),
-    );
+    emu.show_instruction(color!("Cyan"), &DecodedInstruction::X86(*ins));
 
-    let op0 = emu.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0); // string1
+    let op0 = try_operand!(emu.get_operand_xmm_value_128(ins, 0, true)); // string1
     let op1 = match emu.get_operand_xmm_value_128(ins, 1, true) {
         Some(v) => v,
         None => return false,
@@ -132,7 +128,6 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, _instruction_sz: usize, _rep_st
     };
     emu.regs_mut().rcx = ecx;
 
-    // Flags.
     emu.flags_mut().f_cf = intres2 != 0;
     emu.flags_mut().f_zf = len2 < n; // null found in string2
     emu.flags_mut().f_sf = len1 < n; // null found in string1

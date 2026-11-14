@@ -3,17 +3,18 @@ pub(crate) mod bcrypt;
 mod comctl32;
 mod comctl64;
 mod crt_stdio;
-mod crypt32;
+pub(crate) mod crypt32;
 mod dnsapi;
-mod gdi32;
+pub(crate) mod gdi32;
+mod iphlpapi;
 pub mod kernel32;
-mod kernelbase;
+pub(crate) mod kernelbase;
 pub(crate) mod msvcrt;
 pub mod ntdll;
 pub(crate) mod ole32;
-mod oleaut32;
+pub(crate) mod oleaut32;
 pub mod registry;
-mod shell32;
+pub(crate) mod shell32;
 mod shlwapi;
 pub mod stolen_prologue;
 mod urlmon;
@@ -22,10 +23,16 @@ mod uxtheme;
 mod version;
 mod wincrt;
 pub(crate) mod winhttp;
-mod wininet;
-mod ws2_32;
+pub(crate) mod wininet;
+pub(crate) mod ws2_32;
 
 use crate::emu;
+use crate::winapi::helper;
+
+#[inline]
+pub(crate) fn arg(emu: &emu::Emu, idx: usize) -> u64 {
+    helper::WinApiAbi::arg(emu, idx)
+}
 
 pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: u64) {
     let dll = import_dll.trim().to_lowercase();
@@ -37,12 +44,9 @@ pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: 
         return;
     }
     if dll == "msvcrt.dll" {
-        // Legacy `msvcrt.dll` imports are routed natively by
-        // `Emu::set_rip_with_check` (see the unmapped-import branch): the
-        // gateway dispatcher would have been unreachable here, and
-        // `msvcrt::gateway_by_name` is gone. Fall through to the generic
-        // resolver below so a malformed/unloaded msvcrt.dll still surfaces as
-        // an `unhandled import` warning instead of silent corruption.
+        let _ = msvcrt::gateway_by_name(api, emu);
+        emu.call_stack_mut().pop();
+        return;
     }
 
     // Fallback: if it isn't a CRT api-set, try to resolve it against loaded modules and
@@ -79,6 +83,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "advapi32.text" => advapi32::gateway(addr, emu),
         "winhttp.text" => winhttp::gateway(addr, emu),
         "dnsapi.text" => dnsapi::gateway(addr, emu),
+        "iphlpapi.text" => iphlpapi::gateway(addr, emu),
         "comctl32.text" => comctl32::gateway(addr, emu),
         "comctl64.text" => comctl64::gateway(addr, emu),
         "shell32.text" => shell32::gateway(addr, emu),
@@ -97,19 +102,34 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
             let api_name = api.split("!").last().unwrap_or(&api);
             match api_name {
                 "timeBeginPeriod" | "timeEndPeriod" => {
-                    log_red!(emu, "winmm!{}", api_name);
+                    let period = emu.regs().rcx as u32;
+                    log_red!(emu, "winmm!{} period:{}", api_name, period);
+                    helper::advance_tick(emu, 1);
                     emu.regs_mut().rax = 0;
                 }
                 "timeGetTime" => {
-                    log_red!(emu, "winmm!timeGetTime");
+                    helper::advance_tick(emu, 1);
+                    log_red!(emu, "winmm!timeGetTime => {}", emu.tick);
                     emu.regs_mut().rax = emu.tick as u64;
                 }
                 "PlaySoundW" => {
-                    log_red!(emu, "winmm!PlaySoundW");
+                    let sound_ptr = emu.regs().rcx;
+                    let sound = if sound_ptr != 0 {
+                        emu.maps.read_wide_string(sound_ptr)
+                    } else {
+                        String::new()
+                    };
+                    log_red!(emu, "winmm!PlaySoundW sound:'{}'", sound);
                     emu.regs_mut().rax = 1;
                 }
                 "mciSendStringA" | "mciSendStringW" => {
-                    log_red!(emu, "winmm!{}", api_name);
+                    let cmd_ptr = emu.regs().rcx;
+                    let cmd = if cmd_ptr != 0 {
+                        emu.maps.read_string(cmd_ptr)
+                    } else {
+                        String::new()
+                    };
+                    log_red!(emu, "winmm!{} cmd:'{}'", api_name, cmd);
                     emu.regs_mut().rax = 0;
                 }
                 "waveInOpen" => {
@@ -126,7 +146,8 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
                 | "waveInAddBuffer"
                 | "waveInPrepareHeader"
                 | "waveInUnprepareHeader" => {
-                    log_red!(emu, "winmm!{}", api_name);
+                    let handle = emu.regs().rcx;
+                    log_red!(emu, "winmm!{} handle:0x{:x}", api_name, handle);
                     emu.regs_mut().rax = 0;
                 }
                 _ => {
@@ -137,11 +158,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
             String::new()
         }
         "crypt32.text" => crypt32::gateway(addr, emu),
-        // `msvcrt.text` is intentionally absent: legacy-CRT calls land on the
-        // special-case branch in `Emu::set_rip_with_check`, which executes
-        // the real mapped bytes. A future AArch64 msvcrt PE that hits this
-        // table will `unreachable!` like any other unknown section, matching
-        // the established pattern for non-x64 sections not in this match.
+        "msvcrt.text" | "msvcrtfothk" => msvcrt::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-stdio-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-heap-l1-1-0.rdata" => wincrt::gateway(addr, emu),
@@ -181,7 +198,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         }
     };
 
-    if !unimplemented.is_empty() && emu.cfg.stop_on_unimplemented {
+    if !unimplemented.is_empty() && emu.cfg.stop_on_unimplemented && !emu.process_terminated {
         stop_on_unimplemented(emu, &unimplemented);
     }
 

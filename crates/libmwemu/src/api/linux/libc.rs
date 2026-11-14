@@ -621,7 +621,7 @@ fn api_memcmp(emu: &mut Emu) {
     let b = emu.maps.read_bytes(abi.arg(emu, 1), n);
     let r = a
         .iter()
-        .zip(b)
+        .zip(b.iter())
         .find(|(x, y)| x != y)
         .map_or(0, |(x, y)| *x as i64 - *y as i64);
     abi.set_ret(emu, r as u64);

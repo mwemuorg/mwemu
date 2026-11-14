@@ -1,11 +1,15 @@
 use crate::context::context64::Context64;
 use crate::debug::console::Console;
 use crate::emu;
-use crate::windows::{constants, structures};
+use crate::winapi::common::ntdll;
+use crate::winapi::helper::WinApiAbi;
+use crate::windows::constants::errors::*;
+
+use crate::windows::structures;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
-        "ZwQueueApcThread" => ZwQueueApcThread(emu),
+        "NtQueueApcThread" => NtQueueApcThread(emu),
         "NtGetContextThread" => NtGetContextThread(emu),
         "RtlExitUserThread" => RtlExitUserThread(emu),
         "NtGetTickCount" => NtGetTickCount(emu),
@@ -22,6 +26,8 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
         "RtlEncodePointer" => RtlEncodePointer(emu),
         "RtlDecodePointer" => RtlDecodePointer(emu),
+        "RtlVectoredExceptionHandler" => RtlVectoredExceptionHandler(emu),
+        "VerSetConditionMask" => VerSetConditionMask(emu),
         _ => return false,
     }
     true
@@ -52,16 +58,16 @@ fn RtlExitUserThread(emu: &mut emu::Emu) {
     emu.stop();
 }
 
-fn ZwQueueApcThread(emu: &mut emu::Emu) {
+fn NtQueueApcThread(emu: &mut emu::Emu) {
     let thread_handle = emu.regs().rcx;
     let apc_routine = emu.regs().rdx;
     let apc_ctx = emu.regs().r8;
     let arg1 = emu.regs().r9;
-    let arg2 = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let arg2 = WinApiAbi::arg(emu, 4);
 
     log_red!(
         emu,
-        "ntdll!ZwQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {}",
+        "ntdll!NtQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {}",
         thread_handle,
         apc_routine,
         apc_ctx,
@@ -69,7 +75,7 @@ fn ZwQueueApcThread(emu: &mut emu::Emu) {
         arg2
     );
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn NtGetTickCount(emu: &mut emu::Emu) {
@@ -84,7 +90,7 @@ fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
     log_red!(emu, "ntdll!NtQueryPerformanceCounter");
 
     emu.maps.write_dword(perf_counter_ptr, 0);
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 fn RtlGetVersion(emu: &mut emu::Emu) {
@@ -143,7 +149,7 @@ pub fn NtQueryInformationProcess(emu: &mut emu::Emu) {
     let info_class = emu.regs().rdx;
     let buffer = emu.regs().r8;
     let buffer_length = emu.regs().r9;
-    let return_length_ptr = emu.maps.read_qword(emu.regs().rsp + 0x20).unwrap_or(0);
+    let return_length_ptr = WinApiAbi::arg(emu, 4);
 
     log_red!(
         emu,
@@ -176,7 +182,7 @@ pub fn NtQueryInformationProcess(emu: &mut emu::Emu) {
         }
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
@@ -201,22 +207,26 @@ pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
         emu.maps.write_dword(return_length_ptr, fill as u32);
     }
 
-    emu.regs_mut().rax = constants::STATUS_SUCCESS;
+    emu.regs_mut().rax = STATUS_SUCCESS;
 }
 
 pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
-    let compression_format = emu.regs().rcx;
-    let _uncompressed_buffer = emu.regs().rdx;
-    let _uncompressed_buffer_size = emu.regs().r8;
-    let _compressed_buffer = emu.regs().r9;
+    let compression_format = emu.regs().rcx as u16;
+    let uncompressed_buffer = emu.regs().rdx;
+    let uncompressed_buffer_size = emu.regs().r8;
+    let compressed_buffer = emu.regs().r9;
+    let compressed_buffer_size = WinApiAbi::arg(emu, 4);
+    let final_uncompressed_size = WinApiAbi::arg(emu, 5);
 
-    log_red!(
+    emu.regs_mut().rax = crate::api::windows::common::ntdll::rtl_decompress_buffer(
         emu,
-        "ntdll!RtlDecompressBuffer format: 0x{:x} (stub, not implemented)",
-        compression_format
+        compression_format,
+        uncompressed_buffer,
+        uncompressed_buffer_size,
+        compressed_buffer,
+        compressed_buffer_size,
+        final_uncompressed_size,
     );
-
-    emu.regs_mut().rax = constants::STATUS_NOT_IMPLEMENTED;
 }
 
 fn RtlEncodePointer(emu: &mut emu::Emu) {
@@ -229,4 +239,23 @@ fn RtlDecodePointer(emu: &mut emu::Emu) {
     let ptr = emu.regs().rcx;
     log_red!(emu, "ntdll!RtlDecodePointer 0x{:x}", ptr);
     emu.regs_mut().rax = ptr;
+}
+
+fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
+    let first = emu.regs().rcx;
+    let fptr = emu.regs().rdx;
+
+    log_red!(
+        emu,
+        "ntdll!RtlVectoredExceptionHandler first={} callback: 0x{:x}",
+        first,
+        fptr
+    );
+
+    emu.add_veh(first != 0, fptr);
+    emu.regs_mut().rax = 0x2c2878;
+}
+
+pub fn VerSetConditionMask(emu: &mut emu::Emu) {
+    ntdll::version_condition_mask(emu);
 }
