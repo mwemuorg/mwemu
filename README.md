@@ -24,7 +24,7 @@ Supports x86 32/64-bit and AArch64 architectures. The primary target OS is Windo
 ![MWEMU Logo](./docs/pics/mwemu_logo.png)
 
 
-## Three ways of using the software
+## Four ways of using the software
 
 - mwemu commandline https://github.com/mwemuorg/mwemu
 - libmwemu crate https://crates.io/crates/libmwemu
@@ -48,19 +48,19 @@ The project was renamed from scemu to mwemu.
 	- All dependencies are in rust.
 - ⚡ very fast emulation
     - [benchmarks](BENCHMARK.md)
-    - ~12,700,000 instructions/second (20M instructions in ~1.5s)
+    - ~13,500,000 instructions/second (20M instructions in ~1.48s)
     - test yourself: `make test_speed` (builds release and emulates 20M instructions of enigma, reporting elapsed time)
     
-- powered by iced-x86 rust dissasembler awesome library.
+- powered by iced-x86 rust disassembler awesome library.
 - commandline tool, rust library, and python library.
 - iteration detector.
 - memory and register tracking.
 - colorized.
 - stop at specific moment and explore the state or modify it.
-- 850 CPU instructions implemented.
-- 835 winapi 32bits implemented of 26 dlls.
-- 258 winapi 64bits implemented of 26 dlls.
-- all linux syscalls.
+- 850+ CPU instructions implemented (x86/x64, growing AArch64).
+- Windows API emulation across 13 DLLs (32-bit and 64-bit parity).
+- Windows and Linux syscall emulation.
+- kernel-mode driver emulation (`.sys` and `.ko`) with `--ioctl`, pool ledger, BYOVD detection.
 - SEH chains.
 - vectored exception handler.
 - PEB, TEB structures.
@@ -72,6 +72,7 @@ The project was renamed from scemu to mwemu.
 - non debugged cpuid.
 - 32bits and 64bits shellcode emulation.
 - pe32 and pe64 executables emulation.
+- ELF and Mach-O loaders (Linux and macOS binaries).
 - fully emulation with known payloads:
 	- metasploit shellcodes.
 	- metasploit encoders.
@@ -103,14 +104,14 @@ The project was renamed from scemu to mwemu.
 
 ## Capture an emulation moment
 
-During the emulation you can see the nubmer of cpu instructions emulated, that's an unique ID for an emulation moment.
+During the emulation you can see the number of cpu instructions emulated, that's a unique ID for an emulation moment.
 
 With -c flag you stop the emulation in a specific moment and inspect what is going on with the console.
 
 ## Usage
 
 ```
-MWEMU emulator for malware 0.7.11
+MWEMU emulator for malware
 @sha0coder
 
 USAGE:
@@ -184,6 +185,7 @@ cargo run --release -- -f /tmp/shellcode.bin -6 -vv -c 19291
 cargo run --release -- -f /bin/ls -6 -A '"-l"' -v 
 cargo run --release -- -f calc.exe -6 --winver win11
 cargo run --release -- -f calc.exe -6 --winver win11 --syscall-mode
+cargo run --release -- -f driver.sys --ioctl
 ```
 
 ## Testing

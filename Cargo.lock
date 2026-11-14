@@ -1262,7 +1262,6 @@ dependencies = [
  "ureq",
  "yaxpeax-arch",
  "yaxpeax-arm",
- "zip",
 ]
 
 [[package]]
@@ -1398,7 +1397,7 @@ checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
 name = "mwemu"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "clap 2.34.0",
  "env_logger",
@@ -3291,18 +3290,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
-]
-
-[[package]]
-name = "zip"
-version = "0.6.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "760394e246e4c28189f19d488c058bf16f564016aefac5d32bb1f3b51d5e9261"
-dependencies = [
- "byteorder",
- "crc32fast",
- "crossbeam-utils",
- "flate2",
 ]
 
 [[package]]
