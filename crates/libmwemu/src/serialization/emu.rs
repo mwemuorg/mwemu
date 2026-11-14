@@ -395,6 +395,9 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             macho64: None, // TODO: not yet serialized
             kernel: None,  // driver state is rebuilt by load_kernel_module, not dumped
             kernel_guard: false,
+            security_cookie_va: 0,
+            last_cmp: (0, 0, 0, 0),
+            last_ret: (0, 0),
             tls_callbacks,
             library_loaded: false,
             // Thread management

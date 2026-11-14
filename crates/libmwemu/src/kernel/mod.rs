@@ -906,15 +906,17 @@ impl Emu {
     /// logged and recorded, and `kernel_call` reports it as an error rather
     /// than returning whatever happened to be in `rax`.
     pub fn kernel_abort(&mut self, reason: String) {
+        let pc = self.pc();
+        let pos = self.pos;
         log::error!(
             "kernel: {} at 0x{:x} (step {}) — the call is aborted",
             reason,
-            self.pc(),
-            self.pos
+            pc,
+            pos
         );
         self.kernel_log_line(format!("ABORT: {}", reason));
         if let Some(k) = self.kernel.as_mut() {
-            k.abort = Some(reason);
+            k.abort = Some(format!("{} at 0x{:x} (step {})", reason, pc, pos));
         }
         self.stop();
     }

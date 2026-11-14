@@ -8,6 +8,8 @@ use crate::{color, exception::handlers as exception};
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
+    emu.last_ret = (emu.pos, ins.ip());
+
     let ret_addr: u64 = if emu.cfg.is_x64() {
         match emu.stack_pop64(false) {
             Some(v) => v,

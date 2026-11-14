@@ -90,7 +90,7 @@ impl Emu {
     fn init_security_cookie(&mut self, image: &PE64, base: u64) {
         const IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG: usize = 10;
         const SECURITY_COOKIE_OFFSET: u64 = 0x58;
-        const COOKIE: u64 = 0x0000_4d57_454d_5521; // "MWEMU!", top 16 bits clear
+        const COOKIE: u64 = 0x4d57_454d_5521_4d57; // high 16 bits must be non-zero or __security_init_cookie overwrites it
         let Some(dir) = image
             .opt
             .data_directory
@@ -110,8 +110,17 @@ impl Emu {
         }
         if let Some(mem) = self.maps.get_mem_by_addr_mut(cookie_va) {
             mem.force_write_qword(cookie_va, COOKIE);
+            self.security_cookie_va = cookie_va;
             log::debug!("security cookie seeded at 0x{:x}", cookie_va);
         }
+    }
+
+    /// Read the current value of `__security_cookie` from memory.
+    pub fn read_security_cookie(&self) -> Option<u64> {
+        if self.security_cookie_va == 0 {
+            return None;
+        }
+        self.maps.read_qword(self.security_cookie_va)
     }
 
     /// Load a Windows driver and link it against the emulated kernel.

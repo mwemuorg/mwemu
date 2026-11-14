@@ -8,7 +8,7 @@ rust-version = "1.95"
 description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
 documentation = "https://docs.rs/libmwemu"
 homepage = "https://mwemu.github.io/"
-repository = "https://github.com/mwemuorg/libmwemu"
+repository = "https://github.com/mwemuorg/mwemu/tree/main/crates/libmwemu"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

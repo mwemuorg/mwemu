@@ -51,6 +51,8 @@ pub enum FindingKind {
     HeapOverflow,
     /// Still allocated when the module's exit path finished.
     Leak,
+    /// Copy from/to a null or unmapped address.
+    InvalidAddress,
 }
 
 impl FindingKind {
@@ -64,6 +66,7 @@ impl FindingKind {
             FindingKind::InvalidFree => "invalid-free",
             FindingKind::HeapOverflow => "slab-out-of-bounds",
             FindingKind::Leak => "memory-leak",
+            FindingKind::InvalidAddress => "invalid-address",
         }
     }
 
@@ -78,6 +81,7 @@ impl FindingKind {
             FindingKind::InvalidFree => "invalid_free",
             FindingKind::HeapOverflow => "slab_out_of_bounds",
             FindingKind::Leak => "memory_leak",
+            FindingKind::InvalidAddress => "invalid_address",
         }
     }
 

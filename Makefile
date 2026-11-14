@@ -162,7 +162,9 @@ test_golang:
 test_sys: windows-driver
 	cargo run --release -- -f drivers/windows/tlm/tlm.sys -6 --ioctl 0x80002010:304d4c540010000000100000000000000000000000000000:24 -vv
 test_speed: all samples
-	bash -c 'time ./target/release/mwemu -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'
+	cargo build --release --target x86_64-apple-darwin
+	bash -c 'time cargo run --release --target x86_64-apple-darwin -- -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'
+	#bash -c 'time ./target/release/mwemu -f $(TEST_DIR)/exe64win_enigma.bin -6 -v -c 20000000 --cmd q'
 	@echo "[speed] 20,000,000 instructions emulated successfully."
 
 # Fuzz smoke test (30s each by default, nightly + cargo-fuzz required).

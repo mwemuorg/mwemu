@@ -21,6 +21,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         None => return false,
     };
 
+    emu.last_cmp = (emu.pos, emu.pc() - instruction_sz as u64, value0, value1);
+
     if emu.cfg.verbose >= 2 {
         if value0 > value1 {
             log::trace!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);

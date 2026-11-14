@@ -168,6 +168,9 @@ pub struct Emu {
     /// Fast gate for the per-access lifetime checks. Only true while a driver
     /// is loaded, so the ordinary user-mode paths pay one predictable branch.
     pub(crate) kernel_guard: bool,
+    pub(crate) security_cookie_va: u64, // VA of __security_cookie (from PE Load Config)
+    pub(crate) last_cmp: (u64, u64, u64, u64), // (pos, ip, left, right) of last cmp instruction
+    pub(crate) last_ret: (u64, u64),    // (pos, ip) of the last ret instruction executed
     pub(crate) tls_callbacks: Vec<u64>, // PE TLS callback addresses
     pub(crate) library_loaded: bool,    // flag for GDB to detect library load events
 
