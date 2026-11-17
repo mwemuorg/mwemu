@@ -313,7 +313,7 @@ fn test_aarch64_minidump_fixture_roundtrip() {
 }
 
 #[test]
-fn native_v3_snapshot_retains_legacy_api_settings() {
+fn native_v3_snapshot_preserves_banzai_without_selecting_api_mode() {
     for skip in [false, true] {
         let mut emu = crate::emu64();
         emu.cfg.skip_unimplemented = skip;
@@ -322,14 +322,7 @@ fn native_v3_snapshot_retains_legacy_api_settings() {
         bytes.extend(bitcode::serialize(&NativeSnapshotV3::from(&emu)).unwrap());
         let restored = Serialization::deserialize(&bytes);
         assert_eq!(restored.regs().rax, 42);
-        assert_eq!(
-            restored.api_mode(),
-            if skip {
-                ApiMode::SimulateFail
-            } else {
-                ApiMode::Strict
-            }
-        );
+        assert_eq!(restored.api_mode(), ApiMode::Strict);
         assert!(restored.api_policy.last_outcome.is_none());
     }
 }

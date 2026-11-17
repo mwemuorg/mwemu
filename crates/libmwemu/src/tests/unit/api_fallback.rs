@@ -236,9 +236,21 @@ fn api_fallback_respects_architecture_and_policy() {
             ("dnsapi", "UnknownCall"),
             ("api-ms-win-crt-runtime-l1-1-0", "UnknownCall"),
         ] {
-            for (skip, known) in [(false, true), (true, false), (true, true)] {
+            for (mode, skip, known) in [
+                (None, false, true),
+                (None, true, true),
+                (Some(ApiMode::SimulateFail), false, true),
+                (Some(ApiMode::SimulateFail), true, false),
+                (Some(ApiMode::SimulateFail), true, true),
+                (Some(ApiMode::SimulateSuccess), false, true),
+                (Some(ApiMode::SimulateSuccess), true, false),
+                (Some(ApiMode::SimulateSuccess), true, true),
+            ] {
                 let mut emu = emulator(is64, module, api);
                 emu.cfg.skip_unimplemented = skip;
+                if let Some(mode) = mode {
+                    emu.set_api_mode(mode);
+                }
                 if known {
                     emu.banzai_add(api, 3);
                 }
@@ -252,10 +264,45 @@ fn api_fallback_respects_architecture_and_policy() {
                     }
                 }
                 gateway(&mut emu, module);
-                assert!(emu.api_policy.stopped(), "{module}!{api}, x64={is64}");
+                let native = api.starts_with("Nt") || api.starts_with("Zw");
+                // The one catalog entry in this matrix takes no arguments, even
+                // when its requested DLL has no handler and CSV says three words.
+                let cleanup = if api == "NtYieldExecution" {
+                    Some(0)
+                } else if !native && skip && known {
+                    Some(3)
+                } else {
+                    None
+                };
+                let simulated = emu.api_mode() != ApiMode::Strict && (is64 || cleanup.is_some());
+                assert_eq!(
+                    emu.api_policy.stopped(),
+                    !simulated,
+                    "{module}!{api}, x64={is64}"
+                );
+                if !simulated {
+                    let reason = if emu.api_mode() == ApiMode::Strict {
+                        ApiStopReason::StrictPolicy
+                    } else if native || skip {
+                        ApiStopReason::UnknownCleanup
+                    } else {
+                        ApiStopReason::BanzaiDisabled
+                    };
+                    assert_eq!(
+                        emu.api_policy.last_outcome.as_ref().unwrap().disposition,
+                        ApiDisposition::Stopped(reason)
+                    );
+                }
                 assert!(!emu.process_terminated);
-                assert_eq!(emu.regs().rsp, if is64 { sp } else { sp - 12 });
-                assert_eq!(emu.regs().rax, MARKER as u64);
+                let expected_sp = if is64 {
+                    sp
+                } else {
+                    let cleaned = if simulated { cleanup.unwrap() } else { 0 };
+                    sp - (3 - cleaned) * size_of::<u32>() as u64
+                };
+                assert_eq!(emu.regs().rsp, expected_sp);
+                assert_eq!(emu.regs().rax, if simulated { 0 } else { MARKER as u64 });
+                assert_eq!(emu.api_policy.simulation_count, simulated as u64);
                 if is64 {
                     assert_eq!(emu.maps.read_qword(sp + 0x20), Some(MARKER as u64));
                 }
@@ -356,7 +403,7 @@ fn unresolved_imports_use_the_same_policy() {
     for mode in [
         ApiMode::Strict,
         ApiMode::SimulateFail,
-        ApiMode::SimulateOptimistic,
+        ApiMode::SimulateSuccess,
     ] {
         for dll in [
             "missing.dll",
@@ -372,9 +419,11 @@ fn unresolved_imports_use_the_same_policy() {
             assert_eq!(outcome.call.library, dll);
             assert_eq!(outcome.call.name, "UnknownCall");
             assert_eq!(outcome.call.route, ApiRoute::Import);
-            assert!(emu.api_policy.stopped());
+            let simulated = mode != ApiMode::Strict;
+            assert_eq!(emu.api_policy.stopped(), !simulated);
             assert_eq!(emu.sp(), sp);
-            assert_eq!(emu.regs().rax, MARKER as u64);
+            assert_eq!(emu.regs().rax, if simulated { 0 } else { MARKER as u64 });
+            assert_eq!(emu.api_policy.simulation_count, simulated as u64);
         }
     }
 }
@@ -400,7 +449,7 @@ fn tls_callbacks_obey_policy_and_propagate_stops() {
         for mode in [
             ApiMode::Strict,
             ApiMode::SimulateFail,
-            ApiMode::SimulateOptimistic,
+            ApiMode::SimulateSuccess,
         ] {
             let mut emu = emulator(is64, "ntdll", "NtYieldExecution");
             emu.set_api_mode(mode);
@@ -449,10 +498,16 @@ fn api_mode_and_stop_survive_native_snapshot() {
 }
 
 #[test]
-fn mode_precedence_does_not_change_instruction_banzai() {
+fn api_mode_is_independent_of_banzai() {
     for (mode, skip, strict, expected) in [
         (None, false, false, ApiMode::Strict),
-        (None, true, false, ApiMode::SimulateFail),
+        (None, true, false, ApiMode::Strict),
+        (
+            Some(ApiMode::SimulateFail),
+            true,
+            false,
+            ApiMode::SimulateFail,
+        ),
         (None, true, true, ApiMode::Strict),
         (Some(ApiMode::Strict), true, false, ApiMode::Strict),
         (
@@ -463,23 +518,18 @@ fn mode_precedence_does_not_change_instruction_banzai() {
         ),
         (Some(ApiMode::SimulateFail), false, true, ApiMode::Strict),
         (
-            Some(ApiMode::SimulateOptimistic),
+            Some(ApiMode::SimulateSuccess),
             false,
             false,
-            ApiMode::SimulateOptimistic,
+            ApiMode::SimulateSuccess,
         ),
         (
-            Some(ApiMode::SimulateOptimistic),
+            Some(ApiMode::SimulateSuccess),
             true,
             false,
-            ApiMode::SimulateOptimistic,
+            ApiMode::SimulateSuccess,
         ),
-        (
-            Some(ApiMode::SimulateOptimistic),
-            false,
-            true,
-            ApiMode::Strict,
-        ),
+        (Some(ApiMode::SimulateSuccess), false, true, ApiMode::Strict),
     ] {
         let mut emu = emu32();
         emu.cfg.skip_unimplemented = skip;
@@ -552,7 +602,7 @@ fn aarch64_policy_uses_link_register_and_x0() {
     for mode in [
         ApiMode::Strict,
         ApiMode::SimulateFail,
-        ApiMode::SimulateOptimistic,
+        ApiMode::SimulateSuccess,
     ] {
         let mut emu = emu_aarch64();
         emu.init_stack_aarch64();
@@ -663,7 +713,7 @@ fn native_frames_use_parameter_counts_instead_of_x86_dwords() {
 }
 
 #[test]
-fn optimistic_mode_requires_a_model_for_outputs_and_state() {
+fn success_nt_fallback_uses_catalog_and_preserves_outputs() {
     for is64 in [false, true] {
         for api in [
             "NtCreateUserProcess",
@@ -671,26 +721,34 @@ fn optimistic_mode_requires_a_model_for_outputs_and_state() {
             "NtSetInformationProcess",
         ] {
             let mut emu = emulator(is64, "ntdll", api);
-            emu.set_api_mode(ApiMode::SimulateOptimistic);
-            emu.cfg.skip_unimplemented = true;
-            emu.regs_mut().rax = MARKER as u64;
+            emu.set_api_mode(ApiMode::SimulateSuccess);
+            emu.banzai_add(api, 99);
             emu.set_last_error(MARKER as u64);
             emu.maps.write_qword(DATA, MARKER as u64);
             let sp = emu.sp();
-            gateway(&mut emu, "ntdll");
+            let signature = nt_api::signature(api).unwrap();
+            let result = if is64 {
+                call_winapi64(
+                    &mut emu,
+                    |emu| gateway(emu, "ntdll"),
+                    &vec![DATA; signature.arguments as usize],
+                )
+            } else {
+                call_winapi32(
+                    &mut emu,
+                    |emu| gateway(emu, "ntdll"),
+                    &vec![DATA as u32; signature.x86_words as usize],
+                ) as u64
+            };
             let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
-            assert_eq!(
-                outcome.disposition,
-                ApiDisposition::Stopped(ApiStopReason::MissingSimulation)
-            );
-            assert_eq!(outcome.mode, ApiMode::SimulateOptimistic);
-            assert_eq!(outcome.result, None);
+            assert_eq!(outcome.disposition, ApiDisposition::SimulatedSuccess);
+            assert_eq!(outcome.result, Some(STATUS_SUCCESS));
             assert_eq!(outcome.last_error, None);
             assert_eq!(emu.sp(), sp);
-            assert_eq!(emu.regs().rax, MARKER as u64);
+            assert_eq!(result, STATUS_SUCCESS);
             assert_eq!(emu.maps.read_qword(DATA), Some(MARKER as u64));
             assert_eq!(emu.get_last_error(), MARKER as u64);
-            assert_eq!(emu.api_policy.simulation_count, 0);
+            assert_eq!(emu.api_policy.simulation_count, 1);
         }
     }
 }
@@ -703,7 +761,7 @@ fn win32_simulation_updates_last_error_only_for_failure() {
         for mode in [
             ApiMode::Strict,
             ApiMode::SimulateFail,
-            ApiMode::SimulateOptimistic,
+            ApiMode::SimulateSuccess,
         ] {
             // These kernel32 exports have no x64 handler; exercise actual dispatch.
             let mut emu = emulator(true, "kernel32", api);
@@ -729,11 +787,11 @@ fn win32_simulation_updates_last_error_only_for_failure() {
                     ERROR_CALL_NOT_IMPLEMENTED,
                     ApiDisposition::SimulatedFailure,
                 ),
-                ApiMode::SimulateOptimistic => (
+                ApiMode::SimulateSuccess => (
                     TRUE,
                     FILE_TIME,
                     MARKER as u64,
-                    ApiDisposition::SimulatedOptimistic,
+                    ApiDisposition::SimulatedSuccess,
                 ),
             };
             assert_eq!(result, expected, "{api}: {mode:?}");
@@ -754,7 +812,7 @@ fn win32_simulation_updates_last_error_only_for_failure() {
 }
 
 #[test]
-fn optimistic_output_faults_do_not_publish_success() {
+fn success_output_faults_do_not_publish_success() {
     for (label, input, output) in [
         ("null input", 0, DATA + 0x100),
         ("unmapped input", DATA + 0x2000, DATA + 0x100),
@@ -766,7 +824,7 @@ fn optimistic_output_faults_do_not_publish_success() {
         ("read-only output", DATA, CODE),
     ] {
         let mut emu = emulator(true, "kernel32", "FileTimeToLocalFileTime");
-        emu.set_api_mode(ApiMode::SimulateOptimistic);
+        emu.set_api_mode(ApiMode::SimulateSuccess);
         emu.maps.write_qword(DATA, MARKER as u64);
         emu.maps.write_qword(DATA + 0x100, MARKER as u64);
         emu.maps.write_dword(DATA + 0xffc, MARKER);
@@ -800,7 +858,7 @@ fn data_returning_handlers_keep_priority_in_all_modes() {
         for mode in [
             ApiMode::Strict,
             ApiMode::SimulateFail,
-            ApiMode::SimulateOptimistic,
+            ApiMode::SimulateSuccess,
         ] {
             emu.set_api_mode(mode);
             emu.set_last_error(MARKER as u64);
@@ -820,26 +878,160 @@ fn data_returning_handlers_keep_priority_in_all_modes() {
 
 #[test]
 fn all_simulation_outcomes_survive_snapshots() {
-    for mode in [ApiMode::SimulateFail, ApiMode::SimulateOptimistic] {
-        let mut emu = emulator(true, "kernel32", "FileTimeToLocalFileTime");
+    for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
+        for (library, api) in [
+            ("kernel32", "FileTimeToLocalFileTime"),
+            ("shfolder", "SHGetFolderPathW"),
+        ] {
+            let mut emu = emulator(true, library, api);
+            emu.set_api_mode(mode);
+            emu.maps.write_qword(DATA, MARKER as u64);
+            call_winapi64(&mut emu, |emu| gateway(emu, library), &[DATA, DATA + 0x100]);
+            if library == "shfolder" {
+                assert_eq!(
+                    emu.api_policy.last_outcome.as_ref().unwrap().disposition,
+                    ApiDisposition::SimulatedGeneric
+                );
+            }
+            let restored = Serialization::deserialize(&Serialization::serialize(&emu));
+            assert_eq!(restored.api_mode(), mode);
+            assert_eq!(
+                restored.api_policy.last_outcome,
+                emu.api_policy.last_outcome
+            );
+            assert_eq!(restored.api_policy.simulation_count, 1);
+            assert_eq!(restored.get_last_error(), emu.get_last_error());
+            let json = serde_json::to_string(&emu.api_policy).unwrap();
+            let restored_json: ApiPolicy = serde_json::from_str(&json).unwrap();
+            assert_eq!(restored_json.mode, Some(mode));
+            assert_eq!(restored_json.last_outcome, emu.api_policy.last_outcome);
+        }
+    }
+}
+
+#[test]
+fn shfolder_generic_fallback_returns_to_guest_without_output_writes() {
+    const PATH_LOW_DWORD: u32 = 0x5556_5758;
+    const PATH_MARKER: u64 = 0x5152_5354_0000_0000 | PATH_LOW_DWORD as u64;
+    const ARGUMENTS: [u32; 5] = [0, 0, 0, 0, DATA as u32];
+    for (is64, banzai) in [(false, true), (true, false), (true, true)] {
+        for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
+            let mut emu = emulator(is64, "shfolder", "SHGetFolderPathW");
+            emu.set_api_mode(mode);
+            emu.cfg.skip_unimplemented = banzai;
+            if !is64 {
+                emu.banzai_add("SHGetFolderPathW", ARGUMENTS.len() as i32);
+            }
+            emu.maps.write_qword(DATA, PATH_MARKER);
+            emu.set_last_error(MARKER as u64);
+            emu.regs_mut().rax = if is64 { MODULE64 } else { MODULE } + 0x100;
+            emu.regs_mut().rsi = DATA;
+            let sp = emu.sp();
+            let mut code = vec![0x56]; // push esi/rsi as a stack canary
+            if is64 {
+                for offset in (0..SHADOW_SIZE).step_by(8) {
+                    emu.maps
+                        .write_qword(sp - 8 - SHADOW_SIZE + offset, MARKER as u64);
+                }
+                emu.maps
+                    .write_qword(sp - 8 - SHADOW_SIZE + 4 * size_of::<u64>() as u64, DATA);
+                code.extend([0x48, 0x81, 0xec]); // sub rsp, shadow size
+                code.extend((SHADOW_SIZE as u32).to_le_bytes());
+            } else {
+                for argument in ARGUMENTS.into_iter().rev() {
+                    code.push(0x68); // push the DWORD argument
+                    code.extend(argument.to_le_bytes());
+                }
+            }
+            code.extend([0xff, 0xd0]); // call eax/rax
+            if is64 {
+                code.extend([0x48, 0x81, 0xc4]); // caller releases its stack
+                code.extend((SHADOW_SIZE as u32).to_le_bytes());
+            }
+            code.extend([0x5e, 0x8b, 0x1e, 0x90]); // pop esi/rsi; mov ebx,[esi/rsi]; nop
+            emu.maps.write_bytes(CODE, &code);
+            emu.set_pc(CODE);
+            let end = CODE + code.len() as u64 - 1;
+            assert_eq!(emu.run(Some(end)).unwrap(), end);
+            assert_eq!(emu.sp(), sp);
+            assert_eq!(emu.regs().rax, 0);
+            assert_eq!(emu.regs().rsi, DATA);
+            assert_eq!(emu.regs().rbx, PATH_LOW_DWORD as u64);
+            assert_eq!(emu.maps.read_qword(DATA), Some(PATH_MARKER));
+            assert_eq!(emu.get_last_error(), MARKER as u64);
+            assert_eq!(emu.api_policy.simulation_count, 1);
+            assert!(emu.call_stack().is_empty());
+            assert_eq!(emu.cfg.skip_unimplemented, banzai);
+            assert_eq!(emu.api_mode(), mode);
+            let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
+            assert_eq!(outcome.call.library, "shfolder");
+            assert_eq!(outcome.call.name, "SHGetFolderPathW");
+            assert_eq!(outcome.disposition, ApiDisposition::SimulatedGeneric);
+        }
+    }
+}
+
+#[test]
+fn simulation_loads_banzai_defaults_without_replacing_overrides() {
+    for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
+        let mut emu = emulator(false, "shfolder", "SHGetFolderPathW");
+        emu.cfg.maps_folder = win32_maps_folder();
+        // Select the mode after the emulator and its call frame already exist.
         emu.set_api_mode(mode);
-        emu.maps.write_qword(DATA, MARKER as u64);
-        call_winapi64(
-            &mut emu,
-            |emu| gateway(emu, "kernel32"),
-            &[DATA, DATA + 0x100],
-        );
-        let restored = Serialization::deserialize(&Serialization::serialize(&emu));
-        assert_eq!(restored.api_mode(), mode);
+        emu.cfg.skip_unimplemented = true;
+        emu.banzai_add("MessageBoxW", 2);
+        let sp = emu.sp();
+        let result = call_winapi32(&mut emu, |emu| gateway(emu, "shfolder"), &[0; 5]);
+        assert_eq!(result, 0);
+        assert_eq!(emu.api_policy.simulation_count, 1);
+        assert_eq!(emu.sp(), sp);
+        assert!(!emu.api_policy.stopped());
+        assert_eq!(emu.banzai.get_params("SHGetFolderPathW"), 5);
+        assert_eq!(emu.banzai.get_params("MessageBoxW"), 2);
+        assert!(emu.cfg.skip_unimplemented);
+    }
+}
+
+#[test]
+fn simulation_rejects_invalid_x86_cleanup_frames() {
+    for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
+        for (words, sp) in [(2, DATA + 0x1000 - 4), (2, u32::MAX as u64 - 3)] {
+            let mut emu = emulator(false, "shfolder", "SHGetFolderPathW");
+            emu.set_api_mode(mode);
+            emu.cfg.skip_unimplemented = true;
+            emu.banzai_add("SHGetFolderPathW", words);
+            emu.set_sp(sp);
+            emu.regs_mut().rax = MARKER as u64;
+            emu.set_last_error(MARKER as u64);
+            gateway(&mut emu, "shfolder");
+            assert_eq!(
+                emu.api_policy.last_outcome.as_ref().unwrap().disposition,
+                ApiDisposition::Stopped(ApiStopReason::InvalidFrame)
+            );
+            assert_eq!(emu.sp(), sp);
+            assert_eq!(emu.regs().rax, MARKER as u64);
+            assert_eq!(emu.get_last_error(), MARKER as u64);
+            assert_eq!(emu.api_policy.simulation_count, 0);
+        }
+    }
+}
+
+#[test]
+fn simulation_preserves_rejected_x86_cleanup_overrides() {
+    for mode in [ApiMode::SimulateFail, ApiMode::SimulateSuccess] {
+        let mut emu = emulator(false, "shfolder", "SHGetFolderPathW");
+        emu.cfg.maps_folder = win32_maps_folder();
+        emu.set_api_mode(mode);
+        emu.cfg.skip_unimplemented = true;
+        emu.banzai_add("SHGetFolderPathW", -1);
+        let sp = emu.sp();
+        gateway(&mut emu, "shfolder");
         assert_eq!(
-            restored.api_policy.last_outcome,
-            emu.api_policy.last_outcome
+            emu.api_policy.last_outcome.as_ref().unwrap().disposition,
+            ApiDisposition::Stopped(ApiStopReason::UnknownCleanup)
         );
-        assert_eq!(restored.api_policy.simulation_count, 1);
-        assert_eq!(restored.get_last_error(), emu.get_last_error());
-        let json = serde_json::to_string(&emu.api_policy).unwrap();
-        let restored_json: ApiPolicy = serde_json::from_str(&json).unwrap();
-        assert_eq!(restored_json.mode, Some(mode));
-        assert_eq!(restored_json.last_outcome, emu.api_policy.last_outcome);
+        assert_eq!(emu.banzai.get_params("SHGetFolderPathW"), -1);
+        assert_eq!(emu.sp(), sp);
+        assert_eq!(emu.api_policy.simulation_count, 0);
     }
 }

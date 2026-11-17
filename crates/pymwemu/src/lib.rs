@@ -381,7 +381,7 @@ impl Emu {
         self.emu.cfg.test_mode = false;
     }
 
-    /// Enable legacy Banzai settings; Windows APIs require reviewed simulation recipes.
+    /// Enable instruction skipping and x86 API cleanup fallback without changing API mode.
     fn enable_banzai_mode(&mut self) {
         self.emu.cfg.skip_unimplemented = true;
         self.emu.maps.set_banzai(true);
@@ -392,10 +392,10 @@ impl Emu {
         let mode = match mode {
             "strict" => ApiMode::Strict,
             "simulate-fail" => ApiMode::SimulateFail,
-            "simulate-optimistic" => ApiMode::SimulateOptimistic,
+            "simulate-success" => ApiMode::SimulateSuccess,
             _ => {
                 return Err(PyValueError::new_err(
-                    "API mode must be strict, simulate-fail or simulate-optimistic",
+                    "API mode must be strict, simulate-fail or simulate-success",
                 ));
             }
         };
@@ -408,7 +408,7 @@ impl Emu {
         match self.emu.api_mode() {
             ApiMode::Strict => "strict",
             ApiMode::SimulateFail => "simulate-fail",
-            ApiMode::SimulateOptimistic => "simulate-optimistic",
+            ApiMode::SimulateSuccess => "simulate-success",
         }
     }
 

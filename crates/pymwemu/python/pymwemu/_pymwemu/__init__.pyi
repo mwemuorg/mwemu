@@ -271,11 +271,11 @@ class Emu:
         """
     def enable_banzai_mode(self) -> None:
         r"""
-        Enable legacy Banzai settings; Windows APIs require reviewed simulation recipes.
+        Enable instruction skipping and x86 API cleanup fallback without changing API mode.
         """
     def set_api_mode(self, mode: builtins.str) -> None:
         r"""
-        Select strict, simulate-fail, or simulate-optimistic without changing Banzai settings.
+        Select strict, simulate-fail, or simulate-success without changing Banzai settings.
         """
     def get_api_mode(self) -> builtins.str:
         r"""

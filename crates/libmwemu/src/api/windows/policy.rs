@@ -16,7 +16,7 @@ pub enum ApiMode {
     #[default]
     Strict,
     SimulateFail,
-    SimulateOptimistic,
+    SimulateSuccess,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,16 +40,18 @@ pub struct ApiCall {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ApiStopReason {
     StrictPolicy,
-    MissingSimulation,
+    UnknownCleanup,
     InvalidFrame,
     InvalidMemory,
+    BanzaiDisabled,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ApiDisposition {
     Stopped(ApiStopReason),
     SimulatedFailure,
-    SimulatedOptimistic,
+    SimulatedSuccess,
+    SimulatedGeneric,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -62,7 +64,7 @@ pub struct ApiOutcome {
     pub last_error: Option<u64>,
 }
 
-/// Bounded diagnostics and an explicit override for legacy Config flags.
+/// Bounded diagnostics and an explicit API policy selection.
 /// An unsupported stop remains pending until the caller clears it deliberately.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ApiPolicy {
@@ -77,12 +79,8 @@ impl ApiPolicy {
     pub fn effective_mode(&self, cfg: &Config) -> ApiMode {
         if cfg.stop_on_unimplemented {
             ApiMode::Strict
-        } else if let Some(mode) = self.mode {
-            mode
-        } else if cfg.skip_unimplemented {
-            ApiMode::SimulateFail
         } else {
-            ApiMode::Strict
+            self.mode.unwrap_or_default()
         }
     }
 
@@ -100,7 +98,7 @@ impl ApiPolicy {
 }
 
 impl Emu {
-    /// Select API policy without changing instruction or memory Banzai settings.
+    /// Select API policy without changing Banzai settings.
     pub fn set_api_mode(&mut self, mode: ApiMode) {
         self.api_policy.mode = Some(mode);
     }
@@ -239,12 +237,13 @@ pub(crate) fn consume_return(emu: &mut Emu) -> bool {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Simulation {
     NtFailure,
-    NtYield,
+    NtSuccess,
     Win32Failure,
     FileTimeUtc,
+    GenericZero,
 }
 
 struct Recipe {
@@ -260,10 +259,8 @@ fn recipe(library: &str, name: &str, mode: ApiMode) -> Option<Recipe> {
     {
         let simulation = match mode {
             ApiMode::SimulateFail => Simulation::NtFailure,
-            ApiMode::SimulateOptimistic if nt_api::normalize(name) == "NtYieldExecution" => {
-                Simulation::NtYield
-            }
-            _ => return None,
+            ApiMode::SimulateSuccess => Simulation::NtSuccess,
+            ApiMode::Strict => return None,
         };
         return Some(Recipe {
             x86_words: signature.x86_words,
@@ -276,7 +273,7 @@ fn recipe(library: &str, name: &str, mode: ApiMode) -> Option<Recipe> {
     {
         let simulation = match mode {
             ApiMode::SimulateFail => Simulation::Win32Failure,
-            ApiMode::SimulateOptimistic => Simulation::FileTimeUtc,
+            ApiMode::SimulateSuccess => Simulation::FileTimeUtc,
             ApiMode::Strict => return None,
         };
         return Some(Recipe {
@@ -286,6 +283,35 @@ fn recipe(library: &str, name: &str, mode: ApiMode) -> Option<Recipe> {
         });
     }
     None
+}
+
+fn generic_recipe(emu: &mut Emu, name: &str) -> Result<Recipe, ApiStopReason> {
+    let x86_words = if emu.cfg.arch.is_64bits() {
+        0
+    } else if name.starts_with("Nt") || name.starts_with("Zw") {
+        // Fallback metadata cannot override the subsystem's signature checks.
+        nt_api::signature(name)
+            .ok_or(ApiStopReason::UnknownCleanup)?
+            .x86_words
+    } else {
+        if !emu.cfg.skip_unimplemented {
+            return Err(ApiStopReason::BanzaiDisabled);
+        }
+        if emu.banzai.stack_words(name).is_none() {
+            // Also support enabling Banzai after initialization.
+            emu.banzai
+                .load_defaults(&emu.cfg.get_maps_folder("banzai.csv"));
+        }
+        emu.banzai
+            .stack_words(name)
+            .ok_or(ApiStopReason::UnknownCleanup)?
+    };
+    Ok(Recipe {
+        x86_words,
+        // Generic native calls do not inspect arguments or output pointers.
+        arguments: 0,
+        simulation: Simulation::GenericZero,
+    })
 }
 
 fn checked_frame(emu: &Emu, recipe: &Recipe) -> Option<u64> {
@@ -310,9 +336,11 @@ impl Simulation {
         match self {
             // A declared unsupported-operation failure, before any output effects.
             Self::NtFailure => Ok((STATUS_NOT_IMPLEMENTED, None)),
-            // Optimistic scheduling hint: no scheduler or object state is changed.
-            Self::NtYield => Ok((STATUS_SUCCESS, None)),
+            // Success status only: no output, object, or scheduler state is changed.
+            Self::NtSuccess => Ok((STATUS_SUCCESS, None)),
             Self::Win32Failure => Ok((FALSE, Some(ERROR_CALL_NOT_IMPLEMENTED))),
+            // Legacy best-effort return; output buffers and LastError stay unchanged.
+            Self::GenericZero => Ok((0, None)),
             Self::FileTimeUtc => {
                 let input = WinApiAbi::try_arg(emu, 0).ok_or(ApiStopReason::InvalidFrame)?;
                 let output = WinApiAbi::try_arg(emu, 1).ok_or(ApiStopReason::InvalidFrame)?;
@@ -348,20 +376,25 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
     let call = call(emu, library, name, address);
     let mode = emu.api_mode();
     if mode == ApiMode::Strict {
-        if emu.cfg.skip_unimplemented
-            || emu
-                .api_policy
-                .mode
-                .is_some_and(|mode| mode != ApiMode::Strict)
+        if emu
+            .api_policy
+            .mode
+            .is_some_and(|mode| mode != ApiMode::Strict)
         {
             log::warn!("strict Windows API policy takes precedence over simulation settings");
         }
         stop(emu, call, ApiStopReason::StrictPolicy);
         return;
     }
-    let Some(recipe) = recipe(&call.library.to_ascii_lowercase(), &call.name, mode) else {
-        stop(emu, call, ApiStopReason::MissingSimulation);
-        return;
+    let recipe = recipe(&call.library.to_ascii_lowercase(), &call.name, mode)
+        .map(Ok)
+        .unwrap_or_else(|| generic_recipe(emu, &call.name));
+    let recipe = match recipe {
+        Ok(recipe) => recipe,
+        Err(reason) => {
+            stop(emu, call, reason);
+            return;
+        }
     };
     let Some(next_sp) = checked_frame(emu, &recipe) else {
         stop(emu, call, ApiStopReason::InvalidFrame);
@@ -381,20 +414,23 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
     WinApiAbi::set_ret(emu, result);
     emu.api_policy.simulation_count = emu.api_policy.simulation_count.saturating_add(1);
     log::warn!(
-        "simulating {}!{}: {:?}, result=0x{:x}, LastError={:?} (None preserves)",
+        "simulating {}!{}: {:?}, model={:?}, result=0x{:x}, LastError={:?} (None preserves)",
         call.library,
         call.name,
         mode,
+        recipe.simulation,
         result,
         last_error
     );
     emu.api_policy.last_outcome = Some(ApiOutcome {
         call,
         mode,
-        disposition: if mode == ApiMode::SimulateFail {
+        disposition: if matches!(recipe.simulation, Simulation::GenericZero) {
+            ApiDisposition::SimulatedGeneric
+        } else if mode == ApiMode::SimulateFail {
             ApiDisposition::SimulatedFailure
         } else {
-            ApiDisposition::SimulatedOptimistic
+            ApiDisposition::SimulatedSuccess
         },
         result: Some(result),
         last_error,
