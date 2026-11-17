@@ -1897,8 +1897,8 @@ fn cmp_equal_sets_zf_and_jne_not_taken() {
 
     // step the cmp
     assert!(emu.step());
-    assert_eq!(emu.last_cmp.2, cookie, "last_cmp left");
-    assert_eq!(emu.last_cmp.3, cookie, "last_cmp right");
+    assert_eq!(emu.last_cmp.left, cookie, "last_cmp left");
+    assert_eq!(emu.last_cmp.right, cookie, "last_cmp right");
     assert!(
         emu.flag_zf(),
         "ZF must be set after cmp with equal operands"
@@ -1927,8 +1927,8 @@ fn cmp_unequal_clears_zf_and_jne_taken() {
     let pc = emu.pc();
 
     assert!(emu.step()); // cmp
-    assert_eq!(emu.last_cmp.2, 0xAAAA);
-    assert_eq!(emu.last_cmp.3, 0xBBBB);
+    assert_eq!(emu.last_cmp.left, 0xAAAA);
+    assert_eq!(emu.last_cmp.right, 0xBBBB);
     assert!(
         !emu.flag_zf(),
         "ZF must be clear after cmp with different operands"
@@ -1981,9 +1981,9 @@ fn sub_records_last_flag_op() {
     emu.maps.write_qword(DATA, 0x50);
 
     assert!(emu.step());
-    assert_eq!(emu.last_flag_op.2, 0x100, "left operand");
-    assert_eq!(emu.last_flag_op.3, 0x50, "right operand");
-    assert_eq!(emu.last_flag_op.4, "sub", "mnemonic");
+    assert_eq!(emu.last_flag_op.left, 0x100, "left operand");
+    assert_eq!(emu.last_flag_op.right, 0x50, "right operand");
+    assert_eq!(emu.last_flag_op.mnemonic, "sub", "mnemonic");
     assert_eq!(emu.regs().rax, 0xB0, "sub result");
     assert!(!emu.flag_zf(), "ZF clear when result != 0");
 }
@@ -1998,9 +1998,9 @@ fn sub_equal_sets_zf() {
     emu.maps.write_qword(DATA, 0xDEAD);
 
     assert!(emu.step());
-    assert_eq!(emu.last_flag_op.2, 0xDEAD);
-    assert_eq!(emu.last_flag_op.3, 0xDEAD);
-    assert_eq!(emu.last_flag_op.4, "sub");
+    assert_eq!(emu.last_flag_op.left, 0xDEAD);
+    assert_eq!(emu.last_flag_op.right, 0xDEAD);
+    assert_eq!(emu.last_flag_op.mnemonic, "sub");
     assert_eq!(emu.regs().rax, 0);
     assert!(emu.flag_zf(), "ZF must be set when sub result is 0");
 }
@@ -2014,9 +2014,9 @@ fn test_records_last_flag_op() {
     emu.regs_mut().rax = 0xFF;
 
     assert!(emu.step());
-    assert_eq!(emu.last_flag_op.2, 0xFF);
-    assert_eq!(emu.last_flag_op.3, 0xFF);
-    assert_eq!(emu.last_flag_op.4, "test");
+    assert_eq!(emu.last_flag_op.left, 0xFF);
+    assert_eq!(emu.last_flag_op.right, 0xFF);
+    assert_eq!(emu.last_flag_op.mnemonic, "test");
     assert!(!emu.flag_zf(), "test 0xFF,0xFF → ZF=0 (result != 0)");
 }
 
@@ -2029,7 +2029,7 @@ fn test_zero_sets_zf() {
     emu.regs_mut().rax = 0;
 
     assert!(emu.step());
-    assert_eq!(emu.last_flag_op.4, "test");
+    assert_eq!(emu.last_flag_op.mnemonic, "test");
     assert!(emu.flag_zf(), "test 0,0 → ZF=1");
 }
 
@@ -2045,9 +2045,9 @@ fn xor_records_last_flag_op() {
     emu.maps.write_qword(DATA, cookie);
 
     assert!(emu.step());
-    assert_eq!(emu.last_flag_op.2, cookie);
-    assert_eq!(emu.last_flag_op.3, cookie);
-    assert_eq!(emu.last_flag_op.4, "xor");
+    assert_eq!(emu.last_flag_op.left, cookie);
+    assert_eq!(emu.last_flag_op.right, cookie);
+    assert_eq!(emu.last_flag_op.mnemonic, "xor");
     assert_eq!(emu.regs().rcx, 0, "xor equal values → 0");
     assert!(emu.flag_zf(), "xor equal values → ZF=1");
 }
@@ -2067,16 +2067,16 @@ fn last_flag_op_more_recent_than_last_cmp() {
     emu.maps.write_qword(DATA, 3);
 
     assert!(emu.step()); // cmp rax, rbx
-    let cmp_pos = emu.last_cmp.0;
+    let cmp_pos = emu.last_cmp.pos;
     assert!(emu.flag_zf(), "cmp 1,1 → ZF=1");
 
     assert!(emu.step()); // sub rcx, [rdi]
-    let fop_pos = emu.last_flag_op.0;
+    let fop_pos = emu.last_flag_op.pos;
     assert!(
         fop_pos > cmp_pos,
         "last_flag_op.pos ({fop_pos}) must be > last_cmp.pos ({cmp_pos})"
     );
-    assert_eq!(emu.last_flag_op.4, "sub");
+    assert_eq!(emu.last_flag_op.mnemonic, "sub");
     assert!(!emu.flag_zf(), "sub 10-3 → ZF=0 (result 7)");
     assert_eq!(emu.regs().rcx, 7);
 }

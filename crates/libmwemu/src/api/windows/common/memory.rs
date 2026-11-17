@@ -146,7 +146,7 @@ pub(crate) fn allocate(
             })?;
         return Ok((start, length));
     }
-    if length > emu.maps.max_alloc_size {
+    if flags & MEM_COMMIT != 0 && length > emu.maps.max_alloc_size {
         return Err(MemoryError::NoMemory);
     }
     let base = if address == 0 {
@@ -277,7 +277,7 @@ pub(crate) fn nt_allocate(emu: &mut Emu, call: Call, extended: bool) {
         if !writable_pointer(emu, base_ptr) || !writable_pointer(emu, size_ptr) {
             return Err(STATUS_ACCESS_VIOLATION);
         }
-        if (!extended && call.arg(emu, 2) != 0) || (extended && call.arg(emu, 6) != 0) {
+        if !extended && call.arg(emu, 2) != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
         if permissions(protection).is_none() {

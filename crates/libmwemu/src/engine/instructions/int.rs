@@ -47,7 +47,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 let code = emu.regs().rcx;
                 log::trace!("int 0x29: __fastfail({}) {}", code, fastfail_name(code));
                 if code == 2 {
-                    let (cmp_pos, cmp_ip, cmp_left, cmp_right) = emu.last_cmp;
+                    let cmp = emu.last_cmp;
                     let cs = emu.call_stack().clone();
                     log::info!("--- STACK COOKIE CHECK FAILURE ---");
                     if !cs.is_empty() {
@@ -83,32 +83,32 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                     }
                     log::info!(
                         "  last cmp: 0x{:x} vs 0x{:x} (at pos:{} rip:0x{:x})",
-                        cmp_left,
-                        cmp_right,
-                        cmp_pos,
-                        cmp_ip
+                        cmp.left,
+                        cmp.right,
+                        cmp.pos,
+                        cmp.ip
                     );
                     if let Some(cookie) = emu.read_security_cookie() {
                         log::info!("  __security_cookie = 0x{:x}", cookie);
                     }
-                    let (fop_pos, fop_ip, fop_left, fop_right, fop_name) = emu.last_flag_op;
-                    if fop_pos > cmp_pos && !fop_name.is_empty() {
+                    let fop = emu.last_flag_op;
+                    if fop.pos > cmp.pos && !fop.mnemonic.is_empty() {
                         log::info!(
                             "  last {}: 0x{:x}, 0x{:x} (at pos:{} rip:0x{:x}) — MORE RECENT than cmp",
-                            fop_name,
-                            fop_left,
-                            fop_right,
-                            fop_pos,
-                            fop_ip
+                            fop.mnemonic,
+                            fop.left,
+                            fop.right,
+                            fop.pos,
+                            fop.ip
                         );
                     }
                     log::info!("  ZF={} at int 0x29", emu.flag_zf());
-                    if cmp_left == cmp_right {
+                    if cmp.left == cmp.right {
                         log::warn!(
                             "  last cmp had EQUAL operands but __fastfail fired — the branch was likely decided by a different instruction (sub/test/xor)"
                         );
                     }
-                    let cookie_check_fn = emu.resolve_function_range(cmp_ip);
+                    let cookie_check_fn = emu.resolve_function_range(cmp.ip);
                     for (call_site, target) in cs.iter() {
                         let target_fn = emu.resolve_function_range(*target);
                         if target_fn.is_some() && target_fn == cookie_check_fn {
@@ -129,13 +129,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 if emu.kernel_driver_active() {
                     let mut reason = format!("__fastfail({}) {}", code, fastfail_name(code));
                     if code == 2 {
-                        let (cmp_pos, cmp_ip, left, right) = emu.last_cmp;
+                        let cmp = emu.last_cmp;
                         reason.push_str(&format!(
                             " cmp 0x{:x} vs 0x{:x} (cmp at 0x{:x}, {} steps ago)",
-                            left,
-                            right,
-                            cmp_ip,
-                            emu.pos.saturating_sub(cmp_pos)
+                            cmp.left,
+                            cmp.right,
+                            cmp.ip,
+                            emu.pos.saturating_sub(cmp.pos)
                         ));
                     }
                     emu.kernel_abort(reason);

@@ -1,6 +1,7 @@
 use crate::color;
 use crate::debug::console::Console;
 use crate::emu::Emu;
+use crate::emu::LastOp;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
@@ -21,7 +22,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         None => return false,
     };
 
-    emu.last_cmp = (emu.pos, emu.pc() - instruction_sz as u64, value0, value1);
+    emu.last_cmp = LastOp {
+        pos: emu.pos,
+        ip: emu.pc() - instruction_sz as u64,
+        left: value0,
+        right: value1,
+        mnemonic: "cmp",
+    };
 
     if emu.cfg.verbose >= 2 {
         if value0 > value1 {
