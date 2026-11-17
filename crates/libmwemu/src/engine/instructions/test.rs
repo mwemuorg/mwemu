@@ -1,6 +1,7 @@
 use crate::color;
 use crate::debug::console::Console;
 use crate::emu::Emu;
+use crate::emu::LastOp;
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
@@ -28,6 +29,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     let sz = emu.get_operand_sz(ins, 0);
 
+    emu.last_flag_op = LastOp {
+        pos: emu.pos,
+        ip: emu.pc() - instruction_sz as u64,
+        left: value0,
+        right: value1,
+        mnemonic: "test",
+    };
     emu.flags_overwrite_mut().test(value0, value1, sz);
     true
 }

@@ -12,7 +12,7 @@ use crate::api::windows::policy::ApiPolicy;
 use crate::config::Config;
 use crate::debug::breakpoint::Breakpoints;
 use crate::eflags::Eflags;
-use crate::emu::Emu;
+use crate::emu::{Emu, LastOp};
 use crate::flags::Flags;
 use crate::hooks::Hooks;
 use crate::maps::Maps;
@@ -398,7 +398,8 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             kernel: None,  // driver state is rebuilt by load_kernel_module, not dumped
             kernel_guard: false,
             security_cookie_va: 0,
-            last_cmp: (0, 0, 0, 0),
+            last_cmp: LastOp::EMPTY,
+            last_flag_op: LastOp::EMPTY,
             last_ret: (0, 0),
             tls_callbacks,
             library_loaded: false,

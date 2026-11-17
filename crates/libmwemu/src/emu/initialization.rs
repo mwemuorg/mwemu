@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
 use crate::api::windows::policy::ApiPolicy;
-use crate::emu::{Emu, InstructionState};
+use crate::emu::{Emu, InstructionState, LastOp};
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
 use crate::windows::peb::{peb32, peb64};
@@ -103,7 +103,8 @@ impl Emu {
             kernel: None,
             kernel_guard: false,
             security_cookie_va: 0,
-            last_cmp: (0, 0, 0, 0),
+            last_cmp: LastOp::EMPTY,
+            last_flag_op: LastOp::EMPTY,
             last_ret: (0, 0),
             memory_operations: vec![],
             rep: None,

@@ -979,12 +979,25 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         // SEH personality: only reached through exception dispatch, which
         // kernel mode does not model. Continue the search.
         "__C_specific_handler" | "_C_specific_handler" => emu.set_kernel_ret(1),
-        "__chkstk"
-        | "_chkstk"
-        | "__security_init_cookie"
-        | "_local_unwind"
-        | "__GSHandlerCheck" => {
+        "__chkstk" | "_chkstk" | "_local_unwind" | "__GSHandlerCheck" => {
             emu.set_kernel_ret(0);
+        }
+        "__security_init_cookie" => {
+            emu.set_kernel_ret(0);
+        }
+        "__security_check_cookie" | "_security_check_cookie" => {
+            let rcx = emu.regs().rcx;
+            if let Some(cookie) = emu.read_security_cookie()
+                && rcx != cookie
+            {
+                log::info!("--- STACK COOKIE CHECK FAILURE (intercepted) ---");
+                log::info!("  rcx=0x{:x}  __security_cookie=0x{:x}", rcx, cookie);
+                emu.kernel_abort(format!(
+                    "__security_check_cookie: mismatch 0x{:x} vs 0x{:x}",
+                    rcx, cookie
+                ));
+                return true;
+            }
         }
         "_purecall"
         | "__report_gsfailure"
