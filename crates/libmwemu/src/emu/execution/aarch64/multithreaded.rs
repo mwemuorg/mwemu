@@ -16,6 +16,7 @@ impl Emu {
     pub fn run_multi_threaded_aarch64(&mut self, end_addr: Option<u64>) -> Result<u64, MwemuError> {
         super::super::assert_aarch64_arch(self, "run_multi_threaded_aarch64");
 
+        self.check_api_stop()?;
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
@@ -89,6 +90,7 @@ impl Emu {
                 self.trace_pre_step_state(next_pos);
 
                 let step_ok = self.step_multi_threaded();
+                self.check_api_stop()?;
 
                 self.instruction_count = self.instruction_count.saturating_add(1);
 
@@ -160,6 +162,7 @@ impl Emu {
                 }
             }
 
+            self.check_api_stop()?;
             if self.is_break_on_api {
                 return Ok(0);
             }

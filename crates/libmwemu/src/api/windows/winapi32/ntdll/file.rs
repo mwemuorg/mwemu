@@ -14,23 +14,25 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtClose" => NtClose(emu),
         "RtlDosPathNameToNtPathName_U" => RtlDosPathNameToNtPathName_U(emu),
         "NtSetInformationFile" => NtSetInformationFile(emu),
-        "NtWriteFile" => {
-            let handle = arg(emu, 0);
-            let buffer = arg(emu, 5) as u64;
-            let length = arg(emu, 6);
-            log_red!(
-                emu,
-                "ntdll!NtWriteFile handle:0x{:x} buf:0x{:x} len:{}",
-                handle,
-                buffer,
-                length
-            );
-            emu.regs_mut().rax = STATUS_SUCCESS;
-            stdcall_ret(emu, 9);
-        }
+        "NtWriteFile" => NtWriteFile(emu),
         _ => return false,
     }
     true
+}
+
+fn NtWriteFile(emu: &mut emu::Emu) {
+    let handle = arg(emu, 0);
+    let buffer = arg(emu, 5) as u64;
+    let length = arg(emu, 6);
+    log_red!(
+        emu,
+        "ntdll!NtWriteFile handle:0x{:x} buf:0x{:x} len:{}",
+        handle,
+        buffer,
+        length
+    );
+    emu.regs_mut().rax = STATUS_SUCCESS;
+    stdcall_ret(emu, 9);
 }
 
 fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {

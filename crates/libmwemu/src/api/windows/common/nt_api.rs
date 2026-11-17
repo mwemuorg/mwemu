@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
 // Both gateways use this catalog. Values count x86 stack DWORDs, not C
-// parameters (ULONGLONG takes two); x64 never performs callee stack cleanup.
+// parameters (ULONGLONG takes two); an optional second count gives native
+// parameter positions when they differ. x64 never performs callee stack cleanup.
 // Nt/Zw user-mode aliases share a signature. Rtl/Ldr/CRT exports and NT calls
 // returning ULONG/BOOLEAN/LOGICAL are deliberately outside this catalog.
 // NtCreateCpuPartition, NtInitializeNlsFiles, NtSetEventEx and
@@ -17,14 +18,35 @@ pub(crate) fn normalize(api: &str) -> Cow<'_, str> {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct NtSignature {
+    pub x86_words: u32,
+    pub arguments: u32,
+}
+
 macro_rules! nt_api_signatures {
-    ($($name:ident => $words:literal),* $(,)?) => {
-        pub(crate) fn signature(api: &str) -> Option<u32> {
+    (@arguments $words:literal) => { $words };
+    (@arguments ($words:literal, $arguments:literal)) => { $arguments };
+    (@words $words:literal) => { $words };
+    (@words ($words:literal, $arguments:literal)) => { $words };
+    ($($name:ident => $counts:tt),* $(,)?) => {
+        pub(crate) fn signature(api: &str) -> Option<NtSignature> {
             match normalize(api).as_ref() {
-                $(stringify!($name) => Some($words),)*
+                $(stringify!($name) => Some(NtSignature {
+                    x86_words: nt_api_signatures!(@words $counts),
+                    arguments: nt_api_signatures!(@arguments $counts),
+                }),)*
                 _ => None,
             }
         }
+
+        #[cfg(test)]
+        pub(crate) const SIGNATURES: &[(&str, NtSignature)] = &[
+            $((stringify!($name), NtSignature {
+                x86_words: nt_api_signatures!(@words $counts),
+                arguments: nt_api_signatures!(@arguments $counts),
+            }),)*
+        ];
     };
 }
 
@@ -514,9 +536,9 @@ nt_api_signatures! {
     NtWorkerFactoryWorkerReady => 1,
     NtWow64GetNativeSystemInformation => 4,
     NtWow64QueryInformationProcess64 => 5,
-    NtWow64QueryVirtualMemory64 => 8,
-    NtWow64ReadVirtualMemory64 => 7,
-    NtWow64WriteVirtualMemory64 => 7,
+    NtWow64QueryVirtualMemory64 => (8, 6),
+    NtWow64ReadVirtualMemory64 => (7, 5),
+    NtWow64WriteVirtualMemory64 => (7, 5),
     NtWriteFile => 9,
     NtWriteFileGather => 9,
     NtWriteRequestData => 6,

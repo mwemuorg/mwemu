@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
+use crate::api::windows::policy::ApiPolicy;
 use crate::emu::{Emu, InstructionState};
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
@@ -67,6 +68,7 @@ impl Emu {
             pos: 0,
             max_pos: None,
             force_break: false,
+            api_policy: ApiPolicy::default(),
             process_terminated: false,
             call_depth: 0,
             ldr_init_done: false,

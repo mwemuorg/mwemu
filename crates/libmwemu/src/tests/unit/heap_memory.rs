@@ -1281,3 +1281,37 @@ fn global_alloc_no_overlap() {
         "two GlobalAlloc calls must return different pointers"
     );
 }
+
+#[test]
+fn gdip_alloc_gateway_creates_writable_buffer() {
+    const BUFFER_MARKER: u8 = 0x5a;
+    let (mut emu, _) = helpers::prepare_winapi(false);
+    for size in [1, 256, 4097] {
+        let address = helpers::call_winapi_export(&mut emu, "gdiplus.dll", "GdipAlloc", &[size]);
+        assert_ne!(address, 0);
+        assert_eq!(emu.maps.get_mem_size(address), Some(size as usize));
+        assert!(emu.maps.fill_range(address, BUFFER_MARKER, size as usize));
+        assert_eq!(emu.maps.read_byte(address), Some(BUFFER_MARKER));
+        assert_eq!(emu.maps.read_byte(address + size - 1), Some(BUFFER_MARKER));
+        assert!(emu.api_policy.last_outcome.is_none());
+    }
+}
+
+#[test]
+fn ntdll32_heap_size_aliases_use_allocation_ownership() {
+    const REQUESTED_SIZE: u64 = 257;
+    let (mut emu, handle, _) = prepare(false, false);
+    let address = heap::allocate(&mut emu, handle, REQUESTED_SIZE, 0).unwrap();
+    for api in ["HeapSize", "RtlSizeHeap"] {
+        let size = helpers::call_winapi_export(&mut emu, "ntdll.dll", api, &[handle, 0, address]);
+        assert_eq!(size, REQUESTED_SIZE, "{api}");
+        let invalid =
+            helpers::call_winapi_export(&mut emu, "ntdll.dll", api, &[handle, 0, address + 1]);
+        assert_eq!(
+            invalid,
+            u32::MAX as u64,
+            "{api} must reject an interior pointer"
+        );
+        assert!(emu.api_policy.last_outcome.is_none());
+    }
+}

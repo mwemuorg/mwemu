@@ -67,6 +67,9 @@ pub(crate) fn ensure_instruction_cache_populated_aarch64(
 /// AArch64 variant of `decode_and_execute`. Panics if the configured
 /// architecture is not AArch64.
 pub(crate) fn decode_and_execute_aarch64(emu: &mut Emu) -> (usize, bool) {
+    if emu.api_policy.stopped() {
+        return (0, false);
+    }
     super::super::assert_aarch64_arch(emu, "decode_and_execute_aarch64");
     let pc = emu.pc();
 
@@ -129,6 +132,9 @@ pub(crate) fn decode_and_execute_aarch64(emu: &mut Emu) -> (usize, bool) {
 /// advances PC by `sz` bytes (normal decoders always pass 4). Panics on x86.
 #[inline]
 pub(crate) fn advance_pc_aarch64(emu: &mut Emu, sz: usize) {
+    if emu.api_policy.stopped() {
+        return;
+    }
     super::super::assert_aarch64_arch(emu, "advance_pc_aarch64");
     if emu.force_reload {
         emu.force_reload = false;

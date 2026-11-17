@@ -842,9 +842,6 @@ fn winapi_stdcall_discards_sdk_dword_slots() {
         ("wininet.dll", "InternetSetOptionA", 4),
         ("wininet.dll", "InternetQueryOptionW", 4),
         ("ws2_32.dll", "WSAWaitForMultipleEvents", 5),
-        ("winmm.dll", "timeBeginPeriod", 1),
-        ("winmm.dll", "mciSendStringW", 4),
-        ("gdiplus.dll", "GdiplusStartup", 3),
     ];
     let stack = emu.regs().rsp;
     emu.maps.write_dword(stack, SENTINEL as u32);

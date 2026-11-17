@@ -4,7 +4,6 @@ use crate::emu;
 use crate::winapi::common::ntdll;
 use crate::winapi::helper::WinApiAbi;
 use crate::windows::constants::errors::*;
-
 use crate::windows::structures;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -20,7 +19,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtSetInformationThread" => NtSetInformationThread(emu),
         // kernel32!RestoreLastError forwards to ntdll!RtlRestoreLastWin32Error:
         // just stores rcx into the last-error slot, no return value.
-        "RtlRestoreLastWin32Error" | "RestoreLastError" => RestoreLastError(emu),
+        "RtlRestoreLastWin32Error" | "RestoreLastError" => RtlRestoreLastWin32Error(emu),
         "NtQueryInformationProcess" => NtQueryInformationProcess(emu),
         "NtQuerySystemInformation" => NtQuerySystemInformation(emu),
         "RtlDecompressBuffer" => RtlDecompressBuffer(emu),
@@ -33,7 +32,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     true
 }
 
-fn RestoreLastError(emu: &mut emu::Emu) {
+fn RtlRestoreLastWin32Error(emu: &mut emu::Emu) {
     let err_code = emu.regs().rcx;
     log_red!(emu, "ntdll!RtlRestoreLastWin32Error err: {}", err_code);
     emu.set_last_error(err_code);

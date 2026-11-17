@@ -1499,3 +1499,19 @@ fn winhttp_full_flow_64() {
     );
     assert_eq!(ret, 1, "WinHttpCloseHandle(session) must return TRUE");
 }
+
+#[test]
+fn ntdll_restore_last_error_aliases_preserve_call_frame() {
+    const NONVOLATILE_MARKER: u64 = 0x1234_5678;
+    for is64 in [false, true] {
+        let (mut emu, _) = helpers::prepare_winapi(is64);
+        for api in ["RtlRestoreLastWin32Error", "RestoreLastError"] {
+            emu.set_last_error(ERROR_INVALID_PARAMETER);
+            emu.regs_mut().rbx = NONVOLATILE_MARKER;
+            helpers::call_winapi_export(&mut emu, "ntdll.dll", api, &[ERROR_ACCESS_DENIED]);
+            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
+            assert_eq!(emu.regs().rbx, NONVOLATILE_MARKER);
+            assert!(emu.api_policy.last_outcome.is_none());
+        }
+    }
+}

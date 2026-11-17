@@ -271,7 +271,15 @@ class Emu:
         """
     def enable_banzai_mode(self) -> None:
         r"""
-        Enable banzai mode. This mode keep emulating after finding unimplemented instructions or apis.
+        Enable legacy Banzai settings; Windows APIs require reviewed simulation recipes.
+        """
+    def set_api_mode(self, mode: builtins.str) -> None:
+        r"""
+        Select strict, simulate-fail, or simulate-optimistic without changing Banzai settings.
+        """
+    def get_api_mode(self) -> builtins.str:
+        r"""
+        Return the effective mode, including legacy strict-flag precedence.
         """
     def disable_banzai_mode(self) -> None:
         r"""

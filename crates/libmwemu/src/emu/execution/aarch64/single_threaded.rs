@@ -24,6 +24,7 @@ impl Emu {
     ) -> Result<u64, MwemuError> {
         assert_aarch64_arch(self, "run_single_threaded_aarch64");
 
+        self.check_api_stop()?;
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
@@ -253,6 +254,7 @@ impl Emu {
                     // --- Emulate ---
                     let emulation_ok = engine::aarch64::emulate_instruction(self, &aarch64_ins);
                     self.last_instruction_size = sz;
+                    self.check_api_stop()?;
 
                     if self.is_running.load(atomic::Ordering::Relaxed) == 0 {
                         return Ok(self.pc());
@@ -343,6 +345,7 @@ impl Emu {
                 }
             } // end running loop
 
+            self.check_api_stop()?;
             if self.is_break_on_api {
                 return Ok(0);
             }

@@ -5,7 +5,6 @@ use crate::winapi::common::ntdll;
 use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
 use crate::windows::constants::errors::*;
-
 use crate::windows::structures;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -26,56 +25,38 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlEncodePointer" => RtlEncodePointer(emu),
         "RtlDecodePointer" => RtlDecodePointer(emu),
         "RtlSizeHeap" => RtlSizeHeap(emu),
-        "RtlTlsAlloc" => {
-            log_red!(emu, "ntdll!RtlTlsAlloc");
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 0);
-        }
-        "RtlTlsFree" => {
-            let idx = arg(emu, 0);
-            log_red!(emu, "ntdll!RtlTlsFree idx:{}", idx);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 1);
-        }
-        "RtlTlsGetValue" => {
-            let idx = arg(emu, 0);
-            log_red!(emu, "ntdll!RtlTlsGetValue idx:{}", idx);
-            emu.regs_mut().rax = 0;
-            stdcall_ret(emu, 1);
-        }
-        "RtlTlsSetValue" => {
-            let idx = arg(emu, 0);
-            let val = arg(emu, 1);
-            log_red!(emu, "ntdll!RtlTlsSetValue idx:{} val:0x{:x}", idx, val);
-            emu.regs_mut().rax = 1;
-            stdcall_ret(emu, 2);
-        }
-        "RtlCaptureContext" => {
-            let ctx_ptr = arg(emu, 0) as u64;
-            log_red!(emu, "ntdll!RtlCaptureContext ptr:0x{:x}", ctx_ptr);
-            stdcall_ret(emu, 1);
-        }
-        "RestoreLastError" | "RtlRestoreLastWin32Error" => {
-            let err = arg(emu, 0);
-            log_red!(emu, "ntdll!RtlRestoreLastWin32Error err:{}", err);
-            emu.set_last_error(err as u64);
-            stdcall_ret(emu, 1);
-        }
-        "NtQueueApcThread" => {
-            let handle = arg(emu, 0);
-            let apc_routine = arg(emu, 1) as u64;
-            log_red!(
-                emu,
-                "ntdll!NtQueueApcThread handle:0x{:x} routine:0x{:x}",
-                handle,
-                apc_routine
-            );
-            emu.regs_mut().rax = STATUS_SUCCESS;
-            stdcall_ret(emu, 5);
-        }
+        "RtlCaptureContext" => RtlCaptureContext(emu),
+        "RestoreLastError" | "RtlRestoreLastWin32Error" => RtlRestoreLastWin32Error(emu),
+        "NtQueueApcThread" => NtQueueApcThread(emu),
         _ => return false,
     }
     true
+}
+
+fn NtQueueApcThread(emu: &mut emu::Emu) {
+    let handle = arg(emu, 0);
+    let apc_routine = arg(emu, 1) as u64;
+    log_red!(
+        emu,
+        "ntdll!NtQueueApcThread handle:0x{:x} routine:0x{:x}",
+        handle,
+        apc_routine
+    );
+    emu.regs_mut().rax = STATUS_SUCCESS;
+    stdcall_ret(emu, 5);
+}
+
+fn RtlRestoreLastWin32Error(emu: &mut emu::Emu) {
+    let err = arg(emu, 0);
+    log_red!(emu, "ntdll!RtlRestoreLastWin32Error err:{}", err);
+    emu.set_last_error(err as u64);
+    stdcall_ret(emu, 1);
+}
+
+fn RtlCaptureContext(emu: &mut emu::Emu) {
+    let ctx_ptr = arg(emu, 0) as u64;
+    log_red!(emu, "ntdll!RtlCaptureContext ptr:0x{:x}", ctx_ptr);
+    stdcall_ret(emu, 1);
 }
 
 fn NtGetContextThread(emu: &mut emu::Emu) {

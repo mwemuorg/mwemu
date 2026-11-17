@@ -1,7 +1,6 @@
 use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
-use crate::windows::constants::errors::*;
 
 mod file;
 mod heap;
@@ -36,9 +35,5 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         return String::new();
     }
 
-    // A known NT signature has a defined failure result even in strict mode.
-    if let Some(words) = nt_api::signature(dispatch_name) {
-        return fallback::return_value(addr, api, words, STATUS_NOT_IMPLEMENTED, emu);
-    }
     fallback::unimplemented(addr, api, emu)
 }

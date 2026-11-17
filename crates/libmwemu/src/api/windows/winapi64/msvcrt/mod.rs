@@ -1,6 +1,6 @@
+use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::buffers::BufferKind;
-use crate::serialization;
 use crate::winapi::common::buffers;
 use crate::winapi::common::crt;
 use crate::winapi::winapi64::kernel32;
@@ -75,29 +75,7 @@ pub fn gateway_by_name(api: &str, emu: &mut emu::Emu) -> String {
         return String::new();
     }
 
-    let rip = emu.regs().rip;
-    if emu.cfg.skip_unimplemented {
-        let nparams = emu.banzai.get_params(api);
-        log::warn!(
-            "banzai: skipping unimplemented API {} (nparams={}) at 0x{:x}",
-            api,
-            nparams,
-            rip
-        );
-        emu.regs_mut().rax = 0;
-        return String::new();
-    }
-
-    if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
-        serialization::Serialization::dump(
-            emu,
-            emu.cfg.dump_filename.as_deref().unwrap_or("mwemu_dump.bin"),
-        );
-    }
-
-    log::error!("attempt to call unimplemented API {}", api);
-    log::warn!("calling unimplemented API {} at 0x{:x}", api, rip);
-    api.to_ascii_lowercase()
+    fallback::unimplemented(0u64, api, emu)
 }
 
 #[cfg(test)]

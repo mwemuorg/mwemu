@@ -172,45 +172,24 @@ pub fn resolve_api_name_in_module(emu: &mut emu::Emu, module: &str, name: &str) 
     resolved
 }
 
-fn resolve_api_name_in_module_inner(emu: &mut emu::Emu, module_lc: &str, name: &str) -> u64 {
-    let module_lc = module_lc.to_string();
-
-    if modules::is_api_set_contract(&module_lc) {
-        // 1) Try the apiset stub itself (host-side index first).
-        let addr = emu.export_indexes.resolve_name_in_module(&module_lc, name);
-        if addr != 0 {
-            return addr;
+fn resolve_api_name_in_module_inner(emu: &mut emu::Emu, module: &str, name: &str) -> u64 {
+    let mut modules = vec![module];
+    if modules::is_api_set_contract(module) {
+        modules.extend(modules::api_set_hosts(module));
+    }
+    for module in modules {
+        let address = emu.export_indexes.resolve_name_in_module(module, name);
+        if address != 0 {
+            return address;
         }
-        let addr = resolve_in_module_exports_depth(emu, &module_lc, name, 0);
-        if addr != 0 {
-            return addr;
-        }
-        // 2) The contract's host DLLs.
-        let fallback_modules = modules::api_set_hosts(&module_lc);
-        for m in fallback_modules {
-            // Index-first, scanner fallback.
-            let addr = emu.export_indexes.resolve_name_in_module(m, name);
-            if addr != 0 {
-                return addr;
-            }
-            let addr = resolve_in_module_exports_depth(emu, m, name, 0);
-            if addr != 0 {
-                return addr;
+        if emu.export_indexes.is_empty() && emu.maps.get_map_by_name("peb").is_some() {
+            let address = resolve_in_module_exports_depth(emu, module, name, 0);
+            if address != 0 {
+                return address;
             }
         }
-        return 0;
     }
-
-    // Index-first.
-    let addr = emu.export_indexes.resolve_name_in_module(&module_lc, name);
-    if addr != 0 {
-        return addr;
-    }
-    let addr = resolve_in_module_exports_depth(emu, &module_lc, name, 0);
-    if addr != 0 {
-        return addr;
-    }
-    resolve_api_name(emu, name)
+    0
 }
 
 /// Resolve a PE export forwarder string (`KERNELBASE.QueryPerformanceCounter`).
@@ -353,7 +332,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
     }
     // Same guard: a miss against a populated index is authoritative; never pay
     // the O(total exports) PEB walk when the registry is non-empty.
-    if !emu.export_indexes.is_empty() {
+    if !emu.export_indexes.is_empty() || emu.maps.get_map_by_name("peb").is_none() {
         // Fallback: the address may be a forwarded export (e.g. in .rdata) that
         // the export index doesn't cover, but IAT binding recorded the mapping.
         if let Some(pe64) = emu.pe64.as_ref() {

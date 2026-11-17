@@ -23,7 +23,7 @@ Use the console m command to see the memory maps.
 
 ## Banzai
 
-`--banzai` allows skipping Windows APIs without full or partial handlers in the emulator. See [Windows API fallback](WINDOWS_API.md) for details.
+`--api-mode strict|simulate-fail|simulate-optimistic` selects the unsupported Windows API policy (strict by default). `--banzai` remains a compatibility request for failure simulation; `--strict-api` forces strict behavior. See [Windows API fallback](WINDOWS_API.md) for details.
 
 ## Verbose
 

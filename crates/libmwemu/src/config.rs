@@ -68,7 +68,7 @@ pub struct Config {
     pub linux_real_libc: bool, // execute the real mapped libc/ld code, only intercept `syscall`
     pub skip_unimplemented: bool,
     #[serde(default)]
-    pub stop_on_unimplemented: bool, // stop at the first unimplemented winapi64 call
+    pub stop_on_unimplemented: bool, // compatibility flag: strict unsupported Windows API policy
     pub short_circuit_sleep: bool, // Sleep/Wait calls advance tick but return immediately
     #[serde(default)]
     pub realistic_tick: bool, // GetTickCount[64] move at 64 Hz and reading does not advance time
@@ -491,13 +491,13 @@ impl Config {
         self
     }
 
-    /// Skip unimplemented API calls instead of stopping.
+    /// Legacy Banzai setting; unsupported Windows APIs require a simulation recipe.
     pub fn set_skip_unimplemented(&mut self, enabled: bool) -> &mut Self {
         self.skip_unimplemented = enabled;
         self
     }
 
-    /// Stop emulation at the first unimplemented winapi64 call instead of
+    /// Force strict Windows API policy, including when simulation was requested, instead of
     /// continuing with an unset return value and unwritten out-parameters.
     pub fn set_stop_on_unimplemented(&mut self, enabled: bool) -> &mut Self {
         self.stop_on_unimplemented = enabled;

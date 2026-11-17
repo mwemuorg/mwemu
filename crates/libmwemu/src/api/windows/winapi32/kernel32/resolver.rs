@@ -46,29 +46,33 @@ pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
 }
 
 pub fn resolve_api_name_in_module(emu: &mut emu::Emu, module: &str, name: &str) -> u64 {
-    // API set DLL names (api-ms-win-*, ext-ms-*) are virtual contracts.
-    // Resolve by function name globally like 64-bit path does.
-    let module_lc = module.to_lowercase();
-    if modules::is_api_set_contract(&module_lc) {
-        let addr = emu.export_indexes.resolve_name_global(name);
-        if addr != 0 {
-            return addr;
+    let module = module.trim().to_ascii_lowercase();
+    let mut modules = vec![module.as_str()];
+    if modules::is_api_set_contract(&module) {
+        modules.extend(modules::api_set_hosts(&module));
+    }
+    for module in modules {
+        let address = emu.export_indexes.resolve_name_in_module(module, name);
+        if address != 0 {
+            return address;
         }
-        return resolve_api_name(emu, name);
+        if emu.export_indexes.is_empty() && emu.maps.get_map_by_name("peb").is_some() {
+            let address = resolve_in_module_exports(emu, module, name);
+            if address != 0 {
+                return address;
+            }
+        }
     }
+    0
+}
 
-    // Index-first (case-insensitive lookup handled by the registry).
-    let addr = emu.export_indexes.resolve_name_in_module(&module_lc, name);
-    if addr != 0 {
-        return addr;
-    }
-
+fn resolve_in_module_exports(emu: &mut emu::Emu, module: &str, name: &str) -> u64 {
     let mut flink = peb32::Flink::new(emu);
     flink.load(emu);
     let first_ptr = flink.get_ptr();
 
     loop {
-        if flink.mod_name.to_lowercase().contains(&module_lc) && flink.export_table_rva > 0 {
+        if modules::module_name_matches(&flink.mod_name, module) && flink.export_table_rva > 0 {
             for i in 0..flink.num_of_funcs {
                 if flink.pe_hdr == 0 {
                     continue;
@@ -226,7 +230,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u32) -> String {
     // Same guard as the winapi64 sibling: a miss against a populated index is
     // authoritative; skip the O(total exports) PEB walk when any module is
     // registered (loaders register every mapped module).
-    if !emu.export_indexes.is_empty() {
+    if !emu.export_indexes.is_empty() || emu.maps.get_map_by_name("peb").is_none() {
         return String::new();
     }
 

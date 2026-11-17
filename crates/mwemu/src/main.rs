@@ -4,6 +4,8 @@
 
 extern crate clap;
 
+use libmwemu::ApiMode;
+
 use clap::{App, Arg, ArgMatches};
 use libmwemu::emu::Emu;
 use libmwemu::emu_aarch64;
@@ -163,7 +165,8 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("stack_trace", "p", "stack_trace", "trace stack on push/pop"))
         .arg(clap_arg!("test_mode", "t", "test", "test mode"))
         .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
-        .arg(clap_arg!("strict_api", "", "strict-api", "stop at the first unimplemented 64bits API instead of continuing with an unset return value"))
+        .arg(clap_arg!("strict_api", "", "strict-api", "compatibility flag: stop at unsupported Windows APIs (the default)"))
+        .arg(Arg::with_name("api_mode").long("api-mode").takes_value(true).possible_values(&["strict", "simulate-fail", "simulate-optimistic"]).help("unsupported Windows API policy: strict (default), declared failure, or a reviewed optimistic model"))
         .arg(clap_arg!("realistic_tick", "", "realistic-tick", "GetTickCount/GetTickCount64 tick at 64 Hz (15.625 ms) and reading them does not advance time, like real Windows; by default every read advances the clock by 1 ms"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
         .arg(Arg::with_name("args")
@@ -420,6 +423,14 @@ fn main() -> process::ExitCode {
             .value_of("inspect")
             .expect("select the address in the way 'dword ptr [eax + 0xa]'")
             .to_string();
+    }
+
+    if let Some(mode) = matches.value_of("api_mode") {
+        emu.set_api_mode(match mode {
+            "simulate-fail" => ApiMode::SimulateFail,
+            "simulate-optimistic" => ApiMode::SimulateOptimistic,
+            _ => ApiMode::Strict,
+        });
     }
 
     if matches.is_present("strict_api") {

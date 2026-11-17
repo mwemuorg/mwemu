@@ -36,6 +36,7 @@ impl Emu {
     /// Call a 32bits function at addr, passing argument in an array of u64 but will cast to u32.
     /// The calling convention is stack, like winapi32.
     pub fn call32(&mut self, addr: u64, args: &[u32]) -> Result<u32, MwemuError> {
+        self.check_api_stop()?;
         if addr == self.regs().get_eip() {
             if addr == 0 {
                 return Err(MwemuError::new(
@@ -61,6 +62,7 @@ impl Emu {
     /// The calling convention is registers rcx/rdx/r8/r9 and then stack. Like windows64.
     /// Dont use for linux64 syscall like convention, for this is linux_call64()
     pub fn call64(&mut self, addr: u64, args: &[u64]) -> Result<u64, MwemuError> {
+        self.check_api_stop()?;
         if addr == self.regs().rip {
             if addr == 0 {
                 return Err(MwemuError::new(

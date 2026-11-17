@@ -1,4 +1,5 @@
 use crate::windows::constants::memory::*;
+use crate::windows::constants::process::DLL_PROCESS_ATTACH;
 use iced_x86::Register;
 
 use crate::arch::Arch;
@@ -26,6 +27,48 @@ mod pe_stub;
 pub(crate) mod pe_stub_exports;
 
 impl Emu {
+    /// Execute initialization under the same API policy as the entry point.
+    pub(crate) fn run_tls_callbacks(&mut self, base: u64) -> Result<(), MwemuError> {
+        self.check_api_stop()?;
+        const WIN64_SHADOW_SPACE: u64 = 4 * size_of::<u64>() as u64;
+        const WIN64_STACK_ALIGNMENT: u64 = 16;
+        for i in 0..self.tls_callbacks.len() {
+            self.check_api_stop()?;
+            let callback = self.tls_callbacks[i];
+            let saved_sp = self.sp();
+            log::trace!("emulating TLS callback {} at 0x{:x}", i + 1, callback);
+            let frame_written = if self.cfg.arch.is_64bits() {
+                let frame = (saved_sp & !(WIN64_STACK_ALIGNMENT - 1))
+                    .checked_sub(WIN64_SHADOW_SPACE)
+                    .ok_or_else(|| MwemuError::new("invalid TLS callback stack"))?;
+                self.set_sp(frame);
+                self.regs_mut().rcx = base;
+                self.regs_mut().rdx = DLL_PROCESS_ATTACH as u64;
+                self.regs_mut().r8 = 0;
+                self.stack_push64(base)
+            } else {
+                [0, DLL_PROCESS_ATTACH, base as u32, base as u32]
+                    .into_iter()
+                    .all(|value| self.stack_push32(value))
+            };
+            if !frame_written {
+                return Err(MwemuError::new("cannot write TLS callback frame"));
+            }
+            self.set_pc(callback);
+            let returned = self.run(Some(base))?;
+            self.check_api_stop()?;
+            if self.process_terminated || returned != base {
+                return Err(MwemuError::new(&format!(
+                    "TLS callback {} at 0x{:x} did not return",
+                    i + 1,
+                    callback
+                )));
+            }
+            self.set_sp(saved_sp);
+        }
+        Ok(())
+    }
+
     /// Classify a target the way `load_code` will, reporting whether it is a
     /// non-Windows guest (ELF or Mach-O) that needs no Windows system DLLs.
     /// Shellcode is, by definition, "none of the known formats" — it takes the
@@ -291,26 +334,7 @@ impl Emu {
             self.init_win32(clear_registers, clear_flags)?;
             let base = self.load_pe32(filename, true, 0)?.base as u32;
             let ep = self.regs().rip;
-            // TLS callbacks (stdcall): push Reserved, Reason, hModule, ret-addr
-            if !self.tls_callbacks.is_empty() {
-                let prev_skip = self.cfg.skip_unimplemented;
-                self.cfg.skip_unimplemented = true;
-                for i in 0..self.tls_callbacks.len() {
-                    let cb = self.tls_callbacks[i];
-                    log::trace!("emulating TLS callback {} at 0x{:x}", i + 1, cb);
-                    self.stack_push32(0); // lpvReserved
-                    self.stack_push32(1); // DLL_PROCESS_ATTACH
-                    self.stack_push32(base);
-                    self.stack_push32(base); // return address
-                    self.regs_mut().rip = cb;
-                    if let Err(e) = self.run(Some(base as u64)) {
-                        log::warn!("TLS callback {} at 0x{:x} failed: {}", i + 1, cb, e);
-                        break;
-                    }
-                }
-                self.cfg.skip_unimplemented = prev_skip;
-                self.process_terminated = false;
-            }
+            self.run_tls_callbacks(base as u64)?;
 
             // start loading dll
             // For a DLL's entry point, the OS calls DllMain with stdcall:
@@ -523,6 +547,7 @@ impl Emu {
                         self,
                     );
                     let _ = self.call64(ldr_init, &[ctx_addr, ntdll_base, 0]);
+                    self.check_api_stop()?;
                     self.ldr_init_done = true;
                     if self.process_terminated {
                         log::trace!(
@@ -663,35 +688,7 @@ impl Emu {
                     log::trace!("ssdt: could not resolve ntdll!LdrInitializeThunk");
                 }
             }
-            // Run the PE's TLS callbacks before the entry point. Win64 ABI:
-            //   rcx = hModule (image base), rdx = Reason = DLL_PROCESS_ATTACH (1),
-            //   r8  = Reserved (0).
-            // Trampoline: push the image base as the return address and run until
-            // the callback rets back to it. A callback that faults is logged and
-            // the rest are skipped rather than aborting the load.
-            //
-            // TLS callbacks are auto-injected CRT init that runs *before* the
-            // real entry point, so run them best-effort: unimplemented APIs are
-            // skipped (not fatal) during callbacks, then the caller's crash-on-gap
-            // policy is restored for the actual program.
-            if !self.tls_callbacks.is_empty() {
-                let prev_skip = self.cfg.skip_unimplemented;
-                self.cfg.skip_unimplemented = true;
-                for i in 0..self.tls_callbacks.len() {
-                    let cb = self.tls_callbacks[i];
-                    log::trace!("emulating TLS callback {} at 0x{:x}", i + 1, cb);
-                    self.regs_mut().rcx = base;
-                    self.regs_mut().rdx = 1;
-                    self.regs_mut().r8 = 0;
-                    self.stack_push64(base);
-                    self.regs_mut().rip = cb;
-                    if let Err(e) = self.run(Some(base)) {
-                        log::warn!("TLS callback {} at 0x{:x} failed: {}", i + 1, cb, e);
-                        break;
-                    }
-                }
-                self.cfg.skip_unimplemented = prev_skip;
-            }
+            self.run_tls_callbacks(base)?;
 
             // If LdrInitializeThunk bailed via NtTerminateProcess, do not
             // continue with the EXE entry point: ntdll's loader state is
