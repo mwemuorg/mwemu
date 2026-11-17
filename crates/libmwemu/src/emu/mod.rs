@@ -170,10 +170,10 @@ pub struct Emu {
     pub(crate) kernel_guard: bool,
     pub(crate) security_cookie_va: u64, // VA of __security_cookie (from PE Load Config)
     pub(crate) last_cmp: (u64, u64, u64, u64), // (pos, ip, left, right) of last cmp instruction
-    pub(crate) last_sub: (u64, u64, u64, u64), // (pos, ip, left, right) of last sub instruction
-    pub(crate) last_ret: (u64, u64),    // (pos, ip) of the last ret instruction executed
+    pub(crate) last_flag_op: (u64, u64, u64, u64, &'static str), // (pos, ip, left, right, mnemonic) of last sub/test/xor
+    pub(crate) last_ret: (u64, u64), // (pos, ip) of the last ret instruction executed
     pub(crate) tls_callbacks: Vec<u64>, // PE TLS callback addresses
-    pub(crate) library_loaded: bool,    // flag for GDB to detect library load events
+    pub(crate) library_loaded: bool, // flag for GDB to detect library load events
 
     // --- Thread management ---
     pub(crate) threads: Vec<ThreadContext>,

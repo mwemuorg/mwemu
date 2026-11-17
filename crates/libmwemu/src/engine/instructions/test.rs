@@ -28,6 +28,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
 
     let sz = emu.get_operand_sz(ins, 0);
 
+    emu.last_flag_op = (
+        emu.pos,
+        emu.pc() - instruction_sz as u64,
+        value0,
+        value1,
+        "test",
+    );
     emu.flags_overwrite_mut().test(value0, value1, sz);
     true
 }

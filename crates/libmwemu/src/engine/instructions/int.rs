@@ -91,14 +91,15 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                     if let Some(cookie) = emu.read_security_cookie() {
                         log::info!("  __security_cookie = 0x{:x}", cookie);
                     }
-                    let (sub_pos, sub_ip, sub_left, sub_right) = emu.last_sub;
-                    if sub_pos > cmp_pos {
+                    let (fop_pos, fop_ip, fop_left, fop_right, fop_name) = emu.last_flag_op;
+                    if fop_pos > cmp_pos && !fop_name.is_empty() {
                         log::info!(
-                            "  last sub: 0x{:x} - 0x{:x} (at pos:{} rip:0x{:x}) — MORE RECENT than cmp",
-                            sub_left,
-                            sub_right,
-                            sub_pos,
-                            sub_ip
+                            "  last {}: 0x{:x}, 0x{:x} (at pos:{} rip:0x{:x}) — MORE RECENT than cmp",
+                            fop_name,
+                            fop_left,
+                            fop_right,
+                            fop_pos,
+                            fop_ip
                         );
                     }
                     log::info!("  ZF={} at int 0x29", emu.flag_zf());

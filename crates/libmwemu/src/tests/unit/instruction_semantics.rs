@@ -1971,9 +1971,9 @@ fn bnd_jne_respects_zf() {
     assert_eq!(emu.pc(), pc_jne + 3 + 4, "bnd jne must jump when ZF=0");
 }
 
-/// `sub rax, [rdi]` must record operands in `last_sub`.
+/// `sub rax, [rdi]` must record operands in `last_flag_op`.
 #[test]
-fn sub_records_last_sub() {
+fn sub_records_last_flag_op() {
     // sub rax, [rdi]  →  48 2B 07
     let code: &[u8] = &[0x48, 0x2B, 0x07];
     let mut emu = prepare(true, code);
@@ -1981,8 +1981,9 @@ fn sub_records_last_sub() {
     emu.maps.write_qword(DATA, 0x50);
 
     assert!(emu.step());
-    assert_eq!(emu.last_sub.2, 0x100, "last_sub left");
-    assert_eq!(emu.last_sub.3, 0x50, "last_sub right");
+    assert_eq!(emu.last_flag_op.2, 0x100, "left operand");
+    assert_eq!(emu.last_flag_op.3, 0x50, "right operand");
+    assert_eq!(emu.last_flag_op.4, "sub", "mnemonic");
     assert_eq!(emu.regs().rax, 0xB0, "sub result");
     assert!(!emu.flag_zf(), "ZF clear when result != 0");
 }
@@ -1997,17 +1998,65 @@ fn sub_equal_sets_zf() {
     emu.maps.write_qword(DATA, 0xDEAD);
 
     assert!(emu.step());
-    assert_eq!(emu.last_sub.2, 0xDEAD);
-    assert_eq!(emu.last_sub.3, 0xDEAD);
+    assert_eq!(emu.last_flag_op.2, 0xDEAD);
+    assert_eq!(emu.last_flag_op.3, 0xDEAD);
+    assert_eq!(emu.last_flag_op.4, "sub");
     assert_eq!(emu.regs().rax, 0);
     assert!(emu.flag_zf(), "ZF must be set when sub result is 0");
 }
 
-/// When a `sub` follows a `cmp`, `last_sub` must be more recent than
-/// `last_cmp` — this is the diagnostic that reveals cookie check bugs
-/// where the branch is decided by `sub`, not `cmp`.
+/// `test rax, rax` must record operands in `last_flag_op`.
 #[test]
-fn last_sub_more_recent_than_last_cmp() {
+fn test_records_last_flag_op() {
+    // test rax, rax  →  48 85 C0
+    let code: &[u8] = &[0x48, 0x85, 0xC0];
+    let mut emu = prepare(true, code);
+    emu.regs_mut().rax = 0xFF;
+
+    assert!(emu.step());
+    assert_eq!(emu.last_flag_op.2, 0xFF);
+    assert_eq!(emu.last_flag_op.3, 0xFF);
+    assert_eq!(emu.last_flag_op.4, "test");
+    assert!(!emu.flag_zf(), "test 0xFF,0xFF → ZF=0 (result != 0)");
+}
+
+/// `test rax, rax` with rax=0 sets ZF=1.
+#[test]
+fn test_zero_sets_zf() {
+    // test rax, rax  →  48 85 C0
+    let code: &[u8] = &[0x48, 0x85, 0xC0];
+    let mut emu = prepare(true, code);
+    emu.regs_mut().rax = 0;
+
+    assert!(emu.step());
+    assert_eq!(emu.last_flag_op.4, "test");
+    assert!(emu.flag_zf(), "test 0,0 → ZF=1");
+}
+
+/// `xor rcx, [rdi]` must record operands in `last_flag_op`.
+/// Pattern: `xor rcx, [cookie]; jnz fail` is an alternative cookie check.
+#[test]
+fn xor_records_last_flag_op() {
+    // xor rcx, [rdi]  →  48 33 0F
+    let code: &[u8] = &[0x48, 0x33, 0x0F];
+    let cookie: u64 = 0x4d57_454d_5521_4d57;
+    let mut emu = prepare(true, code);
+    emu.regs_mut().rcx = cookie;
+    emu.maps.write_qword(DATA, cookie);
+
+    assert!(emu.step());
+    assert_eq!(emu.last_flag_op.2, cookie);
+    assert_eq!(emu.last_flag_op.3, cookie);
+    assert_eq!(emu.last_flag_op.4, "xor");
+    assert_eq!(emu.regs().rcx, 0, "xor equal values → 0");
+    assert!(emu.flag_zf(), "xor equal values → ZF=1");
+}
+
+/// When a flag-setting op follows a `cmp`, `last_flag_op` must be more
+/// recent — this is the diagnostic that reveals cookie check bugs where
+/// the branch is decided by sub/test/xor, not `cmp`.
+#[test]
+fn last_flag_op_more_recent_than_last_cmp() {
     // cmp rax, rbx     →  48 39 D8
     // sub rcx, [rdi]   →  48 2B 0F
     let code: &[u8] = &[0x48, 0x39, 0xD8, 0x48, 0x2B, 0x0F];
@@ -2022,11 +2071,12 @@ fn last_sub_more_recent_than_last_cmp() {
     assert!(emu.flag_zf(), "cmp 1,1 → ZF=1");
 
     assert!(emu.step()); // sub rcx, [rdi]
-    let sub_pos = emu.last_sub.0;
+    let fop_pos = emu.last_flag_op.0;
     assert!(
-        sub_pos > cmp_pos,
-        "last_sub.pos ({sub_pos}) must be > last_cmp.pos ({cmp_pos})"
+        fop_pos > cmp_pos,
+        "last_flag_op.pos ({fop_pos}) must be > last_cmp.pos ({cmp_pos})"
     );
+    assert_eq!(emu.last_flag_op.4, "sub");
     assert!(!emu.flag_zf(), "sub 10-3 → ZF=0 (result 7)");
     assert_eq!(emu.regs().rcx, 7);
 }
