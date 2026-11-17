@@ -102,6 +102,7 @@ impl Emu {
             kernel_guard: false,
             security_cookie_va: 0,
             last_cmp: (0, 0, 0, 0),
+            last_sub: (0, 0, 0, 0),
             last_ret: (0, 0),
             memory_operations: vec![],
             rep: None,

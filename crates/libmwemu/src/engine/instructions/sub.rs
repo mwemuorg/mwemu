@@ -18,6 +18,8 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         None => return false,
     };
 
+    emu.last_sub = (emu.pos, emu.pc() - instruction_sz as u64, value0, value1);
+
     let res: u64 = match emu.get_operand_sz(ins, 0) {
         64 => emu.flags_overwrite_mut().sub64(value0, value1),
         32 => emu.flags_overwrite_mut().sub32(value0, value1),

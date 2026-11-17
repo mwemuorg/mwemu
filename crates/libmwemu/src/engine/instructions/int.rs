@@ -82,7 +82,7 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                         }
                     }
                     log::info!(
-                        "  cookie: 0x{:x} vs 0x{:x} (cmp at pos:{} 0x{:x})",
+                        "  last cmp: 0x{:x} vs 0x{:x} (at pos:{} rip:0x{:x})",
                         cmp_left,
                         cmp_right,
                         cmp_pos,
@@ -90,6 +90,22 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                     );
                     if let Some(cookie) = emu.read_security_cookie() {
                         log::info!("  __security_cookie = 0x{:x}", cookie);
+                    }
+                    let (sub_pos, sub_ip, sub_left, sub_right) = emu.last_sub;
+                    if sub_pos > cmp_pos {
+                        log::info!(
+                            "  last sub: 0x{:x} - 0x{:x} (at pos:{} rip:0x{:x}) — MORE RECENT than cmp",
+                            sub_left,
+                            sub_right,
+                            sub_pos,
+                            sub_ip
+                        );
+                    }
+                    log::info!("  ZF={} at int 0x29", emu.flag_zf());
+                    if cmp_left == cmp_right {
+                        log::warn!(
+                            "  last cmp had EQUAL operands but __fastfail fired — the branch was likely decided by a different instruction (sub/test/xor)"
+                        );
                     }
                     let cookie_check_fn = emu.resolve_function_range(cmp_ip);
                     for (call_site, target) in cs.iter() {
@@ -112,8 +128,14 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
                 if emu.kernel_driver_active() {
                     let mut reason = format!("__fastfail({}) {}", code, fastfail_name(code));
                     if code == 2 {
-                        let (_, _, left, right) = emu.last_cmp;
-                        reason.push_str(&format!(" cmp 0x{:x} vs 0x{:x}", left, right));
+                        let (cmp_pos, cmp_ip, left, right) = emu.last_cmp;
+                        reason.push_str(&format!(
+                            " cmp 0x{:x} vs 0x{:x} (cmp at 0x{:x}, {} steps ago)",
+                            left,
+                            right,
+                            cmp_ip,
+                            emu.pos.saturating_sub(cmp_pos)
+                        ));
                     }
                     emu.kernel_abort(reason);
                 } else {

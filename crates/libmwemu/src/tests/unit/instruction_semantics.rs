@@ -1877,3 +1877,156 @@ fn alternating_float_operations_share_lane_order_and_x86_nan_results() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// last_cmp / last_sub tracking + cmp-then-jne flag correctness
+// ---------------------------------------------------------------------------
+
+/// `cmp rax, [rdi]` with equal operands must set ZF=1, record both values in
+/// `last_cmp`, and a following `jne` must NOT jump.
+#[test]
+fn cmp_equal_sets_zf_and_jne_not_taken() {
+    // cmp rax, [rdi]  →  48 3B 07
+    // jne +0x10       →  75 10
+    let code: &[u8] = &[0x48, 0x3B, 0x07, 0x75, 0x10];
+    let mut emu = prepare(true, code);
+    let cookie: u64 = 0x4d57_454d_5521_4d57;
+    emu.regs_mut().rax = cookie;
+    emu.maps.write_qword(DATA, cookie);
+    let pc = emu.pc();
+
+    // step the cmp
+    assert!(emu.step());
+    assert_eq!(emu.last_cmp.2, cookie, "last_cmp left");
+    assert_eq!(emu.last_cmp.3, cookie, "last_cmp right");
+    assert!(
+        emu.flag_zf(),
+        "ZF must be set after cmp with equal operands"
+    );
+
+    // step the jne — should NOT be taken (ZF=1)
+    let pc_after_cmp = emu.pc();
+    assert!(emu.step());
+    assert_eq!(
+        emu.pc(),
+        pc_after_cmp + 2,
+        "jne must fall through when ZF=1"
+    );
+}
+
+/// `cmp rax, [rdi]` with different operands must clear ZF and a following
+/// `jne` must jump.
+#[test]
+fn cmp_unequal_clears_zf_and_jne_taken() {
+    // cmp rax, [rdi]  →  48 3B 07
+    // jne +0x04       →  75 04
+    let code: &[u8] = &[0x48, 0x3B, 0x07, 0x75, 0x04];
+    let mut emu = prepare(true, code);
+    emu.regs_mut().rax = 0xAAAA;
+    emu.maps.write_qword(DATA, 0xBBBB);
+    let pc = emu.pc();
+
+    assert!(emu.step()); // cmp
+    assert_eq!(emu.last_cmp.2, 0xAAAA);
+    assert_eq!(emu.last_cmp.3, 0xBBBB);
+    assert!(
+        !emu.flag_zf(),
+        "ZF must be clear after cmp with different operands"
+    );
+
+    let pc_after_cmp = emu.pc();
+    assert!(emu.step()); // jne — should jump
+    // target = pc_after_cmp + 2 (len of jne) + 0x04 (rel8)
+    assert_eq!(emu.pc(), pc_after_cmp + 2 + 4, "jne must jump when ZF=0");
+}
+
+/// `bnd jne` (F2-prefixed jne) must behave identically to plain `jne`.
+#[test]
+fn bnd_jne_respects_zf() {
+    // cmp rax, [rdi]      →  48 3B 07
+    // bnd jne +0x04       →  F2 75 04
+    let code_equal: &[u8] = &[0x48, 0x3B, 0x07, 0xF2, 0x75, 0x04];
+    let cookie: u64 = 0x4d57_454d_5521_4d57;
+
+    // --- equal: bnd jne must NOT jump ---
+    let mut emu = prepare(true, code_equal);
+    emu.regs_mut().rax = cookie;
+    emu.maps.write_qword(DATA, cookie);
+
+    assert!(emu.step()); // cmp
+    assert!(emu.flag_zf());
+    let pc_jne = emu.pc();
+    assert!(emu.step()); // bnd jne — not taken
+    assert_eq!(emu.pc(), pc_jne + 3, "bnd jne must fall through when ZF=1");
+
+    // --- unequal: bnd jne must jump ---
+    let mut emu = prepare(true, code_equal);
+    emu.regs_mut().rax = 0x1111;
+    emu.maps.write_qword(DATA, 0x2222);
+
+    assert!(emu.step()); // cmp
+    assert!(!emu.flag_zf());
+    let pc_jne = emu.pc();
+    assert!(emu.step()); // bnd jne — taken
+    assert_eq!(emu.pc(), pc_jne + 3 + 4, "bnd jne must jump when ZF=0");
+}
+
+/// `sub rax, [rdi]` must record operands in `last_sub`.
+#[test]
+fn sub_records_last_sub() {
+    // sub rax, [rdi]  →  48 2B 07
+    let code: &[u8] = &[0x48, 0x2B, 0x07];
+    let mut emu = prepare(true, code);
+    emu.regs_mut().rax = 0x100;
+    emu.maps.write_qword(DATA, 0x50);
+
+    assert!(emu.step());
+    assert_eq!(emu.last_sub.2, 0x100, "last_sub left");
+    assert_eq!(emu.last_sub.3, 0x50, "last_sub right");
+    assert_eq!(emu.regs().rax, 0xB0, "sub result");
+    assert!(!emu.flag_zf(), "ZF clear when result != 0");
+}
+
+/// `sub` with equal operands sets ZF=1 (same semantics as `cmp`).
+#[test]
+fn sub_equal_sets_zf() {
+    // sub rax, [rdi]  →  48 2B 07
+    let code: &[u8] = &[0x48, 0x2B, 0x07];
+    let mut emu = prepare(true, code);
+    emu.regs_mut().rax = 0xDEAD;
+    emu.maps.write_qword(DATA, 0xDEAD);
+
+    assert!(emu.step());
+    assert_eq!(emu.last_sub.2, 0xDEAD);
+    assert_eq!(emu.last_sub.3, 0xDEAD);
+    assert_eq!(emu.regs().rax, 0);
+    assert!(emu.flag_zf(), "ZF must be set when sub result is 0");
+}
+
+/// When a `sub` follows a `cmp`, `last_sub` must be more recent than
+/// `last_cmp` — this is the diagnostic that reveals cookie check bugs
+/// where the branch is decided by `sub`, not `cmp`.
+#[test]
+fn last_sub_more_recent_than_last_cmp() {
+    // cmp rax, rbx     →  48 39 D8
+    // sub rcx, [rdi]   →  48 2B 0F
+    let code: &[u8] = &[0x48, 0x39, 0xD8, 0x48, 0x2B, 0x0F];
+    let mut emu = prepare(true, code);
+    emu.regs_mut().rax = 1;
+    emu.regs_mut().rbx = 1;
+    emu.regs_mut().rcx = 10;
+    emu.maps.write_qword(DATA, 3);
+
+    assert!(emu.step()); // cmp rax, rbx
+    let cmp_pos = emu.last_cmp.0;
+    assert!(emu.flag_zf(), "cmp 1,1 → ZF=1");
+
+    assert!(emu.step()); // sub rcx, [rdi]
+    let sub_pos = emu.last_sub.0;
+    assert!(
+        sub_pos > cmp_pos,
+        "last_sub.pos ({sub_pos}) must be > last_cmp.pos ({cmp_pos})"
+    );
+    assert!(!emu.flag_zf(), "sub 10-3 → ZF=0 (result 7)");
+    assert_eq!(emu.regs().rcx, 7);
+}
