@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn PathCchAddExtension(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let cch_path = emu.regs().rdx as usize;
-    let ext_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
+    let cch_path = api_try!(emu, call.arg(emu, 1)) as usize;
+    let ext_ptr = api_try!(emu, call.arg(emu, 2));
     let path = emu.maps.read_wide_string(path_ptr);
     let ext = emu.maps.read_wide_string(ext_ptr);
     let result_path = if path.contains('.') {
@@ -24,5 +27,5 @@ pub fn PathCchAddExtension(emu: &mut emu::Emu) {
         ext,
         result_path
     );
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

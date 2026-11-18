@@ -1,7 +1,9 @@
 use super::allocate_memory;
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 
 pub(super) fn __p___argv(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     log_red!(emu, "wincrt!__p___argv");
 
     // First, allocate space for argv array (pointer array)
@@ -10,7 +12,7 @@ pub(super) fn __p___argv(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             log::error!("wincrt!__p___argv cannot allocate argv array");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -21,7 +23,7 @@ pub(super) fn __p___argv(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             log::error!("wincrt!__p___argv cannot allocate program name");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -40,7 +42,7 @@ pub(super) fn __p___argv(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             log::error!("wincrt!__p___argv cannot allocate p_argv");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -49,5 +51,5 @@ pub(super) fn __p___argv(emu: &mut emu::Emu) {
     emu.maps.write_qword(p_argv_addr, argv_array_addr);
 
     // Return pointer to argv
-    emu.regs_mut().rax = p_argv_addr;
+    call.set_return(emu, p_argv_addr);
 }

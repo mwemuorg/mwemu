@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{ArgumentError, CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::winapi::profile_store;
 
 // Profile ("INI") APIs over profile_store. The non-private variants work on
@@ -84,12 +85,13 @@ pub fn GetProfileIntW(emu: &mut emu::Emu) {
 /// stored value (or lpDefault) truncated to nSize - 1 characters plus the NUL,
 /// and returns the characters copied.
 fn get_string(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
-    let section = opt_text(emu, emu.regs().rcx, wide);
-    let key = opt_text(emu, emu.regs().rdx, wide);
-    let default = opt_text(emu, emu.regs().r8, wide).unwrap_or_default();
-    let out = emu.regs().r9;
-    let size = WinApiAbi::arg(emu, 4) & 0xffff_ffff;
-    let file = profile_file(emu, private, wide);
+    let call = WinApi(Stdcall);
+    let section = opt_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let key = opt_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
+    let default = opt_text(emu, api_try!(emu, call.arg(emu, 2)), wide).unwrap_or_default();
+    let out = api_try!(emu, call.arg(emu, 3));
+    let size = api_try!(emu, call.arg(emu, 4)) & 0xffff_ffff;
+    let file = api_try!(emu, profile_file(emu, private, wide));
 
     // section / key enumeration (NULL names) is not modelled: answer the default
     let value = match (&section, &key) {
@@ -109,21 +111,23 @@ fn get_string(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
     );
 
     if out == 0 || size == 0 {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
     let copied: String = value.chars().take(size as usize - 1).collect();
     write_text_z(emu, out, &copied, wide);
-    emu.regs_mut().rax = copied.chars().count() as u64;
+    call.set_return(emu, copied.chars().count() as u64);
 }
 
 /// Shared body of WriteProfileString / WritePrivateProfileString.
 fn write_string(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
-    let section = opt_text(emu, emu.regs().rcx, wide);
-    let key = opt_text(emu, emu.regs().rdx, wide);
-    let value = opt_text(emu, emu.regs().r8, wide);
+    let call = WinApi(Stdcall);
+    let section = opt_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let key = opt_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
+    let value = opt_text(emu, api_try!(emu, call.arg(emu, 2)), wide);
     let file = if private {
-        opt_text(emu, emu.regs().r9, wide).unwrap_or_else(|| profile_store::WIN_INI.to_string())
+        opt_text(emu, api_try!(emu, call.arg(emu, 3)), wide)
+            .unwrap_or_else(|| profile_store::WIN_INI.to_string())
     } else {
         profile_store::WIN_INI.to_string()
     };
@@ -142,17 +146,19 @@ fn write_string(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
     if let Some(section) = section {
         profile_store::write(&file, &section, key.as_deref(), value.as_deref());
     }
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 /// Shared body of GetProfileInt / GetPrivateProfileInt: nDefault when the key
 /// is missing, else the leading decimal digits of the value (0 if none).
 fn get_int(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
-    let section = opt_text(emu, emu.regs().rcx, wide);
-    let key = opt_text(emu, emu.regs().rdx, wide);
-    let default = emu.regs().r8 & 0xffff_ffff;
+    let call = WinApi(Stdcall);
+    let section = opt_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let key = opt_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
+    let default = api_try!(emu, call.arg(emu, 2)) & 0xffff_ffff;
     let file = if private {
-        opt_text(emu, emu.regs().r9, wide).unwrap_or_else(|| profile_store::WIN_INI.to_string())
+        opt_text(emu, api_try!(emu, call.arg(emu, 3)), wide)
+            .unwrap_or_else(|| profile_store::WIN_INI.to_string())
     } else {
         profile_store::WIN_INI.to_string()
     };
@@ -175,13 +181,14 @@ fn get_int(emu: &mut emu::Emu, api: &str, wide: bool, private: bool) {
         key,
         value
     );
-    emu.regs_mut().rax = value;
+    call.set_return(emu, value);
 }
 
 /// Filename argument for private profile APIs, win.ini otherwise.
-fn profile_file(emu: &mut emu::Emu, private: bool, wide: bool) -> String {
-    let ptr = if private { WinApiAbi::arg(emu, 5) } else { 0 };
-    opt_text(emu, ptr, wide).unwrap_or_else(|| profile_store::WIN_INI.to_string())
+fn profile_file(emu: &mut emu::Emu, private: bool, wide: bool) -> Result<String, ArgumentError> {
+    let call = WinApi(Stdcall);
+    let ptr = if private { call.arg(emu, 5)? } else { 0 };
+    Ok(opt_text(emu, ptr, wide).unwrap_or_else(|| profile_store::WIN_INI.to_string()))
 }
 
 fn parse_leading_int(text: &str) -> u64 {

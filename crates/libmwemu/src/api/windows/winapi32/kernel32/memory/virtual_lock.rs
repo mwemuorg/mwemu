@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn VirtualLock(emu: &mut emu::Emu) {
-    let lp_address = WinApiAbi::arg(emu, 0);
-    let dw_size = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let lp_address = api_try!(emu, call.arg(emu, 0));
+    let dw_size = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -12,9 +14,8 @@ pub fn VirtualLock(emu: &mut emu::Emu) {
         dw_size
     );
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
     // Return TRUE
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

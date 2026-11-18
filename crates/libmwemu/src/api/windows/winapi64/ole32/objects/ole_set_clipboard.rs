@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn OleSetClipboard(emu: &mut emu::Emu) {
-    let pdata_obj = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let pdata_obj = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ole32!OleSetClipboard pDataObj:0x{:x}", pdata_obj);
     if pdata_obj != 0 {
         let _ = helper::handler_create("OleClipboard");
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn str(emu: &mut emu::Emu) {
-    let s_ptr = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Cdecl);
+    let s_ptr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_string(s_ptr);
     log_red!(emu, "msvcrt!str 0x{:x} '{}'", s_ptr, s);
 
-    emu.regs_mut().rax = s_ptr;
+    call.set_return(emu, s_ptr);
 }

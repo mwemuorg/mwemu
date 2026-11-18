@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptGetProperty(emu: &mut emu::Emu) {
-    let h_object = emu.regs().rcx;
-    let psz_property = emu.regs().rdx;
-    let pb_output = emu.regs().r8;
-    let cb_output = emu.regs().r9 as usize;
-    let pcb_result = WinApiAbi::arg(emu, 4);
-    let flags = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let h_object = api_try!(emu, call.arg(emu, 0));
+    let psz_property = api_try!(emu, call.arg(emu, 1));
+    let pb_output = api_try!(emu, call.arg(emu, 2));
+    let cb_output = api_try!(emu, call.arg(emu, 3)) as usize;
+    let pcb_result = api_try!(emu, call.arg(emu, 4));
+    let flags = api_try!(emu, call.arg(emu, 5));
 
     let prop_name = emu.maps.read_wide_string(psz_property);
 
@@ -51,5 +53,5 @@ pub fn BCryptGetProperty(emu: &mut emu::Emu) {
         value
     );
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }

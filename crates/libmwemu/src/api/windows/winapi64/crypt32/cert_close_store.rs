@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CertCloseStore(emu: &mut emu::Emu) {
-    let h_store = emu.regs().rcx;
-    let flags = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let h_store = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -13,5 +16,5 @@ pub fn CertCloseStore(emu: &mut emu::Emu) {
     );
 
     helper::handler_close(h_store);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

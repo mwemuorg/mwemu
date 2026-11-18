@@ -1,20 +1,23 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CoDecodeProxy(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
-    let arg3 = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
+    let arg3 = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "ole32!CoDecodeProxy arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );
-    let src = emu.regs().rcx;
+    let src = api_try!(emu, call.arg(emu, 0));
     if src != 0 && emu.maps.is_mapped(src) {
         let _input = emu.maps.read_string(src);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
     for _ in 0..1 {}
 }

@@ -1,9 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::sections;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -21,9 +21,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn NtWriteFile(emu: &mut emu::Emu) {
-    let handle = arg(emu, 0);
-    let buffer = arg(emu, 5) as u64;
-    let length = arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg_u32(emu, 0));
+    let buffer = api_try!(emu, call.arg_u32(emu, 5)) as u64;
+    let length = api_try!(emu, call.arg_u32(emu, 6));
     log_red!(
         emu,
         "ntdll!NtWriteFile handle:0x{:x} buf:0x{:x} len:{}",
@@ -31,15 +32,16 @@ fn NtWriteFile(emu: &mut emu::Emu) {
         buffer,
         length
     );
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 9);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 9);
 }
 
 fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
-    let dos_path_name_ptr = WinApiAbi::arg(emu, 0);
-    let nt_path_name_ptr = WinApiAbi::arg(emu, 1);
-    let nt_file_name_part_ptr = WinApiAbi::arg(emu, 2) as u32;
-    let curdir_ptr = WinApiAbi::arg(emu, 3); // DirectoryInfo
+    let call = WinApi(Stdcall);
+    let dos_path_name_ptr = api_try!(emu, call.arg(emu, 0));
+    let nt_path_name_ptr = api_try!(emu, call.arg(emu, 1));
+    let nt_file_name_part_ptr = api_try!(emu, call.arg_u32(emu, 2));
+    let curdir_ptr = api_try!(emu, call.arg(emu, 3)); // DirectoryInfo
 
     let dos_path_name = emu.maps.read_wide_string(dos_path_name_ptr);
 
@@ -120,10 +122,7 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
         }
     }
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 4);
 }
 
 /*
@@ -142,17 +141,18 @@ __kernel_entry NTSTATUS NtCreateFile(
 );
 */
 fn NtCreateFile(emu: &mut emu::Emu) {
-    let out_handle_ptr = WinApiAbi::arg(emu, 0);
-    let access_mask = WinApiAbi::arg(emu, 1) as u32;
-    let oattrib = WinApiAbi::arg(emu, 2);
-    let iostat = WinApiAbi::arg(emu, 3) as u32;
-    let alloc_sz = WinApiAbi::arg(emu, 4) as u32;
-    let fattrib = WinApiAbi::arg(emu, 5) as u32;
-    let share_access = WinApiAbi::arg(emu, 6) as u32;
-    let create_disp = WinApiAbi::arg(emu, 7) as u32;
-    let create_opt = WinApiAbi::arg(emu, 8) as u32;
-    let ea_buff = WinApiAbi::arg(emu, 9) as u32;
-    let ea_len = WinApiAbi::arg(emu, 10) as u32;
+    let call = WinApi(Stdcall);
+    let out_handle_ptr = api_try!(emu, call.arg(emu, 0));
+    let access_mask = api_try!(emu, call.arg_u32(emu, 1));
+    let oattrib = api_try!(emu, call.arg(emu, 2));
+    let iostat = api_try!(emu, call.arg_u32(emu, 3));
+    let alloc_sz = api_try!(emu, call.arg_u32(emu, 4));
+    let fattrib = api_try!(emu, call.arg_u32(emu, 5));
+    let share_access = api_try!(emu, call.arg_u32(emu, 6));
+    let create_disp = api_try!(emu, call.arg_u32(emu, 7));
+    let create_opt = api_try!(emu, call.arg_u32(emu, 8));
+    let ea_buff = api_try!(emu, call.arg_u32(emu, 9));
+    let ea_len = api_try!(emu, call.arg_u32(emu, 10));
 
     let obj_name_ptr = emu.maps.read_dword(oattrib + 8).unwrap_or(0) as u64;
     let filename = emu.maps.read_wide_string(obj_name_ptr);
@@ -164,40 +164,37 @@ fn NtCreateFile(emu: &mut emu::Emu) {
             .write_dword(out_handle_ptr, helper::handler_create(&filename) as u32);
     }
 
-    for _ in 0..11 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 11);
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn RtlFreeHeap(emu: &mut emu::Emu) {
-    let handle = WinApiAbi::arg(emu, 0);
-    let flags = WinApiAbi::arg(emu, 1) as u32;
-    let base_addr = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let base_addr = api_try!(emu, call.arg(emu, 2));
 
     log_red!(emu, "ntdll!RtlFreeHeap 0x{}", base_addr);
 
     helper::handler_close(handle);
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 3);
 
     let name = emu.maps.get_addr_name(base_addr).unwrap_or("").to_string();
     if name.is_empty() {
         if emu.cfg.verbose >= 1 {
             log::trace!("map not allocated, so cannot free it.");
         }
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
     if name.starts_with("alloc_") {
         emu.maps.dealloc(base_addr);
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         if emu.cfg.verbose >= 1 {
             log::trace!("trying to free a systems map {}", name);
         }
@@ -205,31 +202,31 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
 }
 
 fn NtQueryInformationFile(emu: &mut emu::Emu) {
-    let handle = WinApiAbi::arg(emu, 0);
-    let stat = WinApiAbi::arg(emu, 1) as u32;
-    let fileinfo = WinApiAbi::arg(emu, 2) as u32;
-    let len = WinApiAbi::arg(emu, 3) as u32;
-    let fileinfocls = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let stat = api_try!(emu, call.arg_u32(emu, 1));
+    let fileinfo = api_try!(emu, call.arg_u32(emu, 2));
+    let len = api_try!(emu, call.arg_u32(emu, 3));
+    let fileinfocls = api_try!(emu, call.arg_u32(emu, 4));
 
     log_red!(emu, "ntdll!NtQueryInformationFile");
 
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 5);
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn NtReadFile(emu: &mut emu::Emu) {
-    let file_hndl = WinApiAbi::arg(emu, 0);
-    let ev_hndl = WinApiAbi::arg(emu, 1);
-    let apc_rout = WinApiAbi::arg(emu, 2) as u32;
-    let apc_ctx = WinApiAbi::arg(emu, 3) as u32;
-    let stat = WinApiAbi::arg(emu, 4) as u32;
-    let buff = WinApiAbi::arg(emu, 5);
-    let len = WinApiAbi::arg(emu, 6) as usize;
-    let off = WinApiAbi::arg(emu, 7) as u32;
-    let key = WinApiAbi::arg(emu, 8) as u32;
+    let call = WinApi(Stdcall);
+    let file_hndl = api_try!(emu, call.arg(emu, 0));
+    let ev_hndl = api_try!(emu, call.arg(emu, 1));
+    let apc_rout = api_try!(emu, call.arg_u32(emu, 2));
+    let apc_ctx = api_try!(emu, call.arg_u32(emu, 3));
+    let stat = api_try!(emu, call.arg_u32(emu, 4));
+    let buff = api_try!(emu, call.arg(emu, 5));
+    let len = api_try!(emu, call.arg(emu, 6)) as usize;
+    let off = api_try!(emu, call.arg_u32(emu, 7));
+    let key = api_try!(emu, call.arg_u32(emu, 8));
 
     let file = helper::handler_get_uri(file_hndl);
 
@@ -242,39 +239,39 @@ fn NtReadFile(emu: &mut emu::Emu) {
         off
     );
 
-    for _ in 0..9 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 9);
 
     emu.maps.memset(buff, 0x90, len);
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn NtClose(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
 
     let uri = helper::handler_get_uri(hndl);
     log_red!(emu, "ntdll!NtClose hndl: 0x{:x} uri: {}", hndl, uri);
     if sections::close(emu, hndl) {
-        emu.stack_pop32(false);
-        emu.regs_mut().rax = STATUS_SUCCESS;
+        call.cleanup_args(emu, 1);
+        call.set_return(emu, STATUS_SUCCESS);
         return;
     }
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 
     if uri.is_empty() {
-        emu.regs_mut().rax = STATUS_INVALID_HANDLE;
+        call.set_return(emu, STATUS_INVALID_HANDLE);
     } else {
-        emu.regs_mut().rax = STATUS_SUCCESS;
+        call.set_return(emu, STATUS_SUCCESS);
     }
 }
 
 fn NtSetInformationFile(emu: &mut emu::Emu) {
-    let handle = arg(emu, 0);
-    let length = arg(emu, 3);
-    let info_class = arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg_u32(emu, 0));
+    let length = api_try!(emu, call.arg_u32(emu, 3));
+    let info_class = api_try!(emu, call.arg_u32(emu, 4));
     log_red!(
         emu,
         "ntdll!NtSetInformationFile handle: 0x{:x} info_class: {} length: {}",
@@ -282,6 +279,6 @@ fn NtSetInformationFile(emu: &mut emu::Emu) {
         info_class,
         length
     );
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 5);
 }

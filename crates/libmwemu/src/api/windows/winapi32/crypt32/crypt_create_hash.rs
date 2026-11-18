@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptCreateHash(emu: &mut emu::Emu) {
-    let h_prov = WinApiAbi::arg(emu, 0);
-    let algid = WinApiAbi::arg(emu, 1) as u32;
-    let h_key = WinApiAbi::arg(emu, 2);
-    let _flags = WinApiAbi::arg(emu, 3) as u32;
-    let h_hash_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let h_prov = api_try!(emu, call.arg(emu, 0));
+    let algid = api_try!(emu, call.arg_u32(emu, 1));
+    let h_key = api_try!(emu, call.arg(emu, 2));
+    let _flags = api_try!(emu, call.arg_u32(emu, 3));
+    let h_hash_ptr = api_try!(emu, call.arg(emu, 4));
     let alg_name = match algid {
         0x8001 => "MD2",
         0x8002 => "MD4",
@@ -19,9 +21,7 @@ pub fn CryptCreateHash(emu: &mut emu::Emu) {
         0x800E => "SHA512",
         _ => "UNKNOWN",
     };
-    for _ in 0..5u32 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 5);
     log_red!(
         emu,
         "crypt32!CryptCreateHash prov: 0x{:x} alg: 0x{:x} ({}) key: 0x{:x}",
@@ -35,5 +35,5 @@ pub fn CryptCreateHash(emu: &mut emu::Emu) {
     if h_hash_ptr != 0 {
         emu.maps.write_dword(h_hash_ptr, h_hash as u32);
     }
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

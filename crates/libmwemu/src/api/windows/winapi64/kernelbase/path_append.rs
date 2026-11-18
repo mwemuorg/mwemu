@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn PathAppendA(emu: &mut emu::Emu) {
     path_append(emu, "PathAppendA", false);
@@ -10,9 +12,10 @@ pub fn PathAppendW(emu: &mut emu::Emu) {
 }
 
 fn path_append(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let call = WinApi(Stdcall);
     if wide {
-        let path_ptr = emu.regs().rcx;
-        let more_ptr = emu.regs().rdx;
+        let path_ptr = api_try!(emu, call.arg(emu, 0));
+        let more_ptr = api_try!(emu, call.arg(emu, 1));
         let path = if path_ptr != 0 {
             strings::read_text(emu, path_ptr, wide)
         } else {
@@ -46,8 +49,8 @@ fn path_append(emu: &mut emu::Emu, api: &str, wide: bool) {
             result
         );
     } else {
-        let p0 = emu.regs().rcx;
-        let p1 = emu.regs().rdx;
+        let p0 = api_try!(emu, call.arg(emu, 0));
+        let p1 = api_try!(emu, call.arg(emu, 1));
         let s = if p0 != 0 && p0 > 0xffff {
             strings::read_text(emu, p0, wide)
         } else {
@@ -57,5 +60,5 @@ fn path_append(emu: &mut emu::Emu, api: &str, wide: bool) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

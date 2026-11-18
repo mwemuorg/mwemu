@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SHGetPathFromIDListEx(emu: &mut emu::Emu) {
-    let pidl = WinApiAbi::arg(emu, 0);
-    let psz_path = WinApiAbi::arg(emu, 1);
-    let cch_path = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let pidl = api_try!(emu, call.arg(emu, 0));
+    let psz_path = api_try!(emu, call.arg(emu, 1));
+    let cch_path = api_try!(emu, call.arg_u32(emu, 2));
     log_red!(
         emu,
         "shell32!SHGetPathFromIDListEx pidl:0x{:x} path:0x{:x} cch:{}",
@@ -16,12 +18,10 @@ pub fn SHGetPathFromIDListEx(emu: &mut emu::Emu) {
         emu.maps
             .write_wide_string(psz_path, "C:\\Users\\User\\Desktop");
         emu.set_last_error(0);
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
         emu.set_last_error(0);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 4);
 }

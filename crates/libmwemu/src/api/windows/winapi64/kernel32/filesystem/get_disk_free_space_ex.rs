@@ -1,15 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn GetDiskFreeSpaceExA(emu: &mut emu::Emu) {
     get_disk_free_space_ex(emu, "GetDiskFreeSpaceExA", false);
 }
 
 fn get_disk_free_space_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let path = strings::read_text(emu, emu.regs().rcx, wide);
-    let free_caller = emu.regs().rdx;
-    let total = emu.regs().r8;
-    let free_total = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let path = strings::read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let free_caller = api_try!(emu, call.arg(emu, 1));
+    let total = api_try!(emu, call.arg(emu, 2));
+    let free_total = api_try!(emu, call.arg(emu, 3));
     if free_caller != 0 {
         emu.maps.write_qword(free_caller, 50_000_000_000);
     }
@@ -20,7 +23,7 @@ fn get_disk_free_space_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         emu.maps.write_qword(free_total, 50_000_000_000);
     }
     log_red!(emu, "kernel32!{api} '{}'", path);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn GetDiskFreeSpaceExW(emu: &mut emu::Emu) {

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CryptGenRandom(emu: &mut emu::Emu) {
-    let h_prov = emu.regs().rcx;
-    let len = emu.regs().rdx as u32;
-    let buffer = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let h_prov = api_try!(emu, call.arg(emu, 0));
+    let len = api_try!(emu, call.arg_u32(emu, 1));
+    let buffer = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "crypt32!CryptGenRandom prov: 0x{:x} len: {} buf: 0x{:x}",
@@ -11,10 +14,6 @@ pub fn CryptGenRandom(emu: &mut emu::Emu) {
         len,
         buffer
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     // Fill buffer with deterministic pseudo-random bytes based on emu.pos
     if buffer != 0 {
         for i in 0..len {
@@ -24,5 +23,5 @@ pub fn CryptGenRandom(emu: &mut emu::Emu) {
             emu.maps.write_byte(buffer + i as u64, byte);
         }
     }
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

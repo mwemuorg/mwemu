@@ -1,18 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetTapeParameters(emu: &mut emu::Emu) {
-    let _hDevice = WinApiAbi::arg(emu, 0) as u32;
-    let _dwOperation = WinApiAbi::arg(emu, 1) as u32;
-    let _lpdwSize = WinApiAbi::arg(emu, 2) as u32;
-    let _lpTapeInformation = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let _hDevice = api_try!(emu, call.arg_u32(emu, 0));
+    let _dwOperation = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpdwSize = api_try!(emu, call.arg_u32(emu, 2));
+    let _lpTapeInformation = api_try!(emu, call.arg_u32(emu, 3));
 
     log_red!(emu, "kernel32!GetTapeParameters");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 4);
 }

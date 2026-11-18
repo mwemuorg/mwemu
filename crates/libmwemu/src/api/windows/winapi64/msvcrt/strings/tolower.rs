@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn tolower(emu: &mut emu::Emu) {
-    let c = emu.regs().rcx as u32;
+    let call = WinApi(Cdecl);
+    let c = api_try!(emu, call.arg_u32(emu, 0));
     let result = if (0x41..=0x5a).contains(&c) {
         c + 0x20
     } else {
@@ -13,5 +16,5 @@ pub fn tolower(emu: &mut emu::Emu) {
         emu.maps.write_dword(slot, result);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = result as u64;
+    call.set_return(emu, result as u64);
 }

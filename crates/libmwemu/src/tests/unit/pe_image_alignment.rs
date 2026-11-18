@@ -6,7 +6,7 @@ use goblin::pe::section_table::{
 use itertools::iproduct;
 use rs_header::pe::shared::{IMAGE_DIRECTORY_ENTRY_BASERELOC, ImageDosHeader};
 
-use crate::api::windows::common::memory::Call;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::{memory, sections};
 use crate::api::windows::{winapi32, winapi64};
 use crate::emu::Emu;
@@ -398,7 +398,7 @@ fn pe_image_query_and_allocation_apis_respect_reserved_holes() {
             .create_map("query_output", output, 0x1000, Permission::READ_WRITE)
             .unwrap();
         let query: fn(&mut Emu) = |emu| memory::virtual_query(emu, false);
-        let nt_query: fn(&mut Emu) = |emu| memory::nt_query(emu, Call::Api);
+        let nt_query: fn(&mut Emu) = |emu| memory::nt_query(emu, WinApi(Stdcall));
         let (length, state_offset) = if loader.is_64() { (48, 32) } else { (28, 16) };
         let result = if loader.is_64() {
             call_winapi64(&mut emu, query, &[gap, output, length])
@@ -496,7 +496,7 @@ fn pe_image_unmap_removes_stub_exports_and_reuses_the_range() {
             emu.create_stub_pe32("unload.dll", &["Example"]) as u64
         };
         assert!(emu.export_indexes.get_by_base(base).is_some());
-        let unmap: fn(&mut Emu) = |emu| sections::nt_unmap(emu, Call::Api);
+        let unmap: fn(&mut Emu) = |emu| sections::nt_unmap(emu, WinApi(Stdcall));
         let result = if is64 {
             call_winapi64(&mut emu, unmap, &[NT_CURRENT_PROCESS, base + 0x1001])
         } else {

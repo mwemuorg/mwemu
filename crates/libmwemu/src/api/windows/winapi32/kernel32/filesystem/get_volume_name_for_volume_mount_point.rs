@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetVolumeNameForVolumeMountPointA(emu: &mut emu::Emu) {
-    let lpszFileName = WinApiAbi::arg(emu, 0) as u32;
-    let lpszVolumePathName = WinApiAbi::arg(emu, 1) as u32;
-    let _cchBufferLength = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let lpszFileName = api_try!(emu, call.arg_u32(emu, 0));
+    let lpszVolumePathName = api_try!(emu, call.arg_u32(emu, 1));
+    let _cchBufferLength = api_try!(emu, call.arg_u32(emu, 2));
 
     let lpszFileName = emu.maps.read_string(lpszFileName as u64);
     let lpszVolumePathName = emu.maps.read_string(lpszVolumePathName as u64);
@@ -17,17 +19,15 @@ pub fn GetVolumeNameForVolumeMountPointA(emu: &mut emu::Emu) {
         lpszVolumePathName
     );
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 
 pub fn GetVolumeNameForVolumeMountPointW(emu: &mut emu::Emu) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
-    let p2 = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {
@@ -40,8 +40,6 @@ pub fn GetVolumeNameForVolumeMountPointW(emu: &mut emu::Emu) {
         p1,
         p2
     );
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 3);
+    call.set_return(emu, 1);
 }

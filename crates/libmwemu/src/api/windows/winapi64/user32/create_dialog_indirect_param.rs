@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateDialogIndirectParamA(emu: &mut emu::Emu) {
     create_dialog_indirect_param(emu, "CreateDialogIndirectParamA");
 }
 
 fn create_dialog_indirect_param(emu: &mut emu::Emu, api: &str) {
-    let hinstance = emu.regs().rcx;
-    let template_ptr = emu.regs().rdx;
-    let hwnd_parent = emu.regs().r8;
-    let dlg_proc = emu.regs().r9;
-    let init_param = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let hinstance = api_try!(emu, call.arg(emu, 0));
+    let template_ptr = api_try!(emu, call.arg(emu, 1));
+    let hwnd_parent = api_try!(emu, call.arg(emu, 2));
+    let dlg_proc = api_try!(emu, call.arg(emu, 3));
+    let init_param = api_try!(emu, call.arg(emu, 4));
     log_red!(
         emu,
         "user32!{api} hinst:0x{:x} parent:0x{:x} proc:0x{:x}",
@@ -20,7 +22,7 @@ fn create_dialog_indirect_param(emu: &mut emu::Emu, api: &str) {
         dlg_proc
     );
     let hndl = helper::handler_create(&format!("user32://{api}"));
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn CreateDialogIndirectParamW(emu: &mut emu::Emu) {

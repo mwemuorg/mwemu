@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn TextOutA(emu: &mut emu::Emu) {
     text_out(emu, "TextOutA", false);
 }
 
 fn text_out(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hdc = emu.regs().rcx;
-    let x = emu.regs().rdx as i32;
-    let y = emu.regs().r8 as i32;
-    let text_ptr = emu.regs().r9;
-    let count = WinApiAbi::arg(emu, 4) as i32;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let x = api_try!(emu, call.arg_i32(emu, 1));
+    let y = api_try!(emu, call.arg_i32(emu, 2));
+    let text_ptr = api_try!(emu, call.arg(emu, 3));
+    let count = api_try!(emu, call.arg_i32(emu, 4));
     let text = if text_ptr != 0 {
         strings::read_text(emu, text_ptr, wide)
     } else {
@@ -26,7 +28,7 @@ fn text_out(emu: &mut emu::Emu, api: &str, wide: bool) {
         count,
         text
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn TextOutW(emu: &mut emu::Emu) {

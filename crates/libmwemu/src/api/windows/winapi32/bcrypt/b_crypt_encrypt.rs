@@ -1,20 +1,21 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptEncrypt(emu: &mut emu::Emu) {
-    let h_key = arg(emu, 0) as u64;
-    let pb_input = arg(emu, 1) as u64;
-    let cb_input = arg(emu, 2) as usize;
-    let _pb_padding = arg(emu, 3) as u64;
-    let _pb_iv = arg(emu, 4) as u64;
-    let _cb_iv = arg(emu, 5) as usize;
-    let pb_output = arg(emu, 6) as u64;
-    let cb_output = arg(emu, 7) as usize;
-    let pcb_result = arg(emu, 8) as u64;
-    let _flags = arg(emu, 9);
+    let call = WinApi(Stdcall);
+    let h_key = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let pb_input = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let cb_input = api_try!(emu, call.arg_u32(emu, 2)) as usize;
+    let _pb_padding = api_try!(emu, call.arg_u32(emu, 3)) as u64;
+    let _pb_iv = api_try!(emu, call.arg_u32(emu, 4)) as u64;
+    let _cb_iv = api_try!(emu, call.arg_u32(emu, 5)) as usize;
+    let pb_output = api_try!(emu, call.arg_u32(emu, 6)) as u64;
+    let cb_output = api_try!(emu, call.arg_u32(emu, 7)) as usize;
+    let pcb_result = api_try!(emu, call.arg_u32(emu, 8)) as u64;
+    let _flags = api_try!(emu, call.arg_u32(emu, 9));
 
     log_red!(
         emu,
@@ -38,6 +39,6 @@ pub(super) fn BCryptEncrypt(emu: &mut emu::Emu) {
         emu.maps.write_dword(pcb_result, cb_input as u32);
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 10);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 10);
 }

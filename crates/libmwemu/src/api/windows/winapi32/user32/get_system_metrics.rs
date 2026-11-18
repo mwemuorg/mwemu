@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn GetSystemMetrics(emu: &mut emu::Emu) {
-    let index = arg(emu, 0) as i32;
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg_i32(emu, 0));
     let result: u32 = match index {
         0 => 1920,
         1 => 1080,
@@ -62,6 +63,6 @@ pub(super) fn GetSystemMetrics(emu: &mut emu::Emu) {
         index,
         result
     );
-    emu.regs_mut().rax = result as u64;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, result as u64);
+    call.cleanup_args(emu, 1);
 }

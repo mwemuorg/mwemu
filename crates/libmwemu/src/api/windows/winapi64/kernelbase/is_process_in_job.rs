@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn IsProcessInJob(emu: &mut emu::Emu) {
-    let process = emu.regs().rcx;
-    let job = emu.regs().rdx;
-    let result_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let process = api_try!(emu, call.arg(emu, 0));
+    let job = api_try!(emu, call.arg(emu, 1));
+    let result_ptr = api_try!(emu, call.arg(emu, 2));
     if result_ptr != 0 {
         emu.maps.write_dword(result_ptr, 0);
     }
@@ -14,5 +17,5 @@ pub fn IsProcessInJob(emu: &mut emu::Emu) {
         job
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

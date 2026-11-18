@@ -1,17 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptSignHash(emu: &mut emu::Emu) {
-    let _h_key = arg(emu, 0) as u64;
-    let _pb_padding = arg(emu, 1) as u64;
-    let pb_input = arg(emu, 2) as u64;
-    let cb_input = arg(emu, 3) as usize;
-    let pb_output = arg(emu, 4) as u64;
-    let cb_output = arg(emu, 5) as usize;
-    let pcb_result = arg(emu, 6) as u64;
-    let _flags = arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let _h_key = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let _pb_padding = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let pb_input = api_try!(emu, call.arg_u32(emu, 2)) as u64;
+    let cb_input = api_try!(emu, call.arg_u32(emu, 3)) as usize;
+    let pb_output = api_try!(emu, call.arg_u32(emu, 4)) as u64;
+    let cb_output = api_try!(emu, call.arg_u32(emu, 5)) as usize;
+    let pcb_result = api_try!(emu, call.arg_u32(emu, 6)) as u64;
+    let _flags = api_try!(emu, call.arg_u32(emu, 7));
 
     log_red!(emu, "bcrypt!BCryptSignHash out=0x{:x}", pb_output);
 
@@ -42,6 +43,6 @@ pub(super) fn BCryptSignHash(emu: &mut emu::Emu) {
         emu.maps.write_dword(pcb_result, out_len as u32);
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 8);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 8);
 }

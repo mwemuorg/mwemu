@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn CryptDecodeObjectEx(emu: &mut emu::Emu) {
-    let encoding_type = emu.regs().rcx;
-    let struct_type = emu.regs().rdx;
-    let encoded = emu.regs().r8;
-    let cb_encoded = emu.regs().r9;
-    let flags = WinApiAbi::arg(emu, 4);
-    let decode_para = WinApiAbi::arg(emu, 5);
-    let pv_struct_info = WinApiAbi::arg(emu, 6);
-    let pcb_struct_info = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let encoding_type = api_try!(emu, call.arg(emu, 0));
+    let struct_type = api_try!(emu, call.arg(emu, 1));
+    let encoded = api_try!(emu, call.arg(emu, 2));
+    let cb_encoded = api_try!(emu, call.arg(emu, 3));
+    let flags = api_try!(emu, call.arg(emu, 4));
+    let decode_para = api_try!(emu, call.arg(emu, 5));
+    let pv_struct_info = api_try!(emu, call.arg(emu, 6));
+    let pcb_struct_info = api_try!(emu, call.arg(emu, 7));
 
     log_red!(
         emu,
@@ -25,5 +27,5 @@ pub(super) fn CryptDecodeObjectEx(emu: &mut emu::Emu) {
         emu.maps.write_dword(pcb_struct_info, 0);
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

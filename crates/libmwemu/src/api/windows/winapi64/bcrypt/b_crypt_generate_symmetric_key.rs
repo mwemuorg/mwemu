@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptGenerateSymmetricKey(emu: &mut emu::Emu) {
-    let h_algorithm = emu.regs().rcx;
-    let ph_key = emu.regs().rdx;
-    let _pb_key_object = emu.regs().r8;
-    let _cb_key_object = emu.regs().r9;
-    let pb_secret = WinApiAbi::arg(emu, 4);
-    let cb_secret = WinApiAbi::arg(emu, 5) as usize;
-    let _flags = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let h_algorithm = api_try!(emu, call.arg(emu, 0));
+    let ph_key = api_try!(emu, call.arg(emu, 1));
+    let _pb_key_object = api_try!(emu, call.arg(emu, 2));
+    let _cb_key_object = api_try!(emu, call.arg(emu, 3));
+    let pb_secret = api_try!(emu, call.arg(emu, 4));
+    let cb_secret = api_try!(emu, call.arg(emu, 5)) as usize;
+    let _flags = api_try!(emu, call.arg(emu, 6));
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
@@ -45,5 +47,5 @@ pub fn BCryptGenerateSymmetricKey(emu: &mut emu::Emu) {
         hndl
     );
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }

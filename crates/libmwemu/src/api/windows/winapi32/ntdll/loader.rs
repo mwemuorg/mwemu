@@ -1,7 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::winapi32;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -15,8 +15,9 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn LdrLoadDll(emu: &mut emu::Emu) {
-    let libname_ptr = WinApiAbi::arg(emu, 3);
-    let libaddr_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let libname_ptr = api_try!(emu, call.arg(emu, 3));
+    let libaddr_ptr = api_try!(emu, call.arg(emu, 4));
 
     let libname = emu.maps.read_wide_string(libname_ptr);
     log_red!(emu, "ntdll!LdrLoadDll   lib: {}", libname);
@@ -26,7 +27,7 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
         emu.maps.write_dword(libaddr_ptr, base as u32);
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn LdrLoadDll_gul(emu: &mut emu::Emu) {
@@ -34,9 +35,10 @@ fn LdrLoadDll_gul(emu: &mut emu::Emu) {
 }
 
 fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
-    let flags = arg(emu, 0);
-    let dll_name_ptr = arg(emu, 2) as u64;
-    let out_handle = arg(emu, 3) as u64;
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg_u32(emu, 0));
+    let dll_name_ptr = api_try!(emu, call.arg_u32(emu, 2)) as u64;
+    let out_handle = api_try!(emu, call.arg_u32(emu, 3)) as u64;
 
     let dll_name = if dll_name_ptr != 0 {
         emu.maps.read_wide_string(dll_name_ptr)
@@ -54,6 +56,6 @@ fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
     if out_handle != 0 {
         emu.maps.write_dword(out_handle, 0);
     }
-    emu.regs_mut().rax = 0xC0000135;
-    stdcall_ret(emu, 4);
+    call.set_return(emu, 0xC0000135);
+    call.cleanup_args(emu, 4);
 }

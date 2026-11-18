@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::buffers::BufferKind;
 use crate::maps::mem64::Permission;
-use crate::winapi::common::memory::Call;
 use crate::winapi::common::trace;
 use crate::winapi::common::{buffers, memory};
+use crate::winapi::policy::api_try;
 
 const PREFIX: u64 = 4;
 const TERMINATOR: u64 = 2;
@@ -49,9 +50,10 @@ pub(crate) fn allocate(emu: &mut Emu, source: u64, bytes: u64) -> Option<u64> {
 }
 
 pub(crate) fn alloc_api(emu: &mut Emu, explicit_length: bool, byte_length: bool) {
-    let source = Call::Api.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let source = api_try!(emu, call.arg(emu, 0));
     let bytes = if explicit_length {
-        let count = Call::Api.arg(emu, 1) as u32 as u64;
+        let count = api_try!(emu, call.arg_u32(emu, 1)) as u64;
         count.checked_mul(if byte_length { 1 } else { 2 })
     } else {
         string_bytes(emu, source)
@@ -61,29 +63,35 @@ pub(crate) fn alloc_api(emu: &mut Emu, explicit_length: bool, byte_length: bool)
     } else {
         bytes.and_then(|n| allocate(emu, source, n)).unwrap_or(0)
     };
-    Call::Api.finish(emu, value, if explicit_length { 2 } else { 1 });
+    call.set_return(emu, value);
+    call.cleanup_args(emu, if explicit_length { 2 } else { 1 });
 }
 
 pub(crate) fn free_api(emu: &mut Emu) {
-    let address = Call::Api.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
     buffers::free(emu, address, BufferKind::Bstr);
-    Call::Api.finish(emu, 0, 1);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn length_api(emu: &mut Emu, bytes: bool) {
-    let address = Call::Api.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
     let size = address
         .checked_sub(PREFIX)
         .and_then(|p| emu.maps.read_dword(p))
         .unwrap_or(0) as u64;
-    Call::Api.finish(emu, if bytes { size } else { size / 2 }, 1);
+    call.set_return(emu, if bytes { size } else { size / 2 });
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn realloc_api(emu: &mut Emu, explicit_length: bool) {
-    let output = Call::Api.arg(emu, 0);
-    let source = Call::Api.arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let output = api_try!(emu, call.arg(emu, 0));
+    let source = api_try!(emu, call.arg(emu, 1));
     let bytes = if explicit_length {
-        (Call::Api.arg(emu, 2) as u32 as u64).checked_mul(2)
+        (api_try!(emu, call.arg_u32(emu, 2)) as u64).checked_mul(2)
     } else {
         string_bytes(emu, source)
     };
@@ -101,7 +109,8 @@ pub(crate) fn realloc_api(emu: &mut Emu, explicit_length: bool) {
         Some(1)
     })()
     .unwrap_or(0);
-    Call::Api.finish(emu, value, if explicit_length { 3 } else { 2 });
+    call.set_return(emu, value);
+    call.cleanup_args(emu, if explicit_length { 3 } else { 2 });
 }
 
 pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {

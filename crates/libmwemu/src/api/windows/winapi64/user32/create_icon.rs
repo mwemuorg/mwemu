@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateIcon(emu: &mut emu::Emu) {
-    let hinstance = emu.regs().rcx;
-    let width = emu.regs().rdx as i32;
-    let height = emu.regs().r8 as i32;
-    let planes = emu.regs().r9 as u8;
-    let bits_pixel = WinApiAbi::arg(emu, 4) as u8;
-    let and_bits = WinApiAbi::arg(emu, 5);
-    let xor_bits = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let hinstance = api_try!(emu, call.arg(emu, 0));
+    let width = api_try!(emu, call.arg_i32(emu, 1));
+    let height = api_try!(emu, call.arg_i32(emu, 2));
+    let planes = api_try!(emu, call.arg_u8(emu, 3));
+    let bits_pixel = api_try!(emu, call.arg_u8(emu, 4));
+    let and_bits = api_try!(emu, call.arg(emu, 5));
+    let xor_bits = api_try!(emu, call.arg(emu, 6));
     log_red!(
         emu,
         "user32!CreateIcon hinst:0x{:x} size:{}x{} planes:{} bpp:{}",
@@ -20,5 +22,5 @@ pub fn CreateIcon(emu: &mut emu::Emu) {
         bits_pixel
     );
     let hndl = helper::handler_create("user32://CreateIcon");
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

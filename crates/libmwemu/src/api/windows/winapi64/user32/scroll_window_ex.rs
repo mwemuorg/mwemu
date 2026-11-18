@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn ScrollWindowEx(emu: &mut emu::Emu) {
-    let hwnd = emu.regs().rcx;
-    let dx = emu.regs().rdx as i32;
-    let dy = emu.regs().r8 as i32;
-    let _lp_scroll = emu.regs().r9;
-    let _lp_clip = WinApiAbi::arg(emu, 4);
-    let hrgn_update = WinApiAbi::arg(emu, 5);
-    let lp_rc_update = WinApiAbi::arg(emu, 6);
-    let _flags = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let dx = api_try!(emu, call.arg_i32(emu, 1));
+    let dy = api_try!(emu, call.arg_i32(emu, 2));
+    let _lp_scroll = api_try!(emu, call.arg(emu, 3));
+    let _lp_clip = api_try!(emu, call.arg(emu, 4));
+    let hrgn_update = api_try!(emu, call.arg(emu, 5));
+    let lp_rc_update = api_try!(emu, call.arg(emu, 6));
+    let _flags = api_try!(emu, call.arg(emu, 7));
     if lp_rc_update != 0 {
         emu.maps.write_dword(lp_rc_update, 0);
         emu.maps.write_dword(lp_rc_update + 4, 0);
@@ -25,5 +27,5 @@ pub fn ScrollWindowEx(emu: &mut emu::Emu) {
         hrgn_update
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // SIMPLEREGION
+    call.set_return(emu, 1); // SIMPLEREGION
 }

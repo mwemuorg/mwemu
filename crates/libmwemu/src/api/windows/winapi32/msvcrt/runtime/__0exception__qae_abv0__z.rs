@@ -1,11 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Thiscall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn __0exception__QAE_ABV0__Z(emu: &mut emu::Emu) {
+    let call = WinApi(Thiscall);
     // exception::exception(const exception&) - thiscall copy ctor
-    let this = emu.regs().get_ecx();
-    let other = WinApiAbi::arg(emu, 0);
+    let this = api_try!(emu, call.arg(emu, 0));
+    let other = api_try!(emu, call.arg(emu, 1));
 
     if other != 0 && this != 0 {
         let vtable = emu.maps.read_dword(other).unwrap_or(0);
@@ -19,6 +20,6 @@ pub fn __0exception__QAE_ABV0__Z(emu: &mut emu::Emu) {
         this,
         other
     );
-    emu.regs_mut().rax = this;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, this);
+    call.cleanup_args(emu, 1);
 }

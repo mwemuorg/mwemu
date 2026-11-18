@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn PathCchRemoveExtension(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let cch_path = emu.regs().rdx as usize;
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
+    let cch_path = api_try!(emu, call.arg(emu, 1)) as usize;
     let path = emu.maps.read_wide_string(path_ptr);
     let result_path = if let Some(pos) = path.rfind('.') {
         if path[pos..].contains('\\') {
@@ -20,5 +23,5 @@ pub fn PathCchRemoveExtension(emu: &mut emu::Emu) {
         path,
         result_path
     );
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

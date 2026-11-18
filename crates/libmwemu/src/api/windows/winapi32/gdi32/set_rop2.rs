@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn SetROP2(emu: &mut emu::Emu) {
-    let hdc = arg(emu, 0);
-    let mode = arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg_u32(emu, 0));
+    let mode = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(emu, "gdi32!SetROP2 mode:{}", mode);
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 13; // previous: R2_COPYPEN
-    stdcall_ret(emu, 2);
+    call.set_return(emu, 13); // previous: R2_COPYPEN
+    call.cleanup_args(emu, 2);
 }

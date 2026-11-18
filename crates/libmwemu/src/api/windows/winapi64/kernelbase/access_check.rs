@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn AccessCheck(emu: &mut emu::Emu) {
-    let p_sd = emu.regs().rcx;
-    let client_token = emu.regs().rdx;
-    let desired_access = emu.regs().r8;
-    let generic_mapping = emu.regs().r9;
-    let priv_set = WinApiAbi::arg(emu, 4);
-    let priv_set_len = WinApiAbi::arg(emu, 5);
-    let granted_access = WinApiAbi::arg(emu, 6);
-    let access_status = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let p_sd = api_try!(emu, call.arg(emu, 0));
+    let client_token = api_try!(emu, call.arg(emu, 1));
+    let desired_access = api_try!(emu, call.arg(emu, 2));
+    let generic_mapping = api_try!(emu, call.arg(emu, 3));
+    let priv_set = api_try!(emu, call.arg(emu, 4));
+    let priv_set_len = api_try!(emu, call.arg(emu, 5));
+    let granted_access = api_try!(emu, call.arg(emu, 6));
+    let access_status = api_try!(emu, call.arg(emu, 7));
     log_red!(
         emu,
         "kernelbase!AccessCheck sd:0x{:x} token:0x{:x} desired:0x{:x}",
@@ -27,5 +29,5 @@ pub fn AccessCheck(emu: &mut emu::Emu) {
         emu.maps.write_dword(priv_set_len, 0);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

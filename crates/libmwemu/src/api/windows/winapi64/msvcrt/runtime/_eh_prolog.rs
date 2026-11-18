@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _EH_prolog(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     let slot = allocate_memory(emu, 8).unwrap_or(0);
     if slot != 0 {
         emu.maps.write_qword(slot, emu.regs().rbp);
     }
     log_red!(emu, "msvcrt!_EH_prolog (64-bit)");
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

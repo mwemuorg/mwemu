@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetSystemFirmwareTable(emu: &mut emu::Emu) {
-    let provider_signature = emu.regs().rcx;
-    let table_id = emu.regs().rdx;
-    let buffer_ptr = emu.regs().r8;
-    let buffer_size = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let provider_signature = api_try!(emu, call.arg(emu, 0));
+    let table_id = api_try!(emu, call.arg(emu, 1));
+    let buffer_ptr = api_try!(emu, call.arg(emu, 2));
+    let buffer_size = api_try!(emu, call.arg(emu, 3));
 
     // TODO: Parse FirmwareTableProviderSignature values:
     //   - 'ACPI' = 0x41435049 (ACPI tables)
@@ -36,8 +39,8 @@ pub fn GetSystemFirmwareTable(emu: &mut emu::Emu) {
     // TODO: Return actual bytes written/required, or 0 on error
     if buffer_size == 0 {
         emu.set_last_error(0);
-        emu.regs_mut().rax = 1024 * 1024; // 1MB
+        call.set_return(emu, 1024 * 1024); // 1MB
     } else {
-        emu.regs_mut().rax = 0; // Return 0 (error) for now
+        call.set_return(emu, 0); // Return 0 (error) for now
     }
 }

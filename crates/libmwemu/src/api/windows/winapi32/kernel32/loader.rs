@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::modules;
 use crate::emu;
 use crate::emu::loaders::pe_stub_exports::get_stub_exports;
 use crate::windows::peb::peb32;
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
+    let call = WinApi(Stdcall);
     let Some(dll) = modules::normalize_library_name(libname, true) else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return 0;
     };
 

@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn localtime(emu: &mut emu::Emu) {
-    let time_ptr = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let time_ptr = api_try!(emu, call.arg(emu, 0));
     let tm_addr = allocate_memory(emu, 64).unwrap_or(0);
     if tm_addr != 0 {
         emu.maps.write_dword(tm_addr, 0); // tm_sec
@@ -22,5 +25,5 @@ pub fn localtime(emu: &mut emu::Emu) {
         tm_addr
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = tm_addr;
+    call.set_return(emu, tm_addr);
 }

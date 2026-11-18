@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptEncrypt(emu: &mut emu::Emu) {
-    let h_key = WinApiAbi::arg(emu, 0);
-    let h_hash = WinApiAbi::arg(emu, 1);
-    let is_final = WinApiAbi::arg(emu, 2) as u32;
-    let dw_flags = WinApiAbi::arg(emu, 3) as u32;
-    let pb_data = WinApiAbi::arg(emu, 4);
-    let pdw_data_len = WinApiAbi::arg(emu, 5);
-    let dw_buf_len = WinApiAbi::arg(emu, 6) as u32;
+    let call = WinApi(Stdcall);
+    let h_key = api_try!(emu, call.arg(emu, 0));
+    let h_hash = api_try!(emu, call.arg(emu, 1));
+    let is_final = api_try!(emu, call.arg_u32(emu, 2));
+    let dw_flags = api_try!(emu, call.arg_u32(emu, 3));
+    let pb_data = api_try!(emu, call.arg(emu, 4));
+    let pdw_data_len = api_try!(emu, call.arg(emu, 5));
+    let dw_buf_len = api_try!(emu, call.arg_u32(emu, 6));
     log_red!(
         emu,
         "crypt32!CryptEncrypt key:0x{:x} hash:0x{:x} final:{} flags:0x{:x} data:0x{:x} buf:{}",
@@ -30,8 +32,6 @@ pub fn CryptEncrypt(emu: &mut emu::Emu) {
         }
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    for _ in 0..7u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 7);
 }

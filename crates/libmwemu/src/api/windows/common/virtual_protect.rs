@@ -1,4 +1,5 @@
 //! Page protection shared by kernel32, kernelbase, NT API and syscalls.
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::Maps;
 use crate::maps::virtual_memory::{MemoryError, page_range as checked_page_range};
@@ -72,9 +73,10 @@ pub(crate) fn protect_winapi(
     protection: u32,
     old_pointer: u64,
 ) -> bool {
+    let call = WinApi(Stdcall);
     if !emu.maps.validate_write_range(old_pointer, 4) {
         emu.set_last_error(ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return false;
     }
     match validate(&emu.maps, address, size, protection) {
@@ -82,12 +84,12 @@ pub(crate) fn protect_winapi(
             // All output/range checks precede mutation, including when OldProtect aliases the range.
             emu.maps.write_dword(old_pointer, old);
             protect(&mut emu.maps, address, size, protection).expect("validated protection range");
-            emu.regs_mut().rax = 1;
+            call.set_return(emu, 1);
             true
         }
         Err(error) => {
             emu.set_last_error(error.win32_error());
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             false
         }
     }

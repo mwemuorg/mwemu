@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CLSIDFromString(emu: &mut emu::Emu) {
-    let lpsz = emu.regs().rcx;
-    let pclsid = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let lpsz = api_try!(emu, call.arg(emu, 0));
+    let pclsid = api_try!(emu, call.arg(emu, 1));
 
     let guid_text = if lpsz != 0 {
         emu.maps.read_wide_string(lpsz)
@@ -25,7 +28,7 @@ pub fn CLSIDFromString(emu: &mut emu::Emu) {
 
     if cleaned.len() != 32 || pclsid == 0 {
         emu.set_last_error(0);
-        emu.regs_mut().rax = 0x800401F3; // CO_E_CLASSSTRING
+        call.set_return(emu, 0x800401F3); // CO_E_CLASSSTRING
         return;
     }
 
@@ -43,5 +46,5 @@ pub fn CLSIDFromString(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // S_OK (NOERROR)
+    call.set_return(emu, 0); // S_OK (NOERROR)
 }

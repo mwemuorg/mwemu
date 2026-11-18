@@ -1,28 +1,31 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn RegOpenKeyExA(emu: &mut emu::Emu) {
-    let subkey = emu.maps.read_string(arg(emu, 1) as u64);
-    let result_ptr = arg(emu, 4) as u64;
+    let call = WinApi(Stdcall);
+    let subkey = emu
+        .maps
+        .read_string(api_try!(emu, call.arg_u32(emu, 1)) as u64);
+    let result_ptr = api_try!(emu, call.arg_u32(emu, 4)) as u64;
     log_red!(emu, "advapi32!RegOpenKeyExA {}", subkey);
     if result_ptr != 0 {
         let hndl = helper::handler_create(&format!("registry://{}", subkey));
         emu.maps.write_dword(result_ptr, hndl as u32);
     }
-    emu.regs_mut().rax = ERROR_SUCCESS;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 5);
 }
 
 pub fn RegOpenKeyExW(emu: &mut emu::Emu) {
-    let hkey = WinApiAbi::arg(emu, 0);
-    let subkey_ptr = WinApiAbi::arg(emu, 1);
-    let reserved = WinApiAbi::arg(emu, 2);
-    let sam = WinApiAbi::arg(emu, 3);
-    let result_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let subkey_ptr = api_try!(emu, call.arg(emu, 1));
+    let reserved = api_try!(emu, call.arg(emu, 2));
+    let sam = api_try!(emu, call.arg(emu, 3));
+    let result_ptr = api_try!(emu, call.arg(emu, 4));
     let subkey = emu.maps.read_wide_string(subkey_ptr);
     let hndl = helper::handler_create(&format!("regkey_{}", subkey));
     if result_ptr != 0 {
@@ -35,8 +38,6 @@ pub fn RegOpenKeyExW(emu: &mut emu::Emu) {
         subkey,
         hndl
     );
-    emu.regs_mut().rax = 0;
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 5);
 }

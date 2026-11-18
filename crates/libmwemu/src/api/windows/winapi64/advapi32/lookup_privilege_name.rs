@@ -1,15 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn LookupPrivilegeNameA(emu: &mut emu::Emu) {
     lookup_privilege_name(emu, "LookupPrivilegeNameA", false);
 }
 
 fn lookup_privilege_name(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _system_ptr = emu.regs().rcx;
-    let luid_ptr = emu.regs().rdx;
-    let name_ptr = emu.regs().r8;
-    let name_sz_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let _system_ptr = api_try!(emu, call.arg(emu, 0));
+    let luid_ptr = api_try!(emu, call.arg(emu, 1));
+    let name_ptr = api_try!(emu, call.arg(emu, 2));
+    let name_sz_ptr = api_try!(emu, call.arg(emu, 3));
     let priv_name = "SeDebugPrivilege";
     log_red!(emu, "advapi32!{api} => '{}'", priv_name);
     if name_ptr != 0 {
@@ -19,7 +22,7 @@ fn lookup_privilege_name(emu: &mut emu::Emu, api: &str, wide: bool) {
         emu.maps.write_dword(name_sz_ptr, priv_name.len() as u32);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn LookupPrivilegeNameW(emu: &mut emu::Emu) {

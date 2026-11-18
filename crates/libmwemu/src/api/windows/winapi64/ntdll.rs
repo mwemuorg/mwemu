@@ -1,4 +1,5 @@
-use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::windows::common::{fallback, memory as memory_api, nt_api};
 use crate::emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -22,7 +23,8 @@ pub use string::{RtlInitAnsiString, RtlInitUnicodeString};
 pub use sync::NtDelayExecution;
 
 pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {
-    if memory_api::dispatch_nt(api, emu, Call::Api) {
+    let call = WinApi(Stdcall);
+    if memory_api::dispatch_nt(api, emu, call) {
         return true;
     }
     let normalized = nt_api::normalize(api);

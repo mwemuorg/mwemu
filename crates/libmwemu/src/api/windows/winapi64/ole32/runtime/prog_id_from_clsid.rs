@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::ole32::read_guid_string;
 
 pub fn ProgIDFromCLSID(emu: &mut emu::Emu) {
-    let clsid_ptr = emu.regs().rcx;
-    let ppsz = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let clsid_ptr = api_try!(emu, call.arg(emu, 0));
+    let ppsz = api_try!(emu, call.arg(emu, 1));
     let guid_str = read_guid_string(emu, clsid_ptr);
     let prog_id = format!("Class.{}", &guid_str[1..9]);
     if ppsz != 0 {
@@ -20,5 +23,5 @@ pub fn ProgIDFromCLSID(emu: &mut emu::Emu) {
         }
     }
     log_red!(emu, "ole32!ProgIDFromCLSID {} => '{}'", guid_str, prog_id);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

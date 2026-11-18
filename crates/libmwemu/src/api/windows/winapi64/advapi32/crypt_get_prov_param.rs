@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptGetProvParam(emu: &mut emu::Emu) {
-    let _hprov = emu.regs().rcx;
-    let param = emu.regs().rdx;
-    let data_ptr = emu.regs().r8;
-    let data_len_ptr = emu.regs().r9;
-    let _flags = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let _hprov = api_try!(emu, call.arg(emu, 0));
+    let param = api_try!(emu, call.arg(emu, 1));
+    let data_ptr = api_try!(emu, call.arg(emu, 2));
+    let data_len_ptr = api_try!(emu, call.arg(emu, 3));
+    let _flags = api_try!(emu, call.arg(emu, 4));
     log_red!(emu, "advapi32!CryptGetProvParam param:{}", param);
     match param {
         4 => {
@@ -36,5 +38,5 @@ pub fn CryptGetProvParam(emu: &mut emu::Emu) {
             }
         }
     }
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

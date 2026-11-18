@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 /*
 HANDLE CreateEventA(
@@ -11,10 +13,11 @@ HANDLE CreateEventA(
 
 */
 pub fn CreateEventA(emu: &mut emu::Emu) {
-    let attributes = emu.regs().rcx;
-    let bManualReset = emu.regs().rdx;
-    let bInitialState = emu.regs().r8;
-    let name_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let attributes = api_try!(emu, call.arg(emu, 0));
+    let bManualReset = api_try!(emu, call.arg(emu, 1));
+    let bInitialState = api_try!(emu, call.arg(emu, 2));
+    let name_ptr = api_try!(emu, call.arg(emu, 3));
 
     let mut name = String::new();
     if name_ptr > 0 {
@@ -31,14 +34,15 @@ pub fn CreateEventA(emu: &mut emu::Emu) {
     );
 
     let uri = format!("event://{}", name);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }
 
 pub fn CreateEventW(emu: &mut emu::Emu) {
-    let attributes = emu.regs().rcx;
-    let manual_reset = emu.regs().rdx;
-    let initial_state = emu.regs().r8;
-    let name_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let attributes = api_try!(emu, call.arg(emu, 0));
+    let manual_reset = api_try!(emu, call.arg(emu, 1));
+    let initial_state = api_try!(emu, call.arg(emu, 2));
+    let name_ptr = api_try!(emu, call.arg(emu, 3));
 
     let mut name = String::new();
     if name_ptr > 0 {
@@ -55,5 +59,5 @@ pub fn CreateEventW(emu: &mut emu::Emu) {
     );
 
     let uri = format!("event://{}", name);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }

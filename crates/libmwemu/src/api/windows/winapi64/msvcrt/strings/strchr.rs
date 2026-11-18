@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn strchr(emu: &mut emu::Emu) {
-    let s_ptr = emu.regs().rcx;
-    let c = emu.regs().rdx as u8 as char;
+    let call = WinApi(Cdecl);
+    let s_ptr = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1)) as char;
     let s = emu.maps.read_string(s_ptr);
     let found = s.find(c);
     let result = match found {
@@ -11,5 +14,5 @@ pub fn strchr(emu: &mut emu::Emu) {
     };
     log_red!(emu, "msvcrt!strchr '{}' '{}' => 0x{:x}", s, c, result);
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

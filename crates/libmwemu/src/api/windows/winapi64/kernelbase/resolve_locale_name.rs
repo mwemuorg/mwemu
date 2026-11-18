@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn ResolveLocaleName(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let p2 = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "kernelbase!ResolveLocaleName p1:0x{:x} p2:0x{:x}",
@@ -12,5 +15,5 @@ pub fn ResolveLocaleName(emu: &mut emu::Emu) {
     );
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

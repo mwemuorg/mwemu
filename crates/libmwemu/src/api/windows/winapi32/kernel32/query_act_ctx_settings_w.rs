@@ -1,12 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn QueryActCtxSettingsW(emu: &mut emu::Emu) {
-    let str_ptr = WinApiAbi::arg(emu, 0);
-    let arg2 = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let str_ptr = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     let s = emu.maps.read_wide_string(str_ptr);
     log_red!(emu, "kernel32!QueryActCtxSettingsW '{}'  0x{:x}", s, arg2);
-    stdcall_ret(emu, 7);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 7);
+    call.set_return(emu, 1);
 }

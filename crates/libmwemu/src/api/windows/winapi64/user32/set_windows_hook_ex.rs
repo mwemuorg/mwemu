@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn SetWindowsHookExA(emu: &mut emu::Emu) {
-    let id_hook = emu.regs().rcx as i32;
-    let lpfn = emu.regs().rdx;
-    let hmod = emu.regs().r8;
-    let thread_id = emu.regs().r9 as u32;
+    let call = WinApi(Stdcall);
+    let id_hook = api_try!(emu, call.arg_i32(emu, 0));
+    let lpfn = api_try!(emu, call.arg(emu, 1));
+    let hmod = api_try!(emu, call.arg(emu, 2));
+    let thread_id = api_try!(emu, call.arg_u32(emu, 3));
 
     log_red!(
         emu,
@@ -16,14 +19,15 @@ pub fn SetWindowsHookExA(emu: &mut emu::Emu) {
         thread_id
     );
 
-    emu.regs_mut().rax = helper::handler_create("hook://");
+    call.set_return(emu, helper::handler_create("hook://"));
 }
 
 pub fn SetWindowsHookExW(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let p2 = emu.regs().r8;
-    let p3 = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {
@@ -40,5 +44,5 @@ pub fn SetWindowsHookExW(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

@@ -1,8 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn IsValidSid(emu: &mut emu::Emu) {
-    let sid_ptr = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let sid_ptr = api_try!(emu, call.arg(emu, 0));
     let valid = if sid_ptr != 0 {
         let revision = emu.maps.read_byte(sid_ptr).unwrap_or(0);
         let sub_count = emu.maps.read_byte(sid_ptr + 1).unwrap_or(0);
@@ -16,11 +18,8 @@ pub fn IsValidSid(emu: &mut emu::Emu) {
         sid_ptr,
         valid as u32
     );
-    let h = WinApiAbi::arg(emu, 0);
-    emu.regs_mut().rax = 1;
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = valid as u64;
+    call.set_return(emu, valid as u64);
 }

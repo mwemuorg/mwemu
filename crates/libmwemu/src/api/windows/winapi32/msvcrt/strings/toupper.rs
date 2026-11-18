@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn toupper(emu: &mut emu::Emu) {
-    let c = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Cdecl);
+    let c = api_try!(emu, call.arg_u32(emu, 0));
     let result = if (0x61..=0x7a).contains(&c) {
         c - 0x20
     } else {
         c
     };
 
-    emu.regs_mut().rax = result as u64;
+    call.set_return(emu, result as u64);
 }

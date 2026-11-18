@@ -1,16 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn SetSystemPowerState(emu: &mut emu::Emu) {
-    let _fSuspend = WinApiAbi::arg(emu, 0) as u32;
-    let _fForce = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let _fSuspend = api_try!(emu, call.arg_u32(emu, 0));
+    let _fForce = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "kernel32!SetSystemPowerState");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 2);
 }

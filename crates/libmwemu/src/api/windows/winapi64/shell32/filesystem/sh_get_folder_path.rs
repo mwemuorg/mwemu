@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::shell32::csidl_to_path;
 
 pub fn SHGetFolderPathA(emu: &mut emu::Emu) {
-    let csidl = emu.regs().rdx as i32;
-    let psz_path = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let csidl = api_try!(emu, call.arg_i32(emu, 1));
+    let psz_path = api_try!(emu, call.arg(emu, 4));
 
     log_red!(emu, "shell32!SHGetFolderPathA csidl: 0x{:x}", csidl);
 
@@ -14,16 +16,17 @@ pub fn SHGetFolderPathA(emu: &mut emu::Emu) {
                 emu.maps.write_string(psz_path, path);
             }
             emu.set_last_error(0);
-            emu.regs_mut().rax = 42; // S_OK
+            call.set_return(emu, 42); // S_OK
         }
         None => {
             log::warn!("SHGetFolderPathA: unsupported CSIDL 0x{:x}", csidl);
-            emu.regs_mut().rax = 0x80070002;
+            call.set_return(emu, 0x80070002);
         }
     }
 }
 
 pub fn SHGetFolderPathW(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     /*
     HRESULT SHGetFolderPathW(
         [in]  HWND   hwnd,
@@ -33,11 +36,11 @@ pub fn SHGetFolderPathW(emu: &mut emu::Emu) {
         [out] LPWSTR pszPath
     );
     */
-    let hwnd = emu.regs().rcx;
-    let csidl = emu.regs().rdx as i32;
-    let h_token = emu.regs().r8;
-    let dw_flags = emu.regs().r9 as u32;
-    let psz_path = WinApiAbi::arg(emu, 4);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let csidl = api_try!(emu, call.arg_i32(emu, 1));
+    let h_token = api_try!(emu, call.arg(emu, 2));
+    let dw_flags = api_try!(emu, call.arg_u32(emu, 3));
+    let psz_path = api_try!(emu, call.arg(emu, 4));
 
     log_red!(
         emu,
@@ -85,7 +88,7 @@ pub fn SHGetFolderPathW(emu: &mut emu::Emu) {
                 emu.pos
             );
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0x80070002; // E_FAIL / path not found
+            call.set_return(emu, 0x80070002); // E_FAIL / path not found
             return;
         }
     };
@@ -95,5 +98,5 @@ pub fn SHGetFolderPathW(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

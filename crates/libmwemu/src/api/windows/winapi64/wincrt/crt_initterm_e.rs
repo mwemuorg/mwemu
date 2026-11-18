@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn crt_initterm_e(emu: &mut emu::Emu) {
-    let start = emu.regs().rcx;
-    let end = emu.regs().rdx;
+    let call = WinApi(Cdecl);
+    let start = api_try!(emu, call.arg(emu, 0));
+    let end = api_try!(emu, call.arg(emu, 1));
     let mut count = 0u32;
     if start != 0 && end > start {
         let mut ptr = start;
@@ -21,5 +24,5 @@ pub(super) fn crt_initterm_e(emu: &mut emu::Emu) {
         end,
         count
     );
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

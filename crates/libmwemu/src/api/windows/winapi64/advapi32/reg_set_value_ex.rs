@@ -1,18 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegSetValueExA(emu: &mut emu::Emu) {
     reg_set_value_ex(emu, "RegSetValueExA", false);
 }
 
 fn reg_set_value_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let _reserved = emu.regs().r8;
-    let value_type = emu.regs().r9;
-    let data_ptr = WinApiAbi::arg(emu, 4);
-    let data_size = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 1));
+    let _reserved = api_try!(emu, call.arg(emu, 2));
+    let value_type = api_try!(emu, call.arg(emu, 3));
+    let data_ptr = api_try!(emu, call.arg(emu, 4));
+    let data_size = api_try!(emu, call.arg(emu, 5));
     let name = strings::read_text(emu, name_ptr, wide);
     let data_str = if value_type == 1 || value_type == 2 {
         strings::read_text(emu, data_ptr, wide)
@@ -28,7 +30,7 @@ fn reg_set_value_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         data_str
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn RegSetValueExW(emu: &mut emu::Emu) {

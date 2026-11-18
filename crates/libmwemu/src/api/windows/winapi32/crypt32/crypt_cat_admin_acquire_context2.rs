@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptCATAdminAcquireContext2(emu: &mut emu::Emu) {
-    let ph_cat_admin = WinApiAbi::arg(emu, 0);
-    let pg_subsystem = WinApiAbi::arg(emu, 1);
-    let pwsz_hash_alg = WinApiAbi::arg(emu, 2);
-    let p_strong_hash_policy = WinApiAbi::arg(emu, 3);
-    let dw_flags = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let ph_cat_admin = api_try!(emu, call.arg(emu, 0));
+    let pg_subsystem = api_try!(emu, call.arg(emu, 1));
+    let pwsz_hash_alg = api_try!(emu, call.arg(emu, 2));
+    let p_strong_hash_policy = api_try!(emu, call.arg(emu, 3));
+    let dw_flags = api_try!(emu, call.arg(emu, 4));
     log_red!(
         emu,
         "crypt32!CryptCATAdminAcquireContext2 0x{:x}",
@@ -17,8 +19,6 @@ pub fn CryptCATAdminAcquireContext2(emu: &mut emu::Emu) {
     if ph_cat_admin != 0 {
         emu.maps.write_dword(ph_cat_admin, hndl as u32);
     }
-    emu.regs_mut().rax = 1;
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }

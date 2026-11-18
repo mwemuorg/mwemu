@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FileTimeToDosDateTime(emu: &mut emu::Emu) {
-    let lpFileTime = WinApiAbi::arg(emu, 0);
-    let out_lpFatDate = WinApiAbi::arg(emu, 1);
-    let out_lpFatTime = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let lpFileTime = api_try!(emu, call.arg(emu, 0));
+    let out_lpFatDate = api_try!(emu, call.arg(emu, 1));
+    let out_lpFatTime = api_try!(emu, call.arg(emu, 2));
 
     let dwLowDateTime = emu.maps.read_dword(lpFileTime).unwrap_or(0);
     let dwHighDateTime = emu.maps.read_dword(lpFileTime + 4).unwrap_or(0);
@@ -37,8 +39,6 @@ pub fn FileTimeToDosDateTime(emu: &mut emu::Emu) {
         dwHighDateTime
     );
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 3);
+    call.set_return(emu, 1);
 }

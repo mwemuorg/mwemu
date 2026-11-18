@@ -1,16 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn WSAConnectByList(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let addr_list_ptr = emu.regs().rdx;
-    let local_addr_len_ptr = emu.regs().r8;
-    let local_addr_ptr = emu.regs().r9;
-    let remote_addr_len_ptr = WinApiAbi::arg(emu, 4);
-    let remote_addr_ptr = WinApiAbi::arg(emu, 5);
-    let timeout_ptr = WinApiAbi::arg(emu, 6);
-    let _reserved = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let addr_list_ptr = api_try!(emu, call.arg(emu, 1));
+    let local_addr_len_ptr = api_try!(emu, call.arg(emu, 2));
+    let local_addr_ptr = api_try!(emu, call.arg(emu, 3));
+    let remote_addr_len_ptr = api_try!(emu, call.arg(emu, 4));
+    let remote_addr_ptr = api_try!(emu, call.arg(emu, 5));
+    let timeout_ptr = api_try!(emu, call.arg(emu, 6));
+    let _reserved = api_try!(emu, call.arg(emu, 7));
     log_red!(
         emu,
         "ws2_32!WSAConnectByList sock:0x{:x} addrlist:0x{:x} localaddr:0x{:x} remoteaddr:0x{:x}",
@@ -21,7 +23,7 @@ pub fn WSAConnectByList(emu: &mut emu::Emu) {
     );
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     } else {
         if local_addr_len_ptr != 0 {
             emu.maps.write_dword(local_addr_len_ptr, 16);
@@ -35,6 +37,6 @@ pub fn WSAConnectByList(emu: &mut emu::Emu) {
         if remote_addr_ptr != 0 {
             emu.maps.write_dword(remote_addr_ptr, 2);
         }
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     }
 }

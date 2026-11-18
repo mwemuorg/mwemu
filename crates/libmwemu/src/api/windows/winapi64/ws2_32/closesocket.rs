@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn closesocket(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "ws2_32!closesocket");
 
@@ -13,5 +16,5 @@ pub fn closesocket(emu: &mut emu::Emu) {
         endpoint::sock_close();
     }*/
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn fseek(emu: &mut emu::Emu) {
-    let fp = WinApiAbi::arg(emu, 0);
-    let offset = WinApiAbi::arg(emu, 1) as i32 as i64;
-    let origin = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Cdecl);
+    let fp = api_try!(emu, call.arg(emu, 0));
+    let offset = api_try!(emu, call.arg_i32(emu, 1)) as i64;
+    let origin = api_try!(emu, call.arg_u32(emu, 2));
     let new_pos = helper::handler_seek(fp, offset, origin);
     log_red!(
         emu,
@@ -15,9 +17,5 @@ pub fn fseek(emu: &mut emu::Emu) {
         origin,
         new_pos
     );
-    let first_param = WinApiAbi::arg(emu, 0);
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
-    emu.regs_mut().rax = if new_pos >= 0 { 0 } else { u64::MAX };
+    call.set_return(emu, if new_pos >= 0 { 0 } else { u64::MAX });
 }

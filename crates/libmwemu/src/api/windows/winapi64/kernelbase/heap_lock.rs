@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn HeapLock(emu: &mut emu::Emu) {
-    let hHeap = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let hHeap = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernelbase!HeapLock 0x{:x}", hHeap);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

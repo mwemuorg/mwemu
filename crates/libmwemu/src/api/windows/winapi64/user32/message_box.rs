@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub(super) fn MessageBoxA(emu: &mut emu::Emu) {
     message_box(emu, "MessageBoxA", false);
@@ -10,10 +12,11 @@ pub fn MessageBoxW(emu: &mut emu::Emu) {
 }
 
 fn message_box(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hwnd = emu.regs().rcx;
-    let text_ptr = emu.regs().rdx;
-    let caption_ptr = emu.regs().r8;
-    let utype = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let text_ptr = api_try!(emu, call.arg(emu, 1));
+    let caption_ptr = api_try!(emu, call.arg(emu, 2));
+    let utype = api_try!(emu, call.arg(emu, 3));
     if wide {
         let text = strings::read_text(emu, text_ptr, wide);
         let caption = if caption_ptr != 0 {
@@ -29,7 +32,7 @@ fn message_box(emu: &mut emu::Emu, api: &str, wide: bool) {
             text,
             utype
         );
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
         let text = if text_ptr != 0 {
             strings::read_text(emu, text_ptr, wide)
@@ -49,6 +52,6 @@ fn message_box(emu: &mut emu::Emu, api: &str, wide: bool) {
             text,
             utype
         );
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     }
 }

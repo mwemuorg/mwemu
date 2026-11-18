@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GlobalReAlloc(emu: &mut emu::Emu, addr: u64) {
-    let handle = emu.regs().rcx;
-    let size = emu.regs().rdx;
-    let flags = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 2));
     let new_ptr = if size > 0 {
         if let Some(addr) = emu.maps.alloc(size) {
             // Copy old data if we had it
@@ -30,5 +33,5 @@ pub fn GlobalReAlloc(emu: &mut emu::Emu, addr: u64) {
         new_ptr
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = new_ptr;
+    call.set_return(emu, new_ptr);
 }

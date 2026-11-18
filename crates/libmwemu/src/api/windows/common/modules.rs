@@ -1,8 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::virtual_memory::MemoryKind;
-use crate::winapi::common::memory::{Call, writable_pointer, write_pointer};
+use crate::winapi::common::memory::{writable_pointer, write_pointer};
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::process::*;
 
@@ -115,10 +117,18 @@ fn module_base(emu: &mut Emu, name_ptr: u64, wide: bool, from_address: bool) -> 
 }
 
 pub(crate) fn get_module_handle(emu: &mut Emu, api: &str, wide: bool, extended: bool) {
-    let call = Call::Api;
-    let flags = if extended { call.arg(emu, 0) as u32 } else { 0 };
-    let name = call.arg(emu, usize::from(extended));
-    let output = if extended { call.arg(emu, 2) } else { 0 };
+    let call = WinApi(Stdcall);
+    let flags = if extended {
+        api_try!(emu, call.arg_u32(emu, 0))
+    } else {
+        0
+    };
+    let name = api_try!(emu, call.arg(emu, usize::from(extended)));
+    let output = if extended {
+        api_try!(emu, call.arg(emu, 2))
+    } else {
+        0
+    };
     let allowed = GET_MODULE_HANDLE_EX_FLAG_PIN
         | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT
         | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
@@ -153,11 +163,8 @@ pub(crate) fn get_module_handle(emu: &mut Emu, api: &str, wide: bool, extended: 
         flags,
         base
     );
-    call.finish(
-        emu,
-        if extended { (base != 0) as u64 } else { base },
-        if extended { 3 } else { 1 },
-    );
+    call.set_return(emu, if extended { (base != 0) as u64 } else { base });
+    call.cleanup_args(emu, if extended { 3 } else { 1 });
 }
 
 /// Guest path of a loaded module; NULL identifies the main image.
@@ -175,10 +182,10 @@ pub fn main_module_path(emu: &Emu) -> String {
 }
 
 pub(crate) fn get_module_file_name(emu: &mut Emu, api: &str, wide: bool) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let output = call.arg(emu, 1);
-    let capacity = call.arg(emu, 2) as u32 as usize;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let output = api_try!(emu, call.arg(emu, 1));
+    let capacity = api_try!(emu, call.arg_u32(emu, 2)) as usize;
     let path = module_path(emu, handle);
     log_red!(
         emu,
@@ -231,7 +238,8 @@ pub(crate) fn get_module_file_name(emu: &mut Emu, api: &str, wide: bool) {
             0
         }
     };
-    call.finish(emu, result, 3);
+    call.set_return(emu, result);
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
@@ -249,8 +257,9 @@ pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
 }
 
 pub(crate) fn snapshot_next(emu: &mut Emu, api: &str) {
-    let snapshot = Call::Api.arg(emu, 0);
-    let entry = Call::Api.arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let snapshot = api_try!(emu, call.arg(emu, 0));
+    let entry = api_try!(emu, call.arg(emu, 1));
     let error = if helper::handler_exist(snapshot) {
         ERROR_NO_MORE_FILES
     } else {
@@ -265,5 +274,6 @@ pub(crate) fn snapshot_next(emu: &mut Emu, api: &str) {
         error
     );
     emu.set_last_error(error);
-    Call::Api.finish(emu, 0, 2);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 2);
 }

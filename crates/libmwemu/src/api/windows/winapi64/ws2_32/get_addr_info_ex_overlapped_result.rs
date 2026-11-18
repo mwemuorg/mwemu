@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetAddrInfoExOverlappedResult(emu: &mut emu::Emu) {
-    let overlapped_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let overlapped_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(
         emu,
         "ws2_32!GetAddrInfoExOverlappedResult overlapped:0x{:x}",
@@ -10,5 +13,5 @@ pub fn GetAddrInfoExOverlappedResult(emu: &mut emu::Emu) {
     );
     let handle = helper::handler_create("GetAddrInfoExOverlappedResult");
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

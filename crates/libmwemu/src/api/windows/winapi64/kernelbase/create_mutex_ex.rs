@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateMutexExA(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
-    let arg3 = emu.regs().r8;
-    let arg4 = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
+    let arg3 = api_try!(emu, call.arg(emu, 2));
+    let arg4 = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "kernelbase!CreateMutexExA arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
@@ -15,14 +18,15 @@ pub fn CreateMutexExA(emu: &mut emu::Emu) {
         arg4
     );
     let hndl = helper::handler_create("mutex://CreateMutexExA");
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn CreateMutexExW(emu: &mut emu::Emu) {
-    let security = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let flags = emu.regs().r8;
-    let access = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let security = api_try!(emu, call.arg(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 2));
+    let access = api_try!(emu, call.arg(emu, 3));
     let name = if name_ptr != 0 {
         emu.maps.read_wide_string(name_ptr)
     } else {
@@ -37,5 +41,5 @@ pub fn CreateMutexExW(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

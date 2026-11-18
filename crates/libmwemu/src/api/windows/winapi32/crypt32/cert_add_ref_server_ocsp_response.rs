@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CertAddRefServerOcspResponse(emu: &mut emu::Emu) {
-    let cert_ctx = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let cert_ctx = api_try!(emu, call.arg(emu, 0));
     log_red!(
         emu,
         "crypt32!CertAddRefServerOcspResponse ctx:0x{:x}",
@@ -11,8 +13,6 @@ pub fn CertAddRefServerOcspResponse(emu: &mut emu::Emu) {
     );
     let handle = helper::handler_create("CertAddRefServerOcspResponse");
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 1);
 }

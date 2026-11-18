@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn strstr(emu: &mut emu::Emu) {
-    let haystack_ptr = WinApiAbi::arg(emu, 0);
-    let needle_ptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Cdecl);
+    let haystack_ptr = api_try!(emu, call.arg(emu, 0));
+    let needle_ptr = api_try!(emu, call.arg(emu, 1));
     let haystack = emu.maps.read_string(haystack_ptr);
     let needle = emu.maps.read_string(needle_ptr);
     let found = haystack.find(&needle);
@@ -19,5 +21,5 @@ pub fn strstr(emu: &mut emu::Emu) {
         result
     );
 
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

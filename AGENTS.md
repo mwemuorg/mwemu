@@ -40,7 +40,7 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 ## Skills
 
-- [windows-api-emulation](.agents/skills/windows-api-emulation/SKILL.md): Use when implementing, reviewing, or refactoring Windows API, NT API, or Windows CRT emulation handlers.
+- [api-emulation](.agents/skills/api-emulation/SKILL.md): Use when implementing, reviewing, or refactoring library API, runtime, syscall, or kernel API handlers. Read the shared checks and the applicable Windows or Linux/macOS reference.
 
 ## Testing
 

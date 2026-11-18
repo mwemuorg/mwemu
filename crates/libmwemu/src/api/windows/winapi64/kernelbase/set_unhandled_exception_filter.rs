@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
-    let ptr1 = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ptr1 = api_try!(emu, call.arg(emu, 0));
 
     log::trace!(
         "{}** {} kernelbase!SetUnhandledExceptionFilter 0x{:x} {}",
@@ -12,5 +15,5 @@ pub(super) fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
     );
 
     emu.set_uef(ptr1);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

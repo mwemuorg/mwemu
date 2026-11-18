@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::emu::object_handle::SectionHandle;
 use crate::maps::virtual_memory::{
     ALLOCATION_GRANULARITY, Allocation, MemoryKind, PAGE_SIZE, PageState, align_up,
 };
-use crate::winapi::common::memory::{self, Call};
+use crate::winapi::common::memory;
 use crate::winapi::common::strings;
 use crate::winapi::common::trace;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::memory::*;
@@ -218,11 +220,12 @@ pub(crate) fn close(emu: &mut Emu, handle: u64) -> bool {
 }
 
 pub(crate) fn create_file_mapping(emu: &mut Emu, wide: bool) {
-    let call = Call::Api;
-    let file = call.arg(emu, 0);
-    let protection = call.arg(emu, 2) as u32;
-    let size = ((call.arg(emu, 3) as u32 as u64) << 32) | (call.arg(emu, 4) as u32 as u64);
-    let ptr = call.arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let file = api_try!(emu, call.arg(emu, 0));
+    let protection = api_try!(emu, call.arg_u32(emu, 2));
+    let size = ((api_try!(emu, call.arg_u32(emu, 3)) as u64) << 32)
+        | (api_try!(emu, call.arg_u32(emu, 4)) as u64);
+    let ptr = api_try!(emu, call.arg(emu, 5));
     let name = if ptr == 0 {
         String::new()
     } else {
@@ -243,7 +246,8 @@ pub(crate) fn create_file_mapping(emu: &mut Emu, wide: bool) {
             0
         }
     };
-    call.finish(emu, value, 6);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 6);
 }
 
 fn view_protection(access: u32) -> Result<u32, u64> {
@@ -262,9 +266,9 @@ fn view_protection(access: u32) -> Result<u32, u64> {
 }
 
 pub(crate) fn open_file_mapping(emu: &mut Emu, wide: bool) {
-    let call = Call::Api;
-    let access = call.arg(emu, 0) as u32;
-    let name_ptr = call.arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let access = api_try!(emu, call.arg_u32(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 2));
     let name = strings::read_text(emu, name_ptr, wide);
     let result = (|| {
         let protection = view_protection(access)?;
@@ -288,16 +292,22 @@ pub(crate) fn open_file_mapping(emu: &mut Emu, wide: bool) {
             0
         }
     };
-    call.finish(emu, value, 3);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn map_view(emu: &mut Emu, extended: bool) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let access = call.arg(emu, 1) as u32;
-    let offset = ((call.arg(emu, 2) as u32 as u64) << 32) | (call.arg(emu, 3) as u32 as u64);
-    let size = call.arg(emu, 4);
-    let address = if extended { call.arg(emu, 5) } else { 0 };
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let access = api_try!(emu, call.arg_u32(emu, 1));
+    let offset = ((api_try!(emu, call.arg_u32(emu, 2)) as u64) << 32)
+        | (api_try!(emu, call.arg_u32(emu, 3)) as u64);
+    let size = api_try!(emu, call.arg(emu, 4));
+    let address = if extended {
+        api_try!(emu, call.arg(emu, 5))
+    } else {
+        0
+    };
     let result = view_protection(access)
         .and_then(|protection| map(emu, handle, address, offset, size, protection));
     let value = match result {
@@ -307,13 +317,14 @@ pub(crate) fn map_view(emu: &mut Emu, extended: bool) {
             0
         }
     };
-    call.finish(emu, value, if extended { 6 } else { 5 });
+    call.set_return(emu, value);
+    call.cleanup_args(emu, if extended { 6 } else { 5 });
 }
 
 pub(crate) fn unmap_view(emu: &mut Emu, extended: bool) {
-    let call = Call::Api;
-    let address = call.arg(emu, 0);
-    let result = if extended && call.arg(emu, 1) != 0 {
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
+    let result = if extended && api_try!(emu, call.arg(emu, 1)) != 0 {
         Err(STATUS_NOT_IMPLEMENTED)
     } else {
         unmap(emu, address)
@@ -325,15 +336,16 @@ pub(crate) fn unmap_view(emu: &mut Emu, extended: bool) {
             0
         }
     };
-    call.finish(emu, value, if extended { 2 } else { 1 });
+    call.set_return(emu, value);
+    call.cleanup_args(emu, if extended { 2 } else { 1 });
 }
 
-pub(crate) fn nt_create(emu: &mut Emu, call: Call) {
-    let output = call.arg(emu, 0);
-    let maximum = call.arg(emu, 3);
-    let protection = call.arg(emu, 4) as u32;
-    let attributes = call.arg(emu, 5) as u32;
-    let file = call.arg(emu, 6);
+pub(crate) fn nt_create(emu: &mut Emu, call: WindowsAbi) {
+    let output = api_try!(emu, call.arg(emu, 0));
+    let maximum = api_try!(emu, call.arg(emu, 3));
+    let protection = api_try!(emu, call.arg_u32(emu, 4));
+    let attributes = api_try!(emu, call.arg_u32(emu, 5));
+    let file = api_try!(emu, call.arg(emu, 6));
     let result = (|| {
         if !memory::writable_pointer(emu, output) {
             return Err(STATUS_ACCESS_VIOLATION);
@@ -358,20 +370,25 @@ pub(crate) fn nt_create(emu: &mut Emu, call: Call) {
         memory::write_pointer(emu, output, handle);
         Ok(())
     })();
-    call.finish(emu, result.err().unwrap_or(0), 7);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, 7);
 }
 
-pub(crate) fn nt_map(emu: &mut Emu, call: Call) {
-    let handle = call.arg(emu, 0);
-    let base_ptr = call.arg(emu, 2);
-    let offset_ptr = call.arg(emu, 5);
-    let size_ptr = call.arg(emu, 6);
-    let protection = call.arg(emu, 9) as u32;
+pub(crate) fn nt_map(emu: &mut Emu, call: WindowsAbi) {
+    let process = api_try!(emu, call.arg(emu, 1));
+    let zero_bits = api_try!(emu, call.arg(emu, 3));
+    let commit_size = api_try!(emu, call.arg(emu, 4));
+    let flags = api_try!(emu, call.arg(emu, 8));
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let base_ptr = api_try!(emu, call.arg(emu, 2));
+    let offset_ptr = api_try!(emu, call.arg(emu, 5));
+    let size_ptr = api_try!(emu, call.arg(emu, 6));
+    let protection = api_try!(emu, call.arg_u32(emu, 9));
     let result = (|| {
-        if !memory::current_process(call.arg(emu, 1)) {
+        if !memory::current_process(process) {
             return Err(STATUS_INVALID_HANDLE);
         }
-        if call.arg(emu, 3) != 0 || call.arg(emu, 4) != 0 || call.arg(emu, 8) != 0 {
+        if zero_bits != 0 || commit_size != 0 || flags != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
         if !memory::writable_pointer(emu, base_ptr) || !memory::writable_pointer(emu, size_ptr) {
@@ -394,16 +411,18 @@ pub(crate) fn nt_map(emu: &mut Emu, call: Call) {
         memory::write_pointer(emu, size_ptr, length);
         Ok(())
     })();
-    call.finish(emu, result.err().unwrap_or(0), 10);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, 10);
 }
 
-pub(crate) fn nt_unmap(emu: &mut Emu, call: Call) {
-    let result = if memory::current_process(call.arg(emu, 0)) {
-        unmap(emu, call.arg(emu, 1))
+pub(crate) fn nt_unmap(emu: &mut Emu, call: WindowsAbi) {
+    let result = if memory::current_process(api_try!(emu, call.arg(emu, 0))) {
+        unmap(emu, api_try!(emu, call.arg(emu, 1)))
     } else {
         Err(STATUS_INVALID_HANDLE)
     };
-    call.finish(emu, result.err().unwrap_or(0), 2);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, 2);
 }
 
 pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {

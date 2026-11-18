@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
+use crate::winapi::policy::api_try;
 
 pub fn LockResource(emu: &mut emu::Emu) {
-    let hResData = arg(emu, 0) as u64;
+    let call = WinApi(Stdcall);
+    let hResData = api_try!(emu, call.arg_u32(emu, 0)) as u64;
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 
     if helper::handler_exist(hResData) {
         let uri = helper::handler_get_uri(hResData);
@@ -13,7 +15,7 @@ pub fn LockResource(emu: &mut emu::Emu) {
             Some(v) => v + emu.base,
             None => {
                 log::warn!("LockResource: bad handler uri `{}`", uri);
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
         };
@@ -25,7 +27,7 @@ pub fn LockResource(emu: &mut emu::Emu) {
             hResData,
             ptr
         );
-        emu.regs_mut().rax = ptr;
+        call.set_return(emu, ptr);
         return;
     }
 
@@ -36,5 +38,5 @@ pub fn LockResource(emu: &mut emu::Emu) {
         hResData
     );
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

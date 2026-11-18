@@ -1,13 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn select(emu: &mut emu::Emu) {
-    let nfds = arg(emu, 0);
-    let readfds = arg(emu, 1) as u64;
-    let writefds = arg(emu, 2) as u64;
-    let exceptfds = arg(emu, 3) as u64;
-    let timeout_ptr = arg(emu, 4) as u64;
+    let call = WinApi(Stdcall);
+    let nfds = api_try!(emu, call.arg_u32(emu, 0));
+    let readfds = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let writefds = api_try!(emu, call.arg_u32(emu, 2)) as u64;
+    let exceptfds = api_try!(emu, call.arg_u32(emu, 3)) as u64;
+    let timeout_ptr = api_try!(emu, call.arg_u32(emu, 4)) as u64;
     let timeout_str = if timeout_ptr == 0 {
         "infinite".to_string()
     } else {
@@ -25,6 +26,6 @@ pub(super) fn select(emu: &mut emu::Emu) {
         timeout_str
     );
     // Return 0 = timeout, no sockets ready
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 5);
 }

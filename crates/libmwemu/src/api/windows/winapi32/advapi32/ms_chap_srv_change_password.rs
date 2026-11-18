@@ -1,21 +1,22 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn MSChapSrvChangePassword(emu: &mut emu::Emu) {
-    let arg1 = WinApiAbi::arg(emu, 0);
-    let arg2 = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "advapi32!MSChapSrvChangePassword arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );
-    let val_ptr = WinApiAbi::arg(emu, 1);
+    let val_ptr = api_try!(emu, call.arg(emu, 1));
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }
-    stdcall_ret(emu, 7);
+    call.cleanup_args(emu, 7);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

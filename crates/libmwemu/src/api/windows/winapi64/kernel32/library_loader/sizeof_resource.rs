@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn SizeofResource(emu: &mut emu::Emu) {
-    let hModule = emu.regs().rcx;
-    let hResInfo = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hModule = api_try!(emu, call.arg(emu, 0));
+    let hResInfo = api_try!(emu, call.arg(emu, 1));
 
     if helper::handler_exist(hResInfo) {
         let uri = helper::handler_get_uri(hResInfo);
@@ -12,7 +15,7 @@ pub fn SizeofResource(emu: &mut emu::Emu) {
             None => {
                 log::warn!("SizeofResource: bad handler uri `{}`", uri);
                 emu.set_last_error(0);
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
         };
@@ -23,7 +26,7 @@ pub fn SizeofResource(emu: &mut emu::Emu) {
             hResInfo,
             size
         );
-        emu.regs_mut().rax = size as u64;
+        call.set_return(emu, size as u64);
         return;
     }
 
@@ -35,5 +38,5 @@ pub fn SizeofResource(emu: &mut emu::Emu) {
         hResInfo
     );
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

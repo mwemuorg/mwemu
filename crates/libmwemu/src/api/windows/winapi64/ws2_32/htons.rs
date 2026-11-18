@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn htons(emu: &mut emu::Emu) {
-    let port: u16 = emu.regs().rcx as u16;
+    let call = WinApi(Stdcall);
+    let port: u16 = api_try!(emu, call.arg_u16(emu, 0));
 
     log_red!(emu, "ws2_32!htons port: {}", port);
 
-    emu.regs_mut().rax = port.to_be() as u64;
+    call.set_return(emu, port.to_be() as u64);
 }

@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn strtok(emu: &mut emu::Emu) {
-    let str_ptr = WinApiAbi::arg(emu, 0);
-    let delim_ptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Cdecl);
+    let str_ptr = api_try!(emu, call.arg(emu, 0));
+    let delim_ptr = api_try!(emu, call.arg(emu, 1));
     let delims = emu.maps.read_string(delim_ptr);
 
     if str_ptr != 0 {
@@ -17,16 +19,16 @@ pub(super) fn strtok(emu: &mut emu::Emu) {
                 delims,
                 &s[..pos]
             );
-            emu.regs_mut().rax = str_ptr;
+            call.set_return(emu, str_ptr);
         } else if !s.is_empty() {
             log_red!(emu, "msvcrt!strtok '{}' delim:'{}' => '{}'", s, delims, s);
-            emu.regs_mut().rax = str_ptr;
+            call.set_return(emu, str_ptr);
         } else {
             log_red!(emu, "msvcrt!strtok empty");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     } else {
         log_red!(emu, "msvcrt!strtok(NULL) => 0");
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetThreadPreferredUILanguages(emu: &mut emu::Emu) {
-    let flags = WinApiAbi::arg(emu, 0) as u32;
-    let num_langs_ptr = WinApiAbi::arg(emu, 1);
-    let buff = WinApiAbi::arg(emu, 2);
-    let out_sz = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg_u32(emu, 0));
+    let num_langs_ptr = api_try!(emu, call.arg(emu, 1));
+    let buff = api_try!(emu, call.arg(emu, 2));
+    let out_sz = api_try!(emu, call.arg(emu, 3));
 
     emu.maps.write_dword(num_langs_ptr, 0);
     log_red!(emu, "kernel32!GetThreadPreferredUILanguages");
@@ -13,9 +15,7 @@ pub fn GetThreadPreferredUILanguages(emu: &mut emu::Emu) {
     emu.maps.write_dword(out_sz, 0);
     emu.maps.write_dword(num_langs_ptr, 0);
 
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 4);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

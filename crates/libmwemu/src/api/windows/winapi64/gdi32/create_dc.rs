@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateDCA(emu: &mut emu::Emu) {
     create_dc(emu, "CreateDCA", false);
 }
 
 fn create_dc(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let driver_ptr = emu.regs().rcx;
-    let device_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let driver_ptr = api_try!(emu, call.arg(emu, 0));
+    let device_ptr = api_try!(emu, call.arg(emu, 1));
     let driver_name = if driver_ptr != 0 {
         strings::read_text(emu, driver_ptr, wide)
     } else {
@@ -25,7 +28,7 @@ fn create_dc(emu: &mut emu::Emu, api: &str, wide: bool) {
         driver_name,
         device_name
     );
-    emu.regs_mut().rax = helper::handler_create("gdi32://dc");
+    call.set_return(emu, helper::handler_create("gdi32://dc"));
 }
 
 pub fn CreateDCW(emu: &mut emu::Emu) {

@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SetRect(emu: &mut emu::Emu) {
-    let rect = emu.regs().rcx;
-    let left = emu.regs().rdx as u32;
-    let top = emu.regs().r8 as u32;
-    let right = emu.regs().r9 as u32;
-    let bottom = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let rect = api_try!(emu, call.arg(emu, 0));
+    let left = api_try!(emu, call.arg_u32(emu, 1));
+    let top = api_try!(emu, call.arg_u32(emu, 2));
+    let right = api_try!(emu, call.arg_u32(emu, 3));
+    let bottom = api_try!(emu, call.arg_u32(emu, 4));
     if rect != 0 {
         emu.maps.write_dword(rect, left);
         emu.maps.write_dword(rect + 4, top);
@@ -23,5 +25,5 @@ pub fn SetRect(emu: &mut emu::Emu) {
         rect
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

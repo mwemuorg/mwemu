@@ -1,6 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 
 pub(super) fn crt_except_handler(emu: &mut emu::Emu, api: &str) {
+    let call = WinApi(Cdecl);
     log_red!(emu, "wincrt!{}", api);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

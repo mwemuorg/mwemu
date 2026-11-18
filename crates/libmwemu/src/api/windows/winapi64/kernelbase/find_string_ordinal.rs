@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FindStringOrdinal(emu: &mut emu::Emu) {
-    let flags = emu.regs().rcx as u32;
-    let src_ptr = emu.regs().rdx;
-    let src_len = emu.regs().r8 as i32;
-    let value_ptr = emu.regs().r9;
-    let value_len = WinApiAbi::arg(emu, 4) as i32;
-    let ignore_case = WinApiAbi::arg(emu, 5) != 0;
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg_u32(emu, 0));
+    let src_ptr = api_try!(emu, call.arg(emu, 1));
+    let src_len = api_try!(emu, call.arg_i32(emu, 2));
+    let value_ptr = api_try!(emu, call.arg(emu, 3));
+    let value_len = api_try!(emu, call.arg_i32(emu, 4));
+    let ignore_case = api_try!(emu, call.arg(emu, 5)) != 0;
     let src = if src_ptr != 0 {
         emu.maps.read_wide_string(src_ptr)
     } else {
@@ -32,5 +34,5 @@ pub fn FindStringOrdinal(emu: &mut emu::Emu) {
         idx
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = idx as u64;
+    call.set_return(emu, idx as u64);
 }

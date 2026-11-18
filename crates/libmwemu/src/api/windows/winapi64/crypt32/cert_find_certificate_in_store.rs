@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CertFindCertificateInStore(emu: &mut emu::Emu) {
-    let h_store = emu.regs().rcx;
-    let encoding_type = emu.regs().rdx;
-    let find_flags = emu.regs().r8;
-    let find_type = emu.regs().r9;
-    let find_para = WinApiAbi::arg(emu, 4);
-    let prev_cert = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let h_store = api_try!(emu, call.arg(emu, 0));
+    let encoding_type = api_try!(emu, call.arg(emu, 1));
+    let find_flags = api_try!(emu, call.arg(emu, 2));
+    let find_type = api_try!(emu, call.arg(emu, 3));
+    let find_para = api_try!(emu, call.arg(emu, 4));
+    let prev_cert = api_try!(emu, call.arg(emu, 5));
 
     log_red!(
         emu,
@@ -16,5 +18,5 @@ pub fn CertFindCertificateInStore(emu: &mut emu::Emu) {
         find_type
     );
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

@@ -1,8 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn InterlockedIncrement(emu: &mut emu::Emu) {
-    let addend = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let addend = api_try!(emu, call.arg_u32(emu, 0));
 
     let prev = emu.maps.read_dword(addend as u64).unwrap_or(0);
 
@@ -16,6 +18,6 @@ pub fn InterlockedIncrement(emu: &mut emu::Emu) {
         prev + 1
     );
 
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = prev as u64 + 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, prev as u64 + 1);
 }

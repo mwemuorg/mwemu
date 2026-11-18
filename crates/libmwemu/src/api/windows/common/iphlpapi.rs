@@ -1,7 +1,9 @@
 //! Minimal IP Helper queries for an environment without configured interfaces.
+use crate::api::abi::windows::{ArgumentError, CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::winapi::common::{memory::Call, trace};
+use crate::winapi::common::trace;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::network::*;
 
@@ -59,41 +61,47 @@ fn write_sized_buffer(
     ERROR_SUCCESS
 }
 
-fn empty_table(emu: &mut Emu) -> u64 {
-    let buffer = Call::Api.arg(emu, 0);
-    let size_pointer = Call::Api.arg(emu, 1);
+fn empty_table(emu: &mut Emu) -> Result<u64, ArgumentError> {
+    let call = WinApi(Stdcall);
+    let buffer = call.arg(emu, 0)?;
+    let size_pointer = call.arg(emu, 1)?;
     // All four MIB tables begin with a DWORD entry count; there are no rows.
-    write_sized_buffer(
+    Ok(write_sized_buffer(
         emu,
         buffer,
         size_pointer,
         &0u32.to_le_bytes(),
         ERROR_INSUFFICIENT_BUFFER,
-    )
+    ))
 }
 
-fn adapters_info(emu: &mut Emu) -> u64 {
-    match buffer_size(emu, Call::Api.arg(emu, 1)) {
+fn adapters_info(emu: &mut Emu) -> Result<u64, ArgumentError> {
+    let call = WinApi(Stdcall);
+    let size_pointer = call.arg(emu, 1)?;
+    Ok(match buffer_size(emu, size_pointer) {
         Ok(_) => ERROR_NO_DATA,
         Err(error) => error,
-    }
+    })
 }
 
-fn adapters_addresses(emu: &mut Emu) -> u64 {
-    let family = Call::Api.arg(emu, 0) as u32;
-    let reserved = Call::Api.arg(emu, 2);
+fn adapters_addresses(emu: &mut Emu) -> Result<u64, ArgumentError> {
+    let call = WinApi(Stdcall);
+    let family = call.arg_u32(emu, 0)?;
+    let reserved = call.arg(emu, 2)?;
+    let size_pointer = call.arg(emu, 4)?;
     if !matches!(family, AF_UNSPEC | AF_INET | AF_INET6) || reserved != 0 {
-        return ERROR_INVALID_PARAMETER;
+        return Ok(ERROR_INVALID_PARAMETER);
     }
-    match buffer_size(emu, Call::Api.arg(emu, 4)) {
+    Ok(match buffer_size(emu, size_pointer) {
         Ok(_) => ERROR_NO_DATA,
         Err(error) => error,
-    }
+    })
 }
 
-fn network_parameters(emu: &mut Emu) -> u64 {
-    let buffer = Call::Api.arg(emu, 0);
-    let size_pointer = Call::Api.arg(emu, 1);
+fn network_parameters(emu: &mut Emu) -> Result<u64, ArgumentError> {
+    let call = WinApi(Stdcall);
+    let buffer = call.arg(emu, 0)?;
+    let size_pointer = call.arg(emu, 1)?;
     let layout = if emu.cfg.is_x64() {
         &FIXED_INFO64
     } else {
@@ -107,11 +115,20 @@ fn network_parameters(emu: &mut Emu) -> u64 {
     info[..length].copy_from_slice(&host_name[..length]);
     info[layout.node_type_offset..layout.node_type_offset + ULONG_SIZE]
         .copy_from_slice(&BROADCAST_NODETYPE.to_le_bytes());
-    write_sized_buffer(emu, buffer, size_pointer, &info, ERROR_BUFFER_OVERFLOW)
+    Ok(write_sized_buffer(
+        emu,
+        buffer,
+        size_pointer,
+        &info,
+        ERROR_BUFFER_OVERFLOW,
+    ))
 }
 
 pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    let (parameters, arguments, handler): (&str, usize, fn(&mut Emu) -> u64) = match api {
+    let call = WinApi(Stdcall);
+    type QueryHandler = fn(&mut Emu) -> Result<u64, ArgumentError>;
+
+    let (parameters, arguments, handler): (&str, usize, QueryHandler) = match api {
         "GetIfTable" | "GetIpAddrTable" | "GetTcpTable" | "GetUdpTable" => {
             ("table size order", 3, empty_table)
         }
@@ -121,8 +138,9 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         _ => return false,
     };
     trace::api(emu, &format!("iphlpapi!{api}"), parameters, true, |emu| {
-        let result = handler(emu);
-        Call::Api.finish(emu, result, arguments);
+        let result = api_try!(emu, handler(emu));
+        call.set_return(emu, result);
+        call.cleanup_args(emu, arguments);
     });
     true
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateToolhelp32Snapshot(emu: &mut emu::Emu) {
-    let flags = emu.regs().rcx;
-    let pid = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg(emu, 0));
+    let pid = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -13,5 +16,5 @@ pub fn CreateToolhelp32Snapshot(emu: &mut emu::Emu) {
     );
 
     let uri = format!("CreateToolhelp32Snapshot://{}", pid);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }

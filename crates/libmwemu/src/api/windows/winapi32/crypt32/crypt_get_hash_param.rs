@@ -1,15 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptGetHashParam(emu: &mut emu::Emu) {
-    let h_hash = WinApiAbi::arg(emu, 0);
-    let param = WinApiAbi::arg(emu, 1) as u32;
-    let data_ptr = WinApiAbi::arg(emu, 2);
-    let data_len_ptr = WinApiAbi::arg(emu, 3);
-    for _ in 0..5u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    let h_hash = api_try!(emu, call.arg(emu, 0));
+    let param = api_try!(emu, call.arg_u32(emu, 1));
+    let data_ptr = api_try!(emu, call.arg(emu, 2));
+    let data_len_ptr = api_try!(emu, call.arg(emu, 3));
+    call.cleanup_args(emu, 5);
     log_red!(
         emu,
         "crypt32!CryptGetHashParam hash: 0x{:x} param: {} data: 0x{:x}",
@@ -24,8 +24,8 @@ pub fn CryptGetHashParam(emu: &mut emu::Emu) {
         if data_len_ptr != 0 {
             emu.maps.write_dword(data_len_ptr, result.len() as u32);
         }
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

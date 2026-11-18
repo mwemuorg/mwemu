@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn VerQueryValueA(emu: &mut emu::Emu) {
-    let p_block = emu.regs().rcx as usize;
-    let lp_sub_block = emu.regs().rdx;
-    let lplp_buffer = emu.regs().r8 as usize;
-    let pu_len = emu.regs().r9 as usize;
+    let call = WinApi(Stdcall);
+    let p_block = api_try!(emu, call.arg(emu, 0)) as usize;
+    let lp_sub_block = api_try!(emu, call.arg(emu, 1));
+    let lplp_buffer = api_try!(emu, call.arg(emu, 2)) as usize;
+    let pu_len = api_try!(emu, call.arg(emu, 3)) as usize;
 
     let sub_block = if lp_sub_block > 0 {
         emu.maps.read_string(lp_sub_block)
@@ -28,7 +31,7 @@ pub(super) fn VerQueryValueA(emu: &mut emu::Emu) {
         let fixed_info_ptr = (p_block + 0x28) as u64;
         emu.maps.write_qword(lplp_buffer as u64, fixed_info_ptr);
         emu.maps.write_dword(pu_len as u64, 52); // Size of VS_FIXEDFILEINFO
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else if sub_block.starts_with("\\StringFileInfo\\") {
         // String queries - allocate and return string data
         let string_data = match sub_block.as_str() {
@@ -49,7 +52,7 @@ pub(super) fn VerQueryValueA(emu: &mut emu::Emu) {
             Some(a) => a,
             None => {
                 log::error!("kernelbase!VerQueryValueA: out of memory");
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
         };
@@ -57,30 +60,31 @@ pub(super) fn VerQueryValueA(emu: &mut emu::Emu) {
         emu.maps.write_qword(lplp_buffer as u64, string_addr);
         emu.maps
             .write_dword(pu_len as u64, string_data.len() as u32);
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else if sub_block == "\\VarFileInfo\\Translation" {
         // Translation array
         let trans_addr = match emu.maps.alloc(4) {
             Some(a) => a,
             None => {
                 log::error!("kernelbase!VerQueryValueA: out of memory (translation)");
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
         };
         emu.maps.write_dword(trans_addr, 0x04B00409); // Language and codepage
         emu.maps.write_qword(lplp_buffer as u64, trans_addr);
         emu.maps.write_dword(pu_len as u64, 4);
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
         log::trace!("VerQueryValueA: Unknown sub_block: {}", sub_block);
-        emu.regs_mut().rax = 0; // Failure
+        call.set_return(emu, 0); // Failure
     }
 }
 
 pub fn VerQueryValueW(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {
@@ -88,5 +92,5 @@ pub fn VerQueryValueW(emu: &mut emu::Emu) {
     };
     log_red!(emu, "kernelbase!VerQueryValueW '{}'  p1:0x{:x}", s, p1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

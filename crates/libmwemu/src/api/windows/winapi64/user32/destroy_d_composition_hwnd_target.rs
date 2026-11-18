@@ -1,13 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn DestroyDCompositionHwndTarget(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
     helper::handler_close(handle);
     log_red!(
         emu,
         "user32!DestroyDCompositionHwndTarget handle:0x{:x}",
         handle
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

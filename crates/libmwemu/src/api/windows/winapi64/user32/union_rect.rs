@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn UnionRect(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let src1 = emu.regs().rdx;
-    let src2 = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src1 = api_try!(emu, call.arg(emu, 1));
+    let src2 = api_try!(emu, call.arg(emu, 2));
     if dst != 0 && src1 != 0 && src2 != 0 {
         let l1 = emu.maps.read_dword(src1).unwrap_or(0) as i32;
         let t1 = emu.maps.read_dword(src1 + 4).unwrap_or(0) as i32;
@@ -25,5 +28,5 @@ pub fn UnionRect(emu: &mut emu::Emu) {
         src1,
         src2
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

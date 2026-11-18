@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn EqualSid(emu: &mut emu::Emu) {
-    let sid1 = emu.regs().rcx;
-    let sid2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let sid1 = api_try!(emu, call.arg(emu, 0));
+    let sid2 = api_try!(emu, call.arg(emu, 1));
     let equal = if sid1 != 0 && sid2 != 0 {
         let sub1 = emu.maps.read_byte(sid1 + 1).unwrap_or(0);
         let sub2 = emu.maps.read_byte(sid2 + 1).unwrap_or(0);
@@ -25,5 +28,5 @@ pub fn EqualSid(emu: &mut emu::Emu) {
         equal
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = if equal { 1 } else { 0 };
+    call.set_return(emu, if equal { 1 } else { 0 });
 }

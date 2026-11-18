@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn RegOpenKeyA(emu: &mut emu::Emu) {
@@ -9,9 +10,10 @@ pub fn RegOpenKeyA(emu: &mut emu::Emu) {
 }
 
 fn reg_open_key(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hKey = WinApiAbi::arg(emu, 0);
-    let subkey_ptr = WinApiAbi::arg(emu, 1);
-    let result = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let hKey = api_try!(emu, call.arg(emu, 0));
+    let subkey_ptr = api_try!(emu, call.arg(emu, 1));
+    let result = api_try!(emu, call.arg(emu, 2));
 
     let subkey = strings::read_text(emu, subkey_ptr, wide);
     emu.maps.write_dword(
@@ -20,11 +22,8 @@ fn reg_open_key(emu: &mut emu::Emu, api: &str, wide: bool) {
     );
 
     log_red!(emu, "kernel32!{api} `{}`", subkey);
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 
 pub fn RegOpenKeyW(emu: &mut emu::Emu) {

@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn ShellExecuteEx(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "shell32!ShellExecuteEx arg1:0x{:x} arg2:0x{:x}",
@@ -12,7 +15,7 @@ pub fn ShellExecuteEx(emu: &mut emu::Emu) {
         arg2
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn ShellExecuteExA(emu: &mut emu::Emu) {
@@ -24,21 +27,22 @@ pub fn ShellExecuteExW(emu: &mut emu::Emu) {
 }
 
 fn shell_execute_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let str_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let str_ptr = api_try!(emu, call.arg(emu, 0));
     let s = if str_ptr != 0 {
         strings::read_text(emu, str_ptr, wide)
     } else {
         String::new()
     };
-    let arg2 = emu.regs().rdx;
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(emu, "shell32!{api} '{}' arg2:0x{:x}", s, arg2);
     if wide {
         let handle = helper::handler_create("shellexecuteexw");
         emu.set_last_error(0);
-        emu.regs_mut().rax = handle;
+        call.set_return(emu, handle);
     } else {
         let handle = helper::handler_create("shellexecuteexa");
         emu.set_last_error(0);
-        emu.regs_mut().rax = handle;
+        call.set_return(emu, handle);
     }
 }

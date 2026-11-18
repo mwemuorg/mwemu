@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SetMapMode(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let mode = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let mode = api_try!(emu, call.arg(emu, 1));
     let mode_name = match mode {
         1 => "MM_TEXT",
         2 => "MM_LOMETRIC",
@@ -22,5 +25,5 @@ pub fn SetMapMode(emu: &mut emu::Emu) {
         mode_name
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // previous mode: MM_TEXT
+    call.set_return(emu, 1); // previous mode: MM_TEXT
 }

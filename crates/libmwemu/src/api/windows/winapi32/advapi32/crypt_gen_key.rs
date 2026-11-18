@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptGenKey(emu: &mut emu::Emu) {
-    let hprov = WinApiAbi::arg(emu, 0) as u32;
-    let algid = WinApiAbi::arg(emu, 1) as u32;
-    let flags = WinApiAbi::arg(emu, 2) as u32;
-    let hkey_ptr = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let hprov = api_try!(emu, call.arg_u32(emu, 0));
+    let algid = api_try!(emu, call.arg_u32(emu, 1));
+    let flags = api_try!(emu, call.arg_u32(emu, 2));
+    let hkey_ptr = api_try!(emu, call.arg(emu, 3));
 
     let uri = format!("cryptkey://{}", get_cryptoalgorithm_name(algid));
     let hndl = helper::handler_create(&uri);
@@ -28,8 +30,6 @@ pub(super) fn CryptGenKey(emu: &mut emu::Emu) {
         hndl
     );
 
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 1);
 }

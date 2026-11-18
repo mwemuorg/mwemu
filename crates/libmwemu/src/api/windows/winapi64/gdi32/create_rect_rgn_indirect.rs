@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateRectRgnIndirect(emu: &mut emu::Emu) {
-    let rect = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let rect = api_try!(emu, call.arg(emu, 0));
     let (left, top, right, bottom) = if rect != 0 {
         (
             emu.maps.read_dword(rect).unwrap_or(0) as i32,
@@ -21,5 +24,5 @@ pub fn CreateRectRgnIndirect(emu: &mut emu::Emu) {
         right,
         bottom
     );
-    emu.regs_mut().rax = helper::handler_create("gdi32://region");
+    call.set_return(emu, helper::handler_create("gdi32://region"));
 }

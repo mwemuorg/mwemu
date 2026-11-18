@@ -1,14 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SHAlloc(emu: &mut emu::Emu) {
-    let arg1 = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg_u32(emu, 0));
     log_red!(emu, "shell32!SHAlloc arg1:0x{:x}", arg1);
     let handle = helper::handler_create("SHAlloc");
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 1);
 }

@@ -1,10 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn GetDeviceCaps(emu: &mut emu::Emu) {
-    let hdc = arg(emu, 0);
-    let index = arg(emu, 1) as i32;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg_u32(emu, 0));
+    let index = api_try!(emu, call.arg_i32(emu, 1));
     let result: u64 = match index {
         8 => 1920,   // HORZRES
         10 => 1080,  // VERTRES
@@ -18,6 +19,6 @@ pub fn GetDeviceCaps(emu: &mut emu::Emu) {
     };
     log_red!(emu, "gdi32!GetDeviceCaps index:{} = {}", index, result);
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
-    stdcall_ret(emu, 2);
+    call.set_return(emu, result);
+    call.cleanup_args(emu, 2);
 }

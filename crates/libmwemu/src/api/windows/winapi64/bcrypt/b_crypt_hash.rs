@@ -1,18 +1,20 @@
 use super::bcrypt_algo_to_calg;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptHash(emu: &mut emu::Emu) {
-    let h_algorithm = emu.regs().rcx;
-    let _pb_secret = emu.regs().rdx;
-    let _cb_secret = emu.regs().r8 as usize;
-    let pb_input = emu.regs().r9;
-    let cb_input = WinApiAbi::arg(emu, 4) as usize;
-    let pb_output = WinApiAbi::arg(emu, 5);
-    let cb_output = WinApiAbi::arg(emu, 6) as usize;
+    let call = WinApi(Stdcall);
+    let h_algorithm = api_try!(emu, call.arg(emu, 0));
+    let _pb_secret = api_try!(emu, call.arg(emu, 1));
+    let _cb_secret = api_try!(emu, call.arg(emu, 2)) as usize;
+    let pb_input = api_try!(emu, call.arg(emu, 3));
+    let cb_input = api_try!(emu, call.arg(emu, 4)) as usize;
+    let pb_output = api_try!(emu, call.arg(emu, 5));
+    let cb_output = api_try!(emu, call.arg(emu, 6)) as usize;
 
     let algo_uri = helper::handler_get_uri(h_algorithm);
     let algo_name = algo_uri.strip_prefix("bcrypt://").unwrap_or(&algo_uri);
@@ -39,5 +41,5 @@ pub fn BCryptHash(emu: &mut emu::Emu) {
         helper::handler_close(temp_h);
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }

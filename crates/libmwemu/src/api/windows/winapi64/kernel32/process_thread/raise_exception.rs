@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::exception::raise;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::exceptions::EXCEPTION_MAXIMUM_PARAMETERS;
 
 pub fn RaiseException(emu: &mut emu::Emu) {
-    let code = emu.regs().rcx as u32;
-    let flags = emu.regs().rdx as u32;
-    let num_args = emu.regs().r8 as u32;
-    let args_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let code = api_try!(emu, call.arg_u32(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let num_args = api_try!(emu, call.arg_u32(emu, 2));
+    let args_ptr = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -26,5 +29,5 @@ pub fn RaiseException(emu: &mut emu::Emu) {
         return;
     }
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

@@ -323,7 +323,7 @@ impl Emu {
     /// respect the configured architecture at runtime.
     #[allow(deprecated)]
     pub(crate) fn step_isa(&mut self) -> bool {
-        if self.process_terminated || self.api_policy.stopped() {
+        if self.process_terminated || self.api_stopped() {
             return false;
         }
 
@@ -374,7 +374,7 @@ impl Emu {
 
         // Decode and execute (arch-dispatched)
         let (sz, result_ok) = self.decode_and_execute();
-        if self.api_policy.stopped() {
+        if self.api_stopped() {
             return false;
         }
         // Advance PC

@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn DeregisterEventSource(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
     if helper::handler_exist(hndl) {
         helper::handler_close(hndl);
     }
     log_red!(emu, "advapi32!DeregisterEventSource 0x{:x}", hndl);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }

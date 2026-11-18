@@ -94,3 +94,36 @@ fn reg_open_key_ex_w() {
         "RegOpenKeyExW of a missing key is ERROR_FILE_NOT_FOUND"
     );
 }
+
+#[test]
+fn checked_arguments_preserve_outputs_before_late_registry_read_failure() {
+    use crate::tests::helpers::{invoke_winapi_export, prepare_winapi};
+
+    let (mut emu, data) = prepare_winapi(true);
+    let stack = data + 0x10000;
+    emu.maps
+        .create_map(
+            "short_registry_frame",
+            stack,
+            11 * size_of::<u64>() as u64,
+            Permission::READ_WRITE,
+        )
+        .unwrap();
+    emu.set_sp(stack);
+    emu.regs_mut().rcx = HKEY_LOCAL_MACHINE;
+    emu.regs_mut().rdx = data;
+    emu.regs_mut().r8 = data + 4;
+    emu.regs_mut().r9 = 0;
+    for index in 4..11 {
+        assert!(
+            emu.maps
+                .write_qword(stack + index * size_of::<u64>() as u64, data + 8)
+        );
+    }
+    assert!(emu.maps.write_bytes(data, &[0xa5; 16]));
+    emu.regs_mut().rax = 0x12345678;
+    invoke_winapi_export(&mut emu, "advapi32.dll", "RegQueryInfoKeyA");
+    assert!(emu.api_policy.stopped());
+    assert_eq!(emu.regs().rax, 0x12345678);
+    assert_eq!(&*emu.maps.read_bytes(data, 16), &[0xa5; 16]);
+}

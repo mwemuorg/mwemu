@@ -1,16 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn GetAddrInfoExA(emu: &mut emu::Emu) {
     get_addr_info_ex(emu, "GetAddrInfoExA", false);
 }
 
 fn get_addr_info_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let name_ptr = WinApiAbi::arg(emu, 0);
-    let service_ptr = WinApiAbi::arg(emu, 1);
-    let namespace = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let name_ptr = api_try!(emu, call.arg(emu, 0));
+    let service_ptr = api_try!(emu, call.arg(emu, 1));
+    let namespace = api_try!(emu, call.arg_u32(emu, 2));
     let name = if name_ptr != 0 {
         strings::read_text(emu, name_ptr, wide)
     } else {
@@ -29,8 +30,8 @@ fn get_addr_info_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         namespace
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 10);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 10);
 }
 
 pub fn GetAddrInfoExW(emu: &mut emu::Emu) {

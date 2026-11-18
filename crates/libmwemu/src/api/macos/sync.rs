@@ -6,7 +6,8 @@
 //! `blocked_on_lock` / `cond_wait`; whoever releases the lock completes the
 //! waiter's call (sets its return value and hands it ownership).
 use super::libc_extra::trace;
-use crate::api::abi::ApiAbi;
+use crate::api::abi::unix::UnixApi;
+use crate::api::unix::api_try;
 use crate::emu::Emu;
 
 // pthread_mutex_t: sig at +0 (from <pthread/pthread_impl.h>), then our state.
@@ -29,6 +30,7 @@ const ETIMEDOUT: u64 = 60;
 
 /// Dispatch `symbol` if it is implemented here. Returns false otherwise.
 pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
+    let call = UnixApi;
     let name = symbol.strip_prefix('_').unwrap_or(symbol);
     match name {
         "pthread_mutex_init" => api_mutex_init(emu),
@@ -41,7 +43,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "pthread_mutexattr_gettype" => api_mutexattr_gettype(emu),
         "pthread_mutexattr_destroy" | "pthread_cond_init" | "pthread_cond_destroy" => {
             trace(emu, &format!("{}() -> 0", name));
-            ApiAbi::from_emu(emu).set_ret(emu, 0);
+            call.set_return(emu, 0);
         }
         "pthread_cond_wait" => api_cond_wait(emu),
         "pthread_cond_timedwait" => api_cond_timedwait(emu),
@@ -116,9 +118,9 @@ fn mutex_release(emu: &mut Emu, m: u64) {
 }
 
 fn api_mutex_init(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let m = abi.arg(emu, 0);
-    let attr = abi.arg(emu, 1);
+    let call = UnixApi;
+    let m = api_try!(emu, call.arg(emu, 0));
+    let attr = api_try!(emu, call.arg(emu, 1));
     let kind = if attr == 0 {
         NORMAL
     } else {
@@ -132,19 +134,19 @@ fn api_mutex_init(emu: &mut Emu) {
         emu,
         &format!("pthread_mutex_init(0x{:x}, type={}) -> 0", m, kind),
     );
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_mutex_lock(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let m = abi.arg(emu, 0);
+    let call = UnixApi;
+    let m = api_try!(emu, call.arg(emu, 0));
     let tid = current_tid(emu);
     let owner = mutex_owner(emu, m);
 
     if owner == 0 {
         mutex_take(emu, m, tid);
         trace(emu, &format!("pthread_mutex_lock(0x{:x}) -> 0", m));
-        abi.set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
     if owner == tid {
@@ -152,12 +154,12 @@ fn api_mutex_lock(emu: &mut Emu) {
             RECURSIVE => {
                 let count = emu.maps.read_dword(m + COUNT).unwrap_or(0);
                 emu.maps.write_dword(m + COUNT, count + 1);
-                abi.set_ret(emu, 0);
+                call.set_return(emu, 0);
                 return;
             }
             ERRORCHECK => {
                 trace(emu, &format!("pthread_mutex_lock(0x{:x}) -> EDEADLK", m));
-                abi.set_ret(emu, EDEADLK);
+                call.set_return(emu, EDEADLK);
                 return;
             }
             _ => {} // a normal mutex relocked by its owner deadlocks, as natively
@@ -167,8 +169,8 @@ fn api_mutex_lock(emu: &mut Emu) {
 }
 
 fn api_mutex_trylock(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let m = abi.arg(emu, 0);
+    let call = UnixApi;
+    let m = api_try!(emu, call.arg(emu, 0));
     let tid = current_tid(emu);
     let owner = mutex_owner(emu, m);
 
@@ -183,17 +185,17 @@ fn api_mutex_trylock(emu: &mut Emu) {
         EBUSY
     };
     trace(emu, &format!("pthread_mutex_trylock(0x{:x}) -> {}", m, ret));
-    abi.set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_mutex_unlock(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let m = abi.arg(emu, 0);
+    let call = UnixApi;
+    let m = api_try!(emu, call.arg(emu, 0));
     let tid = current_tid(emu);
 
     if mutex_owner(emu, m) != tid && mutex_kind(emu, m) != NORMAL {
         trace(emu, &format!("pthread_mutex_unlock(0x{:x}) -> EPERM", m));
-        abi.set_ret(emu, EPERM);
+        call.set_return(emu, EPERM);
         return;
     }
     let count = emu.maps.read_dword(m + COUNT).unwrap_or(1);
@@ -203,44 +205,44 @@ fn api_mutex_unlock(emu: &mut Emu) {
         mutex_release(emu, m);
     }
     trace(emu, &format!("pthread_mutex_unlock(0x{:x}) -> 0", m));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_mutex_destroy(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let m = abi.arg(emu, 0);
+    let call = UnixApi;
+    let m = api_try!(emu, call.arg(emu, 0));
     let ret = if mutex_owner(emu, m) == 0 { 0 } else { EBUSY };
     trace(emu, &format!("pthread_mutex_destroy(0x{:x}) -> {}", m, ret));
-    abi.set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_mutexattr_init(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let attr = abi.arg(emu, 0);
+    let call = UnixApi;
+    let attr = api_try!(emu, call.arg(emu, 0));
     emu.maps.write_dword(attr + ATTR_KIND, NORMAL);
     trace(emu, &format!("pthread_mutexattr_init(0x{:x}) -> 0", attr));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_mutexattr_settype(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let attr = abi.arg(emu, 0);
-    let kind = abi.arg(emu, 1) as u32;
+    let call = UnixApi;
+    let attr = api_try!(emu, call.arg(emu, 0));
+    let kind = api_try!(emu, call.arg_u32(emu, 1));
     emu.maps.write_dword(attr + ATTR_KIND, kind);
     trace(
         emu,
         &format!("pthread_mutexattr_settype(0x{:x}, {}) -> 0", attr, kind),
     );
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_mutexattr_gettype(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let attr = abi.arg(emu, 0);
-    let out = abi.arg(emu, 1);
+    let call = UnixApi;
+    let attr = api_try!(emu, call.arg(emu, 0));
+    let out = api_try!(emu, call.arg(emu, 1));
     let kind = emu.maps.read_dword(attr + ATTR_KIND).unwrap_or(NORMAL);
     emu.maps.write_dword(out, kind);
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 // --- pthread_cond --------------------------------------------------------
@@ -248,9 +250,10 @@ fn api_mutexattr_gettype(emu: &mut Emu) {
 /// Release the caller's mutex for a condition wait. False if it is not held
 /// by the caller (EPERM, nothing released).
 fn release_for_wait(emu: &mut Emu, name: &str, m: u64) -> bool {
+    let call = UnixApi;
     if mutex_owner(emu, m) != current_tid(emu) {
         trace(emu, &format!("{}(mutex=0x{:x}) -> EPERM", name, m));
-        ApiAbi::from_emu(emu).set_ret(emu, EPERM);
+        call.set_return(emu, EPERM);
         return false;
     }
     mutex_release(emu, m);
@@ -258,9 +261,9 @@ fn release_for_wait(emu: &mut Emu, name: &str, m: u64) -> bool {
 }
 
 fn api_cond_wait(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let c = abi.arg(emu, 0);
-    let m = abi.arg(emu, 1);
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg(emu, 0));
+    let m = api_try!(emu, call.arg(emu, 1));
     if !release_for_wait(emu, "pthread_cond_wait", m) {
         return;
     }
@@ -273,9 +276,9 @@ fn api_cond_wait(emu: &mut Emu) {
 /// host clock passes `abstime`, otherwise 0 (a spurious wakeup, which
 /// callers must already handle), so it can never deadlock.
 fn api_cond_timedwait(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let m = abi.arg(emu, 1);
-    let abstime = abi.arg(emu, 2);
+    let call = UnixApi;
+    let m = api_try!(emu, call.arg(emu, 1));
+    let abstime = api_try!(emu, call.arg(emu, 2));
     if !release_for_wait(emu, "pthread_cond_timedwait", m) {
         return;
     }
@@ -291,7 +294,7 @@ fn api_cond_timedwait(emu: &mut Emu) {
     let tid = current_tid(emu);
     if mutex_owner(emu, m) == 0 {
         mutex_take(emu, m, tid);
-        abi.set_ret(emu, ret);
+        call.set_return(emu, ret);
     } else {
         // ETIMEDOUT is lost if we have to wait for the mutex; 0 is still valid.
         block_on_lock(emu, "pthread_cond_timedwait", m);
@@ -299,8 +302,8 @@ fn api_cond_timedwait(emu: &mut Emu) {
 }
 
 fn api_cond_wake(emu: &mut Emu, all: bool) {
-    let abi = ApiAbi::from_emu(emu);
-    let c = abi.arg(emu, 0);
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg(emu, 0));
     let mut woken = 0;
     while let Some(idx) = cond_waiter(emu, c) {
         resume_cond_waiter(emu, idx);
@@ -315,7 +318,7 @@ fn api_cond_wake(emu: &mut Emu, all: bool) {
         "pthread_cond_signal"
     };
     trace(emu, &format!("{}(0x{:x}) -> 0 woke {}", name, c, woken));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn cond_waiter(emu: &Emu, c: u64) -> Option<usize> {
@@ -342,7 +345,8 @@ fn resume_cond_waiter(emu: &mut Emu, idx: usize) {
 // --- os_unfair_lock (u32 owner, 0 = unlocked) ----------------------------
 
 fn api_unfair_lock(emu: &mut Emu) {
-    let lock = ApiAbi::from_emu(emu).arg(emu, 0);
+    let call = UnixApi;
+    let lock = api_try!(emu, call.arg(emu, 0));
     let tid = current_tid(emu) as u32;
     if emu.maps.read_dword(lock).unwrap_or(0) == 0 {
         emu.maps.write_dword(lock, tid);
@@ -354,8 +358,8 @@ fn api_unfair_lock(emu: &mut Emu) {
 }
 
 fn api_unfair_trylock(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let lock = abi.arg(emu, 0);
+    let call = UnixApi;
+    let lock = api_try!(emu, call.arg(emu, 0));
     let free = emu.maps.read_dword(lock).unwrap_or(0) == 0;
     if free {
         let tid = current_tid(emu) as u32;
@@ -365,11 +369,12 @@ fn api_unfair_trylock(emu: &mut Emu) {
         emu,
         &format!("os_unfair_lock_trylock(0x{:x}) -> {}", lock, free),
     );
-    abi.set_ret(emu, free as u64);
+    call.set_return(emu, free as u64);
 }
 
 fn api_unfair_unlock(emu: &mut Emu) {
-    let lock = ApiAbi::from_emu(emu).arg(emu, 0);
+    let call = UnixApi;
+    let lock = api_try!(emu, call.arg(emu, 0));
     match next_waiter(emu, lock) {
         Some(idx) => {
             let tid = emu.threads[idx].id as u32;

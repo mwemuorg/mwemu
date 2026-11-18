@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::kernel32::load_library;
 
 pub fn LoadLibraryA(emu: &mut emu::Emu) {
@@ -11,10 +13,12 @@ pub fn LoadLibraryW(emu: &mut emu::Emu) {
 }
 
 fn load_library_text(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let dllptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let dllptr = api_try!(emu, call.arg(emu, 0));
     let dll = strings::read_text(emu, dllptr, wide);
     emu.set_last_error(0);
-    emu.regs_mut().rax = load_library(emu, &dll);
+    let return_value = load_library(emu, &dll);
+    call.set_return(emu, return_value);
     if wide {
         log_red!(
             emu,

@@ -1,20 +1,22 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetVolumeInformationA(emu: &mut emu::Emu) {
     get_volume_information(emu, "GetVolumeInformationA", false);
 }
 
 fn get_volume_information(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let root_ptr = WinApiAbi::arg(emu, 0);
-    let name_buf = WinApiAbi::arg(emu, 1);
-    let name_size = WinApiAbi::arg(emu, 2) as u32;
-    let serial = WinApiAbi::arg(emu, 3);
-    let max_comp = WinApiAbi::arg(emu, 4);
-    let fs_flags = WinApiAbi::arg(emu, 5);
-    let fs_name_buf = WinApiAbi::arg(emu, 6);
-    let fs_name_size = WinApiAbi::arg(emu, 7) as u32;
+    let call = WinApi(Stdcall);
+    let root_ptr = api_try!(emu, call.arg(emu, 0));
+    let name_buf = api_try!(emu, call.arg(emu, 1));
+    let name_size = api_try!(emu, call.arg_u32(emu, 2));
+    let serial = api_try!(emu, call.arg(emu, 3));
+    let max_comp = api_try!(emu, call.arg(emu, 4));
+    let fs_flags = api_try!(emu, call.arg(emu, 5));
+    let fs_name_buf = api_try!(emu, call.arg(emu, 6));
+    let fs_name_size = api_try!(emu, call.arg_u32(emu, 7));
 
     let root = if root_ptr != 0 {
         strings::read_text(emu, root_ptr, wide)
@@ -40,11 +42,9 @@ fn get_volume_information(emu: &mut emu::Emu, api: &str, wide: bool) {
 
     log_red!(emu, "kernel32!{api} '{}'", root);
 
-    for _ in 0..8 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 8);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn GetVolumeInformationW(emu: &mut emu::Emu) {

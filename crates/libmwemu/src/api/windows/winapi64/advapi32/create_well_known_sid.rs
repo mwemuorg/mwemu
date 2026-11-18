@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CreateWellKnownSid(emu: &mut emu::Emu) {
-    let sid_type = emu.regs().rcx as u32;
-    let _domain_sid = emu.regs().rdx;
-    let sid_ptr = emu.regs().r8;
-    let cb_sid_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let sid_type = api_try!(emu, call.arg_u32(emu, 0));
+    let _domain_sid = api_try!(emu, call.arg(emu, 1));
+    let sid_ptr = api_try!(emu, call.arg(emu, 2));
+    let cb_sid_ptr = api_try!(emu, call.arg(emu, 3));
     let sid_bytes: [u8; 12] = [1, 1, 0, 0, 0, 0, 0, 5, 0x12, 0, 0, 0];
     if cb_sid_ptr != 0 {
         emu.maps.write_dword(cb_sid_ptr, 12);
@@ -18,5 +21,5 @@ pub fn CreateWellKnownSid(emu: &mut emu::Emu) {
         sid_type,
         sid_ptr
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

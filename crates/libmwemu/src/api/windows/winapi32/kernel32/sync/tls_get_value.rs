@@ -1,16 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn TlsGetValue(emu: &mut emu::Emu) {
-    let idx = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let idx = api_try!(emu, call.arg_u32(emu, 0));
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 
     if idx as usize >= emu.tls32().len() {
-        emu.regs_mut().set_eax(0);
+        call.set_return(emu, 0);
     } else {
         let tls_entry = emu.tls32()[idx as usize] as u64;
-        emu.regs_mut().set_eax(tls_entry);
+        call.set_return(emu, tls_entry);
     }
 
     log_red!(

@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn PathCombineA(emu: &mut emu::Emu) {
     path_combine(emu, "PathCombineA", false);
 }
 
 fn path_combine(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let dst: u64 = emu.regs().rcx;
-    let dir = emu.regs().rdx;
-    let file = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let dst: u64 = api_try!(emu, call.arg(emu, 0));
+    let dir = api_try!(emu, call.arg(emu, 1));
+    let file = api_try!(emu, call.arg(emu, 2));
 
     let mut path1 = String::new();
     let mut path2 = String::new();
@@ -26,7 +29,7 @@ fn path_combine(emu: &mut emu::Emu, api: &str, wide: bool) {
         strings::write_string(emu, dst, &format!("{}\\{}", path1, path2), wide);
     }
 
-    emu.regs_mut().rax = dst;
+    call.set_return(emu, dst);
 }
 
 pub fn PathCombineW(emu: &mut emu::Emu) {

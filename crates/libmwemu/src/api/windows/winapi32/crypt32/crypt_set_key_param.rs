@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptSetKeyParam(emu: &mut emu::Emu) {
-    let h_key = WinApiAbi::arg(emu, 0);
-    let param = WinApiAbi::arg(emu, 1) as u32;
-    let pb_data = WinApiAbi::arg(emu, 2);
-    let _flags = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let h_key = api_try!(emu, call.arg(emu, 0));
+    let param = api_try!(emu, call.arg_u32(emu, 1));
+    let pb_data = api_try!(emu, call.arg(emu, 2));
+    let _flags = api_try!(emu, call.arg_u32(emu, 3));
     log_red!(
         emu,
         "crypt32!CryptSetKeyParam key:0x{:x} param:{} data:0x{:x}",
@@ -28,8 +30,6 @@ pub fn CryptSetKeyParam(emu: &mut emu::Emu) {
         crypto_state::set_key_data(h_key, &data);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 4);
 }

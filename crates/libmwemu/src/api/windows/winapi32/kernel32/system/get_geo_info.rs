@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetGeoInfoA(emu: &mut emu::Emu) {
@@ -7,19 +8,17 @@ pub fn GetGeoInfoA(emu: &mut emu::Emu) {
 }
 
 fn get_geo_info(emu: &mut emu::Emu, api: &str) {
-    let _Location = WinApiAbi::arg(emu, 0) as u32;
-    let _GeoType = WinApiAbi::arg(emu, 1) as u32;
-    let _lpGeoData = WinApiAbi::arg(emu, 2) as u32;
-    let _cchData = WinApiAbi::arg(emu, 3) as u32;
-    let _LangId = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let _Location = api_try!(emu, call.arg_u32(emu, 0));
+    let _GeoType = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpGeoData = api_try!(emu, call.arg_u32(emu, 2));
+    let _cchData = api_try!(emu, call.arg_u32(emu, 3));
+    let _LangId = api_try!(emu, call.arg_u32(emu, 4));
 
     log_red!(emu, "kernel32!{api}");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 5);
 }
 
 pub fn GetGeoInfoW(emu: &mut emu::Emu) {

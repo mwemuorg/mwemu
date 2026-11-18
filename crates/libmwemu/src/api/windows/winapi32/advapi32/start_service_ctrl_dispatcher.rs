@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn StartServiceCtrlDispatcherA(emu: &mut emu::Emu) {
     start_service_ctrl_dispatcher(emu, "StartServiceCtrlDispatcherA");
@@ -10,7 +11,8 @@ pub(super) fn StartServiceCtrlDispatcherW(emu: &mut emu::Emu) {
 }
 
 fn start_service_ctrl_dispatcher(emu: &mut emu::Emu, api: &str) {
-    let service_table_entry_ptr = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let service_table_entry_ptr = api_try!(emu, call.arg_u32(emu, 0));
     /*
     let service_name = emu.maps.read_dword(service_table_entry_ptr as u64)
         .unwrap_or(0);
@@ -19,6 +21,6 @@ fn start_service_ctrl_dispatcher(emu: &mut emu::Emu, api: &str) {
 
     log_red!(emu, "advapi32!{api}");
 
-    emu.stack_pop32(false);
-    emu.regs_mut().set_eax(1);
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }

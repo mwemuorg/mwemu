@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::system::*;
 
 pub(super) fn GetUserNameA(emu: &mut emu::Emu) {
@@ -11,8 +13,9 @@ pub(super) fn GetUserNameW(emu: &mut emu::Emu) {
 }
 
 fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let out_username = emu.regs().rcx;
-    let in_out_sz = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let out_username = api_try!(emu, call.arg(emu, 0));
+    let in_out_sz = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "advapi32!{api} lpBuffer: 0x{:x} pcbBuffer: 0x{:x}",
@@ -21,7 +24,7 @@ fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
     );
     if in_out_sz == 0 || !emu.maps.is_mapped(in_out_sz) {
         log_red!(emu, "{api}: Invalid pcbBuffer pointer");
-        emu.regs_mut().rax = FALSE;
+        call.set_return(emu, FALSE);
         return;
     }
     if wide {
@@ -32,7 +35,7 @@ fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
         emu.maps.write_dword(in_out_sz, required_size as u32);
         if out_username == 0 || !emu.maps.is_mapped(out_username) {
             log_red!(emu, "{api}: Invalid lpBuffer pointer");
-            emu.regs_mut().rax = FALSE;
+            call.set_return(emu, FALSE);
             return;
         }
         if buffer_size < required_size {
@@ -42,7 +45,7 @@ fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
                 required_size,
                 buffer_size
             );
-            emu.regs_mut().rax = FALSE;
+            call.set_return(emu, FALSE);
             return;
         }
         strings::write_string(emu, out_username, &user_name, wide);
@@ -52,7 +55,7 @@ fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
             user_name,
             required_size
         );
-        emu.regs_mut().rax = TRUE;
+        call.set_return(emu, TRUE);
     } else {
         let buffer_size = emu.maps.read_qword(in_out_sz).unwrap_or(0) as usize;
         let user_name = emu.cfg.user_name.clone();
@@ -60,7 +63,7 @@ fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
         emu.maps.write_qword(in_out_sz, required_size as u64);
         if out_username == 0 || !emu.maps.is_mapped(out_username) {
             log_red!(emu, "{api}: Invalid lpBuffer pointer");
-            emu.regs_mut().rax = FALSE;
+            call.set_return(emu, FALSE);
             return;
         }
         if buffer_size < required_size {
@@ -70,7 +73,7 @@ fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
                 required_size,
                 buffer_size
             );
-            emu.regs_mut().rax = FALSE;
+            call.set_return(emu, FALSE);
             return;
         }
         strings::write_string(emu, out_username, &user_name, wide);
@@ -80,6 +83,6 @@ fn get_user_name(emu: &mut emu::Emu, api: &str, wide: bool) {
             user_name,
             required_size
         );
-        emu.regs_mut().rax = TRUE;
+        call.set_return(emu, TRUE);
     }
 }

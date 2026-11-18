@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn bind(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let saddr = emu.regs().rdx;
-    let len = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let saddr = api_try!(emu, call.arg(emu, 1));
+    let len = api_try!(emu, call.arg(emu, 2));
 
     let family: u16 = emu.maps.read_word(saddr).unwrap_or(0);
     let port: u16 = emu.maps.read_word(saddr + 2).unwrap_or(0);
@@ -28,8 +31,8 @@ pub fn bind(emu: &mut emu::Emu) {
 
     if !helper::socket_exist(sock) {
         log::trace!("\tbad socket.");
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

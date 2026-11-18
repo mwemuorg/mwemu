@@ -1,6 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn Process32First(emu: &mut emu::Emu) {
     process32_first(emu, "Process32First", false);
@@ -11,9 +13,10 @@ pub fn Process32FirstW(emu: &mut emu::Emu) {
 }
 
 fn process32_first(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let call = WinApi(Stdcall);
     if wide {
-        let snap = emu.regs().rcx;
-        let entry = emu.regs().rdx;
+        let snap = api_try!(emu, call.arg(emu, 0));
+        let entry = api_try!(emu, call.arg(emu, 1));
         log_red!(emu, "kernel32!{api} snap:0x{:x} entry:0x{:x}", snap, entry);
         if entry != 0 {
             // PROCESSENTRY32W.dwSize at offset 0
@@ -28,17 +31,17 @@ fn process32_first(emu: &mut emu::Emu, api: &str, wide: bool) {
             strings::write_string(emu, entry + 44, "System", wide);
         }
     } else {
-        let handle = emu.regs().rcx;
-        let lppe = emu.regs().rdx;
+        let handle = api_try!(emu, call.arg(emu, 0));
+        let lppe = api_try!(emu, call.arg(emu, 1));
         log_red!(emu, "kernel32!{api} hndl:0x{:x} entry:0x{:x}", handle, lppe);
         if !helper::handler_exist(handle) {
             emu.set_last_error(6); // ERROR_INVALID_HANDLE
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
         if lppe == 0 {
             emu.set_last_error(87);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
         emu.maps.write_dword(lppe + 4, 0);
@@ -53,5 +56,5 @@ fn process32_first(emu: &mut emu::Emu, api: &str, wide: bool) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

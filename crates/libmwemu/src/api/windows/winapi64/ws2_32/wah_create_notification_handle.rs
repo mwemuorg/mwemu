@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WahCreateNotificationHandle(emu: &mut emu::Emu) {
-    let table_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let table_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(
         emu,
         "ws2_32!WahCreateNotificationHandle ptr:0x{:x}",
@@ -12,5 +15,5 @@ pub fn WahCreateNotificationHandle(emu: &mut emu::Emu) {
     if table_ptr != 0 {
         emu.maps.write_qword(table_ptr, handle);
     }
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

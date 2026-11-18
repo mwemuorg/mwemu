@@ -1,17 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn GetTextAlign(emu: &mut emu::Emu) {
-    let hdc = arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg_u32(emu, 0));
 
-    let arg1 = WinApiAbi::arg(emu, 0);
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    call.cleanup_args(emu, 1);
     log_red!(emu, "gdi32!GetTextAlign arg1:0x{:x}", arg1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // TA_LEFT | TA_TOP
-    stdcall_ret(emu, 1);
+    call.set_return(emu, 0); // TA_LEFT | TA_TOP
+    call.cleanup_args(emu, 1);
 }

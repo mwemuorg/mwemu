@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SetThreadLocale(emu: &mut emu::Emu) {
-    let locale = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let locale = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "kernel32!SetThreadLocale locale:0x{:x}", locale);
-    let _ = emu.maps.is_mapped(emu.regs().rcx);
+    let _ = emu.maps.is_mapped(api_try!(emu, call.arg(emu, 0)));
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

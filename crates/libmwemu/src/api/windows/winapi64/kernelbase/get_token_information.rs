@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetTokenInformation(emu: &mut emu::Emu) {
-    let token_handle = WinApiAbi::arg(emu, 0);
-    let token_information_class = WinApiAbi::arg(emu, 1);
-    let token_information = emu.regs().r8;
-    let token_information_length = emu.regs().r9;
-    let return_length = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let token_handle = api_try!(emu, call.arg(emu, 0));
+    let token_information_class = api_try!(emu, call.arg(emu, 1));
+    let token_information = api_try!(emu, call.arg(emu, 2));
+    let token_information_length = api_try!(emu, call.arg(emu, 3));
+    let return_length = api_try!(emu, call.arg(emu, 4));
 
     log_red!(
         emu,
@@ -14,5 +16,5 @@ pub fn GetTokenInformation(emu: &mut emu::Emu) {
         token_information_class
     );
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

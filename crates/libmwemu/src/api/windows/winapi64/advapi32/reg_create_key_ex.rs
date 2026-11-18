@@ -1,22 +1,24 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
     reg_create_key_ex(emu, "RegCreateKeyExA", false);
 }
 
 fn reg_create_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let _reserved = emu.regs().r8;
-    let _class_ptr = emu.regs().r9;
-    let _options = WinApiAbi::arg(emu, 4);
-    let _sam = WinApiAbi::arg(emu, 5);
-    let _security = WinApiAbi::arg(emu, 6);
-    let result_ptr = WinApiAbi::arg(emu, 7);
-    let disposition_ptr = WinApiAbi::arg(emu, 8);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let subkey_ptr = api_try!(emu, call.arg(emu, 1));
+    let _reserved = api_try!(emu, call.arg(emu, 2));
+    let _class_ptr = api_try!(emu, call.arg(emu, 3));
+    let _options = api_try!(emu, call.arg(emu, 4));
+    let _sam = api_try!(emu, call.arg(emu, 5));
+    let _security = api_try!(emu, call.arg(emu, 6));
+    let result_ptr = api_try!(emu, call.arg(emu, 7));
+    let disposition_ptr = api_try!(emu, call.arg(emu, 8));
     let subkey = strings::read_text(emu, subkey_ptr, wide);
     let new_handle = helper::handler_create(&format!("registry://{}", subkey));
     if result_ptr != 0 {
@@ -33,7 +35,7 @@ fn reg_create_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         new_handle
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn RegCreateKeyExW(emu: &mut emu::Emu) {

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetSecurityDescriptorControl(emu: &mut emu::Emu) {
-    let sd_ptr = emu.regs().rcx;
-    let control_ptr = emu.regs().rdx;
-    let revision_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let sd_ptr = api_try!(emu, call.arg(emu, 0));
+    let control_ptr = api_try!(emu, call.arg(emu, 1));
+    let revision_ptr = api_try!(emu, call.arg(emu, 2));
     if sd_ptr != 0 {
         let control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
         if control_ptr != 0 {
@@ -20,5 +23,5 @@ pub fn GetSecurityDescriptorControl(emu: &mut emu::Emu) {
         sd_ptr
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

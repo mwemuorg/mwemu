@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn DrawIcon(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let p2 = emu.regs().r8;
-    let p3 = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "user32!DrawIcon p1:0x{:x} p2:0x{:x} p3:0x{:x}",
@@ -12,10 +15,10 @@ pub fn DrawIcon(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    let val_ptr = emu.regs().rdx;
+    let val_ptr = api_try!(emu, call.arg(emu, 1));
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

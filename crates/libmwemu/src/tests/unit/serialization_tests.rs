@@ -1,3 +1,4 @@
+use crate::serialization::native::NativeSnapshotV4;
 use minidump::{Minidump, MinidumpModuleList, Module};
 use tempdir::TempDir;
 
@@ -325,4 +326,17 @@ fn native_v3_snapshot_preserves_banzai_without_selecting_api_mode() {
         assert_eq!(restored.api_mode(), ApiMode::Strict);
         assert!(restored.api_policy.last_outcome.is_none());
     }
+}
+
+#[test]
+fn native_v4_snapshot_loads_without_unix_fault_state() {
+    let mut emu = crate::emu64();
+    emu.set_api_mode(ApiMode::SimulateFail);
+    emu.regs_mut().rax = 42;
+    let mut bytes = b"MWEMU\0\x04\0".to_vec();
+    bytes.extend(bitcode::serialize(&NativeSnapshotV4::from(&emu)).unwrap());
+    let restored = Serialization::deserialize(&bytes);
+    assert_eq!(restored.regs().rax, 42);
+    assert_eq!(restored.api_mode(), ApiMode::SimulateFail);
+    assert!(restored.unix_api.fault.is_none());
 }

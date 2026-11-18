@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn SetFirmwareEnvironmentVariableA(emu: &mut emu::Emu) {
@@ -8,20 +9,18 @@ pub fn SetFirmwareEnvironmentVariableA(emu: &mut emu::Emu) {
 }
 
 fn set_firmware_environment_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let lpName = WinApiAbi::arg(emu, 0) as u32;
-    let _lpGuid = WinApiAbi::arg(emu, 1) as u32;
-    let _pValue = WinApiAbi::arg(emu, 2) as u32;
-    let _nSize = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let lpName = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpGuid = api_try!(emu, call.arg_u32(emu, 1));
+    let _pValue = api_try!(emu, call.arg_u32(emu, 2));
+    let _nSize = api_try!(emu, call.arg_u32(emu, 3));
 
     let lpName = strings::read_text(emu, lpName as u64, wide);
 
     log_red!(emu, "kernel32!{api} {}", lpName);
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 4);
 }
 
 pub fn SetFirmwareEnvironmentVariableW(emu: &mut emu::Emu) {

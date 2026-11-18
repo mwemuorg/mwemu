@@ -1,21 +1,24 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn FindResourceA(emu: &mut emu::Emu) {
     find_resource(emu, "FindResourceA", false);
 }
 
 fn find_resource(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let handle = emu.regs().rcx as usize;
-    let lpName = emu.regs().rdx as usize;
-    let lpType = emu.regs().r8 as usize;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0)) as usize;
+    let lpName = api_try!(emu, call.arg(emu, 1)) as usize;
+    let lpType = api_try!(emu, call.arg(emu, 2)) as usize;
 
     let (pe, raw) = match (emu.pe64.as_ref(), emu.pe64_raw.as_deref()) {
         (Some(pe), Some(raw)) => (pe, raw),
         _ => {
             log::warn!("kernel32!{api}: PE64 not loaded");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -68,14 +71,14 @@ fn find_resource(emu: &mut emu::Emu, api: &str, wide: bool) {
 
     let Some((addr, size)) = x else {
         log::trace!("{} resource not found", emu.pos);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     };
 
     log::trace!("resource addr: 0x{:x} sz: {}", addr, size);
     let hndl = helper::handler_create(&format!("rsrc://{:x}_{}", addr, size));
 
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn FindResourceW(emu: &mut emu::Emu) {

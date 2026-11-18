@@ -1,8 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetLengthSid(emu: &mut emu::Emu) {
-    let sid_ptr = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let sid_ptr = api_try!(emu, call.arg(emu, 0));
     let sub_count = if sid_ptr != 0 {
         emu.maps.read_byte(sid_ptr + 1).unwrap_or(1) as u64
     } else {
@@ -10,9 +12,7 @@ pub fn GetLengthSid(emu: &mut emu::Emu) {
     };
     let len = 8 + sub_count * 4;
     log_red!(emu, "advapi32!GetLengthSid 0x{:x} => {}", sid_ptr, len);
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = len;
+    call.set_return(emu, len);
 }

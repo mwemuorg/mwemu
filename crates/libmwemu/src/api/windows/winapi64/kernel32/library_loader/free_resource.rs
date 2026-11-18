@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn FreeResource(emu: &mut emu::Emu) {
-    let hResData = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let hResData = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "** {} kernel32!FreeResource {:x}", emu.pos, hResData);
     helper::handler_close(hResData);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

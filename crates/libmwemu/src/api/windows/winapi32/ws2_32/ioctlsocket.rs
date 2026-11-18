@@ -1,12 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn ioctlsocket(emu: &mut emu::Emu) {
-    let sock = arg(emu, 0) as u64;
-    let cmd = arg(emu, 1);
-    let argp = arg(emu, 2) as u64;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let cmd = api_try!(emu, call.arg_u32(emu, 1));
+    let argp = api_try!(emu, call.arg_u32(emu, 2)) as u64;
     let cmd_name = match cmd {
         0x8004667E => "FIONBIO",
         0x4004667F => "FIONREAD",
@@ -23,13 +24,13 @@ pub(super) fn ioctlsocket(emu: &mut emu::Emu) {
     );
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038); // WSAENOTSOCK
-        emu.regs_mut().rax = 0xFFFFFFFF_u64; // SOCKET_ERROR
+        call.set_return(emu, 0xFFFFFFFF_u64); // SOCKET_ERROR
     } else {
         if cmd == 0x4004667F && argp != 0 {
             // FIONREAD: report 0 bytes available
             emu.maps.write_dword(argp, 0);
         }
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
-    stdcall_ret(emu, 3);
+    call.cleanup_args(emu, 3);
 }

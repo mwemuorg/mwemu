@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptCreateHash(emu: &mut emu::Emu) {
-    let hprov = WinApiAbi::arg(emu, 0) as u32;
-    let algid = WinApiAbi::arg(emu, 1) as u32;
-    let hkey = WinApiAbi::arg(emu, 2) as u32;
-    let flags = WinApiAbi::arg(emu, 3) as u32;
-    let hash_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let hprov = api_try!(emu, call.arg_u32(emu, 0));
+    let algid = api_try!(emu, call.arg_u32(emu, 1));
+    let hkey = api_try!(emu, call.arg_u32(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
+    let hash_ptr = api_try!(emu, call.arg(emu, 4));
 
     let uri = format!("crypthash://{}", get_cryptoalgorithm_name(algid));
     let hndl = helper::handler_create(&uri);
@@ -25,8 +27,6 @@ pub(super) fn CryptCreateHash(emu: &mut emu::Emu) {
         hndl
     );
 
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 5);
+    call.set_return(emu, 1);
 }

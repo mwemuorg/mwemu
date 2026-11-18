@@ -1,7 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn rand(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     let seed = allocate_memory(emu, 4).unwrap_or(0);
     let val = if seed != 0 {
         let s = emu.maps.read_dword(seed).unwrap_or(12345);
@@ -13,5 +15,5 @@ pub fn rand(emu: &mut emu::Emu) {
     };
     log_red!(emu, "msvcrt!rand => {}", val);
     emu.set_last_error(0);
-    emu.regs_mut().rax = val;
+    call.set_return(emu, val);
 }

@@ -1,15 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CompareStringA(emu: &mut emu::Emu) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
-    let p2 = WinApiAbi::arg(emu, 2);
-    let p3 = WinApiAbi::arg(emu, 3);
-    let p4 = WinApiAbi::arg(emu, 4);
-    let p5 = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
+    let p4 = api_try!(emu, call.arg(emu, 4));
+    let p5 = api_try!(emu, call.arg(emu, 5));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_string(p0)
     } else {
@@ -23,18 +23,17 @@ pub fn CompareStringA(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 2;
+    call.cleanup_args(emu, 6);
+    call.set_return(emu, 2);
 }
 
 pub fn CompareStringW(emu: &mut emu::Emu) {
-    let flags = arg(emu, 1);
-    let str1 = arg(emu, 2) as u64;
-    let len1 = arg(emu, 3) as i32;
-    let str2 = arg(emu, 4) as u64;
-    let len2 = arg(emu, 5) as i32;
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let str1 = api_try!(emu, call.arg_u32(emu, 2)) as u64;
+    let len1 = api_try!(emu, call.arg_i32(emu, 3));
+    let str2 = api_try!(emu, call.arg_u32(emu, 4)) as u64;
+    let len2 = api_try!(emu, call.arg_i32(emu, 5));
     let read = |emu: &emu::Emu, ptr: u64, len: i32| -> String {
         if ptr == 0 || len == 0 {
             String::new()
@@ -57,6 +56,6 @@ pub fn CompareStringW(emu: &mut emu::Emu) {
         std::cmp::Ordering::Greater => 3, // CSTR_GREATER_THAN
     };
     log_red!(emu, "kernel32!CompareStringW '{}' '{}' ={}", s1, s2, result);
-    emu.regs_mut().rax = result;
-    stdcall_ret(emu, 6);
+    call.set_return(emu, result);
+    call.cleanup_args(emu, 6);
 }

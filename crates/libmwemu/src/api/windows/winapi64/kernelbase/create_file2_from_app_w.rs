@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateFile2FromAppW(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let access = emu.regs().rdx;
-    let share = emu.regs().r8;
-    let disposition = WinApiAbi::arg(emu, 3) as u32;
-    let extended_parameters = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
+    let access = api_try!(emu, call.arg(emu, 1));
+    let share = api_try!(emu, call.arg(emu, 2));
+    let disposition = api_try!(emu, call.arg_u32(emu, 3));
+    let extended_parameters = api_try!(emu, call.arg(emu, 4));
     let path = emu.maps.read_wide_string(path_ptr);
     let hndl = helper::handler_create(&format!("file_{}", path));
     log_red!(
@@ -20,5 +22,5 @@ pub fn CreateFile2FromAppW(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

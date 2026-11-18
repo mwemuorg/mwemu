@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use crate::api::unix::ApiState;
 use crate::api::windows::policy::ApiPolicy;
 use crate::emu::Emu;
 use crate::emu::object_handle::{HandleManagement, MemoryHandles};
@@ -50,12 +51,12 @@ impl From<NativeSnapshotV3> for Emu {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct NativeSnapshot {
+pub(crate) struct NativeSnapshotV4 {
     state: NativeSnapshotV3,
     policy: ApiPolicy,
 }
 
-impl From<&Emu> for NativeSnapshot {
+impl From<&Emu> for NativeSnapshotV4 {
     fn from(emu: &Emu) -> Self {
         Self {
             state: NativeSnapshotV3::from(emu),
@@ -64,10 +65,33 @@ impl From<&Emu> for NativeSnapshot {
     }
 }
 
+impl From<NativeSnapshotV4> for Emu {
+    fn from(snapshot: NativeSnapshotV4) -> Self {
+        let mut emu: Emu = snapshot.state.into();
+        emu.api_policy = snapshot.policy;
+        emu
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct NativeSnapshot {
+    state: NativeSnapshotV4,
+    unix_api: ApiState,
+}
+
+impl From<&Emu> for NativeSnapshot {
+    fn from(emu: &Emu) -> Self {
+        Self {
+            state: NativeSnapshotV4::from(emu),
+            unix_api: emu.unix_api.clone(),
+        }
+    }
+}
+
 impl From<NativeSnapshot> for Emu {
     fn from(snapshot: NativeSnapshot) -> Self {
         let mut emu: Emu = snapshot.state.into();
-        emu.api_policy = snapshot.policy;
+        emu.unix_api = snapshot.unix_api;
         emu
     }
 }

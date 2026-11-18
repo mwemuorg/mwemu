@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn ControlService(emu: &mut emu::Emu) {
-    let hsvc = WinApiAbi::arg(emu, 0) as u32;
-    let control = WinApiAbi::arg(emu, 1) as u32;
-    let status_ptr = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let hsvc = api_try!(emu, call.arg_u32(emu, 0));
+    let control = api_try!(emu, call.arg_u32(emu, 1));
+    let status_ptr = api_try!(emu, call.arg(emu, 2));
     if status_ptr != 0 {
         emu.maps.write_dword(status_ptr, 0x10);
         emu.maps.write_dword(status_ptr + 4, 1);
@@ -15,8 +17,6 @@ pub fn ControlService(emu: &mut emu::Emu) {
         hsvc,
         control
     );
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 3);
+    call.set_return(emu, 1);
 }

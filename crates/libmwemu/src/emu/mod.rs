@@ -28,6 +28,7 @@ impl LastOp {
 
 pub use crate::emu::loaders::{MappedPe64, PeLoadInfo};
 
+use crate::api::unix::ApiState;
 use crate::api::windows::policy::ApiPolicy;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
@@ -161,6 +162,7 @@ pub struct Emu {
     pub(crate) now: Instant,                  // timestamp of emulation start (wall-clock timing)
     pub(crate) force_break: bool, // set by breakpoints, memory violations, etc. to stop execution
     pub api_policy: ApiPolicy,
+    pub unix_api: ApiState,
     pub process_terminated: bool, // set by NtTerminateProcess; prevents run() from resetting is_running
     pub(crate) call_depth: u32, // nesting depth of call64/call32 — NtTerminateProcess only exits at depth 0
     pub(crate) ldr_init_done: bool, // true after LdrInitializeThunk call64 completes; switches API dispatch to virtual stubs

@@ -1,11 +1,12 @@
 //! Allocation ownership, zeroing and transactional reallocation for Windows heaps.
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::emu::object_handle::HeapHandle;
 use crate::exception::types::ExceptionType;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
-use crate::winapi::common::memory::Call;
 use crate::winapi::common::trace;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
 
@@ -197,10 +198,10 @@ fn api_handle(emu: &Emu, handle: u64) -> bool {
 }
 
 pub(crate) fn alloc_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let flags = call.arg(emu, 1);
-    let size = call.arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg(emu, 2));
     let value = if api_handle(emu, handle) {
         allocate(emu, handle, size, flags).unwrap_or(0)
     } else {
@@ -209,23 +210,25 @@ pub(crate) fn alloc_api(emu: &mut Emu) {
     if value == 0 {
         fail_allocation(emu, flags);
     }
-    call.finish(emu, value, 3);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn free_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let address = call.arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let address = api_try!(emu, call.arg(emu, 2));
     let success = api_handle(emu, handle) && heap_free(emu, handle, address);
-    call.finish(emu, u64::from(success), 3);
+    call.set_return(emu, u64::from(success));
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn realloc_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let flags = call.arg(emu, 1);
-    let address = call.arg(emu, 2);
-    let size = call.arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg(emu, 1));
+    let address = api_try!(emu, call.arg(emu, 2));
+    let size = api_try!(emu, call.arg(emu, 3));
     let value = if api_handle(emu, handle) {
         reallocate(emu, handle, address, size, flags).unwrap_or(0)
     } else {
@@ -234,26 +237,28 @@ pub(crate) fn realloc_api(emu: &mut Emu) {
     if value == 0 {
         fail_allocation(emu, flags);
     }
-    call.finish(emu, value, 4);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 4);
 }
 
 pub(crate) fn size_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let address = call.arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let address = api_try!(emu, call.arg(emu, 2));
     let size = if api_handle(emu, handle) {
         owned_size(emu, handle, address).map(|s| s as u64)
     } else {
         None
     };
-    call.finish(emu, size.unwrap_or(u64::MAX), 3);
+    call.set_return(emu, size.unwrap_or(u64::MAX));
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn create_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let options = call.arg(emu, 0) as u32;
-    let initial = call.arg(emu, 1);
-    let maximum = call.arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let options = api_try!(emu, call.arg_u32(emu, 0));
+    let initial = api_try!(emu, call.arg(emu, 1));
+    let maximum = api_try!(emu, call.arg(emu, 2));
     let value = (|| {
         let initial = usize::try_from(initial).ok()?;
         let maximum = usize::try_from(maximum).ok()?;
@@ -269,12 +274,13 @@ pub(crate) fn create_api(emu: &mut Emu) {
         Some(base)
     })()
     .unwrap_or(0);
-    call.finish(emu, value, 3);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn destroy_api(emu: &mut Emu, native: bool) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
     let success = emu
         .handle_management
         .resolve_heap_key(handle)
@@ -293,55 +299,60 @@ pub(crate) fn destroy_api(emu: &mut Emu, native: bool) {
     } else {
         u64::from(success)
     };
-    call.finish(emu, value, 1);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn local_size_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let address = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
     let size = owned_size(emu, 0, address);
     if size.is_none() {
         emu.set_last_error(ERROR_INVALID_HANDLE);
     }
-    call.finish(emu, size.unwrap_or(0) as u64, 1);
+    call.set_return(emu, size.unwrap_or(0) as u64);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn local_alloc_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let flags = call.arg(emu, 0);
-    let size = call.arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
     let flags = if flags & 0x40 != 0 {
         HEAP_ZERO_MEMORY
     } else {
         0
     };
     let value = allocate(emu, 0, size, flags).unwrap_or(0);
-    call.finish(emu, value, 2);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 2);
 }
 
 pub(crate) fn local_free_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let address = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
     let value = if address == 0 || heap_free(emu, 0, address) {
         0
     } else {
         address
     };
-    call.finish(emu, value, 1);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn local_realloc_api(emu: &mut Emu) {
-    let call = Call::Api;
-    let address = call.arg(emu, 0);
-    let size = call.arg(emu, 1);
-    let flags = call.arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 2));
     let flags = if flags & 0x40 != 0 {
         HEAP_ZERO_MEMORY
     } else {
         0
     };
     let value = reallocate(emu, 0, address, size, flags).unwrap_or(0);
-    call.finish(emu, value, 3);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {

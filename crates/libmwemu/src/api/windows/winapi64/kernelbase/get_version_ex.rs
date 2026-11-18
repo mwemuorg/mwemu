@@ -1,4 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetVersionExA(emu: &mut emu::Emu) {
     get_version_ex(emu, "GetVersionExA", false);
@@ -9,7 +11,8 @@ pub fn GetVersionExW(emu: &mut emu::Emu) {
 }
 
 fn get_version_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let info_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let info_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernelbase!{api} ptr:0x{:x}", info_ptr);
     if wide {
         if info_ptr != 0 {
@@ -31,5 +34,5 @@ fn get_version_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

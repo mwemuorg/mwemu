@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn inet_ntoa(emu: &mut emu::Emu) {
-    let addr_val = emu.regs().rcx as u32;
+    let call = WinApi(Stdcall);
+    let addr_val = api_try!(emu, call.arg_u32(emu, 0));
     let a = addr_val & 0xFF;
     let b = (addr_val >> 8) & 0xFF;
     let c = (addr_val >> 16) & 0xFF;
@@ -12,7 +15,7 @@ pub fn inet_ntoa(emu: &mut emu::Emu) {
     let buf = match emu.maps.alloc(alloc_sz) {
         Some(a) => a,
         None => {
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -23,5 +26,5 @@ pub fn inet_ntoa(emu: &mut emu::Emu) {
         crate::maps::mem64::Permission::READ_WRITE,
     );
     emu.maps.write_string(buf, &ip_str);
-    emu.regs_mut().rax = buf;
+    call.set_return(emu, buf);
 }

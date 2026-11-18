@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CheckTokenMembership(emu: &mut emu::Emu) {
-    let token = WinApiAbi::arg(emu, 0);
-    let sid_to_check = WinApiAbi::arg(emu, 1);
-    let is_member_ptr = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let token = api_try!(emu, call.arg(emu, 0));
+    let sid_to_check = api_try!(emu, call.arg(emu, 1));
+    let is_member_ptr = api_try!(emu, call.arg(emu, 2));
     if is_member_ptr != 0 {
         emu.maps.write_dword(is_member_ptr, 1); // TRUE - user is member
     }
@@ -14,8 +16,6 @@ pub fn CheckTokenMembership(emu: &mut emu::Emu) {
         token,
         sid_to_check
     );
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 3);
+    call.set_return(emu, 1);
 }

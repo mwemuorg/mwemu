@@ -1,7 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn _errno(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     let errno_addr = match emu.maps.get_map_by_name("msvcrt_errno") {
         Some(m) => m.get_base(),
         None => {
@@ -14,5 +16,5 @@ pub fn _errno(emu: &mut emu::Emu) {
     };
     log_red!(emu, "msvcrt!_errno => 0x{:x}", errno_addr);
     emu.set_last_error(0);
-    emu.regs_mut().rax = errno_addr;
+    call.set_return(emu, errno_addr);
 }

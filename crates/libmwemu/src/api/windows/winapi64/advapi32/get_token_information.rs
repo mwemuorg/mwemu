@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetTokenInformation(emu: &mut emu::Emu) {
-    let token_handle = emu.regs().rcx;
-    let info_class = emu.regs().rdx;
-    let info_buf = emu.regs().r8;
-    let buf_len = emu.regs().r9;
-    let ret_len_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let token_handle = api_try!(emu, call.arg(emu, 0));
+    let info_class = api_try!(emu, call.arg(emu, 1));
+    let info_buf = api_try!(emu, call.arg(emu, 2));
+    let buf_len = api_try!(emu, call.arg(emu, 3));
+    let ret_len_ptr = api_try!(emu, call.arg(emu, 4));
 
     let needed: u32 = match info_class {
         1 => 44, // TokenUser: TOKEN_USER (SID ptr + attrs)
@@ -42,5 +44,5 @@ pub fn GetTokenInformation(emu: &mut emu::Emu) {
         info_class,
         needed
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

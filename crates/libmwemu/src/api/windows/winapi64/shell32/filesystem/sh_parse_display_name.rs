@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SHParseDisplayName(emu: &mut emu::Emu) {
-    let psz_name = emu.regs().rcx;
-    let pbc = emu.regs().rdx;
-    let ppidl = emu.regs().r8;
-    let sfgao_in = emu.regs().r9;
-    let psfgao_out = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let psz_name = api_try!(emu, call.arg(emu, 0));
+    let pbc = api_try!(emu, call.arg(emu, 1));
+    let ppidl = api_try!(emu, call.arg(emu, 2));
+    let sfgao_in = api_try!(emu, call.arg(emu, 3));
+    let psfgao_out = api_try!(emu, call.arg(emu, 4));
     let name = emu.maps.read_wide_string(psz_name);
     let hndl = helper::handler_create(&format!("pidl://{}", name));
     if ppidl != 0 {
@@ -18,5 +20,5 @@ pub fn SHParseDisplayName(emu: &mut emu::Emu) {
     }
     log_red!(emu, "shell32!SHParseDisplayName '{}' =0x{:x}", name, hndl);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn crt_memchr(emu: &mut emu::Emu) {
-    let s = emu.regs().rcx;
-    let c = emu.regs().rdx as u8;
-    let n = emu.regs().r8;
+    let call = WinApi(Cdecl);
+    let s = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     let mut result: u64 = 0;
     for i in 0..n {
         if emu.maps.read_byte(s + i).unwrap_or(0) == c {
@@ -11,5 +14,5 @@ pub(super) fn crt_memchr(emu: &mut emu::Emu) {
             break;
         }
     }
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

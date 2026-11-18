@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SHGetFolderPathEx(emu: &mut emu::Emu) {
-    let rfid = WinApiAbi::arg(emu, 0);
-    let dw_flags = WinApiAbi::arg(emu, 1) as u32;
-    let h_token = WinApiAbi::arg(emu, 2) as u32;
-    let psz_path = WinApiAbi::arg(emu, 3);
-    let cch_path = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let rfid = api_try!(emu, call.arg(emu, 0));
+    let dw_flags = api_try!(emu, call.arg_u32(emu, 1));
+    let h_token = api_try!(emu, call.arg_u32(emu, 2));
+    let psz_path = api_try!(emu, call.arg(emu, 3));
+    let cch_path = api_try!(emu, call.arg_u32(emu, 4));
     if psz_path != 0 && cch_path > 0 {
         emu.maps
             .write_wide_string(psz_path, "C:\\Users\\mwemu_user");
@@ -17,9 +19,7 @@ pub fn SHGetFolderPathEx(emu: &mut emu::Emu) {
         rfid,
         dw_flags
     );
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 5);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

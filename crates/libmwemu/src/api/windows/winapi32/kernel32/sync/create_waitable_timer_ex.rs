@@ -1,29 +1,27 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn CreateWaitableTimerExA(emu: &mut emu::Emu) {
-    let _lpTimerAttributes = WinApiAbi::arg(emu, 0) as u32;
-    let lpTimerName = WinApiAbi::arg(emu, 1) as u32;
-    let _dwFlags = WinApiAbi::arg(emu, 2) as u32;
-    let _dwDesiredAccess = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let _lpTimerAttributes = api_try!(emu, call.arg_u32(emu, 0));
+    let lpTimerName = api_try!(emu, call.arg_u32(emu, 1));
+    let _dwFlags = api_try!(emu, call.arg_u32(emu, 2));
+    let _dwDesiredAccess = api_try!(emu, call.arg_u32(emu, 3));
 
     let lpTimerName = emu.maps.read_string(lpTimerName as u64);
 
     log_red!(emu, "kernel32!CreateWaitableTimerExA {}", lpTimerName);
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 4);
 }
 
 pub fn CreateWaitableTimerExW(emu: &mut emu::Emu) {
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    call.cleanup_args(emu, 4);
     log_red!(emu, "kernel32!CreateWaitableTimerExW");
-    emu.regs_mut().rax = helper::handler_create("CreateWaitableTimerExW");
+    call.set_return(emu, helper::handler_create("CreateWaitableTimerExW"));
 }

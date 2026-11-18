@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::msvcrt::allocate_memory;
 
 pub fn isalpha(emu: &mut emu::Emu, api: &str) {
-    let c = emu.regs().rcx as u32;
+    let call = WinApi(Cdecl);
+    let c = api_try!(emu, call.arg_u32(emu, 0));
     let ch = c as u8 as char;
     let r: u64 = match api {
         "isalpha" => ch.is_ascii_alphabetic() as u64,
@@ -22,5 +25,5 @@ pub fn isalpha(emu: &mut emu::Emu, api: &str) {
     let name = format!("'{}'", ch);
     log_red!(emu, "msvcrt!{} {} => {}", api, name, r);
     emu.set_last_error(0);
-    emu.regs_mut().rax = r;
+    call.set_return(emu, r);
 }

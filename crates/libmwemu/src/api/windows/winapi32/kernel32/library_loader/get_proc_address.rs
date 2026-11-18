@@ -1,12 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetProcAddress(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 0);
-    let func_ptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
+    let func_ptr = api_try!(emu, call.arg(emu, 1));
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
     // IS_INTRESOURCE: `lpProcName` is an ordinal when its high word is zero
     // (value below 0x10000); otherwise it is a name pointer.
@@ -20,7 +21,7 @@ pub fn GetProcAddress(emu: &mut emu::Emu) {
         resolve_name_via_registry_or_scanner(emu, hndl, &func)
     };
 
-    emu.regs_mut().rax = resolved;
+    call.set_return(emu, resolved);
     if resolved != 0 {
         log_red!(
             emu,

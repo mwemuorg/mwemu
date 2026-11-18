@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn InternetOpenA(emu: &mut emu::Emu) {
     internet_open(emu, "InternetOpenA", false);
@@ -12,11 +13,12 @@ pub fn InternetOpenW(emu: &mut emu::Emu) {
 }
 
 fn internet_open(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let uagent_ptr = emu.regs().rcx;
-    let access = emu.regs().rdx;
-    let proxy_ptr = emu.regs().r8;
-    let proxybypass_ptr = emu.regs().r9;
-    let flags = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let uagent_ptr = api_try!(emu, call.arg(emu, 0));
+    let access = api_try!(emu, call.arg(emu, 1));
+    let proxy_ptr = api_try!(emu, call.arg(emu, 2));
+    let proxybypass_ptr = api_try!(emu, call.arg(emu, 3));
+    let flags = api_try!(emu, call.arg(emu, 4));
     let mut uagent = "".to_string();
     let mut proxy = "".to_string();
     let mut proxy_bypass = "".to_string();
@@ -37,9 +39,9 @@ fn internet_open(emu: &mut emu::Emu, api: &str, wide: bool) {
         proxy_bypass
     );
     if wide {
-        emu.regs_mut().rax = helper::handler_create(&format!("{api}://"));
+        call.set_return(emu, helper::handler_create(&format!("{api}://")));
     } else {
         let uri = format!("{api}://{}", uagent);
-        emu.regs_mut().rax = helper::handler_create(&uri);
+        call.set_return(emu, helper::handler_create(&uri));
     }
 }

@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn LCMapStringA(emu: &mut emu::Emu) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
-    let p2 = WinApiAbi::arg(emu, 2);
-    let p3 = WinApiAbi::arg(emu, 3);
-    let p4 = WinApiAbi::arg(emu, 4);
-    let p5 = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
+    let p4 = api_try!(emu, call.arg(emu, 4));
+    let p5 = api_try!(emu, call.arg(emu, 5));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_string(p0)
     } else {
@@ -21,18 +23,17 @@ pub fn LCMapStringA(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 6);
 }
 
 pub fn LCMapStringW(emu: &mut emu::Emu) {
-    let locale = WinApiAbi::arg(emu, 0) as u32;
-    let flags = WinApiAbi::arg(emu, 1) as u32;
-    let src_ptr = WinApiAbi::arg(emu, 2);
-    let src_sz = WinApiAbi::arg(emu, 3) as u32;
-    let dest_ptr = WinApiAbi::arg(emu, 4);
-    let dest_sz = WinApiAbi::arg(emu, 5) as u32;
+    let call = WinApi(Stdcall);
+    let locale = api_try!(emu, call.arg_u32(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let src_ptr = api_try!(emu, call.arg(emu, 2));
+    let src_sz = api_try!(emu, call.arg_u32(emu, 3));
+    let dest_ptr = api_try!(emu, call.arg(emu, 4));
+    let dest_sz = api_try!(emu, call.arg_u32(emu, 5));
 
     let s = emu.maps.read_wide_string(src_ptr);
     let char_count = if src_sz as i32 == -1 {
@@ -54,8 +55,6 @@ pub fn LCMapStringW(emu: &mut emu::Emu) {
         emu.maps.write_wide_string(dest_ptr, &s);
     }
 
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = char_count as u64;
+    call.cleanup_args(emu, 6);
+    call.set_return(emu, char_count as u64);
 }

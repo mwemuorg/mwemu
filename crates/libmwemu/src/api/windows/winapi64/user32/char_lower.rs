@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CharLowerA(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
     if ptr < 0x10000 {
         // Single character in low word
         let ch = (ptr & 0xFF) as u8;
@@ -12,19 +15,20 @@ pub fn CharLowerA(emu: &mut emu::Emu) {
             ch as char,
             lower as u8 as char
         );
-        emu.regs_mut().rax = lower;
+        call.set_return(emu, lower);
     } else {
         // Pointer to string — lowercase in-place
         let s = emu.maps.read_string(ptr);
         log_red!(emu, "user32!CharLowerA str: '{}'", s);
         let lower = s.to_ascii_lowercase();
         emu.maps.write_string(ptr, &lower);
-        emu.regs_mut().rax = ptr;
+        call.set_return(emu, ptr);
     }
 }
 
 pub fn CharLowerW(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
     if ptr < 0x10000 {
         let ch = (ptr & 0xFFFF) as u16;
         let lower = if (0x41..=0x5A).contains(&ch) {
@@ -33,11 +37,11 @@ pub fn CharLowerW(emu: &mut emu::Emu) {
             ch
         };
         log_red!(emu, "user32!CharLowerW char: 0x{:x}", ch);
-        emu.regs_mut().rax = lower as u64;
+        call.set_return(emu, lower as u64);
     } else {
         let s = emu.maps.read_wide_string(ptr);
         emu.maps.write_wide_string(ptr, &s.to_lowercase());
         log_red!(emu, "user32!CharLowerW '{}'", s);
-        emu.regs_mut().rax = ptr;
+        call.set_return(emu, ptr);
     }
 }

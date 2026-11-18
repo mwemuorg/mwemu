@@ -1,17 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn GetCharABCWidthsA(emu: &mut emu::Emu) {
     get_char_abc_widths(emu, "GetCharABCWidthsA");
 }
 
 fn get_char_abc_widths(emu: &mut emu::Emu, api: &str) {
-    let hdc = arg(emu, 0);
-    let first = arg(emu, 1);
-    let last = arg(emu, 2);
-    let buf = arg(emu, 3) as u64;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg_u32(emu, 0));
+    let first = api_try!(emu, call.arg_u32(emu, 1));
+    let last = api_try!(emu, call.arg_u32(emu, 2));
+    let buf = api_try!(emu, call.arg_u32(emu, 3)) as u64;
     let count = (last.saturating_sub(first) + 1).min(256);
     if buf != 0 {
         for i in 0..count {
@@ -22,20 +22,16 @@ fn get_char_abc_widths(emu: &mut emu::Emu, api: &str) {
         }
     }
 
-    let arg1 = WinApiAbi::arg(emu, 0);
-    let arg2 = WinApiAbi::arg(emu, 1);
-    let arg3 = WinApiAbi::arg(emu, 2);
-    let arg4 = WinApiAbi::arg(emu, 3);
     log_red!(
         emu,
-        "gdi32!{api} arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
-        arg1,
-        arg2,
-        arg3,
-        arg4
+        "gdi32!{api} hdc:0x{:x} first:0x{:x} last:0x{:x} buf:0x{:x}",
+        hdc,
+        first,
+        last,
+        buf
     );
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 4);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 4);
 }
 
 pub fn GetCharABCWidthsW(emu: &mut emu::Emu) {

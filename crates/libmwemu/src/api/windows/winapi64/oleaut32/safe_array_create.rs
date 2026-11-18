@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn SafeArrayCreate(emu: &mut emu::Emu) {
-    let vt = emu.regs().rcx;
-    let dims = emu.regs().rdx;
-    let bounds = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let vt = api_try!(emu, call.arg(emu, 0));
+    let dims = api_try!(emu, call.arg(emu, 1));
+    let bounds = api_try!(emu, call.arg(emu, 2));
     let hndl = helper::handler_create(&format!("safearray_vt{}", vt));
     log_red!(
         emu,
@@ -14,5 +17,5 @@ pub fn SafeArrayCreate(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetConsoleMode(emu: &mut emu::Emu) {
-    let h_console_handle = emu.regs().rcx;
-    let lp_mode = emu.regs().rdx as usize;
+    let call = WinApi(Stdcall);
+    let h_console_handle = api_try!(emu, call.arg(emu, 0));
+    let lp_mode = api_try!(emu, call.arg(emu, 1)) as usize;
     log_red!(
         emu,
         "** {} kernel32!GetConsoleMode {:x} {:x}",
@@ -12,5 +15,5 @@ pub fn GetConsoleMode(emu: &mut emu::Emu) {
     );
     // TODO: implement this
     emu.maps.write_dword(lp_mode as u64, 0x00000003); //TODO: not sure what this is
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

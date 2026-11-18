@@ -1,3 +1,4 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::helper;
@@ -14,7 +15,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 fn timeGetTime(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "winmm!timeGetTime");
     helper::advance_tick(emu, 1);
-    helper::WinApiAbi::set_ret(emu, emu.tick as u64);
+    call.set_return(emu, emu.tick as u64);
 }

@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn FlsGetValue2(emu: &mut emu::Emu) {
-    let param1 = emu.regs().rcx;
-    let param2 = emu.regs().rdx;
-    let param3 = emu.regs().r8;
-    let param4 = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let param1 = api_try!(emu, call.arg(emu, 0));
+    let param2 = api_try!(emu, call.arg(emu, 1));
+    let param3 = api_try!(emu, call.arg(emu, 2));
+    let param4 = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -14,11 +17,11 @@ pub fn FlsGetValue2(emu: &mut emu::Emu) {
         param3,
         param4
     );
-    let out_ptr = emu.regs().r9;
+    let out_ptr = api_try!(emu, call.arg(emu, 3));
     if out_ptr != 0 {
         emu.maps.write_qword(out_ptr, 0);
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegOpenKeyExA(emu: &mut emu::Emu) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
-    let p2 = WinApiAbi::arg(emu, 2);
-    let p3 = WinApiAbi::arg(emu, 3);
-    let p4 = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
+    let p4 = api_try!(emu, call.arg(emu, 4));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_string(p0)
     } else {
@@ -20,24 +22,21 @@ pub fn RegOpenKeyExA(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 5);
 }
 
 pub fn RegOpenKeyExW(emu: &mut emu::Emu) {
-    let hkey = WinApiAbi::arg(emu, 0) as u32;
-    let subkey_ptr = WinApiAbi::arg(emu, 1);
-    let options = WinApiAbi::arg(emu, 2) as u32;
-    let sam = WinApiAbi::arg(emu, 3) as u32;
-    let result = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg_u32(emu, 0));
+    let subkey_ptr = api_try!(emu, call.arg(emu, 1));
+    let options = api_try!(emu, call.arg_u32(emu, 2));
+    let sam = api_try!(emu, call.arg_u32(emu, 3));
+    let result = api_try!(emu, call.arg_u32(emu, 4));
 
     let subkey = emu.maps.read_wide_string(subkey_ptr);
     log_red!(emu, "kernel32!RegOpenKeyExW {}", subkey);
 
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 5);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

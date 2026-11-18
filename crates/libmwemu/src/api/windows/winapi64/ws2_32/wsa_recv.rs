@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WSARecv(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let buffers_ptr = emu.regs().rdx;
-    let buffer_count = emu.regs().r8 as u32;
-    let bytes_recvd_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let buffers_ptr = api_try!(emu, call.arg(emu, 1));
+    let buffer_count = api_try!(emu, call.arg_u32(emu, 2));
+    let bytes_recvd_ptr = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "ws2_32!WSARecv sock: 0x{:x} buffers: {} bytes_recvd: 0x{:x}",
@@ -14,7 +17,7 @@ pub fn WSARecv(emu: &mut emu::Emu) {
         bytes_recvd_ptr
     );
     if !helper::socket_exist(sock) {
-        emu.regs_mut().rax = 0xFFFFFFFF;
+        call.set_return(emu, 0xFFFFFFFF);
     } else {
         // Fill first WSABUF with 0x90 (nop sled, same as recv)
         if buffers_ptr != 0 && buffer_count > 0 {
@@ -30,6 +33,6 @@ pub fn WSARecv(emu: &mut emu::Emu) {
                 }
             }
         }
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

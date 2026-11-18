@@ -1,18 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::memory;
-use crate::api::windows::common::memory::Call;
 use crate::emu;
 use crate::winapi::common::sections;
 use crate::winapi::common::{crt, memory_ops};
+use crate::winapi::policy::api_try;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
+    let call = WinApi(Stdcall);
     if memory_ops::dispatch(api, emu) || crt::dispatch(api, emu) {
         return true;
     }
     match api {
-        "NtReadVirtualMemory" => memory::nt_process_memory(emu, Call::Api, false),
-        "NtWriteVirtualMemory" => memory::nt_process_memory(emu, Call::Api, true),
+        "NtReadVirtualMemory" => memory::nt_process_memory(emu, call, false),
+        "NtWriteVirtualMemory" => memory::nt_process_memory(emu, call, true),
         "NtAllocateVirtualMemory" => NtAllocateVirtualMemory(emu),
-        "NtAllocateVirtualMemoryEx" => memory::nt_allocate(emu, Call::Api, true),
+        "NtAllocateVirtualMemoryEx" => memory::nt_allocate(emu, call, true),
         "NtQueryVirtualMemory" => NtQueryVirtualMemory(emu),
         "RtlZeroMemory" => RtlZeroMemory(emu),
         "RtlMoveMemory" => RtlMoveMemory(emu),
@@ -46,11 +48,13 @@ fn RtlMoveMemory(emu: &mut emu::Emu) {
 }
 
 fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
-    memory::nt_allocate(emu, Call::Api, false);
+    let call = WinApi(Stdcall);
+    memory::nt_allocate(emu, call, false);
 }
 
 fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
-    memory::nt_query(emu, Call::Api);
+    let call = WinApi(Stdcall);
+    memory::nt_query(emu, call);
 }
 
 /*
@@ -63,7 +67,8 @@ NTSTATUS NtProtectVirtualMemory(
 );
 */
 fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
-    memory::nt_protect(emu, Call::Api);
+    let call = WinApi(Stdcall);
+    memory::nt_protect(emu, call);
 }
 
 fn memset(emu: &mut emu::Emu) {
@@ -75,9 +80,10 @@ fn RtlCopyMemory(emu: &mut emu::Emu) {
 }
 
 fn NtFlushInstructionCache(emu: &mut emu::Emu) {
-    let proc_hndl = emu.regs().rcx;
-    let addr = emu.regs().rdx;
-    let sz = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let proc_hndl = api_try!(emu, call.arg(emu, 0));
+    let addr = api_try!(emu, call.arg(emu, 1));
+    let sz = api_try!(emu, call.arg(emu, 2));
 
     log_red!(
         emu,
@@ -87,17 +93,18 @@ fn NtFlushInstructionCache(emu: &mut emu::Emu) {
         sz
     );
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn RtlAddFunctionTable(emu: &mut emu::Emu) {
-    let function_table = emu.regs().rcx;
-    let entry_count = emu.regs().rdx;
-    let base_address = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let function_table = api_try!(emu, call.arg(emu, 0));
+    let entry_count = api_try!(emu, call.arg(emu, 1));
+    let base_address = api_try!(emu, call.arg(emu, 2));
 
     log_red!(emu, "ntdll!RtlAddFunctionTable");
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 /*
@@ -111,10 +118,11 @@ BOOLEAN RtlInstallFunctionTableCallback(
 );
 */
 fn RtlInstallFunctionTableCallback(emu: &mut emu::Emu) {
-    let table_id = emu.regs().rcx;
-    let base = emu.regs().rdx;
-    let length = emu.regs().r8 & 0xffff_ffff;
-    let callback = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let table_id = api_try!(emu, call.arg(emu, 0));
+    let base = api_try!(emu, call.arg(emu, 1));
+    let length = api_try!(emu, call.arg(emu, 2)) & 0xffff_ffff;
+    let callback = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -126,11 +134,12 @@ fn RtlInstallFunctionTableCallback(emu: &mut emu::Emu) {
     );
 
     // like RtlAddFunctionTable: accepted, not consulted by exception dispatch
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlDeleteFunctionTable(emu: &mut emu::Emu) {
-    let function_table = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let function_table = api_try!(emu, call.arg(emu, 0));
 
     log_red!(
         emu,
@@ -138,11 +147,12 @@ fn RtlDeleteFunctionTable(emu: &mut emu::Emu) {
         function_table
     );
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlCaptureContext(emu: &mut emu::Emu) {
-    let context_record = emu.regs().rcx as usize;
+    let call = WinApi(Stdcall);
+    let context_record = api_try!(emu, call.arg(emu, 0)) as usize;
     log_red!(
         emu,
         "** {} ntdll!RtlCaptureContext {:x}",
@@ -152,9 +162,10 @@ fn RtlCaptureContext(emu: &mut emu::Emu) {
 }
 
 fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {
-    let control_pc = emu.regs().rcx as usize;
-    let image_base = emu.regs().rdx as usize;
-    let history_table = emu.regs().r8 as usize;
+    let call = WinApi(Stdcall);
+    let control_pc = api_try!(emu, call.arg(emu, 0)) as usize;
+    let image_base = api_try!(emu, call.arg(emu, 1)) as usize;
+    let history_table = api_try!(emu, call.arg(emu, 2)) as usize;
     log_red!(
         emu,
         "** {} ntdll!RtlLookupFunctionEntry {:x} {:x} {:x}",
@@ -163,14 +174,15 @@ fn RtlLookupFunctionEntry(emu: &mut emu::Emu) {
         image_base,
         history_table
     );
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn RtlVirtualUnwind(emu: &mut emu::Emu) {
-    let handler_type = emu.regs().rcx;
-    let image_base = emu.regs().rdx;
-    let control_pc = emu.regs().r8;
-    let function_entry = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let handler_type = api_try!(emu, call.arg(emu, 0));
+    let image_base = api_try!(emu, call.arg(emu, 1));
+    let control_pc = api_try!(emu, call.arg(emu, 2));
+    let function_entry = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "** {} ntdll!RtlVirtualUnwind type:{} base:0x{:x} pc:0x{:x} entry:0x{:x}",
@@ -180,35 +192,40 @@ fn RtlVirtualUnwind(emu: &mut emu::Emu) {
         control_pc,
         function_entry
     );
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn NtFreeVirtualMemory(emu: &mut emu::Emu) {
-    memory::nt_free(emu, Call::Api);
+    let call = WinApi(Stdcall);
+    memory::nt_free(emu, call);
 }
 
 pub fn NtCreateSection(emu: &mut emu::Emu) {
-    sections::nt_create(emu, Call::Api);
+    let call = WinApi(Stdcall);
+    sections::nt_create(emu, call);
 }
 
 pub fn NtMapViewOfSection(emu: &mut emu::Emu) {
-    sections::nt_map(emu, Call::Api);
+    let call = WinApi(Stdcall);
+    sections::nt_map(emu, call);
 }
 
 pub fn NtUnmapViewOfSection(emu: &mut emu::Emu) {
-    sections::nt_unmap(emu, Call::Api);
+    let call = WinApi(Stdcall);
+    sections::nt_unmap(emu, call);
 }
 
 fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
-    let _handle = emu.regs().rcx;
-    let bool_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let _handle = api_try!(emu, call.arg(emu, 0));
+    let bool_ptr = api_try!(emu, call.arg(emu, 1));
 
     log_red!(emu, "ntdll!CheckRemoteDebuggerPresent");
 
     if bool_ptr != 0 {
         emu.maps.write_dword(bool_ptr, 0);
     }
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn memcpy(emu: &mut emu::Emu) {

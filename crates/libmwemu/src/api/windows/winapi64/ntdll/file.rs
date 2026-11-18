@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::winapi::common::sections;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 use std::fs::File;
@@ -32,10 +33,11 @@ RtlDosPathNameToNtPathName_U(IN PCWSTR DosName,
                              OUT PRTL_RELATIVE_NAME_U RelativeName)
 */
 fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
-    let dos_path_name_ptr = emu.regs().rcx;
-    let nt_path_name_ptr = emu.regs().rdx; // This should point to a UNICODE_STRING structure
-    let nt_file_name_part_ptr = emu.regs().r8;
-    let curdir_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let dos_path_name_ptr = api_try!(emu, call.arg(emu, 0));
+    let nt_path_name_ptr = api_try!(emu, call.arg(emu, 1)); // This should point to a UNICODE_STRING structure
+    let nt_file_name_part_ptr = api_try!(emu, call.arg(emu, 2));
+    let curdir_ptr = api_try!(emu, call.arg(emu, 3));
 
     let dos_path_name = emu.maps.read_wide_string(dos_path_name_ptr);
 
@@ -74,7 +76,7 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
                     .is_err()
                 {
                     log::error!("ntdll!RtlDosPathNameToNtPathName_U_WithStatus: cannot create map");
-                    emu.regs_mut().rax = STATUS_NO_MEMORY;
+                    call.set_return(emu, STATUS_NO_MEMORY);
                     return;
                 }
 
@@ -113,7 +115,7 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
             }
             None => {
                 log_red!(emu, "Failed to allocate memory for NT path string");
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
         }
@@ -123,21 +125,22 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
         log_red!(emu, "CurDir handling not fully implemented");
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn NtCreateFile(emu: &mut emu::Emu) {
-    let out_hndl_ptr = emu.regs().rcx;
-    let access_mask = emu.regs().rdx;
-    let oattrib = emu.regs().r8;
-    let iostat = emu.regs().r9;
-    let alloc_sz = WinApiAbi::arg(emu, 4);
-    let fattrib = WinApiAbi::arg(emu, 5) as u32;
-    let share_access = WinApiAbi::arg(emu, 6) as u32;
-    let create_disp = WinApiAbi::arg(emu, 7) as u32;
-    let create_opt = WinApiAbi::arg(emu, 8) as u32;
-    let ea_buff = WinApiAbi::arg(emu, 9);
-    let ea_len = WinApiAbi::arg(emu, 10) as u32;
+    let call = WinApi(Stdcall);
+    let out_hndl_ptr = api_try!(emu, call.arg(emu, 0));
+    let access_mask = api_try!(emu, call.arg(emu, 1));
+    let oattrib = api_try!(emu, call.arg(emu, 2));
+    let iostat = api_try!(emu, call.arg(emu, 3));
+    let alloc_sz = api_try!(emu, call.arg(emu, 4));
+    let fattrib = api_try!(emu, call.arg_u32(emu, 5));
+    let share_access = api_try!(emu, call.arg_u32(emu, 6));
+    let create_disp = api_try!(emu, call.arg_u32(emu, 7));
+    let create_opt = api_try!(emu, call.arg_u32(emu, 8));
+    let ea_buff = api_try!(emu, call.arg(emu, 9));
+    let ea_len = api_try!(emu, call.arg_u32(emu, 10));
 
     log_red!(
         emu,
@@ -293,27 +296,29 @@ fn NtCreateFile(emu: &mut emu::Emu) {
             .write_qword(out_hndl_ptr, helper::handler_create(&filename) as u64);
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn NtQueryInformationFile(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
-    let stat = emu.regs().rdx;
-    let fileinfo = emu.regs().r8;
-    let len = emu.regs().r9;
-    let fileinfoctls = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
+    let stat = api_try!(emu, call.arg(emu, 1));
+    let fileinfo = api_try!(emu, call.arg(emu, 2));
+    let len = api_try!(emu, call.arg(emu, 3));
+    let fileinfoctls = api_try!(emu, call.arg(emu, 4));
 
     log_red!(emu, "ntdll!NtQueryInformationFile");
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn NtSetInformationFile(emu: &mut emu::Emu) {
-    let file_handle = emu.regs().rcx;
-    let io_status_block = emu.regs().rdx;
-    let file_information = emu.regs().r8;
-    let length = emu.regs().r9;
-    let file_information_class = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let file_handle = api_try!(emu, call.arg(emu, 0));
+    let io_status_block = api_try!(emu, call.arg(emu, 1));
+    let file_information = api_try!(emu, call.arg(emu, 2));
+    let length = api_try!(emu, call.arg(emu, 3));
+    let file_information_class = api_try!(emu, call.arg_u32(emu, 4));
 
     log_red!(
         emu,
@@ -323,7 +328,7 @@ fn NtSetInformationFile(emu: &mut emu::Emu) {
         length
     );
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 /*
@@ -340,22 +345,23 @@ NTSTATUS NtReadFile(
 );
 */
 fn NtReadFile(emu: &mut emu::Emu) {
-    let file_hndl = emu.regs().rcx;
-    let ev_hndl = emu.regs().rdx;
-    let apc_rout = emu.regs().r8;
-    let apc_ctx = emu.regs().r9;
-    let stat = WinApiAbi::arg(emu, 4);
-    let buff = WinApiAbi::arg(emu, 5);
-    let len = WinApiAbi::arg(emu, 6) as usize;
-    let off = WinApiAbi::arg(emu, 7);
-    let key = WinApiAbi::arg(emu, 8);
+    let call = WinApi(Stdcall);
+    let file_hndl = api_try!(emu, call.arg(emu, 0));
+    let ev_hndl = api_try!(emu, call.arg(emu, 1));
+    let apc_rout = api_try!(emu, call.arg(emu, 2));
+    let apc_ctx = api_try!(emu, call.arg(emu, 3));
+    let stat = api_try!(emu, call.arg(emu, 4));
+    let buff = api_try!(emu, call.arg(emu, 5));
+    let len = api_try!(emu, call.arg(emu, 6)) as usize;
+    let off = api_try!(emu, call.arg(emu, 7));
+    let key = api_try!(emu, call.arg(emu, 8));
 
     let file_offset = if off != 0 {
         match emu.maps.read_qword(off) {
             Some(offset_value) => offset_value,
             None => {
                 log_red!(emu, "Failed to read file offset from 0x{:x}", off);
-                emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
+                call.set_return(emu, STATUS_INVALID_PARAMETER);
                 return;
             }
         }
@@ -382,7 +388,7 @@ fn NtReadFile(emu: &mut emu::Emu) {
             Ok(f) => f,
             Err(e) => {
                 log::warn!("NtReadFile: cannot open {}: {}", emu.filename, e);
-                emu.regs_mut().rax = STATUS_OBJECT_NAME_NOT_FOUND;
+                call.set_return(emu, STATUS_OBJECT_NAME_NOT_FOUND);
                 return;
             }
         };
@@ -392,7 +398,7 @@ fn NtReadFile(emu: &mut emu::Emu) {
             Ok(n) => n,
             Err(e) => {
                 log::warn!("NtReadFile: read error: {}", e);
-                emu.regs_mut().rax = 0xC0000001; // STATUS_UNSUCCESSFUL
+                call.set_return(emu, 0xC0000001); // STATUS_UNSUCCESSFUL
                 return;
             }
         };
@@ -403,30 +409,31 @@ fn NtReadFile(emu: &mut emu::Emu) {
         }
 
         if bytes_read == len {
-            emu.regs_mut().rax = STATUS_SUCCESS;
+            call.set_return(emu, STATUS_SUCCESS);
         } else if bytes_read == 0 {
-            emu.regs_mut().rax = STATUS_END_OF_FILE;
+            call.set_return(emu, STATUS_END_OF_FILE);
         } else {
-            emu.regs_mut().rax = STATUS_SUCCESS;
+            call.set_return(emu, STATUS_SUCCESS);
         }
     } else {
         log::warn!("NtReadFile: unsupported file read {}", filename);
-        emu.regs_mut().rax = 0xC0000001; // STATUS_UNSUCCESSFUL
+        call.set_return(emu, 0xC0000001); // STATUS_UNSUCCESSFUL
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn NtWriteFile(emu: &mut emu::Emu) {
-    let file_hndl = emu.regs().rcx;
-    let ev_hndl = emu.regs().rdx;
-    let apc_rout = emu.regs().r8;
-    let apc_ctx = emu.regs().r9;
-    let io_status = WinApiAbi::arg(emu, 4);
-    let buff = WinApiAbi::arg(emu, 5);
-    let len = WinApiAbi::arg(emu, 6) as usize;
-    let off = WinApiAbi::arg(emu, 7);
-    let key = WinApiAbi::arg(emu, 8);
+    let call = WinApi(Stdcall);
+    let file_hndl = api_try!(emu, call.arg(emu, 0));
+    let ev_hndl = api_try!(emu, call.arg(emu, 1));
+    let apc_rout = api_try!(emu, call.arg(emu, 2));
+    let apc_ctx = api_try!(emu, call.arg(emu, 3));
+    let io_status = api_try!(emu, call.arg(emu, 4));
+    let buff = api_try!(emu, call.arg(emu, 5));
+    let len = api_try!(emu, call.arg(emu, 6)) as usize;
+    let off = api_try!(emu, call.arg(emu, 7));
+    let key = api_try!(emu, call.arg(emu, 8));
 
     log_red!(
         emu,
@@ -441,7 +448,7 @@ fn NtWriteFile(emu: &mut emu::Emu) {
             emu.maps.write_dword(io_status, 0);
             emu.maps.write_qword(io_status + 8, 0);
         }
-        emu.regs_mut().rax = STATUS_SUCCESS;
+        call.set_return(emu, STATUS_SUCCESS);
         return;
     }
 
@@ -458,36 +465,37 @@ fn NtWriteFile(emu: &mut emu::Emu) {
                     emu.maps.write_dword(io_status, 0);
                     emu.maps.write_qword(io_status + 8, written as u64);
                 }
-                emu.regs_mut().rax = STATUS_SUCCESS;
+                call.set_return(emu, STATUS_SUCCESS);
             }
             Err(e) => {
                 log::warn!("NtWriteFile: write error: {}", e);
                 if io_status != 0 {
                     emu.maps.write_dword(io_status, 0xC0000001);
                 }
-                emu.regs_mut().rax = 0xC0000001;
+                call.set_return(emu, 0xC0000001);
             }
         },
         None => {
             log::warn!("NtWriteFile: invalid handle 0x{:x}", file_hndl);
-            emu.regs_mut().rax = STATUS_INVALID_HANDLE;
+            call.set_return(emu, STATUS_INVALID_HANDLE);
         }
     }
 }
 
 fn NtClose(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
 
     let uri = helper::handler_get_uri(hndl);
     log_red!(emu, "ntdll!NtClose hndl: 0x{:x} uri: {}", hndl, uri);
     if sections::close(emu, hndl) {
-        emu.regs_mut().rax = STATUS_SUCCESS;
+        call.set_return(emu, STATUS_SUCCESS);
         return;
     }
 
     if uri.is_empty() {
-        emu.regs_mut().rax = STATUS_INVALID_HANDLE;
+        call.set_return(emu, STATUS_INVALID_HANDLE);
     } else {
-        emu.regs_mut().rax = STATUS_SUCCESS;
+        call.set_return(emu, STATUS_SUCCESS);
     }
 }

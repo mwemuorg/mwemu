@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::winapi::policy::api_try;
 use crate::windows::structures::Hostent;
 
 pub fn gethostbyname(emu: &mut emu::Emu) {
-    let domain_name_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let domain_name_ptr = api_try!(emu, call.arg(emu, 0));
     let domain_name = emu.maps.read_string(domain_name_ptr);
 
     log_red!(emu, "ws2_32!gethostbyname `{}`", domain_name);
@@ -12,7 +15,7 @@ pub fn gethostbyname(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             log::error!("ws2_32!gethostbyname: out of memory");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -24,7 +27,7 @@ pub fn gethostbyname(emu: &mut emu::Emu) {
         Ok(m) => m,
         Err(e) => {
             log::error!("ws2_32!gethostbyname: cannot create hostent map: {}", e);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -40,5 +43,5 @@ pub fn gethostbyname(emu: &mut emu::Emu) {
     hostent.addr_list = addr + 8;
     hostent.save(addr + 30, &mut emu.maps);
 
-    emu.regs_mut().rax = addr + 30;
+    call.set_return(emu, addr + 30);
 }

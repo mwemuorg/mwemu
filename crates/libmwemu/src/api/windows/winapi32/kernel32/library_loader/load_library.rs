@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi32::kernel32::load_library;
 
 pub fn LoadLibraryA(emu: &mut emu::Emu) {
-    let dllptr = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let dllptr = api_try!(emu, call.arg(emu, 0));
     let dll = emu.maps.read_string(dllptr);
 
-    emu.regs_mut().rax = load_library(emu, &dll);
+    let return_value = load_library(emu, &dll);
+    call.set_return(emu, return_value);
 
     log_red!(
         emu,
@@ -17,19 +20,14 @@ pub fn LoadLibraryA(emu: &mut emu::Emu) {
         emu.regs().rip
     );
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 
     //TODO: instead returning the base, return a handle that have linked the dll name
 }
 
 pub fn LoadLibraryW(emu: &mut emu::Emu) {
-    let dllptr = match WinApiAbi::try_arg(emu, 0) {
-        Some(v) => v,
-        None => {
-            log::warn!("bad LoadLibraryW parameter");
-            return;
-        }
-    };
+    let call = WinApi(Stdcall);
+    let dllptr = api_try!(emu, call.arg(emu, 0));
     let dll = emu.maps.read_wide_string(dllptr);
     log_red!(emu, "LoadLibraryW  '{}'", dll);
 
@@ -37,7 +35,7 @@ pub fn LoadLibraryW(emu: &mut emu::Emu) {
     //  emu.regs_mut().rax = emu.maps.get_mem("ntdll").get_base();
     //}
 
-    emu.regs_mut().rax = load_library(emu, &dll);
-
-    emu.stack_pop32(false);
+    let return_value = load_library(emu, &dll);
+    call.set_return(emu, return_value);
+    call.cleanup_args(emu, 1);
 }

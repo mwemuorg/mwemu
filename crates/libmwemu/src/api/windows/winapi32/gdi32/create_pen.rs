@@ -1,12 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CreatePen(emu: &mut emu::Emu) {
-    let style = arg(emu, 0);
-    let width = arg(emu, 1);
-    let color = arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let style = api_try!(emu, call.arg_u32(emu, 0));
+    let width = api_try!(emu, call.arg_u32(emu, 1));
+    let color = api_try!(emu, call.arg_u32(emu, 2));
     log_red!(
         emu,
         "gdi32!CreatePen style:{} width:{} color:0x{:06x}",
@@ -16,6 +17,6 @@ pub fn CreatePen(emu: &mut emu::Emu) {
     );
     let hndl = helper::handler_create("gdi32://CreatePen");
     assert!(hndl < 0x00000001_00000000);
-    emu.regs_mut().rax = hndl;
-    stdcall_ret(emu, 3);
+    call.set_return(emu, hndl);
+    call.cleanup_args(emu, 3);
 }

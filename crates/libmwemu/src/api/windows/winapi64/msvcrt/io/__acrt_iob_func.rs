@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn __acrt_iob_func(emu: &mut emu::Emu) {
-    let index = emu.regs().rcx as u32;
+    let call = WinApi(Cdecl);
+    let index = api_try!(emu, call.arg_u32(emu, 0));
     let stream_name = match index {
         0 => "stdin",
         1 => "stdout",
@@ -17,5 +20,5 @@ pub fn __acrt_iob_func(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn _time64(emu: &mut emu::Emu) {
-    let t_ptr = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Cdecl);
+    let t_ptr = api_try!(emu, call.arg(emu, 0));
     let now = 0x6718_0000u64;
     if t_ptr != 0 {
         emu.maps.write_qword(t_ptr, now);
     }
     log_red!(emu, "msvcrt!_time64 => 0x{:x}", now);
-    WinApiAbi::set_ret64(emu, now);
+    call.set_return_u64(emu, now);
 }

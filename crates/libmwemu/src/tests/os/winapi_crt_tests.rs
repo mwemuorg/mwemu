@@ -219,3 +219,50 @@ fn winapi_crt_ftol_consumes_x87_and_returns_edx_eax() {
         }
     }
 }
+
+#[test]
+fn ntdll_and_libgcc_cdecl_exports_leave_the_caller_arguments() {
+    let (mut emu, data) = helpers::prepare_winapi(false);
+    let source = data + 0x100;
+    let destination = data + 0x200;
+    emu.maps.write_string(data, "hello");
+    emu.maps.write_string(source, " world");
+    emu.maps.write_string(destination, "hello");
+    let stack = emu.sp();
+    for (library, api, arguments) in [
+        ("ntdll.dll", "strlen", vec![data as u32]),
+        ("ntdll.dll", "stricmp", vec![data as u32, data as u32]),
+        (
+            "ntdll.dll",
+            "strcat",
+            vec![destination as u32, source as u32],
+        ),
+        (
+            "libgcc_s_dw2-1.dll",
+            "__register_frame_info",
+            vec![data as u32, source as u32],
+        ),
+        (
+            "libgcc_s_dw2-1.dll",
+            "__deregister_frame_info",
+            vec![data as u32],
+        ),
+    ] {
+        helpers::call_winapi32(
+            &mut emu,
+            |emu| helpers::invoke_winapi_export(emu, library, api),
+            &arguments,
+        );
+        assert!(!emu.api_policy.stopped(), "{library}!{api}");
+        assert_eq!(
+            emu.sp(),
+            stack - (arguments.len() * size_of::<u32>()) as u64,
+            "{api}"
+        );
+        for &value in &arguments {
+            assert_eq!(emu.stack_pop32(false), Some(value), "{api}");
+        }
+        assert_eq!(emu.sp(), stack);
+    }
+    assert_eq!(emu.maps.read_string(destination), "hello world");
+}

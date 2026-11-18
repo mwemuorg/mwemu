@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn Module32First(emu: &mut emu::Emu) {
-    let h_snapshot = emu.regs().rcx;
-    let p_entry = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let h_snapshot = api_try!(emu, call.arg(emu, 0));
+    let p_entry = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -13,7 +16,7 @@ pub fn Module32First(emu: &mut emu::Emu) {
 
     if p_entry == 0 {
         emu.set_last_error(87); // ERROR_INVALID_PARAMETER
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -21,7 +24,7 @@ pub fn Module32First(emu: &mut emu::Emu) {
     let dw_size = emu.maps.read_dword(p_entry).unwrap_or(0);
     if dw_size < 568 {
         emu.set_last_error(87);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -46,12 +49,13 @@ pub fn Module32First(emu: &mut emu::Emu) {
     emu.maps.write_wide_string(p_entry + 48, "main.exe");
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }
 
 pub fn Module32FirstW(emu: &mut emu::Emu) {
-    let snapshot = emu.regs().rcx;
-    let module_entry = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let snapshot = api_try!(emu, call.arg(emu, 0));
+    let module_entry = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -82,5 +86,5 @@ pub fn Module32FirstW(emu: &mut emu::Emu) {
             .write_word(module_entry + 0x28 + (name.len() as u64) * 2, 0);
     }
 
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

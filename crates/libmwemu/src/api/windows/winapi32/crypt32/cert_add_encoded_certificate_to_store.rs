@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CertAddEncodedCertificateToStore(emu: &mut emu::Emu) {
-    let store = WinApiAbi::arg(emu, 0);
-    let encoding = WinApiAbi::arg(emu, 1);
-    let cert_data = WinApiAbi::arg(emu, 2);
-    let cert_len = WinApiAbi::arg(emu, 3);
-    let add_disp = WinApiAbi::arg(emu, 4);
-    let out_ptr = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let store = api_try!(emu, call.arg(emu, 0));
+    let encoding = api_try!(emu, call.arg(emu, 1));
+    let cert_data = api_try!(emu, call.arg(emu, 2));
+    let cert_len = api_try!(emu, call.arg(emu, 3));
+    let add_disp = api_try!(emu, call.arg(emu, 4));
+    let out_ptr = api_try!(emu, call.arg(emu, 5));
     let hndl = helper::handler_create("cert_encoded");
     if out_ptr != 0 {
         emu.maps.write_dword(out_ptr, hndl as u32);
@@ -19,8 +21,6 @@ pub fn CertAddEncodedCertificateToStore(emu: &mut emu::Emu) {
         store,
         cert_len
     );
-    emu.regs_mut().rax = 1;
-    for _ in 0..6u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 6);
 }

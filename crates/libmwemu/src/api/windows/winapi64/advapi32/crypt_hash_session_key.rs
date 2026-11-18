@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CryptHashSessionKey(emu: &mut emu::Emu) {
-    let hhash = emu.regs().rcx;
-    let hkey = emu.regs().rdx;
-    let _flags = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let hhash = api_try!(emu, call.arg(emu, 0));
+    let hkey = api_try!(emu, call.arg(emu, 1));
+    let _flags = api_try!(emu, call.arg(emu, 2));
     let placeholder = vec![0x41u8; 16];
     crypto_state::hash_data(hhash, &placeholder);
     log_red!(
@@ -14,5 +17,5 @@ pub fn CryptHashSessionKey(emu: &mut emu::Emu) {
         hkey
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

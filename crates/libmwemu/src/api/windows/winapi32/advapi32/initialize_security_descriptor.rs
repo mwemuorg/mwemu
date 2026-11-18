@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn InitializeSecurityDescriptor(emu: &mut emu::Emu) {
-    let sd_ptr = WinApiAbi::arg(emu, 0);
-    let revision = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let sd_ptr = api_try!(emu, call.arg(emu, 0));
+    let revision = api_try!(emu, call.arg_u32(emu, 1));
     if sd_ptr != 0 {
         emu.maps.write_byte(sd_ptr, revision as u8);
         emu.maps.write_byte(sd_ptr + 1, 0); // Sbz1
@@ -19,9 +21,7 @@ pub fn InitializeSecurityDescriptor(emu: &mut emu::Emu) {
         sd_ptr,
         revision
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 2);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

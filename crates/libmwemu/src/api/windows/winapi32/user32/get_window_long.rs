@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn GetWindowLongA(emu: &mut emu::Emu) {
     get_window_long(emu, "GetWindowLongA");
 }
 
 fn get_window_long(emu: &mut emu::Emu, api: &str) {
-    log_red!(emu, "user32!{api} idx:{}", arg(emu, 1) as i32);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg_u32(emu, 1));
+    log_red!(emu, "user32!{api} idx:{}", index as i32);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 2);
 }
 
 pub(super) fn GetWindowLongW(emu: &mut emu::Emu) {

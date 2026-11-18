@@ -1,44 +1,12 @@
+use crate::api::abi::unix::{ArgumentError, UnixApi, VariadicConvention::Darwin};
+use crate::api::printf;
+use crate::api::unix::api_try;
 use crate::emu::Emu;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
 use crate::threading::process::{exit_status, signal_status};
 
 const SIGABRT: u64 = 6;
-
-/// Read argument register by index (0-7), arch-agnostic.
-/// AArch64: x0-x7, x86_64: rdi, rsi, rdx, rcx, r8, r9 (SysV ABI)
-fn arg(emu: &Emu, idx: usize) -> u64 {
-    if emu.cfg.arch.is_aarch64() {
-        emu.regs_aarch64().x[idx]
-    } else {
-        match idx {
-            0 => emu.regs().rdi,
-            1 => emu.regs().rsi,
-            2 => emu.regs().rdx,
-            3 => emu.regs().rcx,
-            4 => emu.regs().r8,
-            5 => emu.regs().r9,
-            _ => {
-                log::warn!("arg index {} not supported for x86_64 SysV ABI", idx);
-                0
-            }
-        }
-    }
-}
-
-/// Set return value, arch-agnostic.
-/// AArch64: x0, x86_64: rax
-pub(super) fn set_ret_pub(emu: &mut Emu, val: u64) {
-    set_ret(emu, val);
-}
-
-fn set_ret(emu: &mut Emu, val: u64) {
-    if emu.cfg.arch.is_aarch64() {
-        emu.regs_aarch64_mut().x[0] = val;
-    } else {
-        emu.regs_mut().rax = val;
-    }
-}
 
 const LARGE_ALLOC_THRESHOLD: u64 = 0x8000;
 
@@ -101,6 +69,7 @@ fn release(emu: &mut Emu, addr: u64) {
 }
 
 pub fn gateway(symbol: &str, emu: &mut Emu) {
+    let call = UnixApi;
     match symbol {
         "_printf" | "printf" => api_printf(emu),
         "_fprintf" | "fprintf" => api_fprintf(emu),
@@ -224,7 +193,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
                 symbol,
                 emu.colors.nc
             );
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
         }
 
         // ACL stubs
@@ -236,7 +205,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
                 symbol,
                 emu.colors.nc
             );
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
         }
 
         // FTS filesystem traversal ($INODE64 variants)
@@ -265,15 +234,16 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         _ if super::libc_extra::gateway(symbol, emu) => {}
         _ => {
             log::warn!("libsystem: unimplemented API {} -- returning 0", symbol);
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
         }
     }
 }
 
 fn api_printf(emu: &mut Emu) {
-    let fmt_addr = arg(emu, 0);
+    let call = UnixApi;
+    let fmt_addr = api_try!(emu, call.arg(emu, 0));
     let fmt = emu.maps.read_string(fmt_addr);
-    let result = format_printf(emu, &fmt, 1);
+    let result = api_try!(emu, format_printf(emu, &fmt, 1));
     log::info!(
         "{}** {} macOS API printf(\"{}\") -> \"{}\" {}",
         emu.colors.light_red,
@@ -283,14 +253,15 @@ fn api_printf(emu: &mut Emu) {
         emu.colors.nc
     );
     emu.emulated_stdout.extend_from_slice(result.as_bytes());
-    set_ret(emu, result.len() as u64);
+    call.set_return(emu, result.len() as u64);
 }
 
 fn api_fprintf(emu: &mut Emu) {
-    let _stream = arg(emu, 0);
-    let fmt_addr = arg(emu, 1);
+    let call = UnixApi;
+    let _stream = api_try!(emu, call.arg(emu, 0));
+    let fmt_addr = api_try!(emu, call.arg(emu, 1));
     let fmt = emu.maps.read_string(fmt_addr);
-    let result = format_printf(emu, &fmt, 2);
+    let result = api_try!(emu, format_printf(emu, &fmt, 2));
     log::info!(
         "{}** {} macOS API fprintf(\"{}\") -> \"{}\" {}",
         emu.colors.light_red,
@@ -300,14 +271,15 @@ fn api_fprintf(emu: &mut Emu) {
         emu.colors.nc
     );
     emu.emulated_stdout.extend_from_slice(result.as_bytes());
-    set_ret(emu, result.len() as u64);
+    call.set_return(emu, result.len() as u64);
 }
 
 fn api_sprintf(emu: &mut Emu) {
-    let dst_addr = arg(emu, 0);
-    let fmt_addr = arg(emu, 1);
+    let call = UnixApi;
+    let dst_addr = api_try!(emu, call.arg(emu, 0));
+    let fmt_addr = api_try!(emu, call.arg(emu, 1));
     let fmt = emu.maps.read_string(fmt_addr);
-    let result = format_printf(emu, &fmt, 2);
+    let result = api_try!(emu, format_printf(emu, &fmt, 2));
     log::info!(
         "{}** {} macOS API sprintf(0x{:x}, \"{}\") -> \"{}\" {}",
         emu.colors.light_red,
@@ -320,15 +292,16 @@ fn api_sprintf(emu: &mut Emu) {
     let bytes = result.as_bytes();
     emu.maps.write_bytes(dst_addr, bytes);
     emu.maps.write_byte(dst_addr + bytes.len() as u64, 0);
-    set_ret(emu, bytes.len() as u64);
+    call.set_return(emu, bytes.len() as u64);
 }
 
 fn api_snprintf(emu: &mut Emu) {
-    let dst_addr = arg(emu, 0);
-    let size = arg(emu, 1);
-    let fmt_addr = arg(emu, 2);
+    let call = UnixApi;
+    let dst_addr = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let fmt_addr = api_try!(emu, call.arg(emu, 2));
     let fmt = emu.maps.read_string(fmt_addr);
-    let result = format_printf(emu, &fmt, 3);
+    let result = api_try!(emu, format_printf(emu, &fmt, 3));
     log::info!(
         "{}** {} macOS API snprintf(0x{:x}, {}, \"{}\") -> \"{}\" {}",
         emu.colors.light_red,
@@ -345,14 +318,15 @@ fn api_snprintf(emu: &mut Emu) {
         emu.maps.write_bytes(dst_addr, &bytes[..write_len]);
         emu.maps.write_byte(dst_addr + write_len as u64, 0);
     }
-    set_ret(emu, bytes.len() as u64);
+    call.set_return(emu, bytes.len() as u64);
 }
 
 fn api_asprintf(emu: &mut Emu) {
-    let ret_ptr = arg(emu, 0);
-    let fmt_addr = arg(emu, 1);
+    let call = UnixApi;
+    let ret_ptr = api_try!(emu, call.arg(emu, 0));
+    let fmt_addr = api_try!(emu, call.arg(emu, 1));
     let fmt = emu.maps.read_string(fmt_addr);
-    let result = format_printf(emu, &fmt, 2);
+    let result = api_try!(emu, format_printf(emu, &fmt, 2));
     let s = alloc_string(emu, &result);
     emu.maps.write_qword(ret_ptr, s);
     log::info!(
@@ -363,24 +337,26 @@ fn api_asprintf(emu: &mut Emu) {
         result,
         emu.colors.nc
     );
-    set_ret(emu, result.len() as u64);
+    call.set_return(emu, result.len() as u64);
 }
 
 fn api_fmtcheck(emu: &mut Emu) {
-    let fmt_suspect = arg(emu, 0);
-    let _fmt_default = arg(emu, 1);
+    let call = UnixApi;
+    let fmt_suspect = api_try!(emu, call.arg(emu, 0));
+    let _fmt_default = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API fmtcheck() -> fmt_suspect {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, fmt_suspect);
+    call.set_return(emu, fmt_suspect);
 }
 
 fn api_devname(emu: &mut Emu) {
-    let dev = arg(emu, 0) as u32;
-    let _mode = arg(emu, 1);
+    let call = UnixApi;
+    let dev = api_try!(emu, call.arg_u32(emu, 0));
+    let _mode = api_try!(emu, call.arg(emu, 1));
     let name = if dev == 0xFFFFFFFF { "??" } else { "ttys000" };
     let s = alloc_string(emu, name);
     log::info!(
@@ -391,24 +367,26 @@ fn api_devname(emu: &mut Emu) {
         name,
         emu.colors.nc
     );
-    set_ret(emu, s);
+    call.set_return(emu, s);
 }
 
 fn api_strvis(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let src = arg(emu, 1);
-    let _flag = arg(emu, 2);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
+    let _flag = api_try!(emu, call.arg(emu, 2));
     let s = emu.maps.read_string(src);
     let len = s.len();
     for (i, b) in s.bytes().enumerate() {
         emu.maps.write_byte(dst + i as u64, b);
     }
     emu.maps.write_byte(dst + len as u64, 0);
-    set_ret(emu, len as u64);
+    call.set_return(emu, len as u64);
 }
 
 fn api_ttyname(emu: &mut Emu) {
-    let fd = arg(emu, 0);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
     if fd == 0 {
         let s = alloc_string(emu, "/dev/ttys000");
         log::info!(
@@ -418,7 +396,7 @@ fn api_ttyname(emu: &mut Emu) {
             fd,
             emu.colors.nc
         );
-        set_ret(emu, s);
+        call.set_return(emu, s);
     } else {
         log::info!(
             "{}** {} macOS API ttyname({}) -> NULL {}",
@@ -427,47 +405,18 @@ fn api_ttyname(emu: &mut Emu) {
             fd,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
     }
 }
 
-fn format_printf(emu: &Emu, fmt: &str, first_vararg: usize) -> String {
-    crate::api::printf::format(emu, fmt, &|e, n| get_printf_arg(e, n, first_vararg))
-}
-
-fn get_printf_arg(emu: &Emu, vararg_num: usize, first_vararg: usize) -> u64 {
-    if emu.cfg.arch.is_aarch64() {
-        // AArch64 Apple ABI: variadic args are always on the stack.
-        let sp = emu.regs_aarch64().sp;
-        emu.maps
-            .read_qword(sp + (vararg_num as u64) * 8)
-            .unwrap_or(0)
-    } else {
-        let idx = first_vararg + vararg_num;
-        if idx < 6 {
-            match idx {
-                0 => emu.regs().rdi,
-                1 => emu.regs().rsi,
-                2 => emu.regs().rdx,
-                3 => emu.regs().rcx,
-                4 => emu.regs().r8,
-                5 => emu.regs().r9,
-                _ => {
-                    log::warn!("arg: register idx {} out of range", idx);
-                    0
-                }
-            }
-        } else {
-            let sp = emu.regs().rsp;
-            emu.maps
-                .read_qword(sp + ((idx - 6) as u64) * 8)
-                .unwrap_or(0)
-        }
-    }
+fn format_printf(emu: &Emu, fmt: &str, first: usize) -> Result<String, ArgumentError> {
+    let call = UnixApi;
+    printf::format(emu, fmt, &|e, n| call.integer_vararg(e, first, n, Darwin))
 }
 
 fn api_puts(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_string(s_addr);
     log::info!(
         "{}** {} macOS API puts(\"{}\") {}",
@@ -478,11 +427,12 @@ fn api_puts(emu: &mut Emu) {
     );
     emu.emulated_stdout.extend_from_slice(s.as_bytes());
     emu.emulated_stdout.push(b'\n');
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_putchar(emu: &mut Emu) {
-    let c = arg(emu, 0) as u8;
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg_u8(emu, 0));
     log::info!(
         "{}** {} macOS API putchar('{}') {}",
         emu.colors.light_red,
@@ -491,11 +441,12 @@ fn api_putchar(emu: &mut Emu) {
         emu.colors.nc
     );
     emu.emulated_stdout.push(c);
-    set_ret(emu, c as u64);
+    call.set_return(emu, c as u64);
 }
 
 fn api_exit(emu: &mut Emu) {
-    let status = arg(emu, 0);
+    let call = UnixApi;
+    let status = api_try!(emu, call.arg(emu, 0));
     // Flush stdout and stderr buffers before exiting
     flush_stdio_on_exit(emu);
     log::info!(
@@ -511,6 +462,7 @@ fn api_exit(emu: &mut Emu) {
 /// End the process; if it was a forked child, its parent resumes with
 /// fork() returning the child's pid.
 fn end_process(emu: &mut Emu, wait_status: u64) {
+    let call = UnixApi;
     if let Some(child) = emu.process_exit(wait_status) {
         super::process::run_atfork(emu, super::process::AtForkPhase::Parent);
         log::info!(
@@ -521,7 +473,7 @@ fn end_process(emu: &mut Emu, wait_status: u64) {
             emu.processes.pid,
             emu.colors.nc
         );
-        set_ret(emu, child);
+        call.set_return(emu, child);
     }
 }
 
@@ -545,7 +497,8 @@ fn api_abort(emu: &mut Emu) {
 }
 
 fn api_malloc(emu: &mut Emu) {
-    let size = arg(emu, 0);
+    let call = UnixApi;
+    let size = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API malloc({}) {}",
         emu.colors.light_red,
@@ -561,21 +514,22 @@ fn api_malloc(emu: &mut Emu) {
                 Some(a) => a,
                 None => {
                     log::error!("macOS malloc: out of memory (size=0x{:x})", size);
-                    set_ret(emu, 0);
+                    call.set_return(emu, 0);
                     return;
                 }
             }
         };
         log::info!("  -> 0x{:x}", base);
-        set_ret(emu, base);
+        call.set_return(emu, base);
     } else {
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
     }
 }
 
 fn api_calloc(emu: &mut Emu) {
-    let count = arg(emu, 0);
-    let size = arg(emu, 1);
+    let call = UnixApi;
+    let count = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
     let total = count.saturating_mul(size);
     log::info!(
         "{}** {} macOS API calloc({}, {}) {}",
@@ -591,7 +545,7 @@ fn api_calloc(emu: &mut Emu) {
         } else {
             let Some(b) = allocate_memory(emu, total) else {
                 log::error!("macOS calloc: out of memory (size=0x{:x})", total);
-                set_ret(emu, 0);
+                call.set_return(emu, 0);
                 return;
             };
             for i in 0..total {
@@ -600,15 +554,16 @@ fn api_calloc(emu: &mut Emu) {
             b
         };
         log::info!("  -> 0x{:x}", base);
-        set_ret(emu, base);
+        call.set_return(emu, base);
     } else {
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
     }
 }
 
 fn api_realloc(emu: &mut Emu) {
-    let ptr = arg(emu, 0);
-    let size = arg(emu, 1);
+    let call = UnixApi;
+    let ptr = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API realloc(0x{:x}, {}) {}",
         emu.colors.light_red,
@@ -621,7 +576,7 @@ fn api_realloc(emu: &mut Emu) {
         if ptr != 0 && emu.cfg.memory_guard {
             emu.kernel_free(ptr, "realloc");
         }
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
     let base = if emu.cfg.memory_guard {
@@ -631,7 +586,7 @@ fn api_realloc(emu: &mut Emu) {
             Some(addr) => addr,
             None => {
                 log::error!("macOS realloc: out of memory (size=0x{:x})", size);
-                set_ret(emu, 0);
+                call.set_return(emu, 0);
                 return;
             }
         }
@@ -650,11 +605,12 @@ fn api_realloc(emu: &mut Emu) {
         }
     }
     log::info!("  -> 0x{:x}", base);
-    set_ret(emu, base);
+    call.set_return(emu, base);
 }
 
 fn api_free(emu: &mut Emu) {
-    let ptr = arg(emu, 0);
+    let call = UnixApi;
+    let ptr = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API free(0x{:x}) {}",
         emu.colors.light_red,
@@ -670,19 +626,21 @@ fn api_free(emu: &mut Emu) {
 }
 
 fn api_atexit(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API atexit() {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_write(emu: &mut Emu) {
-    let fd = arg(emu, 0);
-    let buf = arg(emu, 1);
-    let count = arg(emu, 2);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg(emu, 2));
     let s = emu.maps.read_string(buf);
     log::info!(
         "{}** {} macOS API write(fd={}, \"{}\", {}) {}",
@@ -693,13 +651,14 @@ fn api_write(emu: &mut Emu) {
         count,
         emu.colors.nc
     );
-    set_ret(emu, count);
+    call.set_return(emu, count);
 }
 
 fn api_read(emu: &mut Emu) {
-    let fd = arg(emu, 0);
-    let buf = arg(emu, 1);
-    let count = arg(emu, 2);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API read(fd={}, buf=0x{:x}, count={}) {}",
         emu.colors.light_red,
@@ -710,12 +669,13 @@ fn api_read(emu: &mut Emu) {
         emu.colors.nc
     );
     // Stub: return 0 bytes read (EOF)
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_open(emu: &mut Emu) {
-    let path_addr = arg(emu, 0);
-    let flags = arg(emu, 1);
+    let call = UnixApi;
+    let path_addr = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg(emu, 1));
     let path = emu.maps.read_string(path_addr);
     log::info!(
         "{}** {} macOS API open(\"{}\", 0x{:x}) {}",
@@ -726,11 +686,12 @@ fn api_open(emu: &mut Emu) {
         emu.colors.nc
     );
     // Stub: return fd 3 (fake file descriptor)
-    set_ret(emu, 3);
+    call.set_return(emu, 3);
 }
 
 fn api_close(emu: &mut Emu) {
-    let fd = arg(emu, 0);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API close(fd={}) {}",
         emu.colors.light_red,
@@ -738,13 +699,14 @@ fn api_close(emu: &mut Emu) {
         fd,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_memcpy(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let src = arg(emu, 1);
-    let n = arg(emu, 2);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API memcpy(0x{:x}, 0x{:x}, {}) {}",
         emu.colors.light_red,
@@ -758,13 +720,14 @@ fn api_memcpy(emu: &mut Emu) {
         let b = emu.maps.read_byte(src + i).unwrap_or(0);
         emu.maps.write_byte(dst + i, b);
     }
-    set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_memmove(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let src = arg(emu, 1);
-    let n = arg(emu, 2);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API memmove(0x{:x}, 0x{:x}, {}) {}",
         emu.colors.light_red,
@@ -782,13 +745,14 @@ fn api_memmove(emu: &mut Emu) {
     for i in 0..n {
         emu.maps.write_byte(dst + i, tmp[i as usize]);
     }
-    set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_memset(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let c = (arg(emu, 1) & 0xff) as u8;
-    let n = arg(emu, 2);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API memset(0x{:x}, 0x{:02x}, {}) {}",
         emu.colors.light_red,
@@ -801,13 +765,14 @@ fn api_memset(emu: &mut Emu) {
     for i in 0..n {
         emu.maps.write_byte(dst + i, c);
     }
-    set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_memcmp(emu: &mut Emu) {
-    let s1 = arg(emu, 0);
-    let s2 = arg(emu, 1);
-    let n = arg(emu, 2);
+    let call = UnixApi;
+    let s1 = api_try!(emu, call.arg(emu, 0));
+    let s2 = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API memcmp(0x{:x}, 0x{:x}, {}) {}",
         emu.colors.light_red,
@@ -826,13 +791,14 @@ fn api_memcmp(emu: &mut Emu) {
             break;
         }
     }
-    set_ret(emu, result as u64);
+    call.set_return(emu, result as u64);
 }
 
 fn api_memchr(emu: &mut Emu) {
-    let s = arg(emu, 0);
-    let c = (arg(emu, 1) & 0xff) as u8;
-    let n = arg(emu, 2);
+    let call = UnixApi;
+    let s = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API memchr(0x{:x}, 0x{:02x}, {}) {}",
         emu.colors.light_red,
@@ -850,11 +816,12 @@ fn api_memchr(emu: &mut Emu) {
             break;
         }
     }
-    set_ret(emu, found);
+    call.set_return(emu, found);
 }
 
 fn api_strlen(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_string(s_addr);
     log::info!(
         "{}** {} macOS API strlen(0x{:x}) = {} {}",
@@ -864,12 +831,13 @@ fn api_strlen(emu: &mut Emu) {
         s.len(),
         emu.colors.nc
     );
-    set_ret(emu, s.len() as u64);
+    call.set_return(emu, s.len() as u64);
 }
 
 fn api_strcmp(emu: &mut Emu) {
-    let s1_addr = arg(emu, 0);
-    let s2_addr = arg(emu, 1);
+    let call = UnixApi;
+    let s1_addr = api_try!(emu, call.arg(emu, 0));
+    let s2_addr = api_try!(emu, call.arg(emu, 1));
     let s1 = emu.maps.read_string(s1_addr);
     let s2 = emu.maps.read_string(s2_addr);
     log::info!(
@@ -885,13 +853,14 @@ fn api_strcmp(emu: &mut Emu) {
         std::cmp::Ordering::Equal => 0u64,
         std::cmp::Ordering::Greater => 1u64,
     };
-    set_ret(emu, result);
+    call.set_return(emu, result);
 }
 
 fn api_strncmp(emu: &mut Emu) {
-    let s1_addr = arg(emu, 0);
-    let s2_addr = arg(emu, 1);
-    let n = arg(emu, 2) as usize;
+    let call = UnixApi;
+    let s1_addr = api_try!(emu, call.arg(emu, 0));
+    let s2_addr = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let s1 = emu.maps.read_string(s1_addr);
     let s2 = emu.maps.read_string(s2_addr);
     log::info!(
@@ -910,12 +879,13 @@ fn api_strncmp(emu: &mut Emu) {
         std::cmp::Ordering::Equal => 0u64,
         std::cmp::Ordering::Greater => 1u64,
     };
-    set_ret(emu, result);
+    call.set_return(emu, result);
 }
 
 fn api_strcpy(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let src_addr = arg(emu, 1);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src_addr = api_try!(emu, call.arg(emu, 1));
     let s = emu.maps.read_string(src_addr);
     log::info!(
         "{}** {} macOS API strcpy(0x{:x}, \"{}\") {}",
@@ -928,13 +898,14 @@ fn api_strcpy(emu: &mut Emu) {
     let bytes = s.as_bytes();
     emu.maps.write_bytes(dst, bytes);
     emu.maps.write_byte(dst + bytes.len() as u64, 0);
-    set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_strncpy(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let src_addr = arg(emu, 1);
-    let n = arg(emu, 2);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src_addr = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     let s = emu.maps.read_string(src_addr);
     log::info!(
         "{}** {} macOS API strncpy(0x{:x}, \"{}\", {}) {}",
@@ -952,12 +923,13 @@ fn api_strncpy(emu: &mut Emu) {
     for i in copy_len..(n as usize) {
         emu.maps.write_byte(dst + i as u64, 0);
     }
-    set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_strcat(emu: &mut Emu) {
-    let dst_addr = arg(emu, 0);
-    let src_addr = arg(emu, 1);
+    let call = UnixApi;
+    let dst_addr = api_try!(emu, call.arg(emu, 0));
+    let src_addr = api_try!(emu, call.arg(emu, 1));
     let dst_s = emu.maps.read_string(dst_addr);
     let src_s = emu.maps.read_string(src_addr);
     log::info!(
@@ -973,13 +945,14 @@ fn api_strcat(emu: &mut Emu) {
     emu.maps.write_bytes(dst_addr + dst_len, src_bytes);
     emu.maps
         .write_byte(dst_addr + dst_len + src_bytes.len() as u64, 0);
-    set_ret(emu, dst_addr);
+    call.set_return(emu, dst_addr);
 }
 
 fn api_strncat(emu: &mut Emu) {
-    let dst_addr = arg(emu, 0);
-    let src_addr = arg(emu, 1);
-    let n = arg(emu, 2) as usize;
+    let call = UnixApi;
+    let dst_addr = api_try!(emu, call.arg(emu, 0));
+    let src_addr = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let dst_s = emu.maps.read_string(dst_addr);
     let src_s = emu.maps.read_string(src_addr);
     log::info!(
@@ -997,13 +970,14 @@ fn api_strncat(emu: &mut Emu) {
     emu.maps
         .write_bytes(dst_addr + dst_len, &src_bytes[..copy_len]);
     emu.maps.write_byte(dst_addr + dst_len + copy_len as u64, 0);
-    set_ret(emu, dst_addr);
+    call.set_return(emu, dst_addr);
 }
 
 fn api_strlcpy(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let src_addr = arg(emu, 1);
-    let size = arg(emu, 2) as usize;
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src_addr = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg(emu, 2)) as usize;
     let s = emu.maps.read_string(src_addr);
     log::info!(
         "{}** {} macOS API strlcpy(0x{:x}, \"{}\", {}) {}",
@@ -1021,15 +995,16 @@ fn api_strlcpy(emu: &mut Emu) {
         emu.maps.write_byte(dst + copy_len as u64, 0);
     }
     // strlcpy returns strlen(src)
-    set_ret(emu, bytes.len() as u64);
+    call.set_return(emu, bytes.len() as u64);
 }
 
 fn api_bsearch(emu: &mut Emu) {
-    let key_ptr = arg(emu, 0);
-    let base_ptr = arg(emu, 1);
-    let nel = arg(emu, 2) as usize;
-    let width = arg(emu, 3) as usize;
-    let _compar = arg(emu, 4);
+    let call = UnixApi;
+    let key_ptr = api_try!(emu, call.arg(emu, 0));
+    let base_ptr = api_try!(emu, call.arg(emu, 1));
+    let nel = api_try!(emu, call.arg(emu, 2)) as usize;
+    let width = api_try!(emu, call.arg(emu, 3)) as usize;
+    let _compar = api_try!(emu, call.arg(emu, 4));
 
     // The key is typically a pointer to a string (e.g. keyword lookup in ps).
     // Read the key string via dereferencing the key pointer.
@@ -1066,14 +1041,15 @@ fn api_bsearch(emu: &mut Emu) {
         found,
         emu.colors.nc
     );
-    set_ret(emu, found);
+    call.set_return(emu, found);
 }
 
 fn api_qsort(emu: &mut Emu) {
-    let _base = arg(emu, 0);
-    let nel = arg(emu, 1);
-    let _width = arg(emu, 2);
-    let _compar = arg(emu, 3);
+    let call = UnixApi;
+    let _base = api_try!(emu, call.arg(emu, 0));
+    let nel = api_try!(emu, call.arg(emu, 1));
+    let _width = api_try!(emu, call.arg(emu, 2));
+    let _compar = api_try!(emu, call.arg(emu, 3));
     log::info!(
         "{}** {} macOS API qsort({} elements) -> no-op {}",
         emu.colors.light_red,
@@ -1084,9 +1060,10 @@ fn api_qsort(emu: &mut Emu) {
 }
 
 fn api_strlcat(emu: &mut Emu) {
-    let dst_addr = arg(emu, 0);
-    let src_addr = arg(emu, 1);
-    let size = arg(emu, 2) as usize;
+    let call = UnixApi;
+    let dst_addr = api_try!(emu, call.arg(emu, 0));
+    let src_addr = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg(emu, 2)) as usize;
     let dst_s = emu.maps.read_string(dst_addr);
     let src_s = emu.maps.read_string(src_addr);
     log::info!(
@@ -1110,12 +1087,13 @@ fn api_strlcat(emu: &mut Emu) {
     }
     // strlcat returns min(size, dst_len) + strlen(src)
     let ret = std::cmp::min(size, dst_len) + src_bytes.len();
-    set_ret(emu, ret as u64);
+    call.set_return(emu, ret as u64);
 }
 
 fn api_strchr(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
-    let c = (arg(emu, 1) & 0xff) as u8;
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
     let s = emu.maps.read_string(s_addr);
     log::info!(
         "{}** {} macOS API strchr(\"{}\", '{}') {}",
@@ -1134,12 +1112,13 @@ fn api_strchr(emu: &mut Emu) {
             None => 0, // NULL
         }
     };
-    set_ret(emu, result);
+    call.set_return(emu, result);
 }
 
 fn api_strrchr(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
-    let c = (arg(emu, 1) & 0xff) as u8;
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
     let s = emu.maps.read_string(s_addr);
     log::info!(
         "{}** {} macOS API strrchr(\"{}\", '{}') {}",
@@ -1157,12 +1136,13 @@ fn api_strrchr(emu: &mut Emu) {
             None => 0,
         }
     };
-    set_ret(emu, result);
+    call.set_return(emu, result);
 }
 
 fn api_strstr(emu: &mut Emu) {
-    let haystack_addr = arg(emu, 0);
-    let needle_addr = arg(emu, 1);
+    let call = UnixApi;
+    let haystack_addr = api_try!(emu, call.arg(emu, 0));
+    let needle_addr = api_try!(emu, call.arg(emu, 1));
     let haystack = emu.maps.read_string(haystack_addr);
     let needle = emu.maps.read_string(needle_addr);
     log::info!(
@@ -1181,11 +1161,12 @@ fn api_strstr(emu: &mut Emu) {
             None => 0,
         }
     };
-    set_ret(emu, result);
+    call.set_return(emu, result);
 }
 
 fn api_strdup(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_string(s_addr);
     log::info!(
         "{}** {} macOS API strdup(\"{}\") {}",
@@ -1202,7 +1183,7 @@ fn api_strdup(emu: &mut Emu) {
             Some(addr) => addr,
             None => {
                 log::error!("macOS strdup: out of memory (size=0x{:x})", len);
-                set_ret(emu, 0);
+                call.set_return(emu, 0);
                 return;
             }
         }
@@ -1210,17 +1191,18 @@ fn api_strdup(emu: &mut Emu) {
     let bytes = s.as_bytes();
     emu.maps.write_bytes(base, bytes);
     emu.maps.write_byte(base + bytes.len() as u64, 0);
-    set_ret(emu, base);
+    call.set_return(emu, base);
 }
 
 fn api_strsep(emu: &mut Emu) {
-    let stringp_ptr = arg(emu, 0); // char **stringp
-    let delim_ptr = arg(emu, 1);
+    let call = UnixApi;
+    let stringp_ptr = api_try!(emu, call.arg(emu, 0)); // char **stringp
+    let delim_ptr = api_try!(emu, call.arg(emu, 1));
 
     let sp = match emu.maps.read_qword(stringp_ptr) {
         Some(v) => v,
         None => {
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -1232,7 +1214,7 @@ fn api_strsep(emu: &mut Emu) {
             emu.pos,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -1259,12 +1241,13 @@ fn api_strsep(emu: &mut Emu) {
         sp,
         emu.colors.nc
     );
-    set_ret(emu, sp);
+    call.set_return(emu, sp);
 }
 
 fn api_bzero(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let n = arg(emu, 1);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let n = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API bzero(0x{:x}, {}) {}",
         emu.colors.light_red,
@@ -1280,12 +1263,13 @@ fn api_bzero(emu: &mut Emu) {
 }
 
 fn api_mmap(emu: &mut Emu) {
-    let addr = arg(emu, 0);
-    let len = arg(emu, 1);
-    let prot = arg(emu, 2);
-    let flags = arg(emu, 3);
-    let fd = arg(emu, 4);
-    let offset = arg(emu, 5);
+    let call = UnixApi;
+    let addr = api_try!(emu, call.arg(emu, 0));
+    let len = api_try!(emu, call.arg(emu, 1));
+    let prot = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg(emu, 3));
+    let fd = api_try!(emu, call.arg(emu, 4));
+    let offset = api_try!(emu, call.arg(emu, 5));
     log::info!(
         "{}** {} macOS API mmap(0x{:x}, 0x{:x}, 0x{:x}, 0x{:x}, {}, 0x{:x}) {}",
         emu.colors.light_red,
@@ -1300,7 +1284,7 @@ fn api_mmap(emu: &mut Emu) {
     );
     if len == 0 {
         // MAP_FAILED
-        set_ret(emu, u64::MAX);
+        call.set_return(emu, u64::MAX);
         return;
     }
     let permission = prot_to_permission(prot);
@@ -1308,7 +1292,7 @@ fn api_mmap(emu: &mut Emu) {
         Some(a) => a,
         None => {
             log::error!("macOS mmap: out of memory (len={})", len);
-            set_ret(emu, u64::MAX);
+            call.set_return(emu, u64::MAX);
             return;
         }
     };
@@ -1318,7 +1302,7 @@ fn api_mmap(emu: &mut Emu) {
         .is_err()
     {
         log::error!("macOS mmap: cannot create map at 0x{:x}", base);
-        set_ret(emu, u64::MAX);
+        call.set_return(emu, u64::MAX);
         return;
     }
     // zero-fill
@@ -1326,12 +1310,13 @@ fn api_mmap(emu: &mut Emu) {
         emu.maps.write_byte(base + i, 0);
     }
     log::info!("  -> 0x{:x}", base);
-    set_ret(emu, base);
+    call.set_return(emu, base);
 }
 
 fn api_munmap(emu: &mut Emu) {
-    let addr = arg(emu, 0);
-    let len = arg(emu, 1);
+    let call = UnixApi;
+    let addr = api_try!(emu, call.arg(emu, 0));
+    let len = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API munmap(0x{:x}, 0x{:x}) {}",
         emu.colors.light_red,
@@ -1341,13 +1326,14 @@ fn api_munmap(emu: &mut Emu) {
         emu.colors.nc
     );
     // Stub: return success. We don't reclaim memory.
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_mprotect(emu: &mut Emu) {
-    let addr = arg(emu, 0);
-    let len = arg(emu, 1);
-    let prot = arg(emu, 2);
+    let call = UnixApi;
+    let addr = api_try!(emu, call.arg(emu, 0));
+    let len = api_try!(emu, call.arg(emu, 1));
+    let prot = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API mprotect(0x{:x}, 0x{:x}, 0x{:x}) {}",
         emu.colors.light_red,
@@ -1358,13 +1344,14 @@ fn api_mprotect(emu: &mut Emu) {
         emu.colors.nc
     );
     // Stub: return success
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_madvise(emu: &mut Emu) {
-    let addr = arg(emu, 0);
-    let len = arg(emu, 1);
-    let advice = arg(emu, 2);
+    let call = UnixApi;
+    let addr = api_try!(emu, call.arg(emu, 0));
+    let len = api_try!(emu, call.arg(emu, 1));
+    let advice = api_try!(emu, call.arg(emu, 2));
     log::info!(
         "{}** {} macOS API madvise(0x{:x}, 0x{:x}, {}) {}",
         emu.colors.light_red,
@@ -1374,14 +1361,15 @@ fn api_madvise(emu: &mut Emu) {
         advice,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 // ==================== macOS / ls-required API stubs ====================
 
 fn api_setlocale(emu: &mut Emu) {
-    let category = arg(emu, 0);
-    let locale_addr = arg(emu, 1);
+    let call = UnixApi;
+    let category = api_try!(emu, call.arg(emu, 0));
+    let locale_addr = api_try!(emu, call.arg(emu, 1));
     let locale = if locale_addr != 0 {
         emu.maps.read_string(locale_addr)
     } else {
@@ -1396,11 +1384,12 @@ fn api_setlocale(emu: &mut Emu) {
         emu.colors.nc
     );
     let ret = alloc_string(emu, "C");
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_getenv(emu: &mut Emu) {
-    let name_addr = arg(emu, 0);
+    let call = UnixApi;
+    let name_addr = api_try!(emu, call.arg(emu, 0));
     let name = emu.maps.read_string(name_addr);
     log::info!(
         "{}** {} macOS API getenv(\"{}\") -> NULL {}",
@@ -1409,12 +1398,13 @@ fn api_getenv(emu: &mut Emu) {
         name,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_setenv(emu: &mut Emu) {
-    let name_addr = arg(emu, 0);
-    let val_addr = arg(emu, 1);
+    let call = UnixApi;
+    let name_addr = api_try!(emu, call.arg(emu, 0));
+    let val_addr = api_try!(emu, call.arg(emu, 1));
     let name = emu.maps.read_string(name_addr);
     let val = if val_addr != 0 {
         emu.maps.read_string(val_addr)
@@ -1429,11 +1419,12 @@ fn api_setenv(emu: &mut Emu) {
         val,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_isatty(emu: &mut Emu) {
-    let fd = arg(emu, 0);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
     // stdin (0) is a tty; stdout/stderr are not (for ls-style output)
     let ret = if fd == 0 { 1u64 } else { 0u64 };
     log::info!(
@@ -1444,16 +1435,17 @@ fn api_isatty(emu: &mut Emu) {
         ret,
         emu.colors.nc
     );
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_ioctl(emu: &mut Emu) {
-    let fd = arg(emu, 0);
-    let request = arg(emu, 1);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
+    let request = api_try!(emu, call.arg(emu, 1));
 
     // TIOCGWINSZ = 0x40087468
     if request == 0x40087468 {
-        let buf = arg(emu, 2);
+        let buf = api_try!(emu, call.arg(emu, 2));
         if buf != 0 {
             emu.maps.write_word(buf, 24); // ws_row
             emu.maps.write_word(buf + 2, 80); // ws_col
@@ -1467,13 +1459,13 @@ fn api_ioctl(emu: &mut Emu) {
             fd,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
     // TIOCGPGRP = 0x40047477
     if request == 0x40047477 {
-        let buf = arg(emu, 2);
+        let buf = api_try!(emu, call.arg(emu, 2));
         if buf != 0 {
             emu.maps.write_dword(buf, 1234);
         }
@@ -1484,7 +1476,7 @@ fn api_ioctl(emu: &mut Emu) {
             fd,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -1496,7 +1488,7 @@ fn api_ioctl(emu: &mut Emu) {
         request,
         emu.colors.nc
     );
-    set_ret(emu, -1i64 as u64);
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn find_global_addr(emu: &Emu, name: &str) -> Option<u64> {
@@ -1509,9 +1501,10 @@ fn find_global_addr(emu: &Emu, name: &str) -> Option<u64> {
 }
 
 fn api_getopt_long(emu: &mut Emu) {
-    let argc = arg(emu, 0) as i32;
-    let argv_ptr = arg(emu, 1);
-    let optstring_ptr = arg(emu, 2);
+    let call = UnixApi;
+    let argc = api_try!(emu, call.arg_i32(emu, 0));
+    let argv_ptr = api_try!(emu, call.arg(emu, 1));
+    let optstring_ptr = api_try!(emu, call.arg(emu, 2));
 
     let optstring = emu.maps.read_string(optstring_ptr);
 
@@ -1536,7 +1529,7 @@ fn api_getopt_long(emu: &mut Emu) {
             emu.pos,
             emu.colors.nc
         );
-        set_ret(emu, -1i64 as u64);
+        call.set_return(emu, -1i64 as u64);
         return;
     }
 
@@ -1555,7 +1548,7 @@ fn api_getopt_long(emu: &mut Emu) {
             arg_str,
             emu.colors.nc
         );
-        set_ret(emu, -1i64 as u64);
+        call.set_return(emu, -1i64 as u64);
         return;
     }
 
@@ -1564,7 +1557,7 @@ fn api_getopt_long(emu: &mut Emu) {
         if optind_addr != 0 {
             emu.maps.write_dword(optind_addr, (optind + 1) as u32);
         }
-        set_ret(emu, -1i64 as u64);
+        call.set_return(emu, -1i64 as u64);
         return;
     }
 
@@ -1620,7 +1613,7 @@ fn api_getopt_long(emu: &mut Emu) {
                 ch,
                 emu.colors.nc
             );
-            set_ret(emu, ch as u64);
+            call.set_return(emu, ch as u64);
         }
         None => {
             if is_last {
@@ -1639,13 +1632,14 @@ fn api_getopt_long(emu: &mut Emu) {
                 ch,
                 emu.colors.nc
             );
-            set_ret(emu, b'?' as u64);
+            call.set_return(emu, b'?' as u64);
         }
     }
 }
 
 fn api_signal(emu: &mut Emu) {
-    let sig = arg(emu, 0);
+    let call = UnixApi;
+    let sig = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API signal({}) -> SIG_DFL {}",
         emu.colors.light_red,
@@ -1653,12 +1647,13 @@ fn api_signal(emu: &mut Emu) {
         sig,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_kill(emu: &mut Emu) {
-    let pid = arg(emu, 0);
-    let sig = arg(emu, 1);
+    let call = UnixApi;
+    let pid = api_try!(emu, call.arg(emu, 0));
+    let sig = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API kill({}, {}) -> 0 {}",
         emu.colors.light_red,
@@ -1667,31 +1662,34 @@ fn api_kill(emu: &mut Emu) {
         sig,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_getuid(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API getuid() -> 501 {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, 501);
+    call.set_return(emu, 501);
 }
 
 fn api_getgid(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API getgid() -> 20 {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, 20);
+    call.set_return(emu, 20);
 }
 
 fn api_getpwuid(emu: &mut Emu) {
-    let uid = arg(emu, 0) as u32;
+    let call = UnixApi;
+    let uid = api_try!(emu, call.arg_u32(emu, 0));
 
     // struct passwd layout (macOS):
     //   0x00: pw_name   (char *)
@@ -1706,7 +1704,7 @@ fn api_getpwuid(emu: &mut Emu) {
     //   0x48: pw_expire (time_t, 8 bytes)
     let Some(pw_struct) = allocate_memory(emu, 0x50) else {
         log::error!("getpwuid: out of memory");
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     };
     let pw_name = alloc_string(emu, "user");
@@ -1735,16 +1733,17 @@ fn api_getpwuid(emu: &mut Emu) {
         pw_struct,
         emu.colors.nc
     );
-    set_ret(emu, pw_struct);
+    call.set_return(emu, pw_struct);
 }
 
 fn api_getpwnam(emu: &mut Emu) {
-    let name_ptr = arg(emu, 0);
+    let call = UnixApi;
+    let name_ptr = api_try!(emu, call.arg(emu, 0));
     let name = emu.maps.read_string(name_ptr);
 
     let Some(pw_struct) = allocate_memory(emu, 0x50) else {
         log::error!("getpwnam: out of memory");
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     };
     let pw_name = alloc_string(emu, &name);
@@ -1773,23 +1772,24 @@ fn api_getpwnam(emu: &mut Emu) {
         pw_struct,
         emu.colors.nc
     );
-    set_ret(emu, pw_struct);
+    call.set_return(emu, pw_struct);
 }
 
 fn api_getgrgid(emu: &mut Emu) {
-    let gid = arg(emu, 0) as u32;
+    let call = UnixApi;
+    let gid = api_try!(emu, call.arg_u32(emu, 0));
 
     // struct group: gr_name, gr_passwd, gr_gid, gr_mem
     let Some(gr_struct) = allocate_memory(emu, 0x20) else {
         log::error!("getgrgid: out of memory");
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     };
     let gr_name = alloc_string(emu, "staff");
     let gr_passwd = alloc_string(emu, "*");
     let Some(gr_mem) = allocate_memory(emu, 8) else {
         log::error!("getgrgid: out of memory for gr_mem");
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     };
     emu.maps.write_qword(gr_mem, 0); // NULL-terminated member list
@@ -1807,12 +1807,13 @@ fn api_getgrgid(emu: &mut Emu) {
         gr_struct,
         emu.colors.nc
     );
-    set_ret(emu, gr_struct);
+    call.set_return(emu, gr_struct);
 }
 
 fn api_getgroups(emu: &mut Emu) {
-    let gidsetsize = arg(emu, 0) as i32;
-    let grouplist_ptr = arg(emu, 1);
+    let call = UnixApi;
+    let gidsetsize = api_try!(emu, call.arg_i32(emu, 0));
+    let grouplist_ptr = api_try!(emu, call.arg(emu, 1));
 
     if gidsetsize > 0 && grouplist_ptr != 0 {
         emu.maps.write_dword(grouplist_ptr, 20); // staff
@@ -1826,18 +1827,19 @@ fn api_getgroups(emu: &mut Emu) {
         grouplist_ptr,
         emu.colors.nc
     );
-    set_ret(emu, 1);
+    call.set_return(emu, 1);
 }
 
 fn api_getgrouplist_2(emu: &mut Emu) {
-    let _name_ptr = arg(emu, 0);
-    let _basegid = arg(emu, 1) as u32;
-    let groups_ptr_ptr = arg(emu, 2);
+    let call = UnixApi;
+    let _name_ptr = api_try!(emu, call.arg(emu, 0));
+    let _basegid = api_try!(emu, call.arg_u32(emu, 1));
+    let groups_ptr_ptr = api_try!(emu, call.arg(emu, 2));
 
     // Allocate a gid_t array with 1 group (staff=20)
     let Some(groups) = allocate_memory(emu, 8) else {
         log::error!("getgrouplist_2: out of memory");
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     };
     emu.maps.write_dword(groups, 20);
@@ -1852,10 +1854,11 @@ fn api_getgrouplist_2(emu: &mut Emu) {
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, 1);
+    call.set_return(emu, 1);
 }
 
 fn api_getlogin(emu: &mut Emu) {
+    let call = UnixApi;
     let s = alloc_string(emu, "user");
     log::info!(
         "{}** {} macOS API getlogin() -> \"user\" {}",
@@ -1863,21 +1866,23 @@ fn api_getlogin(emu: &mut Emu) {
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, s);
+    call.set_return(emu, s);
 }
 
 fn api_getaudit_addr(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API getaudit_addr() -> -1 {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, -1i64 as u64);
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_sysconf(emu: &mut Emu) {
-    let name = arg(emu, 0) as i32;
+    let call = UnixApi;
+    let name = api_try!(emu, call.arg_i32(emu, 0));
     // _SC_NGROUPS_MAX = 4 on macOS, typical value = 16
     let val: u64 = match name {
         4 => 16, // _SC_NGROUPS_MAX
@@ -1891,10 +1896,11 @@ fn api_sysconf(emu: &mut Emu) {
         val,
         emu.colors.nc
     );
-    set_ret(emu, val);
+    call.set_return(emu, val);
 }
 
 fn api___error(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API __error() {}",
         emu.colors.light_red,
@@ -1902,7 +1908,7 @@ fn api___error(emu: &mut Emu) {
         emu.colors.nc
     );
     let errno_ptr = alloc_string(emu, "\0\0\0\0");
-    set_ret(emu, errno_ptr);
+    call.set_return(emu, errno_ptr);
 }
 
 fn api___stack_chk_fail(emu: &mut Emu) {
@@ -1916,26 +1922,29 @@ fn api___stack_chk_fail(emu: &mut Emu) {
 }
 
 fn api___maskrune(emu: &mut Emu) {
-    let _c = arg(emu, 0);
-    let _mask = arg(emu, 1);
-    set_ret(emu, 0);
+    let call = UnixApi;
+    let _c = api_try!(emu, call.arg(emu, 0));
+    let _mask = api_try!(emu, call.arg(emu, 1));
+    call.set_return(emu, 0);
 }
 
 fn api___tolower(emu: &mut Emu) {
-    let c = arg(emu, 0) as u8;
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg_u8(emu, 0));
     let lower = if c.is_ascii_uppercase() {
         c.to_ascii_lowercase()
     } else {
         c
     };
-    set_ret(emu, lower as u64);
+    call.set_return(emu, lower as u64);
 }
 
 fn api___assert_rtn(emu: &mut Emu) {
-    let func_addr = arg(emu, 0);
-    let file_addr = arg(emu, 1);
-    let line = arg(emu, 2);
-    let expr_addr = arg(emu, 3);
+    let call = UnixApi;
+    let func_addr = api_try!(emu, call.arg(emu, 0));
+    let file_addr = api_try!(emu, call.arg(emu, 1));
+    let line = api_try!(emu, call.arg(emu, 2));
+    let expr_addr = api_try!(emu, call.arg(emu, 3));
     let func = emu.maps.read_string(func_addr);
     let file = emu.maps.read_string(file_addr);
     let expr = emu.maps.read_string(expr_addr);
@@ -1953,8 +1962,9 @@ fn api___assert_rtn(emu: &mut Emu) {
 }
 
 fn api_err(emu: &mut Emu) {
-    let eval = arg(emu, 0);
-    let fmt_addr = arg(emu, 1);
+    let call = UnixApi;
+    let eval = api_try!(emu, call.arg(emu, 0));
+    let fmt_addr = api_try!(emu, call.arg(emu, 1));
     let fmt = emu.maps.read_string(fmt_addr);
     log::error!(
         "{}** {} macOS API err({}, \"{}\") {}",
@@ -1968,8 +1978,9 @@ fn api_err(emu: &mut Emu) {
 }
 
 fn api_errx(emu: &mut Emu) {
-    let eval = arg(emu, 0);
-    let fmt_addr = arg(emu, 1);
+    let call = UnixApi;
+    let eval = api_try!(emu, call.arg(emu, 0));
+    let fmt_addr = api_try!(emu, call.arg(emu, 1));
     let fmt = emu.maps.read_string(fmt_addr);
     log::error!(
         "{}** {} macOS API errx({}, \"{}\") {}",
@@ -1983,7 +1994,8 @@ fn api_errx(emu: &mut Emu) {
 }
 
 fn api_warn(emu: &mut Emu) {
-    let fmt_addr = arg(emu, 0);
+    let call = UnixApi;
+    let fmt_addr = api_try!(emu, call.arg(emu, 0));
     let fmt = emu.maps.read_string(fmt_addr);
     log::warn!(
         "{}** {} macOS API warn(\"{}\") {}",
@@ -1995,7 +2007,8 @@ fn api_warn(emu: &mut Emu) {
 }
 
 fn api_warnx(emu: &mut Emu) {
-    let fmt_addr = arg(emu, 0);
+    let call = UnixApi;
+    let fmt_addr = api_try!(emu, call.arg(emu, 0));
     let fmt = emu.maps.read_string(fmt_addr);
     log::warn!(
         "{}** {} macOS API warnx(\"{}\") {}",
@@ -2007,7 +2020,8 @@ fn api_warnx(emu: &mut Emu) {
 }
 
 fn api_strerror(emu: &mut Emu) {
-    let errnum = arg(emu, 0);
+    let call = UnixApi;
+    let errnum = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API strerror({}) {}",
         emu.colors.light_red,
@@ -2016,10 +2030,11 @@ fn api_strerror(emu: &mut Emu) {
         emu.colors.nc
     );
     let ret = alloc_string(emu, "Unknown error");
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_fflush(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API fflush() -> 0 {}",
         emu.colors.light_red,
@@ -2034,7 +2049,7 @@ fn api_fflush(emu: &mut Emu) {
         print!("{}", s);
         emu.emulated_stdout.clear();
     }
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn flush_file_buffer_to_stdout(emu: &mut Emu) {
@@ -2066,8 +2081,9 @@ fn flush_file_buffer_to_stdout(emu: &mut Emu) {
 }
 
 fn api___swbuf(emu: &mut Emu) {
-    let c = arg(emu, 0) as u8;
-    let fp = arg(emu, 1);
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg_u8(emu, 0));
+    let fp = api_try!(emu, call.arg(emu, 1));
     // Drain any data in the FILE buffer, then write the new char
     flush_file_buffer_to_stdout(emu);
     if fp != 0 {
@@ -2079,11 +2095,12 @@ fn api___swbuf(emu: &mut Emu) {
             emu.maps.write_dword(fp + 12, buf_size.saturating_sub(1));
         }
     }
-    set_ret(emu, c as u64);
+    call.set_return(emu, c as u64);
 }
 
 fn api_fputc(emu: &mut Emu) {
-    let c = arg(emu, 0) as u8;
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg_u8(emu, 0));
     log::info!(
         "{}** {} macOS API fputc('{}') {}",
         emu.colors.light_red,
@@ -2092,11 +2109,12 @@ fn api_fputc(emu: &mut Emu) {
         emu.colors.nc
     );
     emu.emulated_stdout.push(c);
-    set_ret(emu, c as u64);
+    call.set_return(emu, c as u64);
 }
 
 fn api_fputs(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_string(s_addr);
     log::info!(
         "{}** {} macOS API fputs(\"{}\") {}",
@@ -2106,13 +2124,14 @@ fn api_fputs(emu: &mut Emu) {
         emu.colors.nc
     );
     emu.emulated_stdout.extend_from_slice(s.as_bytes());
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_fwrite(emu: &mut Emu) {
-    let buf = arg(emu, 0);
-    let size = arg(emu, 1);
-    let nmemb = arg(emu, 2);
+    let call = UnixApi;
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let nmemb = api_try!(emu, call.arg(emu, 2));
     let total = size.saturating_mul(nmemb);
     let mut data = Vec::with_capacity(total as usize);
     for i in 0..total {
@@ -2130,22 +2149,24 @@ fn api_fwrite(emu: &mut Emu) {
         emu.colors.nc
     );
     emu.emulated_stdout.extend_from_slice(&data);
-    set_ret(emu, nmemb);
+    call.set_return(emu, nmemb);
 }
 
 fn api_ferror(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API ferror() -> 0 {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_strcoll(emu: &mut Emu) {
-    let s1_addr = arg(emu, 0);
-    let s2_addr = arg(emu, 1);
+    let call = UnixApi;
+    let s1_addr = api_try!(emu, call.arg(emu, 0));
+    let s2_addr = api_try!(emu, call.arg(emu, 1));
     let s1 = emu.maps.read_string(s1_addr);
     let s2 = emu.maps.read_string(s2_addr);
     let result = match s1.cmp(&s2) {
@@ -2153,11 +2174,12 @@ fn api_strcoll(emu: &mut Emu) {
         std::cmp::Ordering::Equal => 0u64,
         std::cmp::Ordering::Greater => 1u64,
     };
-    set_ret(emu, result);
+    call.set_return(emu, result);
 }
 
 fn api_time(emu: &mut Emu) {
-    let tloc = arg(emu, 0);
+    let call = UnixApi;
+    let tloc = api_try!(emu, call.arg(emu, 0));
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -2172,11 +2194,12 @@ fn api_time(emu: &mut Emu) {
     if tloc != 0 {
         emu.maps.write_qword(tloc, now);
     }
-    set_ret(emu, now);
+    call.set_return(emu, now);
 }
 
 fn api_localtime(emu: &mut Emu) {
-    let _timep = arg(emu, 0);
+    let call = UnixApi;
+    let _timep = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API localtime() {}",
         emu.colors.light_red,
@@ -2186,7 +2209,7 @@ fn api_localtime(emu: &mut Emu) {
     // Allocate a fake struct tm (at least 56 bytes on macOS)
     let Some(tm) = allocate_memory(emu, 64) else {
         log::error!("localtime: out of memory");
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     };
     // tm_sec=0, tm_min=0, tm_hour=12, tm_mday=1, tm_mon=0, tm_year=125 (2025),
@@ -2200,13 +2223,14 @@ fn api_localtime(emu: &mut Emu) {
     emu.maps.write_dword(tm + 24, 3); // tm_wday
     emu.maps.write_dword(tm + 28, 0); // tm_yday
     emu.maps.write_dword(tm + 32, 0); // tm_isdst
-    set_ret(emu, tm);
+    call.set_return(emu, tm);
 }
 
 fn api_strftime(emu: &mut Emu) {
-    let dst = arg(emu, 0);
-    let maxsize = arg(emu, 1);
-    let fmt_addr = arg(emu, 2);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let maxsize = api_try!(emu, call.arg(emu, 1));
+    let fmt_addr = api_try!(emu, call.arg(emu, 2));
     let fmt = emu.maps.read_string(fmt_addr);
     log::info!(
         "{}** {} macOS API strftime(_, {}, \"{}\") {}",
@@ -2221,11 +2245,12 @@ fn api_strftime(emu: &mut Emu) {
     let write_len = std::cmp::min(bytes.len(), (maxsize.saturating_sub(1)) as usize);
     emu.maps.write_bytes(dst, &bytes[..write_len]);
     emu.maps.write_byte(dst + write_len as u64, 0);
-    set_ret(emu, write_len as u64);
+    call.set_return(emu, write_len as u64);
 }
 
 fn api_readlink(emu: &mut Emu) {
-    let path_addr = arg(emu, 0);
+    let call = UnixApi;
+    let path_addr = api_try!(emu, call.arg(emu, 0));
     let path = emu.maps.read_string(path_addr);
     log::info!(
         "{}** {} macOS API readlink(\"{}\") -> -1 {}",
@@ -2234,12 +2259,13 @@ fn api_readlink(emu: &mut Emu) {
         path,
         emu.colors.nc
     );
-    set_ret(emu, -1i64 as u64);
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_strmode(emu: &mut Emu) {
-    let mode = arg(emu, 0) as u32;
-    let buf = arg(emu, 1);
+    let call = UnixApi;
+    let mode = api_try!(emu, call.arg_u32(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API strmode(0o{:o}, 0x{:x}) {}",
         emu.colors.light_red,
@@ -2301,7 +2327,8 @@ fn api_strmode(emu: &mut Emu) {
 }
 
 fn api_user_from_uid(emu: &mut Emu) {
-    let uid = arg(emu, 0);
+    let call = UnixApi;
+    let uid = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API user_from_uid({}) {}",
         emu.colors.light_red,
@@ -2310,11 +2337,12 @@ fn api_user_from_uid(emu: &mut Emu) {
         emu.colors.nc
     );
     let ret = alloc_string(emu, "user");
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_group_from_gid(emu: &mut Emu) {
-    let gid = arg(emu, 0);
+    let call = UnixApi;
+    let gid = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API group_from_gid({}) {}",
         emu.colors.light_red,
@@ -2323,11 +2351,12 @@ fn api_group_from_gid(emu: &mut Emu) {
         emu.colors.nc
     );
     let ret = alloc_string(emu, "staff");
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_nl_langinfo(emu: &mut Emu) {
-    let item = arg(emu, 0);
+    let call = UnixApi;
+    let item = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API nl_langinfo({}) {}",
         emu.colors.light_red,
@@ -2336,32 +2365,35 @@ fn api_nl_langinfo(emu: &mut Emu) {
         emu.colors.nc
     );
     let ret = alloc_string(emu, "UTF-8");
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_mbrtowc(emu: &mut Emu) {
-    let _pwc = arg(emu, 0);
-    let s = arg(emu, 1);
-    let _n = arg(emu, 2);
+    let call = UnixApi;
+    let _pwc = api_try!(emu, call.arg(emu, 0));
+    let s = api_try!(emu, call.arg(emu, 1));
+    let _n = api_try!(emu, call.arg(emu, 2));
     if s == 0 {
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
     let b = emu.maps.read_byte(s).unwrap_or(0);
     if _pwc != 0 {
         emu.maps.write_dword(_pwc, b as u32);
     }
-    set_ret(emu, if b == 0 { 0 } else { 1 });
+    call.set_return(emu, if b == 0 { 0 } else { 1 });
 }
 
 fn api_wcwidth(emu: &mut Emu) {
-    let _wc = arg(emu, 0);
-    set_ret(emu, 1);
+    let call = UnixApi;
+    let _wc = api_try!(emu, call.arg(emu, 0));
+    call.set_return(emu, 1);
 }
 
 fn api_getbsize(emu: &mut Emu) {
-    let headerlenp = arg(emu, 0);
-    let blocksizep = arg(emu, 1);
+    let call = UnixApi;
+    let headerlenp = api_try!(emu, call.arg(emu, 0));
+    let blocksizep = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API getbsize() {}",
         emu.colors.light_red,
@@ -2375,30 +2407,33 @@ fn api_getbsize(emu: &mut Emu) {
         emu.maps.write_qword(blocksizep, 512);
     }
     let ret = alloc_string(emu, "512");
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_fflagstostr(emu: &mut Emu) {
-    let _flags = arg(emu, 0);
+    let call = UnixApi;
+    let _flags = api_try!(emu, call.arg(emu, 0));
     let ret = alloc_string(emu, "");
-    set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_compat_mode(emu: &mut Emu) {
+    let call = UnixApi;
     log::info!(
         "{}** {} macOS API compat_mode() -> NULL {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
     );
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_sysctl(emu: &mut Emu) {
-    let name_ptr = arg(emu, 0);
-    let namelen = arg(emu, 1) as usize;
-    let oldp = arg(emu, 2);
-    let oldlenp = arg(emu, 3);
+    let call = UnixApi;
+    let name_ptr = api_try!(emu, call.arg(emu, 0));
+    let namelen = api_try!(emu, call.arg(emu, 1)) as usize;
+    let oldp = api_try!(emu, call.arg(emu, 2));
+    let oldlenp = api_try!(emu, call.arg(emu, 3));
 
     let mut mib = Vec::new();
     for i in 0..namelen.min(6) {
@@ -2424,14 +2459,14 @@ fn api_sysctl(emu: &mut Emu) {
                 total_size,
                 emu.colors.nc
             );
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
             return;
         }
 
         // Data query: fill with fake processes
         let Some(buf) = allocate_memory(emu, total_size) else {
             log::error!("sysctl: out of memory (size=0x{:x})", total_size);
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
             return;
         };
 
@@ -2485,7 +2520,7 @@ fn api_sysctl(emu: &mut Emu) {
             copy_size,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -2496,11 +2531,12 @@ fn api_sysctl(emu: &mut Emu) {
         mib,
         emu.colors.nc
     );
-    set_ret(emu, -1i64 as u64);
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_sysctlbyname(emu: &mut Emu) {
-    let name_addr = arg(emu, 0);
+    let call = UnixApi;
+    let name_addr = api_try!(emu, call.arg(emu, 0));
     let name = emu.maps.read_string(name_addr);
     log::info!(
         "{}** {} macOS API sysctlbyname(\"{}\") -> -1 {}",
@@ -2509,31 +2545,36 @@ fn api_sysctlbyname(emu: &mut Emu) {
         name,
         emu.colors.nc
     );
-    set_ret(emu, -1i64 as u64);
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_getxattr(emu: &mut Emu) {
-    set_ret(emu, -1i64 as u64);
+    let call = UnixApi;
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_listxattr(emu: &mut Emu) {
-    set_ret(emu, -1i64 as u64);
+    let call = UnixApi;
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_humanize_number(emu: &mut Emu) {
-    set_ret(emu, -1i64 as u64);
+    let call = UnixApi;
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_strtonum(emu: &mut Emu) {
-    let s_addr = arg(emu, 0);
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_string(s_addr);
     let val: i64 = s.trim().parse().unwrap_or(0);
-    set_ret(emu, val as u64);
+    call.set_return(emu, val as u64);
 }
 
 fn api_uuid_unparse_upper(emu: &mut Emu) {
-    let _uu = arg(emu, 0);
-    let out = arg(emu, 1);
+    let call = UnixApi;
+    let _uu = api_try!(emu, call.arg(emu, 0));
+    let out = api_try!(emu, call.arg(emu, 1));
     let fake = "00000000-0000-0000-0000-000000000000";
     let bytes = fake.as_bytes();
     emu.maps.write_bytes(out, bytes);
@@ -2541,14 +2582,16 @@ fn api_uuid_unparse_upper(emu: &mut Emu) {
 }
 
 fn api_mbr_identifier_translate(emu: &mut Emu) {
-    set_ret(emu, -1i64 as u64);
+    let call = UnixApi;
+    call.set_return(emu, -1i64 as u64);
 }
 
 // ==================== FTS (filesystem traversal) ====================
 
 fn api_fts_open(emu: &mut Emu) {
-    let argv_addr = arg(emu, 0);
-    let options = arg(emu, 1);
+    let call = UnixApi;
+    let argv_addr = api_try!(emu, call.arg(emu, 0));
+    let options = api_try!(emu, call.arg(emu, 1));
 
     // Read the path list from argv (array of char* pointers, NULL-terminated)
     let mut paths: Vec<String> = Vec::new();
@@ -2597,7 +2640,7 @@ fn api_fts_open(emu: &mut Emu) {
     // Allocate a fake FTS handle (just a small block to serve as an opaque pointer)
     let Some(handle) = allocate_memory(emu, 64) else {
         log::error!("fts_open: out of memory");
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     };
 
@@ -2621,17 +2664,18 @@ fn api_fts_open(emu: &mut Emu) {
     emu.fts_handles.insert(handle, state);
 
     log::info!("  -> handle 0x{:x}", handle);
-    set_ret(emu, handle);
+    call.set_return(emu, handle);
 }
 
 fn api_fts_read(emu: &mut Emu) {
-    let handle = arg(emu, 0);
+    let call = UnixApi;
+    let handle = api_try!(emu, call.arg(emu, 0));
 
     let state = match emu.fts_handles.get_mut(&handle) {
         Some(s) => s,
         None => {
             log::warn!("fts_read: invalid handle 0x{:x}", handle);
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -2644,7 +2688,7 @@ fn api_fts_read(emu: &mut Emu) {
             handle,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -2660,7 +2704,7 @@ fn api_fts_read(emu: &mut Emu) {
             handle,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -2668,7 +2712,7 @@ fn api_fts_read(emu: &mut Emu) {
     let entry = match state.entries.iter().find(|e| e.is_root) {
         Some(e) => e.clone(),
         None => {
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -2686,7 +2730,7 @@ fn api_fts_read(emu: &mut Emu) {
         Some(h) => h.root_ftsent,
         None => {
             log::warn!("fts_read: invalid handle 0x{:x}", handle);
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -2698,11 +2742,12 @@ fn api_fts_read(emu: &mut Emu) {
     if let Some(h) = emu.fts_handles.get_mut(&handle) {
         h.last_ftsent = ftsent_addr;
     }
-    set_ret(emu, ftsent_addr);
+    call.set_return(emu, ftsent_addr);
 }
 
 fn api_fts_close(emu: &mut Emu) {
-    let handle = arg(emu, 0);
+    let call = UnixApi;
+    let handle = api_try!(emu, call.arg(emu, 0));
     log::info!(
         "{}** {} macOS API fts_close(0x{:x}) {}",
         emu.colors.light_red,
@@ -2711,21 +2756,23 @@ fn api_fts_close(emu: &mut Emu) {
         emu.colors.nc
     );
     emu.fts_handles.remove(&handle);
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_fts_set(emu: &mut Emu) {
-    set_ret(emu, 0);
+    let call = UnixApi;
+    call.set_return(emu, 0);
 }
 
 fn api_fts_children(emu: &mut Emu) {
-    let handle = arg(emu, 0);
-    let instr = arg(emu, 1);
+    let call = UnixApi;
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let instr = api_try!(emu, call.arg(emu, 1));
 
     let state = match emu.fts_handles.get_mut(&handle) {
         Some(s) => s,
         None => {
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -2740,7 +2787,7 @@ fn api_fts_children(emu: &mut Emu) {
             instr,
             emu.colors.nc
         );
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -2759,7 +2806,7 @@ fn api_fts_children(emu: &mut Emu) {
     }
 
     if children.is_empty() {
-        set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -2795,7 +2842,7 @@ fn api_fts_children(emu: &mut Emu) {
         children.len(),
         emu.colors.nc
     );
-    set_ret(emu, head);
+    call.set_return(emu, head);
 }
 
 // macOS FTSENT offsets (arm64, from <fts.h>):
@@ -2891,8 +2938,9 @@ fn write_ftsent(emu: &mut Emu, entry: &FtsEntry) -> u64 {
 // ==================== stat ====================
 
 fn api_stat(emu: &mut Emu) {
-    let path_addr = arg(emu, 0);
-    let buf = arg(emu, 1);
+    let call = UnixApi;
+    let path_addr = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
     let path = emu.maps.read_string(path_addr);
     log::info!(
         "{}** {} macOS API stat(\"{}\", 0x{:x}) {}",
@@ -2906,15 +2954,16 @@ fn api_stat(emu: &mut Emu) {
         Ok(meta) => {
             let st = StatData::from_metadata(&meta);
             write_stat_at(emu, buf, &st);
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
         }
-        Err(_) => set_ret(emu, -1i64 as u64),
+        Err(_) => call.set_return(emu, -1i64 as u64),
     }
 }
 
 fn api_lstat(emu: &mut Emu) {
-    let path_addr = arg(emu, 0);
-    let buf = arg(emu, 1);
+    let call = UnixApi;
+    let path_addr = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
     let path = emu.maps.read_string(path_addr);
     log::info!(
         "{}** {} macOS API lstat(\"{}\", 0x{:x}) {}",
@@ -2928,15 +2977,16 @@ fn api_lstat(emu: &mut Emu) {
         Ok(meta) => {
             let st = StatData::from_metadata(&meta);
             write_stat_at(emu, buf, &st);
-            set_ret(emu, 0);
+            call.set_return(emu, 0);
         }
-        Err(_) => set_ret(emu, -1i64 as u64),
+        Err(_) => call.set_return(emu, -1i64 as u64),
     }
 }
 
 fn api_fstat(emu: &mut Emu) {
-    let fd = arg(emu, 0);
-    let buf = arg(emu, 1);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
     log::info!(
         "{}** {} macOS API fstat({}, 0x{:x}) -> 0 {}",
         emu.colors.light_red,
@@ -2947,7 +2997,7 @@ fn api_fstat(emu: &mut Emu) {
     );
     let st = StatData::default();
     write_stat_at(emu, buf, &st);
-    set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 // ==================== Helpers ====================

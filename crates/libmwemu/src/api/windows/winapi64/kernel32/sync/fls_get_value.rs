@@ -1,12 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn FlsGetValue(emu: &mut emu::Emu) {
-    let idx = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let idx = api_try!(emu, call.arg(emu, 0));
     if idx as usize > emu.fls().len() {
         emu.set_last_error(0);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     } else {
-        emu.regs_mut().rax = emu.fls()[idx as usize];
+        let return_value = emu.fls()[idx as usize];
+        call.set_return(emu, return_value);
     }
 
     log_red!(
@@ -15,5 +19,4 @@ pub fn FlsGetValue(emu: &mut emu::Emu) {
         idx,
         emu.regs().get_eax() as u32
     );
-    let _ = emu.maps.is_mapped(emu.regs().rcx);
 }

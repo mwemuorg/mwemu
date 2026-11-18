@@ -1,16 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateEventA(emu: &mut emu::Emu) {
     create_event(emu, "CreateEventA", false);
 }
 
 fn create_event(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let security = emu.regs().rcx;
-    let manual_reset = emu.regs().rdx;
-    let initial_state = emu.regs().r8;
-    let name_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let security = api_try!(emu, call.arg(emu, 0));
+    let manual_reset = api_try!(emu, call.arg(emu, 1));
+    let initial_state = api_try!(emu, call.arg(emu, 2));
+    let name_ptr = api_try!(emu, call.arg(emu, 3));
     let name = if name_ptr != 0 {
         strings::read_text(emu, name_ptr, wide)
     } else {
@@ -26,7 +29,7 @@ fn create_event(emu: &mut emu::Emu, api: &str, wide: bool) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn CreateEventW(emu: &mut emu::Emu) {

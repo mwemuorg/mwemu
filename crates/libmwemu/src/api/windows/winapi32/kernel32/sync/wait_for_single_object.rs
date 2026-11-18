@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::process::*;
 
 pub fn WaitForSingleObject(emu: &mut emu::Emu) {
-    let handle = WinApiAbi::arg(emu, 0);
-    let millis = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let millis = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(
         emu,
@@ -22,7 +24,6 @@ pub fn WaitForSingleObject(emu: &mut emu::Emu) {
         emu.tick += millis as usize;
     }
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = WAIT_TIMEOUT;
+    call.cleanup_args(emu, 2);
+    call.set_return(emu, WAIT_TIMEOUT);
 }

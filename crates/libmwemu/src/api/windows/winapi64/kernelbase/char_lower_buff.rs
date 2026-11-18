@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CharLowerBuffA(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let len = emu.regs().rdx as usize;
+    let call = WinApi(Stdcall);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let len = api_try!(emu, call.arg(emu, 1)) as usize;
     log_red!(emu, "kernelbase!CharLowerBuffA buf:0x{:x} len:{}", buf, len);
-    let src = emu.regs().rcx;
+    let src = api_try!(emu, call.arg(emu, 0));
     if src != 0 && emu.maps.is_mapped(src) {
         let _input = emu.maps.read_string(src);
     }
@@ -16,15 +19,16 @@ pub fn CharLowerBuffA(emu: &mut emu::Emu) {
                 emu.maps.write_byte(buf + i as u64, b + 32);
             }
         }
-        emu.regs_mut().rax = count as u64;
+        call.set_return(emu, count as u64);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }
 
 pub fn CharLowerBuffW(emu: &mut emu::Emu) {
-    let lpsz = emu.regs().rcx; // Buffer pointer (LPWSTR)
-    let cch_length = emu.regs().rdx; // Length in characters (DWORD)
+    let call = WinApi(Stdcall);
+    let lpsz = api_try!(emu, call.arg(emu, 0)); // Buffer pointer (LPWSTR)
+    let cch_length = api_try!(emu, call.arg(emu, 1)); // Length in characters (DWORD)
 
     log_red!(
         emu,
@@ -34,7 +38,7 @@ pub fn CharLowerBuffW(emu: &mut emu::Emu) {
     );
 
     if lpsz == 0 || cch_length == 0 {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -76,5 +80,5 @@ pub fn CharLowerBuffW(emu: &mut emu::Emu) {
     );
 
     // Return the number of characters processed
-    emu.regs_mut().rax = processed_count;
+    call.set_return(emu, processed_count);
 }

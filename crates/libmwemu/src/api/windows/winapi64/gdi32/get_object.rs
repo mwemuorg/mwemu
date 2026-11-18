@@ -1,13 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetObjectA(emu: &mut emu::Emu) {
     get_object(emu, "GetObjectA");
 }
 
 fn get_object(emu: &mut emu::Emu, api: &str) {
-    let h = emu.regs().rcx;
-    let cb = emu.regs().rdx as u32;
-    let pv = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let h = api_try!(emu, call.arg(emu, 0));
+    let cb = api_try!(emu, call.arg_u32(emu, 1));
+    let pv = api_try!(emu, call.arg(emu, 2));
     log_red!(emu, "gdi32!{api} h:0x{:x} cb:{} pv:0x{:x}", h, cb, pv);
     if pv != 0 && cb > 0 {
         // Zero-fill the buffer first
@@ -24,10 +27,10 @@ fn get_object(emu: &mut emu::Emu, api: &str) {
             emu.maps.write_word(pv + 16, 1); // bmPlanes
             emu.maps.write_word(pv + 18, 32); // bmBitsPixel
         }
-        emu.regs_mut().rax = fill;
+        call.set_return(emu, fill);
     } else {
         // When pv is NULL, return the required buffer size
-        emu.regs_mut().rax = 24; // BITMAP struct size
+        call.set_return(emu, 24); // BITMAP struct size
     }
 }
 

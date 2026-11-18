@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
+use crate::winapi::policy::api_try;
 
 pub fn LoadResource(emu: &mut emu::Emu) {
-    let hModule = arg(emu, 0) as u64;
-    let hResInfo = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let hModule = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let hResInfo = api_try!(emu, call.arg_u32(emu, 1)) as u64;
 
     log_red!(
         emu,
@@ -13,8 +15,7 @@ pub fn LoadResource(emu: &mut emu::Emu) {
         hResInfo
     );
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
-    emu.regs_mut().rax = hResInfo;
+    call.set_return(emu, hResInfo);
 }

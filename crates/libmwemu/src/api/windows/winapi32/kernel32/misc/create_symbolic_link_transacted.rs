@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn CreateSymbolicLinkTransactedA(emu: &mut emu::Emu) {
@@ -8,10 +9,11 @@ pub fn CreateSymbolicLinkTransactedA(emu: &mut emu::Emu) {
 }
 
 fn create_symbolic_link_transacted(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let lpSymlinkFileName = WinApiAbi::arg(emu, 0) as u32;
-    let lpTargetFileName = WinApiAbi::arg(emu, 1) as u32;
-    let _dwFlags = WinApiAbi::arg(emu, 2) as u32;
-    let _hTransaction = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let lpSymlinkFileName = api_try!(emu, call.arg_u32(emu, 0));
+    let lpTargetFileName = api_try!(emu, call.arg_u32(emu, 1));
+    let _dwFlags = api_try!(emu, call.arg_u32(emu, 2));
+    let _hTransaction = api_try!(emu, call.arg_u32(emu, 3));
 
     let lpSymlinkFileName = strings::read_text(emu, lpSymlinkFileName as u64, wide);
     let lpTargetFileName = strings::read_text(emu, lpTargetFileName as u64, wide);
@@ -23,11 +25,8 @@ fn create_symbolic_link_transacted(emu: &mut emu::Emu, api: &str, wide: bool) {
         lpTargetFileName
     );
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 4);
 }
 
 pub fn CreateSymbolicLinkTransactedW(emu: &mut emu::Emu) {

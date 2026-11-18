@@ -1,27 +1,25 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn CreateBoundaryDescriptorA(emu: &mut emu::Emu) {
-    let Name = WinApiAbi::arg(emu, 0) as u32;
-    let _Flags = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let Name = api_try!(emu, call.arg_u32(emu, 0));
+    let _Flags = api_try!(emu, call.arg_u32(emu, 1));
 
     let Name = emu.maps.read_string(Name as u64);
 
     log_red!(emu, "kernel32!CreateBoundaryDescriptorA {}", Name);
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 2);
 }
 
 pub fn CreateBoundaryDescriptorW(emu: &mut emu::Emu) {
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    call.cleanup_args(emu, 2);
     log_red!(emu, "kernel32!CreateBoundaryDescriptorW");
-    emu.regs_mut().rax = helper::handler_create("CreateBoundaryDescriptorW");
+    call.set_return(emu, helper::handler_create("CreateBoundaryDescriptorW"));
 }

@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn VarUI4FromI4(emu: &mut emu::Emu) {
-    let src_val = emu.regs().rcx;
-    let dst_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let src_val = api_try!(emu, call.arg(emu, 0));
+    let dst_ptr = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "oleaut32!VarUI4FromI4 src:0x{:x} dst:0x{:x}",
@@ -13,5 +16,5 @@ pub fn VarUI4FromI4(emu: &mut emu::Emu) {
         emu.maps.write_dword(dst_ptr, src_val as u32);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

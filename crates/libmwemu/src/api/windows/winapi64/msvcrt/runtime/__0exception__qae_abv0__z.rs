@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Thiscall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn __0exception__QAE_ABV0__Z(emu: &mut emu::Emu) {
-    let this_ptr = emu.regs().rcx;
-    let other = emu.regs().rdx;
+    let call = WinApi(Thiscall);
+    let this_ptr = api_try!(emu, call.arg(emu, 0));
+    let other = api_try!(emu, call.arg(emu, 1));
     if other != 0 && this_ptr != 0 {
         let vtable = emu.maps.read_qword(other).unwrap_or(0);
         let msg_ptr = emu.maps.read_qword(other + 8).unwrap_or(0);
@@ -16,5 +19,5 @@ pub fn __0exception__QAE_ABV0__Z(emu: &mut emu::Emu) {
         other
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = this_ptr;
+    call.set_return(emu, this_ptr);
 }

@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn GetFileVersionInfoA(emu: &mut emu::Emu) {
-    let lptstr_filename = emu.regs().rcx;
-    let dw_handle = emu.regs().rdx as usize;
-    let dw_len = emu.regs().r8 as usize;
-    let lp_data = emu.regs().r9 as usize;
+    let call = WinApi(Stdcall);
+    let lptstr_filename = api_try!(emu, call.arg(emu, 0));
+    let dw_handle = api_try!(emu, call.arg(emu, 1)) as usize;
+    let dw_len = api_try!(emu, call.arg(emu, 2)) as usize;
+    let lp_data = api_try!(emu, call.arg(emu, 3)) as usize;
 
     let filename = if lptstr_filename > 0 {
         emu.maps.read_string(lptstr_filename)
@@ -46,17 +49,18 @@ pub(super) fn GetFileVersionInfoA(emu: &mut emu::Emu) {
 
         version_info.write(emu, lp_data as u64);
 
-        emu.regs_mut().rax = 1; // Success
+        call.set_return(emu, 1); // Success
     } else {
         log::warn!("GetFileVersionInfoA: unsupported file {}", filename);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }
 
 pub fn GetFileVersionInfoW(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let p2 = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {
@@ -70,5 +74,5 @@ pub fn GetFileVersionInfoW(emu: &mut emu::Emu) {
         p2
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

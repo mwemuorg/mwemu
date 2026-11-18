@@ -1,12 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CryptSIPRemoveSignedDataMsg(emu: &mut emu::Emu) {
-    let p_subject_info = WinApiAbi::arg(emu, 0);
-    let dw_index = WinApiAbi::arg(emu, 1);
-    let dw_reserved = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let p_subject_info = api_try!(emu, call.arg(emu, 0));
+    let dw_index = api_try!(emu, call.arg(emu, 1));
+    let dw_reserved = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "crypt32!CryptSIPRemoveSignedDataMsg p_subject_info:0x{:x} dw_index:0x{:x} dw_reserved:0x{:x}",
@@ -14,11 +15,11 @@ pub fn CryptSIPRemoveSignedDataMsg(emu: &mut emu::Emu) {
         dw_index,
         dw_reserved
     );
-    let h = WinApiAbi::arg(emu, 0);
+    let h = api_try!(emu, call.arg(emu, 0));
     if helper::handler_exist(h) {
         helper::handler_close(h);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 2);
 }

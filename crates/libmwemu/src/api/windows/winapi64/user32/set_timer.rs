@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn SetTimer(emu: &mut emu::Emu) {
-    let hwnd = emu.regs().rcx;
-    let id = emu.regs().rdx;
-    let elapse = emu.regs().r8 as u32;
-    let callback = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let id = api_try!(emu, call.arg(emu, 1));
+    let elapse = api_try!(emu, call.arg_u32(emu, 2));
+    let callback = api_try!(emu, call.arg(emu, 3));
     let timer_handle = helper::handler_create("timer");
     log_red!(
         emu,
@@ -17,5 +20,5 @@ pub fn SetTimer(emu: &mut emu::Emu) {
         timer_handle
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = timer_handle;
+    call.set_return(emu, timer_handle);
 }

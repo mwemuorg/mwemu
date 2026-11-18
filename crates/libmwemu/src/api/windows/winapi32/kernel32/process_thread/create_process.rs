@@ -1,31 +1,30 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CreateProcessA(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     /*
     [in, optional]      LPCSTR                lpApplicationName,
     [in, out, optional] LPSTR                 lpCommandLine,
     */
 
-    let appname_ptr = WinApiAbi::arg(emu, 0);
-    let cmdline_ptr = WinApiAbi::arg(emu, 1);
+    let appname_ptr = api_try!(emu, call.arg(emu, 0));
+    let cmdline_ptr = api_try!(emu, call.arg(emu, 1));
     let appname = emu.maps.read_string(appname_ptr);
     let cmdline = emu.maps.read_string(cmdline_ptr);
 
     log_red!(emu, "kernel32!CreateProcessA  {} {}", appname, cmdline);
 
-    for _ in 0..10 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 10);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn CreateProcessW(emu: &mut emu::Emu) {
-    let appname_ptr = arg(emu, 0) as u64;
-    let cmdline_ptr = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let appname_ptr = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let cmdline_ptr = api_try!(emu, call.arg_u32(emu, 1)) as u64;
     let appname = if appname_ptr != 0 {
         emu.maps.read_wide_string(appname_ptr)
     } else {
@@ -37,6 +36,6 @@ pub fn CreateProcessW(emu: &mut emu::Emu) {
         String::new()
     };
     log_red!(emu, "kernel32!CreateProcessW `{}` `{}`", appname, cmdline);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 10);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 10);
 }

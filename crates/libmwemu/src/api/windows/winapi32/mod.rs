@@ -27,18 +27,6 @@ pub(crate) mod ws2_32;
 use crate::api::windows::common::fallback;
 use crate::api::windows::policy::{self, ApiRoute};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-
-/// The `i`-th (0-based) stdcall argument of the API being emulated. The
-/// gateway already consumed the return address, so arguments start at `esp`.
-pub(crate) fn arg(emu: &emu::Emu, i: u64) -> u32 {
-    WinApiAbi::arg(emu, i as usize) as u32
-}
-
-/// stdcall: the callee removes `n` DWORD slots (wide arguments occupy two).
-pub(crate) fn stdcall_ret(emu: &mut emu::Emu, n: u32) {
-    WinApiAbi::stdcall_ret(emu, n as usize);
-}
 
 pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: u32) {
     if emu.api_policy.stopped() {

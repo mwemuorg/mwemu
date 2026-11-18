@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -10,10 +11,11 @@ lazy_static! {
 }
 
 pub(super) fn internet_read_file(emu: &mut emu::Emu) {
-    let file_hndl = WinApiAbi::arg(emu, 0);
-    let buff_ptr = WinApiAbi::arg(emu, 1);
-    let bytes_to_read = WinApiAbi::arg(emu, 2);
-    let bytes_read_ptr = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let file_hndl = api_try!(emu, call.arg(emu, 0));
+    let buff_ptr = api_try!(emu, call.arg(emu, 1));
+    let bytes_to_read = api_try!(emu, call.arg(emu, 2));
+    let bytes_read_ptr = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -44,33 +46,36 @@ pub(super) fn internet_read_file(emu: &mut emu::Emu) {
         }
     }
 
-    WinApiAbi::stdcall_ret(emu, 4);
+    call.cleanup_args(emu, 4);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub(super) fn internet_error_dlg(emu: &mut emu::Emu) {
-    let err = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let err = api_try!(emu, call.arg_u32(emu, 2));
 
     log_red!(emu, "wininet!InternetErrorDlg err: {}", err);
 
-    WinApiAbi::stdcall_ret(emu, 5);
-    emu.regs_mut().rax = 0;
+    call.cleanup_args(emu, 5);
+    call.set_return(emu, 0);
 }
 
 pub(super) fn internet_close_handle(emu: &mut emu::Emu) {
-    let handle = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "wininet!InternetCloseHandle handle: {:x}", handle);
 
     helper::handler_close(handle);
-    WinApiAbi::stdcall_ret(emu, 1);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }
 
 pub(super) fn internet_read_file_ex_a(emu: &mut emu::Emu) {
-    let file_hndl = WinApiAbi::arg(emu, 0);
-    let buffers_ptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let file_hndl = api_try!(emu, call.arg(emu, 0));
+    let buffers_ptr = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "wininet!InternetReadFileExA buffers: 0x{:x}",
@@ -85,8 +90,8 @@ pub(super) fn internet_read_file_ex_a(emu: &mut emu::Emu) {
     if buffers_ptr != 0 {
         emu.maps.write_dword(buffers_ptr + 12, 0);
     }
-    WinApiAbi::stdcall_ret(emu, 4);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 1);
 }
 
 pub(super) fn internet_read_file_ex_w(emu: &mut emu::Emu) {

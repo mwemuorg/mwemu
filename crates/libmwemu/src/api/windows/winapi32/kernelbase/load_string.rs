@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::winapi::common::{memory::Call, trace};
+use crate::winapi::common::trace;
 
 pub(super) fn LoadStringA(emu: &mut Emu) {
     load(emu, "LoadStringA");
@@ -10,6 +11,7 @@ pub(super) fn LoadStringW(emu: &mut Emu) {
 }
 
 fn load(emu: &mut Emu, api: &str) {
+    let call = WinApi(Stdcall);
     trace::api(
         emu,
         &format!("kernelbase!{api}"),
@@ -17,7 +19,8 @@ fn load(emu: &mut Emu, api: &str) {
         true,
         |emu| {
             // Resource string tables are not modelled here, as in user32's handler.
-            Call::Api.finish(emu, 0, 4);
+            call.set_return(emu, 0);
+            call.cleanup_args(emu, 4);
         },
     );
 }

@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn EtwEventSetInformation(emu: &mut emu::Emu) {
-    let reg_handle = WinApiAbi::arg(emu, 0);
-    let info_class = WinApiAbi::arg(emu, 1) as u32;
-    let info_ptr = WinApiAbi::arg(emu, 2);
-    let info_len = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let reg_handle = api_try!(emu, call.arg(emu, 0));
+    let info_class = api_try!(emu, call.arg_u32(emu, 1));
+    let info_ptr = api_try!(emu, call.arg(emu, 2));
+    let info_len = api_try!(emu, call.arg_u32(emu, 3));
     let info_data = emu.maps.read_string(info_ptr);
     log_red!(
         emu,
@@ -15,8 +17,6 @@ pub fn EtwEventSetInformation(emu: &mut emu::Emu) {
         info_data,
         info_len
     );
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 0;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 0);
 }

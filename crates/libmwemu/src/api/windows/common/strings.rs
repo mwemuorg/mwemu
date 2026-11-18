@@ -1,6 +1,9 @@
+use crate::api::abi::windows::{
+    CallingConvention::{Cdecl, Stdcall},
+    WindowsAbi::WinApi,
+};
 use crate::emu::Emu;
-use crate::winapi::common::memory::Call;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::*;
 
@@ -34,13 +37,13 @@ fn next_ansi(emu: &Emu, current: u64, code_page: u32) -> u64 {
 }
 
 pub(crate) fn char_next(emu: &mut Emu, api: &str, wide: bool, extended: bool) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let code_page = if extended {
-        call.arg(emu, 0) as u16 as u32
+        api_try!(emu, call.arg_u16(emu, 0)) as u32
     } else {
         CP_WINDOWS_1252
     };
-    let current = call.arg(emu, usize::from(extended));
+    let current = api_try!(emu, call.arg(emu, usize::from(extended)));
     let next = if wide {
         current.saturating_add(if emu.maps.read_word(current).is_some_and(|c| c != 0) {
             size_of::<u16>() as u64
@@ -51,18 +54,19 @@ pub(crate) fn char_next(emu: &mut Emu, api: &str, wide: bool, extended: bool) {
         next_ansi(emu, current, code_page)
     };
     log_red!(emu, "{} current:0x{:x} => 0x{:x}", api, current, next);
-    call.finish(emu, next, if extended { 3 } else { 1 });
+    call.set_return(emu, next);
+    call.cleanup_args(emu, if extended { 3 } else { 1 });
 }
 
 pub(crate) fn char_prev(emu: &mut Emu, api: &str, wide: bool, extended: bool) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let code_page = if extended {
-        call.arg(emu, 0) as u16 as u32
+        api_try!(emu, call.arg_u16(emu, 0)) as u32
     } else {
         CP_WINDOWS_1252
     };
-    let start = call.arg(emu, usize::from(extended));
-    let current = call.arg(emu, usize::from(extended) + 1);
+    let start = api_try!(emu, call.arg(emu, usize::from(extended)));
+    let current = api_try!(emu, call.arg(emu, usize::from(extended) + 1));
     let previous = if current <= start {
         current
     } else if wide {
@@ -86,17 +90,18 @@ pub(crate) fn char_prev(emu: &mut Emu, api: &str, wide: bool, extended: bool) {
         current,
         previous
     );
-    call.finish(emu, previous, if extended { 4 } else { 2 });
+    call.set_return(emu, previous);
+    call.cleanup_args(emu, if extended { 4 } else { 2 });
 }
 
 pub(crate) fn dbcs_lead_byte(emu: &mut Emu, api: &str, extended: bool) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let code_page = if extended {
-        call.arg(emu, 0) as u32
+        api_try!(emu, call.arg_u32(emu, 0))
     } else {
         CP_WINDOWS_1252
     };
-    let byte = call.arg(emu, usize::from(extended)) as u8;
+    let byte = api_try!(emu, call.arg_u8(emu, usize::from(extended)));
     let result = is_lead_byte(code_page, byte);
     log_red!(
         emu,
@@ -106,7 +111,8 @@ pub(crate) fn dbcs_lead_byte(emu: &mut Emu, api: &str, extended: bool) {
         byte,
         result
     );
-    call.finish(emu, result as u64, if extended { 2 } else { 1 });
+    call.set_return(emu, result as u64);
+    call.cleanup_args(emu, if extended { 2 } else { 1 });
 }
 
 /// The en-US answer for a `GetLocaleInfo*` LCTYPE, shared by the 32- and
@@ -229,8 +235,8 @@ fn ansi_character(byte: u8) -> char {
 }
 
 pub(crate) fn classify_character(emu: &mut Emu, api: &str, wide: bool, class: CharacterClass) {
-    let call = Call::Api;
-    let value = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let value = api_try!(emu, call.arg(emu, 0));
     let character = if wide {
         char::from_u32(value as u16 as u32)
     } else {
@@ -245,7 +251,8 @@ pub(crate) fn classify_character(emu: &mut Emu, api: &str, wide: bool, class: Ch
         CharacterClass::Uppercase => ch.is_uppercase(),
     });
     log_red!(emu, "{} character:0x{:x} => {}", api, value, result);
-    call.finish(emu, result as u64, 1);
+    call.set_return(emu, result as u64);
+    call.cleanup_args(emu, 1);
 }
 
 fn write_computer_name(emu: &mut Emu, buffer: u64, size: u64, wide: bool) -> Result<(), u64> {
@@ -282,9 +289,9 @@ fn write_computer_name(emu: &mut Emu, buffer: u64, size: u64, wide: bool) -> Res
 }
 
 pub(crate) fn computer_name(emu: &mut Emu, api: &str, wide: bool) {
-    let call = Call::Api;
-    let buffer = call.arg(emu, 0);
-    let size = call.arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let buffer = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
     let result = write_computer_name(emu, buffer, size, wide);
     log_red!(
         emu,
@@ -297,7 +304,8 @@ pub(crate) fn computer_name(emu: &mut Emu, api: &str, wide: bool) {
     if let Err(error) = result {
         emu.set_last_error(error);
     }
-    call.finish(emu, result.is_ok() as u64, 2);
+    call.set_return(emu, result.is_ok() as u64);
+    call.cleanup_args(emu, 2);
 }
 
 pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
@@ -415,14 +423,15 @@ fn calendar_text(kind: u64) -> Option<&'static str> {
 }
 
 pub(crate) fn calendar_info(emu: &mut Emu, api: &str, wide: bool) {
+    let call = WinApi(Stdcall);
     // Like the existing locale handlers, model a fixed en-US profile.
     const TWO_DIGIT_YEAR_MAX: u32 = 2029;
-    let locale = Call::Api.arg(emu, 0) as u32;
-    let calendar = Call::Api.arg(emu, 1) as u32;
-    let kind = Call::Api.arg(emu, 2) as u32 as u64;
-    let data = Call::Api.arg(emu, 3);
-    let capacity = Call::Api.arg(emu, 4) as i32;
-    let value = Call::Api.arg(emu, 5);
+    let locale = api_try!(emu, call.arg_u32(emu, 0));
+    let calendar = api_try!(emu, call.arg_u32(emu, 1));
+    let kind = api_try!(emu, call.arg_u32(emu, 2)) as u64;
+    let data = api_try!(emu, call.arg(emu, 3));
+    let capacity = api_try!(emu, call.arg_i32(emu, 4));
+    let value = api_try!(emu, call.arg(emu, 5));
     let selector = kind
         & !(CAL_NOUSEROVERRIDE | CAL_RETURN_NUMBER | CAL_RETURN_GENITIVE_NAMES | CAL_USE_CP_ACP);
     let numeric = match selector {
@@ -478,7 +487,8 @@ pub(crate) fn calendar_info(emu: &mut Emu, api: &str, wide: bool) {
         capacity,
         result
     );
-    Call::Api.finish(emu, result, 6);
+    call.set_return(emu, result);
+    call.cleanup_args(emu, 6);
 }
 
 fn code_unit_size(wide: bool) -> usize {
@@ -533,8 +543,9 @@ fn write_string_bytes(emu: &mut Emu, destination: u64, mut bytes: Vec<u8>, wide:
 }
 
 pub(crate) fn concatenate(emu: &mut Emu, api: &str, wide: bool) {
-    let destination = Call::Api.arg(emu, 0);
-    let source = Call::Api.arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let destination = api_try!(emu, call.arg(emu, 0));
+    let source = api_try!(emu, call.arg(emu, 1));
     let result = match (
         string_bytes(emu, destination, wide, None),
         string_bytes(emu, source, wide, None),
@@ -553,13 +564,19 @@ pub(crate) fn concatenate(emu: &mut Emu, api: &str, wide: bool) {
         source,
         result
     );
-    Call::Api.finish(emu, result, 2);
+    call.set_return(emu, result);
+    call.cleanup_args(emu, 2);
 }
 
 pub(crate) fn copy_string(emu: &mut Emu, api: &str, wide: bool, bounded: bool) {
-    let destination = Call::Api.arg(emu, 0);
-    let source = Call::Api.arg(emu, 1);
-    let capacity = bounded.then(|| Call::Api.arg(emu, 2) as u32 as usize);
+    let call = WinApi(Stdcall);
+    let destination = api_try!(emu, call.arg(emu, 0));
+    let source = api_try!(emu, call.arg(emu, 1));
+    let capacity = if bounded {
+        Some(api_try!(emu, call.arg_u32(emu, 2)) as usize)
+    } else {
+        None
+    };
     let result = if capacity == Some(0) {
         destination
     } else {
@@ -576,21 +593,25 @@ pub(crate) fn copy_string(emu: &mut Emu, api: &str, wide: bool, bounded: bool) {
         capacity,
         result
     );
-    Call::Api.finish(emu, result, if bounded { 3 } else { 2 });
+    call.set_return(emu, result);
+    call.cleanup_args(emu, if bounded { 3 } else { 2 });
 }
 
 pub(crate) fn string_length(emu: &mut Emu, api: &str, wide: bool) {
-    let source = Call::Api.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let source = api_try!(emu, call.arg(emu, 0));
     let length = string_bytes(emu, source, wide, None)
         .map(|bytes| bytes.len() / code_unit_size(wide))
         .unwrap_or(0);
     log_red!(emu, "{} source:0x{:x} => {}", api, source, length);
-    Call::Api.finish(emu, length as u64, 1);
+    call.set_return(emu, length as u64);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn compare(emu: &mut Emu, api: &str, wide: bool, ignore_case: bool) {
-    let mut left = read_text(emu, Call::Api.arg(emu, 0), wide);
-    let mut right = read_text(emu, Call::Api.arg(emu, 1), wide);
+    let call = WinApi(Stdcall);
+    let mut left = read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let mut right = read_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
     if ignore_case {
         left = left.to_lowercase();
         right = right.to_lowercase();
@@ -601,7 +622,8 @@ pub(crate) fn compare(emu: &mut Emu, api: &str, wide: bool, ignore_case: bool) {
         std::cmp::Ordering::Greater => 1,
     };
     log_red!(emu, "{} '{}' '{}' => {}", api, left, right, result);
-    Call::Api.finish(emu, result as u32 as u64, 2);
+    call.set_return(emu, result as u32 as u64);
+    call.cleanup_args(emu, 2);
 }
 
 /// Unbounded API string output. Callers with a capacity must check it first or
@@ -617,9 +639,10 @@ pub(crate) fn write_string(emu: &mut Emu, address: u64, text: &str, wide: bool) 
 /// The integer/string subset of wsprintf. Unlike wvsprintf, its trailing
 /// arguments are passed directly by the caller, not through a va_list pointer.
 pub(crate) fn wsprintf(emu: &mut Emu, api: &str, wide: bool) {
+    let call = WinApi(Cdecl);
     const BUFFER_CHARACTERS: i32 = 1024;
-    let destination = WinApiAbi::arg(emu, 0);
-    let format = read_text(emu, WinApiAbi::arg(emu, 1), wide);
+    let destination = api_try!(emu, call.arg(emu, 0));
+    let format = read_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
     let mut position = 2;
     let mut characters = format.chars().peekable();
     let mut result = String::new();
@@ -653,7 +676,7 @@ pub(crate) fn wsprintf(emu: &mut Emu, api: &str, wide: bool) {
         let Some(specifier) = characters.next() else {
             break;
         };
-        let argument = WinApiAbi::arg(emu, position);
+        let argument = api_try!(emu, call.arg(emu, position));
         position += 1;
         let text_wide = match modifier {
             Some('h') => false,
@@ -713,6 +736,5 @@ pub(crate) fn wsprintf(emu: &mut Emu, api: &str, wide: bool) {
     }
     let written = write_text(emu, destination, BUFFER_CHARACTERS, &result, wide);
     log_red!(emu, "user32!{} format:'{}' => '{}'", api, format, result);
-    // wsprintf is cdecl even when exported by user32.
-    WinApiAbi::set_ret(emu, written.saturating_sub(1));
+    call.set_return(emu, written.saturating_sub(1));
 }

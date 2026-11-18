@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn GetTextFaceA(emu: &mut emu::Emu) {
     get_text_face(emu, "GetTextFaceA", false);
 }
 
 fn get_text_face(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hdc = emu.regs().rcx;
-    let count = emu.regs().rdx;
-    let buf = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let count = api_try!(emu, call.arg(emu, 1));
+    let buf = api_try!(emu, call.arg(emu, 2));
     let face = "Arial";
     if buf != 0 && count > 0 {
         strings::write_string(emu, buf, face, wide);
@@ -20,7 +23,7 @@ fn get_text_face(emu: &mut emu::Emu, api: &str, wide: bool) {
         count,
         face
     );
-    emu.regs_mut().rax = face.len() as u64;
+    call.set_return(emu, face.len() as u64);
 }
 
 pub fn GetTextFaceW(emu: &mut emu::Emu) {

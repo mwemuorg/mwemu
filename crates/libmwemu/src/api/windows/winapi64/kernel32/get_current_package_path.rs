@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetCurrentPackagePath(emu: &mut emu::Emu) {
-    let path_length_ptr = emu.regs().rcx;
-    let path_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let path_length_ptr = api_try!(emu, call.arg(emu, 0));
+    let path_ptr = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "kernel32!GetCurrentPackagePath length_ptr:0x{:x} path_ptr:0x{:x}",
@@ -12,5 +15,5 @@ pub fn GetCurrentPackagePath(emu: &mut emu::Emu) {
     if path_length_ptr != 0 {
         emu.maps.write_dword(path_length_ptr, 0);
     }
-    emu.regs_mut().rax = 0x80073D54; // APPMODEL_ERROR_NO_PACKAGE
+    call.set_return(emu, 0x80073D54); // APPMODEL_ERROR_NO_PACKAGE
 }

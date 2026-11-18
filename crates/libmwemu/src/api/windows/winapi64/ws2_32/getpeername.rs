@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn getpeername(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let namelen_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 1));
+    let namelen_ptr = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "ws2_32!getpeername sock: 0x{:x} name: 0x{:x}",
@@ -13,7 +16,7 @@ pub fn getpeername(emu: &mut emu::Emu) {
     );
     if !helper::socket_exist(sock) {
         log_red!(emu, "  invalid socket");
-        emu.regs_mut().rax = 0xFFFFFFFF; // SOCKET_ERROR
+        call.set_return(emu, 0xFFFFFFFF); // SOCKET_ERROR
     } else {
         if name_ptr != 0 {
             // Write dummy sockaddr_in: AF_INET, port 80, 127.0.0.1
@@ -27,6 +30,6 @@ pub fn getpeername(emu: &mut emu::Emu) {
         if namelen_ptr != 0 {
             emu.maps.write_dword(namelen_ptr, 16);
         }
-        emu.regs_mut().rax = 0; // success
+        call.set_return(emu, 0); // success
     }
 }

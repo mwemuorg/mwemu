@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CoIncrementMTAUsage(emu: &mut emu::Emu) {
-    let cookie_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let cookie_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(
         emu,
         "ole32!CoIncrementMTAUsage cookie_ptr:0x{:x}",
@@ -13,5 +16,5 @@ pub fn CoIncrementMTAUsage(emu: &mut emu::Emu) {
         emu.maps.write_qword(cookie_ptr, handle);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

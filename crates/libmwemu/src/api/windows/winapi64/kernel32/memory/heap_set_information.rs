@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn HeapSetInformation(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
-    let hinfocls = emu.regs().rdx as u32;
-    let hinfo = emu.regs().r8;
-    let hinfo_sz = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
+    let hinfocls = api_try!(emu, call.arg_u32(emu, 1));
+    let hinfo = api_try!(emu, call.arg(emu, 2));
+    let hinfo_sz = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -16,5 +19,5 @@ pub fn HeapSetInformation(emu: &mut emu::Emu) {
     );
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

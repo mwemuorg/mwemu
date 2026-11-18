@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn PathGetDriveNumberA(emu: &mut emu::Emu) {
     path_get_drive_number(emu, "PathGetDriveNumberA", false);
 }
 
 fn path_get_drive_number(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let path_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
     let path = if path_ptr != 0 {
         strings::read_text(emu, path_ptr, wide)
     } else {
@@ -24,7 +27,7 @@ fn path_get_drive_number(emu: &mut emu::Emu, api: &str, wide: bool) {
     };
     log_red!(emu, "kernelbase!{api} '{}' => {}", path, result as i64);
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }
 
 pub fn PathGetDriveNumberW(emu: &mut emu::Emu) {

@@ -1,20 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateFontIndirectA(emu: &mut emu::Emu) {
     create_font_indirect(emu, "CreateFontIndirectA");
 }
 
 fn create_font_indirect(emu: &mut emu::Emu, api: &str) {
-    let arg1 = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg_u32(emu, 0));
     log_red!(emu, "gdi32!{api} arg1:0x{:x}", arg1);
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 1);
     let hndl = helper::handler_create(&format!("gdi32://{api}"));
     assert!(hndl < 0x00000001_00000000);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn CreateFontIndirectW(emu: &mut emu::Emu) {

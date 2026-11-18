@@ -1,16 +1,18 @@
 use super::allocate_memory;
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 
 pub(super) fn __p__commode(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     // int * __p__commode(void)
     let p = match allocate_memory(emu, 4) {
         Some(a) => a,
         None => {
             log::error!("wincrt!__p__commode alloc failed");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
     let _ = emu.maps.write_dword(p, 0);
-    emu.regs_mut().rax = p;
+    call.set_return(emu, p);
 }

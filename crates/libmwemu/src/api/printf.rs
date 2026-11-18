@@ -2,7 +2,11 @@ use crate::emu::Emu;
 
 /// Render a C printf format. `vararg(emu, n)` returns the n-th variadic
 /// argument (0-based), so each platform supplies its own calling convention.
-pub fn format(emu: &Emu, fmt: &str, vararg: &dyn Fn(&Emu, usize) -> u64) -> String {
+pub fn format<E>(
+    emu: &Emu,
+    fmt: &str,
+    vararg: &dyn Fn(&Emu, usize) -> Result<u64, E>,
+) -> Result<String, E> {
     let mut out = String::new();
     let mut vararg_num: usize = 0;
     let chars: Vec<char> = fmt.chars().collect();
@@ -47,7 +51,7 @@ pub fn format(emu: &Emu, fmt: &str, vararg: &dyn Fn(&Emu, usize) -> u64) -> Stri
         // Parse width
         let mut width: Option<usize> = None;
         if i < chars.len() && chars[i] == '*' {
-            width = Some(vararg(emu, vararg_num) as usize);
+            width = Some(vararg(emu, vararg_num)? as usize);
             vararg_num += 1;
             i += 1;
         } else {
@@ -69,7 +73,7 @@ pub fn format(emu: &Emu, fmt: &str, vararg: &dyn Fn(&Emu, usize) -> u64) -> Stri
         if i < chars.len() && chars[i] == '.' {
             i += 1;
             if i < chars.len() && chars[i] == '*' {
-                _precision = Some(vararg(emu, vararg_num) as usize);
+                _precision = Some(vararg(emu, vararg_num)? as usize);
                 vararg_num += 1;
                 i += 1;
             } else {
@@ -108,7 +112,7 @@ pub fn format(emu: &Emu, fmt: &str, vararg: &dyn Fn(&Emu, usize) -> u64) -> Stri
 
         // Conversion
         let w = width.unwrap_or(0);
-        let val = vararg(emu, vararg_num);
+        let val = vararg(emu, vararg_num)?;
         vararg_num += 1;
         let formatted = match chars[i] {
             'd' | 'i' => {
@@ -150,7 +154,7 @@ pub fn format(emu: &Emu, fmt: &str, vararg: &dyn Fn(&Emu, usize) -> u64) -> Stri
         out.push_str(&formatted);
         i += 1;
     }
-    out
+    Ok(out)
 }
 
 fn pad_string(s: &str, width: usize, left_align: bool, zero_pad: bool) -> String {

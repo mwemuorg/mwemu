@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BuildCommDCBAndTimeoutsA(emu: &mut emu::Emu) {
@@ -7,17 +8,15 @@ pub fn BuildCommDCBAndTimeoutsA(emu: &mut emu::Emu) {
 }
 
 fn build_comm_dcb_and_timeouts(emu: &mut emu::Emu, api: &str) {
-    let _lpDef = WinApiAbi::arg(emu, 0) as u32;
-    let _lpDCB = WinApiAbi::arg(emu, 1) as u32;
-    let _lpCommTimeouts = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let _lpDef = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpDCB = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpCommTimeouts = api_try!(emu, call.arg_u32(emu, 2));
 
     log_red!(emu, "kernel32!{api}");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 
 pub fn BuildCommDCBAndTimeoutsW(emu: &mut emu::Emu) {

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SafeArrayPutElement(emu: &mut emu::Emu) {
-    let sa_ptr = emu.regs().rcx;
-    let rgindices = emu.regs().rdx;
-    let pv = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let sa_ptr = api_try!(emu, call.arg(emu, 0));
+    let rgindices = api_try!(emu, call.arg(emu, 1));
+    let pv = api_try!(emu, call.arg(emu, 2));
     if sa_ptr != 0 && rgindices != 0 && pv != 0 {
         let elem_size = emu.maps.read_dword(sa_ptr + 4).unwrap_or(4) as u64;
         let pv_data = emu.maps.read_qword(sa_ptr + 16).unwrap_or(0);
@@ -23,5 +26,5 @@ pub fn SafeArrayPutElement(emu: &mut emu::Emu) {
         pv
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

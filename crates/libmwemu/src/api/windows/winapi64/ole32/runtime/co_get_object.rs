@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CoGetObject(emu: &mut emu::Emu) {
-    let clsid_ptr = emu.regs().rcx;
-    let outer = emu.regs().rdx;
-    let ctx = emu.regs().r8;
-    let iid_ptr = emu.regs().r9;
-    let ppv = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let clsid_ptr = api_try!(emu, call.arg(emu, 0));
+    let outer = api_try!(emu, call.arg(emu, 1));
+    let ctx = api_try!(emu, call.arg(emu, 2));
+    let iid_ptr = api_try!(emu, call.arg(emu, 3));
+    let ppv = api_try!(emu, call.arg(emu, 3));
     let hndl = helper::handler_create("com_object");
     let ppv_addr = ppv;
     if ppv_addr != 0 {
@@ -15,5 +17,5 @@ pub fn CoGetObject(emu: &mut emu::Emu) {
     }
     log_red!(emu, "ole32!CoGetObject ctx:0x{:x} => 0x{:x}", ctx, hndl);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
