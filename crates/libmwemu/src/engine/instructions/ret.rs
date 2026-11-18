@@ -102,6 +102,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
         emu.regs_mut().rsp = emu.regs().rsp.wrapping_add(0x20);
     }
 
+    // Host calls may return to an unmapped sentinel, including address zero.
+    if emu.host_call_return == Some(ret_addr) {
+        emu.regs_mut().rip = ret_addr;
+        emu.force_reload = true;
+        return true;
+    }
+
     if emu.cfg.is_x64() {
         emu.set_rip_with_check(ret_addr, false)
     } else {

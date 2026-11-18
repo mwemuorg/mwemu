@@ -35,16 +35,14 @@ impl Emu {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
                 let rip = self.regs().rip;
 
+                if let Some(pc) = self.reached_outer_run_limit(rip, end_addr) {
+                    return Ok(pc);
+                }
                 if self.maps.get_mem_by_addr(rip).is_none() {
                     log::trace!("redirecting code flow to non mapped address 0x{:x}", rip);
                     Console::spawn_console(self);
                     return Err(MwemuError::new("cannot read program counter"));
                 }
-                /*
-                if let Some(pc) = self.reached_outer_run_limit(rip, end_addr) {
-                    return Ok(pc);
-                }
-                */
                 let next_pos = self.pos.saturating_add(1);
 
                 if (self.exp != u64::MAX && self.exp == next_pos)

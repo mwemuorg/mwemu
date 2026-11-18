@@ -377,6 +377,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             api_policy: ApiPolicy::default(),
             process_terminated: false,
             call_depth: 0,
+            host_call_return: None,
             ldr_init_done: false,
             force_reload,
             run_until_ret,
