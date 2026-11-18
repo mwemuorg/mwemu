@@ -1,12 +1,15 @@
 use super::COUNT_RECEIVE;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub(super) fn InternetReadFile(emu: &mut emu::Emu) {
-    let file_hndl = emu.regs().rcx;
-    let buff_ptr = emu.regs().rdx;
-    let bytes_to_read = emu.regs().r8;
-    let bytes_read_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let file_hndl = api_try!(emu, call.arg(emu, 0));
+    let buff_ptr = api_try!(emu, call.arg(emu, 1));
+    let bytes_to_read = api_try!(emu, call.arg(emu, 2));
+    let bytes_read_ptr = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -37,5 +40,5 @@ pub(super) fn InternetReadFile(emu: &mut emu::Emu) {
         }
     }
 
-    emu.regs_mut().rax = 1; // true
+    call.set_return(emu, 1); // true
 }

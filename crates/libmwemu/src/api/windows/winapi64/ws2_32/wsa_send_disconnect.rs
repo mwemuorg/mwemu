@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WSASendDisconnect(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let data_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let data_ptr = api_try!(emu, call.arg(emu, 1));
     log_red!(emu, "ws2_32!WSASendDisconnect sock:0x{:x}", sock);
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038);
-        emu.regs_mut().rax = 0xFFFFFFFF;
+        call.set_return(emu, 0xFFFFFFFF);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

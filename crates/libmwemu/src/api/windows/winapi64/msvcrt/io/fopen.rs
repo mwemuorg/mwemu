@@ -1,16 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn fopen(emu: &mut emu::Emu) {
-    let filepath_ptr = emu.regs().rcx;
-    let mode_ptr = emu.regs().rdx;
+    let call = WinApi(Cdecl);
+    let filepath_ptr = api_try!(emu, call.arg(emu, 0));
+    let mode_ptr = api_try!(emu, call.arg(emu, 1));
     if filepath_ptr == 0 || mode_ptr == 0 {
-        emu.regs_mut().rax = 0xffffffff;
+        call.set_return(emu, 0xffffffff);
         log_red!(emu, "msvcrt!fopen null ptrs");
     } else {
         let filepath = emu.maps.read_string(filepath_ptr);
         let mode = emu.maps.read_string(mode_ptr);
         log_red!(emu, "msvcrt!fopen `{}` fmt:`{}`", filepath, mode);
-        emu.regs_mut().rax = helper::handler_create(&filepath);
+        call.set_return(emu, helper::handler_create(&filepath));
     }
 }

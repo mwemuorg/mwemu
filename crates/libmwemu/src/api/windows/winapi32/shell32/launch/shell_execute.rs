@@ -1,18 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn ShellExecuteA(emu: &mut emu::Emu) {
     shell_execute(emu, "ShellExecuteA", false);
 }
 
 fn shell_execute(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hwnd = WinApiAbi::arg(emu, 0);
-    let lp_operation = WinApiAbi::arg(emu, 1);
-    let lp_file = WinApiAbi::arg(emu, 2);
-    let lp_parameters = WinApiAbi::arg(emu, 3);
-    let lp_directory = WinApiAbi::arg(emu, 4);
-    let n_show_cmd = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let lp_operation = api_try!(emu, call.arg(emu, 1));
+    let lp_file = api_try!(emu, call.arg(emu, 2));
+    let lp_parameters = api_try!(emu, call.arg(emu, 3));
+    let lp_directory = api_try!(emu, call.arg(emu, 4));
+    let n_show_cmd = api_try!(emu, call.arg(emu, 5));
 
     let operation = if lp_operation != 0 {
         strings::read_text(emu, lp_operation, wide)
@@ -34,11 +36,9 @@ fn shell_execute(emu: &mut emu::Emu, api: &str, wide: bool) {
         params
     );
 
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 6);
 
-    emu.regs_mut().rax = 42; // > 32 means success
+    call.set_return(emu, 42); // > 32 means success
 }
 
 pub fn ShellExecuteW(emu: &mut emu::Emu) {

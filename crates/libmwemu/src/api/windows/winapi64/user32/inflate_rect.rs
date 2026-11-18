@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn InflateRect(emu: &mut emu::Emu) {
-    let rect = emu.regs().rcx;
-    let dx = emu.regs().rdx as i32;
-    let dy = emu.regs().r8 as i32;
+    let call = WinApi(Stdcall);
+    let rect = api_try!(emu, call.arg(emu, 0));
+    let dx = api_try!(emu, call.arg_i32(emu, 1));
+    let dy = api_try!(emu, call.arg_i32(emu, 2));
     if rect != 0 {
         let left = emu.maps.read_dword(rect).unwrap_or(0) as i32 - dx;
         let top = emu.maps.read_dword(rect + 4).unwrap_or(0) as i32 - dy;
@@ -21,5 +24,5 @@ pub fn InflateRect(emu: &mut emu::Emu) {
         dx,
         dy
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

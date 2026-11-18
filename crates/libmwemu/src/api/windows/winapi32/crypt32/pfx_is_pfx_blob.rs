@@ -1,14 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn PFXIsPFXBlob(emu: &mut emu::Emu) {
-    let blob = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let blob = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "crypt32!PFXIsPFXBlob blob:0x{:x}", blob);
     emu.set_last_error(0);
-    let h = WinApiAbi::arg(emu, 0);
-    emu.regs_mut().rax = 1;
-
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 1);
 }

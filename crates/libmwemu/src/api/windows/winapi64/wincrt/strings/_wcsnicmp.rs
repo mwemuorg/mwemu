@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn _wcsnicmp(emu: &mut emu::Emu) {
-    let s1_ptr = emu.regs().rcx;
-    let s2_ptr = emu.regs().rdx;
-    let n = emu.regs().r8 as usize;
+    let call = WinApi(Cdecl);
+    let s1_ptr = api_try!(emu, call.arg(emu, 0));
+    let s2_ptr = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let s1: String = emu
         .maps
         .read_wide_string(s1_ptr)
@@ -27,5 +30,5 @@ pub fn _wcsnicmp(emu: &mut emu::Emu) {
         n,
         result
     );
-    emu.regs_mut().rax = result as u32 as u64;
+    call.set_return(emu, result as u32 as u64);
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn PtInRect(emu: &mut emu::Emu) {
-    let rect = emu.regs().rcx;
-    let pt_x = emu.regs().rdx as i32;
-    let pt_y = emu.regs().r8 as i32;
+    let call = WinApi(Stdcall);
+    let rect = api_try!(emu, call.arg(emu, 0));
+    let pt_x = api_try!(emu, call.arg_i32(emu, 1));
+    let pt_y = api_try!(emu, call.arg_i32(emu, 2));
     let inside = if rect != 0 {
         let left = emu.maps.read_dword(rect).unwrap_or(0) as i32;
         let top = emu.maps.read_dword(rect + 4).unwrap_or(0) as i32;
@@ -21,10 +24,6 @@ pub fn PtInRect(emu: &mut emu::Emu) {
         pt_y,
         inside
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = if inside { 1 } else { 0 };
+    call.set_return(emu, if inside { 1 } else { 0 });
 }

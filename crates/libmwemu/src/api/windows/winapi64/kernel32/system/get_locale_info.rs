@@ -1,19 +1,22 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings::locale_info_value;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
-    let locale = emu.regs().rcx as usize;
-    let lctype = emu.regs().rdx as usize;
-    let lp_lc_data = emu.regs().r8 as usize;
-    let cch_data = emu.regs().r9 as usize;
+    let call = WinApi(Stdcall);
+    let locale = api_try!(emu, call.arg(emu, 0)) as usize;
+    let lctype = api_try!(emu, call.arg(emu, 1)) as usize;
+    let lp_lc_data = api_try!(emu, call.arg(emu, 2)) as usize;
+    let cch_data = api_try!(emu, call.arg(emu, 3)) as usize;
 
     let result = ".";
     let required_size = result.len() + 1; // Include null terminator
 
     // If cchData is 0, return required buffer size
     if cch_data == 0 {
-        emu.regs_mut().rax = required_size as u64;
+        call.set_return(emu, required_size as u64);
         emu.clear_last_error();
         return;
     }
@@ -27,13 +30,13 @@ pub fn GetLocaleInfoA(emu: &mut emu::Emu) {
             required_size
         );
         emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
     // Write result directly to provided buffer
     emu.maps.write_string(lp_lc_data as u64, result);
-    emu.regs_mut().rax = result.len() as u64; // Return length without null terminator
+    call.set_return(emu, result.len() as u64); // Return length without null terminator
     emu.clear_last_error();
 }
 
@@ -88,10 +91,11 @@ const LOCALE_IFIRSTDAYOFWEEK: u64 = 0x100C; // First day of week (0=Monday, 6=Su
 const LOCALE_IFIRSTWEEKOFYEAR: u64 = 0x100D; // First week of year - MADE UP VALUE
 
 pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
-    let locale = emu.regs().rcx;
-    let lctype = emu.regs().rdx;
-    let lp_lc_data = emu.regs().r8 as usize;
-    let cch_data = emu.regs().r9 as usize;
+    let call = WinApi(Stdcall);
+    let locale = api_try!(emu, call.arg(emu, 0));
+    let lctype = api_try!(emu, call.arg(emu, 1));
+    let lp_lc_data = api_try!(emu, call.arg(emu, 2)) as usize;
+    let cch_data = api_try!(emu, call.arg(emu, 3)) as usize;
 
     log_red!(
         emu,
@@ -118,7 +122,7 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
 
     // Check if it wants buffer size
     if cch_data == 0 {
-        emu.regs_mut().rax = required_size as u64;
+        call.set_return(emu, required_size as u64);
         emu.clear_last_error();
         return;
     }
@@ -127,7 +131,7 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
     if lp_lc_data == 0 {
         log::warn!("{} GetLocaleInfoW invalid parameter - null buffer", emu.pos);
         emu.set_last_error(ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -140,12 +144,12 @@ pub fn GetLocaleInfoW(emu: &mut emu::Emu) {
             required_size
         );
         emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
     // Write the result to the buffer
     emu.maps.write_wide_string(lp_lc_data as u64, result);
-    emu.regs_mut().rax = required_size as u64;
+    call.set_return(emu, required_size as u64);
     emu.clear_last_error();
 }

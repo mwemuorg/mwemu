@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn CopyFileExA(emu: &mut Emu) {
     invoke(emu, false, "CopyFileExA");
@@ -10,8 +12,9 @@ pub fn CopyFileExW(emu: &mut Emu) {
 }
 
 fn invoke(emu: &mut Emu, wide: bool, api: &str) {
-    let source = strings::read_text(emu, emu.regs().rcx, wide);
-    let destination = strings::read_text(emu, emu.regs().rdx, wide);
+    let call = WinApi(Stdcall);
+    let source = strings::read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let destination = strings::read_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
     log_red!(emu, "kernel32!{} '{}' -> '{}'", api, source, destination);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

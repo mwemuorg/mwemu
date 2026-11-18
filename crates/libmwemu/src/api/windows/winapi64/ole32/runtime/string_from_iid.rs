@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::ole32::read_guid_string;
 
 pub fn StringFromIID(emu: &mut emu::Emu) {
-    let iid_ptr = emu.regs().rcx;
-    let out_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let iid_ptr = api_try!(emu, call.arg(emu, 0));
+    let out_ptr = api_try!(emu, call.arg(emu, 1));
     let guid_str = read_guid_string(emu, iid_ptr);
     if out_ptr != 0 {
         let alloc_sz: u64 = 39 * 2 + 2;
@@ -21,5 +24,5 @@ pub fn StringFromIID(emu: &mut emu::Emu) {
         }
     }
     log_red!(emu, "ole32!StringFromIID => '{}'", guid_str);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

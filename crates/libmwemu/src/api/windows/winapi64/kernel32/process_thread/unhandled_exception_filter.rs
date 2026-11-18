@@ -1,20 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::exceptions::*;
 
 pub fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
-    let exception_info = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let exception_info = api_try!(emu, call.arg(emu, 0));
 
     log_red!(
         emu,
         "kernel32!UnhandledExceptionFilter pExceptionInfo:0x{:x}",
         exception_info
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = EXCEPTION_EXECUTE_HANDLER as u64;
+    call.set_return(emu, EXCEPTION_EXECUTE_HANDLER as u64);
     // a debugger would had answered EXCEPTION_CONTINUE_SEARCH
 }

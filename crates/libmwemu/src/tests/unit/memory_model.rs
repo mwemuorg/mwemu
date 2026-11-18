@@ -1,3 +1,4 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
@@ -8,7 +9,7 @@ use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{MemoryError, PAGE_SIZE, PageState};
 use crate::serialization::Serialization;
 use crate::tests::helpers::{self, call_winapi32, call_winapi64};
-use crate::winapi::common::memory::{self, Call};
+use crate::winapi::common::memory;
 use crate::{emu32, emu64};
 use itertools::iproduct;
 use serde_json::{from_value, to_value};
@@ -56,7 +57,7 @@ fn query(emu: &mut Emu) {
 }
 
 fn nt_allocate(emu: &mut Emu) {
-    memory::nt_allocate(emu, Call::Api, false);
+    memory::nt_allocate(emu, WinApi(Stdcall), false);
 }
 
 #[test]

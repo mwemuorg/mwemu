@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CertSrvBackupOpenFileW(emu: &mut emu::Emu) {
-    let str_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let str_ptr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_wide_string(str_ptr);
     let hndl = helper::handler_create("CertSrvBackupOpenFileW");
     log_red!(
@@ -12,5 +15,5 @@ pub fn CertSrvBackupOpenFileW(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

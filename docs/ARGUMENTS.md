@@ -23,7 +23,7 @@ Use the console m command to see the memory maps.
 
 ## Banzai & API mode
 
-`--api-mode strict|simulate-fail|simulate-success` selects the unsupported Windows API policy. Without either policy flag, the CLI defaults to `Strict`, or to `SimulateSuccess` with a one-time warning when `--banzai` is present. An explicit `--api-mode` overrides that default; `--strict-api` always forces strict behavior. Banzai also enables instruction skipping and fallback x86 cleanup metadata, subject to subsystem ABI rules. See [Windows API fallback](WINDOWS_API.md) for combinations and metadata requirements.
+`--api-mode strict|simulate-fail|simulate-success` selects the unsupported Windows API policy. Without either policy flag, the CLI defaults to `Strict`, or to `SimulateSuccess` with a one-time warning when `--banzai` is present. An explicit `--api-mode` overrides that default; `--strict-api` always forces strict behavior. Banzai also enables instruction skipping and fallback x86 cleanup metadata, subject to subsystem ABI rules. See [Windows API policy](API.md#windows-api-policy) for combinations and metadata requirements.
 
 ## Verbose
 

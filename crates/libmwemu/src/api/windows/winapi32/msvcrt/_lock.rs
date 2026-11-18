@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn _lock(emu: &mut emu::Emu) {
-    let lock_num = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Cdecl);
+    let lock_num = api_try!(emu, call.arg_u32(emu, 0));
 
     log_red!(emu, "msvcrt!_lock {}", lock_num);
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::exceptions::*;
 
 pub fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
-    let exception_info = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let exception_info = api_try!(emu, call.arg_u32(emu, 0));
 
     log_red!(
         emu,
@@ -11,7 +13,7 @@ pub fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
         exception_info
     );
 
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = EXCEPTION_EXECUTE_HANDLER as u64;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, EXCEPTION_EXECUTE_HANDLER as u64);
     // a debugger would had answered EXCEPTION_CONTINUE_SEARCH
 }

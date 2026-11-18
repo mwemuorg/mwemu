@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateDataCache(emu: &mut emu::Emu) {
-    let punk_outer = emu.regs().rcx;
-    let rclsid = emu.regs().rdx;
-    let riid = emu.regs().r8;
-    let ppv = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let punk_outer = api_try!(emu, call.arg(emu, 0));
+    let rclsid = api_try!(emu, call.arg(emu, 1));
+    let riid = api_try!(emu, call.arg(emu, 2));
+    let ppv = api_try!(emu, call.arg(emu, 3));
     let hndl = helper::handler_create("ole32://IOleCache");
     if ppv != 0 {
         emu.maps.write_qword(ppv, hndl);
@@ -18,5 +21,5 @@ pub fn CreateDataCache(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

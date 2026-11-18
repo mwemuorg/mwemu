@@ -3,15 +3,17 @@ use super::UOI_NAME;
 use super::UOI_TYPE;
 use super::WSF_VISIBLE;
 use super::wide_z;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetUserObjectInformationA(emu: &mut emu::Emu) {
-    let p0 = emu.regs().rcx;
-    let p1 = emu.regs().rdx;
-    let p2 = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_string(p0)
     } else {
@@ -25,15 +27,16 @@ pub fn GetUserObjectInformationA(emu: &mut emu::Emu) {
         p2
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
-    let hobj = emu.regs().rcx;
-    let index = emu.regs().rdx & 0xffff_ffff;
-    let info = emu.regs().r8;
-    let length = emu.regs().r9 & 0xffff_ffff;
-    let needed_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let hobj = api_try!(emu, call.arg(emu, 0));
+    let index = api_try!(emu, call.arg(emu, 1)) & 0xffff_ffff;
+    let info = api_try!(emu, call.arg(emu, 2));
+    let length = api_try!(emu, call.arg(emu, 3)) & 0xffff_ffff;
+    let needed_ptr = api_try!(emu, call.arg(emu, 4));
 
     log_red!(
         emu,
@@ -62,7 +65,7 @@ pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
         UOI_TYPE => wide_z("WindowStation"),
         _ => {
             emu.set_last_error(ERROR_INVALID_PARAMETER);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -72,10 +75,10 @@ pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
     }
     if info == 0 || length < data.len() as u64 {
         emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
     emu.maps.write_bytes(info, &data);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

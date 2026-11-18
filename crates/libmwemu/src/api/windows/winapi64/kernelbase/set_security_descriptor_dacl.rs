@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SetSecurityDescriptorDacl(emu: &mut emu::Emu) {
-    let sd_ptr = emu.regs().rcx;
-    let dacl_present = emu.regs().rdx != 0;
-    let dacl_ptr = emu.regs().r8;
-    let defaulted = emu.regs().r9 != 0;
+    let call = WinApi(Stdcall);
+    let sd_ptr = api_try!(emu, call.arg(emu, 0));
+    let dacl_present = api_try!(emu, call.arg(emu, 1)) != 0;
+    let dacl_ptr = api_try!(emu, call.arg(emu, 2));
+    let defaulted = api_try!(emu, call.arg(emu, 3)) != 0;
     if sd_ptr != 0 {
         let mut control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
         if dacl_present {
@@ -28,5 +31,5 @@ pub fn SetSecurityDescriptorDacl(emu: &mut emu::Emu) {
         dacl_ptr
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn InternetCrackUrlA(emu: &mut emu::Emu) {
-    let url_ptr = emu.regs().rcx;
-    let url_len = emu.regs().rdx as u32;
-    let _flags = emu.regs().r8;
-    let components_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let url_ptr = api_try!(emu, call.arg(emu, 0));
+    let url_len = api_try!(emu, call.arg_u32(emu, 1));
+    let _flags = api_try!(emu, call.arg(emu, 2));
+    let components_ptr = api_try!(emu, call.arg(emu, 3));
 
     let url = if url_ptr != 0 {
         if url_len == 0 {
@@ -19,7 +22,7 @@ pub(super) fn InternetCrackUrlA(emu: &mut emu::Emu) {
     log_red!(emu, "wininet!InternetCrackUrlA url: '{}'", url);
 
     if components_ptr == 0 {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -88,14 +91,15 @@ pub(super) fn InternetCrackUrlA(emu: &mut emu::Emu) {
             .write_dword(components_ptr + 0x60, path.len() as u32);
     }
 
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }
 
 pub(super) fn InternetCrackUrlW(emu: &mut emu::Emu) {
-    let url_ptr = emu.regs().rcx;
-    let _url_len = emu.regs().rdx;
-    let _flags = emu.regs().r8;
-    let components_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let url_ptr = api_try!(emu, call.arg(emu, 0));
+    let _url_len = api_try!(emu, call.arg(emu, 1));
+    let _flags = api_try!(emu, call.arg(emu, 2));
+    let components_ptr = api_try!(emu, call.arg(emu, 3));
 
     let url = if url_ptr != 0 {
         emu.maps.read_wide_string(url_ptr)
@@ -106,7 +110,7 @@ pub(super) fn InternetCrackUrlW(emu: &mut emu::Emu) {
     log_red!(emu, "wininet!InternetCrackUrlW url: '{}'", url);
 
     if components_ptr == 0 {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -168,5 +172,5 @@ pub(super) fn InternetCrackUrlW(emu: &mut emu::Emu) {
             .write_dword(components_ptr + 0x60, path.len() as u32);
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

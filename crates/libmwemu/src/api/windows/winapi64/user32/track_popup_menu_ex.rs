@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn TrackPopupMenuEx(emu: &mut emu::Emu) {
-    let hmenu = emu.regs().rcx;
-    let flags = emu.regs().rdx as u32;
-    let x = emu.regs().r8 as i32;
-    let y = emu.regs().r9 as i32;
-    let hwnd = WinApiAbi::arg(emu, 4);
-    let _lptpm = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let hmenu = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let x = api_try!(emu, call.arg_i32(emu, 2));
+    let y = api_try!(emu, call.arg_i32(emu, 3));
+    let hwnd = api_try!(emu, call.arg(emu, 4));
+    let _lptpm = api_try!(emu, call.arg(emu, 4));
     log_red!(
         emu,
         "user32!TrackPopupMenuEx hmenu:0x{:x} flags:0x{:x} x:{} y:{} hwnd:0x{:x}",
@@ -17,10 +19,6 @@ pub fn TrackPopupMenuEx(emu: &mut emu::Emu) {
         y,
         hwnd
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

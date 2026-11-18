@@ -1,18 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
-    let h_prf = emu.regs().rcx;
-    let pb_password = emu.regs().rdx;
-    let cb_password = emu.regs().r8 as usize;
-    let pb_salt = emu.regs().r9;
-    let cb_salt = WinApiAbi::arg(emu, 4) as usize;
-    let iterations = WinApiAbi::arg(emu, 5);
-    let pb_derived_key = WinApiAbi::arg(emu, 6);
-    let cb_derived_key = WinApiAbi::arg(emu, 7) as usize;
+    let call = WinApi(Stdcall);
+    let h_prf = api_try!(emu, call.arg(emu, 0));
+    let pb_password = api_try!(emu, call.arg(emu, 1));
+    let cb_password = api_try!(emu, call.arg(emu, 2)) as usize;
+    let pb_salt = api_try!(emu, call.arg(emu, 3));
+    let cb_salt = api_try!(emu, call.arg(emu, 4)) as usize;
+    let iterations = api_try!(emu, call.arg(emu, 5));
+    let pb_derived_key = api_try!(emu, call.arg(emu, 6));
+    let cb_derived_key = api_try!(emu, call.arg(emu, 7)) as usize;
 
     if pb_derived_key != 0 && cb_derived_key > 0 {
         let pwd = if pb_password != 0 && cb_password > 0 {
@@ -47,5 +49,5 @@ pub fn BCryptDeriveKeyPBKDF2(emu: &mut emu::Emu) {
         cb_derived_key
     );
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }

@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WinHttpOpenRequest(emu: &mut emu::Emu) {
-    let h_connect = emu.regs().rcx;
-    let verb_ptr = emu.regs().rdx;
-    let object_ptr = emu.regs().r8;
-    let _version_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let h_connect = api_try!(emu, call.arg(emu, 0));
+    let verb_ptr = api_try!(emu, call.arg(emu, 1));
+    let object_ptr = api_try!(emu, call.arg(emu, 2));
+    let _version_ptr = api_try!(emu, call.arg(emu, 3));
 
     let verb = if verb_ptr == 0 {
         "GET".to_string()
@@ -32,5 +35,5 @@ pub fn WinHttpOpenRequest(emu: &mut emu::Emu) {
     }
 
     let uri = format!("winhttp://request/{} {}", verb, object);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }

@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn VariantChangeTypeEx(emu: &mut emu::Emu) {
-    let pvarg_dest = emu.regs().rcx;
-    let pvarg_src = emu.regs().rdx;
-    let vt = WinApiAbi::arg(emu, 4) as u16;
+    let call = WinApi(Stdcall);
+    let pvarg_dest = api_try!(emu, call.arg(emu, 0));
+    let pvarg_src = api_try!(emu, call.arg(emu, 1));
+    let vt = api_try!(emu, call.arg_u16(emu, 4));
     log_red!(
         emu,
         "oleaut32!VariantChangeTypeEx dest: 0x{:x} src: 0x{:x} vt: {}",
@@ -20,5 +22,5 @@ pub fn VariantChangeTypeEx(emu: &mut emu::Emu) {
         emu.maps.write_word(pvarg_dest, vt);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

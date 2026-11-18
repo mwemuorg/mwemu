@@ -1,3 +1,4 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 
@@ -10,6 +11,7 @@ pub fn GetCommandLineW(emu: &mut emu::Emu) {
 }
 
 fn get_command_line(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let call = WinApi(Stdcall);
     if wide {
         log_red!(emu, "kernel32!GetCommandlineW");
     } else {
@@ -20,10 +22,10 @@ fn get_command_line(emu: &mut emu::Emu, api: &str, wide: bool) {
         Some(a) => a,
         None => {
             log::error!("kernel32!{api}: out of memory");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
     strings::write_string(emu, addr, "test.exe", wide);
-    emu.regs_mut().rax = addr;
+    call.set_return(emu, addr);
 }

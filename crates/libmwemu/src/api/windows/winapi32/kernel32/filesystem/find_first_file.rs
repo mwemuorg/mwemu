@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FindFirstFileA(emu: &mut emu::Emu) {
     find_first_file(emu, "FindFirstFileA", false);
@@ -12,15 +13,15 @@ pub fn FindFirstFileW(emu: &mut emu::Emu) {
 }
 
 fn find_first_file(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let file_ptr = WinApiAbi::arg(emu, 0);
-    let find_data = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let file_ptr = api_try!(emu, call.arg(emu, 0));
+    let find_data = api_try!(emu, call.arg_u32(emu, 1));
     let file = strings::read_text(emu, file_ptr, wide);
     log_red!(emu, "kernel32!{api} file: {}", file);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
     if wide {
-        emu.regs_mut().rax = helper::handler_create(&file);
+        call.set_return(emu, helper::handler_create(&file));
     } else {
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     }
 }

@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FileTimeToSystemTime(emu: &mut emu::Emu) {
-    let file_time = WinApiAbi::arg(emu, 0) as u32;
-    let sys_time_ptr = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let file_time = api_try!(emu, call.arg_u32(emu, 0));
+    let sys_time_ptr = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "kernel32!FileTimeToSystemTime");
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

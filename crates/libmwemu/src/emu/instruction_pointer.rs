@@ -1,8 +1,10 @@
+use crate::api::unix;
 use crate::api::windows::policy::{self, ApiRoute};
 use crate::utils::helpers::unlikely;
 use crate::winapi::common::threads;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
+use crate::{linuxapi, macosapi};
 
 use crate::{
     emu::Emu,
@@ -52,14 +54,15 @@ impl Emu {
             self.colors.nc
         );
 
-        self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-        self.regs_mut().rip = self.gateway_return;
-
-        if self.os.is_macos() {
-            crate::macosapi::gateway(addr, section_name, &symbol, self);
-        } else if self.os.is_linux() {
-            crate::linuxapi::gateway(addr, section_name, &symbol, self);
+        let previous = unix::begin_call(self, section_name, &symbol, addr);
+        if unix::consume_return(self) {
+            if self.os.is_macos() {
+                macosapi::gateway(addr, section_name, &symbol, self);
+            } else if self.os.is_linux() {
+                linuxapi::gateway(addr, section_name, &symbol, self);
+            }
         }
+        unix::end_call(self, previous);
 
         self.force_break = true;
         true
@@ -78,7 +81,7 @@ impl Emu {
     /// Redirect execution flow on 64bits.
     /// If the target address is a winapi, triggers it's implementation.
     pub fn set_rip_with_check(&mut self, addr: u64, is_branch: bool) -> bool {
-        if self.api_policy.stopped() {
+        if self.api_stopped() {
             return false;
         }
         self.force_reload = true;
@@ -351,7 +354,7 @@ impl Emu {
     /// If the target address is in a loaded library (dylib/so), intercept and
     /// dispatch to the appropriate API handler. Mirrors set_rip() for Windows.
     pub fn set_pc_aarch64(&mut self, addr: u64) -> bool {
-        if self.api_policy.stopped() {
+        if self.api_stopped() {
             return false;
         }
         if unlikely(self.kernel.as_ref().is_some_and(|k| !k.ledger_only)) {
@@ -397,14 +400,16 @@ impl Emu {
         );
 
         // Dispatch to appropriate platform API handler
-        if self.os.is_macos() {
-            // Set PC to return address (already in LR from BL/BLR)
-            self.regs_aarch64_mut().pc = self.regs_aarch64().x[30];
-            crate::macosapi::gateway(addr, &name, &symbol, self);
-        } else if self.os.is_linux() {
-            // Set PC to return address (already in LR from BL/BLR)
-            self.regs_aarch64_mut().pc = self.regs_aarch64().x[30];
-            crate::linuxapi::gateway(addr, &name, &symbol, self);
+        if self.os.is_macos() || self.os.is_linux() {
+            let previous = unix::begin_call(self, &name, &symbol, addr);
+            if unix::consume_return(self) {
+                if self.os.is_macos() {
+                    macosapi::gateway(addr, &name, &symbol, self);
+                } else {
+                    linuxapi::gateway(addr, &name, &symbol, self);
+                }
+            }
+            unix::end_call(self, previous);
         } else if self.os.is_windows() {
             // emulate winapi mode
             if self.cfg.emulate_winapi {
@@ -450,7 +455,7 @@ impl Emu {
     /// Redirect execution flow on 32bits.
     /// If the target address is a winapi, triggers it's implementation.
     pub fn set_eip(&mut self, addr: u64, is_branch: bool) -> bool {
-        if self.api_policy.stopped() {
+        if self.api_stopped() {
             return false;
         }
         self.force_reload = true;

@@ -1,18 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RaiseException(emu: &mut emu::Emu) {
-    let code = WinApiAbi::arg(emu, 0) as u32;
-    let flags = WinApiAbi::arg(emu, 1) as u32;
-    let num_args = WinApiAbi::arg(emu, 2) as u32;
-    let args = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let code = api_try!(emu, call.arg_u32(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let num_args = api_try!(emu, call.arg_u32(emu, 2));
+    let args = api_try!(emu, call.arg_u32(emu, 3));
 
     log_red!(emu, "kernel32!RaiseException {} {}", code, flags);
 
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 4);
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
     //emu.stop();
 }

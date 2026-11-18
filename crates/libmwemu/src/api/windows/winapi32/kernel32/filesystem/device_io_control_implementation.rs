@@ -1,22 +1,21 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn DeviceIoControlImplementation(emu: &mut emu::Emu) {
-    let _hDevice = WinApiAbi::arg(emu, 0) as u32;
-    let _dwIoControlCode = WinApiAbi::arg(emu, 1) as u32;
-    let _lpInBuffer = WinApiAbi::arg(emu, 2) as u32;
-    let _nInBufferSize = WinApiAbi::arg(emu, 3) as u32;
-    let _lpOutBuffer = WinApiAbi::arg(emu, 4) as u32;
-    let _nOutBufferSize = WinApiAbi::arg(emu, 5) as u32;
-    let _lpBytesReturned = WinApiAbi::arg(emu, 6) as u32;
-    let _lpOverlapped = WinApiAbi::arg(emu, 7) as u32;
+    let call = WinApi(Stdcall);
+    let _hDevice = api_try!(emu, call.arg_u32(emu, 0));
+    let _dwIoControlCode = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpInBuffer = api_try!(emu, call.arg_u32(emu, 2));
+    let _nInBufferSize = api_try!(emu, call.arg_u32(emu, 3));
+    let _lpOutBuffer = api_try!(emu, call.arg_u32(emu, 4));
+    let _nOutBufferSize = api_try!(emu, call.arg_u32(emu, 5));
+    let _lpBytesReturned = api_try!(emu, call.arg_u32(emu, 6));
+    let _lpOverlapped = api_try!(emu, call.arg_u32(emu, 7));
 
     log_red!(emu, "kernel32!DeviceIoControlImplementation");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..8 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 8);
 }

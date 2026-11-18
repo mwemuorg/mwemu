@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
-    let codepage = WinApiAbi::arg(emu, 0) as u32;
-    let flags = WinApiAbi::arg(emu, 1) as u32;
-    let wstr_ptr = WinApiAbi::arg(emu, 2);
-    let wstr_sz = WinApiAbi::arg(emu, 3) as u32;
-    let mbytestr_ptr = WinApiAbi::arg(emu, 4);
-    let mbytestr_sz = WinApiAbi::arg(emu, 5) as u32;
-    let in_default_char = WinApiAbi::arg(emu, 6);
-    let out_default_char = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let codepage = api_try!(emu, call.arg_u32(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let wstr_ptr = api_try!(emu, call.arg(emu, 2));
+    let wstr_sz = api_try!(emu, call.arg_u32(emu, 3));
+    let mbytestr_ptr = api_try!(emu, call.arg(emu, 4));
+    let mbytestr_sz = api_try!(emu, call.arg_u32(emu, 5));
+    let in_default_char = api_try!(emu, call.arg(emu, 6));
+    let out_default_char = api_try!(emu, call.arg(emu, 7));
 
     //log::trace!("default_char_ptr 0x{:x}", in_default_char);
     //let default_char = emu.maps.read_byte(in_default_char)
@@ -32,10 +34,8 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
             mbytestr_sz,
             wchar_count
         );
-        for _ in 0..8 {
-            emu.stack_pop32(false);
-        }
-        emu.regs_mut().rax = wchar_count as u64;
+        call.cleanup_args(emu, 8);
+        call.set_return(emu, wchar_count as u64);
         return;
     }
 
@@ -54,8 +54,6 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
         write_count
     );
 
-    for _ in 0..8 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = write_count as u64;
+    call.cleanup_args(emu, 8);
+    call.set_return(emu, write_count as u64);
 }

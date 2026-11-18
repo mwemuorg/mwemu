@@ -1,16 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GdiPie(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let left = emu.regs().rdx as i32;
-    let top = emu.regs().r8 as i32;
-    let right = emu.regs().r9 as i32;
-    let bottom = WinApiAbi::arg(emu, 4) as i32;
-    let x_start = WinApiAbi::arg(emu, 5) as i32;
-    let y_start = WinApiAbi::arg(emu, 6) as i32;
-    let x_end = WinApiAbi::arg(emu, 7) as i32;
-    let y_end = WinApiAbi::arg(emu, 8) as i32;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let left = api_try!(emu, call.arg_i32(emu, 1));
+    let top = api_try!(emu, call.arg_i32(emu, 2));
+    let right = api_try!(emu, call.arg_i32(emu, 3));
+    let bottom = api_try!(emu, call.arg_i32(emu, 4));
+    let x_start = api_try!(emu, call.arg_i32(emu, 5));
+    let y_start = api_try!(emu, call.arg_i32(emu, 6));
+    let x_end = api_try!(emu, call.arg_i32(emu, 7));
+    let y_end = api_try!(emu, call.arg_i32(emu, 8));
     log_red!(
         emu,
         "gdi32!Pie hdc:0x{:x} rect:({},{},{},{}) start:({},{}) end:({},{})",
@@ -25,5 +27,5 @@ pub fn GdiPie(emu: &mut emu::Emu) {
         y_end
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

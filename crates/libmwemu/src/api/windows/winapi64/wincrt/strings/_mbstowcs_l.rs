@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn _mbstowcs_l(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let src = emu.regs().rdx;
-    let n = emu.regs().r8 as usize;
-    let locale = emu.regs().r9;
+    let call = WinApi(Cdecl);
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
+    let locale = api_try!(emu, call.arg(emu, 3));
     let s = emu.maps.read_string(src);
     if dst != 0 {
         emu.maps.write_wide_string(dst, &s);
     }
     log_red!(emu, "wincrt!_mbstowcs_l '{}' n:{}", s, n);
-    emu.regs_mut().rax = s.len() as u64;
+    call.set_return(emu, s.len() as u64);
 }

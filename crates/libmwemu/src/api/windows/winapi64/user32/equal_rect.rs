@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn EqualRect(emu: &mut emu::Emu) {
-    let rect1 = emu.regs().rcx;
-    let rect2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let rect1 = api_try!(emu, call.arg(emu, 0));
+    let rect2 = api_try!(emu, call.arg(emu, 1));
     let eq = if rect1 != 0 && rect2 != 0 {
         let l1 = emu.maps.read_dword(rect1).unwrap_or(0);
         let l2 = emu.maps.read_dword(rect2).unwrap_or(0);
@@ -23,8 +26,7 @@ pub fn EqualRect(emu: &mut emu::Emu) {
         rect2,
         eq
     );
-    let h = emu.regs().rcx;
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = if eq { 1 } else { 0 };
+    call.set_return(emu, if eq { 1 } else { 0 });
 }

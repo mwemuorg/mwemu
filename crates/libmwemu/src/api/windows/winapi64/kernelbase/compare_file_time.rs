@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CompareFileTime(emu: &mut emu::Emu) {
-    let ft1_ptr = emu.regs().rcx;
-    let ft2_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let ft1_ptr = api_try!(emu, call.arg(emu, 0));
+    let ft2_ptr = api_try!(emu, call.arg(emu, 1));
     let ft1_lo = emu.maps.read_dword(ft1_ptr).unwrap_or(0) as u64;
     let ft1_hi = emu.maps.read_dword(ft1_ptr + 4).unwrap_or(0) as u64;
     let ft2_lo = emu.maps.read_dword(ft2_ptr).unwrap_or(0) as u64;
@@ -21,8 +24,7 @@ pub fn CompareFileTime(emu: &mut emu::Emu) {
         t2,
         result
     );
-    let h = emu.regs().rcx;
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = result as u32 as u64;
+    call.set_return(emu, result as u32 as u64);
 }

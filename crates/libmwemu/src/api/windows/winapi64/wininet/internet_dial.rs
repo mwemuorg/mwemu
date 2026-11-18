@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn InternetDial(emu: &mut emu::Emu) {
-    let hwnd = emu.regs().rcx;
-    let connect_ptr = emu.regs().rdx;
-    let conn_id_ptr = emu.regs().r8;
-    let flags = emu.regs().r9 as u32;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let connect_ptr = api_try!(emu, call.arg(emu, 1));
+    let conn_id_ptr = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
     let connect = if connect_ptr != 0 {
         emu.maps.read_string(connect_ptr)
     } else {
@@ -20,7 +23,7 @@ pub fn InternetDial(emu: &mut emu::Emu) {
     if conn_id_ptr != 0 {
         emu.maps.write_dword(conn_id_ptr, 1);
     }
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn InternetDialA(emu: &mut emu::Emu) {
@@ -28,10 +31,11 @@ pub fn InternetDialA(emu: &mut emu::Emu) {
 }
 
 fn internet_dial(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hwnd = emu.regs().rcx;
-    let connect_ptr = emu.regs().rdx;
-    let conn_id_ptr = emu.regs().r8;
-    let flags = emu.regs().r9 as u32;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let connect_ptr = api_try!(emu, call.arg(emu, 1));
+    let conn_id_ptr = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
     let connect = if connect_ptr != 0 {
         strings::read_text(emu, connect_ptr, wide)
     } else {
@@ -46,7 +50,7 @@ fn internet_dial(emu: &mut emu::Emu, api: &str, wide: bool) {
     if conn_id_ptr != 0 {
         emu.maps.write_dword(conn_id_ptr, 1);
     }
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn InternetDialW(emu: &mut emu::Emu) {

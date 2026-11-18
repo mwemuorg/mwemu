@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetSysColor(emu: &mut emu::Emu) {
-    let index = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg(emu, 0));
     let _ = emu.maps.is_mapped(index);
     log_red!(emu, "user32!GetSysColor index:{}", index);
     let color: u64 = match index {
@@ -15,5 +18,5 @@ pub fn GetSysColor(emu: &mut emu::Emu) {
         _ => 0xd4d0c8,
     };
     emu.set_last_error(0);
-    emu.regs_mut().rax = color;
+    call.set_return(emu, color);
 }

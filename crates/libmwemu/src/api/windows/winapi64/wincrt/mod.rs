@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::buffers::BufferKind;
 use crate::winapi::common::buffers;
 use crate::winapi::common::crt;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64;
 use crate::winapi::winapi64::crt_stdio;
 
@@ -324,28 +326,31 @@ int _crt_atexit(
 // --- I/O stubs ---
 
 fn crt_fopen(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let mode_ptr = emu.regs().rdx;
+    let call = WinApi(Cdecl);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
+    let mode_ptr = api_try!(emu, call.arg(emu, 1));
     let path = emu.maps.read_string(path_ptr);
     let mode = emu.maps.read_string(mode_ptr);
     let handle = helper::handler_create(&path);
     log_red!(emu, "wincrt!fopen '{}' '{}' => 0x{:x}", path, mode, handle);
-    emu.regs_mut().rax = handle;
+    call.set_return(emu, handle);
 }
 
 fn crt_fclose(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let fp = api_try!(emu, call.arg(emu, 0));
     let name = helper::handler_get_uri(fp);
     helper::handler_close(fp);
     log_red!(emu, "wincrt!fclose 0x{:x} '{}'", fp, name);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn crt_fread(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let size = emu.regs().rdx;
-    let count = emu.regs().r8;
-    let fp = emu.regs().r9;
+    let call = WinApi(Cdecl);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg(emu, 2));
+    let fp = api_try!(emu, call.arg(emu, 3));
     let name = helper::handler_get_uri(fp);
     log_red!(
         emu,
@@ -357,14 +362,15 @@ fn crt_fread(emu: &mut emu::Emu) {
         name
     );
     helper::handler_set_eof(fp);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn crt_fwrite(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let size = emu.regs().rdx;
-    let count = emu.regs().r8;
-    let fp = emu.regs().r9;
+    let call = WinApi(Cdecl);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg(emu, 2));
+    let fp = api_try!(emu, call.arg(emu, 3));
     let name = helper::handler_get_uri(fp);
     let total = size * count;
     log_red!(
@@ -377,19 +383,21 @@ fn crt_fwrite(emu: &mut emu::Emu) {
         name,
         total
     );
-    emu.regs_mut().rax = count;
+    call.set_return(emu, count);
 }
 
 fn crt_fflush(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let fp = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "wincrt!fflush 0x{:x}", fp);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn crt_fseek(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
-    let offset = emu.regs().rdx as i64;
-    let origin = emu.regs().r8 as u32;
+    let call = WinApi(Cdecl);
+    let fp = api_try!(emu, call.arg(emu, 0));
+    let offset = api_try!(emu, call.arg_i64(emu, 1));
+    let origin = api_try!(emu, call.arg_u32(emu, 2));
     let new_pos = helper::handler_seek(fp, offset, origin);
     log_red!(
         emu,
@@ -399,49 +407,53 @@ fn crt_fseek(emu: &mut emu::Emu) {
         origin,
         new_pos
     );
-    emu.regs_mut().rax = if new_pos >= 0 { 0 } else { u64::MAX };
+    call.set_return(emu, if new_pos >= 0 { 0 } else { u64::MAX });
 }
 
 fn crt_ftell(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let fp = api_try!(emu, call.arg(emu, 0));
     let pos = helper::handler_tell(fp);
     log_red!(emu, "wincrt!ftell 0x{:x} => {}", fp, pos);
-    emu.regs_mut().rax = pos as u64;
+    call.set_return(emu, pos as u64);
 }
 
 fn crt_feof(emu: &mut emu::Emu) {
-    let fp = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let fp = api_try!(emu, call.arg(emu, 0));
     let is_eof = helper::handler_eof(fp);
     log_red!(emu, "wincrt!feof 0x{:x} => {}", fp, is_eof as u32);
-    emu.regs_mut().rax = is_eof as u64;
+    call.set_return(emu, is_eof as u64);
 }
 
 // --- Process/Environment ---
 
 fn crt_errno(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     let p = match allocate_memory(emu, 4) {
         Some(a) => a,
         None => {
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
     let _ = emu.maps.write_dword(p, 0);
-    emu.regs_mut().rax = p;
+    call.set_return(emu, p);
 }
 
 fn crt_errno_stub(emu: &mut emu::Emu, api: &str) {
+    let call = WinApi(Cdecl);
     if api == "_set_errno" {
-        let value = emu.regs().rcx as u32;
+        let value = api_try!(emu, call.arg_u32(emu, 0));
         log_red!(emu, "wincrt!_set_errno {}", value);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     } else {
-        let out_ptr = emu.regs().rcx;
+        let out_ptr = api_try!(emu, call.arg(emu, 0));
         if out_ptr != 0 {
             emu.maps.write_dword(out_ptr, 0);
         }
         log_red!(emu, "wincrt!_get_errno => 0");
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }
 

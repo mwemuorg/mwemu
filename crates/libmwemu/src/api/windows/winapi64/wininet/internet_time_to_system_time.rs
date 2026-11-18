@@ -1,21 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn InternetTimeToSystemTime(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "wininet!InternetTimeToSystemTime arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn InternetTimeToSystemTimeA(emu: &mut emu::Emu) {
@@ -23,19 +22,16 @@ pub fn InternetTimeToSystemTimeA(emu: &mut emu::Emu) {
 }
 
 fn internet_time_to_system_time(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let time_ptr = emu.regs().rcx;
-    let format = emu.regs().rdx as u32;
-    let buf_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let time_ptr = api_try!(emu, call.arg(emu, 0));
+    let format = api_try!(emu, call.arg_u32(emu, 1));
+    let buf_ptr = api_try!(emu, call.arg(emu, 2));
     log_red!(emu, "wininet!{api} format:{}", format);
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     if buf_ptr != 0 {
         strings::write_string(emu, buf_ptr, "Mon, 01 Jan 2024 00:00:00 GMT", wide);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn InternetTimeToSystemTimeW(emu: &mut emu::Emu) {

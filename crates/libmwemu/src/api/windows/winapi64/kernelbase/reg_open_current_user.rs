@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn RegOpenCurrentUser(emu: &mut emu::Emu) {
-    let sam_desired = emu.regs().rcx;
-    let result_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let sam_desired = api_try!(emu, call.arg(emu, 0));
+    let result_ptr = api_try!(emu, call.arg(emu, 1));
     let hndl = helper::handler_create("regkey_HKCU");
     if result_ptr != 0 {
         emu.maps.write_qword(result_ptr, hndl);
@@ -14,5 +17,5 @@ pub fn RegOpenCurrentUser(emu: &mut emu::Emu) {
         sam_desired,
         hndl
     );
-    emu.regs_mut().rax = 0; // ERROR_SUCCESS
+    call.set_return(emu, 0); // ERROR_SUCCESS
 }

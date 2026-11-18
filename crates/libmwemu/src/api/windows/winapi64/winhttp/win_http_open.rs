@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WinHttpOpen(emu: &mut emu::Emu) {
-    let agent_ptr = emu.regs().rcx;
-    let _access_type = emu.regs().rdx as u32;
-    let _proxy_ptr = emu.regs().r8;
-    let _proxy_bypass_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let agent_ptr = api_try!(emu, call.arg(emu, 0));
+    let _access_type = api_try!(emu, call.arg_u32(emu, 1));
+    let _proxy_ptr = api_try!(emu, call.arg(emu, 2));
+    let _proxy_bypass_ptr = api_try!(emu, call.arg(emu, 3));
 
     let agent = if agent_ptr == 0 {
         String::new()
@@ -16,5 +19,5 @@ pub fn WinHttpOpen(emu: &mut emu::Emu) {
     log_red!(emu, "winhttp!WinHttpOpen agent: {}", agent);
 
     let uri = format!("winhttp://session/{}", agent);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }

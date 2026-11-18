@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegNotifyChangeKeyValue(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let watch_subtree = emu.regs().rdx != 0;
-    let filter = emu.regs().r8;
-    let event = emu.regs().r9;
-    let _async = WinApiAbi::arg(emu, 4) != 0;
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let watch_subtree = api_try!(emu, call.arg(emu, 1)) != 0;
+    let filter = api_try!(emu, call.arg(emu, 2));
+    let event = api_try!(emu, call.arg(emu, 3));
+    let _async = api_try!(emu, call.arg(emu, 4)) != 0;
     log_red!(
         emu,
         "advapi32!RegNotifyChangeKeyValue hkey:0x{:x} subtree:{} filter:0x{:x}",
@@ -14,10 +16,10 @@ pub fn RegNotifyChangeKeyValue(emu: &mut emu::Emu) {
         watch_subtree,
         filter
     );
-    let val_ptr = emu.regs().rdx;
+    let val_ptr = api_try!(emu, call.arg(emu, 1));
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

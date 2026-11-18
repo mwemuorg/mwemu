@@ -1,7 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
 
 pub(super) fn __p___argv(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     let args_base = match emu.maps.get_map_by_name("args") {
         Some(a) => a.get_base(),
         None => {
@@ -9,7 +11,7 @@ pub(super) fn __p___argv(emu: &mut emu::Emu) {
                 Some(a) => a,
                 None => {
                     log::error!("msvcrt!__p___argv: out of memory");
-                    emu.regs_mut().rax = 0;
+                    call.set_return(emu, 0);
                     return;
                 }
             };
@@ -20,12 +22,12 @@ pub(super) fn __p___argv(emu: &mut emu::Emu) {
                 Ok(m) => m.get_base(),
                 Err(e) => {
                     log::error!("msvcrt!__p___argv: cannot create args map: {}", e);
-                    emu.regs_mut().rax = 0;
+                    call.set_return(emu, 0);
                     return;
                 }
             }
         }
     };
     log_red!(emu, "msvcrt!__p___argv => 0x{:x}", args_base + 4);
-    emu.regs_mut().rax = args_base + 4;
+    call.set_return(emu, args_base + 4);
 }

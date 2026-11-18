@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn LZOpenFileA(emu: &mut emu::Emu) {
@@ -8,19 +9,17 @@ pub fn LZOpenFileA(emu: &mut emu::Emu) {
 }
 
 fn lz_open_file(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let lpFileName = WinApiAbi::arg(emu, 0) as u32;
-    let _lpReOpenBuf = WinApiAbi::arg(emu, 1) as u32;
-    let _wStyle = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let lpFileName = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpReOpenBuf = api_try!(emu, call.arg_u32(emu, 1));
+    let _wStyle = api_try!(emu, call.arg_u32(emu, 2));
 
     let lpFileName = strings::read_text(emu, lpFileName as u64, wide);
 
     log_red!(emu, "kernel32!{api} {}", lpFileName);
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 
 pub fn LZOpenFileW(emu: &mut emu::Emu) {

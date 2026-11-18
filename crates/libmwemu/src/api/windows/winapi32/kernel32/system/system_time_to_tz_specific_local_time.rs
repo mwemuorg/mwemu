@@ -1,16 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SystemTimeToTzSpecificLocalTime(emu: &mut emu::Emu) {
-    let tz_ptr = WinApiAbi::arg(emu, 0) as u32;
-    let ut_ptr = WinApiAbi::arg(emu, 1) as u32;
-    let lt_ptr = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let tz_ptr = api_try!(emu, call.arg_u32(emu, 0));
+    let ut_ptr = api_try!(emu, call.arg_u32(emu, 1));
+    let lt_ptr = api_try!(emu, call.arg_u32(emu, 2));
 
     log_red!(emu, "kernel32!SystemTimeToTzSpecificLocalTime");
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 3);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

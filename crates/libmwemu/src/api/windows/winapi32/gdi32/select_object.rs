@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn SelectObject(emu: &mut emu::Emu) {
-    let hdc = arg(emu, 0);
-    let obj = arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg_u32(emu, 0));
+    let obj = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(emu, "gdi32!SelectObject hdc:0x{:x} obj:0x{:x}", hdc, obj);
     let prev = helper::handler_create("gdi32://prev_object");
     assert!(prev < 0x00000001_00000000);
-    emu.regs_mut().rax = prev;
-    stdcall_ret(emu, 2);
+    call.set_return(emu, prev);
+    call.cleanup_args(emu, 2);
 }

@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CompareStringEx(emu: &mut emu::Emu) {
-    let _locale_ptr = emu.regs().rcx;
-    let _flags = emu.regs().rdx;
-    let str1_ptr = emu.regs().r8;
-    let _len1 = emu.regs().r9 as i32;
-    let str2_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let _locale_ptr = api_try!(emu, call.arg(emu, 0));
+    let _flags = api_try!(emu, call.arg(emu, 1));
+    let str1_ptr = api_try!(emu, call.arg(emu, 2));
+    let _len1 = api_try!(emu, call.arg_i32(emu, 3));
+    let str2_ptr = api_try!(emu, call.arg(emu, 4));
     let s1 = if str1_ptr != 0 {
         emu.maps.read_wide_string(str1_ptr)
     } else {
@@ -30,5 +32,5 @@ pub fn CompareStringEx(emu: &mut emu::Emu) {
         result
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

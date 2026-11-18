@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn Thread32First(emu: &mut emu::Emu) {
-    let h_snapshot = emu.regs().rcx;
-    let p_entry = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let h_snapshot = api_try!(emu, call.arg(emu, 0));
+    let p_entry = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -13,7 +16,7 @@ pub fn Thread32First(emu: &mut emu::Emu) {
 
     if p_entry == 0 {
         emu.set_last_error(87);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -35,5 +38,5 @@ pub fn Thread32First(emu: &mut emu::Emu) {
     emu.maps.write_dword(p_entry + 24, 0);
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

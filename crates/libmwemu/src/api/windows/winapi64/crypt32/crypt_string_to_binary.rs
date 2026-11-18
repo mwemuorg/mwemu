@@ -1,20 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::common::crypt32::{crypt_string_to_binary_a, crypt_string_to_binary_w};
+use crate::winapi::policy::api_try;
 
 pub fn CryptStringToBinary(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
-    let arg3 = emu.regs().r8;
-    let arg4 = emu.regs().r9;
-    let arg5 = WinApiAbi::arg(emu, 4);
-    let arg6 = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
+    let arg3 = api_try!(emu, call.arg(emu, 2));
+    let arg4 = api_try!(emu, call.arg(emu, 3));
+    let arg5 = api_try!(emu, call.arg(emu, 4));
+    let arg6 = api_try!(emu, call.arg(emu, 5));
     log_red!(emu, "crypt32!CryptStringToBinary arg1:0x{:x}", arg1);
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn CryptStringToBinaryA(emu: &mut emu::Emu) {
@@ -26,18 +25,17 @@ pub(super) fn CryptStringToBinaryW(emu: &mut emu::Emu) {
 }
 
 fn crypt_string_to_binary(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let string = emu.regs().rcx;
-    let num_chars = emu.regs().rdx;
-    let flags = emu.regs().r8;
-    let ptr = emu.regs().r9;
-    let inout_sz = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let string = api_try!(emu, call.arg(emu, 0));
+    let num_chars = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 2));
+    let ptr = api_try!(emu, call.arg(emu, 3));
+    let inout_sz = api_try!(emu, call.arg(emu, 4));
     if wide {
-        emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_string_to_binary_w(
-            emu, string, num_chars, flags, ptr, inout_sz,
-        );
+        let return_value = crypt_string_to_binary_w(emu, string, num_chars, flags, ptr, inout_sz);
+        call.set_return(emu, return_value);
     } else {
-        emu.regs_mut().rax = crate::api::windows::common::crypt32::crypt_string_to_binary_a(
-            emu, string, num_chars, flags, ptr, inout_sz,
-        );
+        let return_value = crypt_string_to_binary_a(emu, string, num_chars, flags, ptr, inout_sz);
+        call.set_return(emu, return_value);
     }
 }

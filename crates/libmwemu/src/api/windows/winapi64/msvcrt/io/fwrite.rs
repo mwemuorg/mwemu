@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn fwrite(emu: &mut emu::Emu) {
-    let buff_ptr = emu.regs().rcx;
-    let size = emu.regs().rdx as u32;
-    let nemb = emu.regs().r8 as u32;
-    let file = emu.regs().r9;
+    let call = WinApi(Cdecl);
+    let buff_ptr = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg_u32(emu, 1));
+    let nemb = api_try!(emu, call.arg_u32(emu, 2));
+    let file = api_try!(emu, call.arg(emu, 3));
     let filename = helper::handler_get_uri(file);
     log_red!(
         emu,
@@ -14,10 +17,6 @@ pub fn fwrite(emu: &mut emu::Emu) {
         buff_ptr,
         size
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = size as u64;
+    call.set_return(emu, size as u64);
 }

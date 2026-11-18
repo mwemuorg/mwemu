@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FlsSetValue(emu: &mut emu::Emu) {
-    let idx = WinApiAbi::arg(emu, 0) as u32;
-    let val = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let idx = api_try!(emu, call.arg_u32(emu, 0));
+    let val = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "kernel32!FlsSetValue idx: {} val: {}", idx, val);
 
@@ -16,7 +18,6 @@ pub fn FlsSetValue(emu: &mut emu::Emu) {
         emu.fls_mut()[idx as usize] = val as u64;
     }
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 2);
+    call.set_return(emu, 1);
 }

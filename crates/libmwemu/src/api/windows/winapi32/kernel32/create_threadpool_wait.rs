@@ -1,10 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
 
 pub fn CreateThreadpoolWait(emu: &mut emu::Emu) {
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    call.cleanup_args(emu, 3);
     log_red!(emu, "kernel32!CreateThreadpoolWait");
-    emu.regs_mut().rax = helper::handler_create("CreateThreadpoolWait");
+    call.set_return(emu, helper::handler_create("CreateThreadpoolWait"));
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetTimeZoneInformationForYear(emu: &mut emu::Emu) {
-    let year = emu.regs().rcx as u16;
-    let dti_ptr = emu.regs().rdx;
-    let tzi_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let year = api_try!(emu, call.arg_u16(emu, 0));
+    let dti_ptr = api_try!(emu, call.arg(emu, 1));
+    let tzi_ptr = api_try!(emu, call.arg(emu, 2));
 
     log_red!(
         emu,
@@ -20,5 +23,5 @@ pub fn GetTimeZoneInformationForYear(emu: &mut emu::Emu) {
         }
     }
 
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

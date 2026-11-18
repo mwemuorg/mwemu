@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub(super) fn DrawTextA(emu: &mut emu::Emu) {
     draw_text(emu, "DrawTextA", false);
 }
 
 fn draw_text(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let text = strings::read_text(emu, emu.regs().rdx, wide);
+    let call = WinApi(Stdcall);
+    let text = strings::read_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
     log_red!(emu, "user32!{api} '{}'", text);
-    emu.regs_mut().rax = 20;
+    call.set_return(emu, 20);
 }
 
 pub(super) fn DrawTextW(emu: &mut emu::Emu) {

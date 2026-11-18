@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn strlen(emu: &mut emu::Emu) {
-    let s = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let s = api_try!(emu, call.arg(emu, 0));
     let mut n: u64 = 0;
     while let Some(b) = emu.maps.read_byte(s + n) {
         if b == 0 {
@@ -12,5 +15,5 @@ pub(super) fn strlen(emu: &mut emu::Emu) {
             break;
         }
     }
-    emu.regs_mut().rax = n;
+    call.set_return(emu, n);
 }

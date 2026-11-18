@@ -30,12 +30,6 @@ pub(crate) mod ws2_32;
 use crate::api::windows::common::fallback;
 use crate::api::windows::policy::{self, ApiRoute};
 use crate::emu;
-use crate::winapi::helper;
-
-#[inline]
-pub(crate) fn arg(emu: &emu::Emu, idx: usize) -> u64 {
-    helper::WinApiAbi::arg(emu, idx)
-}
 
 pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: u64) {
     if emu.api_policy.stopped() {

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn Shell_NotifyIcon(emu: &mut emu::Emu) {
-    let dw_message = emu.regs().rcx as u32;
-    let lp_data = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let dw_message = api_try!(emu, call.arg_u32(emu, 0));
+    let lp_data = api_try!(emu, call.arg(emu, 1));
     let tip = if lp_data != 0 {
         emu.maps.read_string(lp_data + 88)
     } else {
@@ -17,7 +20,7 @@ pub fn Shell_NotifyIcon(emu: &mut emu::Emu) {
         lp_data
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn Shell_NotifyIconA(emu: &mut emu::Emu) {
@@ -25,8 +28,9 @@ pub fn Shell_NotifyIconA(emu: &mut emu::Emu) {
 }
 
 fn shell_notify_icon(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let dw_message = emu.regs().rcx as u32;
-    let lp_data = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let dw_message = api_try!(emu, call.arg_u32(emu, 0));
+    let lp_data = api_try!(emu, call.arg(emu, 1));
     let tip = if lp_data != 0 {
         strings::read_text(emu, lp_data + 88, wide)
     } else {
@@ -40,7 +44,7 @@ fn shell_notify_icon(emu: &mut emu::Emu, api: &str, wide: bool) {
         lp_data
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn Shell_NotifyIconW(emu: &mut emu::Emu) {

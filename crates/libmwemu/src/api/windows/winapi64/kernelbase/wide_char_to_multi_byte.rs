@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
-    let code_page = emu.regs().rcx;
-    let flags = emu.regs().rdx;
-    let wc_str = emu.regs().r8;
-    let wc_len = emu.regs().r9 as i32;
-    let mb_str = WinApiAbi::arg(emu, 4);
-    let mb_len = WinApiAbi::arg(emu, 5) as i32;
+    let call = WinApi(Stdcall);
+    let code_page = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg(emu, 1));
+    let wc_str = api_try!(emu, call.arg(emu, 2));
+    let wc_len = api_try!(emu, call.arg_i32(emu, 3));
+    let mb_str = api_try!(emu, call.arg(emu, 4));
+    let mb_len = api_try!(emu, call.arg_i32(emu, 5));
     let s = emu.maps.read_wide_string(wc_str);
     let slen = s.len();
     if mb_str != 0 && mb_len > 0 {
@@ -21,5 +23,5 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
         slen + 1
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = (slen + 1) as u64;
+    call.set_return(emu, (slen + 1) as u64);
 }

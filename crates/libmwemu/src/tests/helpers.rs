@@ -387,6 +387,7 @@ const WINMM_EXPORT: u64 = EXPORT + 0xb0000;
 const GDIPLUS_EXPORT: u64 = EXPORT + 0xc0000;
 const MSVCRT_EXPORT: u64 = EXPORT + 0xd0000;
 const NTDLL_EXPORT: u64 = EXPORT + 0xe0000;
+const LIBGCC_EXPORT: u64 = EXPORT + 0xf0000;
 const DATA_SIZE: u64 = 0x1000;
 
 pub fn prepare_winapi(is64: bool) -> (Emu, u64) {
@@ -431,6 +432,7 @@ pub fn invoke_winapi_export(emu: &mut Emu, library: &str, name: &str) {
         "gdiplus.dll" => GDIPLUS_EXPORT,
         "msvcrt.dll" => MSVCRT_EXPORT,
         "ntdll.dll" => NTDLL_EXPORT,
+        "libgcc_s_dw2-1.dll" => LIBGCC_EXPORT,
         _ => panic!("unexpected library: {library}"),
     };
     register_export_module(emu, library, address - 0x100, &exports);

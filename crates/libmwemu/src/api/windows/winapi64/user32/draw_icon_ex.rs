@@ -1,16 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn DrawIconEx(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let x_left = emu.regs().rdx as i32;
-    let y_top = emu.regs().r8 as i32;
-    let h_icon = emu.regs().r9;
-    let cx_width = WinApiAbi::arg(emu, 4) as i32;
-    let cy_width = WinApiAbi::arg(emu, 5) as i32;
-    let _ist_step_if_ani_cur = WinApiAbi::arg(emu, 6);
-    let _hbr_flicker_free_draw = WinApiAbi::arg(emu, 7);
-    let _di_flags = WinApiAbi::arg(emu, 8);
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let x_left = api_try!(emu, call.arg_i32(emu, 1));
+    let y_top = api_try!(emu, call.arg_i32(emu, 2));
+    let h_icon = api_try!(emu, call.arg(emu, 3));
+    let cx_width = api_try!(emu, call.arg_i32(emu, 4));
+    let cy_width = api_try!(emu, call.arg_i32(emu, 5));
+    let _ist_step_if_ani_cur = api_try!(emu, call.arg(emu, 6));
+    let _hbr_flicker_free_draw = api_try!(emu, call.arg(emu, 7));
+    let _di_flags = api_try!(emu, call.arg(emu, 8));
     log_red!(
         emu,
         "user32!DrawIconEx hdc:0x{:x} x:{} y:{} icon:0x{:x} cx:{} cy:{}",
@@ -21,10 +23,10 @@ pub fn DrawIconEx(emu: &mut emu::Emu) {
         cx_width,
         cy_width
     );
-    let val_ptr = emu.regs().rdx;
+    let val_ptr = api_try!(emu, call.arg(emu, 1));
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::ole32::read_guid_string;
 
 pub fn CoCreateGuid(emu: &mut emu::Emu) {
-    let pguid = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let pguid = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "ole32!CoCreateGuid ptr: 0x{:x}", pguid);
 
     if pguid == 0 {
         emu.set_last_error(0);
-        emu.regs_mut().rax = 0x80070057; // E_INVALIDARG
+        call.set_return(emu, 0x80070057); // E_INVALIDARG
         return;
     }
 
@@ -33,5 +36,5 @@ pub fn CoCreateGuid(emu: &mut emu::Emu) {
     log_red!(emu, "CoCreateGuid -> {}", guid_str);
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

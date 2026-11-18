@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetROP2(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "gdi32!GetROP2 hdc:0x{:x}", hdc);
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 13; // R2_COPYPEN
+    call.set_return(emu, 13); // R2_COPYPEN
 }

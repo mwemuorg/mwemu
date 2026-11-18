@@ -1,17 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CertGetCertificateChain(emu: &mut emu::Emu) {
-    let engine = WinApiAbi::arg(emu, 0);
-    let cert_ctx = WinApiAbi::arg(emu, 1);
-    let time = WinApiAbi::arg(emu, 2);
-    let add_store = WinApiAbi::arg(emu, 3);
-    let chain_para = WinApiAbi::arg(emu, 4);
-    let flags = WinApiAbi::arg(emu, 5);
-    let _reserved = WinApiAbi::arg(emu, 6);
-    let chain_ctx_ptr = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let engine = api_try!(emu, call.arg(emu, 0));
+    let cert_ctx = api_try!(emu, call.arg(emu, 1));
+    let time = api_try!(emu, call.arg(emu, 2));
+    let add_store = api_try!(emu, call.arg(emu, 3));
+    let chain_para = api_try!(emu, call.arg(emu, 4));
+    let flags = api_try!(emu, call.arg(emu, 5));
+    let _reserved = api_try!(emu, call.arg(emu, 6));
+    let chain_ctx_ptr = api_try!(emu, call.arg(emu, 7));
     let hndl = helper::handler_create("cert_chain");
     if chain_ctx_ptr != 0 {
         emu.maps.write_dword(chain_ctx_ptr, hndl as u32);
@@ -22,6 +23,6 @@ pub fn CertGetCertificateChain(emu: &mut emu::Emu) {
         cert_ctx,
         hndl
     );
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 8);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 8);
 }

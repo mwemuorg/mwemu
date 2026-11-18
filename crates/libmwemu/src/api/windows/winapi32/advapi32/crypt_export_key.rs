@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptExportKey(emu: &mut emu::Emu) {
-    let hkey = WinApiAbi::arg(emu, 0);
-    let _hexp_key = WinApiAbi::arg(emu, 1) as u32;
-    let blob_type = WinApiAbi::arg(emu, 2) as u32;
-    let _flags = WinApiAbi::arg(emu, 3) as u32;
-    let data_ptr = WinApiAbi::arg(emu, 4);
-    let data_len_ptr = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let _hexp_key = api_try!(emu, call.arg_u32(emu, 1));
+    let blob_type = api_try!(emu, call.arg_u32(emu, 2));
+    let _flags = api_try!(emu, call.arg_u32(emu, 3));
+    let data_ptr = api_try!(emu, call.arg(emu, 4));
+    let data_len_ptr = api_try!(emu, call.arg(emu, 5));
     log_red!(
         emu,
         "advapi32!CryptExportKey key: 0x{:x} type: {}",
@@ -35,8 +37,6 @@ pub fn CryptExportKey(emu: &mut emu::Emu) {
         }
         emu.maps.write_dword(data_len_ptr, blob_len);
     }
-    for _ in 0..6u32 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 6);
+    call.set_return(emu, 1);
 }

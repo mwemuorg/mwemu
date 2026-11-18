@@ -1,13 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn _except_handler3(emu: &mut emu::Emu, api: &str) {
-    let exception_record = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Cdecl);
+    let exception_record = api_try!(emu, call.arg_u32(emu, 0));
     log_red!(emu, "msvcrt!{} exc_record:0x{:x}", api, exception_record);
-    let first_param = WinApiAbi::arg(emu, 0);
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // ExceptionContinueSearch
+    call.set_return(emu, 1); // ExceptionContinueSearch
 }

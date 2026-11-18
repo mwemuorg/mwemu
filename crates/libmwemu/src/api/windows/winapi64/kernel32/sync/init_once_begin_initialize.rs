@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn InitOnceBeginInitialize(emu: &mut emu::Emu) {
-    let lp_init_once = emu.regs().rcx;
-    let dw_flags = emu.regs().rdx as u32;
-    let f_pending_ptr = emu.regs().r8;
-    let _lp_context = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let lp_init_once = api_try!(emu, call.arg(emu, 0));
+    let dw_flags = api_try!(emu, call.arg_u32(emu, 1));
+    let f_pending_ptr = api_try!(emu, call.arg(emu, 2));
+    let _lp_context = api_try!(emu, call.arg(emu, 3));
 
     const INIT_ONCE_CHECK_ONLY: u32 = 0x00000001;
     const INIT_ONCE_ASYNC: u32 = 0x00000002;
@@ -33,5 +36,5 @@ pub fn InitOnceBeginInitialize(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // TRUE = success
+    call.set_return(emu, 1); // TRUE = success
 }

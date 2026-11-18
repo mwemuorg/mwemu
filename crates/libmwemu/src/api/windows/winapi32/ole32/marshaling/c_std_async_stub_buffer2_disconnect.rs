@@ -1,11 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CStdAsyncStubBuffer2_Disconnect(emu: &mut emu::Emu) {
-    let _a0 = arg(emu, 0);
-    let _a1 = arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let _a0 = api_try!(emu, call.arg_u32(emu, 0));
+    let _a1 = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(
         emu,
         "ole32!CStdAsyncStubBuffer2_Disconnect a0:0x{:x} a1:0x{:x}",
@@ -16,6 +17,6 @@ pub fn CStdAsyncStubBuffer2_Disconnect(emu: &mut emu::Emu) {
     if helper::handler_exist(h) {
         helper::handler_close(h);
     }
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 2);
 }

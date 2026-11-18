@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn setvbuf(emu: &mut emu::Emu) {
-    let stream = WinApiAbi::arg(emu, 0);
-    let _buffer = WinApiAbi::arg(emu, 1) as u32;
-    let mode = WinApiAbi::arg(emu, 2) as u32;
-    let size = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Cdecl);
+    let stream = api_try!(emu, call.arg(emu, 0));
+    let _buffer = api_try!(emu, call.arg_u32(emu, 1));
+    let mode = api_try!(emu, call.arg_u32(emu, 2));
+    let size = api_try!(emu, call.arg_u32(emu, 3));
     let uri = helper::handler_get_uri(stream);
     log_red!(
         emu,
@@ -16,11 +18,7 @@ pub fn setvbuf(emu: &mut emu::Emu) {
         mode,
         size
     );
-    let first_param = WinApiAbi::arg(emu, 0);
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // success
+    call.set_return(emu, 0); // success
 }

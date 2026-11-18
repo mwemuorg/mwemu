@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CopySid(emu: &mut emu::Emu) {
-    let dest_len = WinApiAbi::arg(emu, 0);
-    let dest_sid = WinApiAbi::arg(emu, 1);
-    let src_sid = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let dest_len = api_try!(emu, call.arg(emu, 0));
+    let dest_sid = api_try!(emu, call.arg(emu, 1));
+    let src_sid = api_try!(emu, call.arg(emu, 2));
     if src_sid != 0 && dest_sid != 0 {
         let sub_count = emu.maps.read_byte(src_sid + 1).unwrap_or(1) as u64;
         let sid_len = 8 + sub_count * 4;
@@ -21,8 +23,6 @@ pub fn CopySid(emu: &mut emu::Emu) {
         src_sid,
         dest_len
     );
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 3);
+    call.set_return(emu, 1);
 }

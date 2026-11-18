@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SetFileAttributesFromAppW(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let attrs = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
+    let attrs = api_try!(emu, call.arg(emu, 1));
     let path = emu.maps.read_wide_string(path_ptr);
     log_red!(
         emu,
@@ -11,5 +14,5 @@ pub fn SetFileAttributesFromAppW(emu: &mut emu::Emu) {
         attrs
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

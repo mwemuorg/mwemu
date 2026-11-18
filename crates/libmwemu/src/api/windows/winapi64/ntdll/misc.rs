@@ -1,8 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::context::context64::Context64;
 use crate::debug::console::Console;
 use crate::emu;
 use crate::winapi::common::ntdll;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::common::ntdll::rtl_decompress_buffer;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::structures;
 
@@ -33,14 +35,16 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn RtlRestoreLastWin32Error(emu: &mut emu::Emu) {
-    let err_code = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let err_code = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ntdll!RtlRestoreLastWin32Error err: {}", err_code);
     emu.set_last_error(err_code);
 }
 
 fn NtGetContextThread(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let ctx_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let ctx_ptr = api_try!(emu, call.arg(emu, 1));
     let ctx_ptr2 = emu.maps.read_qword(ctx_ptr).unwrap_or(0);
 
     log_red!(emu, "ntdll_NtGetContextThread   ctx:");
@@ -48,7 +52,7 @@ fn NtGetContextThread(emu: &mut emu::Emu) {
     let ctx = Context64::new(emu.regs());
     ctx.save(ctx_ptr2, &mut emu.maps);
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn RtlExitUserThread(emu: &mut emu::Emu) {
@@ -58,11 +62,12 @@ fn RtlExitUserThread(emu: &mut emu::Emu) {
 }
 
 fn NtQueueApcThread(emu: &mut emu::Emu) {
-    let thread_handle = emu.regs().rcx;
-    let apc_routine = emu.regs().rdx;
-    let apc_ctx = emu.regs().r8;
-    let arg1 = emu.regs().r9;
-    let arg2 = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let thread_handle = api_try!(emu, call.arg(emu, 0));
+    let apc_routine = api_try!(emu, call.arg(emu, 1));
+    let apc_ctx = api_try!(emu, call.arg(emu, 2));
+    let arg1 = api_try!(emu, call.arg(emu, 3));
+    let arg2 = api_try!(emu, call.arg(emu, 4));
 
     log_red!(
         emu,
@@ -74,37 +79,42 @@ fn NtQueueApcThread(emu: &mut emu::Emu) {
         arg2
     );
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn NtGetTickCount(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "ntdll!NtGetTickCount");
-    emu.regs_mut().rax = emu.tick as u64;
+    let return_value = emu.tick as u64;
+    call.set_return(emu, return_value);
 }
 
 fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
-    let perf_counter_ptr = emu.regs().rcx;
-    let perf_freq_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let perf_counter_ptr = api_try!(emu, call.arg(emu, 0));
+    let perf_freq_ptr = api_try!(emu, call.arg(emu, 1));
 
     log_red!(emu, "ntdll!NtQueryPerformanceCounter");
 
     emu.maps.write_dword(perf_counter_ptr, 0);
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn RtlGetVersion(emu: &mut emu::Emu) {
-    let versioninfo_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let versioninfo_ptr = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "ntdll!RtlGetVersion");
 
     let versioninfo = structures::OsVersionInfoExA::new();
     versioninfo.save(versioninfo_ptr, &mut emu.maps);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlSetUnhandledExceptionFilter(emu: &mut emu::Emu) {
-    let filter = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let filter = api_try!(emu, call.arg(emu, 0));
 
     log_red!(
         emu,
@@ -113,23 +123,25 @@ fn RtlSetUnhandledExceptionFilter(emu: &mut emu::Emu) {
     );
 
     emu.set_uef(filter);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn NtTerminateThread(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let exit_status = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let exit_status = api_try!(emu, call.arg(emu, 1));
 
     log_red!(emu, "ntdll!NtTerminateThread {:x} {}", handle, exit_status);
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn NtSetInformationThread(emu: &mut emu::Emu) {
-    let thread_handle = emu.regs().rcx;
-    let thread_info_class = emu.regs().rdx;
-    let thread_info_ptr = emu.regs().r8;
-    let thread_info_length = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let thread_handle = api_try!(emu, call.arg(emu, 0));
+    let thread_info_class = api_try!(emu, call.arg(emu, 1));
+    let thread_info_ptr = api_try!(emu, call.arg(emu, 2));
+    let thread_info_length = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -140,15 +152,16 @@ fn NtSetInformationThread(emu: &mut emu::Emu) {
         thread_info_length
     );
 
-    emu.regs_mut().rax = 0x00000000;
+    call.set_return(emu, 0x00000000);
 }
 
 pub fn NtQueryInformationProcess(emu: &mut emu::Emu) {
-    let _process_handle = emu.regs().rcx;
-    let info_class = emu.regs().rdx;
-    let buffer = emu.regs().r8;
-    let buffer_length = emu.regs().r9;
-    let return_length_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let _process_handle = api_try!(emu, call.arg(emu, 0));
+    let info_class = api_try!(emu, call.arg(emu, 1));
+    let buffer = api_try!(emu, call.arg(emu, 2));
+    let buffer_length = api_try!(emu, call.arg(emu, 3));
+    let return_length_ptr = api_try!(emu, call.arg(emu, 4));
 
     log_red!(
         emu,
@@ -181,14 +194,15 @@ pub fn NtQueryInformationProcess(emu: &mut emu::Emu) {
         }
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
-    let info_class = emu.regs().rcx;
-    let buffer = emu.regs().rdx;
-    let buffer_length = emu.regs().r8;
-    let return_length_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let info_class = api_try!(emu, call.arg(emu, 0));
+    let buffer = api_try!(emu, call.arg(emu, 1));
+    let buffer_length = api_try!(emu, call.arg(emu, 2));
+    let return_length_ptr = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -206,18 +220,19 @@ pub fn NtQuerySystemInformation(emu: &mut emu::Emu) {
         emu.maps.write_dword(return_length_ptr, fill as u32);
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
-    let compression_format = emu.regs().rcx as u16;
-    let uncompressed_buffer = emu.regs().rdx;
-    let uncompressed_buffer_size = emu.regs().r8;
-    let compressed_buffer = emu.regs().r9;
-    let compressed_buffer_size = WinApiAbi::arg(emu, 4);
-    let final_uncompressed_size = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let compression_format = api_try!(emu, call.arg_u16(emu, 0));
+    let uncompressed_buffer = api_try!(emu, call.arg(emu, 1));
+    let uncompressed_buffer_size = api_try!(emu, call.arg(emu, 2));
+    let compressed_buffer = api_try!(emu, call.arg(emu, 3));
+    let compressed_buffer_size = api_try!(emu, call.arg(emu, 4));
+    let final_uncompressed_size = api_try!(emu, call.arg(emu, 5));
 
-    emu.regs_mut().rax = crate::api::windows::common::ntdll::rtl_decompress_buffer(
+    let return_value = rtl_decompress_buffer(
         emu,
         compression_format,
         uncompressed_buffer,
@@ -226,23 +241,27 @@ pub fn RtlDecompressBuffer(emu: &mut emu::Emu) {
         compressed_buffer_size,
         final_uncompressed_size,
     );
+    call.set_return(emu, return_value);
 }
 
 fn RtlEncodePointer(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ntdll!RtlEncodePointer 0x{:x}", ptr);
-    emu.regs_mut().rax = ptr;
+    call.set_return(emu, ptr);
 }
 
 fn RtlDecodePointer(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ntdll!RtlDecodePointer 0x{:x}", ptr);
-    emu.regs_mut().rax = ptr;
+    call.set_return(emu, ptr);
 }
 
 fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let first = emu.regs().rcx;
-    let fptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let first = api_try!(emu, call.arg(emu, 0));
+    let fptr = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -252,7 +271,7 @@ fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
     );
 
     emu.add_veh(first != 0, fptr);
-    emu.regs_mut().rax = 0x2c2878;
+    call.set_return(emu, 0x2c2878);
 }
 
 pub fn VerSetConditionMask(emu: &mut emu::Emu) {

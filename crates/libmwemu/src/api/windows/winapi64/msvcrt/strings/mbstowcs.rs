@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn mbstowcs(emu: &mut emu::Emu, api: &str) {
-    let dst = emu.regs().rcx;
-    let src = emu.regs().rdx;
-    let n = emu.regs().r8 as usize;
+    let call = WinApi(Cdecl);
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let s = emu.maps.read_string(src);
     let copy_len = s.len().min(n);
     for (i, b) in s.as_bytes()[..copy_len].iter().enumerate() {
@@ -14,5 +17,5 @@ pub fn mbstowcs(emu: &mut emu::Emu, api: &str) {
     }
     log_red!(emu, "msvcrt!{} '{}' => {}", api, s, copy_len);
     emu.set_last_error(0);
-    emu.regs_mut().rax = copy_len as u64;
+    call.set_return(emu, copy_len as u64);
 }

@@ -1,19 +1,21 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn LookupAccountNameA(emu: &mut emu::Emu) {
     lookup_account_name(emu, "LookupAccountNameA", false);
 }
 
 fn lookup_account_name(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _system_ptr = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let sid_ptr = emu.regs().r8;
-    let sid_sz_ptr = emu.regs().r9;
-    let domain_ptr = WinApiAbi::arg(emu, 4);
-    let domain_sz_ptr = WinApiAbi::arg(emu, 5);
-    let use_ptr = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let _system_ptr = api_try!(emu, call.arg(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 1));
+    let sid_ptr = api_try!(emu, call.arg(emu, 2));
+    let sid_sz_ptr = api_try!(emu, call.arg(emu, 3));
+    let domain_ptr = api_try!(emu, call.arg(emu, 4));
+    let domain_sz_ptr = api_try!(emu, call.arg(emu, 5));
+    let use_ptr = api_try!(emu, call.arg(emu, 6));
     let name = strings::read_text(emu, name_ptr, wide);
     log_red!(emu, "advapi32!{api} '{}'", name);
     if sid_ptr != 0 {
@@ -39,7 +41,7 @@ fn lookup_account_name(emu: &mut emu::Emu, api: &str, wide: bool) {
         emu.maps.write_dword(use_ptr, 1);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn LookupAccountNameW(emu: &mut emu::Emu) {

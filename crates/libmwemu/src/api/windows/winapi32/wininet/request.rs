@@ -1,8 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::common::memory::Call;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::network::*;
 
 pub(super) fn http_open_request_a(emu: &mut emu::Emu) {
@@ -10,14 +10,15 @@ pub(super) fn http_open_request_a(emu: &mut emu::Emu) {
 }
 
 fn http_open_request(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let conn_hndl = WinApiAbi::arg(emu, 0);
-    let method_ptr = WinApiAbi::arg(emu, 1);
-    let path_ptr = WinApiAbi::arg(emu, 2);
-    let version_ptr = WinApiAbi::arg(emu, 3);
-    let referrer_ptr = WinApiAbi::arg(emu, 4);
-    let access_ptr = WinApiAbi::arg(emu, 5);
-    let flags = WinApiAbi::arg(emu, 6);
-    let _ctx = WinApiAbi::arg(emu, 7) as u32;
+    let call = WinApi(Stdcall);
+    let conn_hndl = api_try!(emu, call.arg(emu, 0));
+    let method_ptr = api_try!(emu, call.arg(emu, 1));
+    let path_ptr = api_try!(emu, call.arg(emu, 2));
+    let version_ptr = api_try!(emu, call.arg(emu, 3));
+    let referrer_ptr = api_try!(emu, call.arg(emu, 4));
+    let access_ptr = api_try!(emu, call.arg(emu, 5));
+    let flags = api_try!(emu, call.arg(emu, 6));
+    let _ctx = api_try!(emu, call.arg_u32(emu, 7));
 
     let method = strings::read_text(emu, method_ptr, wide);
     let path = strings::read_text(emu, path_ptr, wide);
@@ -43,10 +44,10 @@ fn http_open_request(emu: &mut emu::Emu, api: &str, wide: bool) {
         log::trace!("\tssl communication.");
     }
 
-    WinApiAbi::stdcall_ret(emu, 8);
+    call.cleanup_args(emu, 8);
 
     let uri = format!("{api}://{}", path);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }
 
 pub(super) fn http_open_request_w(emu: &mut emu::Emu) {
@@ -58,10 +59,11 @@ pub(super) fn internet_set_option_a(emu: &mut emu::Emu) {
 }
 
 fn internet_set_option(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let inet_hndl = WinApiAbi::arg(emu, 0);
-    let option = WinApiAbi::arg(emu, 1) as u32;
-    let buffer = WinApiAbi::arg(emu, 2);
-    let len = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let inet_hndl = api_try!(emu, call.arg(emu, 0));
+    let option = api_try!(emu, call.arg_u32(emu, 1));
+    let buffer = api_try!(emu, call.arg(emu, 2));
+    let len = api_try!(emu, call.arg_u32(emu, 3));
 
     let mut buffer_content = String::new();
     if buffer != 0 {
@@ -81,9 +83,9 @@ fn internet_set_option(emu: &mut emu::Emu, api: &str, wide: bool) {
         log::trace!("\tinvalid handle.");
     }
 
-    WinApiAbi::stdcall_ret(emu, 4);
+    call.cleanup_args(emu, 4);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub(super) fn internet_set_option_w(emu: &mut emu::Emu) {
@@ -95,11 +97,12 @@ pub(super) fn http_send_request_a(emu: &mut emu::Emu) {
 }
 
 fn http_send_request(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let req_hndl = WinApiAbi::arg(emu, 0);
-    let hdrs_ptr = WinApiAbi::arg(emu, 1);
-    let _hdrs_len = WinApiAbi::arg(emu, 2) as u32;
-    let opt_ptr = WinApiAbi::arg(emu, 3);
-    let _opt_len = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let req_hndl = api_try!(emu, call.arg(emu, 0));
+    let hdrs_ptr = api_try!(emu, call.arg(emu, 1));
+    let _hdrs_len = api_try!(emu, call.arg_u32(emu, 2));
+    let opt_ptr = api_try!(emu, call.arg(emu, 3));
+    let _opt_len = api_try!(emu, call.arg_u32(emu, 4));
 
     let hdrs = strings::read_text(emu, hdrs_ptr, wide);
     let opt = strings::read_text(emu, opt_ptr, wide);
@@ -110,9 +113,9 @@ fn http_send_request(emu: &mut emu::Emu, api: &str, wide: bool) {
         log::trace!("\tinvalid handle.");
     }
 
-    WinApiAbi::stdcall_ret(emu, 5);
+    call.cleanup_args(emu, 5);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub(super) fn http_send_request_w(emu: &mut emu::Emu) {
@@ -128,13 +131,15 @@ pub fn HttpQueryInfoW(emu: &mut emu::Emu) {
 }
 
 fn http_query_info(emu: &mut emu::Emu, api: &str) {
-    let buffer = Call::Api.arg(emu, 2);
-    let length = Call::Api.arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let buffer = api_try!(emu, call.arg(emu, 2));
+    let length = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "wininet!{api} buffer:0x{:x} length:0x{:x}",
         buffer,
         length
     );
-    Call::Api.finish(emu, 1, 5);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }

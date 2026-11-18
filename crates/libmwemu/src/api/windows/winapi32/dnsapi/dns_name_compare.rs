@@ -1,15 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn DnsNameCompare_A(emu: &mut emu::Emu) {
     dns_name_compare_(emu, "DnsNameCompare_A", false);
 }
 
 fn dns_name_compare_(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let name1 = arg(emu, 0) as u64;
-    let name2 = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let name1 = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let name2 = api_try!(emu, call.arg_u32(emu, 1)) as u64;
     let s1 = if name1 != 0 {
         strings::read_text(emu, name1, wide)
     } else {
@@ -21,8 +22,8 @@ fn dns_name_compare_(emu: &mut emu::Emu, api: &str, wide: bool) {
         String::new()
     };
     log_red!(emu, "dnsapi!{api} '{}' vs '{}'", s1, s2);
-    emu.regs_mut().rax = if s1.eq_ignore_ascii_case(&s2) { 1 } else { 0 };
-    stdcall_ret(emu, 2);
+    call.set_return(emu, if s1.eq_ignore_ascii_case(&s2) { 1 } else { 0 });
+    call.cleanup_args(emu, 2);
 }
 
 pub fn DnsNameCompare_W(emu: &mut emu::Emu) {

@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
-    let _options = emu.regs().rcx;
-    let _stream = emu.regs().rdx;
-    let fmt_ptr = emu.regs().r8;
+    let call = WinApi(Cdecl);
+    let _options = api_try!(emu, call.arg(emu, 0));
+    let _stream = api_try!(emu, call.arg(emu, 1));
+    let fmt_ptr = api_try!(emu, call.arg(emu, 2));
     let fmt = emu.maps.read_string(fmt_ptr);
     log_red!(emu, "msvcrt!__stdio_common_vfprintf fmt:'{}'", fmt);
-    emu.regs_mut().rax = fmt.len() as u64;
+    call.set_return(emu, fmt.len() as u64);
 }

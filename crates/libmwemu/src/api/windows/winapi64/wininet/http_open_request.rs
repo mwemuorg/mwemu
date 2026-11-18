@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::network::*;
 
 pub(super) fn HttpOpenRequestA(emu: &mut emu::Emu) {
@@ -13,14 +14,15 @@ pub(super) fn HttpOpenRequestW(emu: &mut emu::Emu) {
 }
 
 fn http_open_request(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let conn_hndl = emu.regs().rcx;
-    let method_ptr = emu.regs().rdx;
-    let path_ptr = emu.regs().r8;
-    let version_ptr = emu.regs().r9;
-    let referrer_ptr = WinApiAbi::arg(emu, 4);
-    let access_ptr = WinApiAbi::arg(emu, 5);
-    let flags = WinApiAbi::arg(emu, 6);
-    let ctx = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let conn_hndl = api_try!(emu, call.arg(emu, 0));
+    let method_ptr = api_try!(emu, call.arg(emu, 1));
+    let path_ptr = api_try!(emu, call.arg(emu, 2));
+    let version_ptr = api_try!(emu, call.arg(emu, 3));
+    let referrer_ptr = api_try!(emu, call.arg(emu, 4));
+    let access_ptr = api_try!(emu, call.arg(emu, 5));
+    let flags = api_try!(emu, call.arg(emu, 6));
+    let ctx = api_try!(emu, call.arg(emu, 7));
     let mut method = "".to_string();
     let mut path = "".to_string();
     let mut version = "".to_string();
@@ -61,5 +63,5 @@ fn http_open_request(emu: &mut emu::Emu, api: &str, wide: bool) {
     }
 
     let uri = format!("{api}://{}", path);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }

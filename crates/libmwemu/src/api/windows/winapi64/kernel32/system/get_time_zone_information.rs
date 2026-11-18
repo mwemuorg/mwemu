@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetTimeZoneInformation(emu: &mut emu::Emu) {
-    let tz_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let tz_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernel32!GetTimeZoneInformation ptr:0x{:x}", tz_ptr);
 
     if tz_ptr == 0 {
         emu.set_last_error(87);
-        emu.regs_mut().rax = 0xFFFFFFFF; // TIME_ZONE_ID_INVALID
+        call.set_return(emu, 0xFFFFFFFF); // TIME_ZONE_ID_INVALID
         return;
     }
 
@@ -44,5 +47,5 @@ pub fn GetTimeZoneInformation(emu: &mut emu::Emu) {
     emu.maps.write_dword(tz_ptr + 168, 0);
 
     // Return TIME_ZONE_ID_UNKNOWN (0) = no DST info
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

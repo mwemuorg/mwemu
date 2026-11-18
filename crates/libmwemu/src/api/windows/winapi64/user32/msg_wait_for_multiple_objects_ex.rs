@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn MsgWaitForMultipleObjectsEx(emu: &mut emu::Emu) {
-    let count = emu.regs().rcx as u32;
-    let handles = emu.regs().rdx;
-    let ms = emu.regs().r8 as u32;
-    let wake_mask = emu.regs().r9 as u32;
-    let flags = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let count = api_try!(emu, call.arg_u32(emu, 0));
+    let handles = api_try!(emu, call.arg(emu, 1));
+    let ms = api_try!(emu, call.arg_u32(emu, 2));
+    let wake_mask = api_try!(emu, call.arg_u32(emu, 3));
+    let flags = api_try!(emu, call.arg_u32(emu, 4));
     helper::advance_tick(emu, ms as u64);
     log_red!(
         emu,
@@ -17,10 +19,6 @@ pub fn MsgWaitForMultipleObjectsEx(emu: &mut emu::Emu) {
         wake_mask,
         flags
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

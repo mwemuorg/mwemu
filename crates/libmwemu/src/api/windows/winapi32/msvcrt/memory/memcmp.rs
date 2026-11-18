@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn memcmp(emu: &mut emu::Emu) {
-    let s1 = WinApiAbi::arg(emu, 0);
-    let s2 = WinApiAbi::arg(emu, 1);
-    let n = WinApiAbi::arg(emu, 2) as usize;
+    let call = WinApi(Cdecl);
+    let s1 = api_try!(emu, call.arg(emu, 0));
+    let s2 = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let mut result: i32 = 0;
     for i in 0..n {
         let b1 = emu.maps.read_byte(s1 + i as u64).unwrap_or(0);
@@ -22,11 +24,7 @@ pub fn memcmp(emu: &mut emu::Emu) {
         n,
         result
     );
-    let first_param = WinApiAbi::arg(emu, 0);
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = result as u32 as u64;
+    call.set_return(emu, result as u32 as u64);
 }

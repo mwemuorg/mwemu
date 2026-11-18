@@ -1,10 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn GetDC(emu: &mut emu::Emu) {
-    let hwnd = arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg_u32(emu, 0));
     log_red!(emu, "user32!GetDC hwnd: 0x{:x}", hwnd);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 1);
 }

@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetUserDefaultLocaleName(emu: &mut emu::Emu) {
-    let buf_ptr = emu.regs().rcx;
-    let buf_size = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let buf_ptr = api_try!(emu, call.arg(emu, 0));
+    let buf_size = api_try!(emu, call.arg(emu, 1));
     if buf_ptr != 0 && buf_size > 0 {
         emu.maps.write_wide_string(buf_ptr, "en-US");
     }
     log_red!(emu, "kernelbase!GetUserDefaultLocaleName => en-US");
-    emu.regs_mut().rax = 6;
+    call.set_return(emu, 6);
 }

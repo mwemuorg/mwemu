@@ -5,19 +5,21 @@ use super::key_path;
 use super::read_name;
 use super::type_flag;
 use super::write_data;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
 pub(super) fn get_value(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.regs().rcx;
-    let sub = read_name(emu, emu.regs().rdx, wide).unwrap_or_default();
-    let name = read_name(emu, emu.regs().r8, wide).unwrap_or_default();
-    let flags = emu.regs().r9 as u32;
-    let type_ptr = WinApiAbi::arg(emu, 4);
-    let data_ptr = WinApiAbi::arg(emu, 5);
-    let size_ptr = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let sub = read_name(emu, api_try!(emu, call.arg(emu, 1)), wide).unwrap_or_default();
+    let name = read_name(emu, api_try!(emu, call.arg(emu, 2)), wide).unwrap_or_default();
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
+    let type_ptr = api_try!(emu, call.arg(emu, 4));
+    let data_ptr = api_try!(emu, call.arg(emu, 5));
+    let size_ptr = api_try!(emu, call.arg(emu, 6));
 
     let base = match key_path(hkey) {
         Ok(base) => base,

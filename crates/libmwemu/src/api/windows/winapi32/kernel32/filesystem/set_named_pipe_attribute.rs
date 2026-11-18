@@ -1,19 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn SetNamedPipeAttribute(emu: &mut emu::Emu) {
-    let _FileHandle = WinApiAbi::arg(emu, 0) as u32;
-    let _a2 = WinApiAbi::arg(emu, 1) as u32;
-    let _Src = WinApiAbi::arg(emu, 2) as u32;
-    let _a4 = WinApiAbi::arg(emu, 3) as u32;
-    let _Size = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let _FileHandle = api_try!(emu, call.arg_u32(emu, 0));
+    let _a2 = api_try!(emu, call.arg_u32(emu, 1));
+    let _Src = api_try!(emu, call.arg_u32(emu, 2));
+    let _a4 = api_try!(emu, call.arg_u32(emu, 3));
+    let _Size = api_try!(emu, call.arg_u32(emu, 4));
 
     log_red!(emu, "kernel32!SetNamedPipeAttribute");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 5);
 }

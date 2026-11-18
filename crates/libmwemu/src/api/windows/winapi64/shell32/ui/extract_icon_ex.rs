@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn ExtractIconEx(emu: &mut emu::Emu) {
-    let file_ptr = emu.regs().rcx;
-    let icon_index = emu.regs().rdx as i32;
-    let large_ptr = emu.regs().r8;
-    let small_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let file_ptr = api_try!(emu, call.arg(emu, 0));
+    let icon_index = api_try!(emu, call.arg_i32(emu, 1));
+    let large_ptr = api_try!(emu, call.arg(emu, 2));
+    let small_ptr = api_try!(emu, call.arg(emu, 3));
     let file = if file_ptr != 0 {
         emu.maps.read_string(file_ptr)
     } else {
@@ -26,7 +29,7 @@ pub fn ExtractIconEx(emu: &mut emu::Emu) {
         emu.maps.write_qword(small_ptr, handle);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn ExtractIconExA(emu: &mut emu::Emu) {
@@ -34,10 +37,11 @@ pub fn ExtractIconExA(emu: &mut emu::Emu) {
 }
 
 fn extract_icon_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let file_ptr = emu.regs().rcx;
-    let icon_index = emu.regs().rdx as i32;
-    let large_ptr = emu.regs().r8;
-    let small_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let file_ptr = api_try!(emu, call.arg(emu, 0));
+    let icon_index = api_try!(emu, call.arg_i32(emu, 1));
+    let large_ptr = api_try!(emu, call.arg(emu, 2));
+    let small_ptr = api_try!(emu, call.arg(emu, 3));
     let file = if file_ptr != 0 {
         strings::read_text(emu, file_ptr, wide)
     } else {
@@ -52,7 +56,7 @@ fn extract_icon_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         emu.maps.write_qword(small_ptr, handle);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn ExtractIconExW(emu: &mut emu::Emu) {

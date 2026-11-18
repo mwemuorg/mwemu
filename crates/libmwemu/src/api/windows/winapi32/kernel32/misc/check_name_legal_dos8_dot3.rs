@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn CheckNameLegalDOS8Dot3A(emu: &mut emu::Emu) {
@@ -8,11 +9,12 @@ pub fn CheckNameLegalDOS8Dot3A(emu: &mut emu::Emu) {
 }
 
 fn check_name_legal_dos8_dot3(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let lpName = WinApiAbi::arg(emu, 0) as u32;
-    let lpOemName = WinApiAbi::arg(emu, 1) as u32;
-    let OemNameSize = WinApiAbi::arg(emu, 2) as u32;
-    let pbNameContainsSpaces = WinApiAbi::arg(emu, 3) as u32;
-    let pbNameLegal = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let lpName = api_try!(emu, call.arg_u32(emu, 0));
+    let lpOemName = api_try!(emu, call.arg_u32(emu, 1));
+    let OemNameSize = api_try!(emu, call.arg_u32(emu, 2));
+    let pbNameContainsSpaces = api_try!(emu, call.arg_u32(emu, 3));
+    let pbNameLegal = api_try!(emu, call.arg_u32(emu, 4));
 
     let lpName = strings::read_text(emu, lpName as u64, wide);
     let lpOemName = strings::read_text(emu, lpOemName as u64, wide);
@@ -30,11 +32,8 @@ fn check_name_legal_dos8_dot3(emu: &mut emu::Emu, api: &str, wide: bool) {
         pbNameLegal
     );
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 5);
 }
 
 pub fn CheckNameLegalDOS8Dot3W(emu: &mut emu::Emu) {

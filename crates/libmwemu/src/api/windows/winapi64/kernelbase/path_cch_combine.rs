@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn PathCchCombine(emu: &mut emu::Emu, api: &str) {
-    let out_ptr = emu.regs().rcx;
-    let cch_out = emu.regs().rdx as usize;
-    let dir_ptr = emu.regs().r8;
-    let file_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let out_ptr = api_try!(emu, call.arg(emu, 0));
+    let cch_out = api_try!(emu, call.arg(emu, 1)) as usize;
+    let dir_ptr = api_try!(emu, call.arg(emu, 2));
+    let file_ptr = api_try!(emu, call.arg(emu, 3));
     let dir = emu.maps.read_wide_string(dir_ptr);
     let file = emu.maps.read_wide_string(file_ptr);
     let result_path = if file.starts_with('\\') || (file.len() >= 2 && file.as_bytes()[1] == b':') {
@@ -23,5 +26,5 @@ pub fn PathCchCombine(emu: &mut emu::Emu, api: &str) {
         file,
         result_path
     );
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

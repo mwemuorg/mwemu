@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateFileMappingNumaW(emu: &mut emu::Emu) {
-    let file_handle = emu.regs().rcx;
-    let security = emu.regs().rdx;
-    let protect = emu.regs().r8;
-    let max_size_high = emu.regs().r9;
-    let max_size_low = WinApiAbi::arg(emu, 5);
-    let name_ptr = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let file_handle = api_try!(emu, call.arg(emu, 0));
+    let security = api_try!(emu, call.arg(emu, 1));
+    let protect = api_try!(emu, call.arg(emu, 2));
+    let max_size_high = api_try!(emu, call.arg(emu, 3));
+    let max_size_low = api_try!(emu, call.arg(emu, 5));
+    let name_ptr = api_try!(emu, call.arg(emu, 6));
     let name = if name_ptr != 0 {
         emu.maps.read_wide_string(name_ptr)
     } else {
@@ -23,5 +25,5 @@ pub fn CreateFileMappingNumaW(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

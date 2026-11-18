@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetDIBColorTable(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let start = emu.regs().rdx;
-    let entries = emu.regs().r8;
-    let colors = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let start = api_try!(emu, call.arg(emu, 1));
+    let entries = api_try!(emu, call.arg(emu, 2));
+    let colors = api_try!(emu, call.arg(emu, 3));
     if colors != 0 && entries > 0 {
         let n = entries.min(256) as usize;
         for i in 0..n {
@@ -23,5 +26,5 @@ pub fn GetDIBColorTable(emu: &mut emu::Emu) {
         colors
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = entries.min(256);
+    call.set_return(emu, entries.min(256));
 }

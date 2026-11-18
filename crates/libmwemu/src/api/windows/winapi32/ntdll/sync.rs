@@ -1,7 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::helper;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::{arg, stdcall_ret};
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
@@ -28,49 +28,49 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn RtlInitializeCriticalSection(emu: &mut emu::Emu) {
-    let crit_sect = WinApiAbi::arg(emu, 0) as u32;
-    log_red!(
-        emu,
-        "ntdll!RtlInitializeCriticalSection ptr: 0x{:x}",
-        crit_sect
-    );
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    let call = WinApi(Stdcall);
+    let crit_sect = api_try!(emu, call.arg_u32(emu, 0));
+    log_red!(emu, "ntdll!RtlInitializeCriticalSection ptr: 0x{:x}", crit_sect);
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }
 
 fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
-    let crit_sect = WinApiAbi::arg(emu, 0) as u32;
-    let spin_count = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let crit_sect = api_try!(emu, call.arg_u32(emu, 0));
+    let spin_count = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionAndSpinCount");
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "ntdll!RtlEnterCriticalSection");
 
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }
 
 fn RtlLeaveCriticalSection(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "ntdll!RtlLeaveCriticalSection");
 
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }
 
 fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let first = WinApiAbi::arg(emu, 0) as u32;
-    let fptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let first = api_try!(emu, call.arg_u32(emu, 0));
+    let fptr = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -79,15 +79,15 @@ fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
         fptr
     );
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
     emu.add_veh(first != 0, fptr);
-    emu.regs_mut().rax = 0x2c2878;
+    call.set_return(emu, 0x2c2878);
 }
 
 fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let handle = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
 
     log_red!(
         emu,
@@ -95,51 +95,53 @@ fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
         handle
     );
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 
     emu.remove_veh(handle);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlInitializeCriticalSectionEx(emu: &mut emu::Emu) {
-    let crit_sect_ptr = WinApiAbi::arg(emu, 0);
-    let spin_count = WinApiAbi::arg(emu, 1) as u32;
-    let flags = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let crit_sect_ptr = api_try!(emu, call.arg(emu, 0));
+    let spin_count = api_try!(emu, call.arg_u32(emu, 1));
+    let flags = api_try!(emu, call.arg_u32(emu, 2));
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionEx");
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 3);
+    call.set_return(emu, 1);
 }
 
 fn NtDelayExecution(emu: &mut emu::Emu) {
-    let interval_ptr = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let interval_ptr = api_try!(emu, call.arg_u32(emu, 1)) as u64;
     let interval = emu.maps.read_qword(interval_ptr).unwrap_or(0) as i64;
     // Negative = relative, in 100 ns units.
     let millis = interval.unsigned_abs() / 10_000;
     log_red!(emu, "ntdll!NtDelayExecution interval: {} ms", millis);
     helper::advance_tick(emu, millis);
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 2);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 2);
 }
 fn NtWaitForSingleObject(emu: &mut emu::Emu) {
-    let handle = arg(emu, 0);
-    let timeout = arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg_u32(emu, 0));
+    let timeout = api_try!(emu, call.arg_u32(emu, 2));
     log_red!(
         emu,
         "ntdll!NtWaitForSingleObject hndl: 0x{:x} timeout: 0x{:x}",
         handle,
         timeout
     );
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 3);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 fn RtlQueueWorkItem(emu: &mut emu::Emu) {
-    let fptr = arg(emu, 0);
-    let ctx = arg(emu, 1);
-    let flags = arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let fptr = api_try!(emu, call.arg_u32(emu, 0));
+    let ctx = api_try!(emu, call.arg_u32(emu, 1));
+    let flags = api_try!(emu, call.arg_u32(emu, 2));
     log_red!(
         emu,
         "ntdll!RtlQueueWorkItem fptr: 0x{:x} ctx: 0x{:x} flags: {}",
@@ -147,38 +149,43 @@ fn RtlQueueWorkItem(emu: &mut emu::Emu) {
         ctx,
         flags
     );
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 3);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 
 fn RtlDeleteCriticalSection(emu: &mut emu::Emu) {
-    let _cs = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let _cs = api_try!(emu, call.arg_u32(emu, 0));
     log_red!(emu, "ntdll!RtlDeleteCriticalSection");
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 0;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 0);
 }
 
 fn RtlTlsAlloc(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "ntdll!RtlTlsAlloc");
     emu.tls32_mut().push(0);
-    emu.regs_mut().rax = (emu.tls32().len() - 1) as u64;
+    let return_value = (emu.tls32().len() - 1) as u64;
+    call.set_return(emu, return_value);
 }
 
 fn RtlTlsFree(emu: &mut emu::Emu) {
-    let index = WinApiAbi::arg(emu, 0) as usize;
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg(emu, 0)) as usize;
     log_red!(emu, "ntdll!RtlTlsFree index: {}", index);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
     if index < emu.tls32().len() {
         emu.tls32_mut()[index] = 0;
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }
 
 fn RtlTlsGetValue(emu: &mut emu::Emu) {
-    let index = WinApiAbi::arg(emu, 0) as usize;
-    emu.stack_pop32(false);
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg(emu, 0)) as usize;
+    call.cleanup_args(emu, 1);
     let val = if index < emu.tls32().len() {
         emu.set_last_error(ERROR_SUCCESS);
         emu.tls32()[index] as u64
@@ -187,20 +194,20 @@ fn RtlTlsGetValue(emu: &mut emu::Emu) {
         0
     };
     log_red!(emu, "ntdll!RtlTlsGetValue index: {} =0x{:x}", index, val);
-    emu.regs_mut().rax = val;
+    call.set_return(emu, val);
 }
 
 fn RtlTlsSetValue(emu: &mut emu::Emu) {
-    let index = WinApiAbi::arg(emu, 0) as usize;
-    let value = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg(emu, 0)) as usize;
+    let value = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(
         emu,
         "ntdll!RtlTlsSetValue index: {} value: 0x{:x}",
         index,
         value
     );
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
     if index < emu.tls32().len() {
         emu.tls32_mut()[index] = value;
     } else {
@@ -209,15 +216,16 @@ fn RtlTlsSetValue(emu: &mut emu::Emu) {
         }
         emu.tls32_mut()[index] = value;
     }
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlInitializeSListHead(emu: &mut emu::Emu) {
-    let head = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ntdll!RtlInitializeSListHead head: 0x{:x}", head);
     if head != 0 {
         emu.maps.write_dword(head, 0);
         emu.maps.write_dword(head + 4, 0);
     }
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn connect(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let sockaddr_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let sockaddr_ptr = api_try!(emu, call.arg(emu, 1));
     //let sockaddr = emu.maps.read_bytes(sockaddr_ptr, 8);
     let family: u16 = emu.maps.read_word(sockaddr_ptr).unwrap_or(0);
     let port: u16 = emu.maps.read_word(sockaddr_ptr + 2).unwrap_or(0).to_be();
@@ -25,15 +28,15 @@ pub fn connect(emu: &mut emu::Emu) {
         } else {
             log::trace!("\tcannot connect. dont use -e");
         }*/
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     } else {
         // offline mode
 
         if !helper::socket_exist(sock) {
             log::trace!("\tinvalid socket.");
-            emu.regs_mut().rax = 1;
+            call.set_return(emu, 1);
         } else {
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     }
 }

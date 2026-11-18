@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WaitForMultipleObjects(emu: &mut emu::Emu) {
-    let count = emu.regs().rcx;
-    let _handles = emu.regs().rdx;
-    let _wait_all = emu.regs().r8;
-    let ms = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let count = api_try!(emu, call.arg(emu, 0));
+    let _handles = api_try!(emu, call.arg(emu, 1));
+    let _wait_all = api_try!(emu, call.arg(emu, 2));
+    let ms = api_try!(emu, call.arg(emu, 3));
     helper::advance_tick(emu, ms);
     log_red!(
         emu,
@@ -13,10 +16,6 @@ pub fn WaitForMultipleObjects(emu: &mut emu::Emu) {
         count,
         ms
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // WAIT_OBJECT_0
+    call.set_return(emu, 0); // WAIT_OBJECT_0
 }

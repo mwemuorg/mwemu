@@ -1,15 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn OpenSCManagerA(emu: &mut emu::Emu) {
     open_sc_manager(emu, "OpenSCManagerA", false);
 }
 
 fn open_sc_manager(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let machine_ptr = emu.regs().rcx;
-    let database_ptr = emu.regs().rdx;
-    let access = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let machine_ptr = api_try!(emu, call.arg(emu, 0));
+    let database_ptr = api_try!(emu, call.arg(emu, 1));
+    let access = api_try!(emu, call.arg(emu, 2));
     let machine = if machine_ptr != 0 {
         strings::read_text(emu, machine_ptr, wide)
     } else {
@@ -24,7 +27,7 @@ fn open_sc_manager(emu: &mut emu::Emu, api: &str, wide: bool) {
         hsc
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hsc;
+    call.set_return(emu, hsc);
 }
 
 pub fn OpenSCManagerW(emu: &mut emu::Emu) {

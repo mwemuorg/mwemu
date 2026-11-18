@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn CryptCreateHash(emu: &mut emu::Emu) {
-    let h_prov = emu.regs().rcx;
-    let algid = emu.regs().rdx as u32;
-    let h_key = emu.regs().r8;
-    let _flags = emu.regs().r9;
-    let h_hash_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let h_prov = api_try!(emu, call.arg(emu, 0));
+    let algid = api_try!(emu, call.arg_u32(emu, 1));
+    let h_key = api_try!(emu, call.arg(emu, 2));
+    let _flags = api_try!(emu, call.arg(emu, 3));
+    let h_hash_ptr = api_try!(emu, call.arg(emu, 4));
 
     let alg_name = match algid {
         0x8001 => "MD2",
@@ -33,5 +35,5 @@ pub(super) fn CryptCreateHash(emu: &mut emu::Emu) {
     if h_hash_ptr != 0 {
         emu.maps.write_qword(h_hash_ptr, h_hash);
     }
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

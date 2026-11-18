@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn CharToOemBuffA(emu: &mut emu::Emu) {
     char_to_oem_buff(emu, "CharToOemBuffA", false);
@@ -10,9 +12,10 @@ pub fn CharToOemBuffW(emu: &mut emu::Emu) {
 }
 
 fn char_to_oem_buff(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let src = emu.regs().rcx;
-    let dst = emu.regs().rdx;
-    let len = emu.regs().r8 as u32;
+    let call = WinApi(Stdcall);
+    let src = api_try!(emu, call.arg(emu, 0));
+    let dst = api_try!(emu, call.arg(emu, 1));
+    let len = api_try!(emu, call.arg_u32(emu, 2));
     log_red!(
         emu,
         "user32!{api} src: 0x{:x} dst: 0x{:x} len: {}",
@@ -20,7 +23,7 @@ fn char_to_oem_buff(emu: &mut emu::Emu, api: &str, wide: bool) {
         dst,
         len
     );
-    let src = emu.regs().rcx;
+    let src = api_try!(emu, call.arg(emu, 0));
     if wide {
         if src != 0 && emu.maps.is_mapped(src) {
             let _input = emu.maps.read_string(src);
@@ -43,5 +46,5 @@ fn char_to_oem_buff(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

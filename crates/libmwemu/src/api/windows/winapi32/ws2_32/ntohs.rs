@@ -1,10 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn ntohs(emu: &mut emu::Emu) {
-    let val = arg(emu, 0) as u16;
+    let call = WinApi(Stdcall);
+    let val = api_try!(emu, call.arg_u16(emu, 0));
     log_red!(emu, "ws2_32!ntohs {}", val);
-    emu.regs_mut().rax = u16::from_be(val) as u64;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, u16::from_be(val) as u64);
+    call.cleanup_args(emu, 1);
 }

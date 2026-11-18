@@ -1,13 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptSetProperty(emu: &mut emu::Emu) {
-    let h_object = arg(emu, 0) as u64;
-    let psz_property = arg(emu, 1) as u64;
-    let pb_input = arg(emu, 2) as u64;
-    let cb_input = arg(emu, 3) as usize;
+    let call = WinApi(Stdcall);
+    let h_object = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let psz_property = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let pb_input = api_try!(emu, call.arg_u32(emu, 2)) as u64;
+    let cb_input = api_try!(emu, call.arg_u32(emu, 3)) as usize;
 
     let prop = emu.maps.read_wide_string(psz_property);
     let value = if pb_input != 0 && cb_input > 0 {
@@ -36,6 +37,6 @@ pub(super) fn BCryptSetProperty(emu: &mut emu::Emu) {
         value
     );
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 5);
 }

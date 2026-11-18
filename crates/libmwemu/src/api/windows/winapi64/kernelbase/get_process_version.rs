@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetProcessVersion(emu: &mut emu::Emu) {
-    let process_id = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let process_id = api_try!(emu, call.arg(emu, 0));
     let _ = emu.maps.is_mapped(process_id);
     let version = 0x000A_0000u64;
     log_red!(
@@ -11,5 +14,5 @@ pub fn GetProcessVersion(emu: &mut emu::Emu) {
         version
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = version;
+    call.set_return(emu, version);
 }

@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FindResourceExA(emu: &mut emu::Emu) {
     find_resource_ex(emu, "FindResourceExA", false);
 }
 
 fn find_resource_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
-    let p2 = WinApiAbi::arg(emu, 2);
-    let p3 = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
     let s = if p0 != 0 && p0 > 0xffff {
         strings::read_text(emu, p0, wide)
     } else {
@@ -27,10 +29,8 @@ fn find_resource_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         p3,
         hndl
     );
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = hndl;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, hndl);
 }
 
 pub fn FindResourceExW(emu: &mut emu::Emu) {

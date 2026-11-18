@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::ole32::read_guid_string;
 
 pub fn StringFromCLSID(emu: &mut emu::Emu) {
-    let rclsid = emu.regs().rcx;
-    let ppsz = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let rclsid = api_try!(emu, call.arg(emu, 0));
+    let ppsz = api_try!(emu, call.arg(emu, 1));
 
     let guid_str = read_guid_string(emu, rclsid);
     log_red!(emu, "ole32!StringFromCLSID {} ppsz: 0x{:x}", guid_str, ppsz);
@@ -17,7 +20,7 @@ pub fn StringFromCLSID(emu: &mut emu::Emu) {
                 emu.maps.write_qword(ppsz, 0);
             }
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0x8007000E; // E_OUTOFMEMORY
+            call.set_return(emu, 0x8007000E); // E_OUTOFMEMORY
             return;
         }
     };
@@ -35,5 +38,5 @@ pub fn StringFromCLSID(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

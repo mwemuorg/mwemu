@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FlsAlloc(emu: &mut emu::Emu) {
-    let callback = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let callback = api_try!(emu, call.arg_u32(emu, 0));
 
     log_red!(emu, "kernel32!FlsAlloc callback: 0x{:x}", callback);
 
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }

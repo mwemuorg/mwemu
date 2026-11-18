@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn Beep(emu: &mut emu::Emu) {
-    let freq = emu.regs().rcx;
-    let duration = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let freq = api_try!(emu, call.arg(emu, 0));
+    let duration = api_try!(emu, call.arg(emu, 1));
     log_red!(emu, "kernel32!Beep freq:{} dur:{}", freq, duration);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

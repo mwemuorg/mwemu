@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn _putch(emu: &mut emu::Emu) {
-    let ch = emu.regs().rcx as u8;
+    let call = WinApi(Cdecl);
+    let ch = api_try!(emu, call.arg_u8(emu, 0));
     log_red!(emu, "wincrt!_putch ch:{}", ch as char);
     helper::advance_tick(emu, 1);
-    emu.regs_mut().rax = ch as u64;
+    call.set_return(emu, ch as u64);
 }

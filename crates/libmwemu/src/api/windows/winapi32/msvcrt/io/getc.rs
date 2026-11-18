@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn getc(emu: &mut emu::Emu, api: &str) {
-    let stream = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Cdecl);
+    let stream = api_try!(emu, call.arg(emu, 0));
     let name = helper::handler_get_uri(stream);
     log_red!(
         emu,
@@ -12,10 +14,6 @@ pub fn getc(emu: &mut emu::Emu, api: &str) {
         stream,
         name
     );
-    let first_param = WinApiAbi::arg(emu, 0);
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0xffff_ffff; // EOF
+    call.set_return(emu, 0xffff_ffff); // EOF
 }

@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetLocaleInfoEx(emu: &mut emu::Emu) {
-    let locale_ptr = emu.regs().rcx;
-    let lctype = emu.regs().rdx;
-    let buf_ptr = emu.regs().r8;
-    let buf_size = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let locale_ptr = api_try!(emu, call.arg(emu, 0));
+    let lctype = api_try!(emu, call.arg(emu, 1));
+    let buf_ptr = api_try!(emu, call.arg(emu, 2));
+    let buf_size = api_try!(emu, call.arg(emu, 3));
     let locale = emu.maps.read_wide_string(locale_ptr);
     if buf_ptr != 0 && buf_size > 0 {
         emu.maps.write_wide_string(buf_ptr, "en-US");
@@ -15,5 +18,5 @@ pub fn GetLocaleInfoEx(emu: &mut emu::Emu) {
         locale,
         lctype
     );
-    emu.regs_mut().rax = 6;
+    call.set_return(emu, 6);
 }

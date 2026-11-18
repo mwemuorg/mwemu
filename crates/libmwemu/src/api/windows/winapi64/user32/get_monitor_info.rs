@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetMonitorInfoA(emu: &mut emu::Emu) {
     get_monitor_info(emu, "GetMonitorInfoA");
 }
 
 fn get_monitor_info(emu: &mut emu::Emu, api: &str) {
-    let hmonitor = emu.regs().rcx;
-    let info_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hmonitor = api_try!(emu, call.arg(emu, 0));
+    let info_ptr = api_try!(emu, call.arg(emu, 1));
     if info_ptr != 0 {
         emu.maps.write_dword(info_ptr + 4, 0);
         emu.maps.write_dword(info_ptr + 8, 0);
@@ -24,7 +27,7 @@ fn get_monitor_info(emu: &mut emu::Emu, api: &str) {
         hmonitor,
         info_ptr
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn GetMonitorInfoW(emu: &mut emu::Emu) {

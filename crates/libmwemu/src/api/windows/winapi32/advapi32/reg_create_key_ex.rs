@@ -1,22 +1,24 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegCreateKeyExA(emu: &mut emu::Emu) {
     reg_create_key_ex(emu, "RegCreateKeyExA", false);
 }
 
 fn reg_create_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = WinApiAbi::arg(emu, 0) as u32;
-    let subkey_ptr = WinApiAbi::arg(emu, 1);
-    let reserved = WinApiAbi::arg(emu, 2) as u32;
-    let class_ptr = WinApiAbi::arg(emu, 3) as u32;
-    let options = WinApiAbi::arg(emu, 4) as u32;
-    let sam = WinApiAbi::arg(emu, 5) as u32;
-    let security = WinApiAbi::arg(emu, 6) as u32;
-    let result_ptr = WinApiAbi::arg(emu, 7);
-    let disposition_ptr = WinApiAbi::arg(emu, 8);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg_u32(emu, 0));
+    let subkey_ptr = api_try!(emu, call.arg(emu, 1));
+    let reserved = api_try!(emu, call.arg_u32(emu, 2));
+    let class_ptr = api_try!(emu, call.arg_u32(emu, 3));
+    let options = api_try!(emu, call.arg_u32(emu, 4));
+    let sam = api_try!(emu, call.arg_u32(emu, 5));
+    let security = api_try!(emu, call.arg_u32(emu, 6));
+    let result_ptr = api_try!(emu, call.arg(emu, 7));
+    let disposition_ptr = api_try!(emu, call.arg(emu, 8));
     let subkey = strings::read_text(emu, subkey_ptr, wide);
     let new_handle = helper::handler_create(&subkey);
     if result_ptr != 0 {
@@ -32,10 +34,8 @@ fn reg_create_key_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         subkey,
         new_handle
     );
-    for _ in 0..9 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 0;
+    call.cleanup_args(emu, 9);
+    call.set_return(emu, 0);
 }
 
 pub fn RegCreateKeyExW(emu: &mut emu::Emu) {

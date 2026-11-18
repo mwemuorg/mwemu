@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn CryptHashData(emu: &mut emu::Emu) {
-    let hhash = WinApiAbi::arg(emu, 0);
-    let data_ptr = WinApiAbi::arg(emu, 1);
-    let data_len = WinApiAbi::arg(emu, 2) as usize;
-    let flags = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let hhash = api_try!(emu, call.arg(emu, 0));
+    let data_ptr = api_try!(emu, call.arg(emu, 1));
+    let data_len = api_try!(emu, call.arg(emu, 2)) as usize;
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
 
     let len = data_len.min(0x100_0000);
     if data_ptr != 0 && len > 0 {
@@ -21,8 +23,6 @@ pub(super) fn CryptHashData(emu: &mut emu::Emu) {
         data_len
     );
 
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 1);
 }

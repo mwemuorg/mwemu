@@ -1,12 +1,14 @@
 //! Windows thread creation and integer/control context operations.
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::context::{context32::Context32, context64::Context64};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
 use crate::threading::context::{ArchThreadState, ThreadContext};
-use crate::winapi::common::memory::{self, Call};
+use crate::winapi::common::memory;
 use crate::winapi::common::trace;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::exceptions::*;
 use crate::windows::constants::memory::*;
@@ -28,6 +30,7 @@ fn thread_index(emu: &Emu, handle: u64) -> Option<usize> {
 }
 
 fn finish(emu: &mut Emu, result: Result<u64, u64>, failure: u64, args: usize) {
+    let call = WinApi(Stdcall);
     let value = match result {
         Ok(value) => value,
         Err(error) => {
@@ -35,7 +38,8 @@ fn finish(emu: &mut Emu, result: Result<u64, u64>, failure: u64, args: usize) {
             failure
         }
     };
-    Call::Api.finish(emu, value, args);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, args);
 }
 
 fn stack_size(emu: &Emu, requested: u64, flags: u64) -> Option<u64> {
@@ -58,12 +62,10 @@ fn stack_size(emu: &Emu, requested: u64, flags: u64) -> Option<u64> {
     align_up(size.max(PAGE_SIZE), ALLOCATION_GRANULARITY)
 }
 
-fn create(emu: &mut Emu) -> Result<u64, u64> {
-    let requested = Call::Api.arg(emu, 1);
-    let start = Call::Api.arg(emu, 2);
-    let parameter = Call::Api.arg(emu, 3);
-    let flags = Call::Api.arg(emu, 4);
-    let id_ptr = Call::Api.arg(emu, 5);
+fn create(
+    emu: &mut Emu,
+    [requested, start, parameter, flags, id_ptr]: [u64; 5],
+) -> Result<u64, u64> {
     if flags & !(CREATE_SUSPENDED | STACK_SIZE_PARAM_IS_A_RESERVATION) != 0 {
         return Err(ERROR_INVALID_PARAMETER);
     }
@@ -107,12 +109,21 @@ fn create(emu: &mut Emu) -> Result<u64, u64> {
 }
 
 pub(crate) fn create_thread(emu: &mut Emu) {
-    let result = create(emu);
+    let call = WinApi(Stdcall);
+    let arguments = [
+        api_try!(emu, call.arg(emu, 1)),
+        api_try!(emu, call.arg(emu, 2)),
+        api_try!(emu, call.arg(emu, 3)),
+        api_try!(emu, call.arg(emu, 4)),
+        api_try!(emu, call.arg(emu, 5)),
+    ];
+    let result = create(emu, arguments);
     finish(emu, result, 0, 6);
 }
 
 pub(crate) fn resume_thread(emu: &mut Emu) {
-    let result = thread_index(emu, Call::Api.arg(emu, 0))
+    let call = WinApi(Stdcall);
+    let result = thread_index(emu, api_try!(emu, call.arg(emu, 0)))
         .ok_or(ERROR_INVALID_HANDLE)
         .map(|index| {
             let thread = &mut emu.threads[index];
@@ -123,9 +134,8 @@ pub(crate) fn resume_thread(emu: &mut Emu) {
     finish(emu, result, u32::MAX as u64, 1);
 }
 
-fn context(emu: &mut Emu, set: bool) -> Result<u64, u64> {
-    let index = thread_index(emu, Call::Api.arg(emu, 0)).ok_or(ERROR_INVALID_HANDLE)?;
-    let address = Call::Api.arg(emu, 1);
+fn context(emu: &mut Emu, set: bool, handle: u64, address: u64) -> Result<u64, u64> {
+    let index = thread_index(emu, handle).ok_or(ERROR_INVALID_HANDLE)?;
     let (flags_offset, size, supported) = if emu.cfg.is_x64() {
         (
             Context64::FLAGS_OFFSET,
@@ -199,18 +209,26 @@ fn context(emu: &mut Emu, set: bool) -> Result<u64, u64> {
 }
 
 pub(crate) fn set_thread_context(emu: &mut Emu) {
-    let result = context(emu, true);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let address = api_try!(emu, call.arg(emu, 1));
+    let result = context(emu, true, handle, address);
     finish(emu, result, 0, 2);
 }
 
 pub(crate) fn get_thread_context(emu: &mut Emu) {
-    let result = context(emu, false);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let address = api_try!(emu, call.arg(emu, 1));
+    let result = context(emu, false, handle, address);
     finish(emu, result, 0, 2);
 }
 
 pub(crate) fn exit_thread(emu: &mut Emu) {
-    let code = Call::Api.arg(emu, 0) as u32;
-    Call::Api.finish(emu, code as u64, 1);
+    let call = WinApi(Stdcall);
+    let code = api_try!(emu, call.arg_u32(emu, 0));
+    call.set_return(emu, code as u64);
+    call.cleanup_args(emu, 1);
     finish_thread(emu, code);
 }
 

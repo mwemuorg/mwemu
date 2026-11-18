@@ -1,12 +1,15 @@
 use csv::ReaderBuilder;
 use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
-use crate::api::windows::common::nt_api;
+use crate::api::abi::ArgumentFault;
+use crate::api::abi::windows::WindowsAbi::WinSyscall;
+use crate::api::windows::common::{memory as memory_api, nt_api};
 use crate::api::windows::policy::{
     self, ApiDisposition, ApiMode, ApiPolicy, ApiRoute, ApiStopReason,
 };
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::serialization::Serialization;
 use crate::tests::helpers::{
     call_winapi32, call_winapi64, register_export_module, setup, win32_maps_folder,
@@ -14,6 +17,8 @@ use crate::tests::helpers::{
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::LIBS64_MIN;
+use crate::windows::constants::memory::{MEM_COMMIT, MEM_RESERVE};
+use crate::windows::constants::process::NT_CURRENT_PROCESS;
 use crate::windows::constants::system::{FALSE, TRUE};
 use crate::{emu_aarch64, emu32, emu64};
 
@@ -1034,4 +1039,173 @@ fn simulation_preserves_rejected_x86_cleanup_overrides() {
         assert_eq!(emu.sp(), sp);
         assert_eq!(emu.api_policy.simulation_count, 0);
     }
+}
+
+#[test]
+fn checked_arguments_stop_before_winapi_effects() {
+    for is64 in [false, true] {
+        for mode in [
+            ApiMode::Strict,
+            ApiMode::SimulateFail,
+            ApiMode::SimulateSuccess,
+        ] {
+            let mut emu = emulator(is64, "kernel32", "VirtualAllocEx");
+            emu.set_api_mode(mode);
+            let stack = DATA + 0x2000;
+            let size = if is64 {
+                4 * size_of::<u64>()
+            } else {
+                4 * size_of::<u32>()
+            };
+            emu.maps
+                .create_map(
+                    "truncated_frame",
+                    stack,
+                    size as u64,
+                    Permission::READ_WRITE,
+                )
+                .unwrap();
+            emu.set_sp(stack);
+            if is64 {
+                emu.regs_mut().rcx = NT_CURRENT_PROCESS;
+                emu.regs_mut().rdx = 0;
+                emu.regs_mut().r8 = PAGE_SIZE;
+                emu.regs_mut().r9 = (MEM_RESERVE | MEM_COMMIT) as u64;
+            } else {
+                for (index, value) in [
+                    NT_CURRENT_PROCESS as u32,
+                    0,
+                    PAGE_SIZE as u32,
+                    MEM_RESERVE | MEM_COMMIT,
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    assert!(
+                        emu.maps
+                            .write_dword(stack + (index * size_of::<u32>()) as u64, value)
+                    );
+                }
+            }
+            emu.regs_mut().rax = MARKER as u64;
+            emu.set_last_error(MARKER as u64);
+            gateway(&mut emu, "kernel32");
+            assert!(emu.api_policy.stopped(), "x64={is64}, mode={mode:?}");
+            assert_eq!(emu.sp(), stack);
+            assert_eq!(emu.regs().rax, MARKER as u64);
+            assert_eq!(emu.get_last_error(), MARKER as u64);
+        }
+    }
+}
+
+#[test]
+fn checked_arguments_stop_before_cdecl_copy() {
+    let mut emu = emulator(false, "msvcrt", "memcpy");
+    let stack = DATA + 0x2000;
+    emu.maps
+        .create_map(
+            "truncated_frame",
+            stack,
+            2 * size_of::<u32>() as u64,
+            Permission::READ_WRITE,
+        )
+        .unwrap();
+    emu.set_sp(stack);
+    assert!(emu.maps.write_dword(stack, DATA as u32));
+    assert!(
+        emu.maps
+            .write_dword(stack + size_of::<u32>() as u64, (DATA + 16) as u32)
+    );
+    assert!(emu.maps.write_dword(DATA, MARKER));
+    emu.regs_mut().rax = MARKER as u64;
+    gateway(&mut emu, "msvcrt");
+    assert!(emu.api_policy.stopped());
+    assert_eq!(emu.regs().rax, MARKER as u64);
+    assert_eq!(emu.sp(), stack);
+    assert_eq!(emu.maps.read_dword(DATA), Some(MARKER));
+}
+
+#[test]
+fn checked_arguments_stop_the_run_loop_at_the_api_entry() {
+    let mut emu = emulator(true, "kernel32", "VirtualAllocEx");
+    let stack = DATA + 0x2000;
+    let frame_size = 5 * size_of::<u64>() as u64; // Return address and shadow space only.
+    emu.maps
+        .create_map(
+            "truncated_call_frame",
+            stack,
+            frame_size,
+            Permission::READ_WRITE,
+        )
+        .unwrap();
+    emu.set_sp(stack + size_of::<u64>() as u64);
+    emu.regs_mut().rax = MODULE64 + 0x100;
+    emu.regs_mut().rcx = NT_CURRENT_PROCESS;
+    emu.regs_mut().rdx = 0;
+    emu.regs_mut().r8 = 0x1000;
+    emu.regs_mut().r9 = (MEM_RESERVE | MEM_COMMIT) as u64;
+    emu.regs_mut().rbx = MARKER as u64;
+    // call rax; xor ebx, ebx; nop. The caller must not continue after a bad frame.
+    assert!(emu.maps.write_bytes(CODE, &[0xff, 0xd0, 0x31, 0xdb, 0x90]));
+    emu.set_pc(CODE);
+    assert!(emu.run(Some(CODE + 4)).is_err());
+    assert_eq!(emu.regs().rbx, MARKER as u64);
+    assert_eq!(emu.regs().rax, MODULE64 + 0x100);
+    let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
+    assert_eq!(emu.sp(), outcome.call.stack_pointer);
+    assert_eq!(emu.pc(), outcome.call.pc);
+    let ApiDisposition::Stopped(ApiStopReason::InvalidArgument(error)) = outcome.disposition else {
+        panic!("unexpected outcome: {outcome:?}");
+    };
+    assert_eq!(error.index, 4);
+    assert_eq!(error.fault, ArgumentFault::Unreadable);
+}
+
+#[test]
+fn checked_syscall_arguments_record_the_syscall_frame() {
+    let mut emu = emulator(true, "ntdll", "NtAllocateVirtualMemory");
+    policy::begin_call(
+        &mut emu,
+        "kernel32",
+        "outer_call",
+        MODULE64,
+        ApiRoute::Address,
+    );
+    let stack = DATA + 0x2000;
+    emu.set_sp(stack);
+    emu.set_pc(CODE);
+    emu.regs_mut().rax = MARKER as u64;
+    emu.regs_mut().rcx = NT_CURRENT_PROCESS;
+    emu.regs_mut().rdx = DATA;
+    emu.regs_mut().r8 = 0;
+    emu.regs_mut().r9 = DATA + 16;
+    assert!(emu.maps.write_qword(DATA, 0));
+    assert!(emu.maps.write_qword(DATA + 16, PAGE_SIZE));
+    emu.set_last_error(MARKER as u64);
+    assert!(memory_api::dispatch_nt(
+        "NtAllocateVirtualMemory",
+        &mut emu,
+        WinSyscall
+    ));
+    let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
+    assert_eq!(outcome.call.route, ApiRoute::Syscall);
+    assert_eq!(outcome.call.pc, CODE);
+    assert_eq!(outcome.call.stack_pointer, stack);
+    assert_ne!(outcome.call.name, "outer_call");
+    assert!(matches!(
+        outcome.disposition,
+        ApiDisposition::Stopped(ApiStopReason::InvalidArgument(_))
+    ));
+    assert_eq!(emu.sp(), stack);
+    assert_eq!(emu.pc(), CODE);
+    assert_eq!(emu.regs().rax, MARKER as u64);
+    assert_eq!(emu.maps.read_qword(DATA), Some(0));
+    assert_eq!(emu.maps.read_qword(DATA + 16), Some(PAGE_SIZE));
+    assert_eq!(emu.get_last_error(), MARKER as u64);
+    let restored = Serialization::deserialize(&Serialization::serialize(&emu));
+    assert_eq!(
+        restored.api_policy.last_outcome,
+        emu.api_policy.last_outcome
+    );
+    assert!(restored.api_policy.stopped());
 }

@@ -1,12 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn time(emu: &mut emu::Emu) {
-    let time_ptr = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let time_ptr = api_try!(emu, call.arg(emu, 0));
     let tick = emu.tick as u32;
     if time_ptr != 0 {
         emu.maps.write_dword(time_ptr, tick);
     }
     log_red!(emu, "msvcrt!time => {}", tick);
     emu.set_last_error(0);
-    emu.regs_mut().rax = tick as u64;
+    call.set_return(emu, tick as u64);
 }

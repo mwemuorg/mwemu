@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 use crate::winapi::registry_store::{self, HKEY_CLASSES_ROOT, REG_SZ};
 
 pub fn PathIsContentTypeA(emu: &mut Emu) {
@@ -11,8 +13,9 @@ pub fn PathIsContentTypeW(emu: &mut Emu) {
 }
 
 fn invoke(emu: &mut Emu, wide: bool, api: &str) {
-    let path = strings::read_text(emu, emu.regs().rcx, wide);
-    let expected = strings::read_text(emu, emu.regs().rdx, wide);
+    let call = WinApi(Stdcall);
+    let path = strings::read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let expected = strings::read_text(emu, api_try!(emu, call.arg(emu, 1)), wide);
     log_red!(
         emu,
         "shlwapi!{} path:'{}' content-type:'{}'",
@@ -41,5 +44,5 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
                 .collect();
             String::from_utf16_lossy(&words).eq_ignore_ascii_case(&expected)
         });
-    emu.regs_mut().rax = matched as u64;
+    call.set_return(emu, matched as u64);
 }

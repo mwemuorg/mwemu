@@ -1,20 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn SetTimerQueueTimer(emu: &mut emu::Emu) {
-    let _TimerQueue = WinApiAbi::arg(emu, 0) as u32;
-    let _Callback = WinApiAbi::arg(emu, 1) as u32;
-    let _Parameter = WinApiAbi::arg(emu, 2) as u32;
-    let _DueTime = WinApiAbi::arg(emu, 3) as u32;
-    let _Period = WinApiAbi::arg(emu, 4) as u32;
-    let _PreferIo = WinApiAbi::arg(emu, 5) as u32;
+    let call = WinApi(Stdcall);
+    let _TimerQueue = api_try!(emu, call.arg_u32(emu, 0));
+    let _Callback = api_try!(emu, call.arg_u32(emu, 1));
+    let _Parameter = api_try!(emu, call.arg_u32(emu, 2));
+    let _DueTime = api_try!(emu, call.arg_u32(emu, 3));
+    let _Period = api_try!(emu, call.arg_u32(emu, 4));
+    let _PreferIo = api_try!(emu, call.arg_u32(emu, 5));
 
     log_red!(emu, "kernel32!SetTimerQueueTimer");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 6);
 }

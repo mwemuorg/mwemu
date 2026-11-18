@@ -1,7 +1,8 @@
 //! pthread lifecycle on top of the emulator thread scheduler: create, join,
 //! exit, self, detach. Threads are interleaved by the multi-threaded run loop.
 use super::libc_extra::trace;
-use crate::api::abi::ApiAbi;
+use crate::api::abi::unix::UnixApi;
+use crate::api::unix::api_try;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::threading::context::ThreadContext;
@@ -27,14 +28,14 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
 }
 
 fn api_pthread_create(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let thread_ptr = abi.arg(emu, 0);
-    let start = abi.arg(emu, 2);
-    let param = abi.arg(emu, 3);
+    let call = UnixApi;
+    let thread_ptr = api_try!(emu, call.arg(emu, 0));
+    let start = api_try!(emu, call.arg(emu, 2));
+    let param = api_try!(emu, call.arg(emu, 3));
 
     let Some(thread_return) = super::sentinel_addr(emu, super::THREAD_RETURN) else {
         trace(emu, "pthread_create() -> EAGAIN (aarch64 only)");
-        abi.set_ret(emu, EAGAIN);
+        call.set_return(emu, EAGAIN);
         return;
     };
 
@@ -68,22 +69,22 @@ fn api_pthread_create(emu: &mut Emu) {
             start, param, id
         ),
     );
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_pthread_join(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let target = abi.arg(emu, 0);
-    let retval_ptr = abi.arg(emu, 1);
+    let call = UnixApi;
+    let target = api_try!(emu, call.arg(emu, 0));
+    let retval_ptr = api_try!(emu, call.arg(emu, 1));
 
     let Some(idx) = emu.threads.iter().position(|t| t.id == target) else {
         trace(emu, &format!("pthread_join(0x{:x}) -> ESRCH", target));
-        abi.set_ret(emu, ESRCH);
+        call.set_return(emu, ESRCH);
         return;
     };
     if idx == emu.current_thread_id {
         trace(emu, &format!("pthread_join(0x{:x}) -> EDEADLK", target));
-        abi.set_ret(emu, EDEADLK);
+        call.set_return(emu, EDEADLK);
         return;
     }
 
@@ -95,7 +96,7 @@ fn api_pthread_join(emu: &mut Emu) {
             emu,
             &format!("pthread_join(0x{:x}) -> 0 retval=0x{:x}", target, value),
         );
-        abi.set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -106,27 +107,30 @@ fn api_pthread_join(emu: &mut Emu) {
 }
 
 fn api_pthread_exit(emu: &mut Emu) {
-    let value = ApiAbi::from_emu(emu).arg(emu, 0);
+    let call = UnixApi;
+    let value = api_try!(emu, call.arg(emu, 0));
     thread_exit(emu, value);
 }
 
 fn api_pthread_self(emu: &mut Emu) {
+    let call = UnixApi;
     let id = emu.threads[emu.current_thread_id].id;
     trace(emu, &format!("pthread_self() -> 0x{:x}", id));
-    ApiAbi::from_emu(emu).set_ret(emu, id);
+    call.set_return(emu, id);
 }
 
 fn api_pthread_detach(emu: &mut Emu) {
-    let target = ApiAbi::from_emu(emu).arg(emu, 0);
+    let call = UnixApi;
+    let target = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("pthread_detach(0x{:x}) -> 0", target));
-    ApiAbi::from_emu(emu).set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_pthread_equal(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let equal = (abi.arg(emu, 0) == abi.arg(emu, 1)) as u64;
+    let call = UnixApi;
+    let equal = (api_try!(emu, call.arg(emu, 0)) == api_try!(emu, call.arg(emu, 1))) as u64;
     trace(emu, &format!("pthread_equal() -> {}", equal));
-    abi.set_ret(emu, equal);
+    call.set_return(emu, equal);
 }
 
 /// Finish the current thread with `value`, completing any pending joins on

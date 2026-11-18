@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetVolumeInformationA(emu: &mut emu::Emu) {
-    let root_ptr = emu.regs().rcx;
-    let vol_name_ptr = emu.regs().rdx;
-    let vol_name_size = emu.regs().r8;
-    let serial_ptr = emu.regs().r9;
-    let max_comp_ptr = WinApiAbi::arg(emu, 4);
-    let flags_ptr = WinApiAbi::arg(emu, 5);
-    let fs_name_ptr = WinApiAbi::arg(emu, 6);
-    let fs_name_size = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let root_ptr = api_try!(emu, call.arg(emu, 0));
+    let vol_name_ptr = api_try!(emu, call.arg(emu, 1));
+    let vol_name_size = api_try!(emu, call.arg(emu, 2));
+    let serial_ptr = api_try!(emu, call.arg(emu, 3));
+    let max_comp_ptr = api_try!(emu, call.arg(emu, 4));
+    let flags_ptr = api_try!(emu, call.arg(emu, 5));
+    let fs_name_ptr = api_try!(emu, call.arg(emu, 6));
+    let fs_name_size = api_try!(emu, call.arg(emu, 7));
     let root = if root_ptr != 0 {
         emu.maps.read_string(root_ptr)
     } else {
@@ -31,17 +33,18 @@ pub fn GetVolumeInformationA(emu: &mut emu::Emu) {
         emu.maps.write_string(fs_name_ptr, "NTFS");
     }
     log_red!(emu, "kernelbase!GetVolumeInformationA '{}'", root);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn GetVolumeInformationW(emu: &mut emu::Emu) {
-    let root = emu.regs().rcx;
-    let vol_name_buf = emu.regs().rdx;
-    let vol_name_sz = emu.regs().r8 as u32;
-    let serial_ptr = emu.regs().r9;
-    let max_comp_ptr = WinApiAbi::arg(emu, 4);
-    let flags_ptr = WinApiAbi::arg(emu, 5);
-    let fs_name_buf = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let root = api_try!(emu, call.arg(emu, 0));
+    let vol_name_buf = api_try!(emu, call.arg(emu, 1));
+    let vol_name_sz = api_try!(emu, call.arg_u32(emu, 2));
+    let serial_ptr = api_try!(emu, call.arg(emu, 3));
+    let max_comp_ptr = api_try!(emu, call.arg(emu, 4));
+    let flags_ptr = api_try!(emu, call.arg(emu, 5));
+    let fs_name_buf = api_try!(emu, call.arg(emu, 6));
     log_red!(emu, "kernelbase!GetVolumeInformationW");
     let vol = "Windows";
     if vol_name_buf != 0 && vol_name_sz > 0 {
@@ -67,5 +70,5 @@ pub fn GetVolumeInformationW(emu: &mut emu::Emu) {
         }
         emu.maps.write_word(fs_name_buf + (fs.len() as u64) * 2, 0);
     }
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

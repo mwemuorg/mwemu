@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn PathCchSkipRoot(emu: &mut emu::Emu) {
-    let path_ptr = emu.regs().rcx;
-    let result_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
+    let result_ptr = api_try!(emu, call.arg(emu, 1));
     let path = emu.maps.read_wide_string(path_ptr);
     let skip = if path.len() >= 3 && path.as_bytes()[1] == b':' && path.as_bytes()[2] == b'\\' {
         3
@@ -22,5 +25,5 @@ pub fn PathCchSkipRoot(emu: &mut emu::Emu) {
         emu.maps.write_qword(result_ptr, after_root);
     }
     log_red!(emu, "kernelbase!PathCchSkipRoot '{}' skip:{}", path, skip);
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

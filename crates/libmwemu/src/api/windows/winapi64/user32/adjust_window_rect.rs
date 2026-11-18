@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn AdjustWindowRect(emu: &mut emu::Emu) {
-    let lprect = emu.regs().rcx;
-    let style = emu.regs().rdx;
-    let bmenu = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let lprect = api_try!(emu, call.arg(emu, 0));
+    let style = api_try!(emu, call.arg(emu, 1));
+    let bmenu = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "user32!AdjustWindowRect rect:0x{:x} style:0x{:x} menu:{}",
@@ -21,5 +24,5 @@ pub(super) fn AdjustWindowRect(emu: &mut emu::Emu) {
         emu.maps.write_dword(lprect + 8, right as u32);
         emu.maps.write_dword(lprect + 12, bottom as u32);
     }
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

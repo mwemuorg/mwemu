@@ -1,23 +1,22 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn DeleteVolumeMountPointA(emu: &mut emu::Emu) {
-    let _lpszVolumeMountPoint = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let _lpszVolumeMountPoint = api_try!(emu, call.arg_u32(emu, 0));
 
     log_red!(emu, "kernel32!DeleteVolumeMountPointA");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..1 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 1);
 }
 
 pub fn DeleteVolumeMountPointW(emu: &mut emu::Emu) {
-    let str_ptr = WinApiAbi::arg(emu, 0);
-    let arg2 = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let str_ptr = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     let s = emu.maps.read_wide_string(str_ptr);
     log_red!(
         emu,
@@ -25,6 +24,6 @@ pub fn DeleteVolumeMountPointW(emu: &mut emu::Emu) {
         s,
         arg2
     );
-    stdcall_ret(emu, 1);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }

@@ -1,7 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 
 pub fn GetCurrentProcessId(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "kernel32!GetCurrentProcessId");
 
-    emu.regs_mut().rax = 0x123;
+    call.set_return(emu, 0x123);
 }

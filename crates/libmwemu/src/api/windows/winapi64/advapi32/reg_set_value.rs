@@ -1,15 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn RegSetValueA(emu: &mut emu::Emu) {
     reg_set_value(emu, "RegSetValueA", false);
 }
 
 fn reg_set_value(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let reserved = emu.regs().r8;
-    let reg_type = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 1));
+    let reserved = api_try!(emu, call.arg(emu, 2));
+    let reg_type = api_try!(emu, call.arg(emu, 3));
     let name = strings::read_text(emu, name_ptr, wide);
     log_red!(
         emu,
@@ -19,7 +22,7 @@ fn reg_set_value(emu: &mut emu::Emu, api: &str, wide: bool) {
         reg_type
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn RegSetValueW(emu: &mut emu::Emu) {

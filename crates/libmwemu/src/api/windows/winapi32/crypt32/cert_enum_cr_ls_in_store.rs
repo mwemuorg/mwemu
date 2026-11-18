@@ -1,18 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CertEnumCRLsInStore(emu: &mut emu::Emu) {
-    let arg1 = WinApiAbi::arg(emu, 0);
-    let arg2 = WinApiAbi::arg(emu, 1);
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
+    call.cleanup_args(emu, 2);
     log_red!(
         emu,
         "crypt32!CertEnumCRLsInStore arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );
-    emu.regs_mut().rax = helper::handler_create("CertEnumCRLsInStore");
+    call.set_return(emu, helper::handler_create("CertEnumCRLsInStore"));
 }

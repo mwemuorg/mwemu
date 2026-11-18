@@ -8,6 +8,7 @@ use iced_x86::Instruction;
 use serde::{Deserialize, Serialize};
 
 use crate::api::banzai::Banzai;
+use crate::api::unix::ApiState;
 use crate::api::windows::policy::ApiPolicy;
 use crate::config::Config;
 use crate::debug::breakpoint::Breakpoints;
@@ -375,6 +376,7 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             now: now.to_instant(),
             force_break,
             api_policy: ApiPolicy::default(),
+            unix_api: ApiState::default(),
             process_terminated: false,
             call_depth: 0,
             host_call_return: None,

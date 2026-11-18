@@ -1,16 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptVerifySignature(emu: &mut emu::Emu) {
-    let h_key = arg(emu, 0) as u64;
-    let _padding_info = arg(emu, 1) as u64;
-    let pb_hash = arg(emu, 2) as u64;
-    let cb_hash = arg(emu, 3);
-    let pb_signature = arg(emu, 4) as u64;
-    let cb_signature = arg(emu, 5);
-    let _flags = arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let h_key = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let _padding_info = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let pb_hash = api_try!(emu, call.arg_u32(emu, 2)) as u64;
+    let cb_hash = api_try!(emu, call.arg_u32(emu, 3));
+    let pb_signature = api_try!(emu, call.arg_u32(emu, 4)) as u64;
+    let cb_signature = api_try!(emu, call.arg_u32(emu, 5));
+    let _flags = api_try!(emu, call.arg_u32(emu, 6));
 
     log_red!(
         emu,
@@ -21,6 +22,6 @@ pub(super) fn BCryptVerifySignature(emu: &mut emu::Emu) {
         pb_signature,
         cb_signature
     );
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 7);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 7);
 }

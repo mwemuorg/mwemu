@@ -1,20 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetDurationFormat(emu: &mut emu::Emu) {
-    let _Locale = WinApiAbi::arg(emu, 0) as u32;
-    let _dwFlags = WinApiAbi::arg(emu, 1) as u32;
-    let _lpDuration = WinApiAbi::arg(emu, 2) as u32;
-    let _ullDuration = WinApiAbi::arg(emu, 3) as u32;
-    let _lpFormat = WinApiAbi::arg(emu, 5) as u32;
-    let _lpDurationStr = WinApiAbi::arg(emu, 6) as u32;
-    let _cchDuration = WinApiAbi::arg(emu, 7) as u32;
+    let call = WinApi(Stdcall);
+    let _Locale = api_try!(emu, call.arg_u32(emu, 0));
+    let _dwFlags = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpDuration = api_try!(emu, call.arg_u32(emu, 2));
+    let _ullDuration = api_try!(emu, call.arg_u32(emu, 3));
+    let _lpFormat = api_try!(emu, call.arg_u32(emu, 5));
+    let _lpDurationStr = api_try!(emu, call.arg_u32(emu, 6));
+    let _cchDuration = api_try!(emu, call.arg_u32(emu, 7));
 
     log_red!(emu, "kernel32!GetDurationFormat");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    stdcall_ret(emu, 8);
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 8);
 }

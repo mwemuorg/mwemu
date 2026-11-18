@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn RegGetKeySecurity(emu: &mut emu::Emu) {
-    let hkey = emu.regs().rcx;
-    let sec_info = emu.regs().rdx as u32;
-    let sec_desc = emu.regs().r8;
-    let cb_sec_desc = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let sec_info = api_try!(emu, call.arg_u32(emu, 1));
+    let sec_desc = api_try!(emu, call.arg(emu, 2));
+    let cb_sec_desc = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "kernelbase!RegGetKeySecurity hkey:0x{:x} info:0x{:x}",
@@ -14,5 +17,5 @@ pub fn RegGetKeySecurity(emu: &mut emu::Emu) {
     if cb_sec_desc != 0 {
         emu.maps.write_dword(cb_sec_desc, 20);
     }
-    emu.regs_mut().rax = 122; // ERROR_INSUFFICIENT_BUFFER
+    call.set_return(emu, 122); // ERROR_INSUFFICIENT_BUFFER
 }

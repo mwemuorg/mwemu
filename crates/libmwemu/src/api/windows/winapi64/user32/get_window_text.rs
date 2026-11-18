@@ -1,4 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn GetWindowTextA(emu: &mut emu::Emu) {
     get_window_text(emu, "GetWindowTextA", false);
@@ -9,9 +11,10 @@ pub(super) fn GetWindowTextW(emu: &mut emu::Emu) {
 }
 
 fn get_window_text(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hwnd = emu.regs().rcx;
-    let buf = emu.regs().rdx;
-    let max_count = emu.regs().r8 as usize;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
+    let max_count = api_try!(emu, call.arg(emu, 2)) as usize;
     log_red!(
         emu,
         "user32!{api} hwnd=0x{:x} buf=0x{:x} max={}",
@@ -29,5 +32,5 @@ fn get_window_text(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

@@ -1,19 +1,22 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn StrCmpCA(emu: &mut emu::Emu) {
-    let str1_ptr = emu.regs().rcx;
-    let str2_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let str1_ptr = api_try!(emu, call.arg(emu, 0));
+    let str2_ptr = api_try!(emu, call.arg(emu, 1));
     if str1_ptr == 0 || str2_ptr == 0 {
-        emu.regs_mut().rax = 0xffffffff;
+        call.set_return(emu, 0xffffffff);
         log_red!(emu, "msvcrt!StrCmpA null ptrs");
     } else {
         let str1 = emu.maps.read_string(str1_ptr);
         let str2 = emu.maps.read_string(str2_ptr);
         log_red!(emu, "msvcrt!StrCmpA {} == {}", str1, str2);
         if str1 == str2 {
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         } else {
-            emu.regs_mut().rax = 0xffffffff;
+            call.set_return(emu, 0xffffffff);
         }
     }
 }

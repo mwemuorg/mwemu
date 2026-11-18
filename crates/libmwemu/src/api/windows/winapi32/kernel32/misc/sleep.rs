@@ -1,8 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn Sleep(emu: &mut emu::Emu) {
-    let millis = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let millis = api_try!(emu, call.arg_u32(emu, 0));
 
     log_red!(
         emu,
@@ -21,5 +23,5 @@ pub fn Sleep(emu: &mut emu::Emu) {
         emu.tick += millis as usize;
     }
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 }

@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BuildCommDCBA(emu: &mut emu::Emu) {
@@ -7,16 +8,14 @@ pub fn BuildCommDCBA(emu: &mut emu::Emu) {
 }
 
 fn build_comm_dcb(emu: &mut emu::Emu, api: &str) {
-    let _lpDef = WinApiAbi::arg(emu, 0) as u32;
-    let _lpDCB = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let _lpDef = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpDCB = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "kernel32!{api}");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 2);
 }
 
 pub fn BuildCommDCBW(emu: &mut emu::Emu) {

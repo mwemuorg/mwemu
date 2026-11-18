@@ -1,8 +1,11 @@
 use super::allocate_memory;
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn __acrt_iob_func(emu: &mut emu::Emu) {
-    let index = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let index = api_try!(emu, call.arg(emu, 0));
     let iob_addr = allocate_memory(emu, 96).unwrap_or(0);
     if iob_addr != 0 {
         emu.maps.memset(iob_addr, 0, 96);
@@ -20,5 +23,5 @@ pub(super) fn __acrt_iob_func(emu: &mut emu::Emu) {
         index,
         iob_addr
     );
-    emu.regs_mut().rax = iob_addr;
+    call.set_return(emu, iob_addr);
 }

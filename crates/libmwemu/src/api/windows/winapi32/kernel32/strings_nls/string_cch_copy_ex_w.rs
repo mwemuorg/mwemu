@@ -1,20 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn StringCchCopyExW(emu: &mut emu::Emu) {
-    let _pszDest = WinApiAbi::arg(emu, 0) as u32;
-    let _cchDest = WinApiAbi::arg(emu, 1) as u32;
-    let _pszSrc = WinApiAbi::arg(emu, 2) as u32;
-    let _ppszDestEnd = WinApiAbi::arg(emu, 3) as u32;
-    let _pcchRemaining = WinApiAbi::arg(emu, 4) as u32;
-    let _dwFlags = WinApiAbi::arg(emu, 5) as u32;
+    let call = WinApi(Stdcall);
+    let _pszDest = api_try!(emu, call.arg_u32(emu, 0));
+    let _cchDest = api_try!(emu, call.arg_u32(emu, 1));
+    let _pszSrc = api_try!(emu, call.arg_u32(emu, 2));
+    let _ppszDestEnd = api_try!(emu, call.arg_u32(emu, 3));
+    let _pcchRemaining = api_try!(emu, call.arg_u32(emu, 4));
+    let _dwFlags = api_try!(emu, call.arg_u32(emu, 5));
 
     log_red!(emu, "kernel32!StringCchCopyExW");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 6);
 }

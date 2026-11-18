@@ -1,3 +1,4 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::modules;
 use crate::emu;
 use crate::emu::loaders::pe_stub_exports::get_stub_exports;
@@ -11,9 +12,10 @@ pub fn is_library_loaded(emu: &mut emu::Emu, libname: &str) -> bool {
 }
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
+    let call = WinApi(Stdcall);
     let Some(mut dll) = modules::normalize_library_name(libname, false) else {
         emu.set_last_error(0);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return 0;
     };
 
@@ -93,8 +95,9 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
 }
 
 pub fn get_library_handle(emu: &mut emu::Emu, libname: &str) -> u64 {
+    let call = WinApi(Stdcall);
     let Some(dll) = modules::normalize_library_name(libname, false) else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return 0;
     };
 

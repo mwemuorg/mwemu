@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WSAAccept(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let addr_ptr = emu.regs().rdx;
-    let addrlen_ptr = emu.regs().r8;
-    let condition_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let addr_ptr = api_try!(emu, call.arg(emu, 1));
+    let addrlen_ptr = api_try!(emu, call.arg(emu, 2));
+    let condition_ptr = api_try!(emu, call.arg(emu, 3));
     log_red!(emu, "ws2_32!WSAAccept sock:0x{:x}", sock);
     if !helper::socket_exist(sock) {
-        emu.regs_mut().rax = 0xFFFFFFFFFFFFFFFF;
+        call.set_return(emu, 0xFFFFFFFFFFFFFFFF);
     } else {
         let new_sock = helper::socket_create();
         if addr_ptr != 0 {
@@ -19,6 +22,6 @@ pub fn WSAAccept(emu: &mut emu::Emu) {
         if addrlen_ptr != 0 {
             emu.maps.write_dword(addrlen_ptr, 16);
         }
-        emu.regs_mut().rax = new_sock;
+        call.set_return(emu, new_sock);
     }
 }

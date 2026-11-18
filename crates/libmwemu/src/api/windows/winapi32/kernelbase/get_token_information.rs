@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn GetTokenInformation(emu: &mut emu::Emu) {
-    let token_information_class = arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let token_information_class = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(
         emu,
         "kernelbase!GetTokenInformation class: 0x{:x}",
         token_information_class
     );
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }

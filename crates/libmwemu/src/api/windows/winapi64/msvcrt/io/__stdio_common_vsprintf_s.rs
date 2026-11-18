@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn __stdio_common_vsprintf_s(emu: &mut emu::Emu) {
-    let _options = emu.regs().rcx;
-    let buf = emu.regs().rdx;
-    let _buf_size = emu.regs().r8;
-    let fmt_ptr = emu.regs().r9;
+    let call = WinApi(Cdecl);
+    let _options = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
+    let _buf_size = api_try!(emu, call.arg(emu, 2));
+    let fmt_ptr = api_try!(emu, call.arg(emu, 3));
     let fmt = emu.maps.read_string(fmt_ptr);
     log_red!(
         emu,
@@ -15,5 +18,5 @@ pub fn __stdio_common_vsprintf_s(emu: &mut emu::Emu) {
     if buf != 0 && !fmt.is_empty() {
         emu.maps.write_string(buf, &fmt);
     }
-    emu.regs_mut().rax = fmt.len() as u64;
+    call.set_return(emu, fmt.len() as u64);
 }

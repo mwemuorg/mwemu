@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn FindFirstFileA(emu: &mut emu::Emu) {
-    let filename_ptr = emu.regs().rcx;
-    let find_data = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let filename_ptr = api_try!(emu, call.arg(emu, 0));
+    let find_data = api_try!(emu, call.arg(emu, 1));
     let pattern = emu.maps.read_string(filename_ptr);
     log_red!(
         emu,
@@ -18,12 +21,13 @@ pub fn FindFirstFileA(emu: &mut emu::Emu) {
         emu.maps.write_string(find_data + 44, "dummy.txt");
     }
     let hndl = helper::handler_create("findfile://search");
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn FindFirstFileW(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "kernelbase!FindFirstFileW arg1:0x{:x} arg2:0x{:x}",
@@ -31,5 +35,5 @@ pub fn FindFirstFileW(emu: &mut emu::Emu) {
         arg2
     );
     let hndl = helper::handler_create("findfile://FindFirstFileW");
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

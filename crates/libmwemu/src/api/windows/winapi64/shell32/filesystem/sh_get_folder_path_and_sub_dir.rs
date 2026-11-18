@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SHGetFolderPathAndSubDirA(emu: &mut emu::Emu) {
     sh_get_folder_path_and_sub_dir(emu, "SHGetFolderPathAndSubDirA", false);
@@ -11,12 +12,13 @@ pub fn SHGetFolderPathAndSubDirW(emu: &mut emu::Emu) {
 }
 
 fn sh_get_folder_path_and_sub_dir(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hwnd = emu.regs().rcx;
-    let csidl = emu.regs().rdx as i32;
-    let htoken = emu.regs().r8;
-    let dw_flags = emu.regs().r9;
-    let psz_sub_dir = WinApiAbi::arg(emu, 4);
-    let psz_path = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let csidl = api_try!(emu, call.arg_i32(emu, 1));
+    let htoken = api_try!(emu, call.arg(emu, 2));
+    let dw_flags = api_try!(emu, call.arg(emu, 3));
+    let psz_sub_dir = api_try!(emu, call.arg(emu, 4));
+    let psz_path = api_try!(emu, call.arg(emu, 5));
     let sub_dir = if psz_sub_dir != 0 {
         strings::read_text(emu, psz_sub_dir, wide)
     } else {
@@ -44,5 +46,5 @@ fn sh_get_folder_path_and_sub_dir(emu: &mut emu::Emu, api: &str, wide: bool) {
         path
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

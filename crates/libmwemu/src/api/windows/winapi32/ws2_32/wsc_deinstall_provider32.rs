@@ -1,15 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn WSCDeinstallProvider32(emu: &mut emu::Emu) {
-    let err_ptr = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let err_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ws2_32!WSCDeinstallProvider32 ptr:0x{:x}", err_ptr);
-    let first_param = WinApiAbi::arg(emu, 0);
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    stdcall_ret(emu, 2);
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 2);
 }

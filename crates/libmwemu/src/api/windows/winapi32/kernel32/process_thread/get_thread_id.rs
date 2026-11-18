@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetThreadId(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 1));
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 
     for i in 0..emu.threads.len() {
         if emu.threads[i].handle == hndl {
-            emu.regs_mut().rax = emu.threads[i].id;
+            let return_value = emu.threads[i].id;
+            call.set_return(emu, return_value);
             log_red!(
                 emu,
                 "kernel32!GetThreadId hndl:{} (requested handle exists and its tid {})",
@@ -23,5 +26,5 @@ pub fn GetThreadId(emu: &mut emu::Emu) {
         "kernel32!GetThreadId hndl:{} (requested handle doesn't exist, returning a fake handle for now but should return zero.)",
         hndl
     );
-    emu.regs_mut().rax = 0x2c2878; // if handle not found should return zero.
+    call.set_return(emu, 0x2c2878); // if handle not found should return zero.
 }

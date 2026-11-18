@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn InitializeCriticalSection(emu: &mut emu::Emu) {
-    let ptr_crit_sect = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let ptr_crit_sect = api_try!(emu, call.arg_u32(emu, 0));
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 
     log_red!(
         emu,
@@ -12,5 +14,5 @@ pub fn InitializeCriticalSection(emu: &mut emu::Emu) {
         ptr_crit_sect
     );
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

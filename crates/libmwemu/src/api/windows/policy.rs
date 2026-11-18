@@ -2,11 +2,14 @@ use std::sync::atomic::Ordering;
 
 use serde::{Deserialize, Serialize};
 
+use crate::api::abi::windows::{
+    ArgumentError,
+    CallingConvention::Stdcall,
+    WindowsAbi::{WinApi, WinSyscall},
+};
 use crate::api::windows::common::nt_api;
-use crate::api::windows::helper::WinApiAbi;
 use crate::config::Config;
 use crate::emu::Emu;
-use crate::err::MwemuError;
 use crate::serialization::Serialization;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::system::{FALSE, TRUE};
@@ -24,6 +27,7 @@ pub enum ApiRoute {
     Address,
     Import,
     Gateway,
+    Syscall,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,6 +48,7 @@ pub enum ApiStopReason {
     InvalidFrame,
     InvalidMemory,
     BanzaiDisabled,
+    InvalidArgument(ArgumentError),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,18 +110,6 @@ impl Emu {
 
     pub fn api_mode(&self) -> ApiMode {
         self.api_policy.effective_mode(&self.cfg)
-    }
-
-    pub(crate) fn check_api_stop(&self) -> Result<(), MwemuError> {
-        if let Some(outcome) = &self.api_policy.last_outcome
-            && let ApiDisposition::Stopped(reason) = outcome.disposition
-        {
-            return Err(MwemuError::new(&format!(
-                "unsupported Windows API {}!{} at 0x{:x}: {:?}",
-                outcome.call.library, outcome.call.name, outcome.call.pc, reason
-            )));
-        }
-        Ok(())
     }
 }
 
@@ -207,6 +200,23 @@ fn stop(emu: &mut Emu, call: ApiCall, reason: ApiStopReason) {
     {
         Serialization::dump(emu, filename);
     }
+}
+
+pub(crate) fn argument_fault(emu: &mut Emu, error: ArgumentError) {
+    let call = if error.abi == WinSyscall {
+        ApiCall {
+            library: "ntdll".into(),
+            name: format!("syscall 0x{:x}", emu.regs().rax),
+            address: emu.pc(),
+            route: ApiRoute::Syscall,
+            pc: emu.pc(),
+            stack_pointer: emu.sp(),
+            thread_id: emu.current_thread_id,
+        }
+    } else {
+        call(emu, "unknown", "direct handler", emu.pc())
+    };
+    stop(emu, call, ApiStopReason::InvalidArgument(error));
 }
 
 /// API interception consumes the return address before invoking old handlers.
@@ -315,6 +325,7 @@ fn generic_recipe(emu: &mut Emu, name: &str) -> Result<Recipe, ApiStopReason> {
 }
 
 fn checked_frame(emu: &Emu, recipe: &Recipe) -> Option<u64> {
+    let call = WinApi(Stdcall);
     let (next_sp, slots) = if emu.cfg.arch.is_64bits() {
         (emu.sp(), recipe.arguments)
     } else {
@@ -327,12 +338,13 @@ fn checked_frame(emu: &Emu, recipe: &Recipe) -> Option<u64> {
         (next_sp, recipe.x86_words)
     };
     (0..slots)
-        .all(|i| WinApiAbi::try_arg(emu, i as usize).is_some())
+        .all(|i| call.arg(emu, i as usize).is_ok())
         .then_some(next_sp)
 }
 
 impl Simulation {
     fn apply(self, emu: &mut Emu) -> Result<(u64, Option<u64>), ApiStopReason> {
+        let call = WinApi(Stdcall);
         match self {
             // A declared unsupported-operation failure, before any output effects.
             Self::NtFailure => Ok((STATUS_NOT_IMPLEMENTED, None)),
@@ -342,8 +354,8 @@ impl Simulation {
             // Legacy best-effort return; output buffers and LastError stay unchanged.
             Self::GenericZero => Ok((0, None)),
             Self::FileTimeUtc => {
-                let input = WinApiAbi::try_arg(emu, 0).ok_or(ApiStopReason::InvalidFrame)?;
-                let output = WinApiAbi::try_arg(emu, 1).ok_or(ApiStopReason::InvalidFrame)?;
+                let input = call.arg(emu, 0).map_err(ApiStopReason::InvalidArgument)?;
+                let output = call.arg(emu, 1).map_err(ApiStopReason::InvalidArgument)?;
                 let size = size_of::<u64>() as u64;
                 if input == 0
                     || output == 0
@@ -373,7 +385,8 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
     if emu.api_policy.stopped() {
         return;
     }
-    let call = call(emu, library, name, address);
+    let context = call(emu, library, name, address);
+    let call = WinApi(Stdcall);
     let mode = emu.api_mode();
     if mode == ApiMode::Strict {
         if emu
@@ -383,27 +396,27 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
         {
             log::warn!("strict Windows API policy takes precedence over simulation settings");
         }
-        stop(emu, call, ApiStopReason::StrictPolicy);
+        stop(emu, context, ApiStopReason::StrictPolicy);
         return;
     }
-    let recipe = recipe(&call.library.to_ascii_lowercase(), &call.name, mode)
+    let recipe = recipe(&context.library.to_ascii_lowercase(), &context.name, mode)
         .map(Ok)
-        .unwrap_or_else(|| generic_recipe(emu, &call.name));
+        .unwrap_or_else(|| generic_recipe(emu, &context.name));
     let recipe = match recipe {
         Ok(recipe) => recipe,
         Err(reason) => {
-            stop(emu, call, reason);
+            stop(emu, context, reason);
             return;
         }
     };
     let Some(next_sp) = checked_frame(emu, &recipe) else {
-        stop(emu, call, ApiStopReason::InvalidFrame);
+        stop(emu, context, ApiStopReason::InvalidFrame);
         return;
     };
     let (result, last_error) = match recipe.simulation.apply(emu) {
         Ok(result) => result,
         Err(reason) => {
-            stop(emu, call, reason);
+            stop(emu, context, reason);
             return;
         }
     };
@@ -411,19 +424,19 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
         emu.set_last_error(error);
     }
     emu.set_sp(next_sp);
-    WinApiAbi::set_ret(emu, result);
+    call.set_return(emu, result);
     emu.api_policy.simulation_count = emu.api_policy.simulation_count.saturating_add(1);
     log::warn!(
         "simulating {}!{}: {:?}, model={:?}, result=0x{:x}, LastError={:?} (None preserves)",
-        call.library,
-        call.name,
+        context.library,
+        context.name,
         mode,
         recipe.simulation,
         result,
         last_error
     );
     emu.api_policy.last_outcome = Some(ApiOutcome {
-        call,
+        call: context,
         mode,
         disposition: if matches!(recipe.simulation, Simulation::GenericZero) {
             ApiDisposition::SimulatedGeneric
@@ -436,3 +449,19 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
         last_error,
     });
 }
+
+/// Stop a unit-returning handler on a frame error. Fallible semantic helpers
+/// propagate the error to this boundary instead of returning an API status.
+macro_rules! api_try {
+    ($emu:expr, $read:expr) => {
+        match $read {
+            Ok(value) => value,
+            Err(error) => {
+                $crate::api::windows::policy::argument_fault($emu, error);
+                return;
+            }
+        }
+    };
+}
+
+pub(crate) use api_try;

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn LoadTypeLib(emu: &mut emu::Emu) {
-    let sz_file = emu.regs().rcx;
-    let pptlib = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let sz_file = api_try!(emu, call.arg(emu, 0));
+    let pptlib = api_try!(emu, call.arg(emu, 1));
     let hndl = helper::handler_create("oleaut32://ITypeLib");
     if pptlib != 0 {
         emu.maps.write_qword(pptlib, hndl);
@@ -11,5 +14,5 @@ pub fn LoadTypeLib(emu: &mut emu::Emu) {
     let path = emu.maps.read_wide_string(sz_file);
     log_red!(emu, "oleaut32!LoadTypeLib '{}' =0x{:x}", path, hndl);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

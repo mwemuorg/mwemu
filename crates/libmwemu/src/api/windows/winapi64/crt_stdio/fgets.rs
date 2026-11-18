@@ -2,15 +2,18 @@ use super::EINVAL;
 use super::set_errno;
 use super::stream_handle;
 use super::with_stream;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn fgets(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let max = emu.regs().rdx as i32;
-    let file = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let max = api_try!(emu, call.arg_i32(emu, 1));
+    let file = api_try!(emu, call.arg(emu, 2));
     let Some(handle) = stream_handle(file).filter(|_| dst != 0 && max > 0) else {
         set_errno(emu, EINVAL);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     };
     let mut line = Vec::new();
@@ -37,10 +40,10 @@ pub(super) fn fgets(emu: &mut emu::Emu) {
         String::from_utf8_lossy(&line)
     );
     if line.is_empty() {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
     line.push(0);
     emu.maps.write_bytes(dst, &line);
-    emu.regs_mut().rax = dst;
+    call.set_return(emu, dst);
 }

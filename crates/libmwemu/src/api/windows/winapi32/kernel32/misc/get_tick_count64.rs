@@ -1,11 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetTickCount64(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "kernel32!GetTickCount64");
     // ULONGLONG comes back in edx:eax
     let tick = emu.tick as u64;
-    emu.regs_mut().rax = tick & 0xffff_ffff;
+    call.set_return(emu, tick & 0xffff_ffff);
     emu.regs_mut().rdx = tick >> 32;
-    stdcall_ret(emu, 0);
+    call.cleanup_args(emu, 0);
 }

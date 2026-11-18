@@ -1,17 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn EnableThreadProfiling(emu: &mut emu::Emu) {
-    let _ThreadHandle = WinApiAbi::arg(emu, 0) as u32;
-    let _Flags = WinApiAbi::arg(emu, 1) as u32;
-    let _HardwareCounters = WinApiAbi::arg(emu, 2) as u32;
-    let _PerformanceDataHandle = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let _ThreadHandle = api_try!(emu, call.arg_u32(emu, 0));
+    let _Flags = api_try!(emu, call.arg_u32(emu, 1));
+    let _HardwareCounters = api_try!(emu, call.arg_u32(emu, 2));
+    let _PerformanceDataHandle = api_try!(emu, call.arg_u32(emu, 4));
 
     log_red!(emu, "kernel32!EnableThreadProfiling");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    stdcall_ret(emu, 5);
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 5);
 }

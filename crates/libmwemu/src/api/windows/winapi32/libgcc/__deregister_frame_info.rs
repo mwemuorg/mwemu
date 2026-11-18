@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn __deregister_frame_info(emu: &mut emu::Emu) {
-    let p1 = WinApiAbi::arg(emu, 0) as u32;
+    let call = WinApi(Cdecl);
+    let p1 = api_try!(emu, call.arg_u32(emu, 0));
 
     log_red!(emu, "libgcc!__deregister_frame_info {:x}", p1);
 
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 1);
 }

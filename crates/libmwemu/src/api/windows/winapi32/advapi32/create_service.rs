@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateServiceA(emu: &mut emu::Emu) {
     create_service(emu, "CreateServiceA", false);
 }
 
 fn create_service(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hsc = WinApiAbi::arg(emu, 0) as u32;
-    let name_ptr = WinApiAbi::arg(emu, 1);
-    let display_ptr = WinApiAbi::arg(emu, 2);
-    let access = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let hsc = api_try!(emu, call.arg_u32(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 1));
+    let display_ptr = api_try!(emu, call.arg(emu, 2));
+    let access = api_try!(emu, call.arg_u32(emu, 3));
     let name = strings::read_text(emu, name_ptr, wide);
     let display = strings::read_text(emu, display_ptr, wide);
     let hsvc = helper::handler_create(&name);
@@ -22,10 +24,8 @@ fn create_service(emu: &mut emu::Emu, api: &str, wide: bool) {
         display,
         hsvc
     );
-    for _ in 0..13 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = hsvc;
+    call.cleanup_args(emu, 13);
+    call.set_return(emu, hsvc);
 }
 
 pub fn CreateServiceW(emu: &mut emu::Emu) {

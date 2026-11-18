@@ -2,14 +2,17 @@ use super::EINVAL;
 use super::set_errno;
 use super::stream_handle;
 use super::with_stream;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use std::io::SeekFrom;
 
 pub(super) fn fwrite(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let size = emu.regs().rdx;
-    let count = emu.regs().r8;
-    let file = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg(emu, 2));
+    let file = api_try!(emu, call.arg(emu, 3));
     let total = size.saturating_mul(count) as usize;
     let data = emu.maps.try_read_bytes(buf, total).map(|b| b.to_vec());
     let append = with_stream(file, |s| s.append).unwrap_or(false);
@@ -36,12 +39,12 @@ pub(super) fn fwrite(emu: &mut emu::Emu) {
         written
     );
     match written {
-        Some(n) if size != 0 => emu.regs_mut().rax = n as u64 / size,
-        Some(_) => emu.regs_mut().rax = 0,
+        Some(n) if size != 0 => call.set_return(emu, n as u64 / size),
+        Some(_) => call.set_return(emu, 0),
         None => {
             with_stream(file, |s| s.error = true);
             set_errno(emu, EINVAL);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     }
 }

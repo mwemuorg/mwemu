@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetStringTypeA(emu: &mut emu::Emu) {
-    let locale = emu.regs().rcx;
-    let dw_info_type = emu.regs().rdx as u32;
-    let lp_src_str = emu.regs().r8;
-    let cch_src = emu.regs().r9 as i32;
-    let lp_char_type = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let locale = api_try!(emu, call.arg(emu, 0));
+    let dw_info_type = api_try!(emu, call.arg_u32(emu, 1));
+    let lp_src_str = api_try!(emu, call.arg(emu, 2));
+    let cch_src = api_try!(emu, call.arg_i32(emu, 3));
+    let lp_char_type = api_try!(emu, call.arg(emu, 4));
 
     let actual_len = if cch_src == -1 {
         let s = emu.maps.read_string(lp_src_str);
@@ -57,14 +59,15 @@ pub fn GetStringTypeA(emu: &mut emu::Emu) {
         dw_info_type,
         actual_len
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn GetStringTypeW(emu: &mut emu::Emu) {
-    let dw_info_type = emu.regs().rcx as u32;
-    let lp_src_str = emu.regs().rdx;
-    let cch_src = emu.regs().r8 as i32;
-    let lp_char_type = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let dw_info_type = api_try!(emu, call.arg_u32(emu, 0));
+    let lp_src_str = api_try!(emu, call.arg(emu, 1));
+    let cch_src = api_try!(emu, call.arg_i32(emu, 2));
+    let lp_char_type = api_try!(emu, call.arg(emu, 3));
 
     let actual_len = if cch_src == -1 {
         let s = emu.maps.read_wide_string(lp_src_str);
@@ -121,5 +124,5 @@ pub fn GetStringTypeW(emu: &mut emu::Emu) {
         dw_info_type,
         actual_len
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

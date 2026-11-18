@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn PathCchAppend(emu: &mut emu::Emu, api: &str) {
-    let path_ptr = emu.regs().rcx;
-    let cch_path = emu.regs().rdx as usize;
-    let more_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
+    let cch_path = api_try!(emu, call.arg(emu, 1)) as usize;
+    let more_ptr = api_try!(emu, call.arg(emu, 2));
     let path = emu.maps.read_wide_string(path_ptr);
     let more = emu.maps.read_wide_string(more_ptr);
     let result_path = if more.starts_with('\\') || (more.len() >= 2 && more.as_bytes()[1] == b':') {
@@ -22,5 +25,5 @@ pub fn PathCchAppend(emu: &mut emu::Emu, api: &str) {
         more,
         result_path
     );
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

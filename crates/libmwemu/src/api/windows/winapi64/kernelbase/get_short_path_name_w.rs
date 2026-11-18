@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetShortPathNameW(emu: &mut emu::Emu) {
-    let long_ptr = emu.regs().rcx;
-    let short_ptr = emu.regs().rdx;
-    let buf_size = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let long_ptr = api_try!(emu, call.arg(emu, 0));
+    let short_ptr = api_try!(emu, call.arg(emu, 1));
+    let buf_size = api_try!(emu, call.arg(emu, 2));
     let path = if long_ptr != 0 {
         emu.maps.read_wide_string(long_ptr)
     } else {
@@ -20,5 +23,5 @@ pub fn GetShortPathNameW(emu: &mut emu::Emu) {
         char_count
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = char_count as u64;
+    call.set_return(emu, char_count as u64);
 }

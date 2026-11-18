@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn TlsGetValue(emu: &mut emu::Emu) {
-    let idx = emu.regs().rcx as usize; // Parameter passed in RCX in x64
+    let call = WinApi(Stdcall);
+    let idx = api_try!(emu, call.arg(emu, 0)) as usize; // Parameter passed in RCX in x64
 
     let val = if idx < emu.tls64().len() {
         emu.set_last_error(ERROR_SUCCESS);
@@ -12,7 +15,7 @@ pub fn TlsGetValue(emu: &mut emu::Emu) {
         0
     };
 
-    emu.regs_mut().rax = val;
+    call.set_return(emu, val);
 
     log_red!(
         emu,

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetDeviceCaps(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let index = emu.regs().rdx as i32;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let index = api_try!(emu, call.arg_i32(emu, 1));
     // Windows GetDeviceCaps index constants (wingdi.h)
     let result: u64 = match index {
         0 => 1,            // DRIVERVERSION
@@ -57,5 +60,5 @@ pub fn GetDeviceCaps(emu: &mut emu::Emu) {
     );
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateWaitableTimerA(emu: &mut emu::Emu) {
     create_waitable_timer(emu, "CreateWaitableTimerA", false);
@@ -12,9 +13,10 @@ pub fn CreateWaitableTimerW(emu: &mut emu::Emu) {
 }
 
 fn create_waitable_timer(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _security = WinApiAbi::arg(emu, 0);
-    let manual_reset = WinApiAbi::arg(emu, 1);
-    let name = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let _security = api_try!(emu, call.arg(emu, 0));
+    let manual_reset = api_try!(emu, call.arg(emu, 1));
+    let name = api_try!(emu, call.arg(emu, 2));
     let name_s = if name != 0 {
         strings::read_text(emu, name, wide)
     } else {
@@ -27,5 +29,5 @@ fn create_waitable_timer(emu: &mut emu::Emu, api: &str, wide: bool) {
         manual_reset,
         name_s
     );
-    emu.regs_mut().rax = helper::handler_create("waitable_timer");
+    call.set_return(emu, helper::handler_create("waitable_timer"));
 }

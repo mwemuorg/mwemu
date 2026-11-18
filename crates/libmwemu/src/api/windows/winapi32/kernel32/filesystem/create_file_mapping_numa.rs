@@ -1,32 +1,30 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn CreateFileMappingNumaA(emu: &mut emu::Emu) {
-    let _hFile = WinApiAbi::arg(emu, 0) as u32;
-    let _lpFileMappingAttributes = WinApiAbi::arg(emu, 1) as u32;
-    let _flProtect = WinApiAbi::arg(emu, 2) as u32;
-    let _dwMaximumSizeHigh = WinApiAbi::arg(emu, 3) as u32;
-    let _dwMaximumSizeLow = WinApiAbi::arg(emu, 4) as u32;
-    let lpName = WinApiAbi::arg(emu, 5) as u32;
-    let _nndPreferred = WinApiAbi::arg(emu, 6) as u32;
+    let call = WinApi(Stdcall);
+    let _hFile = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpFileMappingAttributes = api_try!(emu, call.arg_u32(emu, 1));
+    let _flProtect = api_try!(emu, call.arg_u32(emu, 2));
+    let _dwMaximumSizeHigh = api_try!(emu, call.arg_u32(emu, 3));
+    let _dwMaximumSizeLow = api_try!(emu, call.arg_u32(emu, 4));
+    let lpName = api_try!(emu, call.arg_u32(emu, 5));
+    let _nndPreferred = api_try!(emu, call.arg_u32(emu, 6));
 
     let lpName = emu.maps.read_string(lpName as u64);
 
     log_red!(emu, "kernel32!CreateFileMappingNumaA {}", lpName);
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..7 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 7);
 }
 
 pub fn CreateFileMappingNumaW(emu: &mut emu::Emu) {
-    for _ in 0..7u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    call.cleanup_args(emu, 7);
     log_red!(emu, "kernel32!CreateFileMappingNumaW");
-    emu.regs_mut().rax = helper::handler_create("CreateFileMappingNumaW");
+    call.set_return(emu, helper::handler_create("CreateFileMappingNumaW"));
 }

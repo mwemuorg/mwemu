@@ -1,15 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn GetTextExtentPoint32A(emu: &mut emu::Emu) {
     get_text_extent_point32(emu, "GetTextExtentPoint32A", false);
 }
 
 fn get_text_extent_point32(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hdc = emu.regs().rcx;
-    let text_ptr = emu.regs().rdx;
-    let len = emu.regs().r8;
-    let size = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let text_ptr = api_try!(emu, call.arg(emu, 1));
+    let len = api_try!(emu, call.arg(emu, 2));
+    let size = api_try!(emu, call.arg(emu, 3));
     let text = if text_ptr != 0 && len > 0 {
         strings::read_text(emu, text_ptr, wide)
     } else {
@@ -27,7 +30,7 @@ fn get_text_extent_point32(emu: &mut emu::Emu, api: &str, wide: bool) {
         len,
         len * 7
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn GetTextExtentPoint32W(emu: &mut emu::Emu) {

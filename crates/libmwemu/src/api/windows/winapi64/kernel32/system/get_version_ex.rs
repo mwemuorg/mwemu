@@ -1,4 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::windows::structures;
 
 pub fn GetVersionExA(emu: &mut emu::Emu) {
@@ -10,13 +12,18 @@ pub fn GetVersionExW(emu: &mut emu::Emu) {
 }
 
 fn get_version_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let version_info_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let version_info_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernel32!{api} 0x{:x}", version_info_ptr);
     if wide {
-        if emu.regs().rcx != 0 && emu.maps.is_mapped(emu.regs().rcx) {
-            emu.maps.write_dword(emu.regs().rcx + 4, 10);
-            emu.maps.write_dword(emu.regs().rcx + 8, 0);
-            emu.maps.write_dword(emu.regs().rcx + 12, 22621);
+        if api_try!(emu, call.arg(emu, 0)) != 0
+            && emu.maps.is_mapped(api_try!(emu, call.arg(emu, 0)))
+        {
+            emu.maps
+                .write_dword(api_try!(emu, call.arg(emu, 0)) + 4, 10);
+            emu.maps.write_dword(api_try!(emu, call.arg(emu, 0)) + 8, 0);
+            emu.maps
+                .write_dword(api_try!(emu, call.arg(emu, 0)) + 12, 22621);
         }
         let os_version_info = structures::OsVersionInfoExW::new();
         os_version_info.save(version_info_ptr, &mut emu.maps);
@@ -25,7 +32,7 @@ fn get_version_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         if version_info_ptr == 0 || !emu.maps.is_mapped(version_info_ptr) {
             log_red!(emu, "{api}: Invalid pointer");
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
         let struct_size = emu.maps.read_dword(version_info_ptr).unwrap_or(0);
@@ -49,7 +56,7 @@ fn get_version_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
                     OSVERSIONINFOA_SIZE,
                     OSVERSIONINFOEXA_SIZE
                 );
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
         };
@@ -62,5 +69,5 @@ fn get_version_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,13 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CertOpenStore(emu: &mut emu::Emu) {
-    let store_provider = arg(emu, 0);
-    let encoding_type = arg(emu, 1);
-    let _hcrypt_prov = arg(emu, 2);
-    let flags = arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let store_provider = api_try!(emu, call.arg_u32(emu, 0));
+    let encoding_type = api_try!(emu, call.arg_u32(emu, 1));
+    let _hcrypt_prov = api_try!(emu, call.arg_u32(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
 
     log_red!(
         emu,
@@ -18,6 +19,6 @@ pub fn CertOpenStore(emu: &mut emu::Emu) {
     );
 
     let handle = helper::handler_create("cert_store");
-    emu.regs_mut().rax = handle;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, handle);
+    call.cleanup_args(emu, 5);
 }

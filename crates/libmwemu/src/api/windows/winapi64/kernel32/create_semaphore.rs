@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateSemaphoreA(emu: &mut emu::Emu) {
     create_semaphore(emu, "CreateSemaphoreA", false);
@@ -12,10 +13,11 @@ pub fn CreateSemaphoreW(emu: &mut emu::Emu) {
 }
 
 fn create_semaphore(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _security = WinApiAbi::arg(emu, 0);
-    let initial = WinApiAbi::arg(emu, 1);
-    let maximum = WinApiAbi::arg(emu, 2);
-    let name = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let _security = api_try!(emu, call.arg(emu, 0));
+    let initial = api_try!(emu, call.arg(emu, 1));
+    let maximum = api_try!(emu, call.arg(emu, 2));
+    let name = api_try!(emu, call.arg(emu, 3));
     let name_s = if name != 0 {
         strings::read_text(emu, name, wide)
     } else {
@@ -29,5 +31,5 @@ fn create_semaphore(emu: &mut emu::Emu, api: &str, wide: bool) {
         maximum,
         name_s
     );
-    emu.regs_mut().rax = helper::handler_create(&name_s);
+    call.set_return(emu, helper::handler_create(&name_s));
 }

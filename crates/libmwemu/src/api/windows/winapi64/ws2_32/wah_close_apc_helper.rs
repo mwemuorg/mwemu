@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WahCloseApcHelper(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ws2_32!WahCloseApcHelper handle:0x{:x}", handle);
     helper::handler_close(handle);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

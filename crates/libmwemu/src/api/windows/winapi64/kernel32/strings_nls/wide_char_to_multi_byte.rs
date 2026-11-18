@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::*;
 
 pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
-    let code_page = emu.regs().rcx;
-    let dw_flags = emu.regs().rdx as usize;
-    let lp_wide_char_str = emu.regs().r8 as usize;
-    let cch_wide_char = emu.regs().r9 as isize;
-    let lp_multi_byte_str = WinApiAbi::arg(emu, 4);
-    let cb_multi_byte = WinApiAbi::arg(emu, 5);
-    let lp_default_char = WinApiAbi::arg(emu, 6);
-    let lp_used_default_char = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let code_page = api_try!(emu, call.arg(emu, 0));
+    let dw_flags = api_try!(emu, call.arg(emu, 1)) as usize;
+    let lp_wide_char_str = api_try!(emu, call.arg(emu, 2)) as usize;
+    let cch_wide_char = api_try!(emu, call.arg(emu, 3)) as isize;
+    let lp_multi_byte_str = api_try!(emu, call.arg(emu, 4));
+    let cb_multi_byte = api_try!(emu, call.arg(emu, 5));
+    let lp_default_char = api_try!(emu, call.arg(emu, 6));
+    let lp_used_default_char = api_try!(emu, call.arg(emu, 7));
 
     log_red!(
         emu,
@@ -32,7 +34,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     if lp_wide_char_str == 0 {
         log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
         emu.set_last_error(ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -43,7 +45,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
         // Set last error to ERROR_INVALID_PARAMETER
         log::warn!("{} kernel32!WideCharToMultiByte invalid parameter", emu.pos);
         emu.set_last_error(ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -57,7 +59,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
 
     // 4. If this is just a size query
     if cb_multi_byte == 0 {
-        emu.regs_mut().rax = input_len as u64;
+        call.set_return(emu, input_len as u64);
         emu.clear_last_error();
         return;
     }
@@ -72,7 +74,7 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
             input_len
         );
         emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -91,11 +93,14 @@ pub fn WideCharToMultiByte(emu: &mut emu::Emu) {
     }
 
     // 7. Return number of bytes written
-    emu.regs_mut().rax = if cch_wide_char == -1 {
-        (s.len() + 1) as u64 // Include null terminator
-    } else {
-        s.len() as u64
-    };
+    call.set_return(
+        emu,
+        if cch_wide_char == -1 {
+            (s.len() + 1) as u64 // Include null terminator
+        } else {
+            s.len() as u64
+        },
+    );
 
     emu.clear_last_error();
 

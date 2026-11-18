@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BCryptOpenAlgorithmProvider(emu: &mut emu::Emu) {
-    let ph_algorithm = emu.regs().rcx;
-    let psz_alg_id = emu.regs().rdx;
-    let flags = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let ph_algorithm = api_try!(emu, call.arg(emu, 0));
+    let psz_alg_id = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 3));
 
     let algo_name = emu.maps.read_wide_string(psz_alg_id);
 
@@ -20,5 +23,5 @@ pub fn BCryptOpenAlgorithmProvider(emu: &mut emu::Emu) {
     if ph_algorithm != 0 {
         emu.maps.write_qword(ph_algorithm, handle);
     }
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }

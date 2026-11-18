@@ -1,21 +1,24 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn WSASetServiceA(emu: &mut emu::Emu) {
     wsa_set_service(emu, "WSASetServiceA", false);
 }
 
 fn wsa_set_service(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let query_set_ptr = emu.regs().rcx;
-    let operation = emu.regs().rdx;
-    let flags = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let query_set_ptr = api_try!(emu, call.arg(emu, 0));
+    let operation = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 2));
     log_red!(emu, "ws2_32!{api} op:{} flags:0x{:x}", operation, flags);
-    let val_ptr = emu.regs().rdx;
+    let val_ptr = api_try!(emu, call.arg(emu, 1));
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = strings::read_text(emu, val_ptr, wide);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn WSASetServiceW(emu: &mut emu::Emu) {

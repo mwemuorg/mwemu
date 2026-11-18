@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::system::*;
 
 // The emulated machine has one fixed NTFS volume, C:.
@@ -69,17 +70,18 @@ pub fn GetVolumePathNameW(emu: &mut emu::Emu) {
 }
 
 fn volume_path_name(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let file = read_text(emu, emu.regs().rcx, wide);
-    let out = emu.regs().rdx;
-    let size = emu.regs().r8 as u32 as usize;
+    let call = WinApi(Stdcall);
+    let file = read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let out = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg_u32(emu, 2)) as usize;
     let root = volume_root(&file);
     log_red!(emu, "kernel32!{} `{}` = `{}`", api, file, root);
     if out == 0 || !write_text(emu, out, size, &root, wide) {
         emu.set_last_error(ERROR_FILENAME_EXCED_RANGE);
-        emu.regs_mut().rax = FALSE;
+        call.set_return(emu, FALSE);
         return;
     }
-    emu.regs_mut().rax = TRUE;
+    call.set_return(emu, TRUE);
 }
 
 /*
@@ -103,14 +105,15 @@ pub fn GetVolumeInformationW(emu: &mut emu::Emu) {
 }
 
 fn volume_information(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let root_ptr = emu.regs().rcx;
-    let label_buf = emu.regs().rdx;
-    let label_size = emu.regs().r8 as u32 as usize;
-    let serial_ptr = emu.regs().r9;
-    let max_component_ptr = WinApiAbi::arg(emu, 4);
-    let flags_ptr = WinApiAbi::arg(emu, 5);
-    let fs_buf = WinApiAbi::arg(emu, 6);
-    let fs_size = WinApiAbi::arg(emu, 7) as u32 as usize;
+    let call = WinApi(Stdcall);
+    let root_ptr = api_try!(emu, call.arg(emu, 0));
+    let label_buf = api_try!(emu, call.arg(emu, 1));
+    let label_size = api_try!(emu, call.arg_u32(emu, 2)) as usize;
+    let serial_ptr = api_try!(emu, call.arg(emu, 3));
+    let max_component_ptr = api_try!(emu, call.arg(emu, 4));
+    let flags_ptr = api_try!(emu, call.arg(emu, 5));
+    let fs_buf = api_try!(emu, call.arg(emu, 6));
+    let fs_size = api_try!(emu, call.arg_u32(emu, 7)) as usize;
 
     let root = if root_ptr == 0 {
         "C:\\".to_string()
@@ -122,14 +125,14 @@ fn volume_information(emu: &mut emu::Emu, api: &str, wide: bool) {
     // the root must name a volume, with its trailing backslash
     if !root.eq_ignore_ascii_case("C:\\") {
         emu.set_last_error(ERROR_PATH_NOT_FOUND);
-        emu.regs_mut().rax = FALSE;
+        call.set_return(emu, FALSE);
         return;
     }
     if (label_buf != 0 && !write_text(emu, label_buf, label_size, VOLUME_LABEL, wide))
         || (fs_buf != 0 && !write_text(emu, fs_buf, fs_size, FILE_SYSTEM, wide))
     {
         emu.set_last_error(ERROR_BAD_LENGTH);
-        emu.regs_mut().rax = FALSE;
+        call.set_return(emu, FALSE);
         return;
     }
     for (ptr, value) in [
@@ -141,5 +144,5 @@ fn volume_information(emu: &mut emu::Emu, api: &str, wide: bool) {
             emu.maps.write_dword(ptr, value);
         }
     }
-    emu.regs_mut().rax = TRUE;
+    call.set_return(emu, TRUE);
 }

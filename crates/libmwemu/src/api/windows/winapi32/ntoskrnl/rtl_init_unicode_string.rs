@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 use crate::windows::structures::UnicodeString;
 
 pub(super) fn RtlInitUnicodeString(emu: &mut emu::Emu) {
-    let dst_ptr = WinApiAbi::arg(emu, 0);
-    let src_ptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let dst_ptr = api_try!(emu, call.arg(emu, 0));
+    let src_ptr = api_try!(emu, call.arg(emu, 1));
 
     if !emu.maps.is_mapped(dst_ptr) {
         log_red!(
@@ -14,10 +16,8 @@ pub(super) fn RtlInitUnicodeString(emu: &mut emu::Emu) {
             "ntoskrnl!RtlInitUnicodeString worng destination pointer 0x{:x}",
             dst_ptr
         );
-        for _ in 0..2 {
-            emu.stack_pop32(false);
-        }
-        emu.regs_mut().rax = 0;
+        call.cleanup_args(emu, 2);
+        call.set_return(emu, 0);
         return;
     }
 
@@ -49,8 +49,7 @@ pub(super) fn RtlInitUnicodeString(emu: &mut emu::Emu) {
         src_ptr
     );
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }

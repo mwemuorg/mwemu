@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn _localtime64(emu: &mut emu::Emu) {
-    let time_ptr = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let time_ptr = api_try!(emu, call.arg(emu, 0));
     let _time_val = if time_ptr != 0 {
         emu.maps.read_qword(time_ptr).unwrap_or(0)
     } else {
@@ -31,5 +34,5 @@ pub fn _localtime64(emu: &mut emu::Emu) {
     }
     log_red!(emu, "msvcrt!_localtime64 => 0x{:x}", tm_addr);
     emu.set_last_error(0);
-    emu.regs_mut().rax = tm_addr;
+    call.set_return(emu, tm_addr);
 }

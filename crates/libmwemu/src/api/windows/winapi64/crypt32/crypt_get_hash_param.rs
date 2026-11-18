@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn CryptGetHashParam(emu: &mut emu::Emu) {
-    let h_hash = emu.regs().rcx;
-    let param = emu.regs().rdx as u32;
-    let data_ptr = emu.regs().r8;
-    let data_len_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let h_hash = api_try!(emu, call.arg(emu, 0));
+    let param = api_try!(emu, call.arg_u32(emu, 1));
+    let data_ptr = api_try!(emu, call.arg(emu, 2));
+    let data_len_ptr = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -23,7 +26,7 @@ pub(super) fn CryptGetHashParam(emu: &mut emu::Emu) {
             if data_len_ptr != 0 {
                 emu.maps.write_dword(data_len_ptr, 4);
             }
-            emu.regs_mut().rax = 1;
+            call.set_return(emu, 1);
         }
         2 => {
             // HP_HASHSIZE — return hash size
@@ -33,7 +36,7 @@ pub(super) fn CryptGetHashParam(emu: &mut emu::Emu) {
             if data_len_ptr != 0 {
                 emu.maps.write_dword(data_len_ptr, 4);
             }
-            emu.regs_mut().rax = 1;
+            call.set_return(emu, 1);
         }
         3 => {
             // HP_HASHVAL — return the hash value
@@ -48,11 +51,11 @@ pub(super) fn CryptGetHashParam(emu: &mut emu::Emu) {
             if data_len_ptr != 0 {
                 emu.maps.write_dword(data_len_ptr, hash_size);
             }
-            emu.regs_mut().rax = 1;
+            call.set_return(emu, 1);
         }
         _ => {
             log_red!(emu, "  unsupported param {}", param);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     }
 }

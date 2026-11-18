@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
-    let code_page = emu.regs().rcx;
-    let dw_flags = emu.regs().rdx;
-    let utf8_ptr = emu.regs().r8;
-    let cb_multi_byte = emu.regs().r9 as i64;
-    let wide_ptr = WinApiAbi::arg(emu, 4);
-    let cch_wide_char = WinApiAbi::arg(emu, 5) as i32;
+    let call = WinApi(Stdcall);
+    let code_page = api_try!(emu, call.arg(emu, 0));
+    let dw_flags = api_try!(emu, call.arg(emu, 1));
+    let utf8_ptr = api_try!(emu, call.arg(emu, 2));
+    let cb_multi_byte = api_try!(emu, call.arg_i64(emu, 3));
+    let wide_ptr = api_try!(emu, call.arg(emu, 4));
+    let cch_wide_char = api_try!(emu, call.arg_i32(emu, 5));
 
     let raw_bytes: Vec<u8> = if utf8_ptr > 0 {
         if cb_multi_byte == -1 {
@@ -57,21 +59,21 @@ pub fn MultiByteToWideChar(emu: &mut emu::Emu) {
 
     if cch_wide_char == 0 {
         // Return required buffer size for UTF-16 conversion
-        emu.regs_mut().rax = wide.len() as u64;
+        call.set_return(emu, wide.len() as u64);
     } else if wide_ptr != 0 {
         // Write string if buffer is large enough
         if cch_wide_char >= wide.len() as i32 {
             for (i, wchar) in wide.iter().enumerate() {
                 emu.maps.write_word(wide_ptr + (i * 2) as u64, *wchar);
             }
-            emu.regs_mut().rax = wide.len() as u64;
+            call.set_return(emu, wide.len() as u64);
         } else {
             emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     } else {
         emu.set_last_error(ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }
 

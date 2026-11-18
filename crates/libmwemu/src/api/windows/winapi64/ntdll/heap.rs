@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     if heap_engine::dispatch(api, emu) {
@@ -33,8 +35,9 @@ pub fn RtlReAllocateHeap(emu: &mut emu::Emu) {
 }
 
 pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
-    let count = emu.regs().rcx;
-    let buffer = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let count = api_try!(emu, call.arg(emu, 0));
+    let buffer = api_try!(emu, call.arg(emu, 1));
 
     let keys = emu.handle_management.heap_handle_keys();
     let total = keys.len() as u64;
@@ -47,7 +50,7 @@ pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
     );
 
     if buffer == 0 {
-        emu.regs_mut().rax = total;
+        call.set_return(emu, total);
         return;
     }
 
@@ -61,9 +64,9 @@ pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
     }
 
     if to_write < count {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     } else {
-        emu.regs_mut().rax = to_write;
+        call.set_return(emu, to_write);
     }
 }
 
@@ -72,7 +75,8 @@ fn RtlSizeHeap(emu: &mut emu::Emu) {
 }
 
 fn RtlFreeAnsiString(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "ntdll!RtlFreeAnsiString 0x{}", ptr);
 }

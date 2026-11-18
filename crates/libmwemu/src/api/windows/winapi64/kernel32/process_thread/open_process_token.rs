@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn OpenProcessToken(emu: &mut emu::Emu) {
-    let process_handle = emu.regs().rcx;
-    let _desired_access = emu.regs().rdx;
-    let token_handle_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let process_handle = api_try!(emu, call.arg(emu, 0));
+    let _desired_access = api_try!(emu, call.arg(emu, 1));
+    let token_handle_ptr = api_try!(emu, call.arg(emu, 2));
 
     log_red!(emu, "kernel32!OpenProcessToken hndl:0x{:x}", process_handle);
 
@@ -15,5 +18,5 @@ pub fn OpenProcessToken(emu: &mut emu::Emu) {
         );
     }
 
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

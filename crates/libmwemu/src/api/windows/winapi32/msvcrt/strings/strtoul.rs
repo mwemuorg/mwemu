@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn strtoul(emu: &mut emu::Emu) {
-    let str_ptr = WinApiAbi::arg(emu, 0);
-    let _endptr = WinApiAbi::arg(emu, 1) as u32;
-    let base = WinApiAbi::try_arg(emu, 2).unwrap_or(10) as u32;
+    let call = WinApi(Cdecl);
+    let str_ptr = api_try!(emu, call.arg(emu, 0));
+    let _endptr = api_try!(emu, call.arg_u32(emu, 1));
+    let base = api_try!(emu, call.arg_u32(emu, 2));
     let s = emu.maps.read_string(str_ptr);
     let val = u64::from_str_radix(s.trim(), base).unwrap_or(0);
     log_red!(emu, "msvcrt!strtoul '{}' base:{} => {}", s, base, val);
 
-    emu.regs_mut().rax = val;
+    call.set_return(emu, val);
 }

@@ -28,6 +28,7 @@ impl LastOp {
 
 pub use crate::emu::loaders::{MappedPe64, PeLoadInfo};
 
+use crate::api::unix::ApiState;
 use crate::api::windows::policy::ApiPolicy;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
@@ -161,6 +162,7 @@ pub struct Emu {
     pub(crate) now: Instant,                  // timestamp of emulation start (wall-clock timing)
     pub(crate) force_break: bool, // set by breakpoints, memory violations, etc. to stop execution
     pub api_policy: ApiPolicy,
+    pub unix_api: ApiState,
     pub process_terminated: bool, // set by NtTerminateProcess; prevents run() from resetting is_running
     pub(crate) call_depth: u32,   // nesting depth of host-initiated calls
     pub(crate) host_call_return: Option<u64>, // active x86 host-call return target, including unmapped sentinels

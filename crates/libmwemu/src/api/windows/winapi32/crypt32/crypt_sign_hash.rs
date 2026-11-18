@@ -1,16 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptSignHash(emu: &mut emu::Emu) {
-    let h_hash = WinApiAbi::arg(emu, 0);
-    let key_spec = WinApiAbi::arg(emu, 1) as u32;
-    let _desc_ptr = WinApiAbi::arg(emu, 2) as u32;
-    let _flags = WinApiAbi::arg(emu, 3) as u32;
-    let sig_ptr = WinApiAbi::arg(emu, 4);
-    let sig_len_ptr = WinApiAbi::arg(emu, 5);
-    for _ in 0..6u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    let h_hash = api_try!(emu, call.arg(emu, 0));
+    let key_spec = api_try!(emu, call.arg_u32(emu, 1));
+    let _desc_ptr = api_try!(emu, call.arg_u32(emu, 2));
+    let _flags = api_try!(emu, call.arg_u32(emu, 3));
+    let sig_ptr = api_try!(emu, call.arg(emu, 4));
+    let sig_len_ptr = api_try!(emu, call.arg(emu, 5));
+    call.cleanup_args(emu, 6);
     log_red!(
         emu,
         "crypt32!CryptSignHash hash: 0x{:x} spec: {}",
@@ -29,5 +29,5 @@ pub fn CryptSignHash(emu: &mut emu::Emu) {
             emu.maps.write_dword(sig_len_ptr, 128);
         }
     }
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

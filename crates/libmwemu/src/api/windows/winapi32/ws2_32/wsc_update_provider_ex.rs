@@ -1,12 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn WSCUpdateProviderEx(emu: &mut emu::Emu) {
-    let err_ptr = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let err_ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ws2_32!WSCUpdateProviderEx ptr:0x{:x}", err_ptr);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    for _ in 0..1u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 1);
 }

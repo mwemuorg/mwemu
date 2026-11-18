@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegQueryValueExA(emu: &mut emu::Emu) {
     reg_query_value_ex(emu, "RegQueryValueExA", false);
@@ -11,12 +12,13 @@ pub fn RegQueryValueExW(emu: &mut emu::Emu) {
 }
 
 fn reg_query_value_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _hkey = emu.regs().rcx;
-    let value_ptr = emu.regs().rdx;
-    let _reserved = emu.regs().r8;
-    let type_ptr = emu.regs().r9;
-    let data_ptr = WinApiAbi::arg(emu, 4);
-    let data_size_ptr = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let _hkey = api_try!(emu, call.arg(emu, 0));
+    let value_ptr = api_try!(emu, call.arg(emu, 1));
+    let _reserved = api_try!(emu, call.arg(emu, 2));
+    let type_ptr = api_try!(emu, call.arg(emu, 3));
+    let data_ptr = api_try!(emu, call.arg(emu, 4));
+    let data_size_ptr = api_try!(emu, call.arg(emu, 5));
     let value = if value_ptr != 0 {
         strings::read_text(emu, value_ptr, wide)
     } else {
@@ -39,5 +41,5 @@ fn reg_query_value_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

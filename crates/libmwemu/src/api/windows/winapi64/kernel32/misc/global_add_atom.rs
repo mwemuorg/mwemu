@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GlobalAddAtomA(emu: &mut emu::Emu) {
-    let lp_string = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let lp_string = api_try!(emu, call.arg(emu, 0));
 
     let name = emu.maps.read_string(lp_string);
     log_red!(emu, "kernel32!GlobalAddAtomA '{}'", name);
@@ -14,16 +17,17 @@ pub fn GlobalAddAtomA(emu: &mut emu::Emu) {
         hash = hash.wrapping_add(0xC000);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = hash as u64;
+    call.set_return(emu, hash as u64);
 }
 
 pub fn GlobalAddAtomW(emu: &mut emu::Emu) {
-    let name = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let name = api_try!(emu, call.arg(emu, 0));
     let name_s = if name != 0 {
         emu.maps.read_wide_string(name)
     } else {
         String::new()
     };
     log_red!(emu, "kernel32!GlobalAddAtomW '{}' => 0xC001", name_s);
-    emu.regs_mut().rax = 0xC001;
+    call.set_return(emu, 0xC001);
 }

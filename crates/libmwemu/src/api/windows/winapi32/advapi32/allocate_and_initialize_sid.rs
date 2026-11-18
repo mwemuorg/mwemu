@@ -1,18 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
-    let sia_ptr = WinApiAbi::arg(emu, 0);
-    let sub_auth_count = WinApiAbi::arg(emu, 1) as u32;
-    let sa0 = WinApiAbi::arg(emu, 2) as u32;
-    let sa1 = WinApiAbi::arg(emu, 3) as u32;
-    let sa2 = WinApiAbi::arg(emu, 4) as u32;
-    let sa3 = WinApiAbi::arg(emu, 5) as u32;
-    let sa4 = WinApiAbi::arg(emu, 6) as u32;
-    let sa5 = WinApiAbi::arg(emu, 7) as u32;
-    let sa6 = WinApiAbi::arg(emu, 8) as u32;
-    let sa7 = WinApiAbi::arg(emu, 9) as u32;
-    let pp_sid = WinApiAbi::arg(emu, 10);
+    let call = WinApi(Stdcall);
+    let sia_ptr = api_try!(emu, call.arg(emu, 0));
+    let sub_auth_count = api_try!(emu, call.arg_u32(emu, 1));
+    let sa0 = api_try!(emu, call.arg_u32(emu, 2));
+    let sa1 = api_try!(emu, call.arg_u32(emu, 3));
+    let sa2 = api_try!(emu, call.arg_u32(emu, 4));
+    let sa3 = api_try!(emu, call.arg_u32(emu, 5));
+    let sa4 = api_try!(emu, call.arg_u32(emu, 6));
+    let sa5 = api_try!(emu, call.arg_u32(emu, 7));
+    let sa6 = api_try!(emu, call.arg_u32(emu, 8));
+    let sa7 = api_try!(emu, call.arg_u32(emu, 9));
+    let pp_sid = api_try!(emu, call.arg(emu, 10));
 
     // SID: revision(1) + sub_auth_count(1) + authority(6) + sub_auths(4*count)
     let count = std::cmp::min(sub_auth_count, 8) as usize;
@@ -45,8 +47,6 @@ pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
     } else {
         log_red!(emu, "advapi32!AllocateAndInitializeSid alloc failed");
     }
-    for _ in 0..11 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 11);
+    call.set_return(emu, 1);
 }

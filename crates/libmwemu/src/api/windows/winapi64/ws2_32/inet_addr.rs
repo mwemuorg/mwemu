@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn inet_addr(emu: &mut emu::Emu) {
-    let addr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let addr = api_try!(emu, call.arg(emu, 0));
     let ip_str = emu.maps.read_string(addr);
 
     log_red!(emu, "ws2_32!inet_addr '{}'", ip_str);
@@ -16,8 +19,8 @@ pub fn inet_addr(emu: &mut emu::Emu) {
         )
     {
         let result = (a as u32) | ((b as u32) << 8) | ((c as u32) << 16) | ((d as u32) << 24);
-        emu.regs_mut().rax = result as u64;
+        call.set_return(emu, result as u64);
         return;
     }
-    emu.regs_mut().rax = 0xFFFFFFFF; // INADDR_NONE
+    call.set_return(emu, 0xFFFFFFFF); // INADDR_NONE
 }

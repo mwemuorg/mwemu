@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CryptGenRandom(emu: &mut emu::Emu) {
-    let hprov = emu.regs().rcx;
-    let dw_len = emu.regs().rdx;
-    let pb_buffer = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let hprov = api_try!(emu, call.arg(emu, 0));
+    let dw_len = api_try!(emu, call.arg(emu, 1));
+    let pb_buffer = api_try!(emu, call.arg(emu, 2));
 
     log_red!(
         emu,
@@ -20,5 +23,5 @@ pub fn CryptGenRandom(emu: &mut emu::Emu) {
         }
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,11 +1,13 @@
 use super::allocate_memory;
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 
 pub(super) fn _get_initial_narrow_environment(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     let env_ptr = match allocate_memory(emu, 8) {
         Some(a) => a,
         None => {
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -15,5 +17,5 @@ pub(super) fn _get_initial_narrow_environment(emu: &mut emu::Emu) {
         "wincrt!_get_initial_narrow_environment => 0x{:x}",
         env_ptr
     );
-    emu.regs_mut().rax = env_ptr;
+    call.set_return(emu, env_ptr);
 }

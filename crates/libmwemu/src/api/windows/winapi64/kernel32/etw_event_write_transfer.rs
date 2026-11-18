@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn EtwEventWriteTransfer(emu: &mut emu::Emu) {
-    let reg_handle = emu.regs().rcx;
-    let event_descriptor = emu.regs().rdx;
-    let activity_id = emu.regs().r8;
-    let _related_id = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let reg_handle = api_try!(emu, call.arg(emu, 0));
+    let event_descriptor = api_try!(emu, call.arg(emu, 1));
+    let activity_id = api_try!(emu, call.arg(emu, 2));
+    let _related_id = api_try!(emu, call.arg(emu, 3));
     let desc_str = if event_descriptor != 0 {
         emu.maps.read_string(event_descriptor)
     } else {
@@ -17,5 +20,5 @@ pub fn EtwEventWriteTransfer(emu: &mut emu::Emu) {
         desc_str,
         activity_id
     );
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
