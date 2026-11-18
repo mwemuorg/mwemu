@@ -1,8 +1,9 @@
+use crate::arch::OperatingSystem;
 use crate::tests::helpers;
 use crate::*;
 
 #[test]
-// this tests the emu.linux_call64() ARM ABI (used in linux calls)
+// Exercise the System V integer calling convention.
 pub fn linux_call64() {
     helpers::setup();
 
@@ -20,7 +21,7 @@ pub fn linux_call64() {
         0x01, 0xc2, 0x8b, 0x45, 0xe8, 0x01, 0xc2, 0x8b, 0x45, 0x10, 0x01, 0xd0, 0x5d, 0xc3,
     ];
     emu.set_verbose(0);
-    emu.os = crate::arch::OperatingSystem::Linux;
+    emu.os = OperatingSystem::Linux;
     emu.load_code_bytes(&opcodes);
     emu.regs_mut().rax = 0;
     let rax = emu
@@ -28,4 +29,23 @@ pub fn linux_call64() {
         .unwrap();
     assert_eq!(rax, emu.regs().rax);
     assert_eq!(emu.regs().rax, 1 + 2 + 3 + 4 + 5 + 6 + 7);
+}
+
+#[test]
+fn instruction_limit_is_not_a_successful_host_return() {
+    helpers::setup();
+    let mut emu = emu64();
+    emu.os = OperatingSystem::Linux;
+    emu.cfg.console_enabled = false;
+    emu.load_code_bytes(&[0x90, 0xc3]); // nop; ret
+    emu.cfg.max_instructions = Some(1);
+    let entry = emu.regs().rip;
+    let original_sp = emu.regs().rsp;
+
+    let error = emu.linux_call64(entry, &[]).unwrap_err();
+
+    assert!(error.message.contains("host call stopped"), "{error}");
+    assert_eq!(emu.regs().rip, entry);
+    assert!(emu.regs().rsp < original_sp);
+    assert_eq!(emu.call_depth, 0);
 }
