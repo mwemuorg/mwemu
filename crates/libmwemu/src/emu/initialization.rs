@@ -73,6 +73,7 @@ impl Emu {
             unix_api: ApiState::default(),
             process_terminated: false,
             call_depth: 0,
+            host_call_return: None,
             ldr_init_done: false,
             force_reload: false,
             tls_callbacks: Vec::new(),

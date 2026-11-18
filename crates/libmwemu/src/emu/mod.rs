@@ -164,7 +164,8 @@ pub struct Emu {
     pub api_policy: ApiPolicy,
     pub unix_api: ApiState,
     pub process_terminated: bool, // set by NtTerminateProcess; prevents run() from resetting is_running
-    pub(crate) call_depth: u32, // nesting depth of call64/call32 — NtTerminateProcess only exits at depth 0
+    pub(crate) call_depth: u32,   // nesting depth of host-initiated calls
+    pub(crate) host_call_return: Option<u64>, // active x86 host-call return target, including unmapped sentinels
     pub(crate) ldr_init_done: bool, // true after LdrInitializeThunk call64 completes; switches API dispatch to virtual stubs
     pub(crate) force_reload: bool,  // trigger instruction re-decode
     pub(crate) run_until_ret: bool, // step-over mode: run until next RET

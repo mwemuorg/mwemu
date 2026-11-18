@@ -209,16 +209,11 @@ impl Emu {
                 // again; rcx/rsi/rdi already carry its progress.
                 self.rep = None;
 
-                // Outer-loop limit checks: must run BEFORE attempting to fetch code,
-                // otherwise PC sitting one past the end (e.g. after final loop iteration
-                // under run_to) errors out as "unmapped" instead of cleanly stopping.
-                // kishou_yusa: removed because there exists a check further ahead
-                /*
+                // A host-call return target need not contain executable bytes.
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
                     std::hint::cold_path();
                     return Ok(limit_pc);
                 }
-                */
 
                 if let Err(error) =
                     ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)
