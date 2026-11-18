@@ -148,7 +148,7 @@ test_syscall: samples
 test_linux:
 	cargo run --release -- -f /bin/ls -A '-l' -6
 test_windows: samples
-	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11  -v
+	cargo run --release -- -f $(TEST_DIR)/exe64win_enigma.bin -6 --winver win11  -v --banzai
 test_macos:
 	cargo run --release $(CARGO_TARGET) -- -f /bin/ls --aarch64 -v --args '-l'
 test_inception:

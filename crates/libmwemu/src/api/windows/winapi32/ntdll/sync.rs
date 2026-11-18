@@ -2,12 +2,11 @@ use crate::api::windows::helper;
 use crate::emu;
 use crate::winapi::helper::WinApiAbi;
 use crate::winapi::winapi32::{arg, stdcall_ret};
-use crate::winapi::winapi64::kernel32::InitializeCriticalSection;
 use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
-        "RtlInitializeCriticalSection" => InitializeCriticalSection(emu),
+        "RtlInitializeCriticalSection" => RtlInitializeCriticalSection(emu),
         "RtlInitializeCriticalSectionAndSpinCount" => RtlInitializeCriticalSectionAndSpinCount(emu),
         "RtlEnterCriticalSection" | "EnterCriticalSection" => RtlEnterCriticalSection(emu),
         "RtlLeaveCriticalSection" | "LeaveCriticalSection" => RtlLeaveCriticalSection(emu),
@@ -26,6 +25,17 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         _ => return false,
     }
     true
+}
+
+fn RtlInitializeCriticalSection(emu: &mut emu::Emu) {
+    let crit_sect = WinApiAbi::arg(emu, 0) as u32;
+    log_red!(
+        emu,
+        "ntdll!RtlInitializeCriticalSection ptr: 0x{:x}",
+        crit_sect
+    );
+    emu.stack_pop32(false);
+    emu.regs_mut().rax = 1;
 }
 
 fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
