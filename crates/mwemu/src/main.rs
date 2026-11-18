@@ -5,6 +5,7 @@
 extern crate clap;
 
 use clap::{App, Arg, ArgMatches};
+use libmwemu::ApiMode;
 use libmwemu::emu::Emu;
 use libmwemu::emu_aarch64;
 use libmwemu::emu32;
@@ -18,6 +19,9 @@ use fast_log::appender::{Command, FastLogRecord, RecordFormat};
 use fast_log::filter::Filter;
 use libmwemu::disable_color;
 use libmwemu::emu::object_handle::file_handle::init_guest_file_system;
+
+#[cfg(test)]
+mod tests;
 
 /// Drop log records emitted by `goblin::*` (Mach-O / ELF / PE parser). It uses
 /// `debug!()` to dump every load command, header, and Ctx — under `-vv` (which
@@ -125,8 +129,8 @@ impl CustomLogFormat {
     }
 }
 
-fn main() -> process::ExitCode {
-    let matches = App::new("MWEMU emulator for malware")
+fn cli() -> App<'static, 'static> {
+    App::new("MWEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
         .arg(clap_arg!("filename", "f", "filename", "set the shellcode or binary file.", "FILE"))
@@ -162,8 +166,9 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("handle", "h", "handle", "handle Ctrl+C to spawn console"))
         .arg(clap_arg!("stack_trace", "p", "stack_trace", "trace stack on push/pop"))
         .arg(clap_arg!("test_mode", "t", "test", "test mode"))
-        .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
-        .arg(clap_arg!("strict_api", "", "strict-api", "stop at the first unimplemented 64bits API instead of continuing with an unset return value"))
+        .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions and enable x86 cleanup fallback; default to simulate-success with a warning unless --api-mode or --strict-api is set"))
+        .arg(clap_arg!("strict_api", "", "strict-api", "force strict Windows API policy, overriding --api-mode and --banzai"))
+        .arg(Arg::with_name("api_mode").long("api-mode").takes_value(true).possible_values(&["strict", "simulate-fail", "simulate-success"]).help("unsupported Windows API policy: strict by default, simulate-success with --banzai; both simulation modes use generic fallback when no model exists"))
         .arg(clap_arg!("realistic_tick", "", "realistic-tick", "GetTickCount/GetTickCount64 tick at 64 Hz (15.625 ms) and reading them does not advance time, like real Windows; by default every read advances the clock by 1 ms"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
         .arg(Arg::with_name("args")
@@ -234,7 +239,28 @@ fn main() -> process::ExitCode {
         .arg(clap_arg!("gdb_port", "P", "gdb-port", "set GDB server port (default: 9001)", "PORT"))
         .arg(clap_arg!("gdb_wait", "W", "gdb-wait", "wait for GDB connection before starting"))
         .arg(clap_arg!("seed", "", "seed", "seed the emulator's random source (rdrand/rdseed) so the run is reproducible", "NUMBER"))
-        .get_matches();
+}
+
+fn cli_api_mode(matches: &ArgMatches) -> (Option<ApiMode>, bool) {
+    if matches.is_present("strict_api") {
+        return (Some(ApiMode::Strict), false);
+    }
+    match matches.value_of("api_mode") {
+        Some(mode) => (
+            Some(match mode {
+                "simulate-fail" => ApiMode::SimulateFail,
+                "simulate-success" => ApiMode::SimulateSuccess,
+                _ => ApiMode::Strict,
+            }),
+            false,
+        ),
+        None if matches.is_present("banzai") => (Some(ApiMode::SimulateSuccess), true),
+        None => (None, false),
+    }
+}
+
+fn main() -> process::ExitCode {
+    let matches = cli().get_matches();
 
     if !matches.is_present("filename") {
         log::error!("the filename is mandatory, try -f <FILENAME> or --help");
@@ -420,6 +446,18 @@ fn main() -> process::ExitCode {
             .value_of("inspect")
             .expect("select the address in the way 'dword ptr [eax + 0xa]'")
             .to_string();
+    }
+
+    let (api_mode, implicit_api_mode) = cli_api_mode(&matches);
+    if let Some(mode) = api_mode {
+        emu.set_api_mode(mode);
+    }
+    if implicit_api_mode {
+        eprintln!(
+            "[mwemu] warning: --banzai without --api-mode defaults to simulate-success. \
+             Known result models may report success without implementing the operation. \
+             Select --api-mode explicitly to choose the simulation policy."
+        );
     }
 
     if matches.is_present("strict_api") {
@@ -869,6 +907,9 @@ fn execute(emu: &mut Emu, matches: &ArgMatches, filename: &str) -> process::Exit
         log::info!("loading dump from {}", dump_filename);
         let mut loaded = serialization::Serialization::load(dump_filename);
         loaded.cfg = std::mem::take(&mut emu.cfg);
+        if let (Some(mode), _) = cli_api_mode(matches) {
+            loaded.set_api_mode(mode);
+        }
         *emu = loaded;
         emu.maps.set_banzai(emu.cfg.skip_unimplemented);
     }

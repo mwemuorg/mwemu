@@ -3,6 +3,7 @@ pub(crate) mod bcrypt;
 pub(crate) mod crypt32;
 mod dnsapi;
 pub(crate) mod gdi32;
+mod gdiplus;
 mod iphlpapi;
 pub mod kernel32;
 mod kernelbase;
@@ -20,8 +21,11 @@ pub(crate) mod user32;
 mod wincrt;
 pub(crate) mod winhttp;
 pub(crate) mod wininet;
+mod winmm;
 pub(crate) mod ws2_32;
 
+use crate::api::windows::common::fallback;
+use crate::api::windows::policy::{self, ApiRoute};
 use crate::emu;
 use crate::winapi::helper::WinApiAbi;
 
@@ -36,7 +40,29 @@ pub(crate) fn stdcall_ret(emu: &mut emu::Emu, n: u32) {
     WinApiAbi::stdcall_ret(emu, n as usize);
 }
 
+pub fn gateway_by_import(emu: &mut emu::Emu, import_dll: &str, api: &str, addr: u32) {
+    if emu.api_policy.stopped() {
+        return;
+    }
+    let dll = import_dll.trim().to_ascii_lowercase();
+    policy::enter_gateway(emu, &dll, api, addr as u64, ApiRoute::Import);
+    let resolved = kernel32::resolve_api_name_in_module(emu, &dll, api);
+    if let Some(map) = emu.maps.get_addr_name(resolved).map(str::to_string)
+        && let Ok(resolved) = u32::try_from(resolved)
+    {
+        gateway(resolved, &map, emu);
+        return;
+    }
+    policy::unsupported(emu, &dll, api, addr as u64);
+    policy::finish_call(emu);
+}
+
 pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
+    if emu.api_policy.stopped() {
+        return;
+    }
+    let library = name.split('.').next().unwrap_or(name);
+    policy::enter_gateway(emu, library, "", addr as u64, ApiRoute::Gateway);
     emu.regs_mut().sanitize32();
     match name {
         "kernel32.text" => kernel32::gateway(addr, emu),
@@ -59,143 +85,30 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
         "oleaut32.text" => oleaut32::gateway(addr, emu),
         "kernelbase.text" => kernelbase::gateway(addr, emu),
         "iphlpapi.text" => iphlpapi::gateway(addr, emu),
-        "winmm.text" => {
-            let api = kernel32::guess_api_name(emu, addr);
-            let api_name = api.split("!").last().unwrap_or(&api);
-            match api_name {
-                "timeBeginPeriod"
-                | "timeEndPeriod"
-                | "waveInClose"
-                | "waveInStart"
-                | "waveInStop"
-                | "waveInAddBuffer"
-                | "waveInPrepareHeader"
-                | "waveInUnprepareHeader"
-                | "mciSendStringA"
-                | "mciSendStringW" => {
-                    log_red!(emu, "winmm!{}", api_name);
-                    emu.regs_mut().rax = 0;
-                }
-                "timeGetTime" => {
-                    log_red!(emu, "winmm!timeGetTime");
-                    emu.regs_mut().rax = emu.tick as u64;
-                }
-                "PlaySoundW" => {
-                    log_red!(emu, "winmm!PlaySoundW");
-                    emu.regs_mut().rax = 1;
-                }
-                "waveInOpen" => {
-                    let phwi = WinApiAbi::arg(emu, 0);
-                    log_red!(emu, "winmm!waveInOpen");
-                    if phwi != 0 {
-                        emu.maps.write_dword(phwi, 0x1337_0001);
-                    }
-                    emu.regs_mut().rax = 0;
-                }
-                _ => {
-                    log::warn!("winmm: unimplemented API {}", api_name);
-                }
-            }
-            let words = match api_name {
-                "timeBeginPeriod" | "timeEndPeriod" | "waveInClose" | "waveInStart"
-                | "waveInStop" => 1,
-                "waveInAddBuffer"
-                | "waveInPrepareHeader"
-                | "waveInUnprepareHeader"
-                | "PlaySoundW" => 3,
-                "mciSendStringA" | "mciSendStringW" => 4,
-                "waveInOpen" => 6,
-                _ => 0,
-            };
-            stdcall_ret(emu, words);
-            String::new()
-        }
+        "winmm.text" => winmm::gateway(addr, emu),
         "gdi32.text" => gdi32::gateway(addr, emu),
         "gdi32.rdata" => gdi32::gateway(addr, emu),
         "msvcp60.text" => {
             let api = kernel32::guess_api_name(emu, addr);
-            let api_name = api.split("!").last().unwrap_or(&api);
-            log_red!(emu, "msvcp60!{}", api_name);
-            emu.regs_mut().rax = 0;
-            String::new()
+            fallback::unimplemented(addr, &api, emu)
         }
-        "gdiplus.text" => {
-            let api = kernel32::guess_api_name(emu, addr);
-            let api_name = api.split("!").last().unwrap_or(&api);
-            match api_name {
-                "GdiplusStartup" => {
-                    log_red!(emu, "gdiplus!GdiplusStartup");
-                    emu.regs_mut().rax = 0;
-                }
-                "GdipAlloc" => {
-                    let size = WinApiAbi::try_arg(emu, 0).unwrap_or(256);
-                    let alloc_addr = if let Some(a) = emu.maps.alloc(size) {
-                        let _ = emu.maps.create_map(
-                            &format!("gdip_alloc_{:x}", a),
-                            a,
-                            size,
-                            crate::maps::mem64::Permission::READ_WRITE,
-                        );
-                        a
-                    } else {
-                        0
-                    };
-                    log_red!(emu, "gdiplus!GdipAlloc sz:{} => 0x{:x}", size, alloc_addr);
-                    emu.regs_mut().rax = alloc_addr;
-                }
-                "GdipFree" => {
-                    log_red!(emu, "gdiplus!GdipFree");
-                    emu.regs_mut().rax = 0;
-                }
-                _ => {
-                    log_red!(emu, "gdiplus!{}", api_name);
-                    emu.regs_mut().rax = 0;
-                }
-            }
-            let words = match api_name {
-                "GdiplusStartup" => 3,
-                "GdipAlloc" | "GdipFree" => 1,
-                _ => 0,
-            };
-            stdcall_ret(emu, words);
-            String::new()
-        }
+        "gdiplus.text" => gdiplus::gateway(addr, emu),
         "libgcc_s_dw2-1.text" => libgcc::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
         "ntoskrnl.text" => ntoskrnl::gateway(addr, emu),
         "ntoskrnlPAGE" => ntoskrnl::gateway(addr, emu),
         "not_loaded" => {
-            if emu.cfg.skip_unimplemented {
-                let api = emu
-                    .pe32
-                    .as_ref()
-                    .map(|pe| pe.import_addr_to_name(addr))
-                    .unwrap_or_default();
-                log::warn!(
-                    "banzai: skipping not_loaded API 0x{:x} {} at 0x{:x}",
-                    addr,
-                    api,
-                    emu.regs().rip
-                );
-                emu.regs_mut().rax = 0;
-                String::new()
-            } else {
-                emu.pe32.as_ref().unwrap().import_addr_to_name(addr)
-            }
+            let api = emu
+                .pe32
+                .as_ref()
+                .map(|pe| pe.import_addr_to_name(addr))
+                .unwrap_or_default();
+            fallback::unimplemented(addr, &api, emu)
         }
         _ => {
-            if emu.cfg.skip_unimplemented {
-                log::warn!("banzai: skipping unknown section {} at 0x{:x}", name, addr);
-                emu.regs_mut().rax = 0;
-            } else {
-                log::error!(
-                    "/!\\ winapi32 gateway: trying to execute on {} at 0x{:x}",
-                    name,
-                    addr
-                );
-            }
-            return;
+            let api = kernel32::guess_api_name(emu, addr);
+            fallback::unimplemented(addr, &api, emu)
         }
     };
-    emu.call_stack_mut().pop();
+    policy::finish_call(emu);
 }

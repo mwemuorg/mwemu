@@ -1,7 +1,6 @@
 use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
 use crate::emu;
 use crate::winapi::winapi64::kernel32;
-use crate::windows::constants::errors::*;
 
 mod file;
 mod heap;
@@ -41,8 +40,8 @@ pub(crate) fn dispatch(addr: u64, api: &str, emu: &mut emu::Emu) -> bool {
     if try_dispatch(api, emu) {
         return true;
     }
-    if let Some(words) = nt_api::signature(api) {
-        fallback::return_value(addr, api, words, STATUS_NOT_IMPLEMENTED, emu);
+    if nt_api::signature(api).is_some() {
+        fallback::unimplemented(addr, api, emu);
         return true;
     }
     false

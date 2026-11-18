@@ -1,9 +1,12 @@
+use minidump::{Minidump, MinidumpModuleList, Module};
+use tempdir::TempDir;
+
+use crate::api::windows::policy::ApiMode;
 use crate::arch::Arch;
 use crate::maps::mem64::Permission;
 use crate::serialization::Serialization;
+use crate::serialization::native::NativeSnapshotV3;
 use crate::tests::helpers;
-use minidump::{Minidump, MinidumpModuleList, Module};
-use tempdir::TempDir;
 
 const ELF64_AARCH64_ADD: &[u8] = include_bytes!("../fixtures/elf64_aarch64_add.bin");
 
@@ -307,4 +310,19 @@ fn test_aarch64_minidump_fixture_roundtrip() {
         })
         .unwrap();
     handle.join().unwrap();
+}
+
+#[test]
+fn native_v3_snapshot_preserves_banzai_without_selecting_api_mode() {
+    for skip in [false, true] {
+        let mut emu = crate::emu64();
+        emu.cfg.skip_unimplemented = skip;
+        emu.regs_mut().rax = 42;
+        let mut bytes = b"MWEMU\0\x03\0".to_vec();
+        bytes.extend(bitcode::serialize(&NativeSnapshotV3::from(&emu)).unwrap());
+        let restored = Serialization::deserialize(&bytes);
+        assert_eq!(restored.regs().rax, 42);
+        assert_eq!(restored.api_mode(), ApiMode::Strict);
+        assert!(restored.api_policy.last_outcome.is_none());
+    }
 }

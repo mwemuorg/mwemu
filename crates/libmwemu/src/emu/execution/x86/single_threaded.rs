@@ -159,6 +159,7 @@ impl Emu {
         super::assert_x86_arch(self, "run_single_threaded_x86");
         let is_x64 = self.cfg.is_x64();
 
+        self.check_api_stop()?;
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
@@ -541,6 +542,7 @@ impl Emu {
                     let previous_fault_count = self.fault_count;
                     let emulation_ok = engine::emulate_instruction(self, &x86_ins, sz, false);
                     self.last_instruction_size = sz;
+                    self.check_api_stop()?;
 
                     if self.is_running.load(atomic::Ordering::Relaxed) == 0 {
                         return Ok(self.pc());
@@ -646,6 +648,7 @@ impl Emu {
                 }
             } // end running loop
 
+            self.check_api_stop()?;
             if self.is_break_on_api {
                 return Ok(0);
             }

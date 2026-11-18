@@ -16,19 +16,6 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "HeapAlloc" => RtlAllocateHeap(emu),
         "HeapFree" => RtlFreeHeap(emu),
         "HeapReAlloc" => RtlReAllocateHeap(emu),
-        "HeapSize" => {
-            let _heap = arg(emu, 0);
-            let _flags = arg(emu, 1);
-            let ptr = arg(emu, 2) as u64;
-            let sz = if ptr != 0 {
-                emu.maps.get_mem_size(ptr).unwrap_or(0) as u64
-            } else {
-                0
-            };
-            log_red!(emu, "ntdll!HeapSize ptr:0x{:x} = {}", ptr, sz);
-            emu.regs_mut().rax = sz;
-            stdcall_ret(emu, 3);
-        }
         _ => return false,
     }
     true

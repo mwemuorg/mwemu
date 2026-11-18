@@ -305,6 +305,7 @@ impl Emu {
     /// both x86 and AArch64 entry points. Caller must have already validated
     /// the architecture.
     pub(crate) fn run_preflight(&mut self) -> Result<(), MwemuError> {
+        self.check_api_stop()?;
         self.apply_cfg_seed();
         if !self.os.is_linux()
             && self.cfg.arch.is_64bits()
@@ -322,7 +323,7 @@ impl Emu {
     /// respect the configured architecture at runtime.
     #[allow(deprecated)]
     pub(crate) fn step_isa(&mut self) -> bool {
-        if self.process_terminated {
+        if self.process_terminated || self.api_policy.stopped() {
             return false;
         }
 
@@ -373,6 +374,9 @@ impl Emu {
 
         // Decode and execute (arch-dispatched)
         let (sz, result_ok) = self.decode_and_execute();
+        if self.api_policy.stopped() {
+            return false;
+        }
         // Advance PC
         if result_ok || self.force_reload {
             self.advance_pc(sz);

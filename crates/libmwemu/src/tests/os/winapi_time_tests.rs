@@ -241,3 +241,20 @@ fn calendar_info_uses_shared_ansi_unicode_sizes_and_numeric_outputs() {
         }
     }
 }
+
+#[test]
+fn winmm_gateway_preserves_emulated_clock_behavior() {
+    const INITIAL_TICK: usize = 12345;
+    for (is64, expected_ticks) in [(false, [12345, 12345]), (true, [12346, 12347])] {
+        let (mut emu, _) = helpers::prepare_winapi(is64);
+        emu.tick = INITIAL_TICK;
+        emu.set_last_error(ERROR_ACCESS_DENIED);
+        for expected in expected_ticks {
+            let value = helpers::call_winapi_export(&mut emu, "winmm.dll", "timeGetTime", &[]);
+            assert_eq!(value, expected, "x64={is64}");
+            assert_eq!(emu.tick as u64, expected);
+            assert_eq!(emu.get_last_error(), ERROR_ACCESS_DENIED);
+            assert!(emu.api_policy.last_outcome.is_none());
+        }
+    }
+}

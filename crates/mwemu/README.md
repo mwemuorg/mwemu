@@ -65,7 +65,7 @@ USAGE:
 
 FLAGS:
     -6, --64bits         enable 64bits architecture emulation
-        --banzai         allow skipping APIs without full or partial handlers
+        --banzai         enable instruction skipping and x86 cleanup fallback; default to simulate-success unless an API policy is explicit
     -F, --fpu            trace the fpu states.
     -h, --handle         handle Ctrl+C to spawn console
         --help           Prints help information

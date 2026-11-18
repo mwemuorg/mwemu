@@ -1,4 +1,5 @@
 use env_logger::Env;
+use libmwemu::ApiMode;
 use std::io::Write as _;
 
 use pyo3::exceptions::PyException;
@@ -380,10 +381,35 @@ impl Emu {
         self.emu.cfg.test_mode = false;
     }
 
-    /// Enable banzai mode. This mode keep emulating after finding unimplemented instructions or apis.
+    /// Enable instruction skipping and x86 API cleanup fallback without changing API mode.
     fn enable_banzai_mode(&mut self) {
         self.emu.cfg.skip_unimplemented = true;
         self.emu.maps.set_banzai(true);
+    }
+
+    /// Select unsupported Windows API policy without changing Banzai settings.
+    fn set_api_mode(&mut self, mode: &str) -> PyResult<()> {
+        let mode = match mode {
+            "strict" => ApiMode::Strict,
+            "simulate-fail" => ApiMode::SimulateFail,
+            "simulate-success" => ApiMode::SimulateSuccess,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "API mode must be strict, simulate-fail or simulate-success",
+                ));
+            }
+        };
+        self.emu.set_api_mode(mode);
+        Ok(())
+    }
+
+    /// Return the effective mode, including legacy strict-flag precedence.
+    fn get_api_mode(&self) -> &'static str {
+        match self.emu.api_mode() {
+            ApiMode::Strict => "strict",
+            ApiMode::SimulateFail => "simulate-fail",
+            ApiMode::SimulateSuccess => "simulate-success",
+        }
     }
 
     /// disable banzai mode.
