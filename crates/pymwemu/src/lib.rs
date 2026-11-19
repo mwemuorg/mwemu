@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use env_logger::Env;
 use libmwemu::ApiMode;
 use std::io::Write as _;
