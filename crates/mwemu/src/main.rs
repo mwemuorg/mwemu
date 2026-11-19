@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![allow(unexpected_cfgs)]
 // clippy v1 burn-down backlog (see V1-ROADMAP.md P2 #9)
 #![allow(clippy::unnecessary_unwrap)]

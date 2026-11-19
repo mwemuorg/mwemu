@@ -35,7 +35,7 @@ See `docs/KERNEL.md`; the test target is `drivers/linux/tlm` (`make driver`).
 
 12. avoid unwrap, expect, panic, etc
 
-13. if you are on mac Mx don't use "--target x86_64-apple-darwin" unless it have a reason.
+13. if you are on macos Mx don't use "--target x86_64-apple-darwin" unless it have a reason.
 
 
 ## Skills

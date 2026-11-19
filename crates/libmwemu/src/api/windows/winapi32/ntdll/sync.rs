@@ -30,7 +30,11 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 fn RtlInitializeCriticalSection(emu: &mut emu::Emu) {
     let call = WinApi(Stdcall);
     let crit_sect = api_try!(emu, call.arg_u32(emu, 0));
-    log_red!(emu, "ntdll!RtlInitializeCriticalSection ptr: 0x{:x}", crit_sect);
+    log_red!(
+        emu,
+        "ntdll!RtlInitializeCriticalSection ptr: 0x{:x}",
+        crit_sect
+    );
     call.cleanup_args(emu, 1);
     call.set_return(emu, 1);
 }
