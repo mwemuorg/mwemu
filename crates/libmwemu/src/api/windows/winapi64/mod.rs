@@ -27,6 +27,7 @@ pub(crate) mod wininet;
 mod winmm;
 pub(crate) mod ws2_32;
 
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::api::windows::policy::{self, ApiRoute};
 use crate::emu;
@@ -74,7 +75,7 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
     if !emu.cfg.arch.is_aarch64() {
         emu.regs_mut().sanitize64();
     }
-    match name {
+    dispatch_api!(name, {
         "kernel32.text" => kernel32::gateway(addr, emu),
         "kernel32.rdata" => kernel32::gateway(addr, emu),
         "ntdll.text" => ntdll::gateway(addr, emu),
@@ -106,19 +107,25 @@ pub fn gateway(addr: u64, name: &str, emu: &mut emu::Emu) {
         "api-ms-win-crt-heap-l1-1-0.rdata" => wincrt::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
         "ucrtbase.text" => wincrt::gateway(addr, emu),
-        "not_loaded" => {
-            let api = emu
-                .pe64
-                .as_ref()
-                .map(|pe| pe.import_addr_to_name(addr))
-                .unwrap_or_default();
-            fallback::unimplemented(addr, &api, emu)
-        }
-        _ => {
-            let api = kernel32::guess_api_name(emu, addr);
-            fallback::unimplemented(addr, &api, emu)
-        }
-    };
+        "not_loaded" => unloaded_import(addr, emu),
+    },
+        handled(result) => result,
+        fallback => unhandled_library(addr, emu),
+    );
 
     policy::finish_call(emu);
+}
+
+fn unloaded_import(addr: u64, emu: &mut emu::Emu) -> String {
+    let api = emu
+        .pe64
+        .as_ref()
+        .map(|pe| pe.import_addr_to_name(addr))
+        .unwrap_or_default();
+    fallback::unimplemented(addr, &api, emu)
+}
+
+fn unhandled_library(addr: u64, emu: &mut emu::Emu) -> String {
+    let api = kernel32::guess_api_name(emu, addr);
+    fallback::unimplemented(addr, &api, emu)
 }

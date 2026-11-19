@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -53,7 +54,7 @@ mod query_performance_frequency;
 pub use query_performance_frequency::QueryPerformanceFrequency;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "FormatMessageA" => kernel32::FormatMessageA(emu),
         "FormatMessageW" => kernel32::FormatMessageW(emu),
         "GetLastError" => kernel32::GetLastError(emu),
@@ -69,7 +70,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "VerifyVersionInfoW" => kernel32::VerifyVersionInfoW(emu),
         "VerSetConditionMask" => kernel32::VerSetConditionMask(emu),
         "Beep" => kernel32::Beep(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

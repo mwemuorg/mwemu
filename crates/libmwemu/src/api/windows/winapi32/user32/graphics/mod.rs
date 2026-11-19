@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::user32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "LoadIconA" => user32::LoadIconA(emu),
         "GetDC" => user32::GetDC(emu),
         "ReleaseDC" => user32::ReleaseDC(emu),
@@ -139,9 +140,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "LoadLocalFonts" => user32::LoadLocalFonts(emu),
         "LoadRemoteFonts" => user32::LoadRemoteFonts(emu),
         "LogicalToPhysicalPoint" => user32::LogicalToPhysicalPoint(emu),
-        "LogicalToPhysicalPointForPerMonitorDPI" => {
-            user32::LogicalToPhysicalPointForPerMonitorDPI(emu)
-        }
+        "LogicalToPhysicalPointForPerMonitorDPI" => user32::LogicalToPhysicalPointForPerMonitorDPI(emu),
         "LookupIconIdFromDirectory" => user32::LookupIconIdFromDirectory(emu),
         "LookupIconIdFromDirectoryEx" => user32::LookupIconIdFromDirectoryEx(emu),
         "MapPointsByVisualIdentifier" => user32::MapPointsByVisualIdentifier(emu),
@@ -154,9 +153,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "PaintDesktop" => user32::PaintDesktop(emu),
         "PaintMonitor" => user32::PaintMonitor(emu),
         "PhysicalToLogicalPoint" => user32::PhysicalToLogicalPoint(emu),
-        "PhysicalToLogicalPointForPerMonitorDPI" => {
-            user32::PhysicalToLogicalPointForPerMonitorDPI(emu)
-        }
+        "PhysicalToLogicalPointForPerMonitorDPI" => user32::PhysicalToLogicalPointForPerMonitorDPI(emu),
         "PrintWindow" => user32::PrintWindow(emu),
         "PrivateExtractIconExA" => user32::PrivateExtractIconExA(emu),
         "PrivateExtractIconExW" => user32::PrivateExtractIconExW(emu),
@@ -174,14 +171,10 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "SetDesktopColorTransform" => user32::SetDesktopColorTransform(emu),
         "SetDisplayAutoRotationPreferences" => user32::SetDisplayAutoRotationPreferences(emu),
         "SetDisplayConfig" => user32::SetDisplayConfig(emu),
-        "SetFullscreenMagnifierOffsetsDWMUpdated" => {
-            user32::SetFullscreenMagnifierOffsetsDWMUpdated(emu)
-        }
+        "SetFullscreenMagnifierOffsetsDWMUpdated" => user32::SetFullscreenMagnifierOffsetsDWMUpdated(emu),
         "SetMagnificationDesktopColorEffect" => user32::SetMagnificationDesktopColorEffect(emu),
         "SetMagnificationDesktopMagnification" => user32::SetMagnificationDesktopMagnification(emu),
-        "SetMagnificationDesktopMagnifierOffsetsDWMUpdated" => {
-            user32::SetMagnificationDesktopMagnifierOffsetsDWMUpdated(emu)
-        }
+        "SetMagnificationDesktopMagnifierOffsetsDWMUpdated" => user32::SetMagnificationDesktopMagnifierOffsetsDWMUpdated(emu),
         "SetMagnificationDesktopSamplingMode" => user32::SetMagnificationDesktopSamplingMode(emu),
         "SetMagnificationLensCtxInformation" => user32::SetMagnificationLensCtxInformation(emu),
         "SetMirrorRendering" => user32::SetMirrorRendering(emu),
@@ -213,7 +206,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "ValidateRect" => user32::ValidateRect(emu),
         "ValidateRgn" => user32::ValidateRgn(emu),
         "WindowFromDC" => user32::WindowFromDC(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

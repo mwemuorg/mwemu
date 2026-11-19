@@ -1,5 +1,6 @@
 mod clearerr;
 
+use crate::api::dispatch_api;
 use crate::winapi::common::strings;
 use crate::windows::constants::security::*;
 use clearerr::clearerr;
@@ -106,7 +107,7 @@ lazy_static! {
 
 /// Run `api` if it is a CRT stdio API; false otherwise.
 pub fn gateway(api: &str, emu: &mut emu::Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "fopen" | "_fsopen" => fopen(emu, api, false),
         "_wfopen" | "_wfsopen" => fopen(emu, api, true),
         "fopen_s" => fopen_s(emu, api, false),
@@ -132,9 +133,10 @@ pub fn gateway(api: &str, emu: &mut emu::Emu) -> bool {
         "_errno" => errno_location(emu),
         "_set_errno" => _set_errno(emu),
         "_get_errno" => _get_errno(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 // --- errno ---

@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AddAccessAllowedAce" => advapi32::AddAccessAllowedAce(emu),
         "AddAccessAllowedAceEx" => advapi32::AddAccessAllowedAceEx(emu),
         "AddAccessAllowedObjectAce" => advapi32::AddAccessAllowedObjectAce(emu),
@@ -40,43 +41,27 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "ConvertSDToStringSDRootDomainA" => advapi32::ConvertSDToStringSDRootDomainA(emu),
         "ConvertSDToStringSDRootDomainW" => advapi32::ConvertSDToStringSDRootDomainW(emu),
         "ConvertSecurityDescriptorToAccessA" => advapi32::ConvertSecurityDescriptorToAccessA(emu),
-        "ConvertSecurityDescriptorToAccessNamedA" => {
-            advapi32::ConvertSecurityDescriptorToAccessNamedA(emu)
-        }
-        "ConvertSecurityDescriptorToAccessNamedW" => {
-            advapi32::ConvertSecurityDescriptorToAccessNamedW(emu)
-        }
+        "ConvertSecurityDescriptorToAccessNamedA" => advapi32::ConvertSecurityDescriptorToAccessNamedA(emu),
+        "ConvertSecurityDescriptorToAccessNamedW" => advapi32::ConvertSecurityDescriptorToAccessNamedW(emu),
         "ConvertSecurityDescriptorToAccessW" => advapi32::ConvertSecurityDescriptorToAccessW(emu),
-        "ConvertSecurityDescriptorToStringSecurityDescriptorA" => {
-            advapi32::ConvertSecurityDescriptorToStringSecurityDescriptorA(emu)
-        }
-        "ConvertSecurityDescriptorToStringSecurityDescriptorW" => {
-            advapi32::ConvertSecurityDescriptorToStringSecurityDescriptorW(emu)
-        }
+        "ConvertSecurityDescriptorToStringSecurityDescriptorA" => advapi32::ConvertSecurityDescriptorToStringSecurityDescriptorA(emu),
+        "ConvertSecurityDescriptorToStringSecurityDescriptorW" => advapi32::ConvertSecurityDescriptorToStringSecurityDescriptorW(emu),
         "ConvertSidToStringSidA" => advapi32::ConvertSidToStringSidA(emu),
         "ConvertSidToStringSidW" => advapi32::ConvertSidToStringSidW(emu),
         "ConvertStringSDToSDDomainA" => advapi32::ConvertStringSDToSDDomainA(emu),
         "ConvertStringSDToSDDomainW" => advapi32::ConvertStringSDToSDDomainW(emu),
         "ConvertStringSDToSDRootDomainA" => advapi32::ConvertStringSDToSDRootDomainA(emu),
         "ConvertStringSDToSDRootDomainW" => advapi32::ConvertStringSDToSDRootDomainW(emu),
-        "ConvertStringSecurityDescriptorToSecurityDescriptorA" => {
-            advapi32::ConvertStringSecurityDescriptorToSecurityDescriptorA(emu)
-        }
-        "ConvertStringSecurityDescriptorToSecurityDescriptorW" => {
-            advapi32::ConvertStringSecurityDescriptorToSecurityDescriptorW(emu)
-        }
+        "ConvertStringSecurityDescriptorToSecurityDescriptorA" => advapi32::ConvertStringSecurityDescriptorToSecurityDescriptorA(emu),
+        "ConvertStringSecurityDescriptorToSecurityDescriptorW" => advapi32::ConvertStringSecurityDescriptorToSecurityDescriptorW(emu),
         "ConvertStringSidToSidA" => advapi32::ConvertStringSidToSidA(emu),
         "ConvertStringSidToSidW" => advapi32::ConvertStringSidToSidW(emu),
-        "ConvertToAutoInheritPrivateObjectSecurity" => {
-            advapi32::ConvertToAutoInheritPrivateObjectSecurity(emu)
-        }
+        "ConvertToAutoInheritPrivateObjectSecurity" => advapi32::ConvertToAutoInheritPrivateObjectSecurity(emu),
         "CopySid" => advapi32::CopySid(emu),
         "CreateCodeAuthzLevel" => advapi32::CreateCodeAuthzLevel(emu),
         "CreatePrivateObjectSecurity" => advapi32::CreatePrivateObjectSecurity(emu),
         "CreatePrivateObjectSecurityEx" => advapi32::CreatePrivateObjectSecurityEx(emu),
-        "CreatePrivateObjectSecurityWithMultipleInheritance" => {
-            advapi32::CreatePrivateObjectSecurityWithMultipleInheritance(emu)
-        }
+        "CreatePrivateObjectSecurityWithMultipleInheritance" => advapi32::CreatePrivateObjectSecurityWithMultipleInheritance(emu),
         "CreateWellKnownSid" => advapi32::CreateWellKnownSid(emu),
         "DeleteAce" => advapi32::DeleteAce(emu),
         "DestroyPrivateObjectSecurity" => advapi32::DestroyPrivateObjectSecurity(emu),
@@ -187,7 +172,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "TreeSetNamedSecurityInfoW" => advapi32::TreeSetNamedSecurityInfoW(emu),
         "TrusteeAccessToObjectA" => advapi32::TrusteeAccessToObjectA(emu),
         "TrusteeAccessToObjectW" => advapi32::TrusteeAccessToObjectW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

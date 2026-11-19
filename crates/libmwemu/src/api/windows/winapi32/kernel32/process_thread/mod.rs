@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -170,7 +171,7 @@ mod process32_first;
 pub use process32_first::{Process32First, Process32FirstW};
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "IsWow64Process" => kernel32::IsWow64Process(emu),
         "ExitThread" => kernel32::ExitThread(emu),
         "CreateProcessW" => kernel32::CreateProcessW(emu),
@@ -218,20 +219,12 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "WinExec" => kernel32::WinExec(emu),
         "BaseDestroyVDMEnvironment" => kernel32::BaseDestroyVDMEnvironment(emu),
         "BaseExitThreadPoolThread" => kernel32::BaseExitThreadPoolThread(emu),
-        "BasepAllocateActivationContextActivationBlock" => {
-            kernel32::BasepAllocateActivationContextActivationBlock(emu)
-        }
-        "BasepConstructSxsCreateProcessMessage" => {
-            kernel32::BasepConstructSxsCreateProcessMessage(emu)
-        }
-        "BasepFreeActivationContextActivationBlock" => {
-            kernel32::BasepFreeActivationContextActivationBlock(emu)
-        }
+        "BasepAllocateActivationContextActivationBlock" => kernel32::BasepAllocateActivationContextActivationBlock(emu),
+        "BasepConstructSxsCreateProcessMessage" => kernel32::BasepConstructSxsCreateProcessMessage(emu),
+        "BasepFreeActivationContextActivationBlock" => kernel32::BasepFreeActivationContextActivationBlock(emu),
         "BasepIsProcessAllowed" => kernel32::BasepIsProcessAllowed(emu),
         "BasepProcessInvalidImage" => kernel32::BasepProcessInvalidImage(emu),
-        "BasepReleaseSxsCreateProcessUtilityStruct" => {
-            kernel32::BasepReleaseSxsCreateProcessUtilityStruct(emu)
-        }
+        "BasepReleaseSxsCreateProcessUtilityStruct" => kernel32::BasepReleaseSxsCreateProcessUtilityStruct(emu),
         "BasepTpIoCallback" => kernel32::BasepTpIoCallback(emu),
         "BasepTpIoCleanupCallback" => kernel32::BasepTpIoCleanupCallback(emu),
         "BasepTpIoFinalizationCallback" => kernel32::BasepTpIoFinalizationCallback(emu),
@@ -253,30 +246,22 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "IsThreadAFiber" => kernel32::IsThreadAFiber(emu),
         "NtVdm64CreateProcessInternalW" => kernel32::NtVdm64CreateProcessInternalW(emu),
         "NtWow64CsrBasepCreateProcess" => kernel32::NtWow64CsrBasepCreateProcess(emu),
-        "NtWow64CsrBasepGetProcessShutdownParam" => {
-            kernel32::NtWow64CsrBasepGetProcessShutdownParam(emu)
-        }
-        "NtWow64CsrBasepSetProcessShutdownParam" => {
-            kernel32::NtWow64CsrBasepSetProcessShutdownParam(emu)
-        }
+        "NtWow64CsrBasepGetProcessShutdownParam" => kernel32::NtWow64CsrBasepGetProcessShutdownParam(emu),
+        "NtWow64CsrBasepSetProcessShutdownParam" => kernel32::NtWow64CsrBasepSetProcessShutdownParam(emu),
         "OpenJobObjectA" => kernel32::OpenJobObjectA(emu),
         "OpenJobObjectW" => kernel32::OpenJobObjectW(emu),
         "Process32FirstW" => kernel32::Process32FirstW(emu),
         "Process32Next" => kernel32::Process32Next(emu),
         "Process32NextW" => kernel32::Process32NextW(emu),
         "QueryInformationJobObject" => kernel32::QueryInformationJobObject(emu),
-        "QueryIoRateControlInformationJobObject" => {
-            kernel32::QueryIoRateControlInformationJobObject(emu)
-        }
+        "QueryIoRateControlInformationJobObject" => kernel32::QueryIoRateControlInformationJobObject(emu),
         "QueryThreadProfiling" => kernel32::QueryThreadProfiling(emu),
         "ReadThreadProfilingData" => kernel32::ReadThreadProfilingData(emu),
         "SetEnvironmentStringsA" => kernel32::SetEnvironmentStringsA(emu),
         "SetFirmwareEnvironmentVariableA" => kernel32::SetFirmwareEnvironmentVariableA(emu),
         "SetFirmwareEnvironmentVariableW" => kernel32::SetFirmwareEnvironmentVariableW(emu),
         "SetInformationJobObject" => kernel32::SetInformationJobObject(emu),
-        "SetIoRateControlInformationJobObject" => {
-            kernel32::SetIoRateControlInformationJobObject(emu)
-        }
+        "SetIoRateControlInformationJobObject" => kernel32::SetIoRateControlInformationJobObject(emu),
         "SetProcessAffinityMask" => kernel32::SetProcessAffinityMask(emu),
         "SetThreadAffinityMask" => kernel32::SetThreadAffinityMask(emu),
         "SetThreadExecutionState" => kernel32::SetThreadExecutionState(emu),
@@ -319,9 +304,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "CreateThreadpoolWork" => kernel32::CreateThreadpoolWork(emu),
         "DeleteFiber" => kernel32::DeleteFiber(emu),
         "DeleteProcThreadAttributeList" => kernel32::DeleteProcThreadAttributeList(emu),
-        "DisassociateCurrentThreadFromCallback" => {
-            kernel32::DisassociateCurrentThreadFromCallback(emu)
-        }
+        "DisassociateCurrentThreadFromCallback" => kernel32::DisassociateCurrentThreadFromCallback(emu),
         "EnableProcessOptionalXStateFeatures" => kernel32::EnableProcessOptionalXStateFeatures(emu),
         "ExitVDM" => kernel32::ExitVDM(emu),
         "FlsFree" => kernel32::FlsFree(emu),
@@ -411,12 +394,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "SetProcessAffinityUpdateMode" => kernel32::SetProcessAffinityUpdateMode(emu),
         "SetProcessDefaultCpuSetMasks" => kernel32::SetProcessDefaultCpuSetMasks(emu),
         "SetProcessDefaultCpuSets" => kernel32::SetProcessDefaultCpuSets(emu),
-        "SetProcessDynamicEHContinuationTargets" => {
-            kernel32::SetProcessDynamicEHContinuationTargets(emu)
-        }
-        "SetProcessDynamicEnforcedCetCompatibleRanges" => {
-            kernel32::SetProcessDynamicEnforcedCetCompatibleRanges(emu)
-        }
+        "SetProcessDynamicEHContinuationTargets" => kernel32::SetProcessDynamicEHContinuationTargets(emu),
+        "SetProcessDynamicEnforcedCetCompatibleRanges" => kernel32::SetProcessDynamicEnforcedCetCompatibleRanges(emu),
         "SetProcessInformation" => kernel32::SetProcessInformation(emu),
         "SetProcessPreferredUILanguages" => kernel32::SetProcessPreferredUILanguages(emu),
         "SetProcessPriorityBoost" => kernel32::SetProcessPriorityBoost(emu),
@@ -468,7 +447,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "RtlRestoreContext" => kernel32::RtlRestoreContext(emu),
         "SetUmsThreadInformation" => kernel32::SetUmsThreadInformation(emu),
         "UmsThreadYield" => kernel32::UmsThreadYield(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

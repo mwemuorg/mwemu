@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
@@ -505,7 +506,7 @@ pub use internet_set_status_callback::InternetSetStatusCallback;
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    match api {
+    dispatch_api!(api, {
         "InternetOpenA" => session::internet_open_a(emu),
         "InternetOpenW" => session::internet_open_w(emu),
         "InternetConnectA" => session::internet_connect_a(emu),
@@ -748,9 +749,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "IsUrlCacheEntryExpiredA" => IsUrlCacheEntryExpiredA(emu),
         "IsUrlCacheEntryExpiredW" => IsUrlCacheEntryExpiredW(emu),
         "LoadUrlCacheContent" => LoadUrlCacheContent(emu),
-        "ParseX509EncodedCertificateForListBoxEntry" => {
-            ParseX509EncodedCertificateForListBoxEntry(emu)
-        }
+        "ParseX509EncodedCertificateForListBoxEntry" => ParseX509EncodedCertificateForListBoxEntry(emu),
         "PrivacyGetZonePreferenceW" => PrivacyGetZonePreferenceW(emu),
         "PrivacySetZonePreferenceW" => PrivacySetZonePreferenceW(emu),
         "ReadUrlCacheEntryStream" => ReadUrlCacheEntryStream(emu),
@@ -807,11 +806,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "InternetSetStatusCallback"
         | "InternetSetStatusCallbackA"
         | "InternetSetStatusCallbackW" => InternetSetStatusCallback(emu),
-
-        _ => {
-            return fallback::unimplemented(addr, api, emu);
-        }
-    }
-
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }

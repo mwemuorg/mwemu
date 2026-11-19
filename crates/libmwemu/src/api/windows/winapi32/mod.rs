@@ -24,6 +24,7 @@ pub(crate) mod wininet;
 mod winmm;
 pub(crate) mod ws2_32;
 
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::api::windows::policy::{self, ApiRoute};
 use crate::emu;
@@ -52,7 +53,7 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
     let library = name.split('.').next().unwrap_or(name);
     policy::enter_gateway(emu, library, "", addr as u64, ApiRoute::Gateway);
     emu.regs_mut().sanitize32();
-    match name {
+    dispatch_api!(name, {
         "kernel32.text" => kernel32::gateway(addr, emu),
         "kernel32.rdata" => kernel32::gateway(addr, emu),
         "ntdll.text" => ntdll::gateway(addr, emu),
@@ -76,27 +77,30 @@ pub fn gateway(addr: u32, name: &str, emu: &mut emu::Emu) {
         "winmm.text" => winmm::gateway(addr, emu),
         "gdi32.text" => gdi32::gateway(addr, emu),
         "gdi32.rdata" => gdi32::gateway(addr, emu),
-        "msvcp60.text" => {
-            let api = kernel32::guess_api_name(emu, addr);
-            fallback::unimplemented(addr, &api, emu)
-        }
+        "msvcp60.text" => unhandled_library(addr, emu),
         "gdiplus.text" => gdiplus::gateway(addr, emu),
         "libgcc_s_dw2-1.text" => libgcc::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
         "ntoskrnl.text" => ntoskrnl::gateway(addr, emu),
         "ntoskrnlPAGE" => ntoskrnl::gateway(addr, emu),
-        "not_loaded" => {
-            let api = emu
-                .pe32
-                .as_ref()
-                .map(|pe| pe.import_addr_to_name(addr))
-                .unwrap_or_default();
-            fallback::unimplemented(addr, &api, emu)
-        }
-        _ => {
-            let api = kernel32::guess_api_name(emu, addr);
-            fallback::unimplemented(addr, &api, emu)
-        }
-    };
+        "not_loaded" => unloaded_import(addr, emu),
+    },
+        handled(result) => result,
+        fallback => unhandled_library(addr, emu),
+    );
     policy::finish_call(emu);
+}
+
+fn unloaded_import(addr: u32, emu: &mut emu::Emu) -> String {
+    let api = emu
+        .pe32
+        .as_ref()
+        .map(|pe| pe.import_addr_to_name(addr))
+        .unwrap_or_default();
+    fallback::unimplemented(addr, &api, emu)
+}
+
+fn unhandled_library(addr: u32, emu: &mut emu::Emu) -> String {
+    let api = kernel32::guess_api_name(emu, addr);
+    fallback::unimplemented(addr, &api, emu)
 }

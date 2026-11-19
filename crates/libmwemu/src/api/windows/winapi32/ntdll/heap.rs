@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
 use crate::winapi::policy::api_try;
@@ -7,7 +8,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     if heap_engine::dispatch(api, emu) {
         return true;
     }
-    match api {
+    dispatch_api!(api, {
         "RtlGetProcessHeaps" => RtlGetProcessHeaps(emu),
         "RtlFreeHeap" => RtlFreeHeap(emu),
         "RtlAllocateHeap" => RtlAllocateHeap(emu),
@@ -16,9 +17,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "HeapAlloc" => RtlAllocateHeap(emu),
         "HeapFree" => RtlFreeHeap(emu),
         "HeapReAlloc" => RtlReAllocateHeap(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 pub fn RtlGetProcessHeaps(emu: &mut emu::Emu) {

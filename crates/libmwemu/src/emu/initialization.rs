@@ -9,6 +9,7 @@ use crate::api::windows::policy::ApiPolicy;
 use crate::emu::{Emu, InstructionState, LastOp};
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
+use crate::syscall::windows::{index_syscall_names, syscall64};
 use crate::windows::peb::{peb32, peb64};
 use crate::{
     api::banzai::Banzai, config::Config, debug::breakpoint::Breakpoints, hooks::Hooks, maps::Maps,
@@ -900,6 +901,7 @@ impl Emu {
         peb32::init_peb(self);
         kuser_shared::init_kuser_shared_data(self);
         winapi32::kernel32::load_library(self, "ntdll.dll");
+        self.syscall_name_by_real = index_syscall_names(self);
         let ntdll_base = self
             .maps
             .get_map_by_name("ntdll.pe")
@@ -1040,7 +1042,7 @@ impl Emu {
             // NtQuerySystemEnvironmentValueEx) and silently misroutes —
             // RtlRaiseException then returns "0" instead of dispatching the
             // exception, leading to a RtlRaiseStatus(0) recursion.
-            crate::syscall::windows::syscall64::build_syscall_translation_table(self);
+            syscall64::build_syscall_translation_table(self);
 
             // Pre-map kernel32 and kernelbase even though modern ntdll
             // clears the legacy `InMemoryOrderModuleList` during init —
@@ -1416,6 +1418,7 @@ impl Emu {
         }
         log::debug!("win32 64bits base libs ok.");
 
+        syscall64::build_syscall_translation_table(self);
         let ntdll_base = self.maps.get_mem("ntdll.pe").get_base();
         peb64::update_peb_image_base(self, ntdll_base);
 

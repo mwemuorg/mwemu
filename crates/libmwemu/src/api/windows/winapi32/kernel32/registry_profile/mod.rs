@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -79,7 +80,7 @@ mod termsrv_sync_user_ini_file_ext;
 pub use termsrv_sync_user_ini_file_ext::TermsrvSyncUserIniFileExt;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "RegCloseKey" => kernel32::RegCloseKey(emu),
         "RegCreateKeyExA" => kernel32::RegCreateKeyExA(emu),
         "RegCreateKeyExW" => kernel32::RegCreateKeyExW(emu),
@@ -175,7 +176,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "TermsrvGetWindowsDirectoryA" => kernel32::TermsrvGetWindowsDirectoryA(emu),
         "TermsrvGetWindowsDirectoryW" => kernel32::TermsrvGetWindowsDirectoryW(emu),
         "TermsrvSetKeySecurity" => kernel32::TermsrvSetKeySecurity(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

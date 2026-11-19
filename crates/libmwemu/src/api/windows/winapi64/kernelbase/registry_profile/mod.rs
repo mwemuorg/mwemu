@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "DeletePersistedRegistryValue" => kernelbase::DeletePersistedRegistryValue(emu),
         "GetCPFileNameFromRegistry" => kernelbase::GetCPFileNameFromRegistry(emu),
         "GetPersistedRegistryLocationW" => kernelbase::GetPersistedRegistryLocationW(emu),
@@ -16,22 +17,14 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RegDeleteKeyExInternalW" => kernelbase::RegDeleteKeyExInternalW(emu),
         "RegDeleteKeyValueA" => kernelbase::RegDeleteKeyValueA(emu),
         "RegDeleteKeyValueW" => kernelbase::RegDeleteKeyValueW(emu),
-        "RegKrnGetAppKeyEventAddressInternal" => {
-            kernelbase::RegKrnGetAppKeyEventAddressInternal(emu)
-        }
+        "RegKrnGetAppKeyEventAddressInternal" => kernelbase::RegKrnGetAppKeyEventAddressInternal(emu),
         "RegKrnGetAppKeyLoaded" => kernelbase::RegKrnGetAppKeyLoaded(emu),
-        "RegKrnGetClassesEnumTableAddressInternal" => {
-            kernelbase::RegKrnGetClassesEnumTableAddressInternal(emu)
-        }
+        "RegKrnGetClassesEnumTableAddressInternal" => kernelbase::RegKrnGetClassesEnumTableAddressInternal(emu),
         "RegKrnGetHKEY_ClassesRootAddress" => kernelbase::RegKrnGetHKEY_ClassesRootAddress(emu),
-        "RegKrnGetTermsrvRegistryExtensionFlags" => {
-            kernelbase::RegKrnGetTermsrvRegistryExtensionFlags(emu)
-        }
+        "RegKrnGetTermsrvRegistryExtensionFlags" => kernelbase::RegKrnGetTermsrvRegistryExtensionFlags(emu),
         "RegKrnResetAppKeyLoaded" => kernelbase::RegKrnResetAppKeyLoaded(emu),
         "RegKrnSetDllHasThreadStateGlobal" => kernelbase::RegKrnSetDllHasThreadStateGlobal(emu),
-        "RegKrnSetTermsrvRegistryExtensionFlags" => {
-            kernelbase::RegKrnSetTermsrvRegistryExtensionFlags(emu)
-        }
+        "RegKrnSetTermsrvRegistryExtensionFlags" => kernelbase::RegKrnSetTermsrvRegistryExtensionFlags(emu),
         "RegLoadAppKeyA" => kernelbase::RegLoadAppKeyA(emu),
         "RegLoadAppKeyW" => kernelbase::RegLoadAppKeyW(emu),
         "RegOpenKeyExInternalA" => kernelbase::RegOpenKeyExInternalA(emu),
@@ -115,7 +108,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RegisterApplicationRestart" => kernelbase::RegisterApplicationRestart(emu),
         "RegisterBadMemoryNotification" => kernelbase::RegisterBadMemoryNotification(emu),
         "RegisterWaitForSingleObjectEx" => kernelbase::RegisterWaitForSingleObjectEx(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

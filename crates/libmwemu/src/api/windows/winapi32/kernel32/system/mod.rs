@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -251,7 +252,7 @@ mod system_time_to_file_time;
 pub use system_time_to_file_time::SystemTimeToFileTime;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "FormatMessageA" => kernel32::FormatMessageA(emu),
         "FormatMessageW" => kernel32::FormatMessageW(emu),
         "GetVersionExA" => kernel32::GetVersionExA(emu),
@@ -268,9 +269,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "BaseDllInitialize" => kernel32::BaseDllInitialize(emu),
         "BaseSetLastNTError" => kernel32::BaseSetLastNTError(emu),
         "BaseUpdateVDMEntry" => kernel32::BaseUpdateVDMEntry(emu),
-        "BasepAccumulateIoRateControlInformationBufferSize" => {
-            kernel32::BasepAccumulateIoRateControlInformationBufferSize(emu)
-        }
+        "BasepAccumulateIoRateControlInformationBufferSize" => kernel32::BasepAccumulateIoRateControlInformationBufferSize(emu),
         "BasepCheckWebBladeHashes" => kernel32::BasepCheckWebBladeHashes(emu),
         "BasepCheckWinSaferRestrictions" => kernel32::BasepCheckWinSaferRestrictions(emu),
         "BasepCopyEncryption" => kernel32::BasepCopyEncryption(emu),
@@ -311,9 +310,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "NtWow64CsrBasepDefineDosDevice" => kernel32::NtWow64CsrBasepDefineDosDevice(emu),
         "NtWow64CsrBasepNlsGetUserInfo" => kernel32::NtWow64CsrBasepNlsGetUserInfo(emu),
         "NtWow64CsrBasepNlsUpdateCacheCount" => kernel32::NtWow64CsrBasepNlsUpdateCacheCount(emu),
-        "NtWow64CsrBasepSoundSentryNotification" => {
-            kernel32::NtWow64CsrBasepSoundSentryNotification(emu)
-        }
+        "NtWow64CsrBasepSoundSentryNotification" => kernel32::NtWow64CsrBasepSoundSentryNotification(emu),
         "OOBEComplete" => kernel32::OOBEComplete(emu),
         "OOBECompleteWnfCallback" => kernel32::OOBECompleteWnfCallback(emu),
         "OOBECompleteWnfQueryCallback" => kernel32::OOBECompleteWnfQueryCallback(emu),
@@ -382,7 +379,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "UTUnRegister" => kernel32::UTUnRegister(emu),
         "VerSetConditionMask" => kernel32::VerSetConditionMask(emu),
         "RtlIsEcCode" => kernel32::RtlIsEcCode(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

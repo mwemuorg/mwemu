@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::ole32;
 
@@ -278,7 +279,7 @@ mod ut_get_dvtd32_info;
 pub use ut_get_dvtd32_info::UtGetDvtd32Info;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "BindMoniker" => ole32::BindMoniker(emu),
         "CheckInitDde" => ole32::CheckInitDde(emu),
         "CleanROTForApartment" => ole32::CleanROTForApartment(emu),
@@ -368,7 +369,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "UtConvertDvtd32toDvtd16" => ole32::UtConvertDvtd32toDvtd16(emu),
         "UtGetDvtd16Info" => ole32::UtGetDvtd16Info(emu),
         "UtGetDvtd32Info" => ole32::UtGetDvtd32Info(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

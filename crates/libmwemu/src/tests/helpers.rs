@@ -329,24 +329,6 @@ pub fn register_export_module(
     emu.export_indexes.register(index);
 }
 
-/// Register a synthetic module in the emulator's export-index registry:
-/// `fake.dll` at `base`, export ordinal base 5, with a single function at
-/// `base + 0x1500` named `CreateFileA` (ordinal 5).
-pub fn register_fake_export_module(emu: &mut Emu, base: u64) {
-    use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
-
-    let parsed = ExportIndexData {
-        export_base: 5,
-        number_of_functions: 1,
-        ordinal_targets: vec![Some(ExportTarget::Direct { rva: 0x1500 })],
-        named_exports: vec![NamedExport {
-            name: "CreateFileA".to_string(),
-            ordinal_index: 0,
-        }],
-    };
-    register_export_module(emu, "fake.dll", base, &parsed);
-}
-
 /// Invoke a 32-bit WinAPI hook honoring the `stdcall` convention as the engine
 /// presents it: the return address has already been popped, so arguments sit at
 /// `[esp+0]`, `[esp+4]`, ... (the hook pops them itself). Arguments are pushed

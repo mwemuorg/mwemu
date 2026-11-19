@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "BaseGetConsoleReference" => kernelbase::BaseGetConsoleReference(emu),
         "CreatePseudoConsoleAsUser" => kernelbase::CreatePseudoConsoleAsUser(emu),
         "AddConsoleAliasA" => kernelbase::AddConsoleAliasA(emu),
@@ -96,7 +97,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "WriteConsoleOutputCharacterW" => kernelbase::WriteConsoleOutputCharacterW(emu),
         "WriteConsoleOutputW" => kernelbase::WriteConsoleOutputW(emu),
         "WriteConsoleW" => kernelbase::WriteConsoleW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

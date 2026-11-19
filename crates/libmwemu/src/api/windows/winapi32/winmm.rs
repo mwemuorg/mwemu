@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
@@ -6,11 +7,12 @@ use crate::winapi::winapi32::kernel32;
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split('!').next_back().unwrap_or(&api);
-    match api {
+    dispatch_api!(api, {
         "timeGetTime" => timeGetTime(emu),
-        _ => return fallback::unimplemented(addr, api, emu),
-    }
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }
 
 fn timeGetTime(emu: &mut emu::Emu) {

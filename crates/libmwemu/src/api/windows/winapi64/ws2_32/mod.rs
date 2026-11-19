@@ -1,4 +1,5 @@
 mod free_addr_info;
+use crate::api::dispatch_api;
 pub use free_addr_info::{FreeAddrInfoW, freeaddrinfo};
 mod get_addr_info;
 pub use get_addr_info::{GetAddrInfoW, getaddrinfo};
@@ -375,7 +376,7 @@ pub use socket::socket;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    match api {
+    dispatch_api!(api, {
         "WSAStartup" => WSAStartup(emu),
         "WSASocketA" => WSASocketA(emu),
         "connect" => connect(emu),
@@ -573,9 +574,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "select" => select(emu),
         "shutdown" => shutdown(emu),
         "WSCInstallProviderAndChains" => WSCInstallProviderAndChains(emu),
-
-        _ => return fallback::unimplemented(addr, api, emu),
-    }
-
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }

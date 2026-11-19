@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -107,7 +108,7 @@ mod write_console_input_vdm;
 pub use write_console_input_vdm::{WriteConsoleInputVDMA, WriteConsoleInputVDMW};
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "_TlgCreateWsz" => kernel32::_TlgCreateWsz(emu),
         "_lclose" => kernel32::_lclose(emu),
         "_lcreat" => kernel32::_lcreat(emu),
@@ -121,7 +122,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "__chkstk" => kernel32::__chkstk(emu),
         "__misaligned_access" => kernel32::__misaligned_access(emu),
         "_local_unwind" => kernel32::_local_unwind(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

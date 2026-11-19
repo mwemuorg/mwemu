@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::ole32;
 
@@ -281,7 +282,7 @@ mod ole_initialize;
 pub use ole_initialize::OleInitialize;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CreateClassMoniker" => ole32::CreateClassMoniker(emu),
         "GetRunningObjectTable" => ole32::GetRunningObjectTable(emu),
         "BindMoniker" => ole32::BindMoniker(emu),
@@ -371,7 +372,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "UtConvertDvtd32toDvtd16" => ole32::UtConvertDvtd32toDvtd16(emu),
         "UtGetDvtd16Info" => ole32::UtGetDvtd16Info(emu),
         "UtGetDvtd32Info" => ole32::UtGetDvtd32Info(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

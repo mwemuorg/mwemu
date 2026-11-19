@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::shell32;
 
@@ -452,7 +453,7 @@ mod write_cabinet_state;
 pub use write_cabinet_state::WriteCabinetState;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CallFileCopyHook" => shell32::CallFileCopyHook(emu),
         "CheckEscapesW" => shell32::CheckEscapesW(emu),
         "DriveType" => shell32::DriveType(emu),
@@ -486,19 +487,13 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHCreateDirectoryExW" => shell32::SHCreateDirectoryExW(emu),
         "SHCreateStdEnumFmtEtc" => shell32::SHCreateStdEnumFmtEtc(emu),
         "SHELL32_AreAllItemsAvailable" => shell32::SHELL32_AreAllItemsAvailable(emu),
-        "SHELL32_CCommonPlacesFolder_CreateInstance" => {
-            shell32::SHELL32_CCommonPlacesFolder_CreateInstance(emu)
-        }
+        "SHELL32_CCommonPlacesFolder_CreateInstance" => shell32::SHELL32_CCommonPlacesFolder_CreateInstance(emu),
         "SHELL32_CDBurn_CloseSession" => shell32::SHELL32_CDBurn_CloseSession(emu),
-        "SHELL32_CDBurn_DriveSupportedForDataBurn" => {
-            shell32::SHELL32_CDBurn_DriveSupportedForDataBurn(emu)
-        }
+        "SHELL32_CDBurn_DriveSupportedForDataBurn" => shell32::SHELL32_CDBurn_DriveSupportedForDataBurn(emu),
         "SHELL32_CDBurn_Erase" => shell32::SHELL32_CDBurn_Erase(emu),
         "SHELL32_CDBurn_GetCDInfo" => shell32::SHELL32_CDBurn_GetCDInfo(emu),
         "SHELL32_CDBurn_GetLiveFSDiscInfo" => shell32::SHELL32_CDBurn_GetLiveFSDiscInfo(emu),
-        "SHELL32_CDBurn_GetStagingPathOrNormalPath" => {
-            shell32::SHELL32_CDBurn_GetStagingPathOrNormalPath(emu)
-        }
+        "SHELL32_CDBurn_GetStagingPathOrNormalPath" => shell32::SHELL32_CDBurn_GetStagingPathOrNormalPath(emu),
         "SHELL32_CDBurn_GetTaskInfo" => shell32::SHELL32_CDBurn_GetTaskInfo(emu),
         "SHELL32_CDBurn_IsBlankDisc" => shell32::SHELL32_CDBurn_IsBlankDisc(emu),
         "SHELL32_CDBurn_IsBlankDisc2" => shell32::SHELL32_CDBurn_IsBlankDisc2(emu),
@@ -508,23 +503,15 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHELL32_CDBurn_OnMediaChange" => shell32::SHELL32_CDBurn_OnMediaChange(emu),
         "SHELL32_CDrives_CreateSFVCB" => shell32::SHELL32_CDrives_CreateSFVCB(emu),
         "SHELL32_CFSFolderCallback_Create" => shell32::SHELL32_CFSFolderCallback_Create(emu),
-        "SHELL32_CPL_CategoryIdArrayFromVariant" => {
-            shell32::SHELL32_CPL_CategoryIdArrayFromVariant(emu)
-        }
-        "SHELL32_CPL_IsLegacyCanonicalNameListedUnderKey" => {
-            shell32::SHELL32_CPL_IsLegacyCanonicalNameListedUnderKey(emu)
-        }
+        "SHELL32_CPL_CategoryIdArrayFromVariant" => shell32::SHELL32_CPL_CategoryIdArrayFromVariant(emu),
+        "SHELL32_CPL_IsLegacyCanonicalNameListedUnderKey" => shell32::SHELL32_CPL_IsLegacyCanonicalNameListedUnderKey(emu),
         "SHELL32_CPL_ModifyWowDisplayName" => shell32::SHELL32_CPL_ModifyWowDisplayName(emu),
-        "SHELL32_CTransferConfirmation_CreateInstance" => {
-            shell32::SHELL32_CTransferConfirmation_CreateInstance(emu)
-        }
+        "SHELL32_CTransferConfirmation_CreateInstance" => shell32::SHELL32_CTransferConfirmation_CreateInstance(emu),
         "SHELL32_CallFileCopyHooks" => shell32::SHELL32_CallFileCopyHooks(emu),
         "SHELL32_CopySecondaryTiles" => shell32::SHELL32_CopySecondaryTiles(emu),
         "SHELL32_CreateConfirmationInterrupt" => shell32::SHELL32_CreateConfirmationInterrupt(emu),
         "SHELL32_CreateConflictInterrupt" => shell32::SHELL32_CreateConflictInterrupt(emu),
-        "SHELL32_CreateDefaultOperationDataProvider" => {
-            shell32::SHELL32_CreateDefaultOperationDataProvider(emu)
-        }
+        "SHELL32_CreateDefaultOperationDataProvider" => shell32::SHELL32_CreateDefaultOperationDataProvider(emu),
         "SHELL32_CreateLinkInfoW" => shell32::SHELL32_CreateLinkInfoW(emu),
         "SHELL32_CreateQosRecorder" => shell32::SHELL32_CreateQosRecorder(emu),
         "SHELL32_CreateSharePointView" => shell32::SHELL32_CreateSharePointView(emu),
@@ -533,46 +520,32 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHELL32_EncryptedFileKeyInfo" => shell32::SHELL32_EncryptedFileKeyInfo(emu),
         "SHELL32_EnumCommonTasks" => shell32::SHELL32_EnumCommonTasks(emu),
         "SHELL32_FreeEncryptedFileKeyInfo" => shell32::SHELL32_FreeEncryptedFileKeyInfo(emu),
-        "SHELL32_GetCommandProviderForFolderType" => {
-            shell32::SHELL32_GetCommandProviderForFolderType(emu)
-        }
+        "SHELL32_GetCommandProviderForFolderType" => shell32::SHELL32_GetCommandProviderForFolderType(emu),
         "SHELL32_GetDPIAdjustedLogicalSize" => shell32::SHELL32_GetDPIAdjustedLogicalSize(emu),
         "SHELL32_GetDiskCleanupPath" => shell32::SHELL32_GetDiskCleanupPath(emu),
         "SHELL32_GetLinkInfoData" => shell32::SHELL32_GetLinkInfoData(emu),
         "SHELL32_GetRatingBucket" => shell32::SHELL32_GetRatingBucket(emu),
         "SHELL32_GetSqmableFileName" => shell32::SHELL32_GetSqmableFileName(emu),
-        "SHELL32_HandleUnrecognizedFileSystem" => {
-            shell32::SHELL32_HandleUnrecognizedFileSystem(emu)
-        }
+        "SHELL32_HandleUnrecognizedFileSystem" => shell32::SHELL32_HandleUnrecognizedFileSystem(emu),
         "SHELL32_IsGetKeyboardLayoutPresent" => shell32::SHELL32_IsGetKeyboardLayoutPresent(emu),
         "SHELL32_IsSystemUpgradeInProgress" => shell32::SHELL32_IsSystemUpgradeInProgress(emu),
         "SHELL32_IsValidLinkInfo" => shell32::SHELL32_IsValidLinkInfo(emu),
-        "SHELL32_LegacyEnumSpecialTasksByType" => {
-            shell32::SHELL32_LegacyEnumSpecialTasksByType(emu)
-        }
+        "SHELL32_LegacyEnumSpecialTasksByType" => shell32::SHELL32_LegacyEnumSpecialTasksByType(emu),
         "SHELL32_LegacyEnumTasks" => shell32::SHELL32_LegacyEnumTasks(emu),
         "SHELL32_NormalizeRating" => shell32::SHELL32_NormalizeRating(emu),
-        "SHELL32_NotifyLinkTrackingServiceOfMove" => {
-            shell32::SHELL32_NotifyLinkTrackingServiceOfMove(emu)
-        }
+        "SHELL32_NotifyLinkTrackingServiceOfMove" => shell32::SHELL32_NotifyLinkTrackingServiceOfMove(emu),
         "SHELL32_Printers_CreateBindInfo" => shell32::SHELL32_Printers_CreateBindInfo(emu),
         "SHELL32_ResolveLinkInfoW" => shell32::SHELL32_ResolveLinkInfoW(emu),
-        "SHELL32_SHCreateByValueOperationInterrupt" => {
-            shell32::SHELL32_SHCreateByValueOperationInterrupt(emu)
-        }
+        "SHELL32_SHCreateByValueOperationInterrupt" => shell32::SHELL32_SHCreateByValueOperationInterrupt(emu),
         "SHELL32_SHCreateLocalServer" => shell32::SHELL32_SHCreateLocalServer(emu),
-        "SHELL32_SHDuplicateEncryptionInfoFile" => {
-            shell32::SHELL32_SHDuplicateEncryptionInfoFile(emu)
-        }
+        "SHELL32_SHDuplicateEncryptionInfoFile" => shell32::SHELL32_SHDuplicateEncryptionInfoFile(emu),
         "SHELL32_SHEncryptFile" => shell32::SHELL32_SHEncryptFile(emu),
         "SHELL32_SHFormatDriveAsync" => shell32::SHELL32_SHFormatDriveAsync(emu),
         "SHELL32_SHGetThreadUndoManager" => shell32::SHELL32_SHGetThreadUndoManager(emu),
         "SHELL32_SHGetUserNameW" => shell32::SHELL32_SHGetUserNameW(emu),
         "SHELL32_SHIsVirtualDevice" => shell32::SHELL32_SHIsVirtualDevice(emu),
         "SHELL32_SHLogILFromFSIL" => shell32::SHELL32_SHLogILFromFSIL(emu),
-        "SHELL32_SimpleRatingToFilterCondition" => {
-            shell32::SHELL32_SimpleRatingToFilterCondition(emu)
-        }
+        "SHELL32_SimpleRatingToFilterCondition" => shell32::SHELL32_SimpleRatingToFilterCondition(emu),
         "SHELL32_SuspendUndo" => shell32::SHELL32_SuspendUndo(emu),
         "SHEmptyRecycleBinA" => shell32::SHEmptyRecycleBinA(emu),
         "SHEmptyRecycleBinW" => shell32::SHEmptyRecycleBinW(emu),
@@ -664,7 +637,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "StrStrW" => shell32::StrStrW(emu),
         "Win32DeleteFile" => shell32::Win32DeleteFile(emu),
         "WriteCabinetState" => shell32::WriteCabinetState(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "BackupEventLogA" => advapi32::BackupEventLogA(emu),
         "BackupEventLogW" => advapi32::BackupEventLogW(emu),
         "ClearEventLogA" => advapi32::ClearEventLogA(emu),
@@ -137,7 +138,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RegisterEventSourceW" => advapi32::RegisterEventSourceW(emu),
         "RegisterTraceGuidsA" => advapi32::RegisterTraceGuidsA(emu),
         "RegisterTraceGuidsW" => advapi32::RegisterTraceGuidsW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

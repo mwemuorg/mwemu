@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
@@ -20,7 +21,7 @@ mod system;
 pub use system::system;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "_initialize_onexit_table" => wincrt::_initialize_onexit_table(emu),
         "_register_onexit_function" => wincrt::_register_onexit_function(emu),
         "_get_initial_narrow_environment" => wincrt::_get_initial_narrow_environment(emu),
@@ -65,12 +66,11 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "_EH_prolog3" | "_EH_prolog3_catch" => wincrt::_EH_prolog3(emu, api),
         "_putenv" => wincrt::_putenv(emu),
         "_wputenv" => wincrt::_wputenv(emu),
-        "_EH_prolog" | "_EH_prolog3_GS" | "_adjust_fdiv" | "set_unexpected" | "_c_exit" => {
-            wincrt::_EH_prolog(emu, api)
-        }
+        "_EH_prolog" | "_EH_prolog3_GS" | "_adjust_fdiv" | "set_unexpected" | "_c_exit" => wincrt::_EH_prolog(emu, api),
         "_putenv_s" => wincrt::_putenv_s(emu),
         "system" | "_wsystem" => wincrt::system(emu, api),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

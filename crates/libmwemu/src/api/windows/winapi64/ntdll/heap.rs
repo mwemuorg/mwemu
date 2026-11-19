@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::api::windows::common::heap as heap_engine;
 use crate::emu;
 use crate::winapi::policy::api_try;
@@ -7,7 +8,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     if heap_engine::dispatch(api, emu) {
         return true;
     }
-    match api {
+    dispatch_api!(api, {
         // kernel32 Heap* are forwarders to these Rtl workers (same arg layout:
         // rcx=heap, rdx=flags, r8=ptr/size), so GetProcAddress-resolved callers
         // that land on the ntdll target hit the same handlers.
@@ -17,9 +18,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlGetProcessHeaps" => RtlGetProcessHeaps(emu),
         "RtlSizeHeap" | "HeapSize" => RtlSizeHeap(emu),
         "RtlFreeAnsiString" => RtlFreeAnsiString(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 pub fn RtlAllocateHeap(emu: &mut emu::Emu) {

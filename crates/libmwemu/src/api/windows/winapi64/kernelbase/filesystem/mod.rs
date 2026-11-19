@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "PathCombineA" => kernelbase::PathCombineA(emu),
         "PathCombineW" => kernelbase::PathCombineW(emu),
         "GetFileVersionInfoSizeA" => kernelbase::GetFileVersionInfoSizeA(emu),
@@ -58,18 +59,12 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "PathAppendW" => kernelbase::PathAppendW(emu),
         "PathCanonicalizeA" => kernelbase::PathCanonicalizeA(emu),
         "PathCanonicalizeW" => kernelbase::PathCanonicalizeW(emu),
-        "PathCchAddBackslash" | "PathCchAddBackslashEx" => {
-            kernelbase::PathCchAddBackslash(emu, api)
-        }
+        "PathCchAddBackslash" | "PathCchAddBackslashEx" => kernelbase::PathCchAddBackslash(emu, api),
         "PathCchAppend" | "PathCchAppendEx" => kernelbase::PathCchAppend(emu, api),
-        "PathCchCanonicalize" | "PathCchCanonicalizeEx" => {
-            kernelbase::PathCchCanonicalize(emu, api)
-        }
+        "PathCchCanonicalize" | "PathCchCanonicalizeEx" => kernelbase::PathCchCanonicalize(emu, api),
         "PathCchCombine" | "PathCchCombineEx" => kernelbase::PathCchCombine(emu, api),
         "PathCchIsRoot" => kernelbase::PathCchIsRoot(emu),
-        "PathCchRemoveBackslash" | "PathCchRemoveBackslashEx" => {
-            kernelbase::PathCchRemoveBackslash(emu, api)
-        }
+        "PathCchRemoveBackslash" | "PathCchRemoveBackslashEx" => kernelbase::PathCchRemoveBackslash(emu, api),
         "PathCchRemoveFileSpec" => kernelbase::PathCchRemoveFileSpec(emu),
         "PathCchSkipRoot" => kernelbase::PathCchSkipRoot(emu),
         "PathCchStripPrefix" => kernelbase::PathCchStripPrefix(emu),
@@ -338,7 +333,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "WaitNamedPipeW" => kernelbase::WaitNamedPipeW(emu),
         "WriteFileEx" => kernelbase::WriteFileEx(emu),
         "WriteFileGather" => kernelbase::WriteFileGather(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

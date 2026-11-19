@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -83,7 +84,7 @@ mod try_acquire_srw_lock_shared;
 pub use try_acquire_srw_lock_shared::TryAcquireSRWLockShared;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AcquireSRWLockExclusive" => kernel32::AcquireSRWLockExclusive(emu),
         "AcquireSRWLockShared" => kernel32::AcquireSRWLockShared(emu),
         "CreateEventA" => kernel32::CreateEventA(emu),
@@ -92,9 +93,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "CreateMutexW" => kernel32::CreateMutexW(emu),
         "EnterCriticalSection" => kernel32::EnterCriticalSection(emu),
         "InitializeCriticalSection" => kernel32::InitializeCriticalSection(emu),
-        "InitializeCriticalSectionAndSpinCount" => {
-            kernel32::InitializeCriticalSectionAndSpinCount(emu)
-        }
+        "InitializeCriticalSectionAndSpinCount" => kernel32::InitializeCriticalSectionAndSpinCount(emu),
         "InitializeCriticalSectionEx" => kernel32::InitializeCriticalSectionEx(emu),
         "InitializeSRWLock" => kernel32::InitializeSRWLock(emu),
         "InitOnceBeginInitialize" => kernel32::InitOnceBeginInitialize(emu),
@@ -124,15 +123,14 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "InterlockedCompareExchange" => kernel32::InterlockedCompareExchange(emu, addr),
         "DeleteCriticalSection" => kernel32::DeleteCriticalSection(emu),
         "InitializeConditionVariable" => kernel32::InitializeConditionVariable(emu),
-        "WakeConditionVariable" | "WakeAllConditionVariable" => {
-            kernel32::WakeConditionVariable(emu, api)
-        }
+        "WakeConditionVariable" | "WakeAllConditionVariable" => kernel32::WakeConditionVariable(emu, api),
         "SleepConditionVariableSRW" => kernel32::SleepConditionVariableSRW(emu),
         "SleepConditionVariableCS" => kernel32::SleepConditionVariableCS(emu),
         "SleepEx" => kernel32::SleepEx(emu),
         "WaitForSingleObjectEx" => kernel32::WaitForSingleObjectEx(emu),
         "WaitForMultipleObjectsEx" => kernel32::WaitForMultipleObjectsEx(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

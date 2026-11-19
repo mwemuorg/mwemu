@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CryptAcquireContextA" => advapi32::CryptAcquireContextA(emu),
         "CryptAcquireContextW" => advapi32::CryptAcquireContextW(emu),
         "CryptReleaseContext" => advapi32::CryptReleaseContext(emu),
@@ -119,7 +120,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "UsePinForEncryptedFilesA" => advapi32::UsePinForEncryptedFilesA(emu),
         "UsePinForEncryptedFilesW" => advapi32::UsePinForEncryptedFilesW(emu),
         "WriteEncryptedFileRaw" => advapi32::WriteEncryptedFileRaw(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

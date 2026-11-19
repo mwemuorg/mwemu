@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetTickCount64" => kernel32::GetTickCount64(emu),
         "QueryPerformanceFrequency" => kernel32::QueryPerformanceFrequency(emu),
         "SystemTimeToFileTime" => kernel32::SystemTimeToFileTime(emu),
@@ -43,9 +44,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "IsCalendarLeapMonth" => kernel32::IsCalendarLeapMonth(emu),
         "IsCalendarLeapYear" => kernel32::IsCalendarLeapYear(emu),
         "IsValidCalDateTime" => kernel32::IsValidCalDateTime(emu),
-        "NtWow64CsrBasepSetClientTimeZoneInformation" => {
-            kernel32::NtWow64CsrBasepSetClientTimeZoneInformation(emu)
-        }
+        "NtWow64CsrBasepSetClientTimeZoneInformation" => kernel32::NtWow64CsrBasepSetClientTimeZoneInformation(emu),
         "SetCalendarInfoA" => kernel32::SetCalendarInfoA(emu),
         "SetSystemTimeAdjustment" => kernel32::SetSystemTimeAdjustment(emu),
         "SetTimerQueueTimer" => kernel32::SetTimerQueueTimer(emu),
@@ -98,7 +97,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "TzSpecificLocalTimeToSystemTime" => kernel32::TzSpecificLocalTimeToSystemTime(emu),
         "TzSpecificLocalTimeToSystemTimeEx" => kernel32::TzSpecificLocalTimeToSystemTimeEx(emu),
         "timeGetSystemTime" => kernel32::timeGetSystemTime(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

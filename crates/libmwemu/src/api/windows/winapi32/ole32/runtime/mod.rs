@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::ole32;
 
@@ -416,7 +417,7 @@ mod update_process_tracing;
 pub use update_process_tracing::UpdateProcessTracing;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CoInitialize" => ole32::CoInitialize(emu),
         "CoInitializeEx" => ole32::CoInitializeEx(emu),
         "CoCreateInstance" => ole32::CoCreateInstance(emu),
@@ -478,9 +479,7 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "CoGetSystemSecurityPermissions" => ole32::CoGetSystemSecurityPermissions(emu),
         "CoGetSystemWow64DirectoryW" => ole32::CoGetSystemWow64DirectoryW(emu),
         "CoGetTreatAsClass" => ole32::CoGetTreatAsClass(emu),
-        "CoHandlePriorityEventsFromMessagePump" => {
-            ole32::CoHandlePriorityEventsFromMessagePump(emu)
-        }
+        "CoHandlePriorityEventsFromMessagePump" => ole32::CoHandlePriorityEventsFromMessagePump(emu),
         "CoImpersonateClient" => ole32::CoImpersonateClient(emu),
         "CoIncrementMTAUsage" => ole32::CoIncrementMTAUsage(emu),
         "CoInitializeSecurity" => ole32::CoInitializeSecurity(emu),
@@ -520,9 +519,7 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "CoTaskMemRealloc" => ole32::CoTaskMemRealloc(emu),
         "CoTestCancel" => ole32::CoTestCancel(emu),
         "CoTreatAsClass" => ole32::CoTreatAsClass(emu),
-        "CoTryGetInterceptorForAppModelVirtualization" => {
-            ole32::CoTryGetInterceptorForAppModelVirtualization(emu)
-        }
+        "CoTryGetInterceptorForAppModelVirtualization" => ole32::CoTryGetInterceptorForAppModelVirtualization(emu),
         "CoUnloadingWOW" => ole32::CoUnloadingWOW(emu),
         "CoUnmarshalHresult" => ole32::CoUnmarshalHresult(emu),
         "CoUnmarshalInterface" => ole32::CoUnmarshalInterface(emu),
@@ -569,7 +566,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "OleBuildVersion" => ole32::OleBuildVersion(emu),
         "OleInitializeWOW" => ole32::OleInitializeWOW(emu),
         "OleUninitialize" => ole32::OleUninitialize(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

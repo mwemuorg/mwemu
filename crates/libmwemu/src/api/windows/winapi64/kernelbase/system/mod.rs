@@ -1,20 +1,15 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AllocateLocallyUniqueId" => kernelbase::AllocateLocallyUniqueId(emu),
         "AreAllAccessesGranted" => kernelbase::AreAllAccessesGranted(emu),
         "AreAnyAccessesGranted" => kernelbase::AreAnyAccessesGranted(emu),
-        "AreExternalFeatureDependenciesEnabled" => {
-            kernelbase::AreExternalFeatureDependenciesEnabled(emu)
-        }
-        "AreThereVisibleLogoffScriptsInternal" => {
-            kernelbase::AreThereVisibleLogoffScriptsInternal(emu)
-        }
-        "AreThereVisibleShutdownScriptsInternal" => {
-            kernelbase::AreThereVisibleShutdownScriptsInternal(emu)
-        }
+        "AreExternalFeatureDependenciesEnabled" => kernelbase::AreExternalFeatureDependenciesEnabled(emu),
+        "AreThereVisibleLogoffScriptsInternal" => kernelbase::AreThereVisibleLogoffScriptsInternal(emu),
+        "AreThereVisibleShutdownScriptsInternal" => kernelbase::AreThereVisibleShutdownScriptsInternal(emu),
         "BasepNotifyTrackingService" => kernelbase::BasepNotifyTrackingService(emu),
         "CLOSE_LOCAL_HANDLE_INTERNAL" => kernelbase::CLOSE_LOCAL_HANDLE_INTERNAL(emu),
         "DsBindWithSpnExW" => kernelbase::DsBindWithSpnExW(emu),
@@ -97,7 +92,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "SetLastError" => kernelbase::SetLastError(emu),
         "SetXStateFeaturesMask" => kernelbase::SetXStateFeaturesMask(emu),
         "VerSetConditionMask" => kernelbase::VerSetConditionMask(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

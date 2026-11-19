@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
@@ -8,7 +9,7 @@ mod atan;
 pub use atan::atan;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "abs" | "labs" => wincrt::crt_abs(emu),
         "rand" => wincrt::crt_rand(emu),
         "srand" => wincrt::crt_srand(emu),
@@ -30,7 +31,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         | "_set_thread_local_invalid_parameter_handler" => wincrt::__setusermatherr(emu, api),
         "atan" | "atan2" | "cos" | "sin" | "tan" | "exp" | "log" | "log10" | "pow" | "sqrt"
         | "ceil" | "floor" | "fabs" | "fmod" => wincrt::atan(emu, api),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

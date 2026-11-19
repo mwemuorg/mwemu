@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -339,7 +340,7 @@ mod device_io_control;
 pub use device_io_control::DeviceIoControl;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CreateDirectoryA" => kernel32::CreateDirectoryA(emu),
         "CreateDirectoryW" => kernel32::CreateDirectoryW(emu),
         "DeleteFileW" => kernel32::DeleteFileW(emu),
@@ -464,9 +465,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "MoveFileExA" => kernel32::MoveFileExA(emu),
         "MoveFileTransactedA" => kernel32::MoveFileTransactedA(emu),
         "MoveFileTransactedW" => kernel32::MoveFileTransactedW(emu),
-        "NtWow64CsrBasepRefreshIniFileMapping" => {
-            kernel32::NtWow64CsrBasepRefreshIniFileMapping(emu)
-        }
+        "NtWow64CsrBasepRefreshIniFileMapping" => kernel32::NtWow64CsrBasepRefreshIniFileMapping(emu),
         "OpenFile" => kernel32::OpenFile(emu),
         "OpenFileMappingA" => kernel32::OpenFileMappingA(emu),
         "PrepareTape" => kernel32::PrepareTape(emu),
@@ -672,7 +671,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "DeleteUmsCompletionList" => kernel32::DeleteUmsCompletionList(emu),
         "DequeueUmsCompletionListItems" => kernel32::DequeueUmsCompletionListItems(emu),
         "GetUmsCompletionListEvent" => kernel32::GetUmsCompletionListEvent(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

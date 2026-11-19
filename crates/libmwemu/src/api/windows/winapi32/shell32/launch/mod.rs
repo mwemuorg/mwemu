@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::shell32;
 
@@ -183,7 +184,7 @@ mod shell_execute;
 pub use shell_execute::{ShellExecuteA, ShellExecuteW};
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "ShellExecuteA" => shell32::ShellExecuteA(emu),
         "ShellExecuteW" => shell32::ShellExecuteW(emu),
         "AppCompat_RunDLLW" => shell32::AppCompat_RunDLLW(emu),
@@ -195,11 +196,9 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "Control_RunDLLA" => shell32::Control_RunDLLA(emu),
         "Control_RunDLLAsUserW" => shell32::Control_RunDLLAsUserW(emu),
         "Control_RunDLLW" => shell32::Control_RunDLLW(emu),
-        "CreateStorageItemFromShellItem_FullTrustCaller_ForPackage_WithProcessHandle" => {
-            shell32::CreateStorageItemFromShellItem_FullTrustCaller_ForPackage_WithProcessHandle(
+        "CreateStorageItemFromShellItem_FullTrustCaller_ForPackage_WithProcessHandle" => shell32::CreateStorageItemFromShellItem_FullTrustCaller_ForPackage_WithProcessHandle(
                 emu,
-            )
-        }
+            ),
         "DllCanUnloadNow" => shell32::DllCanUnloadNow(emu),
         "DllGetActivationFactory" => shell32::DllGetActivationFactory(emu),
         "DllGetClassObject" => shell32::DllGetClassObject(emu),
@@ -211,9 +210,7 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "DoEnvironmentSubstW" => shell32::DoEnvironmentSubstW(emu),
         "FindExecutableA" => shell32::FindExecutableA(emu),
         "FindExecutableW" => shell32::FindExecutableW(emu),
-        "GetCurrentProcessExplicitAppUserModelID" => {
-            shell32::GetCurrentProcessExplicitAppUserModelID(emu)
-        }
+        "GetCurrentProcessExplicitAppUserModelID" => shell32::GetCurrentProcessExplicitAppUserModelID(emu),
         "IsDesktopExplorerProcess" => shell32::IsDesktopExplorerProcess(emu),
         "IsProcessAnExplorer" => shell32::IsProcessAnExplorer(emu),
         "IsUserAnAdmin" => shell32::IsUserAnAdmin(emu),
@@ -235,25 +232,17 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "RegenerateUserEnvironment" => shell32::RegenerateUserEnvironment(emu),
         "RunAsNewUser_RunDLLW" => shell32::RunAsNewUser_RunDLLW(emu),
         "SHAssocEnumHandlers" => shell32::SHAssocEnumHandlers(emu),
-        "SHAssocEnumHandlersForProtocolByApplication" => {
-            shell32::SHAssocEnumHandlersForProtocolByApplication(emu)
-        }
+        "SHAssocEnumHandlersForProtocolByApplication" => shell32::SHAssocEnumHandlersForProtocolByApplication(emu),
         "SHCreateAssociationRegistration" => shell32::SHCreateAssociationRegistration(emu),
         "SHCreateLocalServerRunDll" => shell32::SHCreateLocalServerRunDll(emu),
         "SHCreateProcessAsUserW" => shell32::SHCreateProcessAsUserW(emu),
         "SHCreateQueryCancelAutoPlayMoniker" => shell32::SHCreateQueryCancelAutoPlayMoniker(emu),
         "SHELL32_CMountPoint_DoAutorun" => shell32::SHELL32_CMountPoint_DoAutorun(emu),
         "SHELL32_CMountPoint_DoAutorunPrompt" => shell32::SHELL32_CMountPoint_DoAutorunPrompt(emu),
-        "SHELL32_CMountPoint_IsAutoRunDriveAndEnabledByPolicy" => {
-            shell32::SHELL32_CMountPoint_IsAutoRunDriveAndEnabledByPolicy(emu)
-        }
-        "SHELL32_CMountPoint_ProcessAutoRunFile" => {
-            shell32::SHELL32_CMountPoint_ProcessAutoRunFile(emu)
-        }
+        "SHELL32_CMountPoint_IsAutoRunDriveAndEnabledByPolicy" => shell32::SHELL32_CMountPoint_IsAutoRunDriveAndEnabledByPolicy(emu),
+        "SHELL32_CMountPoint_ProcessAutoRunFile" => shell32::SHELL32_CMountPoint_ProcessAutoRunFile(emu),
         "SHELL32_CloseAutoplayPrompt" => shell32::SHELL32_CloseAutoplayPrompt(emu),
-        "SHELL32_CommandLineFromMsiDescriptor" => {
-            shell32::SHELL32_CommandLineFromMsiDescriptor(emu)
-        }
+        "SHELL32_CommandLineFromMsiDescriptor" => shell32::SHELL32_CommandLineFromMsiDescriptor(emu),
         "SHELL32_GenerateAppID" => shell32::SHELL32_GenerateAppID(emu),
         "SHELL32_GetAppIDRoot" => shell32::SHELL32_GetAppIDRoot(emu),
         "SHELL32_VerifySaferTrust" => shell32::SHELL32_VerifySaferTrust(emu),
@@ -266,9 +255,7 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHHelpShortcuts_RunDLLW" => shell32::SHHelpShortcuts_RunDLLW(emu),
         "SHRestricted" => shell32::SHRestricted(emu),
         "SHSetUnreadMailCountW" => shell32::SHSetUnreadMailCountW(emu),
-        "SetCurrentProcessExplicitAppUserModelID" => {
-            shell32::SetCurrentProcessExplicitAppUserModelID(emu)
-        }
+        "SetCurrentProcessExplicitAppUserModelID" => shell32::SetCurrentProcessExplicitAppUserModelID(emu),
         "ShellExec_RunDLL" => shell32::ShellExec_RunDLL(emu),
         "ShellExec_RunDLLA" => shell32::ShellExec_RunDLLA(emu),
         "ShellExec_RunDLLW" => shell32::ShellExec_RunDLLW(emu),
@@ -278,7 +265,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "ShellHookProc" => shell32::ShellHookProc(emu),
         "WOWShellExecute" => shell32::WOWShellExecute(emu),
         "WaitForExplorerRestartW" => shell32::WaitForExplorerRestartW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

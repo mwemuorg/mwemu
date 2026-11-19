@@ -1,6 +1,7 @@
 //! Additional libSystem (libc/pthread) stubs for macOS binaries. Nothing here
 //! modifies the host: mutating filesystem calls only pretend to succeed.
 use crate::api::abi::unix::UnixApi;
+use crate::api::dispatch_api;
 use crate::api::strconv::{parse_c_float, parse_c_integer};
 use crate::api::unix::api_try;
 use crate::emu::Emu;
@@ -14,7 +15,7 @@ const UTSNAME_FIELD: u64 = 256;
 /// Dispatch `symbol` if it is implemented here. Returns false otherwise.
 pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
     let name = symbol.strip_prefix('_').unwrap_or(symbol);
-    match name {
+    dispatch_api!(name, {
         "strtol" | "strtoll" | "strtoq" | "strtoul" | "strtoull" | "strtouq" => api_strtol(emu),
         "atoi" | "atol" | "atoll" => api_atoi(emu),
         "strtod" | "atof" => api_strtod(emu, name == "strtod"),
@@ -50,9 +51,10 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "uname" => api_uname(emu),
         "sigaction" | "sigprocmask" | "sigemptyset" | "sigaddset" => api_return(emu, name, 0),
         "pthread_once" => api_pthread_once(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 pub(super) fn trace(emu: &Emu, call: &str) {

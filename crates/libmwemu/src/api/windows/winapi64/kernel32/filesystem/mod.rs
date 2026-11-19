@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -108,7 +109,7 @@ pub use system_time_to_file_time::SystemTimeToFileTime;
 mod GetFileSize;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AreFileApiIsAnsi" | "AreFileApisANSI" => kernel32::AreFileApiIsAnsi(emu),
         "ConnectNamedPipe" => kernel32::ConnectNamedPipe(emu),
         "DeleteFileA" => kernel32::DeleteFileA(emu),
@@ -177,7 +178,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "CreatePipe" => kernel32::CreatePipe(emu),
         "GetSystemWindowsDirectoryA" => kernel32::GetSystemWindowsDirectoryA(emu),
         "GetSystemWindowsDirectoryW" => kernel32::GetSystemWindowsDirectoryW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

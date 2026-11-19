@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::api::windows::common::memory as memory_api;
 use crate::emu;
@@ -46,10 +47,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     {
         return String::new();
     }
-    match api {
-        "FlushInstructionCache" => {
-            memory_api::flush_instruction_cache(emu, "kernelbase!FlushInstructionCache")
-        }
+    dispatch_api!(api, {
+        "FlushInstructionCache" => memory_api::flush_instruction_cache(emu, "kernelbase!FlushInstructionCache"),
 
         "LoadStringA" => LoadStringA(emu),
         "LoadStringW" => LoadStringW(emu),
@@ -60,11 +59,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "GetTokenInformation" => GetTokenInformation(emu),
         "PathCombineA" => PathCombineA(emu),
         "PathCombineW" => PathCombineW(emu),
-
-        _ => {
-            return fallback::unimplemented(addr, api, emu);
-        }
-    }
-
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }

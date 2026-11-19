@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::shell32;
 
@@ -319,7 +320,7 @@ mod users_libraries_folder_ui_create_instance;
 pub use users_libraries_folder_ui_create_instance::UsersLibrariesFolderUI_CreateInstance;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CDefFolderMenu_Create2" => shell32::CDefFolderMenu_Create2(emu),
         "DAD_AutoScroll" => shell32::DAD_AutoScroll(emu),
         "DAD_DragEnterEx" => shell32::DAD_DragEnterEx(emu),
@@ -373,53 +374,29 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHELL32_CDefFolderMenu_MergeMenu" => shell32::SHELL32_CDefFolderMenu_MergeMenu(emu),
         "SHELL32_CDrivesContextMenu_Create" => shell32::SHELL32_CDrivesContextMenu_Create(emu),
         "SHELL32_CDrivesDropTarget_Create" => shell32::SHELL32_CDrivesDropTarget_Create(emu),
-        "SHELL32_CFSDropTarget_CreateInstance" => {
-            shell32::SHELL32_CFSDropTarget_CreateInstance(emu)
-        }
-        "SHELL32_CLibraryDropTarget_CreateInstance" => {
-            shell32::SHELL32_CLibraryDropTarget_CreateInstance(emu)
-        }
+        "SHELL32_CFSDropTarget_CreateInstance" => shell32::SHELL32_CFSDropTarget_CreateInstance(emu),
+        "SHELL32_CLibraryDropTarget_CreateInstance" => shell32::SHELL32_CLibraryDropTarget_CreateInstance(emu),
         "SHELL32_CLocationContextMenu_Create" => shell32::SHELL32_CLocationContextMenu_Create(emu),
-        "SHELL32_CLocationFolderUI_CreateInstance" => {
-            shell32::SHELL32_CLocationFolderUI_CreateInstance(emu)
-        }
+        "SHELL32_CLocationFolderUI_CreateInstance" => shell32::SHELL32_CLocationFolderUI_CreateInstance(emu),
         "SHELL32_CMountPoint_WantAutorunUI" => shell32::SHELL32_CMountPoint_WantAutorunUI(emu),
-        "SHELL32_CMountPoint_WantAutorunUIGetReady" => {
-            shell32::SHELL32_CMountPoint_WantAutorunUIGetReady(emu)
-        }
+        "SHELL32_CMountPoint_WantAutorunUIGetReady" => shell32::SHELL32_CMountPoint_WantAutorunUIGetReady(emu),
         "SHELL32_CNetFolderUI_CreateInstance" => shell32::SHELL32_CNetFolderUI_CreateInstance(emu),
-        "SHELL32_CRecentDocsContextMenu_CreateInstance" => {
-            shell32::SHELL32_CRecentDocsContextMenu_CreateInstance(emu)
-        }
+        "SHELL32_CRecentDocsContextMenu_CreateInstance" => shell32::SHELL32_CRecentDocsContextMenu_CreateInstance(emu),
         "SHELL32_CanDisplayWin8CopyDialog" => shell32::SHELL32_CanDisplayWin8CopyDialog(emu),
         "SHELL32_CreateFileFolderContextMenu" => shell32::SHELL32_CreateFileFolderContextMenu(emu),
         "SHELL32_Create_IEnumUICommand" => shell32::SHELL32_Create_IEnumUICommand(emu),
         "SHELL32_GetFileNameFromBrowse" => shell32::SHELL32_GetFileNameFromBrowse(emu),
         "SHELL32_GetIconOverlayManager" => shell32::SHELL32_GetIconOverlayManager(emu),
-        "SHELL32_GetThumbnailAdornerFromFactory" => {
-            shell32::SHELL32_GetThumbnailAdornerFromFactory(emu)
-        }
-        "SHELL32_GetThumbnailAdornerFromFactory2" => {
-            shell32::SHELL32_GetThumbnailAdornerFromFactory2(emu)
-        }
+        "SHELL32_GetThumbnailAdornerFromFactory" => shell32::SHELL32_GetThumbnailAdornerFromFactory(emu),
+        "SHELL32_GetThumbnailAdornerFromFactory2" => shell32::SHELL32_GetThumbnailAdornerFromFactory2(emu),
         "SHELL32_IconCacheCreate" => shell32::SHELL32_IconCacheCreate(emu),
         "SHELL32_IconCacheDestroy" => shell32::SHELL32_IconCacheDestroy(emu),
-        "SHELL32_IconCacheHandleAssociationChanged" => {
-            shell32::SHELL32_IconCacheHandleAssociationChanged(emu)
-        }
+        "SHELL32_IconCacheHandleAssociationChanged" => shell32::SHELL32_IconCacheHandleAssociationChanged(emu),
         "SHELL32_IconCacheRestore" => shell32::SHELL32_IconCacheRestore(emu),
-        "SHELL32_IconCache_AboutToExtractIcons" => {
-            shell32::SHELL32_IconCache_AboutToExtractIcons(emu)
-        }
-        "SHELL32_IconCache_DoneExtractingIcons" => {
-            shell32::SHELL32_IconCache_DoneExtractingIcons(emu)
-        }
-        "SHELL32_IconCache_ExpandEnvAndSearchPath" => {
-            shell32::SHELL32_IconCache_ExpandEnvAndSearchPath(emu)
-        }
-        "SHELL32_IconCache_RememberRecentlyExtractedIconsW" => {
-            shell32::SHELL32_IconCache_RememberRecentlyExtractedIconsW(emu)
-        }
+        "SHELL32_IconCache_AboutToExtractIcons" => shell32::SHELL32_IconCache_AboutToExtractIcons(emu),
+        "SHELL32_IconCache_DoneExtractingIcons" => shell32::SHELL32_IconCache_DoneExtractingIcons(emu),
+        "SHELL32_IconCache_ExpandEnvAndSearchPath" => shell32::SHELL32_IconCache_ExpandEnvAndSearchPath(emu),
+        "SHELL32_IconCache_RememberRecentlyExtractedIconsW" => shell32::SHELL32_IconCache_RememberRecentlyExtractedIconsW(emu),
         "SHELL32_IconOverlayManagerInit" => shell32::SHELL32_IconOverlayManagerInit(emu),
         "SHELL32_LookupBackIconIndex" => shell32::SHELL32_LookupBackIconIndex(emu),
         "SHELL32_LookupFrontIconIndex" => shell32::SHELL32_LookupFrontIconIndex(emu),
@@ -431,17 +408,11 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHELL32_SHOpenWithDialog" => shell32::SHELL32_SHOpenWithDialog(emu),
         "SHELL32_SHStartNetConnectionDialogW" => shell32::SHELL32_SHStartNetConnectionDialogW(emu),
         "SHELL32_SHUICommandFromGUID" => shell32::SHELL32_SHUICommandFromGUID(emu),
-        "SHELL32_SendToMenu_InvokeTargetedCommand" => {
-            shell32::SHELL32_SendToMenu_InvokeTargetedCommand(emu)
-        }
-        "SHELL32_SendToMenu_VerifyTargetedCommand" => {
-            shell32::SHELL32_SendToMenu_VerifyTargetedCommand(emu)
-        }
+        "SHELL32_SendToMenu_InvokeTargetedCommand" => shell32::SHELL32_SendToMenu_InvokeTargetedCommand(emu),
+        "SHELL32_SendToMenu_VerifyTargetedCommand" => shell32::SHELL32_SendToMenu_VerifyTargetedCommand(emu),
         "SHELL32_ShowHideIconOnlyOnDesktop" => shell32::SHELL32_ShowHideIconOnlyOnDesktop(emu),
         "SHELL32_StampIconForFile" => shell32::SHELL32_StampIconForFile(emu),
-        "SHELL32_TryVirtualDiscImageDriveEject" => {
-            shell32::SHELL32_TryVirtualDiscImageDriveEject(emu)
-        }
+        "SHELL32_TryVirtualDiscImageDriveEject" => shell32::SHELL32_TryVirtualDiscImageDriveEject(emu),
         "SHExtractIconsW" => shell32::SHExtractIconsW(emu),
         "SHFind_InitMenuPopup" => shell32::SHFind_InitMenuPopup(emu),
         "SHGetIconOverlayIndexA" => shell32::SHGetIconOverlayIndexA(emu),
@@ -450,9 +421,7 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHGetPropertyStoreForWindow" => shell32::SHGetPropertyStoreForWindow(emu),
         "SHGetStockIconInfo" => shell32::SHGetStockIconInfo(emu),
         "SHHandleUpdateImage" => shell32::SHHandleUpdateImage(emu),
-        "SHLoadNonloadedIconOverlayIdentifiers" => {
-            shell32::SHLoadNonloadedIconOverlayIdentifiers(emu)
-        }
+        "SHLoadNonloadedIconOverlayIdentifiers" => shell32::SHLoadNonloadedIconOverlayIdentifiers(emu),
         "SHMapPIDLToSystemImageListIndex" => shell32::SHMapPIDLToSystemImageListIndex(emu),
         "SHOpenPropSheetW" => shell32::SHOpenPropSheetW(emu),
         "SHOpenWithDialog" => shell32::SHOpenWithDialog(emu),
@@ -471,16 +440,11 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "Shell_NotifyIconA" => shell32::Shell_NotifyIconA(emu),
         "Shell_NotifyIconGetRect" => shell32::Shell_NotifyIconGetRect(emu),
         "Shell_NotifyIconW" => shell32::Shell_NotifyIconW(emu),
-        "StateRepoNewMenuCache_EnsureCacheAsync" => {
-            shell32::StateRepoNewMenuCache_EnsureCacheAsync(emu)
-        }
-        "StateRepoNewMenuCache_RebuildCacheAsync" => {
-            shell32::StateRepoNewMenuCache_RebuildCacheAsync(emu)
-        }
-        "UsersLibrariesFolderUI_CreateInstance" => {
-            shell32::UsersLibrariesFolderUI_CreateInstance(emu)
-        }
-        _ => return false,
-    }
-    true
+        "StateRepoNewMenuCache_EnsureCacheAsync" => shell32::StateRepoNewMenuCache_EnsureCacheAsync(emu),
+        "StateRepoNewMenuCache_RebuildCacheAsync" => shell32::StateRepoNewMenuCache_RebuildCacheAsync(emu),
+        "UsersLibrariesFolderUI_CreateInstance" => shell32::UsersLibrariesFolderUI_CreateInstance(emu),
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

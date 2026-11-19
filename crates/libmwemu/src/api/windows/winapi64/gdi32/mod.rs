@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi64;
@@ -197,7 +198,7 @@ pub use text_out::{TextOutA, TextOutW};
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    match api {
+    dispatch_api!(api, {
         "BitBlt" => BitBlt(emu),
         "CreateCompatibleBitmap" => CreateCompatibleBitmap(emu),
         "CreateCompatibleDC" => CreateCompatibleDC(emu),
@@ -301,9 +302,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SetWorldTransform" => SetWorldTransform(emu),
         "StartDoc" | "StartDocA" | "StartDocW" => StartDoc(emu),
         "StartPage" => StartPage(emu),
-        _ => return fallback::unimplemented(addr, api, emu),
-    }
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }
 
 // === DC operations ===

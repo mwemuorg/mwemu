@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::msvcrt;
 
@@ -155,7 +156,7 @@ mod _set_fmode;
 pub use _set_fmode::_set_fmode;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "_initterm_e" => msvcrt::_initterm_e(emu),
         "_initterm" => msvcrt::_initterm(emu),
         "__p___argv" => msvcrt::__p___argv(emu),
@@ -214,9 +215,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "_localtime64" => msvcrt::_localtime64(emu),
         "_set_app_type" => msvcrt::_set_app_type(emu),
         "_set_invalid_parameter_handler" => msvcrt::_set_invalid_parameter_handler(emu),
-        "_set_thread_local_invalid_parameter_handler" => {
-            msvcrt::_set_thread_local_invalid_parameter_handler(emu)
-        }
+        "_set_thread_local_invalid_parameter_handler" => msvcrt::_set_thread_local_invalid_parameter_handler(emu),
         "_time32" => msvcrt::_time32(emu),
         "abort" => msvcrt::abort(emu),
         "ptr" => msvcrt::ptr(emu),
@@ -226,7 +225,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "__setlc_active" | "__unguarded_readlc_active" => msvcrt::__setlc_active(emu, addr, api),
         "_set_error_mode" => msvcrt::_set_error_mode(emu),
         "_set_fmode" => msvcrt::_set_fmode(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

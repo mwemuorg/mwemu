@@ -23,14 +23,14 @@ For instruction, loader, memory, or exception defects beneath the handler, use t
 
 ## Adapt the ABI at the boundary
 
-- Use the canonical platform adapter for ordinary arguments and results. Bind it once at handler entry and select the calling convention explicitly where required. Before adding a wrapper, identify its distinct responsibility. Remove redundant aliases only after checking all callers.
+- Use the canonical platform adapter for ordinary arguments and results. Bind it once at handler entry and select the calling convention explicitly where required. Kernel function handlers can reuse these adapters when the interception point and calling convention agree. Before adding a wrapper, identify its distinct responsibility. Remove redundant aliases only after checking all callers.
 - Keep reusable frame reads and scalar storage separate from platform placement and calling conventions. Shared semantics can accept an entry adapter. Do not force function hooks, syscalls, drivers, and runtimes through one layout merely because their pointers have the same width.
-- Check whether interception already consumed the return address. Count ABI slots rather than source parameters. By-value aggregates, wide integers, floating-point values, varargs, and hidden parameters may need distinct placement. Preserve slot stride when reading a narrower value.
+- Check whether interception already consumed the return address. Count ABI slots rather than source parameters. By-value aggregates, wide integers, floating-point values, varargs, and hidden parameters may need distinct placement. Preserve slot stride when reading a narrower value. Read only the required bytes, so missing slot padding does not invalidate a readable argument.
 - Use typed readers when widths or signedness matter. `From` expresses lossless conversion. Narrowing and signed reinterpretation can deliberately require `as`. `TryFrom` adds a rejection path and is not a cosmetic replacement. Preserve required sign extension and partial-register behavior.
 - Determine who owns argument cleanup and perform it exactly once. Discarding callee-owned slots advances the stack pointer without reading their contents. Read required arguments before cleanup, output writes, allocation, result writes, or callbacks that could overwrite the frame.
 - Preserve nonvolatile registers and the correct result location: scalar registers, register pairs, floating-point/vector state, or a hidden output buffer. Raw register access is appropriate for context capture, unwind state, and intrinsic conventions whose registers are themselves the subject.
 - Treat a failed frame read separately from a readable zero or NULL. Check address arithmetic and complete read ranges, including adjacent mappings and holes. Do not hide errors with `unwrap_or(0)`, an empty value, or invented platform status during a refactor.
-- At a handler boundary, an error macro may record a fault and return. Internal fallible helpers should propagate it with `?`. Verify that the failure reaches `run` and `step`, survives nested calls, and retains the failing entry context. An early handler return or cleared run flag alone can look like normal termination. Keep emulator frame failures separate from guest API errors and exceptions.
+- Use the existing platform `api_try!` macro at unit-returning library and kernel handler boundaries. Keep `Result` and `?` in internal fallible helpers. A dispatcher's handled flag means a name was selected, not that the handler completed successfully. Check pending faults before completion, fallback, or another guest call. Verify that the failure reaches `run` and `step`, survives nested calls, and retains the failing entry context. An early handler return or cleared run flag alone can look like normal termination. Keep emulator frame failures separate from guest API errors and exceptions.
 
 ## Preserve memory and environment contracts
 
@@ -43,6 +43,7 @@ For instruction, loader, memory, or exception defects beneath the handler, use t
 
 ## Keep the change maintainable
 
+- Keep handler bodies in ordinary named functions and routing tables focused on selection. Name a shared stub for its behavior or subsystem rather than the first API routed to it, even when it reads arguments or makes limited state changes. Make completion and fallback explicit. Propagate errors from a selected handler instead of treating them as a missing implementation. Preserve branch order, guarded models, and side effects when extracting code. Separate executable dispatch from tables that only select function pointers or metadata. Macro boundaries can change type inference and the scope of early returns.
 - Reuse subsystem modules and semantic helpers. Split large general-purpose dispatchers by responsibility. Keep small cohesive libraries together. Avoid catchall helper or test files grouped only by the current PR, and keep shared implementation details private.
 - Use coherent platform constant groups, meaningful type names, and consistent imports. Avoid a magic value followed by a comment that merely names it, partial constant moves, redundant aliases, or comments that restate the code.
 - Group explicit leaf reexports. Wildcard reexports can suit intentional aggregation modules. Check module ownership, reachable dispatch, case-sensitive paths, ignored sources, and the publishable file set after moves.
@@ -51,6 +52,7 @@ For instruction, loader, memory, or exception defects beneath the handler, use t
 ## Validate the route and behavior
 
 - Add regressions to existing subsystem test groups where possible. Use named cases and reusable setup without leaking state between cases. Test the contract rather than reproducing implementation arithmetic.
+- Derive support reporting from active dispatch where possible. Keep exact aliases, guarded partial models, and data exports distinct; a name in a report does not prove a complete implementation.
 - Exercise the actual gateway or syscall path for dispatch changes. Check that each table case selects its intended handler. Confirm that the execution mode reaches that handler.
 - Cover meaningful boundaries: stack/register arguments, slot counts, wide pointers, promoted or signed values, result widths, nonvolatile state, zero versus unreadable values, optional pointers, exact capacities, and output canaries. When variants share code, test their encodings and supported architectures.
 - For controlled stops, check retained PC/SP and call context. Verify required output and error-state preservation in normal, cached, and threaded execution. If snapshots store pending faults, test restoration. Distinguish a handled guest exception from an emulator failure and a normal guest return.

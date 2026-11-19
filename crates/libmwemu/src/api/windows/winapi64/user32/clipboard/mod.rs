@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::user32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AddClipboardFormatListener" => user32::AddClipboardFormatListener(emu),
         "ChangeClipboardChain" => user32::ChangeClipboardChain(emu),
         "CheckProcessForClipboardAccess" => user32::CheckProcessForClipboardAccess(emu),
@@ -28,7 +29,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RemoveClipboardFormatListener" => user32::RemoveClipboardFormatListener(emu),
         "SetClipboardData" => user32::SetClipboardData(emu),
         "SetClipboardViewer" => user32::SetClipboardViewer(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
@@ -8,7 +9,7 @@ mod realloc;
 pub use realloc::realloc;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "malloc" => wincrt::malloc(emu),
         "calloc" => wincrt::calloc(emu),
         "free" => wincrt::free(emu),
@@ -26,7 +27,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         | "??_V@YAXPEAX@Z"
         | "??0exception@@QEAA@AEBV0@@Z"
         | "??1type_info@@UEAA@XZ" => wincrt::__2_YAPEAX_K_Z(emu, api),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

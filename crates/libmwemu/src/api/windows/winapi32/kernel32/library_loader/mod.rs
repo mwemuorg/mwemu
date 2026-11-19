@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -74,7 +75,7 @@ mod zombify_act_ctx_worker;
 pub use zombify_act_ctx_worker::ZombifyActCtxWorker;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "FindResourceA" => kernel32::FindResourceA(emu),
         "FindResourceW" => kernel32::FindResourceW(emu),
         "FreeLibrary" => kernel32::FreeLibrary(emu),
@@ -175,7 +176,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "RtlDeleteFunctionTable" => kernel32::RtlDeleteFunctionTable(emu),
         "RtlInstallFunctionTableCallback" => kernel32::RtlInstallFunctionTableCallback(emu),
         "RtlLookupFunctionEntry" => kernel32::RtlLookupFunctionEntry(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

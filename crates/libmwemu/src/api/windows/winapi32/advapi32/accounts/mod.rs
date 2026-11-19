@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetUserNameA" => advapi32::GetUserNameA(emu),
         "GetUserNameW" => advapi32::GetUserNameW(emu),
         "AuditComputeEffectivePolicyBySid" => advapi32::AuditComputeEffectivePolicyBySid(emu),
@@ -10,12 +11,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "AuditEnumeratePerUserPolicy" => advapi32::AuditEnumeratePerUserPolicy(emu),
         "AuditEnumerateSubCategories" => advapi32::AuditEnumerateSubCategories(emu),
         "AuditFree" => advapi32::AuditFree(emu),
-        "AuditLookupCategoryGuidFromCategoryId" => {
-            advapi32::AuditLookupCategoryGuidFromCategoryId(emu)
-        }
-        "AuditLookupCategoryIdFromCategoryGuid" => {
-            advapi32::AuditLookupCategoryIdFromCategoryGuid(emu)
-        }
+        "AuditLookupCategoryGuidFromCategoryId" => advapi32::AuditLookupCategoryGuidFromCategoryId(emu),
+        "AuditLookupCategoryIdFromCategoryGuid" => advapi32::AuditLookupCategoryIdFromCategoryGuid(emu),
         "AuditLookupCategoryNameA" => advapi32::AuditLookupCategoryNameA(emu),
         "AuditLookupCategoryNameW" => advapi32::AuditLookupCategoryNameW(emu),
         "AuditLookupSubCategoryNameA" => advapi32::AuditLookupSubCategoryNameA(emu),
@@ -171,7 +168,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "SaferiIsExecutableFileType" => advapi32::SaferiIsExecutableFileType(emu),
         "SaferiPopulateDefaultsInRegistry" => advapi32::SaferiPopulateDefaultsInRegistry(emu),
         "SaferiSearchMatchingHashRules" => advapi32::SaferiSearchMatchingHashRules(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

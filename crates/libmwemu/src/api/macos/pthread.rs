@@ -2,6 +2,7 @@
 //! exit, self, detach. Threads are interleaved by the multi-threaded run loop.
 use super::libc_extra::trace;
 use crate::api::abi::unix::UnixApi;
+use crate::api::dispatch_api;
 use crate::api::unix::api_try;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
@@ -15,16 +16,17 @@ const EDEADLK: u64 = 11;
 /// Dispatch `symbol` if it is implemented here. Returns false otherwise.
 pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
     let name = symbol.strip_prefix('_').unwrap_or(symbol);
-    match name {
+    dispatch_api!(name, {
         "pthread_create" => api_pthread_create(emu),
         "pthread_join" => api_pthread_join(emu),
         "pthread_exit" => api_pthread_exit(emu),
         "pthread_self" => api_pthread_self(emu),
         "pthread_detach" => api_pthread_detach(emu),
         "pthread_equal" => api_pthread_equal(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn api_pthread_create(emu: &mut Emu) {

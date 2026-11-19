@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "SetUnhandledExceptionFilter" => kernelbase::SetUnhandledExceptionFilter(emu),
         "EventActivityIdControl" => kernelbase::EventActivityIdControl(emu),
         "EventProviderEnabled" => kernelbase::EventProviderEnabled(emu),
@@ -96,12 +97,11 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "WerUnregisterExcludedMemoryBlock" => kernelbase::WerUnregisterExcludedMemoryBlock(emu),
         "WerUnregisterFile" => kernelbase::WerUnregisterFile(emu),
         "WerUnregisterMemoryBlock" => kernelbase::WerUnregisterMemoryBlock(emu),
-        "WerUnregisterRuntimeExceptionModule" => {
-            kernelbase::WerUnregisterRuntimeExceptionModule(emu)
-        }
+        "WerUnregisterRuntimeExceptionModule" => kernelbase::WerUnregisterRuntimeExceptionModule(emu),
         "GetPerformanceInfo" => kernelbase::GetPerformanceInfo(emu),
         "K32GetPerformanceInfo" => kernelbase::K32GetPerformanceInfo(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

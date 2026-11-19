@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -85,7 +86,7 @@ mod flush_instruction_cache;
 pub use flush_instruction_cache::FlushInstructionCache;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "FlushInstructionCache" => kernel32::FlushInstructionCache(emu),
         "DecodePointer" => kernel32::DecodePointer(emu),
         "EncodePointer" => kernel32::EncodePointer(emu),
@@ -121,7 +122,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GlobalFlags" => kernel32::GlobalFlags(emu),
         "GlobalSize" => kernel32::GlobalSize(emu),
         "GlobalReAlloc" => kernel32::GlobalReAlloc(emu, addr),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

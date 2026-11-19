@@ -3,14 +3,18 @@ use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
 use crate::api::abi::ArgumentFault;
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
+use crate::api::dispatch_api;
 use crate::api::windows::common::{memory as memory_api, nt_api};
 use crate::api::windows::policy::{
     self, ApiDisposition, ApiMode, ApiPolicy, ApiRoute, ApiStopReason,
 };
+use crate::arch::{Arch, OperatingSystem};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::serialization::Serialization;
+use crate::syscall::linux::constants::errors::ENOSYS;
+use crate::syscall::windows::{index_syscall_names, syscall64};
 use crate::tests::helpers::{
     call_winapi32, call_winapi64, register_export_module, setup, win32_maps_folder,
 };
@@ -19,6 +23,7 @@ use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::LIBS64_MIN;
 use crate::windows::constants::memory::{MEM_COMMIT, MEM_RESERVE};
 use crate::windows::constants::process::NT_CURRENT_PROCESS;
+use crate::windows::constants::syscalls::WIN64_NTCLOSE;
 use crate::windows::constants::system::{FALSE, TRUE};
 use crate::{emu_aarch64, emu32, emu64};
 
@@ -1208,4 +1213,439 @@ fn checked_syscall_arguments_record_the_syscall_frame() {
         emu.api_policy.last_outcome
     );
     assert!(restored.api_policy.stopped());
+}
+
+#[test]
+fn unknown_windows_syscalls_obey_policy_at_instruction_entry() {
+    let entries: &[(&str, bool, &[u8], u64)] = &[
+        ("syscall", true, &[0x0f, 0x05], 0xffff),
+        ("sysenter", false, &[0x0f, 0x34], 0xffff),
+        ("old sysenter placeholder", false, &[0x0f, 0x34], 0x10f),
+        ("int80 compatibility", false, &[0xcd, 0x80], 0xffff),
+    ];
+    for &(name, is64, instruction, number) in entries {
+        let mut emu = emulator(is64, "ntdll", "unused_export");
+        for mode in [
+            ApiMode::Strict,
+            ApiMode::SimulateFail,
+            ApiMode::SimulateSuccess,
+        ] {
+            emu.api_policy.clear_outcome();
+            emu.set_api_mode(mode);
+            emu.set_pc(CODE);
+            emu.regs_mut().rax = number;
+            emu.regs_mut().rbx = MARKER as u64;
+            emu.set_last_error(MARKER as u64);
+            let stack = emu.sp();
+            let calls = emu.call_stack().clone();
+            assert!(emu.maps.write_bytes(CODE, instruction));
+            // inc ebx; nop. Strict must stop before the caller continues.
+            assert!(emu.maps.write_bytes(CODE + 2, &[0xff, 0xc3, 0x90]));
+            let result = emu.run(Some(CODE + 4));
+            assert_eq!(result.is_err(), mode == ApiMode::Strict, "{name}: {mode:?}");
+            assert_eq!(emu.sp(), stack, "{name}: {mode:?}");
+            assert_eq!(emu.call_stack(), &calls);
+            assert_eq!(emu.get_last_error(), MARKER as u64);
+            let outcome = emu
+                .api_policy
+                .last_outcome
+                .as_ref()
+                .expect("syscall outcome");
+            assert_eq!(outcome.call.route, ApiRoute::Syscall);
+            assert_eq!(outcome.call.pc, CODE);
+            assert_eq!(outcome.call.stack_pointer, stack);
+            if mode == ApiMode::Strict {
+                assert_eq!(emu.pc(), CODE);
+                assert_eq!(emu.regs().rax, number);
+                assert_eq!(emu.regs().rbx, MARKER as u64);
+            } else {
+                assert_eq!(emu.regs().rax, 0);
+                assert_eq!(emu.regs().rbx, (MARKER + 1) as u64);
+                assert_eq!(outcome.disposition, ApiDisposition::SimulatedGeneric);
+            }
+        }
+    }
+}
+
+const UNKNOWN_SERVICE: u64 = 0xffff;
+
+#[test]
+fn named_syscalls_use_nt_results_without_function_cleanup() {
+    for is64 in [false, true] {
+        let mut emu = emulator(is64, "ntdll", "unused_export");
+        let instruction = if is64 { [0x0f, 0x05] } else { [0x0f, 0x34] };
+        emu.syscall_name_by_real
+            .insert(UNKNOWN_SERVICE, "NtQueryInformationAtom".into());
+        for banzai in [false, true] {
+            for (mode, expected, disposition) in [
+                (
+                    ApiMode::SimulateFail,
+                    STATUS_NOT_IMPLEMENTED,
+                    ApiDisposition::SimulatedFailure,
+                ),
+                (
+                    ApiMode::SimulateSuccess,
+                    STATUS_SUCCESS,
+                    ApiDisposition::SimulatedSuccess,
+                ),
+            ] {
+                emu.api_policy.clear_outcome();
+                emu.set_api_mode(mode);
+                emu.cfg.skip_unimplemented = banzai;
+                emu.set_pc(CODE);
+                emu.regs_mut().rax = UNKNOWN_SERVICE;
+                emu.regs_mut().rdx = emu.sp();
+                emu.set_last_error(MARKER as u64);
+                assert!(emu.maps.write_bytes(CODE, &instruction));
+                let stack = emu.sp();
+                let bytes = emu.maps.read_bytes(stack, 64).to_vec();
+                assert!(emu.run(Some(CODE + 2)).is_ok());
+                assert_eq!(emu.regs().rax, expected);
+                assert_eq!(emu.sp(), stack);
+                assert_eq!(emu.maps.read_bytes(stack, 64), bytes);
+                assert_eq!(emu.get_last_error(), MARKER as u64);
+                let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
+                assert_eq!(outcome.call.name, "NtQueryInformationAtom");
+                assert_eq!(outcome.call.address, UNKNOWN_SERVICE);
+                assert_eq!(outcome.disposition, disposition);
+                assert!(emu.api_policy.entry.is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn syscall_hooks_keep_priority_and_outer_call_context() {
+    for (is64, instruction) in [
+        (true, [0x0f, 0x05]),
+        (false, [0x0f, 0x34]),
+        (false, [0xcd, 0x80]),
+    ] {
+        let mut emu = emulator(is64, "ntdll", "unused_export");
+        emu.set_api_mode(ApiMode::Strict);
+        emu.set_pc(CODE);
+        emu.regs_mut().rax = UNKNOWN_SERVICE;
+        emu.regs_mut().rbx = 0;
+        policy::begin_call(&mut emu, "kernel32", "outer", MODULE64, ApiRoute::Address);
+        let outer = emu.api_policy.entry.clone();
+        emu.set_hook_on_syscall(|emu, number| {
+            assert_eq!(number, UNKNOWN_SERVICE);
+            emu.regs_mut().rax = MARKER as u64;
+            emu.regs_mut().rbx += 1;
+            false
+        });
+        assert!(emu.maps.write_bytes(CODE, &instruction));
+        assert!(emu.run(Some(CODE + 2)).is_ok());
+        assert_eq!(emu.regs().rax, MARKER as u64);
+        assert_eq!(emu.regs().rbx, 1);
+        assert_eq!(emu.api_policy.entry, outer);
+        assert!(emu.api_policy.last_outcome.is_none());
+    }
+}
+
+#[test]
+fn syscall_frame_faults_stop_step_and_survive_snapshots() {
+    for is64 in [false, true] {
+        let mut emu = emulator(is64, "ntdll", "unused_export");
+        let instruction = if is64 { [0x0f, 0x05] } else { [0x0f, 0x34] };
+        emu.syscall_name_by_real
+            .insert(UNKNOWN_SERVICE, "NtQueryInformationAtom".into());
+        emu.set_api_mode(ApiMode::SimulateSuccess);
+        emu.set_pc(CODE);
+        emu.regs_mut().rax = UNKNOWN_SERVICE;
+        // The required stack argument is outside every map.
+        let stack = DATA + PAGE_SIZE;
+        emu.set_sp(stack);
+        emu.regs_mut().rdx = stack;
+        assert!(emu.maps.write_bytes(CODE, &instruction));
+        assert!(!emu.step());
+        assert_eq!(emu.sp(), stack);
+        assert_eq!(emu.pc(), CODE);
+        assert_eq!(emu.regs().rax, UNKNOWN_SERVICE);
+        let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
+        assert_eq!(outcome.call.name, "NtQueryInformationAtom");
+        assert_eq!(outcome.call.address, UNKNOWN_SERVICE);
+        assert_eq!(
+            outcome.disposition,
+            ApiDisposition::Stopped(ApiStopReason::InvalidFrame)
+        );
+        let mut restored = Serialization::deserialize(&Serialization::serialize(&emu));
+        assert_eq!(
+            restored.api_policy.last_outcome,
+            emu.api_policy.last_outcome
+        );
+        assert!(restored.run(None).is_err());
+    }
+}
+
+#[test]
+fn loaded_syscall_identity_prevents_static_profile_misrouting() {
+    let mut emu = emulator(true, "ntdll", "unused_export");
+    emu.set_api_mode(ApiMode::SimulateFail);
+    emu.set_pc(CODE);
+    emu.syscall_name_by_real
+        .insert(WIN64_NTCLOSE, "NtQueryInformationAtom".into());
+    emu.regs_mut().rax = WIN64_NTCLOSE;
+    syscall64::gateway(&mut emu);
+    assert_eq!(emu.regs().rax, STATUS_NOT_IMPLEMENTED);
+    assert_eq!(
+        emu.api_policy.last_outcome.as_ref().unwrap().call.name,
+        "NtQueryInformationAtom"
+    );
+
+    emu.api_policy.clear_outcome();
+    emu.regs_mut().rax = UNKNOWN_SERVICE;
+    syscall64::gateway(&mut emu);
+    let outcome = emu.api_policy.last_outcome.as_ref().unwrap();
+    assert_eq!(outcome.disposition, ApiDisposition::SimulatedGeneric);
+    assert_eq!(outcome.call.address, UNKNOWN_SERVICE);
+    assert_eq!(outcome.call.name, "syscall 0xffff");
+
+    emu.api_policy.clear_outcome();
+    emu.set_api_mode(ApiMode::Strict);
+    emu.syscall_name_by_real
+        .insert(UNKNOWN_SERVICE, "NtClose".into());
+    emu.syscall_number_map
+        .insert(UNKNOWN_SERVICE, WIN64_NTCLOSE);
+    emu.regs_mut().rax = UNKNOWN_SERVICE;
+    syscall64::gateway(&mut emu);
+    assert!(emu.api_policy.last_outcome.is_none());
+}
+
+#[test]
+fn strict_syscall_stop_reaches_threaded_execution() {
+    let mut emu = emulator(true, "ntdll", "unused_export");
+    emu.cfg.enable_threading = true;
+    emu.set_pc(CODE);
+    emu.regs_mut().rax = UNKNOWN_SERVICE;
+    assert!(emu.maps.write_bytes(CODE, &[0x0f, 0x05, 0x90]));
+    assert!(emu.run(Some(CODE + 2)).is_err());
+    assert_eq!(emu.pc(), CODE);
+    assert!(emu.api_policy.stopped());
+}
+
+#[test]
+fn service_names_come_from_guest_exports() {
+    for is64 in [false, true] {
+        let mut emu = emulator(is64, "ntdll", "NtQueryInformationAtom");
+        let address = if is64 { MODULE64 } else { MODULE } + 0x100;
+        let mut stub = if is64 {
+            vec![0x4c, 0x8b, 0xd1, 0xb8]
+        } else {
+            vec![0xb8]
+        };
+        stub.extend_from_slice(&(UNKNOWN_SERVICE as u32).to_le_bytes());
+        assert!(emu.maps.write_bytes(address, &stub));
+        if is64 {
+            syscall64::build_syscall_translation_table(&mut emu);
+        } else {
+            emu.syscall_name_by_real = index_syscall_names(&emu);
+        }
+        assert_eq!(
+            emu.syscall_name_by_real
+                .get(&UNKNOWN_SERVICE)
+                .map(String::as_str),
+            Some("NtQueryInformationAtom")
+        );
+        assert!(emu.maps.write_byte(address, 0xc3));
+        assert!(index_syscall_names(&emu).is_empty());
+    }
+}
+
+#[test]
+fn sysenter_simulation_returns_through_the_guest_stub() {
+    let mut emu = emulator(false, "ntdll", "unused_export");
+    emu.syscall_name_by_real
+        .insert(UNKNOWN_SERVICE, "NtClose".into());
+    // mov eax, number; call fast_stub; ret 4; fast_stub: mov edx, esp; sysenter; ret.
+    let mut code = vec![0xb8];
+    code.extend_from_slice(&(UNKNOWN_SERVICE as u32).to_le_bytes());
+    code.extend_from_slice(&[0xe8, 3, 0, 0, 0, 0xc2, 4, 0, 0x8b, 0xd4, 0x0f, 0x34, 0xc3]);
+    assert!(emu.maps.write_bytes(CODE, &code));
+    for (mode, expected) in [
+        (ApiMode::SimulateFail, STATUS_NOT_IMPLEMENTED),
+        (ApiMode::SimulateSuccess, STATUS_SUCCESS),
+    ] {
+        emu.api_policy.clear_outcome();
+        emu.set_api_mode(mode);
+        emu.set_pc(CODE + 0x100);
+        let stack = emu.sp();
+        assert_eq!(emu.call32(CODE, &[0]).unwrap(), expected as u32);
+        assert_eq!(emu.sp(), stack);
+        assert_eq!(emu.pc(), CODE + 0x100);
+        assert_eq!(
+            emu.api_policy.last_outcome.as_ref().unwrap().call.name,
+            "NtClose"
+        );
+    }
+}
+
+#[test]
+fn linux_unknown_syscalls_return_enosys() {
+    const UNKNOWN_SYSCALL: u64 = 1_000_000;
+    const FIRST_ARGUMENT: u64 = 0x1234;
+    for (arch, instruction) in [
+        (Arch::X86, &[0xcd, 0x80][..]),                 // int 0x80
+        (Arch::X86_64, &[0x0f, 0x05][..]),              // syscall
+        (Arch::Aarch64, &[0x01, 0x00, 0x00, 0xd4][..]), // svc #0
+    ] {
+        let mut emu = Emu::new(arch);
+        emu.disable_ctrlc();
+        emu.cfg.console_enabled = false;
+        emu.running_script = true;
+        emu.os = OperatingSystem::Linux;
+        emu.maps
+            .create_map(
+                "linux.syscall",
+                CODE,
+                PAGE_SIZE,
+                Permission::READ_WRITE_EXECUTE,
+            )
+            .unwrap();
+        assert!(emu.maps.write_bytes(CODE, instruction));
+        emu.set_pc(CODE);
+        if arch.is_aarch64() {
+            emu.regs_aarch64_mut().x[8] = UNKNOWN_SYSCALL;
+            emu.regs_aarch64_mut().x[0] = FIRST_ARGUMENT;
+        } else {
+            emu.regs_mut().rax = UNKNOWN_SYSCALL;
+            emu.regs_mut().rbx = FIRST_ARGUMENT;
+            emu.regs_mut().rdi = FIRST_ARGUMENT;
+        }
+        assert!(emu.step());
+        let result = if arch.is_aarch64() {
+            emu.regs_aarch64().x[0]
+        } else if arch.is_64bits() {
+            emu.regs().rax
+        } else {
+            emu.regs().get_eax()
+        };
+        let expected = if arch.is_64bits() {
+            ENOSYS
+        } else {
+            ENOSYS as u32 as u64
+        };
+        assert_eq!(result, expected, "{arch:?}");
+        assert_eq!(emu.pc(), CODE + instruction.len() as u64);
+    }
+}
+
+#[test]
+fn linux_syscall_hooks_keep_priority_over_unknown_fallback() {
+    const UNKNOWN_SYSCALL: u64 = 1_000_000;
+    const HOOK_RESULT: u64 = 0x5678;
+    for (arch, instruction) in [
+        (Arch::X86, &[0xcd, 0x80][..]),
+        (Arch::X86_64, &[0x0f, 0x05][..]),
+        (Arch::Aarch64, &[0x01, 0x00, 0x00, 0xd4][..]),
+    ] {
+        let mut emu = Emu::new(arch);
+        emu.disable_ctrlc();
+        emu.cfg.console_enabled = false;
+        emu.os = OperatingSystem::Linux;
+        emu.maps
+            .create_map(
+                "linux.syscall.hook",
+                CODE,
+                PAGE_SIZE,
+                Permission::READ_WRITE_EXECUTE,
+            )
+            .unwrap();
+        assert!(emu.maps.write_bytes(CODE, instruction));
+        emu.set_pc(CODE);
+        if arch.is_aarch64() {
+            emu.regs_aarch64_mut().x[8] = UNKNOWN_SYSCALL;
+        } else {
+            emu.regs_mut().rax = UNKNOWN_SYSCALL;
+        }
+        emu.hooks.on_syscall(move |emu, number| {
+            assert_eq!(number, UNKNOWN_SYSCALL);
+            if arch.is_aarch64() {
+                emu.regs_aarch64_mut().x[0] = HOOK_RESULT;
+            } else {
+                emu.regs_mut().rax = HOOK_RESULT;
+            }
+            false
+        });
+        assert!(emu.step());
+        let result = if arch.is_aarch64() {
+            emu.regs_aarch64().x[0]
+        } else {
+            emu.regs().rax
+        };
+        assert_eq!(result, HOOK_RESULT, "{arch:?}");
+        assert_eq!(emu.pc(), CODE + instruction.len() as u64);
+    }
+}
+
+#[test]
+fn dispatch_keeps_handler_errors_out_of_fallback() {
+    fn handler(
+        events: &mut Vec<&'static str>,
+        outcome: Result<(), &'static str>,
+    ) -> Result<(), &'static str> {
+        events.push("handler");
+        outcome
+    }
+
+    fn execute(name: &str, events: &mut Vec<&'static str>) -> Result<bool, &'static str> {
+        let handled: Result<bool, &'static str> = dispatch_api!(name, {
+            "success" | "alias" => handler(events, Ok(())),
+            "error" => handler(events, Err("unreadable argument")),
+        },
+            handled(result) => {
+                result?;
+                events.push("completed");
+                Ok(true)
+            },
+            fallback => {
+                events.push("fallback");
+                Ok(false)
+            },
+        );
+        let handled = handled?;
+        events.push("after dispatch");
+        Ok(handled)
+    }
+
+    for name in ["success", "alias"] {
+        let mut events = Vec::new();
+        assert_eq!(execute(name, &mut events), Ok(true));
+        assert_eq!(events, ["handler", "completed", "after dispatch"]);
+    }
+    let mut events = Vec::new();
+    assert_eq!(execute("error", &mut events), Err("unreadable argument"));
+    assert_eq!(events, ["handler"]);
+
+    events.clear();
+    assert_eq!(execute("unknown", &mut events), Ok(false));
+    assert_eq!(events, ["fallback", "after dispatch"]);
+}
+
+#[test]
+fn dispatch_preserves_guard_order_and_evaluates_the_selector_once() {
+    for (name, expected, expected_guards) in [
+        ("partial_exact", "exact", 0),
+        ("partial_other", "partial", 1),
+        ("unknown", "fallback", 1),
+    ] {
+        let mut selections = 0;
+        let mut guards = 0;
+        let result = dispatch_api!({
+            selections += 1;
+            name
+        }, {
+            "partial_exact" => "exact",
+            symbol if {
+                guards += 1;
+                symbol.starts_with("partial_")
+            } => "partial",
+        },
+            handled(value) => value,
+            fallback => "fallback",
+        );
+        assert_eq!(result, expected, "{name}");
+        assert_eq!(selections, 1, "{name}");
+        assert_eq!(guards, expected_guards, "{name}");
+    }
 }

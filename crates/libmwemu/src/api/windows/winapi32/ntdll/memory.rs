@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::api::windows::common::memory;
 use crate::emu;
 use crate::winapi::common::sections;
@@ -11,7 +12,7 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     if memory_ops::dispatch(api, emu) || crt::dispatch(api, emu) {
         return true;
     }
-    match api {
+    dispatch_api!(api, {
         "NtReadVirtualMemory" => memory::nt_process_memory(emu, call, false),
         "NtWriteVirtualMemory" => memory::nt_process_memory(emu, call, true),
         "NtAllocateVirtualMemory" => NtAllocateVirtualMemory(emu),
@@ -33,9 +34,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlDeleteFunctionTable" => RtlDeleteFunctionTable(emu),
         "RtlInstallFunctionTableCallback" => RtlInstallFunctionTableCallback(emu),
         "RtlLookupFunctionEntry" => RtlLookupFunctionEntry(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn RtlZeroMemory(emu: &mut emu::Emu) {

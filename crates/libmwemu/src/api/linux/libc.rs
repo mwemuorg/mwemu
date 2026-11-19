@@ -1,4 +1,5 @@
 use crate::api::abi::unix::{ArgumentError, UnixApi, VariadicConvention::SystemV};
+use crate::api::dispatch_api;
 use crate::api::printf;
 use crate::api::unix::api_try;
 use crate::emu::Emu;
@@ -10,8 +11,7 @@ const FAKE_PID: u64 = 1234;
 const FAKE_UID: u64 = 1000;
 
 pub fn gateway(symbol: &str, emu: &mut Emu) {
-    let call = UnixApi;
-    match symbol {
+    dispatch_api!(symbol, {
         "__libc_start_main" => api_libc_start_main(emu),
         "__cxa_finalize" => api_cxa_finalize(emu),
         "__cxa_atexit" | "atexit" => api_cxa_atexit(emu),
@@ -69,11 +69,10 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "getopt" | "getopt_long" => api_getopt(emu),
         "mmap" | "mmap64" => api_mmap(emu),
         "munmap" => api_munmap(emu),
-        _ => {
-            log::warn!("linuxapi libc: unimplemented API {} -- returning 0", symbol);
-            call.set_return(emu, 0);
-        }
-    }
+    },
+        handled(()) => (),
+        fallback => unsupported(emu, symbol),
+    )
 }
 
 fn trace(emu: &Emu, call: &str) {
@@ -819,5 +818,11 @@ fn api_munmap(emu: &mut Emu) {
     {
         emu.maps.dealloc(addr);
     }
+    call.set_return(emu, 0);
+}
+
+fn unsupported(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    log::warn!("linuxapi libc: unimplemented API {} -- returning 0", symbol);
     call.set_return(emu, 0);
 }

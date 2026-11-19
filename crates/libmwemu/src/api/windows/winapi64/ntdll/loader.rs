@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::api::windows::winapi64;
 use crate::emu;
 use crate::winapi::helper;
@@ -6,12 +7,13 @@ use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "LdrLoadDll" | "LdrLoadDll_gul" => LdrLoadDll(emu),
         "LdrGetDllHandleEx" => LdrGetDllHandleEx(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn LdrLoadDll(emu: &mut emu::Emu) {

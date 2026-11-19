@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::ole32;
 
@@ -761,7 +762,7 @@ mod wdtp_interface_pointer_user_unmarshal64;
 pub use wdtp_interface_pointer_user_unmarshal64::WdtpInterfacePointer_UserUnmarshal64;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CLIPFORMAT_UserFree" => ole32::CLIPFORMAT_UserFree(emu),
         "CLIPFORMAT_UserFree64" => ole32::CLIPFORMAT_UserFree64(emu),
         "CLIPFORMAT_UserFreeExt" => ole32::CLIPFORMAT_UserFreeExt(emu),
@@ -794,9 +795,7 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "CoGetStandardMarshal" => ole32::CoGetStandardMarshal(emu),
         "CoGetStdMarshalEx" => ole32::CoGetStdMarshalEx(emu),
         "CoMarshalHresult" => ole32::CoMarshalHresult(emu),
-        "CoMarshalInterThreadInterfaceInStream" => {
-            ole32::CoMarshalInterThreadInterfaceInStream(emu)
-        }
+        "CoMarshalInterThreadInterfaceInStream" => ole32::CoMarshalInterThreadInterfaceInStream(emu),
         "CoMarshalInterface" => ole32::CoMarshalInterface(emu),
         "CoQueryProxyBlanket" => ole32::CoQueryProxyBlanket(emu),
         "CoRegisterChannelHook" => ole32::CoRegisterChannelHook(emu),
@@ -1017,7 +1016,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "WdtpInterfacePointer_UserSize64" => ole32::WdtpInterfacePointer_UserSize64(emu),
         "WdtpInterfacePointer_UserUnmarshal" => ole32::WdtpInterfacePointer_UserUnmarshal(emu),
         "WdtpInterfacePointer_UserUnmarshal64" => ole32::WdtpInterfacePointer_UserUnmarshal64(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

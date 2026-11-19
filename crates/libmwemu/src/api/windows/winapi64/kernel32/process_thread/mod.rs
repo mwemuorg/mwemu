@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -104,7 +105,7 @@ mod duplicate_handle;
 pub use duplicate_handle::DuplicateHandle;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CreateProcessA" => kernel32::CreateProcessA(emu),
         "CreateProcessW" => kernel32::CreateProcessW(emu),
         "CreateRemoteThread" => kernel32::CreateRemoteThread(emu),
@@ -166,7 +167,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "Process32NextW" => kernel32::Process32NextW(emu),
         "GetEnvironmentStrings" | "GetEnvironmentStringsA" => kernel32::GetEnvironmentStringsA(emu),
         "OpenProcessToken" => kernel32::OpenProcessToken(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

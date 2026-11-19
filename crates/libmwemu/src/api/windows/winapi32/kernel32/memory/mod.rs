@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -97,7 +98,7 @@ mod flush_instruction_cache;
 pub use flush_instruction_cache::FlushInstructionCache;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GlobalAlloc" => kernel32::GlobalAlloc(emu),
         "GlobalFree" => kernel32::GlobalFree(emu),
         "LocalFree" => kernel32::LocalFree(emu),
@@ -213,7 +214,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "VirtualUnlock" => kernel32::VirtualUnlock(emu),
         "RtlCompareMemory" => kernel32::RtlCompareMemory(emu),
         "RtlCopyMemory" => kernel32::RtlCopyMemory(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

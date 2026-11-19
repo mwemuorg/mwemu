@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CharLowerBuffW" => kernelbase::CharLowerBuffW(emu),
         "LCMapStringEx" => kernelbase::LCMapStringEx(emu),
         "CharLowerA" => kernelbase::CharLowerA(emu),
@@ -17,15 +18,9 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetAcceptLanguagesA" => kernelbase::GetAcceptLanguagesA(emu),
         "GetAcceptLanguagesW" => kernelbase::GetAcceptLanguagesW(emu),
         "GetCPHashNode" => kernelbase::GetCPHashNode(emu),
-        "GetCurrentPackageGlobalizationContext" => {
-            kernelbase::GetCurrentPackageGlobalizationContext(emu)
-        }
-        "GetEightBitStringToUnicodeSizeRoutine" => {
-            kernelbase::GetEightBitStringToUnicodeSizeRoutine(emu)
-        }
-        "GetEightBitStringToUnicodeStringRoutine" => {
-            kernelbase::GetEightBitStringToUnicodeStringRoutine(emu)
-        }
+        "GetCurrentPackageGlobalizationContext" => kernelbase::GetCurrentPackageGlobalizationContext(emu),
+        "GetEightBitStringToUnicodeSizeRoutine" => kernelbase::GetEightBitStringToUnicodeSizeRoutine(emu),
+        "GetEightBitStringToUnicodeStringRoutine" => kernelbase::GetEightBitStringToUnicodeStringRoutine(emu),
         "GetLocaleInfoHelper" => kernelbase::GetLocaleInfoHelper(emu),
         "GetNamedLocaleHashNode" => kernelbase::GetNamedLocaleHashNode(emu),
         "GetPackageGlobalizationContext" => kernelbase::GetPackageGlobalizationContext(emu),
@@ -34,12 +29,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetPtrCalDataArray" => kernelbase::GetPtrCalDataArray(emu),
         "GetSerializedAtomBytes" => kernelbase::GetSerializedAtomBytes(emu),
         "GetStringTableEntry" => kernelbase::GetStringTableEntry(emu),
-        "GetUnicodeStringToEightBitSizeRoutine" => {
-            kernelbase::GetUnicodeStringToEightBitSizeRoutine(emu)
-        }
-        "GetUnicodeStringToEightBitStringRoutine" => {
-            kernelbase::GetUnicodeStringToEightBitStringRoutine(emu)
-        }
+        "GetUnicodeStringToEightBitSizeRoutine" => kernelbase::GetUnicodeStringToEightBitSizeRoutine(emu),
+        "GetUnicodeStringToEightBitStringRoutine" => kernelbase::GetUnicodeStringToEightBitStringRoutine(emu),
         "GetUserOverrideString" => kernelbase::GetUserOverrideString(emu),
         "InternalLcidToName" => kernelbase::InternalLcidToName(emu),
         "Internal_EnumLanguageGroupLocales" => kernelbase::Internal_EnumLanguageGroupLocales(emu),
@@ -65,9 +56,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "OpenGlobalizationUserSettingsKey" => kernelbase::OpenGlobalizationUserSettingsKey(emu),
         "PathUnExpandEnvStringsA" => kernelbase::PathUnExpandEnvStringsA(emu),
         "PathUnExpandEnvStringsW" => kernelbase::PathUnExpandEnvStringsW(emu),
-        "QueryGlobalizationUserSettingsStatus" => {
-            kernelbase::QueryGlobalizationUserSettingsStatus(emu)
-        }
+        "QueryGlobalizationUserSettingsStatus" => kernelbase::QueryGlobalizationUserSettingsStatus(emu),
         "SHLoadIndirectString" => kernelbase::SHLoadIndirectString(emu),
         "SHLoadIndirectStringInternal" => kernelbase::SHLoadIndirectStringInternal(emu),
         "SHTruncateString" => kernelbase::SHTruncateString(emu),
@@ -226,7 +215,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "lstrlen" => kernelbase::lstrlen(emu),
         "lstrlenA" => kernelbase::lstrlenA(emu),
         "lstrlenW" => kernelbase::lstrlenW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

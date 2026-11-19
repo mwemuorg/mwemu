@@ -1312,6 +1312,7 @@ fn dispatch_legacy_syscall32(emu: &mut emu::Emu) {
             } else {
                 trace_legacy_syscall32(emu, SYS32_SYSCALL_NAMES[emu.regs().rax as usize]);
             }
+            emu.regs_mut().set_eax(ENOSYS);
         }
     }
 }

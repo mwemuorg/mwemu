@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
@@ -652,7 +653,7 @@ use pki_initialize_critical_section::PkiInitializeCriticalSection;
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    match api {
+    dispatch_api!(api, {
         "PkiInitializeCriticalSection" => PkiInitializeCriticalSection(emu),
         "CryptStringToBinaryA" => CryptStringToBinaryA(emu),
         "CryptStringToBinaryW" => CryptStringToBinaryW(emu),
@@ -688,9 +689,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertControlStore" => CertControlStore(emu),
         "CertCreateCRLContext" => CertCreateCRLContext(emu),
         "CertCreateCTLContext" => CertCreateCTLContext(emu),
-        "CertCreateCTLEntryFromCertificateContextProperties" => {
-            CertCreateCTLEntryFromCertificateContextProperties(emu)
-        }
+        "CertCreateCTLEntryFromCertificateContextProperties" => CertCreateCTLEntryFromCertificateContextProperties(emu),
         "CertCreateCertificateChainEngine" => CertCreateCertificateChainEngine(emu),
         "CertCreateCertificateContext" => CertCreateCertificateContext(emu),
         "CertCreateContext" => CertCreateContext(emu),
@@ -763,9 +762,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CertSerializeCertificateStoreElement" => CertSerializeCertificateStoreElement(emu),
         "CertSetCRLContextProperty" => CertSetCRLContextProperty(emu),
         "CertSetCTLContextProperty" => CertSetCTLContextProperty(emu),
-        "CertSetCertificateContextPropertiesFromCTLEntry" => {
-            CertSetCertificateContextPropertiesFromCTLEntry(emu)
-        }
+        "CertSetCertificateContextPropertiesFromCTLEntry" => CertSetCertificateContextPropertiesFromCTLEntry(emu),
         "CertSetCertificateContextProperty" => CertSetCertificateContextProperty(emu),
         "CertSetEnhancedKeyUsage" => CertSetEnhancedKeyUsage(emu),
         "CertSetStoreProperty" => CertSetStoreProperty(emu),
@@ -850,9 +847,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptExportPKCS8Ex" => CryptExportPKCS8Ex(emu),
         "CryptExportPublicKeyInfo" => CryptExportPublicKeyInfo(emu),
         "CryptExportPublicKeyInfoEx" => CryptExportPublicKeyInfoEx(emu),
-        "CryptExportPublicKeyInfoFromBCryptKeyHandle" => {
-            CryptExportPublicKeyInfoFromBCryptKeyHandle(emu)
-        }
+        "CryptExportPublicKeyInfoFromBCryptKeyHandle" => CryptExportPublicKeyInfoFromBCryptKeyHandle(emu),
         "CryptFindCertificateKeyProvInfo" => CryptFindCertificateKeyProvInfo(emu),
         "CryptFindLocalizedName" => CryptFindLocalizedName(emu),
         "CryptFindOIDInfo" => CryptFindOIDInfo(emu),
@@ -923,9 +918,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptSIPRemoveProvider" => CryptSIPRemoveProvider(emu),
         "CryptSIPRemoveSignedDataMsg" => CryptSIPRemoveSignedDataMsg(emu),
         "CryptSIPRetrieveSubjectGuid" => CryptSIPRetrieveSubjectGuid(emu),
-        "CryptSIPRetrieveSubjectGuidForCatalogFile" => {
-            CryptSIPRetrieveSubjectGuidForCatalogFile(emu)
-        }
+        "CryptSIPRetrieveSubjectGuidForCatalogFile" => CryptSIPRetrieveSubjectGuidForCatalogFile(emu),
         "CryptSIPVerifyIndirectData" => CryptSIPVerifyIndirectData(emu),
         "CryptSetHashParam" => CryptSetHashParam(emu),
         "CryptSetKeyIdentifierProperty" => CryptSetKeyIdentifierProperty(emu),
@@ -988,9 +981,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "PFXImportCertStore" => PFXImportCertStore(emu),
         "PFXIsPFXBlob" => PFXIsPFXBlob(emu),
         "PFXVerifyPassword" => PFXVerifyPassword(emu),
-
-        _ => return fallback::unimplemented(addr, api, emu),
-    }
-
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }

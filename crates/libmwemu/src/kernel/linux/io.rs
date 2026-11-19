@@ -6,7 +6,11 @@
 //! actually allocates and frees — where the bugs are — the mapping calls hand
 //! back a real, mapped MMIO window and the IRQ/resource calls report success.
 
+use crate::api::abi::unix::UnixApi;
+use crate::api::dispatch_api;
+use crate::api::unix::api_try;
 use crate::emu::Emu;
+use crate::kernel::{HandlerRegistry, kernel_handlers, return_zero};
 use crate::maps::mem64::Permission;
 
 /// A single shared MMIO window every `ioremap` hands back. One window is enough:
@@ -25,7 +29,14 @@ fn mmio(emu: &mut Emu) -> u64 {
 }
 
 pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
-    match symbol {
+    dispatch_api!(symbol, emu, registry handlers(),
+        handled(()) => true,
+        fallback => false,
+    )
+}
+
+pub const fn handlers() -> HandlerRegistry {
+    kernel_handlers! {
         // --- register mapping: return a valid, mapped window ------------------
         "ioremap"
         | "ioremap_wc"
@@ -46,11 +57,8 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         | "pci_ioremap_bar"
         | "of_iomap"
         | "ioport_map"
-        | "devm_of_iomap" => {
-            let base = mmio(emu);
-            emu.set_kernel_ret(base);
-        }
-        "iounmap" | "devm_iounmap" | "pci_iounmap" | "ioport_unmap" => emu.set_kernel_ret(0),
+        | "devm_of_iomap" => mmio_mapping_stub,
+        "iounmap" | "devm_iounmap" | "pci_iounmap" | "ioport_unmap" => return_zero,
 
         // --- resource lookup: hand back a small fake resource descriptor ------
         // struct resource { start; end; name; flags; ... } — a zeroed chunk is
@@ -59,19 +67,8 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         | "platform_get_resource_byname"
         | "pci_find_capability"
         | "of_get_property"
-        | "of_find_property" => {
-            let ptr = emu.kernel_alloc(
-                crate::kernel::heap::Region::Slab,
-                0x40,
-                "resource",
-                symbol,
-                true,
-            );
-            emu.set_kernel_ret(ptr);
-        }
-        "platform_get_irq" | "platform_get_irq_byname" | "platform_get_irq_optional" => {
-            emu.set_kernel_ret(16) // a plausible non-negative IRQ number
-        }
+        | "of_find_property" => resource_stub,
+        "platform_get_irq" | "platform_get_irq_byname" | "platform_get_irq_optional" => irq_stub,
 
         // --- IRQ / DMA: report success ---------------------------------------
         "request_irq"
@@ -89,7 +86,7 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         | "pci_request_regions"
         | "pci_request_selected_regions"
         | "pci_enable_device_mem"
-        | "dma_supported" => emu.set_kernel_ret(0),
+        | "dma_supported" => return_zero,
         "free_irq"
         | "devm_free_irq"
         | "pci_free_irq_vectors"
@@ -100,45 +97,80 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         | "pci_irq_vector"
         | "synchronize_irq"
         | "disable_irq"
-        | "enable_irq" => emu.set_kernel_ret(0),
+        | "enable_irq" => return_zero,
 
         // --- coherent DMA buffers: real allocations through the ledger --------
         "dma_alloc_coherent"
         | "dma_alloc_attrs"
         | "dmam_alloc_coherent"
         | "dma_alloc_noncoherent"
-        | "dma_pool_alloc" => {
-            let size = emu.kernel_arg(1).clamp(1, 0x100000);
-            let ptr = emu.kernel_alloc(
-                crate::kernel::heap::Region::Vmalloc,
-                size,
-                "dma",
-                symbol,
-                true,
-            );
-            // dma_alloc_coherent(dev, size, dma_handle*, gfp): write a bus addr.
-            let handle_out = emu.kernel_arg(2);
-            if handle_out != 0 {
-                emu.maps.write_qword(handle_out, ptr);
-            }
-            emu.set_kernel_ret(ptr);
-        }
-        "dma_free_coherent" | "dma_free_attrs" | "dmam_free_coherent" | "dma_pool_free" => {
-            let ptr = emu.kernel_arg(2); // (dev, size, cpu_addr, dma_handle)
-            if ptr != 0 {
-                emu.kernel_free(ptr, symbol);
-            }
-            emu.set_kernel_ret(0);
-        }
-        "dma_map_single" | "dma_map_page" | "dma_map_sg" | "dma_map_sg_attrs" => {
-            // return a non-zero "bus address" (reuse the cpu addr)
-            let a = emu.kernel_arg(1);
-            emu.set_kernel_ret(if a != 0 { a } else { MMIO_BASE });
-        }
+        | "dma_pool_alloc" => dma_alloc_coherent,
+        "dma_free_coherent" | "dma_free_attrs" | "dmam_free_coherent" | "dma_pool_free" => dma_free_coherent,
+        "dma_map_single" | "dma_map_page" | "dma_map_sg" | "dma_map_sg_attrs" => dma_map_single,
         "dma_unmap_single" | "dma_unmap_page" | "dma_unmap_sg" | "dma_unmap_sg_attrs"
-        | "dma_mapping_error" => emu.set_kernel_ret(0),
-
-        _ => return false,
+        | "dma_mapping_error" => return_zero,
     }
-    true
+}
+
+pub const SURFACE: &[&str] = handlers().names;
+
+pub fn has_handler(symbol: &str) -> bool {
+    handlers().find(symbol).is_some()
+}
+
+fn mmio_mapping_stub(emu: &mut Emu, _symbol: &str) {
+    let call = UnixApi;
+    let base = mmio(emu);
+    call.set_return(emu, base);
+}
+
+fn resource_stub(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    let ptr = emu.kernel_alloc(
+        crate::kernel::heap::Region::Slab,
+        0x40,
+        "resource",
+        symbol,
+        true,
+    );
+    call.set_return(emu, ptr);
+}
+
+fn irq_stub(emu: &mut Emu, _symbol: &str) {
+    let call = UnixApi;
+    call.set_return(emu, 16); // a plausible non-negative IRQ number
+}
+
+fn dma_alloc_coherent(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    let size = api_try!(emu, call.arg(emu, 1)).clamp(1, 0x100000);
+    let ptr = emu.kernel_alloc(
+        crate::kernel::heap::Region::Vmalloc,
+        size,
+        "dma",
+        symbol,
+        true,
+    );
+    // dma_alloc_coherent(dev, size, dma_handle*, gfp): write a bus addr.
+    let handle_out = api_try!(emu, call.arg(emu, 2));
+    if handle_out != 0 {
+        emu.maps.write_qword(handle_out, ptr);
+    }
+    call.set_return(emu, ptr);
+}
+
+fn dma_free_coherent(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    let ptr = api_try!(emu, call.arg(emu, 2)); // (dev, size, cpu_addr, dma_handle)
+    if ptr != 0 {
+        emu.kernel_free(ptr, symbol);
+    }
+    call.set_return(emu, 0);
+}
+
+fn dma_map_single(emu: &mut Emu, _symbol: &str) {
+    let call = UnixApi;
+    // return a non-zero "bus address" (reuse the cpu addr)
+    let a = api_try!(emu, call.arg(emu, 1));
+    call.set_return(emu, if a != 0 { a } else { MMIO_BASE });
 }

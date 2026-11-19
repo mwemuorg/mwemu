@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::context::context64::Context64;
 use crate::debug::console::Console;
 use crate::emu;
@@ -9,7 +10,7 @@ use crate::windows::constants::errors::*;
 use crate::windows::structures;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "NtQueueApcThread" => NtQueueApcThread(emu),
         "NtGetContextThread" => NtGetContextThread(emu),
         "RtlExitUserThread" => RtlExitUserThread(emu),
@@ -29,9 +30,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlDecodePointer" => RtlDecodePointer(emu),
         "RtlVectoredExceptionHandler" => RtlVectoredExceptionHandler(emu),
         "VerSetConditionMask" => VerSetConditionMask(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn RtlRestoreLastWin32Error(emu: &mut emu::Emu) {

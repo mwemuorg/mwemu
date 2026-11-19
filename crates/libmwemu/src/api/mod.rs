@@ -11,6 +11,40 @@ pub mod strconv;
 pub mod unix;
 pub mod windows;
 
+// The caller owns completion and fallback; matching never changes API policy.
+macro_rules! dispatch_api {
+    (
+        $name:expr,
+        { $($pattern:pat $(if $guard:expr)? => $handler:expr,)* },
+        handled($result:pat) => $handled:expr,
+        fallback => $fallback:expr $(,)?
+    ) => {
+        match $name {
+            $($pattern $(if $guard)? => {
+                let $result = $handler;
+                $handled
+            },)*
+            _ => $fallback,
+        }
+    };
+    (
+        $name:expr, $emu:expr, registry $registry:expr,
+        handled($result:pat) => $handled:expr,
+        fallback => $fallback:expr $(,)?
+    ) => {{
+        let name = $name;
+        match $registry.find(name) {
+            Some(handler) => {
+                let $result = handler($emu, name);
+                $handled
+            }
+            None => $fallback,
+        }
+    }};
+}
+
+pub(crate) use dispatch_api;
+
 impl Emu {
     pub(crate) fn api_stopped(&self) -> bool {
         self.api_policy.stopped() || self.unix_api.stopped()

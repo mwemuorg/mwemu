@@ -6,6 +6,7 @@ Apply these checks alongside the shared [API emulation guidance](../SKILL.md).
 
 - Verify prototypes against Microsoft Learn and SDK/WDK declarations. PHNT is an additional reference for undocumented NT declarations. Check exact export spelling and case. Encoding-neutral SDK macros are not necessarily exported symbols, and one DLL or Windows version does not establish another's exports.
 - Check ordinary and irregular encoded pairs, such as `getnameinfo` / `GetNameInfoW`, and applicable Nt/Zw aliases. A user-mode Nt/Zw mapping does not establish equivalent kernel-mode behavior. Preserve handler precedence and distinguish mapped DLL execution from Rust interception.
+- Keep import diagnostics and dynamic symbol lookup consistent with active dispatch. Prefer deriving discovery metadata from the same declarations, and test omitted aliases through the real resolver. A discovery list does not establish full handler semantics.
 - When checking local DLL exports, presence can establish a name. Absence on one host does not prove absence on every supported target. Confirm aliases and signatures before adding a variant.
 
 ## Windows calling conventions
@@ -19,6 +20,10 @@ Apply these checks alongside the shared [API emulation guidance](../SKILL.md).
 | Other guests and drivers | Use the supported guest's own ABI and privilege boundary. Sharing pointer width does not make Windows ARM64, x64, and driver calls interchangeable. |
 
 Check public bindings and callbacks when changing an ABI helper. Do not migrate a CPU-context operation as if it were ordinary argument decoding.
+
+Syscall numbers depend on the guest build. Resolve them from the loaded guest before using a static profile. An unresolved service number must not select an unrelated handler. Keep its raw number and entry PC in diagnostics.
+
+A syscall instruction retains the guest stub frame. Leave function return and callee cleanup to that stub. Check architecture predicates before selecting a layout, since a family predicate can include both x86 and x64.
 
 ## Return values, error state, and ownership
 

@@ -1,6 +1,7 @@
 mod close_key;
 
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::winapi::common::strings;
 use crate::windows::constants::errors::*;
 use close_key::close_key;
@@ -51,7 +52,7 @@ const RRF_RT_ANY: u32 = 0xffff;
 /// Run `api` if it is a registry API; false otherwise.
 pub fn gateway(api: &str, emu: &mut emu::Emu) -> bool {
     let wide = api.ends_with('W');
-    match api {
+    dispatch_api!(api, {
         "RegOpenKeyExA" | "RegOpenKeyExW" => open_key(emu, api, wide, true),
         "RegOpenKeyA" | "RegOpenKeyW" => open_key(emu, api, wide, false),
         "RegCreateKeyExA" | "RegCreateKeyExW" => create_key(emu, api, wide, true),
@@ -62,16 +63,15 @@ pub fn gateway(api: &str, emu: &mut emu::Emu) -> bool {
         "RegQueryValueExA" | "RegQueryValueExW" => query_value(emu, api, wide),
         "RegGetValueA" | "RegGetValueW" => get_value(emu, api, wide),
         "RegDeleteValueA" | "RegDeleteValueW" => delete_value(emu, api, wide),
-        "RegDeleteKeyA" | "RegDeleteKeyW" | "RegDeleteKeyExA" | "RegDeleteKeyExW" => {
-            delete_key(emu, api, wide, false)
-        }
+        "RegDeleteKeyA" | "RegDeleteKeyW" | "RegDeleteKeyExA" | "RegDeleteKeyExW" => delete_key(emu, api, wide, false),
         "RegDeleteTreeA" | "RegDeleteTreeW" => delete_key(emu, api, wide, true),
         "RegEnumKeyExA" | "RegEnumKeyExW" => enum_key(emu, api, wide),
         "RegEnumValueA" | "RegEnumValueW" => enum_value(emu, api, wide),
         "RegQueryInfoKeyA" | "RegQueryInfoKeyW" => query_info_key(emu, api),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn read_name(emu: &emu::Emu, ptr: u64, wide: bool) -> Option<String> {

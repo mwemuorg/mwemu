@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "LocalAlloc" => kernelbase::LocalAlloc(emu),
         "AllocateUserPhysicalPages2" => kernelbase::AllocateUserPhysicalPages2(emu),
         "CallEnclave" => kernelbase::CallEnclave(emu),
@@ -12,9 +13,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "EmptyWorkingSet" => kernelbase::EmptyWorkingSet(emu),
         "EncodeRemotePointer" => kernelbase::EncodeRemotePointer(emu),
         "GetMemoryNumaClosestInitiatorNode" => kernelbase::GetMemoryNumaClosestInitiatorNode(emu),
-        "GetMemoryNumaPerformanceInformation" => {
-            kernelbase::GetMemoryNumaPerformanceInformation(emu)
-        }
+        "GetMemoryNumaPerformanceInformation" => kernelbase::GetMemoryNumaPerformanceInformation(emu),
         "GetProcessMemoryInfo" => kernelbase::GetProcessMemoryInfo(emu),
         "GetWsChanges" => kernelbase::GetWsChanges(emu),
         "GetWsChangesEx" => kernelbase::GetWsChangesEx(emu),
@@ -118,7 +117,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "VirtualQueryEx" => kernelbase::VirtualQueryEx(emu),
         "VirtualUnlock" => kernelbase::VirtualUnlock(emu),
         "WriteProcessMemory" => kernelbase::WriteProcessMemory(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

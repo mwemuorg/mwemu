@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "BaseRegCloseKey" => advapi32::BaseRegCloseKey(emu),
         "BaseRegCreateKey" => advapi32::BaseRegCreateKey(emu),
         "BaseRegDeleteKeyEx" => advapi32::BaseRegDeleteKeyEx(emu),
@@ -101,12 +102,11 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RemoteRegEnumKeyWrapper" => advapi32::RemoteRegEnumKeyWrapper(emu),
         "RemoteRegEnumValueWrapper" => advapi32::RemoteRegEnumValueWrapper(emu),
         "RemoteRegQueryInfoKeyWrapper" => advapi32::RemoteRegQueryInfoKeyWrapper(emu),
-        "RemoteRegQueryMultipleValues2Wrapper" => {
-            advapi32::RemoteRegQueryMultipleValues2Wrapper(emu)
-        }
+        "RemoteRegQueryMultipleValues2Wrapper" => advapi32::RemoteRegQueryMultipleValues2Wrapper(emu),
         "RemoteRegQueryMultipleValuesWrapper" => advapi32::RemoteRegQueryMultipleValuesWrapper(emu),
         "RemoteRegQueryValueWrapper" => advapi32::RemoteRegQueryValueWrapper(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

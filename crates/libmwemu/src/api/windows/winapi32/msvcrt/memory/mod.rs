@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::msvcrt;
 
@@ -35,7 +36,7 @@ mod _aligned_free;
 pub use _aligned_free::_aligned_free;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "malloc" => msvcrt::malloc(emu),
         "free" => msvcrt::free(emu),
         "realloc" => msvcrt::realloc(emu),
@@ -50,7 +51,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "_msize" => msvcrt::_msize(emu),
         "_aligned_malloc" => msvcrt::_aligned_malloc(emu),
         "_aligned_free" => msvcrt::_aligned_free(emu, addr),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

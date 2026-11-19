@@ -5,9 +5,11 @@ use serde::{Deserialize, Serialize};
 use crate::api::abi::windows::{
     ArgumentError,
     CallingConvention::Stdcall,
-    WindowsAbi::{WinApi, WinSyscall},
+    WindowsAbi,
+    WindowsAbi::{WinApi, WinInterrupt, WinSyscall, WinSysenter},
 };
 use crate::api::windows::common::nt_api;
+use crate::arch::Arch;
 use crate::config::Config;
 use crate::emu::Emu;
 use crate::serialization::Serialization;
@@ -28,12 +30,14 @@ pub enum ApiRoute {
     Import,
     Gateway,
     Syscall,
+    Kernel,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ApiCall {
     pub library: String,
     pub name: String,
+    /// Export/stub address, or the raw service number for a syscall.
     pub address: u64,
     pub route: ApiRoute,
     pub pc: u64,
@@ -135,7 +139,13 @@ pub(crate) fn begin_call(emu: &mut Emu, library: &str, name: &str, address: u64,
 /// Complete diagnostic bookkeeping; handlers retain ownership of ABI cleanup.
 pub(crate) fn finish_call(emu: &mut Emu) {
     if !emu.api_policy.stopped() {
-        if emu.cfg.arch.is_x86() {
+        if emu.cfg.arch.is_x86()
+            && !emu
+                .api_policy
+                .entry
+                .as_ref()
+                .is_some_and(|entry| matches!(entry.route, ApiRoute::Syscall | ApiRoute::Kernel))
+        {
             emu.call_stack_mut().pop();
         }
         emu.api_policy.entry = None;
@@ -154,7 +164,7 @@ pub(crate) fn enter_gateway(
     }
 }
 
-fn call(emu: &Emu, library: &str, name: &str, address: u64) -> ApiCall {
+fn call_context(emu: &Emu, library: &str, name: &str, address: u64) -> ApiCall {
     if let Some(mut call) = emu.api_policy.entry.clone() {
         // The interceptor may know only the section until export resolution.
         if call.name.is_empty() {
@@ -203,20 +213,26 @@ fn stop(emu: &mut Emu, call: ApiCall, reason: ApiStopReason) {
 }
 
 pub(crate) fn argument_fault(emu: &mut Emu, error: ArgumentError) {
-    let call = if error.abi == WinSyscall {
+    let context = if !matches!(error.abi, WinApi(_))
+        && !emu
+            .api_policy
+            .entry
+            .as_ref()
+            .is_some_and(|entry| entry.route == ApiRoute::Syscall)
+    {
         ApiCall {
             library: "ntdll".into(),
-            name: format!("syscall 0x{:x}", emu.regs().rax),
-            address: emu.pc(),
+            name: format!("syscall 0x{:x}", emu.regs().get_eax()),
+            address: emu.regs().get_eax(),
             route: ApiRoute::Syscall,
             pc: emu.pc(),
             stack_pointer: emu.sp(),
             thread_id: emu.current_thread_id,
         }
     } else {
-        call(emu, "unknown", "direct handler", emu.pc())
+        call_context(emu, "unknown", "direct handler", emu.pc())
     };
-    stop(emu, call, ApiStopReason::InvalidArgument(error));
+    stop(emu, context, ApiStopReason::InvalidArgument(error));
 }
 
 /// API interception consumes the return address before invoking old handlers.
@@ -241,7 +257,7 @@ pub(crate) fn consume_return(emu: &mut Emu) -> bool {
         emu.set_pc(address);
         true
     } else {
-        let call = call(emu, "unknown", "unknown", 0);
+        let call = call_context(emu, "unknown", "unknown", 0);
         stop(emu, call, ApiStopReason::InvalidFrame);
         false
     }
@@ -262,9 +278,10 @@ struct Recipe {
     simulation: Simulation,
 }
 
-fn recipe(library: &str, name: &str, mode: ApiMode) -> Option<Recipe> {
+fn recipe(library: &str, name: &str, mode: ApiMode, route: ApiRoute) -> Option<Recipe> {
     let library = library.trim_end_matches(".dll");
-    if ["ntdll", "kernel32", "kernelbase"].contains(&library)
+    if (matches!(route, ApiRoute::Syscall | ApiRoute::Kernel)
+        || ["ntdll", "kernel32", "kernelbase"].contains(&library))
         && let Some(signature) = nt_api::signature(name)
     {
         let simulation = match mode {
@@ -295,8 +312,8 @@ fn recipe(library: &str, name: &str, mode: ApiMode) -> Option<Recipe> {
     None
 }
 
-fn generic_recipe(emu: &mut Emu, name: &str) -> Result<Recipe, ApiStopReason> {
-    let x86_words = if emu.cfg.arch.is_64bits() {
+fn generic_recipe(emu: &mut Emu, name: &str, call: WindowsAbi) -> Result<Recipe, ApiStopReason> {
+    let x86_words = if emu.cfg.arch.is_64bits() || !matches!(call, WinApi(_)) {
         0
     } else if name.starts_with("Nt") || name.starts_with("Zw") {
         // Fallback metadata cannot override the subsystem's signature checks.
@@ -324,10 +341,16 @@ fn generic_recipe(emu: &mut Emu, name: &str) -> Result<Recipe, ApiStopReason> {
     })
 }
 
-fn checked_frame(emu: &Emu, recipe: &Recipe) -> Option<u64> {
-    let call = WinApi(Stdcall);
+fn checked_frame(emu: &Emu, recipe: &Recipe, call: WindowsAbi) -> Option<u64> {
+    if (call == WinSyscall && !emu.cfg.arch.is_x64())
+        || (matches!(call, WinSysenter | WinInterrupt) && emu.cfg.arch != Arch::X86)
+    {
+        return None;
+    }
     let (next_sp, slots) = if emu.cfg.arch.is_64bits() {
         (emu.sp(), recipe.arguments)
+    } else if !matches!(call, WinApi(_)) {
+        (emu.sp(), recipe.x86_words)
     } else {
         let next_sp = emu
             .sp()
@@ -343,8 +366,7 @@ fn checked_frame(emu: &Emu, recipe: &Recipe) -> Option<u64> {
 }
 
 impl Simulation {
-    fn apply(self, emu: &mut Emu) -> Result<(u64, Option<u64>), ApiStopReason> {
-        let call = WinApi(Stdcall);
+    fn apply(self, emu: &mut Emu, call: WindowsAbi) -> Result<(u64, Option<u64>), ApiStopReason> {
         match self {
             // A declared unsupported-operation failure, before any output effects.
             Self::NtFailure => Ok((STATUS_NOT_IMPLEMENTED, None)),
@@ -382,11 +404,20 @@ impl Simulation {
 }
 
 pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64) {
+    unsupported_with_abi(emu, library, name, address, WinApi(Stdcall));
+}
+
+pub(crate) fn unsupported_with_abi(
+    emu: &mut Emu,
+    library: &str,
+    name: &str,
+    address: u64,
+    call: WindowsAbi,
+) {
     if emu.api_policy.stopped() {
         return;
     }
-    let context = call(emu, library, name, address);
-    let call = WinApi(Stdcall);
+    let context = call_context(emu, library, name, address);
     let mode = emu.api_mode();
     if mode == ApiMode::Strict {
         if emu
@@ -399,9 +430,14 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
         stop(emu, context, ApiStopReason::StrictPolicy);
         return;
     }
-    let recipe = recipe(&context.library.to_ascii_lowercase(), &context.name, mode)
-        .map(Ok)
-        .unwrap_or_else(|| generic_recipe(emu, &context.name));
+    let recipe = recipe(
+        &context.library.to_ascii_lowercase(),
+        &context.name,
+        mode,
+        context.route,
+    )
+    .map(Ok)
+    .unwrap_or_else(|| generic_recipe(emu, &context.name, call));
     let recipe = match recipe {
         Ok(recipe) => recipe,
         Err(reason) => {
@@ -409,11 +445,11 @@ pub(crate) fn unsupported(emu: &mut Emu, library: &str, name: &str, address: u64
             return;
         }
     };
-    let Some(next_sp) = checked_frame(emu, &recipe) else {
+    let Some(next_sp) = checked_frame(emu, &recipe, call) else {
         stop(emu, context, ApiStopReason::InvalidFrame);
         return;
     };
-    let (result, last_error) = match recipe.simulation.apply(emu) {
+    let (result, last_error) = match recipe.simulation.apply(emu, call) {
         Ok(result) => result,
         Err(reason) => {
             stop(emu, context, reason);

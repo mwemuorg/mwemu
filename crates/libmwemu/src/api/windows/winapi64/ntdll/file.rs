@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::winapi::common::sections;
 use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
@@ -11,7 +12,7 @@ use crate::maps::mem64::Permission;
 use crate::winapi::helper;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "NtCreateFile" => NtCreateFile(emu),
         "NtQueryInformationFile" => NtQueryInformationFile(emu),
         "NtSetInformationFile" => NtSetInformationFile(emu),
@@ -19,9 +20,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "NtWriteFile" => NtWriteFile(emu),
         "NtClose" => NtClose(emu),
         "RtlDosPathNameToNtPathName_U" => RtlDosPathNameToNtPathName_U(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 /*

@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
@@ -59,7 +60,7 @@ mod _putch;
 pub use _putch::_putch;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "__acrt_iob_func" => wincrt::__acrt_iob_func(emu),
         "setvbuf" => wincrt::setvbuf(emu),
         "__stdio_common_vfprintf" => wincrt::__stdio_common_vfprintf(emu),
@@ -95,7 +96,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "_fileno" => wincrt::_fileno(emu),
         "_setmode" => wincrt::_setmode(emu),
         "_putch" => wincrt::_putch(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

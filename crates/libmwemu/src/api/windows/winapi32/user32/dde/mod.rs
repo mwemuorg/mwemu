@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::user32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "DdeAbandonTransaction" => user32::DdeAbandonTransaction(emu),
         "DdeAccessData" => user32::DdeAccessData(emu),
         "DdeAddData" => user32::DdeAddData(emu),
@@ -40,7 +41,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "PackDDElParam" => user32::PackDDElParam(emu),
         "ReuseDDElParam" => user32::ReuseDDElParam(emu),
         "UnpackDDElParam" => user32::UnpackDDElParam(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

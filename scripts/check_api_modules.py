@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check Windows API module ownership and re-exports."""
+"""Check API, syscall, and kernel sources, plus Windows API module style."""
 import argparse
 import hashlib
 import json
@@ -9,6 +9,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+
+SOURCE_MODULES = ("api", "kernel", "syscall")
 
 
 def dependencies(dep_info, root):
@@ -25,8 +28,12 @@ def dependencies(dep_info, root):
     return result
 
 
-def orphan_sources(source_root, compiled):
-    return sorted(path.resolve() for path in source_root.rglob("*.rs")
+def orphan_sources(source_roots, compiled):
+    for source_root in source_roots:
+        if (source_root / "mod.rs").resolve() not in compiled:
+            raise ValueError(f"dependency files do not contain the root module: {source_root}")
+    return sorted(path.resolve() for source_root in source_roots
+                  for path in source_root.rglob("*.rs")
                   if path.resolve() not in compiled)
 
 
@@ -148,8 +155,25 @@ class ApiModulesTests(unittest.TestCase):
             active, orphan = root / "mod.rs", root / "orphan.rs"
             for path in (active, orphan, root / "reference.h"):
                 path.touch()
-            self.assertEqual(orphan_sources(root, {active.resolve()}), [orphan.resolve()])
-            self.assertEqual(orphan_sources(root, {active.resolve(), orphan.resolve()}), [])
+            self.assertEqual(orphan_sources([root], {active.resolve()}), [orphan.resolve()])
+            self.assertEqual(orphan_sources([root], {active.resolve(), orphan.resolve()}), [])
+
+    def test_each_entry_tree_reports_unconnected_sources(self):
+        with tempfile.TemporaryDirectory() as folder:
+            roots = [Path(folder) / name for name in SOURCE_MODULES]
+            compiled, orphans = set(), []
+            for root in roots:
+                root.mkdir()
+                entry, orphan = root / "mod.rs", root / "unconnected.rs"
+                entry.touch()
+                orphan.touch()
+                compiled.add(entry.resolve())
+                orphans.append(orphan.resolve())
+            self.assertEqual(orphan_sources(roots, compiled), sorted(orphans))
+            self.assertEqual(orphan_sources(roots, compiled | set(orphans)), [])
+            for root in roots:
+                with self.subTest(missing=root.name), self.assertRaises(ValueError):
+                    orphan_sources(roots, compiled - {(root / "mod.rs").resolve()})
 
     def test_git_ignored_sources_are_checked_before_and_after_staging(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -230,20 +254,21 @@ def main():
         return run_self_tests()
     root = Path(__file__).resolve().parents[1]
     try:
-        source_root = root / "crates/libmwemu/src/api/windows"
-        sources = sorted(source_root.rglob("*.rs"))
+        source_base = root / "crates/libmwemu/src"
+        source_roots = [source_base / name for name in SOURCE_MODULES]
+        sources = sorted(path for source_root in source_roots
+                         for path in source_root.rglob("*.rs"))
+        style_root = source_base / "api/windows"
         ignored = ignored_sources(root, sources)
         if ignored:
             names = "\n".join(path.relative_to(root).as_posix() for path in ignored)
             raise ValueError(f"Rust sources are ignored by Git:\n{names}")
         dep_files = current_compilation(root, args.target, args.offline)
         compiled = set().union(*(dependencies(path, root) for path in dep_files))
-        if (source_root / "mod.rs").resolve() not in compiled:
-            raise ValueError("dependency file does not contain the Windows API root module")
-        orphans = orphan_sources(source_root, compiled)
+        orphans = orphan_sources(source_roots, compiled)
         style_issues = [
             {"path": path.relative_to(root).as_posix(), "line": line, "message": message}
-            for path in sources
+            for path in sorted(style_root.rglob("*.rs"))
             for text in [path.read_text(encoding="utf-8")]
             for line, message in module_style_issues(text, aggregating_modules(path, text))
         ]
@@ -253,6 +278,8 @@ def main():
     report = {
         "dependency_files": {str(path): hashlib.sha256(path.read_bytes()).hexdigest()
                              for path in sorted(dep_files)},
+        "source_roots": [path.relative_to(root).as_posix() for path in source_roots],
+        "style_root": style_root.relative_to(root).as_posix(),
         "api_sources": len(sources),
         "ignored_sources": None if ignored is None else [],
         "orphans": [path.relative_to(root).as_posix() for path in orphans],
@@ -270,9 +297,9 @@ def main():
         print(f"FAIL: {len(style_issues)} Windows API module declarations need cleanup")
         return 1
     if orphans:
-        print(f"FAIL: {len(orphans)} Windows API source files are not compiled")
+        print(f"FAIL: {len(orphans)} API, syscall, or kernel source files are not compiled")
         return 1
-    print(f"OK: all {report['api_sources']} Windows API source files are compiled")
+    print(f"OK: all {report['api_sources']} API, syscall, and kernel source files are compiled")
     return 0
 
 

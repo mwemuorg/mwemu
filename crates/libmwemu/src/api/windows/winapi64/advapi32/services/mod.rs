@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "StartServiceCtrlDispatcherA" => advapi32::StartServiceCtrlDispatcherA(emu),
         "StartServiceCtrlDispatcherW" => advapi32::StartServiceCtrlDispatcherW(emu),
         "ChangeServiceConfig2A" => advapi32::ChangeServiceConfig2A(emu),
@@ -73,7 +74,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RegisterServiceCtrlHandlerExA" => advapi32::RegisterServiceCtrlHandlerExA(emu),
         "RegisterServiceCtrlHandlerExW" => advapi32::RegisterServiceCtrlHandlerExW(emu),
         "RegisterServiceCtrlHandlerW" => advapi32::RegisterServiceCtrlHandlerW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

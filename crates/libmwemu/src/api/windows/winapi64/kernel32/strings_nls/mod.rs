@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -35,7 +36,7 @@ mod format_message;
 pub use format_message::{FormatMessageA, FormatMessageW};
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetCalendarInfoA" => kernel32::GetCalendarInfoA(emu),
         "GetCalendarInfoW" => kernel32::GetCalendarInfoW(emu),
         "GetUserDefaultLangID" => kernel32::GetUserDefaultLangID(emu),
@@ -79,7 +80,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GlobalFindAtomW" => kernel32::GlobalFindAtomW(emu),
         "GlobalGetAtomNameA" => kernel32::GlobalGetAtomNameA(emu),
         "GlobalGetAtomNameW" => kernel32::GlobalGetAtomNameW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "VerQueryValueA" => kernelbase::VerQueryValueA(emu),
         "BaseDllFreeResourceId" => kernelbase::BaseDllFreeResourceId(emu),
         "BaseDllMapResourceIdW" => kernelbase::BaseDllMapResourceIdW(emu),
@@ -69,7 +70,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "SetDefaultDllDirectories" => kernelbase::SetDefaultDllDirectories(emu),
         "SizeofResource" => kernelbase::SizeofResource(emu),
         "ZombifyActCtx" => kernelbase::ZombifyActCtx(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

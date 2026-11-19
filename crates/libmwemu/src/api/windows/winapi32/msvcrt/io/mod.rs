@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::msvcrt;
 
@@ -116,7 +117,7 @@ mod wprintf;
 pub use wprintf::wprintf;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "fopen" => msvcrt::fopen(emu),
         "fwrite" => msvcrt::fwrite(emu),
         "fflush" => msvcrt::fflush(emu),
@@ -127,9 +128,7 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "freopen" => msvcrt::freopen(emu),
         "_wrename" => msvcrt::_wrename(emu),
         "_iob" => msvcrt::_iob(emu),
-        "_snprintf" | "snprintf" | "sprintf_s" | "_snprintf_s" | "_sprintf_p" => {
-            msvcrt::_snprintf(emu, api)
-        }
+        "_snprintf" | "snprintf" | "sprintf_s" | "_snprintf_s" | "_sprintf_p" => msvcrt::_snprintf(emu, api),
         "sscanf" | "_sscanf_s_l" | "sscanf_s" => msvcrt::sscanf(emu, api),
         "fread" => msvcrt::fread(emu),
         "fseek" => msvcrt::fseek(emu),
@@ -161,7 +160,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "__stdio_common_vsscanf" => msvcrt::__stdio_common_vsscanf(emu),
         "_sprintf_l" => msvcrt::_sprintf_l(emu),
         "wprintf" => msvcrt::wprintf(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

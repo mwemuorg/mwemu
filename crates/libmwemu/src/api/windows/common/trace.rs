@@ -2,7 +2,7 @@
 use crate::api::abi::windows::{
     CallingConvention::Stdcall,
     WindowsAbi,
-    WindowsAbi::{WinApi, WinSyscall},
+    WindowsAbi::{WinApi, WinInterrupt, WinSyscall, WinSysenter},
 };
 use crate::emu::Emu;
 use std::fmt::Write;
@@ -58,7 +58,7 @@ pub(crate) fn invoke(
         WinApi(_) => {
             log_red!(emu, "{}({}){}", name, arguments, result);
         }
-        WinSyscall => {
+        WinSyscall | WinSysenter | WinInterrupt => {
             log_orange!(
                 emu,
                 "syscall 0x{:x}: {}({}){}",

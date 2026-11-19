@@ -25,6 +25,8 @@ Apply these checks alongside the shared [API emulation guidance](../SKILL.md).
 ## Syscalls and kernel API calls
 
 - Treat a syscall instruction boundary, a libc syscall wrapper, and a direct call to a kernel routine as separate contracts. Check number resolution, register clobbers, stack layout, result width, error flags or status conventions, and supported guest architecture at the actual interception point.
+- For Linux, distinguish a missing syscall result (`-ENOSYS`) from a libc wrapper's `-1` and `errno`. Check every supported architecture and preserve runtime-hook precedence. Darwin has its own syscall error conventions.
+- Keep kernel argument and return-frame failures fallible through dispatch. Preserve the entry context, stop before handler effects, and check propagation through driver host calls.
 - Do not copy a user-mode generic fallback or stop policy into kernel handlers without checking their existing dispatcher and resource model. Shared frame mechanics can be reused while fault policy stays at the appropriate boundary.
 - Driver callbacks and kernel routines may have context, ownership, blocking, or scheduling constraints beyond ordinary library calls. Verify the relevant Linux kernel or Darwin contract and the emulator's supported model instead of claiming coverage through an adapter alone.
 

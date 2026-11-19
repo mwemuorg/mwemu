@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::user32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "MessageBoxA" => user32::MessageBoxA(emu),
         "MessageBoxW" => user32::MessageBoxW(emu),
         "CheckDlgButton" => user32::CheckDlgButton(emu),
@@ -61,7 +62,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "SetDlgItemTextW" => user32::SetDlgItemTextW(emu),
         "SoftModalMessageBox" => user32::SoftModalMessageBox(emu),
         "SwapMouseButton" => user32::SwapMouseButton(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

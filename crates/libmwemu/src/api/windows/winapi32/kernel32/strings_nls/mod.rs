@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -150,7 +151,7 @@ mod get_thread_locale;
 pub use get_thread_locale::GetThreadLocale;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "lstrlenW" => kernel32::lstrlenW(emu),
         "lstrcpyW" => kernel32::lstrcpyW(emu),
         "lstrcpyn" => kernel32::lstrcpyn(emu),
@@ -179,12 +180,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "AddAtomA" => kernel32::AddAtomA(emu),
         "AddAtomW" => kernel32::AddAtomW(emu),
         "BaseVerifyUnicodeString" => kernel32::BaseVerifyUnicodeString(emu),
-        "Basep8BitStringToDynamicUnicodeString" => {
-            kernel32::Basep8BitStringToDynamicUnicodeString(emu)
-        }
-        "BasepAnsiStringToDynamicUnicodeString" => {
-            kernel32::BasepAnsiStringToDynamicUnicodeString(emu)
-        }
+        "Basep8BitStringToDynamicUnicodeString" => kernel32::Basep8BitStringToDynamicUnicodeString(emu),
+        "BasepAnsiStringToDynamicUnicodeString" => kernel32::BasepAnsiStringToDynamicUnicodeString(emu),
         "DeleteAtom" => kernel32::DeleteAtom(emu),
         "EnumLanguageGroupLocalesA" => kernel32::EnumLanguageGroupLocalesA(emu),
         "EnumSystemCodePagesA" => kernel32::EnumSystemCodePagesA(emu),
@@ -326,7 +323,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "uaw_wcsicmp" => kernel32::uaw_wcsicmp(emu),
         "uaw_wcslen" => kernel32::uaw_wcslen(emu),
         "uaw_wcsrchr" => kernel32::uaw_wcsrchr(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

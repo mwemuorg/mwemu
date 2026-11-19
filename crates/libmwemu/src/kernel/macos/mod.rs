@@ -8,61 +8,41 @@
 //! executable is a Mach-O `MH_KEXT_BUNDLE` with external relocations, so it
 //! needs the Mach-O counterpart of the ET_REL path used for `.ko`.
 
+use crate::api::abi::unix::UnixApi;
+use crate::api::dispatch_api;
+use crate::api::unix::api_try;
 use crate::emu::Emu;
 use crate::kernel::heap::Region;
+use crate::kernel::linux::{printk, string};
 
 pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
-    match symbol {
+    dispatch_api!(symbol, {
         // --- allocators ---------------------------------------------------------
-        "IOMalloc" | "IOMallocAligned" | "kalloc" | "kalloc_external" => {
-            let size = emu.kernel_arg(0);
-            let ptr = emu.kernel_alloc(Region::Slab, size, "kalloc", symbol, false);
-            emu.set_kernel_ret(ptr);
-        }
-        "IOMallocZero" | "IOMallocZeroData" | "kalloc_type_impl_external" => {
-            let size = emu.kernel_arg(0);
-            let ptr = emu.kernel_alloc(Region::Slab, size, "kalloc", symbol, true);
-            emu.set_kernel_ret(ptr);
-        }
+        "IOMalloc" | "IOMallocAligned" | "kalloc" | "kalloc_external" => IOMalloc(emu, symbol),
+        "IOMallocZero" | "IOMallocZeroData" | "kalloc_type_impl_external" => IOMallocZero(emu, symbol),
         "IOFree"
         | "IOFreeAligned"
         | "IOFreeData"
         | "kfree"
         | "kfree_external"
-        | "kfree_type_impl_external" => {
-            let ptr = emu.kernel_arg(0);
-            emu.kernel_free(ptr, symbol);
-        }
+        | "kfree_type_impl_external" => IOFree(emu, symbol),
 
         // --- logging ---------------------------------------------------------------
-        "IOLog" | "printf" | "kprintf" | "os_log_internal" => {
-            let fmt = emu.kernel_arg(0);
-            let line = crate::kernel::linux::printk::format(emu, fmt, 1);
-            emu.kernel_log_line(line);
-            emu.set_kernel_ret(0);
-        }
+        "IOLog" | "printf" | "kprintf" | "os_log_internal" => IOLog(emu, symbol),
 
         // --- locking (no-ops: emulation is single-threaded) --------------------
         // IOLockAlloc hands back a non-null, mapped token the driver stores and
         // passes back to lock/unlock; it is never dereferenced in this model, so
         // reusing the kernel data base avoids a tracked allocation (which would
         // otherwise look like a leak).
-        "IOLockAlloc" | "IORWLockAlloc" | "lck_mtx_alloc_init" | "IOSimpleLockAlloc" => {
-            let token = emu.kernel.as_ref().map(|k| k.layout.data_base).unwrap_or(0);
-            emu.set_kernel_ret(token);
-        }
+        "IOLockAlloc" | "IORWLockAlloc" | "lck_mtx_alloc_init" | "IOSimpleLockAlloc" => lock_token_stub(emu, symbol),
         "IOLockLock" | "IOLockUnlock" | "IOLockFree" | "IORWLockRead" | "IORWLockWrite"
         | "IORWLockUnlock" | "IORWLockFree" | "lck_mtx_lock" | "lck_mtx_unlock"
-        | "lck_mtx_free" | "IOSimpleLockLock" | "IOSimpleLockUnlock" | "IOSimpleLockFree" => {
-            emu.set_kernel_ret(0);
-        }
-
-        // Generic libkern string/memory helpers (memcpy, memset, memcmp,
-        // strlen, …) behave exactly as on Linux and run through the same guard,
-        // so a copy into a freed object is caught inside the kernel call.
-        _ => return crate::kernel::linux::string::dispatch(symbol, emu),
-    }
-    true
+        | "lck_mtx_free" | "IOSimpleLockLock" | "IOSimpleLockUnlock" | "IOSimpleLockFree" => lock_stub(emu, symbol),
+    },
+        handled(()) => true,
+        fallback => string::dispatch(symbol, emu),
+    )
 }
 
 /// The XNU surface a kext realistically imports. Groups beyond `alloc` and
@@ -124,3 +104,42 @@ pub const SURFACE: &[(&str, &[&str])] = &[
         ],
     ),
 ];
+
+fn IOMalloc(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    let size = api_try!(emu, call.arg(emu, 0));
+    let ptr = emu.kernel_alloc(Region::Slab, size, "kalloc", symbol, false);
+    call.set_return(emu, ptr);
+}
+
+fn IOMallocZero(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    let size = api_try!(emu, call.arg(emu, 0));
+    let ptr = emu.kernel_alloc(Region::Slab, size, "kalloc", symbol, true);
+    call.set_return(emu, ptr);
+}
+
+fn IOFree(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    let ptr = api_try!(emu, call.arg(emu, 0));
+    emu.kernel_free(ptr, symbol);
+}
+
+fn IOLog(emu: &mut Emu, _symbol: &str) {
+    let call = UnixApi;
+    let fmt = api_try!(emu, call.arg(emu, 0));
+    let line = api_try!(emu, printk::format(emu, fmt, 1));
+    emu.kernel_log_line(line);
+    call.set_return(emu, 0);
+}
+
+fn lock_token_stub(emu: &mut Emu, _symbol: &str) {
+    let call = UnixApi;
+    let token = emu.kernel.as_ref().map(|k| k.layout.data_base).unwrap_or(0);
+    call.set_return(emu, token);
+}
+
+fn lock_stub(emu: &mut Emu, _symbol: &str) {
+    let call = UnixApi;
+    call.set_return(emu, 0);
+}

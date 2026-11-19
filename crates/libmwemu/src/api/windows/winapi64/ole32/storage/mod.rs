@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::ole32;
 
@@ -179,7 +180,7 @@ mod write_string_stream;
 pub use write_string_stream::WriteStringStream;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CoGetInstanceFromIStorage" => ole32::CoGetInstanceFromIStorage(emu),
         "CoGetInterfaceAndReleaseStream" => ole32::CoGetInterfaceAndReleaseStream(emu),
         "CreateILockBytesOnHGlobal" => ole32::CreateILockBytesOnHGlobal(emu),
@@ -239,7 +240,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "WriteOleStg" => ole32::WriteOleStg(emu),
         "WriteStorageProperties" => ole32::WriteStorageProperties(emu),
         "WriteStringStream" => ole32::WriteStringStream(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

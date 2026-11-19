@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AddVectoredExceptionHandler" => kernel32::AddVectoredExceptionHandler(emu),
         "OutputDebugStringA" => kernel32::OutputDebugStringA(emu),
         "OutputDebugStringW" => kernel32::OutputDebugStringW(emu),
@@ -14,9 +15,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "FatalExit" => kernel32::FatalExit(emu),
         "RaiseInvalid16BitExeError" => kernel32::RaiseInvalid16BitExeError(emu),
         "SbpIsTraceEnabled" => kernel32::SbpIsTraceEnabled(emu),
-        "TraceLoggingRegisterEx_EventRegister_EventSetInformation" => {
-            kernel32::TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu)
-        }
+        "TraceLoggingRegisterEx_EventRegister_EventSetInformation" => kernel32::TraceLoggingRegisterEx_EventRegister_EventSetInformation(emu),
         "WerGetFlagsWorker" => kernel32::WerGetFlagsWorker(emu),
         "WerRegisterFileWorker" => kernel32::WerRegisterFileWorker(emu),
         "WerSetFlags" => kernel32::WerSetFlags(emu),
@@ -56,9 +55,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "WerRegisterMemoryBlock" => kernel32::WerRegisterMemoryBlock(emu),
         "WerRegisterMemoryBlockWorker" => kernel32::WerRegisterMemoryBlockWorker(emu),
         "WerRegisterRuntimeExceptionModule" => kernel32::WerRegisterRuntimeExceptionModule(emu),
-        "WerRegisterRuntimeExceptionModuleWorker" => {
-            kernel32::WerRegisterRuntimeExceptionModuleWorker(emu)
-        }
+        "WerRegisterRuntimeExceptionModuleWorker" => kernel32::WerRegisterRuntimeExceptionModuleWorker(emu),
         "WerSetFlagsWorker" => kernel32::WerSetFlagsWorker(emu),
         "WerUnregisterAdditionalProcess" => kernel32::WerUnregisterAdditionalProcess(emu),
         "WerUnregisterAppLocalDump" => kernel32::WerUnregisterAppLocalDump(emu),
@@ -67,9 +64,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "WerUnregisterFile" => kernel32::WerUnregisterFile(emu),
         "WerUnregisterMemoryBlock" => kernel32::WerUnregisterMemoryBlock(emu),
         "WerUnregisterRuntimeExceptionModule" => kernel32::WerUnregisterRuntimeExceptionModule(emu),
-        "WerUnregisterRuntimeExceptionModuleWorker" => {
-            kernel32::WerUnregisterRuntimeExceptionModuleWorker(emu)
-        }
+        "WerUnregisterRuntimeExceptionModuleWorker" => kernel32::WerUnregisterRuntimeExceptionModuleWorker(emu),
         "WerpNotifyLoadStringResourceWorker" => kernel32::WerpNotifyLoadStringResourceWorker(emu),
         "EtwEventEnabled" | "EventEnabled" => kernel32::EtwEventEnabled(emu),
         "EtwEventRegister" | "EventRegister" => kernel32::EtwEventRegister(emu),
@@ -80,7 +75,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "RtlVirtualUnwind" => kernel32::RtlVirtualUnwind(emu),
         "RtlVirtualUnwind2" => kernel32::RtlVirtualUnwind2(emu),
         "K32GetPerformanceInfo" => kernel32::K32GetPerformanceInfo(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

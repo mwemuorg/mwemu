@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "LookupPrivilegeValueW" => advapi32::LookupPrivilegeValueW(emu),
         "AdjustTokenPrivileges" => advapi32::AdjustTokenPrivileges(emu),
         "AccessCheck" => advapi32::AccessCheck(emu),
@@ -12,32 +13,18 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "AccessCheckByTypeAndAuditAlarmA" => advapi32::AccessCheckByTypeAndAuditAlarmA(emu),
         "AccessCheckByTypeAndAuditAlarmW" => advapi32::AccessCheckByTypeAndAuditAlarmW(emu),
         "AccessCheckByTypeResultList" => advapi32::AccessCheckByTypeResultList(emu),
-        "AccessCheckByTypeResultListAndAuditAlarmA" => {
-            advapi32::AccessCheckByTypeResultListAndAuditAlarmA(emu)
-        }
-        "AccessCheckByTypeResultListAndAuditAlarmByHandleA" => {
-            advapi32::AccessCheckByTypeResultListAndAuditAlarmByHandleA(emu)
-        }
-        "AccessCheckByTypeResultListAndAuditAlarmByHandleW" => {
-            advapi32::AccessCheckByTypeResultListAndAuditAlarmByHandleW(emu)
-        }
-        "AccessCheckByTypeResultListAndAuditAlarmW" => {
-            advapi32::AccessCheckByTypeResultListAndAuditAlarmW(emu)
-        }
+        "AccessCheckByTypeResultListAndAuditAlarmA" => advapi32::AccessCheckByTypeResultListAndAuditAlarmA(emu),
+        "AccessCheckByTypeResultListAndAuditAlarmByHandleA" => advapi32::AccessCheckByTypeResultListAndAuditAlarmByHandleA(emu),
+        "AccessCheckByTypeResultListAndAuditAlarmByHandleW" => advapi32::AccessCheckByTypeResultListAndAuditAlarmByHandleW(emu),
+        "AccessCheckByTypeResultListAndAuditAlarmW" => advapi32::AccessCheckByTypeResultListAndAuditAlarmW(emu),
         "AdjustTokenGroups" => advapi32::AdjustTokenGroups(emu),
         "AuditComputeEffectivePolicyByToken" => advapi32::AuditComputeEffectivePolicyByToken(emu),
-        "BuildImpersonateExplicitAccessWithNameA" => {
-            advapi32::BuildImpersonateExplicitAccessWithNameA(emu)
-        }
-        "BuildImpersonateExplicitAccessWithNameW" => {
-            advapi32::BuildImpersonateExplicitAccessWithNameW(emu)
-        }
+        "BuildImpersonateExplicitAccessWithNameA" => advapi32::BuildImpersonateExplicitAccessWithNameA(emu),
+        "BuildImpersonateExplicitAccessWithNameW" => advapi32::BuildImpersonateExplicitAccessWithNameW(emu),
         "BuildImpersonateTrusteeA" => advapi32::BuildImpersonateTrusteeA(emu),
         "BuildImpersonateTrusteeW" => advapi32::BuildImpersonateTrusteeW(emu),
         "CheckTokenMembership" => advapi32::CheckTokenMembership(emu),
-        "ComputeAccessTokenFromCodeAuthzLevel" => {
-            advapi32::ComputeAccessTokenFromCodeAuthzLevel(emu)
-        }
+        "ComputeAccessTokenFromCodeAuthzLevel" => advapi32::ComputeAccessTokenFromCodeAuthzLevel(emu),
         "CreateProcessAsUserA" => advapi32::CreateProcessAsUserA(emu),
         "CreateProcessAsUserW" => advapi32::CreateProcessAsUserW(emu),
         "CreateProcessWithLogonW" => advapi32::CreateProcessWithLogonW(emu),
@@ -82,7 +69,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "SaferiCompareTokenLevels" => advapi32::SaferiCompareTokenLevels(emu),
         "SetThreadToken" => advapi32::SetThreadToken(emu),
         "SetTokenInformation" => advapi32::SetTokenInformation(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

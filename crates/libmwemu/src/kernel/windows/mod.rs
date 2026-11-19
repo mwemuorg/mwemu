@@ -440,10 +440,8 @@ pub fn alloc_user_buffer(emu: &mut Emu, size: u64, label: &str) -> u64 {
     }
 }
 
-/// Every symbol this surface implements, grouped by subsystem. Everything
-/// listed is handled by a real implementation or a modelled success; an
-/// import outside this list still resolves to a stub that returns 0 and is
-/// reported in `KernelEnv::unimplemented` when called.
+/// Export names declared by the dispatchers, grouped by subsystem.
+/// Unhandled imports use the Windows API policy when called.
 pub const SURFACE: &[(&str, &[&str])] = &[
     ("alloc", pool::SURFACE),
     ("io", io::SURFACE),
@@ -456,5 +454,11 @@ pub const SURFACE: &[(&str, &[&str])] = &[
 
 /// True when the symbol has an implementation (or a deliberate model).
 pub fn is_implemented(name: &str) -> bool {
-    SURFACE.iter().any(|(_, names)| names.contains(&name))
+    pool::has_handler(name)
+        || io::has_handler(name)
+        || mm::has_handler(name)
+        || rtl::has_handler(name)
+        || sync::has_handler(name)
+        || crt::has_handler(name)
+        || misc::has_handler(name)
 }

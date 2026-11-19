@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CveEventWrite" => kernelbase::CveEventWrite(emu),
         "WaitOnAddress" => kernelbase::WaitOnAddress(emu),
         "WakeByAddressAll" => kernelbase::WakeByAddressAll(emu),
@@ -32,9 +33,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "InitOnceInitialize" => kernelbase::InitOnceInitialize(emu),
         "InitializeConditionVariable" => kernelbase::InitializeConditionVariable(emu),
         "InitializeCriticalSection" => kernelbase::InitializeCriticalSection(emu),
-        "InitializeCriticalSectionAndSpinCount" => {
-            kernelbase::InitializeCriticalSectionAndSpinCount(emu)
-        }
+        "InitializeCriticalSectionAndSpinCount" => kernelbase::InitializeCriticalSectionAndSpinCount(emu),
         "InitializeCriticalSectionEx" => kernelbase::InitializeCriticalSectionEx(emu),
         "InitializeSListHead" => kernelbase::InitializeSListHead(emu),
         "InitializeSRWLock" => kernelbase::InitializeSRWLock(emu),
@@ -45,9 +44,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "InterlockedPushListSList" => kernelbase::InterlockedPushListSList(emu),
         "InterlockedPushListSListEx" => kernelbase::InterlockedPushListSListEx(emu),
         "LeaveCriticalSection" => kernelbase::LeaveCriticalSection(emu),
-        "LeaveCriticalSectionWhenCallbackReturns" => {
-            kernelbase::LeaveCriticalSectionWhenCallbackReturns(emu)
-        }
+        "LeaveCriticalSectionWhenCallbackReturns" => kernelbase::LeaveCriticalSectionWhenCallbackReturns(emu),
         "OpenEventA" => kernelbase::OpenEventA(emu),
         "OpenEventW" => kernelbase::OpenEventW(emu),
         "OpenMutexW" => kernelbase::OpenMutexW(emu),
@@ -60,9 +57,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "ReleaseSRWLockExclusive" => kernelbase::ReleaseSRWLockExclusive(emu),
         "ReleaseSRWLockShared" => kernelbase::ReleaseSRWLockShared(emu),
         "ReleaseSemaphore" => kernelbase::ReleaseSemaphore(emu),
-        "ReleaseSemaphoreWhenCallbackReturns" => {
-            kernelbase::ReleaseSemaphoreWhenCallbackReturns(emu)
-        }
+        "ReleaseSemaphoreWhenCallbackReturns" => kernelbase::ReleaseSemaphoreWhenCallbackReturns(emu),
         "ResetEvent" => kernelbase::ResetEvent(emu),
         "SetCriticalSectionSpinCount" => kernelbase::SetCriticalSectionSpinCount(emu),
         "SetEvent" => kernelbase::SetEvent(emu),
@@ -94,7 +89,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "InterlockedExchange" => kernelbase::InterlockedExchange(emu),
         "InterlockedExchangeAdd" => kernelbase::InterlockedExchangeAdd(emu),
         "InterlockedIncrement" => kernelbase::InterlockedIncrement(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

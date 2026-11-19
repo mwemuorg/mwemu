@@ -1,19 +1,14 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
-        "ConvertAuxiliaryCounterToPerformanceCounter" => {
-            kernelbase::ConvertAuxiliaryCounterToPerformanceCounter(emu)
-        }
-        "ConvertPerformanceCounterToAuxiliaryCounter" => {
-            kernelbase::ConvertPerformanceCounterToAuxiliaryCounter(emu)
-        }
+    dispatch_api!(api, {
+        "ConvertAuxiliaryCounterToPerformanceCounter" => kernelbase::ConvertAuxiliaryCounterToPerformanceCounter(emu),
+        "ConvertPerformanceCounterToAuxiliaryCounter" => kernelbase::ConvertPerformanceCounterToAuxiliaryCounter(emu),
         "EnumDynamicTimeZoneInformation" => kernelbase::EnumDynamicTimeZoneInformation(emu),
         "GetCalendar" => kernelbase::GetCalendar(emu),
-        "GetDynamicTimeZoneInformationEffectiveYears" => {
-            kernelbase::GetDynamicTimeZoneInformationEffectiveYears(emu)
-        }
+        "GetDynamicTimeZoneInformationEffectiveYears" => kernelbase::GetDynamicTimeZoneInformationEffectiveYears(emu),
         "GetRoamingLastObservedChangeTime" => kernelbase::GetRoamingLastObservedChangeTime(emu),
         "GetSystemLeapSecondInformation" => kernelbase::GetSystemLeapSecondInformation(emu),
         "GetSystemTimeAdjustmentPrecise" => kernelbase::GetSystemTimeAdjustmentPrecise(emu),
@@ -21,16 +16,12 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "Internal_EnumDateFormats" => kernelbase::Internal_EnumDateFormats(emu),
         "Internal_EnumTimeFormats" => kernelbase::Internal_EnumTimeFormats(emu),
         "IsTimeZoneRedirectionEnabled" => kernelbase::IsTimeZoneRedirectionEnabled(emu),
-        "OverrideRoamingDataModificationTimesInRange" => {
-            kernelbase::OverrideRoamingDataModificationTimesInRange(emu)
-        }
+        "OverrideRoamingDataModificationTimesInRange" => kernelbase::OverrideRoamingDataModificationTimesInRange(emu),
         "QueryAuxiliaryCounterFrequency" => kernelbase::QueryAuxiliaryCounterFrequency(emu),
         "QueryInterruptTime" => kernelbase::QueryInterruptTime(emu),
         "QueryInterruptTimePrecise" => kernelbase::QueryInterruptTimePrecise(emu),
         "QueryUnbiasedInterruptTimePrecise" => kernelbase::QueryUnbiasedInterruptTimePrecise(emu),
-        "SetClientDynamicTimeZoneInformation" => {
-            kernelbase::SetClientDynamicTimeZoneInformation(emu)
-        }
+        "SetClientDynamicTimeZoneInformation" => kernelbase::SetClientDynamicTimeZoneInformation(emu),
         "SetClientTimeZoneInformation" => kernelbase::SetClientTimeZoneInformation(emu),
         "SetRoamingLastObservedChangeTime" => kernelbase::SetRoamingLastObservedChangeTime(emu),
         "SetSystemTimeAdjustmentPrecise" => kernelbase::SetSystemTimeAdjustmentPrecise(emu),
@@ -89,7 +80,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "SystemTimeToTzSpecificLocalTimeEx" => kernelbase::SystemTimeToTzSpecificLocalTimeEx(emu),
         "TzSpecificLocalTimeToSystemTime" => kernelbase::TzSpecificLocalTimeToSystemTime(emu),
         "TzSpecificLocalTimeToSystemTimeEx" => kernelbase::TzSpecificLocalTimeToSystemTimeEx(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

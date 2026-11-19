@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::wincrt;
 
@@ -38,7 +39,7 @@ mod isxdigit;
 pub use isxdigit::isxdigit;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "strlen" => wincrt::strlen(emu),
         "strncmp" => wincrt::strncmp(emu),
         "strcmp" => wincrt::crt_strcmp(emu),
@@ -85,7 +86,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "_wcstombs_l" => wincrt::_wcstombs_l(emu),
         "ispunct" => wincrt::ispunct(emu),
         "isxdigit" => wincrt::isxdigit(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

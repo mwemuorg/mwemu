@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
@@ -137,7 +138,7 @@ mod wait_for_multiple_objects;
 pub use wait_for_multiple_objects::WaitForMultipleObjects;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "InitializeSRWLock" => kernel32::InitializeSRWLock(emu),
         "AcquireSRWLockExclusive" => kernel32::AcquireSRWLockExclusive(emu),
         "AcquireSRWLockShared" => kernel32::AcquireSRWLockShared(emu),
@@ -152,17 +153,13 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "CreateMutexW" => kernel32::CreateMutexW(emu),
         "EnterCriticalSection" => kernel32::EnterCriticalSection(emu),
         "InitializeCriticalSection" => kernel32::InitializeCriticalSection(emu),
-        "InitializeCriticalSectionAndSpinCount" => {
-            kernel32::InitializeCriticalSectionAndSpinCount(emu)
-        }
+        "InitializeCriticalSectionAndSpinCount" => kernel32::InitializeCriticalSectionAndSpinCount(emu),
         "InitializeCriticalSectionEx" => kernel32::InitializeCriticalSectionEx(emu),
         "InterlockedIncrement" => kernel32::InterlockedIncrement(emu),
         "LeaveCriticalSection" => kernel32::LeaveCriticalSection(emu),
         "Sleep" => kernel32::Sleep(emu),
         "WaitForSingleObject" => kernel32::WaitForSingleObject(emu),
-        "BaseWriteErrorElevationRequiredEvent" => {
-            kernel32::BaseWriteErrorElevationRequiredEvent(emu)
-        }
+        "BaseWriteErrorElevationRequiredEvent" => kernel32::BaseWriteErrorElevationRequiredEvent(emu),
         "CptpQuirksInitOnce" => kernel32::CptpQuirksInitOnce(emu),
         "CreateSemaphoreA" => kernel32::CreateSemaphoreA(emu),
         "CreateSemaphoreExA" => kernel32::CreateSemaphoreExA(emu),
@@ -203,9 +200,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "InterlockedPushEntrySList" => kernel32::InterlockedPushEntrySList(emu),
         "InterlockedPushListSList" => kernel32::InterlockedPushListSList(emu),
         "InterlockedPushListSListEx" => kernel32::InterlockedPushListSListEx(emu),
-        "LeaveCriticalSectionWhenCallbackReturns" => {
-            kernel32::LeaveCriticalSectionWhenCallbackReturns(emu)
-        }
+        "LeaveCriticalSectionWhenCallbackReturns" => kernel32::LeaveCriticalSectionWhenCallbackReturns(emu),
         "OpenEventA" => kernel32::OpenEventA(emu),
         "OpenEventW" => kernel32::OpenEventW(emu),
         "OpenMutexW" => kernel32::OpenMutexW(emu),
@@ -238,7 +233,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "WaitForThreadpoolWorkCallbacks" => kernel32::WaitForThreadpoolWorkCallbacks(emu),
         "WakeAllConditionVariable" => kernel32::WakeAllConditionVariable(emu),
         "WakeConditionVariable" => kernel32::WakeConditionVariable(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

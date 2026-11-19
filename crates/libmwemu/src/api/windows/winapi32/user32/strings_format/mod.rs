@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::user32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "wsprintfW" => user32::wsprintfW(emu),
         "CharLowerW" => user32::CharLowerW(emu),
         "wsprintfA" => user32::wsprintfA(emu),
@@ -41,7 +42,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "WINNLSGetIMEHotkey" => user32::WINNLSGetIMEHotkey(emu),
         "wvsprintfA" => user32::wvsprintfA(emu),
         "wvsprintfW" => user32::wvsprintfW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

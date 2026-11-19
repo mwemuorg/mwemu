@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::msvcrt;
 
@@ -68,7 +69,7 @@ mod _controlfp_s;
 pub use _controlfp_s::_controlfp_s;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "__setusermatherr" => msvcrt::__setusermatherr(emu),
         "_controlfp" => msvcrt::_controlfp(emu),
         "_ftol" => msvcrt::_ftol(emu),
@@ -91,7 +92,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "fabs" => msvcrt::fabs(emu),
         "fmod" => msvcrt::fmod(emu),
         "_controlfp_s" => msvcrt::_controlfp_s(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

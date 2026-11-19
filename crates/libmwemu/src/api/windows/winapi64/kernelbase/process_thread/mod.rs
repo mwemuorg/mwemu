@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "EnumProcesses" => kernelbase::EnumProcesses(emu),
         "GetCurrentTargetPlatformContext" => kernelbase::GetCurrentTargetPlatformContext(emu),
         "GetProcessImageFileNameA" => kernelbase::GetProcessImageFileNameA(emu),
@@ -14,9 +15,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "SHExpandEnvironmentStringsW" => kernelbase::SHExpandEnvironmentStringsW(emu),
         "SetProcessGroupAffinity" => kernelbase::SetProcessGroupAffinity(emu),
         "SetProcessValidCallTargets" => kernelbase::SetProcessValidCallTargets(emu),
-        "SetProcessValidCallTargetsForMappedView" => {
-            kernelbase::SetProcessValidCallTargetsForMappedView(emu)
-        }
+        "SetProcessValidCallTargetsForMappedView" => kernelbase::SetProcessValidCallTargetsForMappedView(emu),
         "SetThreadPreferredUILanguages2" => kernelbase::SetThreadPreferredUILanguages2(emu),
         "Wow64SetThreadDefaultGuestMachine" => kernelbase::Wow64SetThreadDefaultGuestMachine(emu),
         "CallbackMayRunLong" => kernelbase::CallbackMayRunLong(emu),
@@ -51,12 +50,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "CreateThreadpoolWork" => kernelbase::CreateThreadpoolWork(emu),
         "DeleteFiber" => kernelbase::DeleteFiber(emu),
         "DeleteProcThreadAttributeList" => kernelbase::DeleteProcThreadAttributeList(emu),
-        "DisassociateCurrentThreadFromCallback" => {
-            kernelbase::DisassociateCurrentThreadFromCallback(emu)
-        }
-        "EnableProcessOptionalXStateFeatures" => {
-            kernelbase::EnableProcessOptionalXStateFeatures(emu)
-        }
+        "DisassociateCurrentThreadFromCallback" => kernelbase::DisassociateCurrentThreadFromCallback(emu),
+        "EnableProcessOptionalXStateFeatures" => kernelbase::EnableProcessOptionalXStateFeatures(emu),
         "ExitProcess" => kernelbase::ExitProcess(emu),
         "ExitThread" => kernelbase::ExitThread(emu),
         "ExpandEnvironmentStringsA" => kernelbase::ExpandEnvironmentStringsA(emu),
@@ -163,12 +158,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "SetProcessAffinityUpdateMode" => kernelbase::SetProcessAffinityUpdateMode(emu),
         "SetProcessDefaultCpuSetMasks" => kernelbase::SetProcessDefaultCpuSetMasks(emu),
         "SetProcessDefaultCpuSets" => kernelbase::SetProcessDefaultCpuSets(emu),
-        "SetProcessDynamicEHContinuationTargets" => {
-            kernelbase::SetProcessDynamicEHContinuationTargets(emu)
-        }
-        "SetProcessDynamicEnforcedCetCompatibleRanges" => {
-            kernelbase::SetProcessDynamicEnforcedCetCompatibleRanges(emu)
-        }
+        "SetProcessDynamicEHContinuationTargets" => kernelbase::SetProcessDynamicEHContinuationTargets(emu),
+        "SetProcessDynamicEnforcedCetCompatibleRanges" => kernelbase::SetProcessDynamicEnforcedCetCompatibleRanges(emu),
         "SetProcessInformation" => kernelbase::SetProcessInformation(emu),
         "SetProcessPreferredUILanguages" => kernelbase::SetProcessPreferredUILanguages(emu),
         "SetProcessPriorityBoost" => kernelbase::SetProcessPriorityBoost(emu),
@@ -216,7 +207,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "Wow64SetThreadContext" => kernelbase::Wow64SetThreadContext(emu),
         "Wow64SuspendThread" => kernelbase::Wow64SuspendThread(emu),
         "Wow64Transition" => kernelbase::Wow64Transition(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

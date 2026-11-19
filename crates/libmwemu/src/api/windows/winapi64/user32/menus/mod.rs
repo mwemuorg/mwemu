@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::user32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AppendMenuA" => user32::AppendMenuA(emu),
         "AppendMenuW" => user32::AppendMenuW(emu),
         "CalcMenuBar" => user32::CalcMenuBar(emu),
@@ -68,7 +69,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "TranslateAccelerator" => user32::TranslateAccelerator(emu),
         "TranslateAcceleratorA" => user32::TranslateAcceleratorA(emu),
         "TranslateAcceleratorW" => user32::TranslateAcceleratorW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

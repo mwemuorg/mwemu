@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::mem64::Permission;
@@ -10,11 +11,12 @@ const DEFAULT_ALLOCATION_SIZE: u64 = 256;
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split('!').next_back().unwrap_or(&api);
-    match api {
+    dispatch_api!(api, {
         "GdipAlloc" => GdipAlloc(emu),
-        _ => return fallback::unimplemented(addr, api, emu),
-    }
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }
 
 fn GdipAlloc(emu: &mut emu::Emu) {

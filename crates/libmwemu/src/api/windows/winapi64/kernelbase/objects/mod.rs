@@ -1,22 +1,15 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
-        "AccessCheckByTypeResultListAndAuditAlarmByHandleW" => {
-            kernelbase::AccessCheckByTypeResultListAndAuditAlarmByHandleW(emu)
-        }
-        "BasepAdjustObjectAttributesForPrivateNamespace" => {
-            kernelbase::BasepAdjustObjectAttributesForPrivateNamespace(emu)
-        }
+    dispatch_api!(api, {
+        "AccessCheckByTypeResultListAndAuditAlarmByHandleW" => kernelbase::AccessCheckByTypeResultListAndAuditAlarmByHandleW(emu),
+        "BasepAdjustObjectAttributesForPrivateNamespace" => kernelbase::BasepAdjustObjectAttributesForPrivateNamespace(emu),
         "CompareObjectHandles" => kernelbase::CompareObjectHandles(emu),
-        "DisablePredefinedHandleTableInternal" => {
-            kernelbase::DisablePredefinedHandleTableInternal(emu)
-        }
+        "DisablePredefinedHandleTableInternal" => kernelbase::DisablePredefinedHandleTableInternal(emu),
         "DuplicateStateContainerHandle" => kernelbase::DuplicateStateContainerHandle(emu),
-        "GetAdjustObjectAttributesForPrivateNamespaceRoutine" => {
-            kernelbase::GetAdjustObjectAttributesForPrivateNamespaceRoutine(emu)
-        }
+        "GetAdjustObjectAttributesForPrivateNamespaceRoutine" => kernelbase::GetAdjustObjectAttributesForPrivateNamespaceRoutine(emu),
         "GetFileVersionInfoByHandle" => kernelbase::GetFileVersionInfoByHandle(emu),
         "MapPredefinedHandleInternal" => kernelbase::MapPredefinedHandleInternal(emu),
         "RemapPredefinedHandleInternal" => kernelbase::RemapPredefinedHandleInternal(emu),
@@ -45,7 +38,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "SetNamedPipeHandleState" => kernelbase::SetNamedPipeHandleState(emu),
         "SetStdHandle" => kernelbase::SetStdHandle(emu),
         "SetStdHandleEx" => kernelbase::SetStdHandleEx(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

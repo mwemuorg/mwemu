@@ -1,3 +1,4 @@
+use crate::api::abi::set_integer_return;
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::syscall::linux::constants::errors::*;
@@ -149,10 +150,8 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
 
         NR64_WRITE => super::fs::handle_syscall64_write(emu),
 
-        // getrandom(buf, buflen, flags): fill `buflen` bytes and return the
-        // count. Without this the unimplemented-syscall fallback leaves rax = the
-        // syscall number (318), which glibc/std reads as "318 bytes written" and
-        // then indexes past a smaller buffer (panic: range start 318 of len 16).
+        // getrandom(buf, buflen, flags): fill the requested bytes and return
+        // their count so the result stays within the caller's buffer.
         NR64_GETRANDOM => {
             let buf = emu.regs().rdi;
             let count = emu.regs().rsi;
@@ -934,10 +933,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             emu.regs_mut().rax = sym_link_dest.as_os_str().len() as u64;
         }
 
-        // Single-threaded emulation: these calls succeed trivially. Leaving
-        // them in the "unimplemented" catch-all returns the syscall number in
-        // rax, which glibc reads as a bogus result (e.g. "the futex facility
-        // returned an unexpected error code" then an abort loop).
+        // Partial process models for single-threaded emulation.
         NR64_GETPID => {
             emu.regs_mut().rax = 1000;
             trace_simple_syscall64(emu, "getpid");
@@ -1383,6 +1379,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             } else {
                 trace_legacy_syscall64(emu, SYS64_SYSCALL_NAMES[emu.regs().rax as usize]);
             }
+            set_integer_return(emu, ENOSYS);
         }
     }
 }

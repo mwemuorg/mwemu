@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::user32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetDesktopWindow" => user32::GetDesktopWindow(emu),
         "GetProcessWindowStation" => user32::GetProcessWindowStation(emu),
         "RegisterClassA" => user32::RegisterClassA(emu),
@@ -74,9 +75,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "DeferWindowPosAndBand" => user32::DeferWindowPosAndBand(emu),
         "DisableProcessWindowsGhosting" => user32::DisableProcessWindowsGhosting(emu),
         "EditWndProc" => user32::EditWndProc(emu),
-        "EnableWindowShellWindowManagementBehavior" => {
-            user32::EnableWindowShellWindowManagementBehavior(emu)
-        }
+        "EnableWindowShellWindowManagementBehavior" => user32::EnableWindowShellWindowManagementBehavior(emu),
         "EndDeferWindowPos" => user32::EndDeferWindowPos(emu),
         "EndDeferWindowPosEx" => user32::EndDeferWindowPosEx(emu),
         "EndTask" => user32::EndTask(emu),
@@ -181,9 +180,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "ResolveDesktopForWOW" => user32::ResolveDesktopForWOW(emu),
         "ScreenToClient" => user32::ScreenToClient(emu),
         "SetActiveWindow" => user32::SetActiveWindow(emu),
-        "SetAdditionalForegroundBoostProcesses" => {
-            user32::SetAdditionalForegroundBoostProcesses(emu)
-        }
+        "SetAdditionalForegroundBoostProcesses" => user32::SetAdditionalForegroundBoostProcesses(emu),
         "SetClassLongA" => user32::SetClassLongA(emu),
         "SetClassLongPtrA" => user32::SetClassLongPtrA(emu),
         "SetClassLongPtrW" => user32::SetClassLongPtrW(emu),
@@ -191,9 +188,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "SetClassWord" => user32::SetClassWord(emu),
         "SetCoreWindow" => user32::SetCoreWindow(emu),
         "SetCoveredWindowStates" => user32::SetCoveredWindowStates(emu),
-        "SetForegroundRedirectionForActivationObject" => {
-            user32::SetForegroundRedirectionForActivationObject(emu)
-        }
+        "SetForegroundRedirectionForActivationObject" => user32::SetForegroundRedirectionForActivationObject(emu),
         "SetInternalWindowPos" => user32::SetInternalWindowPos(emu),
         "SetLayeredWindowAttributes" => user32::SetLayeredWindowAttributes(emu),
         "SetParent" => user32::SetParent(emu),
@@ -244,7 +239,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "GetWindowLongPtrW" => user32::GetWindowLongPtrW(emu),
         "SetWindowLongPtrA" => user32::SetWindowLongPtrA(emu),
         "SetWindowLongPtrW" => user32::SetWindowLongPtrW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

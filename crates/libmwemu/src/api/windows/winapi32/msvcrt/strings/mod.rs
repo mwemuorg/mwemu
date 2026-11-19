@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::msvcrt;
 
@@ -113,7 +114,7 @@ mod strtok_s;
 pub use strtok_s::strtok_s;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "StrCmpCA" => msvcrt::StrCmpCA(emu),
         "strtok" => msvcrt::strtok(emu),
         "atoi" => msvcrt::atoi(emu),
@@ -154,7 +155,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "_strcmpi" => msvcrt::_strcmpi(emu),
         "str" => msvcrt::str(emu),
         "strtok_s" => msvcrt::strtok_s(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

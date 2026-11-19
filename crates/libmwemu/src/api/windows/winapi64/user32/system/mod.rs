@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::user32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetSystemMetrics" => user32::GetSystemMetrics(emu),
         "SystemParametersInfoA" => user32::SystemParametersInfoA(emu),
         "GetUserObjectInformationW" => user32::GetUserObjectInformationW(emu),
@@ -47,9 +48,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "RegisterDeviceNotificationA" => user32::RegisterDeviceNotificationA(emu),
         "RegisterDeviceNotificationW" => user32::RegisterDeviceNotificationW(emu),
         "RegisterForCustomDockTargets" => user32::RegisterForCustomDockTargets(emu),
-        "RegisterForTooltipDismissNotification" => {
-            user32::RegisterForTooltipDismissNotification(emu)
-        }
+        "RegisterForTooltipDismissNotification" => user32::RegisterForTooltipDismissNotification(emu),
         "RegisterLogonProcess" => user32::RegisterLogonProcess(emu),
         "RegisterPowerSettingNotification" => user32::RegisterPowerSettingNotification(emu),
         "RegisterServicesProcess" => user32::RegisterServicesProcess(emu),
@@ -89,7 +88,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "_UserTestTokenForInteractive" => user32::_UserTestTokenForInteractive(emu),
         "gSharedInfo" => user32::gSharedInfo(emu),
         "Wow64Transition" => user32::Wow64Transition(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

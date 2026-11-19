@@ -1,17 +1,16 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetTokenInformation" => kernelbase::GetTokenInformation(emu),
         "AccessCheck" => kernelbase::AccessCheck(emu),
         "AccessCheckAndAuditAlarmW" => kernelbase::AccessCheckAndAuditAlarmW(emu),
         "AccessCheckByType" => kernelbase::AccessCheckByType(emu),
         "AccessCheckByTypeAndAuditAlarmW" => kernelbase::AccessCheckByTypeAndAuditAlarmW(emu),
         "AccessCheckByTypeResultList" => kernelbase::AccessCheckByTypeResultList(emu),
-        "AccessCheckByTypeResultListAndAuditAlarmW" => {
-            kernelbase::AccessCheckByTypeResultListAndAuditAlarmW(emu)
-        }
+        "AccessCheckByTypeResultListAndAuditAlarmW" => kernelbase::AccessCheckByTypeResultListAndAuditAlarmW(emu),
         "AddAccessAllowedAce" => kernelbase::AddAccessAllowedAce(emu),
         "AddAccessAllowedAceEx" => kernelbase::AddAccessAllowedAceEx(emu),
         "AddAccessAllowedObjectAce" => kernelbase::AddAccessAllowedObjectAce(emu),
@@ -31,17 +30,13 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "AppContainerUnregisterSid" => kernelbase::AppContainerUnregisterSid(emu),
         "AppXGetPackageSid" => kernelbase::AppXGetPackageSid(emu),
         "CheckTokenMembership" => kernelbase::CheckTokenMembership(emu),
-        "ConvertToAutoInheritPrivateObjectSecurity" => {
-            kernelbase::ConvertToAutoInheritPrivateObjectSecurity(emu)
-        }
+        "ConvertToAutoInheritPrivateObjectSecurity" => kernelbase::ConvertToAutoInheritPrivateObjectSecurity(emu),
         "CopySid" => kernelbase::CopySid(emu),
         "CreateAppContainerToken" => kernelbase::CreateAppContainerToken(emu),
         "CreateAppSiloToken" => kernelbase::CreateAppSiloToken(emu),
         "CreatePrivateObjectSecurity" => kernelbase::CreatePrivateObjectSecurity(emu),
         "CreatePrivateObjectSecurityEx" => kernelbase::CreatePrivateObjectSecurityEx(emu),
-        "CreatePrivateObjectSecurityWithMultipleInheritance" => {
-            kernelbase::CreatePrivateObjectSecurityWithMultipleInheritance(emu)
-        }
+        "CreatePrivateObjectSecurityWithMultipleInheritance" => kernelbase::CreatePrivateObjectSecurityWithMultipleInheritance(emu),
         "CreateRestrictedToken" => kernelbase::CreateRestrictedToken(emu),
         "CreateWellKnownSid" => kernelbase::CreateWellKnownSid(emu),
         "DeleteAce" => kernelbase::DeleteAce(emu),
@@ -58,9 +53,7 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetAclInformation" => kernelbase::GetAclInformation(emu),
         "GetApplicationUserModelIdFromToken" => kernelbase::GetApplicationUserModelIdFromToken(emu),
         "GetCurrentPackageSecurityContext" => kernelbase::GetCurrentPackageSecurityContext(emu),
-        "GetEffectivePackageStatusForUserSid" => {
-            kernelbase::GetEffectivePackageStatusForUserSid(emu)
-        }
+        "GetEffectivePackageStatusForUserSid" => kernelbase::GetEffectivePackageStatusForUserSid(emu),
         "GetFileSecurityW" => kernelbase::GetFileSecurityW(emu),
         "GetKernelObjectSecurity" => kernelbase::GetKernelObjectSecurity(emu),
         "GetLengthSid" => kernelbase::GetLengthSid(emu),
@@ -125,7 +118,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "OpenProcessToken" => kernelbase::OpenProcessToken(emu),
         "OpenThreadToken" => kernelbase::OpenThreadToken(emu),
         "SetThreadToken" => kernelbase::SetThreadToken(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

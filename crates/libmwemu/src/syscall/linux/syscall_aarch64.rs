@@ -1,5 +1,7 @@
+use crate::api::abi::set_integer_return;
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::syscall::linux::constants::errors::ENOSYS;
 
 // Linux aarch64 syscall numbers (from asm-generic/unistd.h)
 // Convention: x8 = syscall number, x0-x5 = args, x0 = return
@@ -529,6 +531,7 @@ pub fn gateway(emu: &mut emu::Emu) {
                 emu.regs_aarch64().x[2],
                 emu.colors.nc
             );
+            set_integer_return(emu, ENOSYS);
         }
     }
 }

@@ -1,17 +1,16 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::advapi32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "AbortSystemShutdownA" => advapi32::AbortSystemShutdownA(emu),
         "AbortSystemShutdownW" => advapi32::AbortSystemShutdownW(emu),
         "CheckForHiberboot" => advapi32::CheckForHiberboot(emu),
         "CloseThreadWaitChainSession" => advapi32::CloseThreadWaitChainSession(emu),
         "CveEventWrite" => advapi32::CveEventWrite(emu),
         "EnumDynamicTimeZoneInformation" => advapi32::EnumDynamicTimeZoneInformation(emu),
-        "GetDynamicTimeZoneInformationEffectiveYears" => {
-            advapi32::GetDynamicTimeZoneInformationEffectiveYears(emu)
-        }
+        "GetDynamicTimeZoneInformationEffectiveYears" => advapi32::GetDynamicTimeZoneInformationEffectiveYears(emu),
         "GetLocalManagedApplicationData" => advapi32::GetLocalManagedApplicationData(emu),
         "GetLocalManagedApplications" => advapi32::GetLocalManagedApplications(emu),
         "GetManagedApplicationCategories" => advapi32::GetManagedApplicationCategories(emu),
@@ -39,7 +38,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "UnregisterIdleTask" => advapi32::UnregisterIdleTask(emu),
         "RegisterIdleTask" => advapi32::RegisterIdleTask(emu),
         "RegisterWaitChainCOMCallback" => advapi32::RegisterWaitChainCOMCallback(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

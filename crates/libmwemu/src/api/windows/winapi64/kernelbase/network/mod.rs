@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetProtocolAumid" => kernelbase::GetProtocolAumid(emu),
         "GetProtocolProperty" => kernelbase::GetProtocolProperty(emu),
         "InternetTimeFromSystemTimeA" => kernelbase::InternetTimeFromSystemTimeA(emu),
@@ -40,7 +41,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "UrlIsW" => kernelbase::UrlIsW(emu),
         "UrlUnescapeA" => kernelbase::UrlUnescapeA(emu),
         "UrlUnescapeW" => kernelbase::UrlUnescapeW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

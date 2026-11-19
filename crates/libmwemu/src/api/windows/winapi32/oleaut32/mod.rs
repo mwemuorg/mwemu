@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::common::bstr;
@@ -860,7 +861,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     if bstr::dispatch(api, emu) {
         return String::new();
     }
-    match api {
+    dispatch_api!(api, {
         "SysAllocStringLen" => SysAllocStringLen(emu),
         "SysAllocString" => SysAllocString(emu),
         "SysFreeString" => SysFreeString(emu),
@@ -1286,9 +1287,8 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "VariantTimeToDosDateTime" => VariantTimeToDosDateTime(emu),
         "VariantTimeToSystemTime" => VariantTimeToSystemTime(emu),
         "VectorFromBstr" => VectorFromBstr(emu),
-        _ => {
-            return fallback::unimplemented(addr, api, emu);
-        }
-    }
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }

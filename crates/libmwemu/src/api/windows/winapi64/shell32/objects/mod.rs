@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::shell32;
 
@@ -274,29 +275,15 @@ mod sh_simple_id_list_from_path;
 pub use sh_simple_id_list_from_path::SHSimpleIDListFromPath;
 
 pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "CIDLData_CreateFromIDArray" => shell32::CIDLData_CreateFromIDArray(emu),
-        "CStorageItem_GetValidatedStorageItemObject" => {
-            shell32::CStorageItem_GetValidatedStorageItemObject(emu)
-        }
-        "CreateStorageItemFromPath_FullTrustCaller" => {
-            shell32::CreateStorageItemFromPath_FullTrustCaller(emu)
-        }
-        "CreateStorageItemFromPath_FullTrustCaller_ForPackage" => {
-            shell32::CreateStorageItemFromPath_FullTrustCaller_ForPackage(emu)
-        }
-        "CreateStorageItemFromPath_PartialTrustCaller" => {
-            shell32::CreateStorageItemFromPath_PartialTrustCaller(emu)
-        }
-        "CreateStorageItemFromShellItem_FullTrustCaller" => {
-            shell32::CreateStorageItemFromShellItem_FullTrustCaller(emu)
-        }
-        "CreateStorageItemFromShellItem_FullTrustCaller_ForPackage" => {
-            shell32::CreateStorageItemFromShellItem_FullTrustCaller_ForPackage(emu)
-        }
-        "CreateStorageItemFromShellItem_FullTrustCaller_UseImplicitFlagsAndPackage" => {
-            shell32::CreateStorageItemFromShellItem_FullTrustCaller_UseImplicitFlagsAndPackage(emu)
-        }
+        "CStorageItem_GetValidatedStorageItemObject" => shell32::CStorageItem_GetValidatedStorageItemObject(emu),
+        "CreateStorageItemFromPath_FullTrustCaller" => shell32::CreateStorageItemFromPath_FullTrustCaller(emu),
+        "CreateStorageItemFromPath_FullTrustCaller_ForPackage" => shell32::CreateStorageItemFromPath_FullTrustCaller_ForPackage(emu),
+        "CreateStorageItemFromPath_PartialTrustCaller" => shell32::CreateStorageItemFromPath_PartialTrustCaller(emu),
+        "CreateStorageItemFromShellItem_FullTrustCaller" => shell32::CreateStorageItemFromShellItem_FullTrustCaller(emu),
+        "CreateStorageItemFromShellItem_FullTrustCaller_ForPackage" => shell32::CreateStorageItemFromShellItem_FullTrustCaller_ForPackage(emu),
+        "CreateStorageItemFromShellItem_FullTrustCaller_UseImplicitFlagsAndPackage" => shell32::CreateStorageItemFromShellItem_FullTrustCaller_UseImplicitFlagsAndPackage(emu),
         "GetSystemPersistedStorageItemList" => shell32::GetSystemPersistedStorageItemList(emu),
         "ILAppendID" => shell32::ILAppendID(emu),
         "ILClone" => shell32::ILClone(emu),
@@ -341,14 +328,10 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHCreateShellFolderViewEx" => shell32::SHCreateShellFolderViewEx(emu),
         "SHCreateShellItem" => shell32::SHCreateShellItem(emu),
         "SHCreateShellItemArray" => shell32::SHCreateShellItemArray(emu),
-        "SHCreateShellItemArrayFromDataObject" => {
-            shell32::SHCreateShellItemArrayFromDataObject(emu)
-        }
+        "SHCreateShellItemArrayFromDataObject" => shell32::SHCreateShellItemArrayFromDataObject(emu),
         "SHCreateShellItemArrayFromIDLists" => shell32::SHCreateShellItemArrayFromIDLists(emu),
         "SHCreateShellItemArrayFromShellItem" => shell32::SHCreateShellItemArrayFromShellItem(emu),
-        "SHELL32_CFillPropertiesTask_CreateInstance" => {
-            shell32::SHELL32_CFillPropertiesTask_CreateInstance(emu)
-        }
+        "SHELL32_CFillPropertiesTask_CreateInstance" => shell32::SHELL32_CFillPropertiesTask_CreateInstance(emu),
         "SHELL32_PifMgr_CloseProperties" => shell32::SHELL32_PifMgr_CloseProperties(emu),
         "SHELL32_PifMgr_GetProperties" => shell32::SHELL32_PifMgr_GetProperties(emu),
         "SHELL32_PifMgr_OpenProperties" => shell32::SHELL32_PifMgr_OpenProperties(emu),
@@ -388,7 +371,8 @@ pub(super) fn dispatch(api: &str, emu: &mut Emu) -> bool {
         "SHSetTemporaryPropertyForItem" => shell32::SHSetTemporaryPropertyForItem(emu),
         "SHShellFolderView_Message" => shell32::SHShellFolderView_Message(emu),
         "SHSimpleIDListFromPath" => shell32::SHSimpleIDListFromPath(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

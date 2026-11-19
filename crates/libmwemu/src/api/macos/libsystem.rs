@@ -1,4 +1,5 @@
 use crate::api::abi::unix::{ArgumentError, UnixApi, VariadicConvention::Darwin};
+use crate::api::dispatch_api;
 use crate::api::printf;
 use crate::api::unix::api_try;
 use crate::emu::Emu;
@@ -69,8 +70,7 @@ fn release(emu: &mut Emu, addr: u64) {
 }
 
 pub fn gateway(symbol: &str, emu: &mut Emu) {
-    let call = UnixApi;
-    match symbol {
+    dispatch_api!(symbol, {
         "_printf" | "printf" => api_printf(emu),
         "_fprintf" | "fprintf" => api_fprintf(emu),
         "_sprintf" | "sprintf" => api_sprintf(emu),
@@ -179,64 +179,35 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "_humanize_number" | "humanize_number" => api_humanize_number(emu),
         "_strtonum" | "strtonum" => api_strtonum(emu),
         "_uuid_unparse_upper" | "uuid_unparse_upper" => api_uuid_unparse_upper(emu),
-        "_mbr_identifier_translate" | "mbr_identifier_translate" => {
-            api_mbr_identifier_translate(emu)
-        }
+        "_mbr_identifier_translate" | "mbr_identifier_translate" => api_mbr_identifier_translate(emu),
 
         // termcap
         "_tgetent" | "tgetent" | "_tgetstr" | "tgetstr" | "_tgoto" | "tgoto" | "_tputs"
-        | "tputs" => {
-            log::info!(
-                "{}** {} macOS API {}() -> 0 {}",
-                emu.colors.light_red,
-                emu.pos,
-                symbol,
-                emu.colors.nc
-            );
-            call.set_return(emu, 0);
-        }
+        | "tputs" => zero_stub(emu, symbol),
 
         // ACL stubs
-        s if s.starts_with("_acl_") || s.starts_with("acl_") => {
-            log::info!(
-                "{}** {} macOS API {}() -> 0 {}",
-                emu.colors.light_red,
-                emu.pos,
-                symbol,
-                emu.colors.nc
-            );
-            call.set_return(emu, 0);
-        }
+        s if s.starts_with("_acl_") || s.starts_with("acl_") => zero_stub(emu, symbol),
 
         // FTS filesystem traversal ($INODE64 variants)
         "_fts_open$INODE64" | "_fts_open" | "fts_open$INODE64" | "fts_open" => api_fts_open(emu),
         "_fts_read$INODE64" | "_fts_read" | "fts_read$INODE64" | "fts_read" => api_fts_read(emu),
-        "_fts_close$INODE64" | "_fts_close" | "fts_close$INODE64" | "fts_close" => {
-            api_fts_close(emu)
-        }
+        "_fts_close$INODE64" | "_fts_close" | "fts_close$INODE64" | "fts_close" => api_fts_close(emu),
         "_fts_set$INODE64" | "_fts_set" | "fts_set$INODE64" | "fts_set" => api_fts_set(emu),
-        "_fts_children$INODE64" | "_fts_children" | "fts_children$INODE64" | "fts_children" => {
-            api_fts_children(emu)
-        }
+        "_fts_children$INODE64" | "_fts_children" | "fts_children$INODE64" | "fts_children" => api_fts_children(emu),
 
         // stat family ($INODE64 variants)
         "_stat$INODE64" | "_stat" | "stat$INODE64" | "stat" | "_stat64" | "stat64" => api_stat(emu),
-        "_lstat$INODE64" | "_lstat" | "lstat$INODE64" | "lstat" | "_lstat64" | "lstat64" => {
-            api_lstat(emu)
-        }
-        "_fstat$INODE64" | "_fstat" | "fstat$INODE64" | "fstat" | "_fstat64" | "fstat64" => {
-            api_fstat(emu)
-        }
+        "_lstat$INODE64" | "_lstat" | "lstat$INODE64" | "lstat" | "_lstat64" | "lstat64" => api_lstat(emu),
+        "_fstat$INODE64" | "_fstat" | "fstat$INODE64" | "fstat" | "_fstat64" | "fstat64" => api_fstat(emu),
 
-        _ if super::process::gateway(symbol, emu) => {}
-        _ if super::pthread::gateway(symbol, emu) => {}
-        _ if super::sync::gateway(symbol, emu) => {}
-        _ if super::libc_extra::gateway(symbol, emu) => {}
-        _ => {
-            log::warn!("libsystem: unimplemented API {} -- returning 0", symbol);
-            call.set_return(emu, 0);
-        }
-    }
+        _ if super::process::gateway(symbol, emu) => {},
+        _ if super::pthread::gateway(symbol, emu) => {},
+        _ if super::sync::gateway(symbol, emu) => {},
+        _ if super::libc_extra::gateway(symbol, emu) => {},
+    },
+        handled(()) => (),
+        fallback => unsupported(emu, symbol),
+    )
 }
 
 fn api_printf(emu: &mut Emu) {
@@ -3192,4 +3163,22 @@ fn prot_to_permission(prot: u64) -> Permission {
         (true, false, true) => Permission::READ_EXECUTE,
         _ => Permission::READ_WRITE, // default fallback
     }
+}
+
+fn zero_stub(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    log::info!(
+        "{}** {} macOS API {}() -> 0 {}",
+        emu.colors.light_red,
+        emu.pos,
+        symbol,
+        emu.colors.nc
+    );
+    call.set_return(emu, 0);
+}
+
+fn unsupported(emu: &mut Emu, symbol: &str) {
+    let call = UnixApi;
+    log::warn!("libsystem: unimplemented API {} -- returning 0", symbol);
+    call.set_return(emu, 0);
 }

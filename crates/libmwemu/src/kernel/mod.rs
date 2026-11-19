@@ -33,13 +33,56 @@ use rs_header::elf::relocatable::{RelSection, RelSymbol};
 
 use crate::api::abi::set_integer_return;
 use crate::api::abi::unix::UnixApi;
-use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::unix;
+use crate::api::windows::policy::{self, ApiRoute};
 use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::kernel::guard::Finding;
 use crate::kernel::heap::{KernelHeap, Region};
 use crate::kernel::layout::{KernelLayout, STUB_SLOT};
 use crate::maps::mem64::Permission;
+
+pub type Handler = fn(&mut Emu, &str);
+
+pub struct HandlerRegistry {
+    pub names: &'static [&'static str],
+    resolve: fn(&str) -> Option<Handler>,
+}
+
+impl HandlerRegistry {
+    pub fn find(&self, name: &str) -> Option<Handler> {
+        (self.resolve)(name)
+    }
+}
+
+// Keep exact names and guarded partial models in the same declaration as lookup.
+macro_rules! kernel_handlers {
+    (
+        $($($name:literal)|+ => $handler:path,)*
+        $(guarded { $($predicate:path => $guarded:path,)* })?
+    ) => {
+        $crate::kernel::HandlerRegistry {
+            names: &[$($($name,)+)*],
+            resolve: |name| match name {
+                $($($name)|+ => Some($handler),)*
+                $($(name if $predicate(name) => Some($guarded),)*)?
+                _ => None,
+            },
+        }
+    };
+}
+
+pub(crate) use kernel_handlers;
+
+fn return_zero(emu: &mut Emu, _symbol: &str) {
+    set_integer_return(emu, 0);
+}
+
+fn return_one(emu: &mut Emu, _symbol: &str) {
+    set_integer_return(emu, 1);
+}
+
+fn ignore_call(_emu: &mut Emu, _symbol: &str) {}
 
 /// Which kernel's API surface a loaded driver targets.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -723,7 +766,11 @@ impl Emu {
             return true;
         }
 
+        let os = kernel.os;
         let symbol = kernel.symbol_at(addr).unwrap_or("<unknown>").to_string();
+        if self.api_stopped() {
+            return true;
+        }
 
         // Retpoline thunks are a jump, not a call: they transfer to the
         // register instead of returning, so they must be handled before the
@@ -742,43 +789,55 @@ impl Emu {
             );
         }
 
-        // Consume the return address the same way the user-mode gateways do,
-        // so the handler only has to produce a return value.
-        if self.cfg.arch.is_aarch64() {
-            let lr = self.regs_aarch64().x[30];
-            self.gateway_return = lr;
-            self.regs_aarch64_mut().pc = lr;
+        let (previous_windows, previous_unix) = if os == KernelOs::Windows {
+            let previous = self.api_policy.entry.take();
+            policy::begin_call(self, "windows-kernel", &symbol, addr, ApiRoute::Kernel);
+            if !policy::consume_return(self) {
+                return true;
+            }
+            (previous, None)
         } else {
-            self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-            self.regs_mut().rip = self.gateway_return;
-        }
-
-        let Some(kernel_ref) = self.kernel.as_ref() else {
-            log::error!("kernel_set_pc: kernel env not present");
-            self.stop();
-            return true;
+            let library = format!("{}-kernel", os.label());
+            let previous = unix::begin_call(self, &library, &symbol, addr);
+            if !unix::consume_return(self) {
+                return true;
+            }
+            (None, previous)
         };
-        let os = kernel_ref.os;
+
         let handled = match os {
             KernelOs::Linux => linux::gateway(&symbol, self),
             KernelOs::Windows => windows::gateway(&symbol, self),
             KernelOs::MacOS => macos::gateway(&symbol, self),
         };
+        if self.api_stopped() {
+            return true;
+        }
 
         if !handled {
-            log::warn!(
-                "kernel API {} is not implemented — returning 0 and continuing",
-                symbol
-            );
-            let Some(kernel) = self.kernel.as_mut() else {
-                log::error!("kernel_set_pc: kernel env not present");
-                self.stop();
-                return true;
-            };
-            if !kernel.unimplemented.iter().any(|s| s == &symbol) {
-                kernel.unimplemented.push(symbol);
+            if let Some(kernel) = self.kernel.as_mut()
+                && !kernel.unimplemented.iter().any(|s| s == &symbol)
+            {
+                kernel.unimplemented.push(symbol.clone());
             }
-            self.set_kernel_ret(0);
+            if os == KernelOs::Windows {
+                policy::unsupported(self, "windows-kernel", &symbol, addr);
+            } else {
+                log::warn!(
+                    "kernel API {} is not implemented — returning 0 and continuing",
+                    symbol
+                );
+                let call = UnixApi;
+                call.set_return(self, 0);
+            }
+        }
+        if os == KernelOs::Windows {
+            policy::finish_call(self);
+            if !self.api_policy.stopped() {
+                self.api_policy.entry = previous_windows;
+            }
+        } else if !self.unix_api.stopped() {
+            unix::end_call(self, previous_unix);
         }
 
         self.force_break = true;
@@ -840,6 +899,7 @@ impl Emu {
     /// Linux and XNU kernel code is plain SysV / AAPCS64; a Windows driver uses
     /// the Microsoft x64 convention, the same one user-mode PE code uses.
     pub fn kernel_call(&mut self, addr: u64, args: &[u64]) -> Result<u64, MwemuError> {
+        self.check_api_stop()?;
         // Return to the pad so the callee's `ret` lands on a mapped address
         // that ends the run cleanly.
         if let Some(kernel) = self.kernel.as_ref() {
@@ -933,29 +993,6 @@ impl Emu {
     pub fn kernel_set_call_budget(&mut self, instructions: u64) {
         if let Some(k) = self.kernel.as_mut() {
             k.call_budget = instructions;
-        }
-    }
-
-    /// Set the return value of a kernel API, whichever architecture is active.
-    pub fn set_kernel_ret(&mut self, value: u64) {
-        set_integer_return(self, value);
-    }
-
-    /// Read argument `idx` of a kernel API call in the kernel's own calling
-    /// convention: SysV for Linux, AAPCS64 on AArch64, Microsoft x64 for a
-    /// Windows driver (rcx, rdx, r8, r9, then the stack above the 32-byte
-    /// shadow space).
-    pub fn kernel_arg(&self, idx: usize) -> u64 {
-        // Kernel fault policy is separate from user-mode Windows API stops.
-        match self.kernel.as_ref().map(|kernel| kernel.os) {
-            Some(KernelOs::Windows) => {
-                let call = WinApi(Stdcall);
-                call.arg(self, idx).unwrap_or(0)
-            }
-            _ => {
-                let call = UnixApi;
-                call.arg(self, idx).unwrap_or(0)
-            }
         }
     }
 

@@ -10,6 +10,12 @@
 //! members when the SList is empty, so pointing them at interceptable stubs is
 //! what makes the inline code work unmodified.
 
+use crate::api::abi::windows::ArgumentError;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
+use crate::api::windows::policy::api_try;
+use crate::kernel::{HandlerRegistry, kernel_handlers};
+
 use super::structs::*;
 use super::tag_name;
 use crate::emu::Emu;
@@ -105,15 +111,16 @@ pub fn list_remove_tail(emu: &mut Emu, head: u64) -> u64 {
     last
 }
 
-fn init_lookaside(emu: &mut Emu, symbol: &str, paged: bool) {
+fn init_lookaside(emu: &mut Emu, symbol: &str, paged: bool) -> Result<(), ArgumentError> {
+    let call = WinApi(Stdcall);
     // (Lookaside, Allocate, Free, Flags, Size, Tag, Depth)
-    let l = emu.kernel_arg(0);
-    let allocate = emu.kernel_arg(1);
-    let free = emu.kernel_arg(2);
-    let flags = emu.kernel_arg(3);
-    let size = emu.kernel_arg(4) as u32 as u64;
-    let tag = emu.kernel_arg(5) as u32 as u64;
-    let depth = emu.kernel_arg(6) as u16 as u64;
+    let l = call.arg(emu, 0)?;
+    let allocate = call.arg(emu, 1)?;
+    let free = call.arg(emu, 2)?;
+    let flags = call.arg(emu, 3)?;
+    let size = call.arg_u32(emu, 4)? as u64;
+    let tag = call.arg_u32(emu, 5)? as u64;
+    let depth = call.arg_u16(emu, 6)? as u64;
     emu.maps.write_bytes(l, &[0u8; LOOKASIDE_SIZE as usize]);
     emu.maps.write_qword(l + 8, 1); // HeaderType = 1 (16-byte SLIST_HEADER)
     emu.maps
@@ -142,27 +149,22 @@ fn init_lookaside(emu: &mut Emu, symbol: &str, paged: bool) {
         size,
         tag_name(tag)
     );
+    Ok(())
 }
 
 pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
-    match symbol {
+    dispatch_api!(symbol, emu, registry handlers(),
+        handled(()) => true,
+        fallback => false,
+    )
+}
+
+pub const fn handlers() -> HandlerRegistry {
+    kernel_handlers! {
         // --- pool allocator ---------------------------------------------------
         // ExAllocatePool2(Flags, NumberOfBytes, Tag) — zeroes unless
         // POOL_FLAG_UNINITIALIZED. ExAllocatePool3 adds (ExtendedParameters, Count).
-        "ExAllocatePool2" | "ExAllocatePool3" => {
-            let flags = emu.kernel_arg(0);
-            let size = emu.kernel_arg(1);
-            let tag = emu.kernel_arg(2);
-            const POOL_FLAG_UNINITIALIZED: u64 = 0x2;
-            let ptr = emu.kernel_alloc(
-                Region::Slab,
-                size,
-                &tag_name(tag),
-                symbol,
-                flags & POOL_FLAG_UNINITIALIZED == 0,
-            );
-            emu.set_kernel_ret(ptr);
-        }
+        "ExAllocatePool2" | "ExAllocatePool3" => ExAllocatePool2,
         // ExAllocatePoolWithTag(PoolType, NumberOfBytes, Tag) — no zeroing.
         "ExAllocatePoolWithTag"
         | "ExAllocatePoolWithTagPriority"
@@ -172,326 +174,373 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         | "ExAllocatePoolQuotaZero"
         | "ExAllocatePoolQuotaUninitialized"
         | "ExAllocatePoolPriorityZero"
-        | "ExAllocatePoolPriorityUninitialized" => {
-            let size = emu.kernel_arg(1);
-            let tag = emu.kernel_arg(2);
-            let zero = symbol.ends_with("Zero");
-            let ptr = emu.kernel_alloc(Region::Slab, size, &tag_name(tag), symbol, zero);
-            emu.set_kernel_ret(ptr);
-        }
+        | "ExAllocatePoolPriorityUninitialized" => ExAllocatePoolWithTag,
         // ExAllocatePool(PoolType, NumberOfBytes) / ExAllocatePoolWithQuota.
-        "ExAllocatePool" | "ExAllocatePoolWithQuota" => {
-            let size = emu.kernel_arg(1);
-            let ptr = emu.kernel_alloc(Region::Slab, size, "pool-none", symbol, false);
-            emu.set_kernel_ret(ptr);
-        }
-        "ExFreePool" | "ExFreePoolWithTag" | "ExFreePool2" => {
-            let ptr = emu.kernel_arg(0);
-            emu.kernel_free(ptr, symbol);
-            emu.set_kernel_ret(0);
-        }
+        "ExAllocatePool" | "ExAllocatePoolWithQuota" => ExAllocatePool,
+        "ExFreePool" | "ExFreePoolWithTag" | "ExFreePool2" => ExFreePool,
         "MmAllocateNonCachedMemory"
         | "MmAllocateContiguousMemory"
         | "MmAllocateContiguousMemorySpecifyCache"
         | "MmAllocateContiguousMemorySpecifyCacheNode"
         | "MmAllocateContiguousNodeMemory"
-        | "MmAllocateContiguousMemoryEx" => {
-            let size = emu.kernel_arg(0);
-            let ptr = emu.kernel_alloc(Region::Pages, size, "contiguous", symbol, true);
-            emu.set_kernel_ret(ptr);
-        }
+        | "MmAllocateContiguousMemoryEx" => MmAllocateNonCachedMemory,
         "MmFreeNonCachedMemory"
         | "MmFreeContiguousMemory"
-        | "MmFreeContiguousMemorySpecifyCache" => {
-            let ptr = emu.kernel_arg(0);
-            emu.kernel_free(ptr, symbol);
-        }
-        "MmAllocateMappingAddress" => {
-            let size = emu.kernel_arg(0);
-            let ptr = emu.kernel_alloc(Region::Pages, size, "mapping-address", symbol, true);
-            emu.set_kernel_ret(ptr);
-        }
-        "MmFreeMappingAddress" => {
-            let ptr = emu.kernel_arg(0);
-            emu.kernel_free(ptr, symbol);
-        }
+        | "MmFreeContiguousMemorySpecifyCache" => MmFreeNonCachedMemory,
+        "MmAllocateMappingAddress" => MmAllocateMappingAddress,
+        "MmFreeMappingAddress" => MmFreeNonCachedMemory,
         // HalAllocateCommonBuffer(Adapter, Length, &LogicalAddress, CacheEnabled)
-        "HalAllocateCommonBuffer" => {
-            let size = emu.kernel_arg(1);
-            let logical = emu.kernel_arg(2);
-            let ptr = emu.kernel_alloc(Region::Pages, size, "common-buffer", symbol, true);
-            if logical != 0 {
-                emu.maps.write_qword(logical, ptr & 0xffff_ffff);
-            }
-            emu.set_kernel_ret(ptr);
-        }
-        "HalFreeCommonBuffer" => {
-            let ptr = emu.kernel_arg(2);
-            emu.kernel_free(ptr, symbol);
-        }
+        "HalAllocateCommonBuffer" => HalAllocateCommonBuffer,
+        "HalFreeCommonBuffer" => HalFreeCommonBuffer,
 
         // --- lookaside lists --------------------------------------------------
-        "ExInitializeNPagedLookasideList" => init_lookaside(emu, symbol, false),
-        "ExInitializePagedLookasideList" => init_lookaside(emu, symbol, true),
-        "ExInitializeLookasideListEx" => {
-            // (Lookaside, Allocate, Free, PoolType, Flags, Size, Tag, Depth)
-            let l = emu.kernel_arg(0);
-            let allocate = emu.kernel_arg(1);
-            let free = emu.kernel_arg(2);
-            let pool_type = emu.kernel_arg(3);
-            let size = emu.kernel_arg(5);
-            let tag = emu.kernel_arg(6);
-            emu.maps.write_bytes(l, &[0u8; LOOKASIDE_SIZE as usize]);
-            emu.maps.write_qword(l + 8, 1);
-            emu.maps.write_word(l + LOOKASIDE_DEPTH, 4);
-            emu.maps.write_word(l + LOOKASIDE_MAX_DEPTH, 256);
-            emu.maps.write_dword(l + LOOKASIDE_TYPE, pool_type as u32);
-            emu.maps.write_dword(l + LOOKASIDE_TAG, tag as u32);
-            emu.maps.write_dword(l + LOOKASIDE_SIZE_FIELD, size as u32);
-            let a = if allocate != 0 {
-                allocate
-            } else {
-                emu.kernel_stub_for("ExAllocatePoolWithTag").unwrap_or(0)
-            };
-            let f = if free != 0 {
-                free
-            } else {
-                emu.kernel_stub_for("ExFreePool").unwrap_or(0)
-            };
-            emu.maps.write_qword(l + LOOKASIDE_ALLOCATE, a);
-            emu.maps.write_qword(l + LOOKASIDE_FREE, f);
-            emu.set_kernel_ret(0);
-        }
+        "ExInitializeNPagedLookasideList" => ExInitializeNPagedLookasideList,
+        "ExInitializePagedLookasideList" => ExInitializePagedLookasideList,
+        "ExInitializeLookasideListEx" => ExInitializeLookasideListEx,
         "ExDeleteNPagedLookasideList"
         | "ExDeletePagedLookasideList"
-        | "ExDeleteLookasideListEx" => {
-            // Entries parked on the SList are returned to the pool.
-            let l = emu.kernel_arg(0);
-            loop {
-                let e = slist_pop(emu, l + LOOKASIDE_LIST_HEAD);
-                if e == 0 {
-                    break;
-                }
-                emu.kernel_free(e, symbol);
-            }
-            emu.set_kernel_ret(0);
-        }
+        | "ExDeleteLookasideListEx" => ExDeleteNPagedLookasideList,
         // Out-of-line forms of the inline allocate/free helpers.
         "ExAllocateFromNPagedLookasideList"
         | "ExAllocateFromPagedLookasideList"
-        | "ExAllocateFromLookasideListEx" => {
-            let l = emu.kernel_arg(0);
-            let mut e = slist_pop(emu, l + LOOKASIDE_LIST_HEAD);
-            if e == 0 {
-                let size = emu.maps.read_dword(l + LOOKASIDE_SIZE_FIELD).unwrap_or(0) as u64;
-                let tag = emu.maps.read_dword(l + LOOKASIDE_TAG).unwrap_or(0) as u64;
-                e = emu.kernel_alloc(Region::Slab, size, &tag_name(tag), symbol, false);
-            }
-            emu.set_kernel_ret(e);
-        }
+        | "ExAllocateFromLookasideListEx" => ExAllocateFromNPagedLookasideList,
         "ExFreeToNPagedLookasideList"
         | "ExFreeToPagedLookasideList"
-        | "ExFreeToLookasideListEx" => {
-            let l = emu.kernel_arg(0);
-            let e = emu.kernel_arg(1);
-            let depth = slist_depth(emu, l + LOOKASIDE_LIST_HEAD);
-            let max = emu.maps.read_word(l + LOOKASIDE_DEPTH).unwrap_or(4);
-            if depth < max {
-                slist_push(emu, l + LOOKASIDE_LIST_HEAD, e);
-            } else {
-                emu.kernel_free(e, symbol);
-            }
-            emu.set_kernel_ret(0);
-        }
+        | "ExFreeToLookasideListEx" => ExFreeToNPagedLookasideList,
 
         // --- SList ----------------------------------------------------------------
         "ExpInterlockedPushEntrySList"
         | "ExInterlockedPushEntrySList"
-        | "InterlockedPushEntrySList" => {
-            let head = emu.kernel_arg(0);
-            let entry = emu.kernel_arg(1);
-            let old = slist_push(emu, head, entry);
-            emu.set_kernel_ret(old);
-        }
+        | "InterlockedPushEntrySList" => ExpInterlockedPushEntrySList,
         "ExpInterlockedPopEntrySList"
         | "ExInterlockedPopEntrySList"
-        | "InterlockedPopEntrySList" => {
-            let head = emu.kernel_arg(0);
-            let e = slist_pop(emu, head);
-            emu.set_kernel_ret(e);
-        }
-        "ExpInterlockedFlushSList" | "ExInterlockedFlushSList" | "InterlockedFlushSList" => {
-            let head = emu.kernel_arg(0);
-            let first = slist_first(emu, head);
-            slist_set(emu, head, 0, 0);
-            emu.set_kernel_ret(first);
-        }
-        "ExQueryDepthSList" => {
-            let head = emu.kernel_arg(0);
-            let d = slist_depth(emu, head);
-            emu.set_kernel_ret(d as u64);
-        }
-        "InitializeSListHead" | "ExInitializeSListHead" | "RtlInitializeSListHead" => {
-            let head = emu.kernel_arg(0);
-            emu.maps.write_qword(head, 0);
-            emu.maps.write_qword(head + 8, 1);
-            emu.set_kernel_ret(0);
-        }
+        | "InterlockedPopEntrySList" => ExpInterlockedPopEntrySList,
+        "ExpInterlockedFlushSList" | "ExInterlockedFlushSList" | "InterlockedFlushSList" => ExpInterlockedFlushSList,
+        "ExQueryDepthSList" => ExQueryDepthSList,
+        "InitializeSListHead" | "ExInitializeSListHead" | "RtlInitializeSListHead" => InitializeSListHead,
 
         // --- interlocked doubly-linked lists ----------------------------------
-        "ExInterlockedInsertTailList" | "ExfInterlockedInsertTailList" => {
-            let head = emu.kernel_arg(0);
-            let entry = emu.kernel_arg(1);
-            let old = list_insert_tail(emu, head, entry);
-            emu.set_kernel_ret(old);
-        }
-        "ExInterlockedInsertHeadList" | "ExfInterlockedInsertHeadList" => {
-            let head = emu.kernel_arg(0);
-            let entry = emu.kernel_arg(1);
-            let old = list_insert_head(emu, head, entry);
-            emu.set_kernel_ret(old);
-        }
-        "ExInterlockedRemoveHeadList" | "ExfInterlockedRemoveHeadList" => {
-            let head = emu.kernel_arg(0);
-            let e = list_remove_head(emu, head);
-            emu.set_kernel_ret(e);
-        }
-        "ExInterlockedRemoveTailList" | "ExfInterlockedRemoveTailList" => {
-            let head = emu.kernel_arg(0);
-            let e = list_remove_tail(emu, head);
-            emu.set_kernel_ret(e);
-        }
+        "ExInterlockedInsertTailList" | "ExfInterlockedInsertTailList" => ExInterlockedInsertTailList,
+        "ExInterlockedInsertHeadList" | "ExfInterlockedInsertHeadList" => ExInterlockedInsertHeadList,
+        "ExInterlockedRemoveHeadList" | "ExfInterlockedRemoveHeadList" => ExInterlockedRemoveHeadList,
+        "ExInterlockedRemoveTailList" | "ExfInterlockedRemoveTailList" => ExInterlockedRemoveTailList,
         // Singly-linked (SINGLE_LIST_ENTRY) variants.
-        "ExInterlockedPushEntryList" | "ExfInterlockedPushEntryList" => {
-            let head = emu.kernel_arg(0);
-            let entry = emu.kernel_arg(1);
-            let old = emu.maps.read_qword(head).unwrap_or(0);
-            emu.maps.write_qword(entry, old);
-            emu.maps.write_qword(head, entry);
-            emu.set_kernel_ret(old);
-        }
-        "ExInterlockedPopEntryList" | "ExfInterlockedPopEntryList" => {
-            let head = emu.kernel_arg(0);
-            let first = emu.maps.read_qword(head).unwrap_or(0);
-            if first != 0 {
-                let rip = emu.pc();
-                emu.kernel_guard_access(rip, first, 8, false);
-                let next = emu.maps.read_qword(first).unwrap_or(0);
-                emu.maps.write_qword(head, next);
-            }
-            emu.set_kernel_ret(first);
-        }
-        "ExInterlockedAddLargeInteger" | "ExInterlockedAddLargeStatistic" => {
-            let addend = emu.kernel_arg(0);
-            let inc = emu.kernel_arg(1);
-            let old = emu.maps.read_qword(addend).unwrap_or(0);
-            emu.maps.write_qword(addend, old.wrapping_add(inc));
-            emu.set_kernel_ret(old);
-        }
-        "ExInterlockedAddUlong" => {
-            let addend = emu.kernel_arg(0);
-            let inc = emu.kernel_arg(1) as u32;
-            let old = emu.maps.read_dword(addend).unwrap_or(0);
-            emu.maps.write_dword(addend, old.wrapping_add(inc));
-            emu.set_kernel_ret(old as u64);
-        }
+        "ExInterlockedPushEntryList" | "ExfInterlockedPushEntryList" => ExInterlockedPushEntryList,
+        "ExInterlockedPopEntryList" | "ExfInterlockedPopEntryList" => ExInterlockedPopEntryList,
+        "ExInterlockedAddLargeInteger" | "ExInterlockedAddLargeStatistic" => ExInterlockedAddLargeInteger,
+        "ExInterlockedAddUlong" => ExInterlockedAddUlong,
         // x86-only exports that an x64 driver never imports, kept for the
         // surface listing and for hand-written test drivers.
-        "InterlockedIncrement" => {
-            let p = emu.kernel_arg(0);
-            let v = emu.maps.read_dword(p).unwrap_or(0).wrapping_add(1);
-            emu.maps.write_dword(p, v);
-            emu.set_kernel_ret(v as u64);
-        }
-        "InterlockedDecrement" => {
-            let p = emu.kernel_arg(0);
-            let v = emu.maps.read_dword(p).unwrap_or(0).wrapping_sub(1);
-            emu.maps.write_dword(p, v);
-            emu.set_kernel_ret(v as u64);
-        }
-        "InterlockedExchange" => {
-            let p = emu.kernel_arg(0);
-            let v = emu.kernel_arg(1) as u32;
-            let old = emu.maps.read_dword(p).unwrap_or(0);
-            emu.maps.write_dword(p, v);
-            emu.set_kernel_ret(old as u64);
-        }
-        "InterlockedCompareExchange" => {
-            let p = emu.kernel_arg(0);
-            let v = emu.kernel_arg(1) as u32;
-            let cmp = emu.kernel_arg(2) as u32;
-            let old = emu.maps.read_dword(p).unwrap_or(0);
-            if old == cmp {
-                emu.maps.write_dword(p, v);
-            }
-            emu.set_kernel_ret(old as u64);
-        }
-        _ => return false,
+        "InterlockedIncrement" => InterlockedIncrement,
+        "InterlockedDecrement" => InterlockedDecrement,
+        "InterlockedExchange" => InterlockedExchange,
+        "InterlockedCompareExchange" => InterlockedCompareExchange,
     }
-    true
 }
 
-pub const SURFACE: &[&str] = &[
-    "ExAllocatePool",
-    "ExAllocatePool2",
-    "ExAllocatePool3",
-    "ExAllocatePoolWithTag",
-    "ExAllocatePoolWithTagPriority",
-    "ExAllocatePoolWithQuota",
-    "ExAllocatePoolWithQuotaTag",
-    "ExAllocatePoolZero",
-    "ExAllocatePoolUninitialized",
-    "ExAllocatePoolQuotaZero",
-    "ExAllocatePoolQuotaUninitialized",
-    "ExAllocatePoolPriorityZero",
-    "ExAllocatePoolPriorityUninitialized",
-    "ExFreePool",
-    "ExFreePool2",
-    "ExFreePoolWithTag",
-    "MmAllocateNonCachedMemory",
-    "MmFreeNonCachedMemory",
-    "MmAllocateContiguousMemory",
-    "MmAllocateContiguousMemorySpecifyCache",
-    "MmAllocateContiguousMemorySpecifyCacheNode",
-    "MmAllocateContiguousNodeMemory",
-    "MmAllocateContiguousMemoryEx",
-    "MmFreeContiguousMemory",
-    "MmFreeContiguousMemorySpecifyCache",
-    "MmAllocateMappingAddress",
-    "MmFreeMappingAddress",
-    "HalAllocateCommonBuffer",
-    "HalFreeCommonBuffer",
-    "ExInitializeNPagedLookasideList",
-    "ExInitializePagedLookasideList",
-    "ExInitializeLookasideListEx",
-    "ExDeleteNPagedLookasideList",
-    "ExDeletePagedLookasideList",
-    "ExDeleteLookasideListEx",
-    "ExAllocateFromNPagedLookasideList",
-    "ExAllocateFromPagedLookasideList",
-    "ExAllocateFromLookasideListEx",
-    "ExFreeToNPagedLookasideList",
-    "ExFreeToPagedLookasideList",
-    "ExFreeToLookasideListEx",
-    "ExpInterlockedPushEntrySList",
-    "ExpInterlockedPopEntrySList",
-    "ExpInterlockedFlushSList",
-    "ExInterlockedPushEntrySList",
-    "ExInterlockedPopEntrySList",
-    "ExInterlockedFlushSList",
-    "ExQueryDepthSList",
-    "ExInitializeSListHead",
-    "ExInterlockedInsertTailList",
-    "ExInterlockedInsertHeadList",
-    "ExInterlockedRemoveHeadList",
-    "ExInterlockedRemoveTailList",
-    "ExInterlockedPushEntryList",
-    "ExInterlockedPopEntryList",
-    "ExInterlockedAddLargeInteger",
-    "ExInterlockedAddLargeStatistic",
-    "ExInterlockedAddUlong",
-    "InterlockedIncrement",
-    "InterlockedDecrement",
-    "InterlockedExchange",
-    "InterlockedCompareExchange",
-];
+pub const SURFACE: &[&str] = handlers().names;
+
+pub fn has_handler(symbol: &str) -> bool {
+    handlers().find(symbol).is_some()
+}
+
+fn ExAllocatePool2(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let tag = api_try!(emu, call.arg(emu, 2));
+    const POOL_FLAG_UNINITIALIZED: u64 = 0x2;
+    let ptr = emu.kernel_alloc(
+        Region::Slab,
+        size,
+        &tag_name(tag),
+        symbol,
+        flags & POOL_FLAG_UNINITIALIZED == 0,
+    );
+    call.set_return(emu, ptr);
+}
+
+fn ExAllocatePoolWithTag(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let size = api_try!(emu, call.arg(emu, 1));
+    let tag = api_try!(emu, call.arg(emu, 2));
+    let zero = symbol.ends_with("Zero");
+    let ptr = emu.kernel_alloc(Region::Slab, size, &tag_name(tag), symbol, zero);
+    call.set_return(emu, ptr);
+}
+
+fn ExAllocatePool(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let size = api_try!(emu, call.arg(emu, 1));
+    let ptr = emu.kernel_alloc(Region::Slab, size, "pool-none", symbol, false);
+    call.set_return(emu, ptr);
+}
+
+fn ExFreePool(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
+    emu.kernel_free(ptr, symbol);
+    call.set_return(emu, 0);
+}
+
+fn MmAllocateNonCachedMemory(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let size = api_try!(emu, call.arg(emu, 0));
+    let ptr = emu.kernel_alloc(Region::Pages, size, "contiguous", symbol, true);
+    call.set_return(emu, ptr);
+}
+
+fn MmFreeNonCachedMemory(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
+    emu.kernel_free(ptr, symbol);
+}
+
+fn MmAllocateMappingAddress(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let size = api_try!(emu, call.arg(emu, 0));
+    let ptr = emu.kernel_alloc(Region::Pages, size, "mapping-address", symbol, true);
+    call.set_return(emu, ptr);
+}
+
+fn HalAllocateCommonBuffer(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let size = api_try!(emu, call.arg(emu, 1));
+    let logical = api_try!(emu, call.arg(emu, 2));
+    let ptr = emu.kernel_alloc(Region::Pages, size, "common-buffer", symbol, true);
+    if logical != 0 {
+        emu.maps.write_qword(logical, ptr & 0xffff_ffff);
+    }
+    call.set_return(emu, ptr);
+}
+
+fn HalFreeCommonBuffer(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 2));
+    emu.kernel_free(ptr, symbol);
+}
+
+fn ExInitializeNPagedLookasideList(emu: &mut Emu, symbol: &str) {
+    api_try!(emu, init_lookaside(emu, symbol, false));
+}
+
+fn ExInitializePagedLookasideList(emu: &mut Emu, symbol: &str) {
+    api_try!(emu, init_lookaside(emu, symbol, true));
+}
+
+fn ExInitializeLookasideListEx(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    // (Lookaside, Allocate, Free, PoolType, Flags, Size, Tag, Depth)
+    let l = api_try!(emu, call.arg(emu, 0));
+    let allocate = api_try!(emu, call.arg(emu, 1));
+    let free = api_try!(emu, call.arg(emu, 2));
+    let pool_type = api_try!(emu, call.arg(emu, 3));
+    let size = api_try!(emu, call.arg(emu, 5));
+    let tag = api_try!(emu, call.arg(emu, 6));
+    emu.maps.write_bytes(l, &[0u8; LOOKASIDE_SIZE as usize]);
+    emu.maps.write_qword(l + 8, 1);
+    emu.maps.write_word(l + LOOKASIDE_DEPTH, 4);
+    emu.maps.write_word(l + LOOKASIDE_MAX_DEPTH, 256);
+    emu.maps.write_dword(l + LOOKASIDE_TYPE, pool_type as u32);
+    emu.maps.write_dword(l + LOOKASIDE_TAG, tag as u32);
+    emu.maps.write_dword(l + LOOKASIDE_SIZE_FIELD, size as u32);
+    let a = if allocate != 0 {
+        allocate
+    } else {
+        emu.kernel_stub_for("ExAllocatePoolWithTag").unwrap_or(0)
+    };
+    let f = if free != 0 {
+        free
+    } else {
+        emu.kernel_stub_for("ExFreePool").unwrap_or(0)
+    };
+    emu.maps.write_qword(l + LOOKASIDE_ALLOCATE, a);
+    emu.maps.write_qword(l + LOOKASIDE_FREE, f);
+    call.set_return(emu, 0);
+}
+
+fn ExDeleteNPagedLookasideList(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    // Entries parked on the SList are returned to the pool.
+    let l = api_try!(emu, call.arg(emu, 0));
+    loop {
+        let e = slist_pop(emu, l + LOOKASIDE_LIST_HEAD);
+        if e == 0 {
+            break;
+        }
+        emu.kernel_free(e, symbol);
+    }
+    call.set_return(emu, 0);
+}
+
+fn ExAllocateFromNPagedLookasideList(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let l = api_try!(emu, call.arg(emu, 0));
+    let mut e = slist_pop(emu, l + LOOKASIDE_LIST_HEAD);
+    if e == 0 {
+        let size = emu.maps.read_dword(l + LOOKASIDE_SIZE_FIELD).unwrap_or(0) as u64;
+        let tag = emu.maps.read_dword(l + LOOKASIDE_TAG).unwrap_or(0) as u64;
+        e = emu.kernel_alloc(Region::Slab, size, &tag_name(tag), symbol, false);
+    }
+    call.set_return(emu, e);
+}
+
+fn ExFreeToNPagedLookasideList(emu: &mut Emu, symbol: &str) {
+    let call = WinApi(Stdcall);
+    let l = api_try!(emu, call.arg(emu, 0));
+    let e = api_try!(emu, call.arg(emu, 1));
+    let depth = slist_depth(emu, l + LOOKASIDE_LIST_HEAD);
+    let max = emu.maps.read_word(l + LOOKASIDE_DEPTH).unwrap_or(4);
+    if depth < max {
+        slist_push(emu, l + LOOKASIDE_LIST_HEAD, e);
+    } else {
+        emu.kernel_free(e, symbol);
+    }
+    call.set_return(emu, 0);
+}
+
+fn ExpInterlockedPushEntrySList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let entry = api_try!(emu, call.arg(emu, 1));
+    let old = slist_push(emu, head, entry);
+    call.set_return(emu, old);
+}
+
+fn ExpInterlockedPopEntrySList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let e = slist_pop(emu, head);
+    call.set_return(emu, e);
+}
+
+fn ExpInterlockedFlushSList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let first = slist_first(emu, head);
+    slist_set(emu, head, 0, 0);
+    call.set_return(emu, first);
+}
+
+fn ExQueryDepthSList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let d = slist_depth(emu, head);
+    call.set_return(emu, d as u64);
+}
+
+fn InitializeSListHead(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    emu.maps.write_qword(head, 0);
+    emu.maps.write_qword(head + 8, 1);
+    call.set_return(emu, 0);
+}
+
+fn ExInterlockedInsertTailList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let entry = api_try!(emu, call.arg(emu, 1));
+    let old = list_insert_tail(emu, head, entry);
+    call.set_return(emu, old);
+}
+
+fn ExInterlockedInsertHeadList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let entry = api_try!(emu, call.arg(emu, 1));
+    let old = list_insert_head(emu, head, entry);
+    call.set_return(emu, old);
+}
+
+fn ExInterlockedRemoveHeadList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let e = list_remove_head(emu, head);
+    call.set_return(emu, e);
+}
+
+fn ExInterlockedRemoveTailList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let e = list_remove_tail(emu, head);
+    call.set_return(emu, e);
+}
+
+fn ExInterlockedPushEntryList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let entry = api_try!(emu, call.arg(emu, 1));
+    let old = emu.maps.read_qword(head).unwrap_or(0);
+    emu.maps.write_qword(entry, old);
+    emu.maps.write_qword(head, entry);
+    call.set_return(emu, old);
+}
+
+fn ExInterlockedPopEntryList(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    let first = emu.maps.read_qword(head).unwrap_or(0);
+    if first != 0 {
+        let rip = emu.pc();
+        emu.kernel_guard_access(rip, first, 8, false);
+        let next = emu.maps.read_qword(first).unwrap_or(0);
+        emu.maps.write_qword(head, next);
+    }
+    call.set_return(emu, first);
+}
+
+fn ExInterlockedAddLargeInteger(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let addend = api_try!(emu, call.arg(emu, 0));
+    let inc = api_try!(emu, call.arg(emu, 1));
+    let old = emu.maps.read_qword(addend).unwrap_or(0);
+    emu.maps.write_qword(addend, old.wrapping_add(inc));
+    call.set_return(emu, old);
+}
+
+fn ExInterlockedAddUlong(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let addend = api_try!(emu, call.arg(emu, 0));
+    let inc = api_try!(emu, call.arg_u32(emu, 1));
+    let old = emu.maps.read_dword(addend).unwrap_or(0);
+    emu.maps.write_dword(addend, old.wrapping_add(inc));
+    call.set_return(emu, old as u64);
+}
+
+fn InterlockedIncrement(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let p = api_try!(emu, call.arg(emu, 0));
+    let v = emu.maps.read_dword(p).unwrap_or(0).wrapping_add(1);
+    emu.maps.write_dword(p, v);
+    call.set_return(emu, v as u64);
+}
+
+fn InterlockedDecrement(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let p = api_try!(emu, call.arg(emu, 0));
+    let v = emu.maps.read_dword(p).unwrap_or(0).wrapping_sub(1);
+    emu.maps.write_dword(p, v);
+    call.set_return(emu, v as u64);
+}
+
+fn InterlockedExchange(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let p = api_try!(emu, call.arg(emu, 0));
+    let v = api_try!(emu, call.arg_u32(emu, 1));
+    let old = emu.maps.read_dword(p).unwrap_or(0);
+    emu.maps.write_dword(p, v);
+    call.set_return(emu, old as u64);
+}
+
+fn InterlockedCompareExchange(emu: &mut Emu, _symbol: &str) {
+    let call = WinApi(Stdcall);
+    let p = api_try!(emu, call.arg(emu, 0));
+    let v = api_try!(emu, call.arg_u32(emu, 1));
+    let cmp = api_try!(emu, call.arg_u32(emu, 2));
+    let old = emu.maps.read_dword(p).unwrap_or(0);
+    if old == cmp {
+        emu.maps.write_dword(p, v);
+    }
+    call.set_return(emu, old as u64);
+}

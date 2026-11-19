@@ -1,4 +1,5 @@
 use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::dispatch_api;
 use crate::api::windows::helper;
 use crate::emu;
 use crate::winapi::policy::api_try;
@@ -10,7 +11,7 @@ use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "RtlInitializeCriticalSection" => InitializeCriticalSection(emu),
         "RtlInitializeCriticalSectionAndSpinCount" => RtlInitializeCriticalSectionAndSpinCount(emu),
         "RtlEnterCriticalSection" | "EnterCriticalSection" => EnterCriticalSection(emu),
@@ -28,9 +29,10 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlTlsSetValue" => TlsSetValue(emu),
         "NtDelayExecution" => NtDelayExecution(emu),
         "RtlInitializeSListHead" => RtlInitializeSListHead(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn RtlInitializeSListHead(emu: &mut emu::Emu) {

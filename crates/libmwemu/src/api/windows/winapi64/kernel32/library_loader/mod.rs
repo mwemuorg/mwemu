@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
@@ -40,7 +41,7 @@ mod free_library;
 pub use free_library::FreeLibrary;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "ActivateActCtx" => kernel32::ActivateActCtx(emu),
         "BeginUpdateResourceA" => kernel32::BeginUpdateResourceA(emu),
         "BeginUpdateResourceW" => kernel32::BeginUpdateResourceW(emu),
@@ -64,7 +65,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "LoadResource" => kernel32::LoadResource(emu),
         "LockResource" => kernel32::LockResource(emu),
         "SizeofResource" => kernel32::SizeofResource(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::user32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "LoadCursorA" => user32::LoadCursorA(emu),
         "GetKeyState" => user32::GetKeyState(emu),
         "GetAsyncKeyState" => user32::GetAsyncKeyState(emu),
@@ -129,9 +130,7 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "MapVirtualKeyExW" => user32::MapVirtualKeyExW(emu),
         "OemKeyScan" => user32::OemKeyScan(emu),
         "OpenInputDesktop" => user32::OpenInputDesktop(emu),
-        "PackTouchHitTestingProximityEvaluation" => {
-            user32::PackTouchHitTestingProximityEvaluation(emu)
-        }
+        "PackTouchHitTestingProximityEvaluation" => user32::PackTouchHitTestingProximityEvaluation(emu),
         "RIMAddInputObserver" => user32::RIMAddInputObserver(emu),
         "RIMAreSiblingDevices" => user32::RIMAreSiblingDevices(emu),
         "RIMDeviceIoControl" => user32::RIMDeviceIoControl(emu),
@@ -202,7 +201,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "keybd_event" => user32::keybd_event(emu),
         "mouse_event" => user32::mouse_event(emu),
         "GetPhysicalCursorPos" => user32::GetPhysicalCursorPos(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

@@ -1,13 +1,12 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi32::kernel32;
 
 pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "DuplicateHandle" => kernel32::DuplicateHandle(emu),
         "SetHandleCount" => kernel32::SetHandleCount(emu),
-        "AddIntegrityLabelToBoundaryDescriptor" => {
-            kernel32::AddIntegrityLabelToBoundaryDescriptor(emu)
-        }
+        "AddIntegrityLabelToBoundaryDescriptor" => kernel32::AddIntegrityLabelToBoundaryDescriptor(emu),
         "CloseConsoleHandle" => kernel32::CloseConsoleHandle(emu),
         "CreateBoundaryDescriptorA" => kernel32::CreateBoundaryDescriptorA(emu),
         "GetConsoleInputWaitHandle" => kernel32::GetConsoleInputWaitHandle(emu),
@@ -46,7 +45,8 @@ pub(super) fn dispatch(api: &str, addr: u32, emu: &mut Emu) -> bool {
         "SetStdHandle" => kernel32::SetStdHandle(emu),
         "SetStdHandleEx" => kernel32::SetStdHandleEx(emu),
         "CreateSocketHandle" => kernel32::CreateSocketHandle(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

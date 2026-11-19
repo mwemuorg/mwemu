@@ -2,21 +2,23 @@ use crate::api::abi::windows::{
     CallingConvention::{Cdecl, Stdcall},
     WindowsAbi::WinApi,
 };
+use crate::api::dispatch_api;
 use crate::api::windows::common::ntdll;
 use crate::emu;
 use crate::winapi::policy::api_try;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "stricmp" => stricmp(emu),
         "strlen" => strlen(emu),
         "sscanf" => sscanf(emu),
         "RtlInitUnicodeString" => RtlInitUnicodeString(emu),
         "RtlInitAnsiString" => RtlInitAnsiString(emu),
         "strcat" => strcat(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 fn stricmp(emu: &mut emu::Emu) {

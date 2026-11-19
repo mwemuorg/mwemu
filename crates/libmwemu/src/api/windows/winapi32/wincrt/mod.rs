@@ -1,3 +1,4 @@
+use crate::api::dispatch_api;
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::common::crt;
@@ -12,13 +13,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     if crt::dispatch(api, emu) {
         return String::new();
     }
-    match api {
+    dispatch_api!(api, {
         "_set_invalid_parameter_handler" => set_invalid_parameter_handler(emu),
-
-        _ => {
-            return fallback::unimplemented(addr, api, emu);
-        }
-    }
-
-    String::new()
+    },
+        handled(()) => String::new(),
+        fallback => fallback::unimplemented(addr, api, emu),
+    )
 }

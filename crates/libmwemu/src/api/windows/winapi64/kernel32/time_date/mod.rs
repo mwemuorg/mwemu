@@ -1,8 +1,9 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernel32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "FileTimeToSystemTime" => kernel32::FileTimeToSystemTime(emu),
         "GetFileTime" => kernel32::GetFileTime(emu),
         "SetFileTime" => kernel32::SetFileTime(emu),
@@ -22,7 +23,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetDateFormatW" => kernel32::GetDateFormatW(emu),
         "GetTimeFormatA" => kernel32::GetTimeFormatA(emu),
         "GetTimeFormatW" => kernel32::GetTimeFormatW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
