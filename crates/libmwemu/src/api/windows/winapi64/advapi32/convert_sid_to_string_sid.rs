@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn ConvertSidToStringSidA(emu: &mut emu::Emu) {
     convert_sid_to_string_sid(emu, "ConvertSidToStringSidA", false);
@@ -10,8 +12,9 @@ pub fn ConvertSidToStringSidW(emu: &mut emu::Emu) {
 }
 
 fn convert_sid_to_string_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _sid = emu.regs().rcx;
-    let str_sid_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let _sid = api_try!(emu, call.arg(emu, 0));
+    let str_sid_ptr = api_try!(emu, call.arg(emu, 1));
     let sid_str = "S-1-5-21-1234567890-1234567890-1234567890-1001";
     log_red!(emu, "advapi32!{api} -> '{}'", sid_str);
     if wide {
@@ -49,5 +52,5 @@ fn convert_sid_to_string_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

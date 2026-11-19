@@ -1,21 +1,25 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub(super) fn LoadCursorA(emu: &mut emu::Emu) {
-    let hinstance = emu.regs().rcx;
-    let lpcursorname = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hinstance = api_try!(emu, call.arg(emu, 0));
+    let lpcursorname = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "user32!LoadCursorA hInst:0x{:x} name:0x{:x}",
         hinstance,
         lpcursorname
     );
-    emu.regs_mut().rax = helper::handler_create("user32://cursor");
+    call.set_return(emu, helper::handler_create("user32://cursor"));
 }
 
 pub fn LoadCursorW(emu: &mut emu::Emu) {
-    let hinstance = emu.regs().rcx;
-    let cursor_name = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hinstance = api_try!(emu, call.arg(emu, 0));
+    let cursor_name = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "user32!LoadCursorW hinst:0x{:x} cursor:0x{:x}",
@@ -23,5 +27,5 @@ pub fn LoadCursorW(emu: &mut emu::Emu) {
         cursor_name
     );
     let hndl = helper::handler_create("user32://LoadCursorW");
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

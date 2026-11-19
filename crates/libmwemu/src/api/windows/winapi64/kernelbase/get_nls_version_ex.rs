@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetNLSVersionEx(emu: &mut emu::Emu) {
-    let func = emu.regs().rcx as u32;
-    let locale_ptr = emu.regs().rdx;
-    let info_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let func = api_try!(emu, call.arg_u32(emu, 0));
+    let locale_ptr = api_try!(emu, call.arg(emu, 1));
+    let info_ptr = api_try!(emu, call.arg(emu, 2));
     let locale = if locale_ptr != 0 && locale_ptr > 0xffff {
         emu.maps.read_wide_string(locale_ptr)
     } else {
@@ -21,5 +24,5 @@ pub fn GetNLSVersionEx(emu: &mut emu::Emu) {
         func,
         locale
     );
-    emu.regs_mut().rax = 1; // TRUE
+    call.set_return(emu, 1); // TRUE
 }

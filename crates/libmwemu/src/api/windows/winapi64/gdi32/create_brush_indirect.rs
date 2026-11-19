@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateBrushIndirect(emu: &mut emu::Emu) {
-    let lbrush = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let lbrush = api_try!(emu, call.arg(emu, 0));
     let (style, color) = if lbrush != 0 {
         (
             emu.maps.read_dword(lbrush).unwrap_or(0),
@@ -18,5 +21,5 @@ pub fn CreateBrushIndirect(emu: &mut emu::Emu) {
         style,
         color
     );
-    emu.regs_mut().rax = helper::handler_create("gdi32://brush");
+    call.set_return(emu, helper::handler_create("gdi32://brush"));
 }

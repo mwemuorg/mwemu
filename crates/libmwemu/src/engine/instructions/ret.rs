@@ -8,6 +8,8 @@ use crate::{color, exception::handlers as exception};
 use iced_x86::Instruction;
 
 pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_step: bool) -> bool {
+    emu.last_ret = (emu.pos, ins.ip());
+
     let ret_addr: u64 = if emu.cfg.is_x64() {
         match emu.stack_pop64(false) {
             Some(v) => v,
@@ -98,6 +100,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     {
         emu.ssdt_pad_stack.pop();
         emu.regs_mut().rsp = emu.regs().rsp.wrapping_add(0x20);
+    }
+
+    // Host calls may return to an unmapped sentinel, including address zero.
+    if emu.host_call_return == Some(ret_addr) {
+        emu.regs_mut().rip = ret_addr;
+        emu.force_reload = true;
+        return true;
     }
 
     if emu.cfg.is_x64() {

@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 pub fn AddVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let first = emu.regs().rcx as u32;
-    let handler = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let first = api_try!(emu, call.arg_u32(emu, 0));
+    let handler = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "kernel32!AddVectoredExceptionHandler first:{} handler:0x{:x}",
@@ -11,5 +14,5 @@ pub fn AddVectoredExceptionHandler(emu: &mut emu::Emu) {
     emu.add_veh(first != 0, handler);
 
     // the handler address doubles as the handle RemoveVectoredExceptionHandler gets
-    emu.regs_mut().rax = handler;
+    call.set_return(emu, handler);
 }

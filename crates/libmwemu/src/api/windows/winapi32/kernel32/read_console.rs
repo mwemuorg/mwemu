@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn ReadConsoleA(emu: &mut emu::Emu) {
     read_console(emu, "ReadConsoleA", false);
 }
 
 fn read_console(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
-    let p2 = WinApiAbi::arg(emu, 2);
-    let p3 = WinApiAbi::arg(emu, 3);
-    let p4 = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
+    let p4 = api_try!(emu, call.arg(emu, 4));
     let s = if p0 != 0 && p0 > 0xffff {
         strings::read_text(emu, p0, wide)
     } else {
@@ -25,10 +27,8 @@ fn read_console(emu: &mut emu::Emu, api: &str, wide: bool) {
         p2,
         p3
     );
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 5);
+    call.set_return(emu, 1);
 }
 
 pub fn ReadConsoleW(emu: &mut emu::Emu) {

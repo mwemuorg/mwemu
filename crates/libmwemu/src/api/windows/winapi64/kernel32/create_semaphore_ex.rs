@@ -1,6 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn CreateSemaphoreExA(emu: &mut Emu) {
@@ -12,9 +14,10 @@ pub fn CreateSemaphoreExW(emu: &mut Emu) {
 }
 
 fn invoke(emu: &mut Emu, wide: bool, api: &str) {
-    let initial = emu.regs().rdx as i32;
-    let maximum = emu.regs().r8 as i32;
-    let name = strings::read_text(emu, emu.regs().r9, wide);
+    let call = WinApi(Stdcall);
+    let initial = api_try!(emu, call.arg_i32(emu, 1));
+    let maximum = api_try!(emu, call.arg_i32(emu, 2));
+    let name = strings::read_text(emu, api_try!(emu, call.arg(emu, 3)), wide);
     log_red!(
         emu,
         "kernel32!{} initial:{} maximum:{} name:'{}'",
@@ -25,8 +28,8 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
     );
     if initial < 0 || maximum <= 0 || initial > maximum {
         emu.set_last_error(ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     } else {
-        emu.regs_mut().rax = helper::handler_create(&name);
+        call.set_return(emu, helper::handler_create(&name));
     }
 }

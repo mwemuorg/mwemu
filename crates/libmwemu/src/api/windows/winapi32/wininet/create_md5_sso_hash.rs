@@ -1,17 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CreateMD5SSOHash(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let a0 = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let a1 = api_try!(emu, call.arg_u32(emu, 1)) as u64;
     log_red!(
         emu,
         "wininet!CreateMD5SSOHash arg0:0x{:x} arg1:0x{:x}",
         a0,
         a1
     );
-    emu.regs_mut().rax = helper::handler_create("createmd5ssohash");
-    stdcall_ret(emu, 4);
+    call.set_return(emu, helper::handler_create("createmd5ssohash"));
+    call.cleanup_args(emu, 4);
 }

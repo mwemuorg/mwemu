@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetSidSubAuthority(emu: &mut emu::Emu) {
-    let sid_ptr = emu.regs().rcx;
-    let index = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let sid_ptr = api_try!(emu, call.arg(emu, 0));
+    let index = api_try!(emu, call.arg(emu, 1));
     // Returns pointer to the sub-authority DWORD at offset 8 + index*4
     let result = sid_ptr + 8 + index * 4;
     log_red!(
@@ -14,5 +17,5 @@ pub fn GetSidSubAuthority(emu: &mut emu::Emu) {
     );
     for _ in 0..2 {}
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

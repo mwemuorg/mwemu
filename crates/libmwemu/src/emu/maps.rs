@@ -1,4 +1,4 @@
-use std::{fs, io, path::Path};
+use std::path::Path;
 
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
@@ -6,39 +6,17 @@ use crate::maps::mem64::Permission;
 impl Emu {
     /// For simulating a windows process space, select the folder with maps (e.g. maps/windows/x86_64/) depending upon the arch, do this before loading the binary.
     pub fn set_maps_folder(&mut self, folder: &str) {
-        //let mut f = folder.to_string();
-        //f.push('/');
         self.cfg.maps_folder = folder.to_string();
 
         if self.maps_folder_is_valid(folder) {
             return;
         }
 
-        // 32-bit maps still need the legacy release zip (no symbol-server support
-        // for them yet). Everything else (x64 Windows) is fine empty: the loader
-        // auto-fetches each missing DLL from the symbol server on demand
-        // (`ensure_maps_dll`), so just make sure the directory exists.
-        let is_32bit = folder.contains("windows/x86") && !folder.contains("x86_64");
-        if is_32bit {
-            log::trace!(
-                "Maps folder '{}' incomplete, attempting legacy download...",
-                folder
-            );
-            if let Err(e) = self.download_and_extract_maps(folder) {
-                log::error!("Failed to download 32-bit maps '{}': {}", folder, e);
-                {
-                    log::warn!(
-                        "Cannot obtain 32-bit Windows maps. Supply your own with `--maps <dir>`."
-                    );
-                    return;
-                }
-            }
-            return;
-        }
-
-        // x64 (or custom) folder: create it and let on-demand fetching fill it.
+        // Create the directory and let on-demand fetching from the symbol
+        // server fill it (x64 DLLs). For 32-bit maps the user must supply
+        // them manually with --maps or --iso.
         log::trace!(
-            "Maps folder '{}' empty; DLLs will be auto-fetched from the symbol server on demand",
+            "Maps folder '{}' not found or incomplete; creating it",
             folder
         );
         let _ = std::fs::create_dir_all(folder);
@@ -48,13 +26,10 @@ impl Emu {
     fn maps_folder_is_valid(&self, folder: &str) -> bool {
         let folder_path = Path::new(folder);
         if !folder_path.exists() {
-            println!("folder doesnt exist");
             return false;
         }
 
-        // Check for essential files based on architecture
         let essential_files = if !self.cfg.arch.is_64bits() {
-            println!("self.cfg.emulate_winapi: {}", self.cfg.emulate_winapi);
             if self.cfg.skip_unimplemented {
                 vec!["ntdll.dll", "kernel32.dll", "banzai.csv"]
             } else {
@@ -67,7 +42,6 @@ impl Emu {
         for file in essential_files {
             let file_path = folder_path.join(file);
             if !file_path.exists() {
-                println!("essential file missing: {}", file_path.display());
                 log::trace!(
                     "Essential file '{}' missing from maps folder",
                     file_path.display()
@@ -77,68 +51,6 @@ impl Emu {
         }
 
         true
-    }
-
-    /// Download and extract maps folder from specific URL
-    fn download_and_extract_maps(&self, folder: &str) -> Result<(), Box<dyn std::error::Error>> {
-        // x86_64 maps are fetched from the symbol server in set_maps_folder
-        // (--winver) and never reach here. 32-bit maps don't have symbol-server
-        // support yet, so they still use the legacy release zip.
-        let url = match folder {
-            f if f.contains("windows/x86") && !f.contains("x86_64") => {
-                "https://github.com/sha0coder/mwemu/releases/download/maps/maps32.zip"
-            }
-            _ => return Err(format!("Unknown maps folder: {}", folder).into()),
-        };
-
-        log::trace!(
-            "Downloading {} from GitHub releases... (this may take a moment)",
-            folder
-        );
-
-        // Download the file using ureq
-        // Note: To reduce TLS verbosity, set RUST_LOG=info instead of debug
-        let response = ureq::get(url)
-            .timeout(std::time::Duration::from_secs(30))
-            .call()?;
-
-        if response.status() != 200 {
-            return Err(format!("Failed to download: HTTP {}", response.status()).into());
-        }
-
-        let mut bytes = Vec::new();
-        response.into_reader().read_to_end(&mut bytes)?;
-        log::trace!("Downloaded {} MB", bytes.len() / 1024 / 1024);
-
-        // Extract the zip file
-        let cursor = std::io::Cursor::new(bytes);
-        let mut archive = zip::ZipArchive::new(cursor)?;
-
-        log::trace!("Extracting {} files...", archive.len());
-
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i)?;
-            let outpath = Path::new(file.name());
-
-            if file.name().ends_with('/') {
-                // Create directory
-                fs::create_dir_all(outpath)?;
-            } else {
-                // Create parent directories if they don't exist
-                if let Some(p) = outpath.parent()
-                    && !p.exists()
-                {
-                    fs::create_dir_all(p)?;
-                }
-
-                // Extract file
-                let mut outfile = fs::File::create(outpath)?;
-                io::copy(&mut file, &mut outfile)?;
-            }
-        }
-
-        log::trace!("Successfully extracted maps folder: {}", folder);
-        Ok(())
     }
 
     /// Get the base address of the code, if code map doesn't exist yet will return None.
@@ -184,7 +96,7 @@ impl Emu {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::fs;
 
     #[test]
     fn maps_folder_requires_banzai_csv_only_when_skip_unimplemented() {

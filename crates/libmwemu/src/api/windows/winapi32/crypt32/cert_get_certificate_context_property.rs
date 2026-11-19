@@ -1,19 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CertGetCertificateContextProperty(emu: &mut emu::Emu) {
-    let p_cert_ctx = WinApiAbi::arg(emu, 0);
-    let dw_prop_id = WinApiAbi::arg(emu, 1);
-    let pv_data = WinApiAbi::arg(emu, 2);
-    let pcb_data = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let p_cert_ctx = api_try!(emu, call.arg(emu, 0));
+    let dw_prop_id = api_try!(emu, call.arg(emu, 1));
+    let pv_data = api_try!(emu, call.arg(emu, 2));
+    let pcb_data = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "crypt32!CertGetCertificateContextProperty 0x{:x}",
         p_cert_ctx
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 4);
 }

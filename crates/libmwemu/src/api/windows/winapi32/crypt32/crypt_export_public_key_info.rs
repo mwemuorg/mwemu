@@ -1,20 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptExportPublicKeyInfo(emu: &mut emu::Emu) {
-    let h_crypt_prov = WinApiAbi::arg(emu, 0);
-    let dw_key_spec = WinApiAbi::arg(emu, 1);
-    let dw_cert_encoding = WinApiAbi::arg(emu, 2);
-    let p_info = WinApiAbi::arg(emu, 3);
-    let pcb_info = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let h_crypt_prov = api_try!(emu, call.arg(emu, 0));
+    let dw_key_spec = api_try!(emu, call.arg(emu, 1));
+    let dw_cert_encoding = api_try!(emu, call.arg(emu, 2));
+    let p_info = api_try!(emu, call.arg(emu, 3));
+    let pcb_info = api_try!(emu, call.arg(emu, 4));
     log_red!(emu, "crypt32!CryptExportPublicKeyInfo 0x{:x}", h_crypt_prov);
-    let val_ptr = WinApiAbi::arg(emu, 1);
+    let val_ptr = api_try!(emu, call.arg(emu, 1));
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }

@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::winapi::common::memory::Call;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::nls::EN_US_LOCALE;
 use crate::windows::constants::system::*;
 
@@ -52,9 +53,14 @@ fn virtual_key(scan: u32) -> u32 {
 }
 
 pub(crate) fn map_virtual_key(emu: &mut Emu, api: &str, extended: bool) {
-    let code = Call::Api.arg(emu, 0) as u32;
-    let kind = Call::Api.arg(emu, 1) as u32;
-    let layout = if extended { Call::Api.arg(emu, 2) } else { 0 };
+    let call = WinApi(Stdcall);
+    let code = api_try!(emu, call.arg_u32(emu, 0));
+    let kind = api_try!(emu, call.arg_u32(emu, 1));
+    let layout = if extended {
+        api_try!(emu, call.arg(emu, 2))
+    } else {
+        0
+    };
     let result = if layout != 0 && layout as u16 as u32 != EN_US_LOCALE {
         0
     } else {
@@ -80,5 +86,6 @@ pub(crate) fn map_virtual_key(emu: &mut Emu, api: &str, extended: bool) {
         layout,
         result
     );
-    Call::Api.finish(emu, result as u64, if extended { 3 } else { 2 });
+    call.set_return(emu, result as u64);
+    call.cleanup_args(emu, if extended { 3 } else { 2 });
 }

@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetSecurityDescriptorLength(emu: &mut emu::Emu) {
-    let sd_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let sd_ptr = api_try!(emu, call.arg(emu, 0));
     // Minimum SD size: Rev(1)+Sbz1(1)+Control(2)+Owner(8)+Group(8)+Sacl(8)+Dacl(8) = 36
     let mut length = 36u64;
     if sd_ptr != 0 {
@@ -32,5 +35,5 @@ pub fn GetSecurityDescriptorLength(emu: &mut emu::Emu) {
     );
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = length;
+    call.set_return(emu, length);
 }

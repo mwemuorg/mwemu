@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::helper;
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::kernel32::{
     self, EnterCriticalSection, InitializeCriticalSection, LeaveCriticalSection, TlsAlloc, TlsFree,
     TlsGetValue, TlsSetValue,
@@ -25,48 +27,55 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
         "RtlTlsGetValue" => TlsGetValue(emu),
         "RtlTlsSetValue" => TlsSetValue(emu),
         "NtDelayExecution" => NtDelayExecution(emu),
-        "RtlInitializeSListHead" => {
-            let head = emu.regs().rcx;
-            log_red!(emu, "ntdll!RtlInitializeSListHead head: 0x{:x}", head);
-            if head != 0 {
-                emu.maps.write_qword(head, 0);
-                emu.maps.write_qword(head + 8, 0);
-            }
-        }
+        "RtlInitializeSListHead" => RtlInitializeSListHead(emu),
         _ => return false,
     }
     true
 }
 
+fn RtlInitializeSListHead(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
+    let head = api_try!(emu, call.arg(emu, 0));
+    log_red!(emu, "ntdll!RtlInitializeSListHead head: 0x{:x}", head);
+    if head != 0 {
+        emu.maps.write_qword(head, 0);
+        emu.maps.write_qword(head + size_of::<u64>() as u64, 0);
+    }
+}
+
 fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
-    let crit_sect = emu.regs().rcx;
-    let spin_count = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let crit_sect = api_try!(emu, call.arg(emu, 0));
+    let spin_count = api_try!(emu, call.arg(emu, 1));
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionAndSpinCount");
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlDeleteCriticalSection(emu: &mut emu::Emu) {
-    let _cs = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let _cs = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "ntdll!RtlDeleteCriticalSection");
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn RtlInitializeCriticalSectionEx(emu: &mut emu::Emu) {
-    let crit_sect_ptr = emu.regs().rcx;
-    let spin_count = emu.regs().rdx;
-    let flags = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let crit_sect_ptr = api_try!(emu, call.arg(emu, 0));
+    let spin_count = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 2));
 
     log_red!(emu, "ntdll!RtlInitializeCriticalSectionEx");
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn RtlQueueWorkItem(emu: &mut emu::Emu) {
-    let fptr = emu.regs().rcx;
-    let ctx = emu.regs().rdx;
-    let flags = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let fptr = api_try!(emu, call.arg(emu, 0));
+    let ctx = api_try!(emu, call.arg(emu, 1));
+    let flags = api_try!(emu, call.arg(emu, 2));
 
     log_red!(
         emu,
@@ -81,13 +90,14 @@ fn RtlQueueWorkItem(emu: &mut emu::Emu) {
         log::trace!("api: {} ", name);
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }
 
 fn NtWaitForSingleObject(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let bAlert = emu.regs().rdx;
-    let timeout = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let bAlert = api_try!(emu, call.arg(emu, 1));
+    let timeout = api_try!(emu, call.arg(emu, 2));
 
     log_red!(
         emu,
@@ -96,12 +106,13 @@ fn NtWaitForSingleObject(emu: &mut emu::Emu) {
         timeout
     );
 
-    emu.regs_mut().rax = 0x102;
+    call.set_return(emu, 0x102);
 }
 
 fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let first = emu.regs().rcx;
-    let fptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let first = api_try!(emu, call.arg(emu, 0));
+    let fptr = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -112,11 +123,12 @@ fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
 
     emu.add_veh(first != 0, fptr);
     // the handler address doubles as the handle RtlRemoveVectoredExceptionHandler gets
-    emu.regs_mut().rax = fptr;
+    call.set_return(emu, fptr);
 }
 
 fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
 
     log_red!(
         emu,
@@ -125,12 +137,13 @@ fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
     );
 
     emu.remove_veh(handle);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn NtDelayExecution(emu: &mut emu::Emu) {
-    let _alertable = emu.regs().rcx;
-    let delay_interval_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let _alertable = api_try!(emu, call.arg(emu, 0));
+    let delay_interval_ptr = api_try!(emu, call.arg(emu, 1));
 
     let interval = emu.maps.read_qword(delay_interval_ptr).unwrap_or(0) as i64;
 
@@ -145,5 +158,5 @@ pub fn NtDelayExecution(emu: &mut emu::Emu) {
 
     helper::advance_tick(emu, millis);
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    call.set_return(emu, STATUS_SUCCESS);
 }

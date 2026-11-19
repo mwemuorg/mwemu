@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SHFileOperation(emu: &mut emu::Emu) {
-    let file_op = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let file_op = api_try!(emu, call.arg(emu, 0));
     let func = if file_op != 0 {
         emu.maps.read_dword(file_op + 4).unwrap_or(0)
     } else {
@@ -26,8 +28,8 @@ pub fn SHFileOperation(emu: &mut emu::Emu) {
         from,
         file_op
     );
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 0;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 0);
 }
 
 pub fn SHFileOperationA(emu: &mut emu::Emu) {
@@ -35,7 +37,8 @@ pub fn SHFileOperationA(emu: &mut emu::Emu) {
 }
 
 fn sh_file_operation(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let file_op = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let file_op = api_try!(emu, call.arg(emu, 0));
     let func = if file_op != 0 {
         emu.maps.read_dword(file_op + 4).unwrap_or(0)
     } else {
@@ -58,8 +61,8 @@ fn sh_file_operation(emu: &mut emu::Emu, api: &str, wide: bool) {
         from,
         file_op
     );
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 0;
+    call.cleanup_args(emu, 1);
+    call.set_return(emu, 0);
 }
 
 pub fn SHFileOperationW(emu: &mut emu::Emu) {

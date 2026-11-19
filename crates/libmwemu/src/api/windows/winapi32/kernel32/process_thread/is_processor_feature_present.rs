@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::system::*;
 
 pub fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
-    let feature = WinApiAbi::arg(emu, 0) as u32;
-    emu.stack_pop32(false);
+    let call = WinApi(Stdcall);
+    let feature = api_try!(emu, call.arg_u32(emu, 0));
+    call.cleanup_args(emu, 1);
 
     let msg = match feature {
         PF_ARM_64BIT_LOADSTORE_ATOMIC => "PF_ARM_64BIT_LOADSTORE_ATOMIC",
@@ -51,5 +53,5 @@ pub fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
         msg
     );
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

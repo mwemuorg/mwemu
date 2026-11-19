@@ -1,10 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn WSASetLastError(emu: &mut emu::Emu) {
-    let err = arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let err = api_try!(emu, call.arg_u32(emu, 0));
     log_red!(emu, "ws2_32!WSASetLastError err: {}", err);
     emu.set_last_error(err as u64);
-    stdcall_ret(emu, 1);
+    call.cleanup_args(emu, 1);
 }

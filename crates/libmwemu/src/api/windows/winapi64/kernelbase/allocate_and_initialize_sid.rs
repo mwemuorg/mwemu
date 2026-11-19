@@ -1,18 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
-    let p_id_authority = emu.regs().rcx;
-    let n_sub_authority_count = emu.regs().rdx as u8;
-    let sub0 = emu.regs().r8 as u32;
-    let sub1 = emu.regs().r9 as u32;
-    let sub2 = WinApiAbi::arg(emu, 4) as u32;
-    let sub3 = WinApiAbi::arg(emu, 5) as u32;
-    let sub4 = WinApiAbi::arg(emu, 6) as u32;
-    let sub5 = WinApiAbi::arg(emu, 7) as u32;
-    let sub6 = WinApiAbi::arg(emu, 8) as u32;
-    let sub7 = WinApiAbi::arg(emu, 9) as u32;
-    let pp_sid = WinApiAbi::arg(emu, 10);
+    let call = WinApi(Stdcall);
+    let p_id_authority = api_try!(emu, call.arg(emu, 0));
+    let n_sub_authority_count = api_try!(emu, call.arg_u8(emu, 1));
+    let sub0 = api_try!(emu, call.arg_u32(emu, 2));
+    let sub1 = api_try!(emu, call.arg_u32(emu, 3));
+    let sub2 = api_try!(emu, call.arg_u32(emu, 4));
+    let sub3 = api_try!(emu, call.arg_u32(emu, 5));
+    let sub4 = api_try!(emu, call.arg_u32(emu, 6));
+    let sub5 = api_try!(emu, call.arg_u32(emu, 7));
+    let sub6 = api_try!(emu, call.arg_u32(emu, 8));
+    let sub7 = api_try!(emu, call.arg_u32(emu, 9));
+    let pp_sid = api_try!(emu, call.arg(emu, 10));
 
     let count = n_sub_authority_count.min(8) as usize;
     let sid_size = (8 + count * 4) as u64;
@@ -46,9 +48,9 @@ pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
             emu.maps.write_qword(pp_sid, base);
         }
         emu.set_last_error(0);
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
         emu.set_last_error(8); // ERROR_NOT_ENOUGH_MEMORY
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn SetDIBits(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let hbmp = emu.regs().rdx;
-    let start = emu.regs().r8;
-    let lines = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let hbmp = api_try!(emu, call.arg(emu, 1));
+    let start = api_try!(emu, call.arg(emu, 2));
+    let lines = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "gdi32!SetDIBits hdc:0x{:x} hbmp:0x{:x} start:{} lines:{}",
@@ -16,5 +19,5 @@ pub fn SetDIBits(emu: &mut emu::Emu) {
     );
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = lines;
+    call.set_return(emu, lines);
 }

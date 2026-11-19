@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetSystemTimeAsFileTime(emu: &mut emu::Emu) {
-    let ft_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ft_ptr = api_try!(emu, call.arg(emu, 0));
 
     // Base: 2024-01-01 00:00:00 UTC as FILETIME (100ns intervals since 1601-01-01)
     let base_ft: u64 = 0x01DA_5E3E_A46C_0000;

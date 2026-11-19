@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn Thread32First(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 0) as u32;
-    let entry = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg_u32(emu, 0));
+    let entry = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "kernel32!Thread32First");
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 2);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

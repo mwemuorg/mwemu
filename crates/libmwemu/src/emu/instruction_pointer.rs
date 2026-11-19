@@ -1,7 +1,10 @@
+use crate::api::unix;
+use crate::api::windows::policy::{self, ApiRoute};
 use crate::utils::helpers::unlikely;
 use crate::winapi::common::threads;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
+use crate::{linuxapi, macosapi};
 
 use crate::{
     emu::Emu,
@@ -51,14 +54,15 @@ impl Emu {
             self.colors.nc
         );
 
-        self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-        self.regs_mut().rip = self.gateway_return;
-
-        if self.os.is_macos() {
-            crate::macosapi::gateway(addr, section_name, &symbol, self);
-        } else if self.os.is_linux() {
-            crate::linuxapi::gateway(addr, section_name, &symbol, self);
+        let previous = unix::begin_call(self, section_name, &symbol, addr);
+        if unix::consume_return(self) {
+            if self.os.is_macos() {
+                macosapi::gateway(addr, section_name, &symbol, self);
+            } else if self.os.is_linux() {
+                linuxapi::gateway(addr, section_name, &symbol, self);
+            }
         }
+        unix::end_call(self, previous);
 
         self.force_break = true;
         true
@@ -77,6 +81,9 @@ impl Emu {
     /// Redirect execution flow on 64bits.
     /// If the target address is a winapi, triggers it's implementation.
     pub fn set_rip_with_check(&mut self, addr: u64, is_branch: bool) -> bool {
+        if self.api_stopped() {
+            return false;
+        }
         self.force_reload = true;
 
         // A driver lives entirely above the user-mode library range, so the
@@ -137,20 +144,11 @@ impl Emu {
                             self.force_break = true;
                             return true;
                         }
-                        // Either the import did not resolve to a mapped msvcrt
-                        // section, or it did not resolve at all. Warn and resume at
-                        // the caller as if the call had been skipped: same shape as
-                        // any other unrecognized import.
-                        log::warn!("unhandled import {}!{}", dll, api);
-                        self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-                        self.regs_mut().rip = self.gateway_return;
-                        self.call_stack_mut().pop();
-                        self.force_break = true;
-                        self.is_api_run = true;
+                    }
+                    policy::begin_call(self, dll, api, addr, ApiRoute::Import);
+                    if !policy::consume_return(self) {
                         return true;
                     }
-                    self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-                    self.regs_mut().rip = self.gateway_return;
                     winapi64::gateway_by_import(self, dll, api, addr);
                     self.force_break = true;
                     self.is_api_run = true;
@@ -262,38 +260,58 @@ impl Emu {
             // and jump to API+N. Undo that prologue and serve the export with
             // its winapi stub; library code is never executed for real here.
             let in_code_section = name.ends_with(".text");
-            let addr = if in_code_section
-                && winapi64::kernel32::guess_api_name(self, addr).is_empty()
-            {
-                match winapi64::stolen_prologue::unwind(self, addr) {
-                    Some(entry) => {
-                        log::trace!(
-                            "jump to 0x{:x} skips the prologue of the API at 0x{:x}",
-                            addr,
+            let addr =
+                if in_code_section && winapi64::kernel32::guess_api_name(self, addr).is_empty() {
+                    match winapi64::stolen_prologue::unwind(self, addr) {
+                        Some(entry) => {
+                            log::trace!(
+                                "jump to 0x{:x} skips the prologue of the API at 0x{:x}",
+                                addr,
+                                entry
+                            );
                             entry
-                        );
-                        entry
+                        }
+                        None => {
+                            let library = self
+                                .maps
+                                .get_addr_name(addr)
+                                .unwrap_or("unknown")
+                                .split('.')
+                                .next()
+                                .unwrap_or("unknown")
+                                .to_string();
+                            policy::begin_call(
+                                self,
+                                &library,
+                                "<unresolved export>",
+                                addr,
+                                ApiRoute::Address,
+                            );
+                            policy::unsupported(self, &library, "<unresolved export>", addr);
+                            return true;
+                        }
                     }
-                    None => {
-                        log::error!(
-                            "jump into library code at 0x{:x} that no winapi stub can serve — stopping",
-                            addr
-                        );
-                        self.stop();
-                        return true;
-                    }
-                }
-            } else {
-                addr
-            };
+                } else {
+                    addr
+                };
 
             if self.skip_apicall {
                 self.its_apicall = Some(addr);
                 return false;
             }
 
-            self.gateway_return = self.stack_pop64(false).unwrap_or(0);
-            self.regs_mut().rip = self.gateway_return;
+            let library = self
+                .maps
+                .get_addr_name(addr)
+                .unwrap_or("unknown")
+                .split('.')
+                .next()
+                .unwrap_or("unknown")
+                .to_string();
+            policy::begin_call(self, &library, "", addr, ApiRoute::Address);
+            if !policy::consume_return(self) {
+                return true;
+            }
 
             let handle_winapi: bool =
                 if let Some(mut hook_fn) = self.hooks.hook_on_winapi_call.take() {
@@ -326,6 +344,7 @@ impl Emu {
                     winapi64::gateway(addr, section_name.to_string().as_str(), self);
                 }
             }
+            self.api_policy.entry = None;
             self.force_break = true;
             true
         }
@@ -335,6 +354,9 @@ impl Emu {
     /// If the target address is in a loaded library (dylib/so), intercept and
     /// dispatch to the appropriate API handler. Mirrors set_rip() for Windows.
     pub fn set_pc_aarch64(&mut self, addr: u64) -> bool {
+        if self.api_stopped() {
+            return false;
+        }
         if unlikely(self.kernel.as_ref().is_some_and(|k| !k.ledger_only)) {
             return self.kernel_set_pc(addr);
         }
@@ -378,14 +400,16 @@ impl Emu {
         );
 
         // Dispatch to appropriate platform API handler
-        if self.os.is_macos() {
-            // Set PC to return address (already in LR from BL/BLR)
-            self.regs_aarch64_mut().pc = self.regs_aarch64().x[30];
-            crate::macosapi::gateway(addr, &name, &symbol, self);
-        } else if self.os.is_linux() {
-            // Set PC to return address (already in LR from BL/BLR)
-            self.regs_aarch64_mut().pc = self.regs_aarch64().x[30];
-            crate::linuxapi::gateway(addr, &name, &symbol, self);
+        if self.os.is_macos() || self.os.is_linux() {
+            let previous = unix::begin_call(self, &name, &symbol, addr);
+            if unix::consume_return(self) {
+                if self.os.is_macos() {
+                    macosapi::gateway(addr, &name, &symbol, self);
+                } else {
+                    linuxapi::gateway(addr, &name, &symbol, self);
+                }
+            }
+            unix::end_call(self, previous);
         } else if self.os.is_windows() {
             // emulate winapi mode
             if self.cfg.emulate_winapi {
@@ -402,9 +426,11 @@ impl Emu {
                 return false;
             }
 
-            // Return via LR, not stack pop
-            self.regs_aarch64_mut().pc = self.regs_aarch64().x[30];
-            self.gateway_return = self.regs_aarch64().x[30];
+            let library = name.split('.').next().unwrap_or(&name);
+            policy::begin_call(self, library, "", addr, ApiRoute::Address);
+            if !policy::consume_return(self) {
+                return true;
+            }
 
             let handle_winapi: bool =
                 if let Some(mut hook_fn) = self.hooks.hook_on_winapi_call.take() {
@@ -419,6 +445,7 @@ impl Emu {
             if handle_winapi {
                 winapi64::gateway(addr, &name, self);
             }
+            self.api_policy.entry = None;
         }
 
         self.force_break = true;
@@ -428,6 +455,9 @@ impl Emu {
     /// Redirect execution flow on 32bits.
     /// If the target address is a winapi, triggers it's implementation.
     pub fn set_eip(&mut self, addr: u64, is_branch: bool) -> bool {
+        if self.api_stopped() {
+            return false;
+        }
         self.force_reload = true;
 
         if addr == RETURN_THREAD as u64 {
@@ -445,7 +475,7 @@ impl Emu {
                 let api_name = self
                     .pe32
                     .as_ref()
-                    .map(|pe| pe.import_addr_to_name(addr as u32))
+                    .map(|pe| pe.import_addr_to_dll_and_name(addr as u32))
                     .unwrap_or_default();
                 return if !api_name.is_empty() {
                     // winapi emulation case
@@ -458,9 +488,12 @@ impl Emu {
                         return true;
                     }
 
-                    self.gateway_return = self.stack_pop32(false).unwrap_or(0) as u64;
-                    self.regs_mut().rip = self.gateway_return;
-                    winapi32::gateway(addr as u32, "not_loaded", self);
+                    let (dll, api) = api_name.split_once('!').unwrap_or(("unknown", &api_name));
+                    policy::begin_call(self, dll, api, addr, ApiRoute::Import);
+                    if !policy::consume_return(self) {
+                        return true;
+                    }
+                    winapi32::gateway_by_import(self, dll, api, addr as u32);
                     self.force_break = true;
                     self.is_api_run = true;
                     true
@@ -532,9 +565,11 @@ impl Emu {
                 return false;
             }
 
-            self.gateway_return = self.stack_pop32(false).unwrap_or(0).into();
-            let gateway_return = self.gateway_return;
-            self.regs_mut().set_eip(gateway_return);
+            let library = name.split('.').next().unwrap_or(name).to_string();
+            policy::begin_call(self, &library, "", addr, ApiRoute::Address);
+            if !policy::consume_return(self) {
+                return true;
+            }
 
             let handle_winapi: bool =
                 if let Some(mut hook_fn) = self.hooks.hook_on_winapi_call.take() {
@@ -556,6 +591,7 @@ impl Emu {
                 };
                 winapi32::gateway(to32!(addr), name.to_string().as_str(), self);
             }
+            self.api_policy.entry = None;
             self.force_break = true;
         }
 

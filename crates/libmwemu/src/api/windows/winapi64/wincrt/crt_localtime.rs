@@ -1,7 +1,9 @@
 use super::allocate_memory;
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 
 pub(super) fn crt_localtime(emu: &mut emu::Emu) {
+    let call = WinApi(Cdecl);
     let tm_addr = allocate_memory(emu, 64).unwrap_or(0);
     if tm_addr != 0 {
         emu.maps.write_dword(tm_addr, 0); // tm_sec
@@ -15,5 +17,5 @@ pub(super) fn crt_localtime(emu: &mut emu::Emu) {
         emu.maps.write_dword(tm_addr + 32, 0); // tm_isdst
     }
     log_red!(emu, "wincrt!localtime => 0x{:x}", tm_addr);
-    emu.regs_mut().rax = tm_addr;
+    call.set_return(emu, tm_addr);
 }

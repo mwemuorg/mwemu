@@ -1,15 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn WPUGetProviderPathEx(emu: &mut emu::Emu) {
-    let provider_id_ptr = WinApiAbi::arg(emu, 0);
-    let path_ptr = WinApiAbi::arg(emu, 1);
-    let path_len_ptr = WinApiAbi::arg(emu, 2);
-    let flags = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let provider_id_ptr = api_try!(emu, call.arg(emu, 0));
+    let path_ptr = api_try!(emu, call.arg(emu, 1));
+    let path_len_ptr = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
     log_red!(emu, "ws2_32!WPUGetProviderPathEx flags:{}", flags);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 4);
 }

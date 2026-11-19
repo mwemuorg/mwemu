@@ -16,6 +16,7 @@ impl Emu {
     pub fn run_multi_threaded_x86(&mut self, end_addr: Option<u64>) -> Result<u64, MwemuError> {
         assert_x86_arch(self, "run_multi_threaded_x86");
 
+        self.check_api_stop()?;
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
@@ -34,16 +35,14 @@ impl Emu {
             while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
                 let rip = self.regs().rip;
 
+                if let Some(pc) = self.reached_outer_run_limit(rip, end_addr) {
+                    return Ok(pc);
+                }
                 if self.maps.get_mem_by_addr(rip).is_none() {
                     log::trace!("redirecting code flow to non mapped address 0x{:x}", rip);
                     Console::spawn_console(self);
                     return Err(MwemuError::new("cannot read program counter"));
                 }
-                /*
-                if let Some(pc) = self.reached_outer_run_limit(rip, end_addr) {
-                    return Ok(pc);
-                }
-                */
                 let next_pos = self.pos.saturating_add(1);
 
                 if (self.exp != u64::MAX && self.exp == next_pos)
@@ -88,6 +87,7 @@ impl Emu {
                 self.trace_pre_step_state(next_pos);
 
                 let step_ok = self.step_multi_threaded();
+                self.check_api_stop()?;
 
                 self.instruction_count = self.instruction_count.saturating_add(1);
 
@@ -160,6 +160,7 @@ impl Emu {
                 }
             }
 
+            self.check_api_stop()?;
             if self.is_break_on_api {
                 return Ok(0);
             }

@@ -1,6 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn PathFindSuffixArrayA(emu: &mut Emu) {
     invoke(emu, false, "PathFindSuffixArrayA");
@@ -11,9 +13,10 @@ pub fn PathFindSuffixArrayW(emu: &mut Emu) {
 }
 
 fn invoke(emu: &mut Emu, wide: bool, api: &str) {
-    let path = strings::read_text(emu, emu.regs().rcx, wide);
-    let array = emu.regs().rdx;
-    let count = emu.regs().r8 as i32;
+    let call = WinApi(Stdcall);
+    let path = strings::read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let array = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg_i32(emu, 2));
     log_red!(
         emu,
         "shlwapi!{} path:'{}' array:0x{:x} count:{}",
@@ -22,7 +25,7 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
         array,
         count
     );
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
     if count <= 0
         || array == 0
         || !emu
@@ -40,7 +43,7 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
         }
         let suffix = strings::read_text(emu, address, wide);
         if path.ends_with(&suffix) {
-            emu.regs_mut().rax = address;
+            call.set_return(emu, address);
             return;
         }
     }

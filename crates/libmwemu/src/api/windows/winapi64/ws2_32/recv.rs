@@ -1,17 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn recv(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let buff = emu.regs().rdx;
-    let mut len = emu.regs().r8;
-    let flags = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let buff = api_try!(emu, call.arg(emu, 1));
+    let mut len = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg(emu, 3));
 
     log_red!(emu, "ws2_32!recv   buff: 0x{:x} sz: {}", buff, len);
 
     if !helper::socket_exist(sock) {
         log::trace!("\tinvalid socket.");
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
         return;
     }
 
@@ -47,7 +50,7 @@ pub fn recv(emu: &mut emu::Emu) {
                 }
             }
 
-            emu.regs_mut().rax = len;
+            call.set_return(emu, len);
         }
     }
 }

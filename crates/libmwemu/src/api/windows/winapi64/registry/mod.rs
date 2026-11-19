@@ -1,5 +1,6 @@
 mod close_key;
 
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::winapi::common::strings;
 use crate::windows::constants::errors::*;
 use close_key::close_key;
@@ -102,8 +103,9 @@ fn open_handle(path: &str) -> u64 {
 }
 
 fn finish(emu: &mut emu::Emu, api: &str, what: &str, err: u64) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "advapi32!{} {} = {}", api, what, err);
-    emu.regs_mut().rax = err;
+    call.set_return(emu, err);
 }
 
 fn is_string(kind: u32) -> bool {

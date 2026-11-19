@@ -1,26 +1,26 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn getsockopt(emu: &mut emu::Emu) {
-    let sock = WinApiAbi::arg(emu, 0);
-    let level = WinApiAbi::arg(emu, 1);
-    let optname = WinApiAbi::arg(emu, 2);
-    let optval = WinApiAbi::arg(emu, 3);
-    let optlen = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let level = api_try!(emu, call.arg(emu, 1));
+    let optname = api_try!(emu, call.arg(emu, 2));
+    let optval = api_try!(emu, call.arg(emu, 3));
+    let optlen = api_try!(emu, call.arg(emu, 4));
 
     emu.maps.write_dword(optval, 1);
 
     log_red!(emu, "ws2_32!getsockopt  lvl: {} opt: {}", level, optname);
 
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 5);
 
     if !helper::socket_exist(sock) {
         log::trace!("\tinvalid socket.");
-        emu.regs_mut().rax = 1;
+        call.set_return(emu, 1);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

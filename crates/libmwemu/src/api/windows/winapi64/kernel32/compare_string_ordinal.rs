@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CompareStringOrdinal(emu: &mut emu::Emu) {
-    let s1 = emu.regs().rcx;
-    let len1 = emu.regs().rdx as i64;
-    let s2 = emu.regs().r8;
-    let _len2 = emu.regs().r9 as i64;
-    let ignore_case = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let s1 = api_try!(emu, call.arg(emu, 0));
+    let len1 = api_try!(emu, call.arg_i64(emu, 1));
+    let s2 = api_try!(emu, call.arg(emu, 2));
+    let _len2 = api_try!(emu, call.arg_i64(emu, 3));
+    let ignore_case = api_try!(emu, call.arg(emu, 4));
     let str1 = emu.maps.read_wide_string(s1);
     let str2 = emu.maps.read_wide_string(s2);
     let r = if ignore_case != 0 {
@@ -27,5 +29,5 @@ pub fn CompareStringOrdinal(emu: &mut emu::Emu) {
         ignore_case,
         result
     );
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

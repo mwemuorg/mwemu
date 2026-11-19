@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetProcessId(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernel32!GetProcessId h:0x{:x} => 1337", handle);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1337;
+    call.set_return(emu, 1337);
 }

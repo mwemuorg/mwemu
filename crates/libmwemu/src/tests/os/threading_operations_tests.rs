@@ -471,3 +471,60 @@ fn windows_thread_return_finishes_only_the_child() {
         assert_eq!(emu.threads[0].exit_value, None);
     }
 }
+
+#[test]
+fn ntdll32_tls_gateway_keeps_slot_storage() {
+    const TLS_VALUE: u64 = 0x1234_5678;
+    let (mut emu, _) = helpers::prepare_winapi(false);
+    let first = helpers::call_winapi_export(&mut emu, "ntdll.dll", "RtlTlsAlloc", &[]);
+    let second = helpers::call_winapi_export(&mut emu, "ntdll.dll", "RtlTlsAlloc", &[]);
+    assert_ne!(first, second);
+    assert_ne!(
+        helpers::call_winapi_export(
+            &mut emu,
+            "ntdll.dll",
+            "RtlTlsSetValue",
+            &[second, TLS_VALUE]
+        ),
+        0
+    );
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "ntdll.dll", "RtlTlsGetValue", &[second]),
+        TLS_VALUE
+    );
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "ntdll.dll", "RtlTlsGetValue", &[first]),
+        0
+    );
+    assert_ne!(
+        helpers::call_winapi_export(&mut emu, "ntdll.dll", "RtlTlsFree", &[second]),
+        0
+    );
+    assert_eq!(
+        helpers::call_winapi_export(&mut emu, "ntdll.dll", "RtlTlsGetValue", &[second]),
+        0
+    );
+    assert!(emu.api_policy.last_outcome.is_none());
+}
+
+#[test]
+fn ntdll_slist_gateway_clears_only_the_guest_header() {
+    const HEADER32_SIZE: u64 = 8;
+    const HEADER64_SIZE: u64 = 16;
+    const CANARY: u8 = 0xa5;
+    for (is64, header_size) in [(false, HEADER32_SIZE), (true, HEADER64_SIZE)] {
+        let (mut emu, data) = helpers::prepare_winapi(is64);
+        let header = data + HEADER64_SIZE;
+        assert!(
+            emu.maps
+                .fill_range(header - 1, CANARY, (header_size + 2) as usize)
+        );
+        helpers::call_winapi_export(&mut emu, "ntdll.dll", "RtlInitializeSListHead", &[header]);
+        assert_eq!(emu.maps.read_byte(header - 1), Some(CANARY));
+        assert_eq!(emu.maps.read_byte(header + header_size), Some(CANARY));
+        for offset in 0..header_size {
+            assert_eq!(emu.maps.read_byte(header + offset), Some(0));
+        }
+        assert!(emu.api_policy.last_outcome.is_none());
+    }
+}

@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn WSAEventSelect(emu: &mut emu::Emu) {
-    let sock = WinApiAbi::arg(emu, 0);
-    let event = WinApiAbi::arg(emu, 1);
-    let events = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let event = api_try!(emu, call.arg(emu, 1));
+    let events = api_try!(emu, call.arg_u32(emu, 2));
     log_red!(
         emu,
         "ws2_32!WSAEventSelect sock:0x{:x} event:0x{:x} events:0x{:x}",
@@ -15,11 +17,9 @@ pub fn WSAEventSelect(emu: &mut emu::Emu) {
     );
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038);
-        emu.regs_mut().rax = 0xFFFFFFFF;
+        call.set_return(emu, 0xFFFFFFFF);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 3);
 }

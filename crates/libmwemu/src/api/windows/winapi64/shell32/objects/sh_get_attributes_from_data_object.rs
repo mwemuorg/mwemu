@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SHGetAttributesFromDataObject(emu: &mut emu::Emu) {
-    let pdtobj = emu.regs().rcx;
-    let dw_attr_mask = emu.regs().rdx;
-    let pdw_attr = emu.regs().r8;
-    let pc_items = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let pdtobj = api_try!(emu, call.arg(emu, 0));
+    let dw_attr_mask = api_try!(emu, call.arg(emu, 1));
+    let pdw_attr = api_try!(emu, call.arg(emu, 2));
+    let pc_items = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "shell32!SHGetAttributesFromDataObject obj:0x{:x} mask:0x{:x}",
@@ -18,5 +21,5 @@ pub fn SHGetAttributesFromDataObject(emu: &mut emu::Emu) {
         emu.maps.write_dword(pc_items, 1);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

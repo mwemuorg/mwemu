@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn AllocateLocallyUniqueId(emu: &mut emu::Emu) {
-    let luid_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let luid_ptr = api_try!(emu, call.arg(emu, 0));
     static LUID_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0x10000);
     let val = LUID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     if luid_ptr != 0 {
@@ -15,5 +18,5 @@ pub fn AllocateLocallyUniqueId(emu: &mut emu::Emu) {
         val
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

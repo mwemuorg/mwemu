@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn MoveToEx(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let x = emu.regs().rdx as i32;
-    let y = emu.regs().r8 as i32;
-    let lp_point = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let x = api_try!(emu, call.arg_i32(emu, 1));
+    let y = api_try!(emu, call.arg_i32(emu, 2));
+    let lp_point = api_try!(emu, call.arg(emu, 3));
     // If lpPoint is non-null, write the previous position (0,0)
     if lp_point != 0 {
         emu.maps.write_dword(lp_point, 0); // previous x
@@ -18,5 +21,5 @@ pub fn MoveToEx(emu: &mut emu::Emu) {
         y,
         lp_point
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

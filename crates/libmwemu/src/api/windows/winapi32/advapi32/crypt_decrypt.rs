@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn CryptDecrypt(emu: &mut emu::Emu) {
-    let hkey = WinApiAbi::arg(emu, 0);
-    let hhash = WinApiAbi::arg(emu, 1);
-    let bfinal = WinApiAbi::arg(emu, 2) as u32;
-    let flags = WinApiAbi::arg(emu, 3) as u32;
-    let data_ptr = WinApiAbi::arg(emu, 4);
-    let data_len_ptr = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let hhash = api_try!(emu, call.arg(emu, 1));
+    let bfinal = api_try!(emu, call.arg_u32(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
+    let data_ptr = api_try!(emu, call.arg(emu, 4));
+    let data_len_ptr = api_try!(emu, call.arg(emu, 5));
 
     if data_ptr != 0 && data_len_ptr != 0 {
         let data_len = emu.maps.read_dword(data_len_ptr).unwrap_or(0) as usize;
@@ -22,9 +24,7 @@ pub(super) fn CryptDecrypt(emu: &mut emu::Emu) {
 
     log_red!(emu, "advapi32!CryptDecrypt hKey=0x{:x}", hkey);
 
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 6);
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

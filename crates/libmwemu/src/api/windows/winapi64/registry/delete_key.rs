@@ -1,13 +1,16 @@
 use super::finish;
 use super::key_path;
 use super::read_name;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::registry_store as store;
 use crate::windows::constants::errors::*;
 
 pub(super) fn delete_key(emu: &mut emu::Emu, api: &str, wide: bool, tree: bool) {
-    let hkey = emu.regs().rcx;
-    let sub = read_name(emu, emu.regs().rdx, wide);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let sub = read_name(emu, api_try!(emu, call.arg(emu, 1)), wide);
     let base = match key_path(hkey) {
         Ok(base) => base,
         Err(err) => return finish(emu, api, "", err),

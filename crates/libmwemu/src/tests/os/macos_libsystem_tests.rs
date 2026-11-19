@@ -1,6 +1,9 @@
 //! macOS libSystem stubs, called directly through the libsystem gateway.
 use super::unix_api_helpers::{aarch64_env, put_str, ret, set_args, stdout_text};
+use crate::api::abi::ArgumentFault;
+use crate::api::macos;
 use crate::api::macos::libsystem::gateway;
+use crate::api::unix::ApiStopReason;
 
 /// Apple AArch64 ABI: variadic arguments always live on the stack.
 fn push_varargs(emu: &mut crate::emu::Emu, args: &[u64]) {
@@ -256,4 +259,42 @@ fn unknown_symbol_returns_zero_without_panicking() {
     emu.regs_aarch64_mut().x[0] = 0xdead;
     gateway("_definitely_not_a_libsystem_symbol", &mut emu);
     assert_eq!(ret(&emu), 0);
+}
+
+#[test]
+fn failed_printf_vararg_preserves_output_buffer_and_result() {
+    let (mut emu, data) = aarch64_env();
+    let fmt = put_str(&mut emu, data, "prefix %u");
+    let buffer = put_str(&mut emu, data + 0x100, "unchanged");
+    set_args(&mut emu, &[buffer, 32, fmt]);
+    emu.set_sp(u64::MAX);
+    macos::gateway(0x400000, "libSystem.B.dylib", "_snprintf", &mut emu);
+    assert_eq!(ret(&emu), buffer);
+    assert_eq!(emu.maps.read_string(buffer), "unchanged");
+    assert!(emu.emulated_stdout.is_empty());
+    let fault = emu.unix_api.fault.as_ref().unwrap();
+    let ApiStopReason::InvalidArgument(error) = fault.reason else {
+        panic!("{fault:?}");
+    };
+    assert_eq!(error.fault, ArgumentFault::AddressOverflow);
+    assert_eq!(error.index, 3);
+    assert!(emu.run(None).is_err());
+}
+
+#[test]
+fn zero_vararg_is_a_value_and_literal_formats_need_no_stack_argument() {
+    let (mut emu, data) = aarch64_env();
+    let fmt = put_str(&mut emu, data, "%u");
+    set_args(&mut emu, &[fmt]);
+    push_varargs(&mut emu, &[0]);
+    gateway("_printf", &mut emu);
+    assert_eq!(stdout_text(&emu), "0");
+    assert!(!emu.unix_api.stopped());
+    emu.emulated_stdout.clear();
+    let literal = put_str(&mut emu, data, "literal %%");
+    set_args(&mut emu, &[literal]);
+    emu.set_sp(u64::MAX);
+    gateway("_printf", &mut emu);
+    assert_eq!(stdout_text(&emu), "literal %");
+    assert!(!emu.unix_api.stopped());
 }

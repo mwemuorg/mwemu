@@ -1,5 +1,6 @@
 use crate::color;
 use crate::emu::Emu;
+use crate::emu::LastOp;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use iced_x86::Instruction;
 
@@ -22,6 +23,13 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
     let sz = emu.get_operand_sz(ins, 0);
     let result = value0 ^ value1;
 
+    emu.last_flag_op = LastOp {
+        pos: emu.pos,
+        ip: emu.pc() - instruction_sz as u64,
+        left: value0,
+        right: value1,
+        mnemonic: "xor",
+    };
     emu.flags_overwrite_mut().calc_logic_flags_lazy(result, sz);
 
     emu.set_operand_value(ins, 0, result)

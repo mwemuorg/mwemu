@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn VariantInit(emu: &mut emu::Emu) {
-    let variant_ptr = arg(emu, 0) as u64;
+    let call = WinApi(Stdcall);
+    let variant_ptr = api_try!(emu, call.arg_u32(emu, 0)) as u64;
 
     log_red!(emu, "oleaut32!VariantInit ptr:0x{:x}", variant_ptr);
 
@@ -13,5 +14,5 @@ pub(super) fn VariantInit(emu: &mut emu::Emu) {
         }
     }
 
-    stdcall_ret(emu, 1);
+    call.cleanup_args(emu, 1);
 }

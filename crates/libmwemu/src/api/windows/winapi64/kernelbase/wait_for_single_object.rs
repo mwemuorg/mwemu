@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WaitForSingleObject(emu: &mut emu::Emu) {
-    let handle = emu.regs().rcx;
-    let ms = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let ms = api_try!(emu, call.arg(emu, 1));
     helper::advance_tick(emu, ms);
     log_red!(
         emu,
@@ -11,10 +14,6 @@ pub fn WaitForSingleObject(emu: &mut emu::Emu) {
         handle,
         ms
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // WAIT_OBJECT_0
+    call.set_return(emu, 0); // WAIT_OBJECT_0
 }

@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptMsgUpdate(emu: &mut emu::Emu) {
-    let hmsg = WinApiAbi::arg(emu, 0);
-    let pb_data = WinApiAbi::arg(emu, 1);
-    let cb_data = WinApiAbi::arg(emu, 2) as u32;
-    let f_final = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let hmsg = api_try!(emu, call.arg(emu, 0));
+    let pb_data = api_try!(emu, call.arg(emu, 1));
+    let cb_data = api_try!(emu, call.arg_u32(emu, 2));
+    let f_final = api_try!(emu, call.arg_u32(emu, 3));
     log_red!(
         emu,
         "crypt32!CryptMsgUpdate msg:0x{:x} data:0x{:x} len:{} final:{}",
@@ -15,7 +17,7 @@ pub fn CryptMsgUpdate(emu: &mut emu::Emu) {
         cb_data,
         f_final
     );
-    let val_ptr = WinApiAbi::arg(emu, 1);
+    let val_ptr = api_try!(emu, call.arg(emu, 1));
     if val_ptr != 0 && emu.maps.is_mapped(val_ptr) {
         let _val = emu.maps.read_string(val_ptr);
     }
@@ -26,8 +28,6 @@ pub fn CryptMsgUpdate(emu: &mut emu::Emu) {
         }
         helper::handler_put_bytes(hmsg, &buf);
     }
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 1);
 }

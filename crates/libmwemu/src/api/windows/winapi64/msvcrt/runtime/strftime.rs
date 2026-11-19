@@ -1,17 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn strftime(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let max_size = emu.regs().rdx as u32;
+    let call = WinApi(Cdecl);
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let max_size = api_try!(emu, call.arg_u32(emu, 1));
     let s = "01/01/2024 00:00:00";
     if dst != 0 && max_size > 0 {
         emu.maps.write_string(dst, s);
     }
     log_red!(emu, "msvcrt!strftime => '{}'", s);
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = s.len() as u64;
+    call.set_return(emu, s.len() as u64);
 }

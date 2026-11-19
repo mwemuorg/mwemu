@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub(super) fn HttpQueryInfoA(emu: &mut emu::Emu) {
     http_query_info(emu, "HttpQueryInfoA", false);
@@ -10,10 +12,11 @@ pub(super) fn HttpQueryInfoW(emu: &mut emu::Emu) {
 }
 
 fn http_query_info(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let handle = emu.regs().rcx;
-    let info_level = emu.regs().rdx as u32;
-    let buffer = emu.regs().r8;
-    let buffer_len_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let info_level = api_try!(emu, call.arg_u32(emu, 1));
+    let buffer = api_try!(emu, call.arg(emu, 2));
+    let buffer_len_ptr = api_try!(emu, call.arg(emu, 3));
     let level_raw = info_level & 0x0000FFFF;
     log_red!(
         emu,
@@ -39,10 +42,10 @@ fn http_query_info(emu: &mut emu::Emu, api: &str, wide: bool) {
                 if buffer_len_ptr != 0 {
                     emu.maps.write_dword(buffer_len_ptr, (val.len() * 2) as u32);
                 }
-                emu.regs_mut().rax = 1;
+                call.set_return(emu, 1);
             }
             None => {
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
             }
         }
     } else {
@@ -62,11 +65,11 @@ fn http_query_info(emu: &mut emu::Emu, api: &str, wide: bool) {
                 if buffer_len_ptr != 0 {
                     emu.maps.write_dword(buffer_len_ptr, val.len() as u32);
                 }
-                emu.regs_mut().rax = 1; // TRUE
+                call.set_return(emu, 1); // TRUE
             }
             None => {
                 log_red!(emu, "  unsupported info level {}", level_raw);
-                emu.regs_mut().rax = 0; // FALSE
+                call.set_return(emu, 0); // FALSE
             }
         }
     }

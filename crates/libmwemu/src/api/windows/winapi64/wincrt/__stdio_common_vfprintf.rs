@@ -1,13 +1,15 @@
 use super::parse_format_specifiers;
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
-    let options = emu.regs().rcx; // _In_ options
-    let file = emu.regs().rdx; // _In_ FILE*
-    let format = emu.regs().r8; // _In_ format string ptr
-    let locale = emu.regs().r9; // _In_opt_ locale
-    let va_list = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Cdecl);
+    let options = api_try!(emu, call.arg(emu, 0)); // _In_ options
+    let file = api_try!(emu, call.arg(emu, 1)); // _In_ FILE*
+    let format = api_try!(emu, call.arg(emu, 2)); // _In_ format string ptr
+    let locale = api_try!(emu, call.arg(emu, 3)); // _In_opt_ locale
+    let va_list = api_try!(emu, call.arg(emu, 4));
 
     // Just try to read the format string
     let fmt_str = emu.maps.read_string(format);
@@ -30,7 +32,7 @@ pub(super) fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
                 let arg = emu.maps.read_qword(current_ptr).unwrap_or(0);
                 current_ptr += 8; // Move to next arg
                 log::trace!("arg: {:016x}", arg);
-                emu.regs_mut().rax = 1;
+                call.set_return(emu, 1);
             }
             "str" => {
                 let str_ptr = emu.maps.read_qword(current_ptr).unwrap_or(0);
@@ -48,5 +50,5 @@ pub(super) fn __stdio_common_vfprintf(emu: &mut emu::Emu) {
     }
 
     // Return success (1) - this is super basic
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

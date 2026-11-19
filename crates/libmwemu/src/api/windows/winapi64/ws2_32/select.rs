@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn select(emu: &mut emu::Emu) {
-    let nfds = emu.regs().rcx as u32;
-    let readfds = emu.regs().rdx;
-    let writefds = emu.regs().r8;
-    let exceptfds = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let nfds = api_try!(emu, call.arg_u32(emu, 0));
+    let readfds = api_try!(emu, call.arg(emu, 1));
+    let writefds = api_try!(emu, call.arg(emu, 2));
+    let exceptfds = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "ws2_32!select nfds:{} read:0x{:x} write:0x{:x}",
@@ -13,11 +16,7 @@ pub fn select(emu: &mut emu::Emu) {
         readfds,
         writefds
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     helper::advance_tick(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

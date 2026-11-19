@@ -1,3 +1,5 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::system::*;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -33,8 +35,13 @@ BOOL GetFileTime(
 );
 */
 pub fn GetFileTime(emu: &mut emu::Emu) {
-    let hfile = emu.regs().rcx;
-    let out = [emu.regs().rdx, emu.regs().r8, emu.regs().r9];
+    let call = WinApi(Stdcall);
+    let hfile = api_try!(emu, call.arg(emu, 0));
+    let out = [
+        api_try!(emu, call.arg(emu, 1)),
+        api_try!(emu, call.arg(emu, 2)),
+        api_try!(emu, call.arg(emu, 3)),
+    ];
 
     let times = match emu.handle_management.get_mut_file_handle(hfile as u32) {
         Some(file) => file.times().ok(),
@@ -44,7 +51,7 @@ pub fn GetFileTime(emu: &mut emu::Emu) {
 
     let Some(times) = times else {
         emu.set_last_error(ERROR_INVALID_HANDLE);
-        emu.regs_mut().rax = FALSE;
+        call.set_return(emu, FALSE);
         return;
     };
     for (ptr, time) in out.into_iter().zip(times) {
@@ -52,7 +59,7 @@ pub fn GetFileTime(emu: &mut emu::Emu) {
             emu.maps.write_qword(ptr, to_filetime(time));
         }
     }
-    emu.regs_mut().rax = TRUE;
+    call.set_return(emu, TRUE);
 }
 
 /*
@@ -64,7 +71,8 @@ BOOL SetFileTime(
 );
 */
 pub fn SetFileTime(emu: &mut emu::Emu) {
-    let hfile = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let hfile = api_try!(emu, call.arg(emu, 0));
     // NULL, 0 and 0xffffffff_ffffffff (stop updating) all leave a time unchanged
     let read = |emu: &emu::Emu, ptr: u64| {
         if ptr == 0 {
@@ -75,9 +83,9 @@ pub fn SetFileTime(emu: &mut emu::Emu) {
             Some(filetime) => Some(from_filetime(filetime)),
         }
     };
-    let created = read(emu, emu.regs().rdx);
-    let accessed = read(emu, emu.regs().r8);
-    let written = read(emu, emu.regs().r9);
+    let created = read(emu, api_try!(emu, call.arg(emu, 1)));
+    let accessed = read(emu, api_try!(emu, call.arg(emu, 2)));
+    let written = read(emu, api_try!(emu, call.arg(emu, 3)));
 
     log_red!(
         emu,
@@ -95,10 +103,10 @@ pub fn SetFileTime(emu: &mut emu::Emu) {
         None => Err(ERROR_INVALID_HANDLE),
     };
     match result {
-        Ok(()) => emu.regs_mut().rax = TRUE,
+        Ok(()) => call.set_return(emu, TRUE),
         Err(error) => {
             emu.set_last_error(error);
-            emu.regs_mut().rax = FALSE;
+            call.set_return(emu, FALSE);
         }
     }
 }

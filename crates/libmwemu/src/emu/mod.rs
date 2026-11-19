@@ -7,8 +7,29 @@ use std::{
 
 use iced_x86::Formatter as _;
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LastOp {
+    pub pos: u64,
+    pub ip: u64,
+    pub left: u64,
+    pub right: u64,
+    pub mnemonic: &'static str,
+}
+
+impl LastOp {
+    pub const EMPTY: Self = Self {
+        pos: 0,
+        ip: 0,
+        left: 0,
+        right: 0,
+        mnemonic: "",
+    };
+}
+
 pub use crate::emu::loaders::{MappedPe64, PeLoadInfo};
 
+use crate::api::unix::ApiState;
+use crate::api::windows::policy::ApiPolicy;
 use crate::emu::decoded_instruction::DecodedInstruction;
 use crate::emu::disassemble::InstructionCache;
 use crate::emu::object_handle::HandleManagement;
@@ -140,8 +161,11 @@ pub struct Emu {
     pub(crate) ctrlc_console: Arc<AtomicU32>, // set by the Ctrl-C handler (--handle) to request dropping into the console at the next clean instruction boundary
     pub(crate) now: Instant,                  // timestamp of emulation start (wall-clock timing)
     pub(crate) force_break: bool, // set by breakpoints, memory violations, etc. to stop execution
+    pub api_policy: ApiPolicy,
+    pub unix_api: ApiState,
     pub process_terminated: bool, // set by NtTerminateProcess; prevents run() from resetting is_running
-    pub(crate) call_depth: u32, // nesting depth of call64/call32 — NtTerminateProcess only exits at depth 0
+    pub(crate) call_depth: u32,   // nesting depth of host-initiated calls
+    pub(crate) host_call_return: Option<u64>, // active x86 host-call return target, including unmapped sentinels
     pub(crate) ldr_init_done: bool, // true after LdrInitializeThunk call64 completes; switches API dispatch to virtual stubs
     pub(crate) force_reload: bool,  // trigger instruction re-decode
     pub(crate) run_until_ret: bool, // step-over mode: run until next RET
@@ -168,8 +192,12 @@ pub struct Emu {
     /// Fast gate for the per-access lifetime checks. Only true while a driver
     /// is loaded, so the ordinary user-mode paths pay one predictable branch.
     pub(crate) kernel_guard: bool,
+    pub(crate) security_cookie_va: u64, // VA of __security_cookie (from PE Load Config)
+    pub(crate) last_cmp: LastOp,
+    pub(crate) last_flag_op: LastOp,
+    pub(crate) last_ret: (u64, u64), // (pos, ip) of the last ret instruction executed
     pub(crate) tls_callbacks: Vec<u64>, // PE TLS callback addresses
-    pub(crate) library_loaded: bool,    // flag for GDB to detect library load events
+    pub(crate) library_loaded: bool, // flag for GDB to detect library load events
 
     // --- Thread management ---
     pub(crate) threads: Vec<ThreadContext>,

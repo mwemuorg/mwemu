@@ -1,21 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn BackupWrite(emu: &mut emu::Emu) {
-    let _hFile = WinApiAbi::arg(emu, 0) as u32;
-    let _lpBuffer = WinApiAbi::arg(emu, 1) as u32;
-    let _nNumberOfBytesToWrite = WinApiAbi::arg(emu, 2) as u32;
-    let _lpNumberOfBytesWritten = WinApiAbi::arg(emu, 3) as u32;
-    let _bAbort = WinApiAbi::arg(emu, 4) as u32;
-    let _bProcessSecurity = WinApiAbi::arg(emu, 5) as u32;
-    let _lpContext = WinApiAbi::arg(emu, 6) as u32;
+    let call = WinApi(Stdcall);
+    let _hFile = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpBuffer = api_try!(emu, call.arg_u32(emu, 1));
+    let _nNumberOfBytesToWrite = api_try!(emu, call.arg_u32(emu, 2));
+    let _lpNumberOfBytesWritten = api_try!(emu, call.arg_u32(emu, 3));
+    let _bAbort = api_try!(emu, call.arg_u32(emu, 4));
+    let _bProcessSecurity = api_try!(emu, call.arg_u32(emu, 5));
+    let _lpContext = api_try!(emu, call.arg_u32(emu, 6));
 
     log_red!(emu, "kernel32!BackupWrite");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..7 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 7);
 }

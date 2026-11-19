@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreatePen(emu: &mut emu::Emu) {
-    let style = emu.regs().rcx as u32;
-    let width = emu.regs().rdx as i32;
-    let color = emu.regs().r8 as u32;
+    let call = WinApi(Stdcall);
+    let style = api_try!(emu, call.arg_u32(emu, 0));
+    let width = api_try!(emu, call.arg_i32(emu, 1));
+    let color = api_try!(emu, call.arg_u32(emu, 2));
     let style_name = match style {
         0 => "PS_SOLID",
         1 => "PS_DASH",
@@ -23,5 +26,5 @@ pub fn CreatePen(emu: &mut emu::Emu) {
         width,
         color
     );
-    emu.regs_mut().rax = helper::handler_create("gdi32://pen");
+    call.set_return(emu, helper::handler_create("gdi32://pen"));
 }

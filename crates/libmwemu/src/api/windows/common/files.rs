@@ -1,4 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::process::*;
@@ -7,7 +9,6 @@ use std::io::{self, SeekFrom};
 use crate::emu::Emu;
 use crate::emu::object_handle::FileHandle;
 use crate::maps::mem64::Permission;
-use crate::winapi::common::memory::Call;
 use crate::winapi::helper;
 
 const SECTORS_PER_CLUSTER: u32 = 8;
@@ -35,12 +36,12 @@ fn file(emu: &mut Emu, handle: u64) -> Result<&mut FileHandle, u64> {
 }
 
 pub(crate) fn create_file(emu: &mut Emu, api: &str, wide: bool) {
-    let call = Call::Api;
-    let name_ptr = call.arg(emu, 0);
-    let access = call.arg(emu, 1) as u32;
-    let share = call.arg(emu, 2) as u32;
-    let disposition = call.arg(emu, 4) as u32;
-    let attributes = call.arg(emu, 5) as u32;
+    let call = WinApi(Stdcall);
+    let name_ptr = api_try!(emu, call.arg(emu, 0));
+    let access = api_try!(emu, call.arg_u32(emu, 1));
+    let share = api_try!(emu, call.arg_u32(emu, 2));
+    let disposition = api_try!(emu, call.arg_u32(emu, 4));
+    let attributes = api_try!(emu, call.arg_u32(emu, 5));
     let name = strings::read_text(emu, name_ptr, wide);
     log_red!(
         emu,
@@ -76,13 +77,14 @@ pub(crate) fn create_file(emu: &mut Emu, api: &str, wide: bool) {
             }
         }
     };
-    call.finish(emu, handle, 7);
+    call.set_return(emu, handle);
+    call.cleanup_args(emu, 7);
 }
 
 pub(crate) fn get_file_size(emu: &mut Emu, api: &str, extended: bool) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let output = call.arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let output = api_try!(emu, call.arg(emu, 1));
     let result = if (extended && output == 0)
         || (output != 0
             && !emu.maps.validate_write_range(
@@ -114,7 +116,8 @@ pub(crate) fn get_file_size(emu: &mut Emu, api: &str, extended: bool) {
             if extended { 0 } else { INVALID_FILE_SIZE }
         }
     };
-    call.finish(emu, value, 2);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 2);
 }
 
 fn seek(
@@ -142,21 +145,22 @@ fn seek(
 }
 
 pub(crate) fn set_file_pointer(emu: &mut Emu, api: &str, extended: bool) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let low = api_try!(emu, call.arg(emu, 1));
+    let handle = api_try!(emu, call.arg(emu, 0));
     let split_distance = extended && !emu.cfg.arch.is_64bits();
-    let output = call.arg(emu, if split_distance { 3 } else { 2 });
-    let method = call.arg(emu, if split_distance { 4 } else { 3 }) as u32;
+    let output = api_try!(emu, call.arg(emu, if split_distance { 3 } else { 2 }));
+    let method = api_try!(emu, call.arg_u32(emu, if split_distance { 4 } else { 3 }));
     let distance = if split_distance {
-        Some(((call.arg(emu, 2) << u32::BITS) | call.arg(emu, 1)) as i64)
+        Some(((api_try!(emu, call.arg(emu, 2)) << u32::BITS) | low) as i64)
     } else if extended {
-        Some(call.arg(emu, 1) as i64)
+        Some(low as i64)
     } else if output != 0 {
         emu.maps
             .read_dword(output)
-            .map(|high| (((high as u64) << u32::BITS) | call.arg(emu, 1) as u32 as u64) as i64)
+            .map(|high| (((high as u64) << u32::BITS) | low as u32 as u64) as i64)
     } else {
-        Some(call.arg(emu, 1) as i32 as i64)
+        Some(low as i32 as i64)
     };
     let result = if output != 0
         && !emu.maps.validate_write_range(
@@ -203,7 +207,8 @@ pub(crate) fn set_file_pointer(emu: &mut Emu, api: &str, extended: bool) {
             }
         }
     };
-    call.finish(emu, value, if split_distance { 5 } else { 4 });
+    call.set_return(emu, value);
+    call.cleanup_args(emu, if split_distance { 5 } else { 4 });
 }
 
 fn transfer(
@@ -267,12 +272,12 @@ fn transfer(
 }
 
 pub(crate) fn read_write_file(emu: &mut Emu, api: &str, write: bool) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
-    let buffer = call.arg(emu, 1);
-    let size = call.arg(emu, 2) as u32 as usize;
-    let count = call.arg(emu, 3);
-    let overlapped = call.arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
+    let buffer = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg_u32(emu, 2)) as usize;
+    let count = api_try!(emu, call.arg(emu, 3));
+    let overlapped = api_try!(emu, call.arg(emu, 4));
     log_red!(
         emu,
         "{} handle:0x{:x} buffer:0x{:x} size:{} overlapped:0x{:x}",
@@ -311,12 +316,13 @@ pub(crate) fn read_write_file(emu: &mut Emu, api: &str, write: bool) {
     } else {
         emu.count_read += 1;
     }
-    call.finish(emu, success as u64, 5);
+    call.set_return(emu, success as u64);
+    call.cleanup_args(emu, 5);
 }
 
 pub(crate) fn flush_file(emu: &mut Emu, api: &str) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
     let result = file(emu, handle).and_then(|file| {
         file.flush()
             .map_err(|error| io_error(&error, ERROR_WRITE_FAULT))
@@ -325,12 +331,13 @@ pub(crate) fn flush_file(emu: &mut Emu, api: &str) {
     if let Err(error) = result {
         emu.set_last_error(error);
     }
-    call.finish(emu, result.is_ok() as u64, 1);
+    call.set_return(emu, result.is_ok() as u64);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn set_end_of_file(emu: &mut Emu, api: &str) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
     let result = file(emu, handle).and_then(|file| {
         file.set_end_of_file()
             .map_err(|error| io_error(&error, ERROR_WRITE_FAULT))
@@ -339,7 +346,8 @@ pub(crate) fn set_end_of_file(emu: &mut Emu, api: &str) {
     if let Err(error) = result {
         emu.set_last_error(error);
     }
-    call.finish(emu, result.is_ok() as u64, 1);
+    call.set_return(emu, result.is_ok() as u64);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
@@ -379,13 +387,13 @@ pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
 }
 
 pub(crate) fn get_disk_free_space(emu: &mut Emu, api: &str, wide: bool) {
-    let call = Call::Api;
-    let root_ptr = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let root_ptr = api_try!(emu, call.arg(emu, 0));
     let outputs = [
-        (call.arg(emu, 1), SECTORS_PER_CLUSTER),
-        (call.arg(emu, 2), BYTES_PER_SECTOR),
-        (call.arg(emu, 3), FREE_CLUSTERS),
-        (call.arg(emu, 4), TOTAL_CLUSTERS),
+        (api_try!(emu, call.arg(emu, 1)), SECTORS_PER_CLUSTER),
+        (api_try!(emu, call.arg(emu, 2)), BYTES_PER_SECTOR),
+        (api_try!(emu, call.arg(emu, 3)), FREE_CLUSTERS),
+        (api_try!(emu, call.arg(emu, 4)), TOTAL_CLUSTERS),
     ];
     let root = if root_ptr == 0 {
         emu.cfg.cwd_path.clone()
@@ -400,7 +408,8 @@ pub(crate) fn get_disk_free_space(emu: &mut Emu, api: &str, wide: bool) {
                 .validate_write_range(*address, size_of::<u32>() as u64)
     }) {
         emu.set_last_error(ERROR_NOACCESS);
-        call.finish(emu, 0, 5);
+        call.set_return(emu, 0);
+        call.cleanup_args(emu, 5);
         return;
     }
     for (address, value) in outputs {
@@ -408,21 +417,24 @@ pub(crate) fn get_disk_free_space(emu: &mut Emu, api: &str, wide: bool) {
             emu.maps.write_dword(address, value);
         }
     }
-    call.finish(emu, 1, 5);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }
 
 pub(crate) fn set_current_directory(emu: &mut Emu, api: &str, wide: bool) {
-    let call = Call::Api;
-    let path_ptr = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let path_ptr = api_try!(emu, call.arg(emu, 0));
     let path = strings::read_text(emu, path_ptr, wide);
     log_red!(emu, "{} path:'{}'", api, path);
     if path.is_empty() {
         emu.set_last_error(ERROR_PATH_NOT_FOUND);
-        call.finish(emu, 0, 1);
+        call.set_return(emu, 0);
+        call.cleanup_args(emu, 1);
         return;
     }
     emu.cfg.cwd_path = path;
-    call.finish(emu, 1, 1);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 1);
 }
 
 #[derive(Clone, Copy)]
@@ -434,10 +446,10 @@ pub(crate) enum Directory {
 }
 
 pub(crate) fn get_directory(emu: &mut Emu, api: &str, wide: bool, directory: Directory) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let size_first = matches!(directory, Directory::Temporary | Directory::Current);
-    let buffer = call.arg(emu, usize::from(size_first));
-    let capacity = call.arg(emu, usize::from(!size_first)) as u32 as usize;
+    let buffer = api_try!(emu, call.arg(emu, usize::from(size_first)));
+    let capacity = api_try!(emu, call.arg_u32(emu, usize::from(!size_first))) as usize;
     let mut path = match directory {
         Directory::Windows => emu.cfg.windows_directory.clone(),
         Directory::System => emu.cfg.system_directory.clone(),
@@ -481,18 +493,20 @@ pub(crate) fn get_directory(emu: &mut Emu, api: &str, wide: bool, directory: Dir
     } else {
         length
     };
-    call.finish(emu, result as u64, 2);
+    call.set_return(emu, result as u64);
+    call.cleanup_args(emu, 2);
 }
 
 pub(crate) fn device_io_control(emu: &mut Emu, api: &str) {
-    let device = Call::Api.arg(emu, 0);
-    let code = Call::Api.arg(emu, 1) as u32;
-    let input = Call::Api.arg(emu, 2);
-    let input_size = Call::Api.arg(emu, 3) as u32;
-    let output = Call::Api.arg(emu, 4);
-    let output_size = Call::Api.arg(emu, 5) as u32;
-    let returned = Call::Api.arg(emu, 6);
-    let overlapped = Call::Api.arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let device = api_try!(emu, call.arg(emu, 0));
+    let code = api_try!(emu, call.arg_u32(emu, 1));
+    let input = api_try!(emu, call.arg(emu, 2));
+    let input_size = api_try!(emu, call.arg_u32(emu, 3));
+    let output = api_try!(emu, call.arg(emu, 4));
+    let output_size = api_try!(emu, call.arg_u32(emu, 5));
+    let returned = api_try!(emu, call.arg(emu, 6));
+    let overlapped = api_try!(emu, call.arg(emu, 7));
     log_red!(
         emu,
         "{} handle:0x{:x} code:0x{:x} input:0x{:x}({}) output:0x{:x}({}) overlapped:0x{:x}",
@@ -522,5 +536,6 @@ pub(crate) fn device_io_control(emu: &mut Emu, api: &str) {
     if let Some(error) = error {
         emu.set_last_error(error);
     }
-    Call::Api.finish(emu, error.is_none() as u64, 8);
+    call.set_return(emu, error.is_none() as u64);
+    call.cleanup_args(emu, 8);
 }

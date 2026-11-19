@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetDlgItem(emu: &mut emu::Emu) {
-    let hdlg = emu.regs().rcx;
-    let id = emu.regs().rdx as u32;
+    let call = WinApi(Stdcall);
+    let hdlg = api_try!(emu, call.arg(emu, 0));
+    let id = api_try!(emu, call.arg_u32(emu, 1));
     let hwnd = helper::handler_create("dlg_item");
     log_red!(
         emu,
@@ -13,5 +16,5 @@ pub fn GetDlgItem(emu: &mut emu::Emu) {
         hwnd
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hwnd;
+    call.set_return(emu, hwnd);
 }

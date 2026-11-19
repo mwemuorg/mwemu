@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn VarCyFromI4(emu: &mut emu::Emu) {
-    let src = emu.regs().rcx;
-    let dst = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let src = api_try!(emu, call.arg(emu, 0));
+    let dst = api_try!(emu, call.arg(emu, 1));
     log_red!(emu, "oleaut32!VarCyFromI4 src:0x{:x}", src);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

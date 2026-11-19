@@ -44,11 +44,101 @@ pub fn execute(emu: &mut Emu, ins: &Instruction, instruction_sz: usize, _rep_ste
             }
 
             0x29 => {
-                log::trace!("call_stack = {:?}", emu.call_stack());
-                log::trace!("int 0x29: __fastfail {}", emu.regs().rcx);
+                let code = emu.regs().rcx;
+                log::trace!("int 0x29: __fastfail({}) {}", code, fastfail_name(code));
+                if code == 2 {
+                    let cmp = emu.last_cmp;
+                    let cs = emu.call_stack().clone();
+                    log::info!("--- STACK COOKIE CHECK FAILURE ---");
+                    if !cs.is_empty() {
+                        log::info!("  call stack:");
+                        let mut prev: Option<(u64, u64)> = None;
+                        let mut repeat: u64 = 0;
+                        for (call_site, target) in cs.iter() {
+                            let entry = (*call_site, *target);
+                            if prev == Some(entry) {
+                                repeat += 1;
+                                continue;
+                            }
+                            if repeat > 0 {
+                                log::info!("      ... x{}", repeat + 1);
+                            }
+                            prev = Some(entry);
+                            repeat = 0;
+                            if let Some((fb, fe)) = emu.resolve_function_range(*call_site) {
+                                log::info!(
+                                    "    call 0x{:x} at 0x{:x} (fn 0x{:x}..0x{:x})",
+                                    target,
+                                    call_site,
+                                    fb,
+                                    fe
+                                );
+                            } else {
+                                log::info!("    call 0x{:x} at 0x{:x}", target, call_site);
+                            }
+                        }
+                        if repeat > 0 {
+                            log::info!("      ... x{}", repeat + 1);
+                        }
+                    }
+                    log::info!(
+                        "  last cmp: 0x{:x} vs 0x{:x} (at pos:{} rip:0x{:x})",
+                        cmp.left,
+                        cmp.right,
+                        cmp.pos,
+                        cmp.ip
+                    );
+                    if let Some(cookie) = emu.read_security_cookie() {
+                        log::info!("  __security_cookie = 0x{:x}", cookie);
+                    }
+                    let fop = emu.last_flag_op;
+                    if fop.pos > cmp.pos && !fop.mnemonic.is_empty() {
+                        log::info!(
+                            "  last {}: 0x{:x}, 0x{:x} (at pos:{} rip:0x{:x}) — MORE RECENT than cmp",
+                            fop.mnemonic,
+                            fop.left,
+                            fop.right,
+                            fop.pos,
+                            fop.ip
+                        );
+                    }
+                    log::info!("  ZF={} at int 0x29", emu.flag_zf());
+                    if cmp.left == cmp.right {
+                        log::warn!(
+                            "  last cmp had EQUAL operands but __fastfail fired — the branch was likely decided by a different instruction (sub/test/xor)"
+                        );
+                    }
+                    let cookie_check_fn = emu.resolve_function_range(cmp.ip);
+                    for (call_site, target) in cs.iter() {
+                        let target_fn = emu.resolve_function_range(*target);
+                        if target_fn.is_some() && target_fn == cookie_check_fn {
+                            if let Some((fb, fe)) = emu.resolve_function_range(*call_site) {
+                                log::info!(
+                                    "  vulnerable function: 0x{:x}..0x{:x} (called cookie check from 0x{:x})",
+                                    fb,
+                                    fe,
+                                    call_site
+                                );
+                            } else {
+                                log::info!("  cookie check called from 0x{:x}", call_site);
+                            }
+                            break;
+                        }
+                    }
+                }
                 if emu.kernel_driver_active() {
-                    let code = emu.regs().rcx;
-                    emu.kernel_abort(format!("__fastfail({}) {}", code, fastfail_name(code)));
+                    let mut reason = format!("__fastfail({}) {}", code, fastfail_name(code));
+                    if code == 2 {
+                        let cmp = emu.last_cmp;
+                        reason.push_str(&format!(
+                            " cmp 0x{:x} vs 0x{:x} (cmp at 0x{:x}, {} steps ago)",
+                            cmp.left,
+                            cmp.right,
+                            cmp.ip,
+                            emu.pos.saturating_sub(cmp.pos)
+                        ));
+                    }
+                    emu.kernel_abort(reason);
                 } else {
                     emu.stop();
                 }

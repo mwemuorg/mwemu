@@ -1,5 +1,10 @@
+use crate::api::abi::windows::{
+    CallingConvention::{Cdecl, Stdcall},
+    WindowsAbi::WinApi,
+};
 use crate::api::windows::common::ntdll;
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
     match api {
@@ -15,17 +20,19 @@ pub(super) fn dispatch(api: &str, emu: &mut emu::Emu) -> bool {
 }
 
 fn stricmp(emu: &mut emu::Emu) {
-    let str1ptr = emu.regs().rcx;
-    let str2ptr = emu.regs().rdx;
+    let call = WinApi(Cdecl);
+    let str1ptr = api_try!(emu, call.arg(emu, 0));
+    let str2ptr = api_try!(emu, call.arg(emu, 1));
     ntdll::stricmp(emu, str1ptr, str2ptr);
 }
 
 fn strlen(emu: &mut emu::Emu) {
-    let s_ptr = emu.regs().rcx as usize;
+    let call = WinApi(Cdecl);
+    let s_ptr = api_try!(emu, call.arg(emu, 0)) as usize;
     log_red!(emu, "** {} ntdll!strlen {:x}", emu.pos, s_ptr);
 
     if s_ptr == 0 {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -34,13 +41,14 @@ fn strlen(emu: &mut emu::Emu) {
 
     log_red!(emu, "ntdll!strlen: `{}` {}", s, l);
 
-    emu.regs_mut().rax = l as u32 as u64;
+    call.set_return(emu, l as u32 as u64);
 }
 
 fn sscanf(emu: &mut emu::Emu) {
-    let buffer_ptr = emu.regs().rcx;
-    let fmt_ptr = emu.regs().rdx;
-    let _list = emu.regs().r8;
+    let call = WinApi(Cdecl);
+    let buffer_ptr = api_try!(emu, call.arg(emu, 0));
+    let fmt_ptr = api_try!(emu, call.arg(emu, 1));
+    let _list = api_try!(emu, call.arg(emu, 2));
 
     let buffer = emu.maps.read_string(buffer_ptr);
     let fmt = emu.maps.read_string(fmt_ptr);
@@ -61,8 +69,9 @@ fn sscanf(emu: &mut emu::Emu) {
 }
 
 pub fn RtlInitUnicodeString(emu: &mut emu::Emu) {
-    let dest_ptr = emu.regs().rcx;
-    let source_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let dest_ptr = api_try!(emu, call.arg(emu, 0));
+    let source_ptr = api_try!(emu, call.arg(emu, 1));
 
     if source_ptr == 0 {
         // Null source: zero out the UNICODE_STRING64 (16 bytes)
@@ -89,12 +98,13 @@ pub fn RtlInitUnicodeString(emu: &mut emu::Emu) {
         );
     }
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn RtlInitAnsiString(emu: &mut emu::Emu) {
-    let dest_ptr = emu.regs().rcx;
-    let source_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let dest_ptr = api_try!(emu, call.arg(emu, 0));
+    let source_ptr = api_try!(emu, call.arg(emu, 1));
 
     if source_ptr == 0 {
         emu.maps.write_qword(dest_ptr, 0);
@@ -114,12 +124,13 @@ pub fn RtlInitAnsiString(emu: &mut emu::Emu) {
         log_red!(emu, "ntdll!RtlInitAnsiString `{}` len: {}", s, length);
     }
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 fn strcat(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let src = emu.regs().rdx;
+    let call = WinApi(Cdecl);
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
     ntdll::strcat(emu, dst, src);
-    emu.regs_mut().rax = dst;
+    call.set_return(emu, dst);
 }

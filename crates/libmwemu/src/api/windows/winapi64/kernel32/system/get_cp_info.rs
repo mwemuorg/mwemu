@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::winapi::policy::api_try;
 use crate::{emu, windows::structures};
 
 pub fn GetCPInfo(emu: &mut emu::Emu) {
-    let code_page = emu.regs().rcx as usize;
-    let lp_cp_info = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let code_page = api_try!(emu, call.arg(emu, 0)) as usize;
+    let lp_cp_info = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -34,5 +37,5 @@ pub fn GetCPInfo(emu: &mut emu::Emu) {
 
     // Return TRUE to indicate success
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

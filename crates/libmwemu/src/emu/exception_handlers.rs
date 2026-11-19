@@ -179,6 +179,41 @@ impl Emu {
         None
     }
 
+    /// Resolve an address to its RUNTIME_FUNCTION range via .pdata.
+    /// Returns `(begin_va, end_va)` of the function containing `addr`.
+    pub fn resolve_function_range(&self, addr: u64) -> Option<(u64, u64)> {
+        let (pe_base, _) = self.maps.find_pe_image_info(addr)?;
+        let e_lfanew = self.maps.read_dword(pe_base + 0x3C)? as u64;
+        let num_rva_sizes = self.maps.read_dword(pe_base + e_lfanew + 0x84)?;
+        if num_rva_sizes < 4 {
+            return None;
+        }
+        let exc_dir_rva = self.maps.read_dword(pe_base + e_lfanew + 0xA0)? as u64;
+        let exc_dir_size = self.maps.read_dword(pe_base + e_lfanew + 0xA4)? as u64;
+        if exc_dir_rva == 0 || exc_dir_size < 12 {
+            return None;
+        }
+        let pdata_base = pe_base + exc_dir_rva;
+        let num_entries = exc_dir_size / 12;
+        let addr_rva = addr.checked_sub(pe_base)? as u32;
+        let mut lo: u64 = 0;
+        let mut hi: u64 = num_entries;
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2;
+            let entry_addr = pdata_base + mid * 12;
+            let begin = self.maps.read_dword(entry_addr)?;
+            let end = self.maps.read_dword(entry_addr + 4)?;
+            if addr_rva < begin {
+                hi = mid;
+            } else if addr_rva >= end {
+                lo = mid + 1;
+            } else {
+                return Some((pe_base + begin as u64, pe_base + end as u64));
+            }
+        }
+        None
+    }
+
     /// Trigger an exception while preserving the diagnostic hook interface.
     pub fn exception(&mut self, ex_type: ExceptionType) {
         let record = ExceptionRecord::new(ex_type, self.pc());

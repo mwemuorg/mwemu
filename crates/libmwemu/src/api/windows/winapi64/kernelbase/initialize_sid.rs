@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn InitializeSid(emu: &mut emu::Emu) {
-    let sid_ptr = emu.regs().rcx;
-    let authority_ptr = emu.regs().rdx;
-    let sub_count = emu.regs().r8 as u8;
+    let call = WinApi(Stdcall);
+    let sid_ptr = api_try!(emu, call.arg(emu, 0));
+    let authority_ptr = api_try!(emu, call.arg(emu, 1));
+    let sub_count = api_try!(emu, call.arg_u8(emu, 2));
     if sid_ptr != 0 {
         emu.maps.write_byte(sid_ptr, 1); // Revision = 1
         emu.maps.write_byte(sid_ptr + 1, sub_count);
@@ -25,5 +28,5 @@ pub fn InitializeSid(emu: &mut emu::Emu) {
         sub_count
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

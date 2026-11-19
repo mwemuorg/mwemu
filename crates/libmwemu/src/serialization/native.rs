@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::api::unix::ApiState;
+use crate::api::windows::policy::ApiPolicy;
 use crate::emu::Emu;
 use crate::emu::object_handle::{HandleManagement, MemoryHandles};
 use crate::kernel::heap::KernelHeap;
@@ -7,14 +9,14 @@ use crate::maps::heap_allocation::{O1Heap, O1HeapSnapshot};
 use crate::serialization::emu::SerializableEmu;
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct NativeSnapshot {
+pub(crate) struct NativeSnapshotV3 {
     emulator: SerializableEmu,
     heaps: Vec<O1HeapSnapshot>,
     handles: MemoryHandles,
     guard_heap: Option<KernelHeap>,
 }
 
-impl From<&Emu> for NativeSnapshot {
+impl From<&Emu> for NativeSnapshotV3 {
     fn from(emu: &Emu) -> Self {
         Self {
             emulator: SerializableEmu::from(emu),
@@ -29,8 +31,8 @@ impl From<&Emu> for NativeSnapshot {
     }
 }
 
-impl From<NativeSnapshot> for Emu {
-    fn from(snapshot: NativeSnapshot) -> Self {
+impl From<NativeSnapshotV3> for Emu {
+    fn from(snapshot: NativeSnapshotV3) -> Self {
         let mut emu: Emu = snapshot.emulator.into();
         emu.heap_arenas = snapshot
             .heaps
@@ -44,6 +46,52 @@ impl From<NativeSnapshot> for Emu {
                 kernel.heap = heap;
             }
         }
+        emu
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct NativeSnapshotV4 {
+    state: NativeSnapshotV3,
+    policy: ApiPolicy,
+}
+
+impl From<&Emu> for NativeSnapshotV4 {
+    fn from(emu: &Emu) -> Self {
+        Self {
+            state: NativeSnapshotV3::from(emu),
+            policy: emu.api_policy.clone(),
+        }
+    }
+}
+
+impl From<NativeSnapshotV4> for Emu {
+    fn from(snapshot: NativeSnapshotV4) -> Self {
+        let mut emu: Emu = snapshot.state.into();
+        emu.api_policy = snapshot.policy;
+        emu
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct NativeSnapshot {
+    state: NativeSnapshotV4,
+    unix_api: ApiState,
+}
+
+impl From<&Emu> for NativeSnapshot {
+    fn from(emu: &Emu) -> Self {
+        Self {
+            state: NativeSnapshotV4::from(emu),
+            unix_api: emu.unix_api.clone(),
+        }
+    }
+}
+
+impl From<NativeSnapshot> for Emu {
+    fn from(snapshot: NativeSnapshot) -> Self {
+        let mut emu: Emu = snapshot.state.into();
+        emu.unix_api = snapshot.unix_api;
         emu
     }
 }

@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CommandLineToArgvW(emu: &mut emu::Emu) {
-    let cmd_ptr = WinApiAbi::arg(emu, 0);
-    let argc_ptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let cmd_ptr = api_try!(emu, call.arg(emu, 0));
+    let argc_ptr = api_try!(emu, call.arg(emu, 1));
     let cmd = emu.maps.read_wide_string(cmd_ptr);
     if argc_ptr != 0 {
         emu.maps.write_dword(argc_ptr, 1);
@@ -20,8 +22,6 @@ pub fn CommandLineToArgvW(emu: &mut emu::Emu) {
         cmd,
         argv_alloc
     );
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = argv_alloc;
+    call.cleanup_args(emu, 2);
+    call.set_return(emu, argv_alloc);
 }

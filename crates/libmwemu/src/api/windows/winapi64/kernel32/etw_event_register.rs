@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn EtwEventRegister(emu: &mut emu::Emu) {
-    let provider_guid = emu.regs().rcx;
-    let callback = emu.regs().rdx;
-    let _callback_ctx = emu.regs().r8;
-    let reg_handle_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let provider_guid = api_try!(emu, call.arg(emu, 0));
+    let callback = api_try!(emu, call.arg(emu, 1));
+    let _callback_ctx = api_try!(emu, call.arg(emu, 2));
+    let reg_handle_ptr = api_try!(emu, call.arg(emu, 3));
     let guid_str = emu.maps.read_string(provider_guid);
     let hndl = helper::handler_create(&guid_str);
     if reg_handle_ptr != 0 {
@@ -18,5 +21,5 @@ pub fn EtwEventRegister(emu: &mut emu::Emu) {
         callback,
         hndl
     );
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

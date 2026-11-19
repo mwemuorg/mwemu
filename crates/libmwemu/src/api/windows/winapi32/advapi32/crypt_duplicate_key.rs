@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptDuplicateKey(emu: &mut emu::Emu) {
-    let hkey = WinApiAbi::arg(emu, 0);
-    let _reserved = WinApiAbi::arg(emu, 1) as u32;
-    let _flags = WinApiAbi::arg(emu, 2) as u32;
-    let ph_key = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let _reserved = api_try!(emu, call.arg_u32(emu, 1));
+    let _flags = api_try!(emu, call.arg_u32(emu, 2));
+    let ph_key = api_try!(emu, call.arg(emu, 3));
     let new_handle = helper::handler_create("crypt_key_dup");
     crypto_state::create_key(new_handle, 0x6801, 128);
     log_red!(
@@ -19,8 +21,6 @@ pub fn CryptDuplicateKey(emu: &mut emu::Emu) {
     if ph_key != 0 {
         emu.maps.write_dword(ph_key, new_handle as u32);
     }
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 1);
 }

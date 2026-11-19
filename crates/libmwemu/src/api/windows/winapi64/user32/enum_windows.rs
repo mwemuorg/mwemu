@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::winapi::window_table;
 
 pub(super) fn EnumWindows(emu: &mut emu::Emu) {
-    let enum_func = emu.regs().rcx;
-    let lparam = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let enum_func = api_try!(emu, call.arg(emu, 0));
+    let lparam = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "user32!EnumWindows lpEnumFunc: 0x{:x} lParam: 0x{:x}",
@@ -17,7 +20,7 @@ pub(super) fn EnumWindows(emu: &mut emu::Emu) {
         match emu.call64(enum_func, &[hwnd, lparam]) {
             Ok(keep_going) if keep_going as u32 != 0 => {}
             Ok(_) => {
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
             Err(e) => {
@@ -26,10 +29,10 @@ pub(super) fn EnumWindows(emu: &mut emu::Emu) {
                     enum_func,
                     e.message
                 );
-                emu.regs_mut().rax = 0;
+                call.set_return(emu, 0);
                 return;
             }
         }
     }
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

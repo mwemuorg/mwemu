@@ -1,8 +1,11 @@
 use super::allocate_memory;
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn __p___argc(emu: &mut emu::Emu) {
-    let argc = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let argc = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "wincrt!__p___argc argc: 0x{:x}", argc);
 
@@ -10,10 +13,10 @@ pub(super) fn __p___argc(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             log::error!("wincrt!__p___argc cannot allocate");
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
     emu.maps.write_dword(argc_addr, 1);
-    emu.regs_mut().rax = argc_addr;
+    call.set_return(emu, argc_addr);
 }

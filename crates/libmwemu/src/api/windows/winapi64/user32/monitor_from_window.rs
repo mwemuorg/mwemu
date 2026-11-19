@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn MonitorFromWindow(emu: &mut emu::Emu) {
-    let hwnd = emu.regs().rcx;
-    let flags = emu.regs().rdx as u32;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
     let hmon = helper::handler_create("monitor");
     log_red!(
         emu,
@@ -13,5 +16,5 @@ pub fn MonitorFromWindow(emu: &mut emu::Emu) {
         hmon
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = hmon;
+    call.set_return(emu, hmon);
 }

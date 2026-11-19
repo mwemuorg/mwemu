@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetDefaultCommConfigA(emu: &mut emu::Emu) {
@@ -8,19 +9,17 @@ pub fn GetDefaultCommConfigA(emu: &mut emu::Emu) {
 }
 
 fn get_default_comm_config(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let lpszName = WinApiAbi::arg(emu, 0) as u32;
-    let _lpCC = WinApiAbi::arg(emu, 1) as u32;
-    let _lpdwSize = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let lpszName = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpCC = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpdwSize = api_try!(emu, call.arg_u32(emu, 2));
 
     let lpszName = strings::read_text(emu, lpszName as u64, wide);
 
     log_red!(emu, "kernel32!{api} {}", lpszName);
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 
 pub fn GetDefaultCommConfigW(emu: &mut emu::Emu) {

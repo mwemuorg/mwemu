@@ -1,13 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn OpenThread(emu: &mut emu::Emu) {
-    let access = emu.regs().rcx;
-    let inherit = emu.regs().rdx;
-    let tid = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let access = api_try!(emu, call.arg(emu, 0));
+    let inherit = api_try!(emu, call.arg(emu, 1));
+    let tid = api_try!(emu, call.arg(emu, 2));
 
     log_red!(emu, "kernel32!OpenThread tid: {}", tid);
 
     let uri = format!("tid://{}", tid);
-    emu.regs_mut().rax = helper::handler_create(&uri);
+    call.set_return(emu, helper::handler_create(&uri));
 }

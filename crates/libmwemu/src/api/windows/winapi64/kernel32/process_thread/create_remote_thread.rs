@@ -1,17 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::threading::context::ThreadContext;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateRemoteThread(emu: &mut emu::Emu) {
-    let proc_hndl = emu.regs().rcx;
-    let sec = emu.regs().rdx;
-    let stack_size = emu.regs().r8;
-    let addr = emu.regs().r9;
-    let param = WinApiAbi::arg(emu, 4);
-    let flags = WinApiAbi::arg(emu, 5);
-    let out_tid = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let proc_hndl = api_try!(emu, call.arg(emu, 0));
+    let sec = api_try!(emu, call.arg(emu, 1));
+    let stack_size = api_try!(emu, call.arg(emu, 2));
+    let addr = api_try!(emu, call.arg(emu, 3));
+    let param = api_try!(emu, call.arg(emu, 4));
+    let flags = api_try!(emu, call.arg(emu, 5));
+    let out_tid = api_try!(emu, call.arg(emu, 6));
 
     log_red!(
         emu,
@@ -57,5 +59,8 @@ pub fn CreateRemoteThread(emu: &mut emu::Emu) {
     if out_tid > 0 {
         emu.maps.write_dword(out_tid, new_thread_id as u32);
     }
-    emu.regs_mut().rax = helper::handler_create(&format!("tid://0x{:x}", new_thread_id));
+    call.set_return(
+        emu,
+        helper::handler_create(&format!("tid://0x{:x}", new_thread_id)),
+    );
 }

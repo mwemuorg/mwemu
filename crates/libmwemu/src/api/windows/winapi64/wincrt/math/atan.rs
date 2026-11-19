@@ -1,7 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
 
 pub fn atan(emu: &mut emu::Emu, api: &str) {
+    let call = WinApi(Cdecl);
     helper::advance_tick(emu, 1);
     let a = f64::from_bits(emu.regs().xmm0 as u64);
     let result = match api {
@@ -28,5 +30,5 @@ pub fn atan(emu: &mut emu::Emu, api: &str) {
     };
     log_red!(emu, "wincrt!{} ({}) = {}", api, a, result);
     emu.regs_mut().xmm0 = result.to_bits() as u128;
-    emu.regs_mut().rax = result.to_bits();
+    call.set_return(emu, result.to_bits());
 }

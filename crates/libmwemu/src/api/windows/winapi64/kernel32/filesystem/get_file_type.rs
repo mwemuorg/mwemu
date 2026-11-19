@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetFileType(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
 
     let file_type = if helper::handler_exist(hndl) {
         let uri = helper::handler_get_uri(hndl);
@@ -32,5 +35,5 @@ pub fn GetFileType(emu: &mut emu::Emu) {
         file_type
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = file_type;
+    call.set_return(emu, file_type);
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetCurrentObject(emu: &mut emu::Emu) {
-    let hdc = emu.regs().rcx;
-    let obj_type = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let obj_type = api_try!(emu, call.arg(emu, 1));
     let tag = match obj_type {
         1 => "gdi32://pen",
         2 => "gdi32://brush",
@@ -23,5 +26,5 @@ pub fn GetCurrentObject(emu: &mut emu::Emu) {
         obj_type,
         result
     );
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

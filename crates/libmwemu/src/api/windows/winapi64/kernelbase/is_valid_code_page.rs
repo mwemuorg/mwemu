@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn IsValidCodePage(emu: &mut emu::Emu) {
-    let cp = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let cp = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernelbase!IsValidCodePage cp:{}", cp);
     emu.set_last_error(0);
-    let h = emu.regs().rcx;
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

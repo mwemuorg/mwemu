@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetHGlobalFromStream(emu: &mut emu::Emu) {
-    let pstm = emu.regs().rcx;
-    let phglobal = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let pstm = api_try!(emu, call.arg(emu, 0));
+    let phglobal = api_try!(emu, call.arg(emu, 1));
     let hndl = helper::handler_create("ole32://HGlobal");
     if phglobal != 0 {
         emu.maps.write_dword(phglobal, hndl as u32);
@@ -14,5 +17,5 @@ pub fn GetHGlobalFromStream(emu: &mut emu::Emu) {
         pstm,
         hndl
     );
-    emu.regs_mut().rax = 0; // S_OK
+    call.set_return(emu, 0); // S_OK
 }

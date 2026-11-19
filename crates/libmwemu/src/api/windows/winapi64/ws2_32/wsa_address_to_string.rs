@@ -1,15 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn WSAAddressToStringA(emu: &mut emu::Emu) {
     wsa_address_to_string(emu, "WSAAddressToStringA", false);
 }
 
 fn wsa_address_to_string(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let addr_ptr = emu.regs().rcx;
-    let addr_len = emu.regs().rdx as u32;
-    let proto_info_ptr = emu.regs().r8;
-    let str_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let addr_ptr = api_try!(emu, call.arg(emu, 0));
+    let addr_len = api_try!(emu, call.arg_u32(emu, 1));
+    let proto_info_ptr = api_try!(emu, call.arg(emu, 2));
+    let str_ptr = api_try!(emu, call.arg(emu, 3));
     log_red!(emu, "ws2_32!{api} addr:0x{:x}", addr_ptr);
 
     if addr_ptr != 0 && str_ptr != 0 {
@@ -25,7 +28,7 @@ fn wsa_address_to_string(emu: &mut emu::Emu, api: &str, wide: bool) {
         );
         strings::write_string(emu, str_ptr, &s, wide);
     }
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn WSAAddressToStringW(emu: &mut emu::Emu) {

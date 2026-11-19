@@ -1,12 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn WSAGetOverlappedResult(emu: &mut emu::Emu) {
-    let sock = WinApiAbi::arg(emu, 0);
-    let overlapped_ptr = WinApiAbi::arg(emu, 1);
-    let transfer_ptr = WinApiAbi::arg(emu, 2);
-    let wait = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let overlapped_ptr = api_try!(emu, call.arg(emu, 1));
+    let transfer_ptr = api_try!(emu, call.arg(emu, 2));
+    let wait = api_try!(emu, call.arg_u32(emu, 3));
     log_red!(
         emu,
         "ws2_32!WSAGetOverlappedResult sock:0x{:x} wait:{}",
@@ -16,6 +17,6 @@ pub fn WSAGetOverlappedResult(emu: &mut emu::Emu) {
     if transfer_ptr != 0 {
         emu.maps.write_dword(transfer_ptr, 0);
     }
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }

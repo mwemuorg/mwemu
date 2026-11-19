@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn __1type_info__UAE_XZ(emu: &mut emu::Emu) {
-    let this_ptr = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let this_ptr = api_try!(emu, call.arg(emu, 0));
     let vtable = if this_ptr != 0 {
         emu.maps.read_qword(this_ptr).unwrap_or(0)
     } else {
@@ -13,8 +16,4 @@ pub fn __1type_info__UAE_XZ(emu: &mut emu::Emu) {
         this_ptr,
         vtable
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
 }

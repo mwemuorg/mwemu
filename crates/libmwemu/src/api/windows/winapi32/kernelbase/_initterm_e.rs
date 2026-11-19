@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn _initterm_e(emu: &mut emu::Emu) {
-    let ptr1 = WinApiAbi::arg(emu, 0) as u32;
-    let ptr2 = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Cdecl);
+    let ptr1 = api_try!(emu, call.arg_u32(emu, 0));
+    let ptr2 = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(emu, "kernelbase!_initterm_e 0x{:x} 0x{:x}", ptr1, ptr2);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

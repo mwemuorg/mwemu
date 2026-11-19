@@ -1,3 +1,4 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::winapi::winapi64;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
@@ -8,7 +9,7 @@ use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::MemoryKind;
 use crate::serialization::Serialization;
 use crate::tests::helpers::{self, call_winapi32, call_winapi64};
-use crate::winapi::common::memory::{self, Call};
+use crate::winapi::common::memory;
 use crate::winapi::common::{sections, virtual_protect};
 use crate::{emu32, emu64};
 
@@ -96,7 +97,7 @@ fn nt_section_calls_validate_outputs_and_preserve_handles_in_snapshots() {
     for is64 in [false, true] {
         let mut emu = prepare(is64);
         emu.maps.write_qword(DATA + 32, 0x20000);
-        let create = |emu: &mut Emu| sections::nt_create(emu, Call::Api);
+        let create = |emu: &mut Emu| sections::nt_create(emu, WinApi(Stdcall));
         let args = [
             DATA,
             0xf001f,
@@ -122,7 +123,7 @@ fn nt_section_calls_validate_outputs_and_preserve_handles_in_snapshots() {
             0,
             PAGE_READWRITE as u64,
         ];
-        let map = |emu: &mut Emu| sections::nt_map(emu, Call::Api);
+        let map = |emu: &mut Emu| sections::nt_map(emu, WinApi(Stdcall));
         let count = emu.maps.maps.len();
         map_args[6] = 1;
         assert_ne!(call(&mut emu, map, &map_args), 0);

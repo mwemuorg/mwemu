@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptProtectData(emu: &mut emu::Emu) {
-    let p_data_in = emu.regs().rcx;
-    let sz_data_descr = emu.regs().rdx;
-    let _p_optional_entropy = emu.regs().r8;
-    let _pv_reserved = emu.regs().r9;
-    let _p_prompt_struct = WinApiAbi::arg(emu, 4);
-    let _dw_flags = WinApiAbi::arg(emu, 5);
-    let p_data_out = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let p_data_in = api_try!(emu, call.arg(emu, 0));
+    let sz_data_descr = api_try!(emu, call.arg(emu, 1));
+    let _p_optional_entropy = api_try!(emu, call.arg(emu, 2));
+    let _pv_reserved = api_try!(emu, call.arg(emu, 3));
+    let _p_prompt_struct = api_try!(emu, call.arg(emu, 4));
+    let _dw_flags = api_try!(emu, call.arg(emu, 5));
+    let p_data_out = api_try!(emu, call.arg(emu, 6));
 
     let descr = if sz_data_descr != 0 {
         emu.maps.read_wide_string(sz_data_descr)
@@ -45,5 +47,5 @@ pub fn CryptProtectData(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

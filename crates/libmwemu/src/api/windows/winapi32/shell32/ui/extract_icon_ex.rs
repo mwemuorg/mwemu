@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn ExtractIconEx(emu: &mut emu::Emu) {
-    let file_ptr = WinApiAbi::arg(emu, 0);
-    let icon_index = WinApiAbi::arg(emu, 1) as i32;
-    let large_ptr = WinApiAbi::arg(emu, 2);
-    let small_ptr = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let file_ptr = api_try!(emu, call.arg(emu, 0));
+    let icon_index = api_try!(emu, call.arg_i32(emu, 1));
+    let large_ptr = api_try!(emu, call.arg(emu, 2));
+    let small_ptr = api_try!(emu, call.arg(emu, 3));
     let file = if file_ptr != 0 {
         emu.maps.read_string(file_ptr)
     } else {
@@ -27,10 +28,8 @@ pub fn ExtractIconEx(emu: &mut emu::Emu) {
     if small_ptr != 0 {
         emu.maps.write_dword(small_ptr, handle as u32);
     }
-    emu.regs_mut().rax = 1;
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 4);
 }
 
 pub fn ExtractIconExA(emu: &mut emu::Emu) {
@@ -38,10 +37,11 @@ pub fn ExtractIconExA(emu: &mut emu::Emu) {
 }
 
 fn extract_icon_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let file_ptr = WinApiAbi::arg(emu, 0);
-    let icon_index = WinApiAbi::arg(emu, 1) as i32;
-    let large_ptr = WinApiAbi::arg(emu, 2);
-    let small_ptr = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let file_ptr = api_try!(emu, call.arg(emu, 0));
+    let icon_index = api_try!(emu, call.arg_i32(emu, 1));
+    let large_ptr = api_try!(emu, call.arg(emu, 2));
+    let small_ptr = api_try!(emu, call.arg(emu, 3));
     let file = if file_ptr != 0 {
         strings::read_text(emu, file_ptr, wide)
     } else {
@@ -55,8 +55,8 @@ fn extract_icon_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
     if small_ptr != 0 {
         emu.maps.write_dword(small_ptr, handle as u32);
     }
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }
 
 pub fn ExtractIconExW(emu: &mut emu::Emu) {

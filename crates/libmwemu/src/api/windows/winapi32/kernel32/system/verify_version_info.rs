@@ -1,23 +1,24 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn VerifyVersionInfoA(emu: &mut emu::Emu) {
-    let _lpVersionInformation = WinApiAbi::arg(emu, 0) as u32;
-    let _dwTypeMask = WinApiAbi::arg(emu, 1) as u32;
-    let _dwlConditionMask = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let _lpVersionInformation = api_try!(emu, call.arg_u32(emu, 0));
+    let _dwTypeMask = api_try!(emu, call.arg_u32(emu, 1));
+    let _dwlConditionMask = api_try!(emu, call.arg_u32(emu, 2));
 
     log_red!(emu, "kernel32!VerifyVersionInfoA");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    stdcall_ret(emu, 4);
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 4);
 }
 
 pub fn VerifyVersionInfoW(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "kernel32!VerifyVersionInfoW");
 
-    stdcall_ret(emu, 4);
-    emu.regs_mut().rax = 0xffff;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 0xffff);
 }

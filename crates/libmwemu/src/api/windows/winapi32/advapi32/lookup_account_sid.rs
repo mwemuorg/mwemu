@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn LookupAccountSidA(emu: &mut emu::Emu) {
     lookup_account_sid(emu, "LookupAccountSidA", false);
@@ -11,11 +12,12 @@ pub fn LookupAccountSidW(emu: &mut emu::Emu) {
 }
 
 fn lookup_account_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let name_ptr = WinApiAbi::arg(emu, 2);
-    let name_sz_ptr = WinApiAbi::arg(emu, 3);
-    let domain_ptr = WinApiAbi::arg(emu, 4);
-    let domain_sz_ptr = WinApiAbi::arg(emu, 5);
-    let use_ptr = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let name_ptr = api_try!(emu, call.arg(emu, 2));
+    let name_sz_ptr = api_try!(emu, call.arg(emu, 3));
+    let domain_ptr = api_try!(emu, call.arg(emu, 4));
+    let domain_sz_ptr = api_try!(emu, call.arg(emu, 5));
+    let use_ptr = api_try!(emu, call.arg(emu, 6));
     log_red!(emu, "advapi32!{api} -> user/DESKTOP");
     let user = "user";
     let domain = "DESKTOP";
@@ -62,8 +64,6 @@ fn lookup_account_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    for _ in 0..7u32 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 7);
+    call.set_return(emu, 1);
 }

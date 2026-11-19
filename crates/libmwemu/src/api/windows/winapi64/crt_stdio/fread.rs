@@ -1,13 +1,16 @@
 use super::EINVAL;
 use super::read_into;
 use super::set_errno;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn fread(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let size = emu.regs().rdx;
-    let count = emu.regs().r8;
-    let file = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg(emu, 2));
+    let file = api_try!(emu, call.arg(emu, 3));
     let total = size.saturating_mul(count) as usize;
     let items = if total == 0 {
         Some(0)
@@ -26,5 +29,5 @@ pub(super) fn fread(emu: &mut emu::Emu) {
     if items.is_none() {
         set_errno(emu, EINVAL);
     }
-    emu.regs_mut().rax = items.unwrap_or(0);
+    call.set_return(emu, items.unwrap_or(0));
 }

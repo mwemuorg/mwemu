@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn WSASend(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let buffers = emu.regs().rdx;
-    let count = emu.regs().r8 as u32;
-    let bytes_sent_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let buffers = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg_u32(emu, 2));
+    let bytes_sent_ptr = api_try!(emu, call.arg(emu, 3));
     log_red!(emu, "ws2_32!WSASend sock:0x{:x} bufs:{} ", sock, count);
     let total: u32 = if buffers != 0 && count > 0 {
         let mut sum = 0u32;
@@ -19,5 +22,5 @@ pub(super) fn WSASend(emu: &mut emu::Emu) {
     if bytes_sent_ptr != 0 {
         emu.maps.write_dword(bytes_sent_ptr, total);
     }
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

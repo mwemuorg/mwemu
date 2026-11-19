@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetActiveProcessorCount(emu: &mut emu::Emu) {
-    let group = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let group = api_try!(emu, call.arg(emu, 0));
     let count: u64 = 4;
     log_red!(
         emu,
@@ -10,5 +13,5 @@ pub fn GetActiveProcessorCount(emu: &mut emu::Emu) {
         count
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = count;
+    call.set_return(emu, count);
 }

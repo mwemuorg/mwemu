@@ -1,16 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CryptProtectData(emu: &mut emu::Emu) {
-    let data_in = arg(emu, 0) as u64;
-    let desc_ptr = arg(emu, 1) as u64;
-    let _entropy = arg(emu, 2);
-    let _reserved = arg(emu, 3);
-    let _prompt = arg(emu, 4);
-    let flags = arg(emu, 5);
-    let data_out = arg(emu, 6) as u64;
+    let call = WinApi(Stdcall);
+    let data_in = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let desc_ptr = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let _entropy = api_try!(emu, call.arg_u32(emu, 2));
+    let _reserved = api_try!(emu, call.arg_u32(emu, 3));
+    let _prompt = api_try!(emu, call.arg_u32(emu, 4));
+    let flags = api_try!(emu, call.arg_u32(emu, 5));
+    let data_out = api_try!(emu, call.arg_u32(emu, 6)) as u64;
     let desc = if desc_ptr != 0 {
         emu.maps.read_wide_string(desc_ptr)
     } else {
@@ -40,6 +41,6 @@ pub fn CryptProtectData(emu: &mut emu::Emu) {
             emu.maps.write_dword(data_out + 4, alloc as u32);
         }
     }
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 7);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 7);
 }

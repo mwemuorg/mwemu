@@ -1,13 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn WSAIoctl(emu: &mut emu::Emu) {
-    let sock = WinApiAbi::arg(emu, 0);
-    let ioctl_code = WinApiAbi::arg(emu, 1) as u32;
-    let in_buf_ptr = WinApiAbi::arg(emu, 2);
-    let in_buf_len = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let ioctl_code = api_try!(emu, call.arg_u32(emu, 1));
+    let in_buf_ptr = api_try!(emu, call.arg(emu, 2));
+    let in_buf_len = api_try!(emu, call.arg_u32(emu, 3));
     log_red!(
         emu,
         "ws2_32!WSAIoctl sock:0x{:x} code:0x{:x}",
@@ -16,9 +17,9 @@ pub fn WSAIoctl(emu: &mut emu::Emu) {
     );
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038);
-        emu.regs_mut().rax = 0xFFFFFFFF;
+        call.set_return(emu, 0xFFFFFFFF);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
-    stdcall_ret(emu, 9);
+    call.cleanup_args(emu, 9);
 }

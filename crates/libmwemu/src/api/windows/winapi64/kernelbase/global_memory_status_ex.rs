@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GlobalMemoryStatusEx(emu: &mut emu::Emu) {
-    let buf_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let buf_ptr = api_try!(emu, call.arg(emu, 0));
     if buf_ptr != 0 {
         emu.maps.write_dword(buf_ptr, 64); // dwLength
         emu.maps.write_dword(buf_ptr + 4, 50); // dwMemoryLoad (50%)
@@ -16,5 +19,5 @@ pub fn GlobalMemoryStatusEx(emu: &mut emu::Emu) {
         emu.maps.write_qword(buf_ptr + 56, 0); // ullAvailExtendedVirtual
     }
     log_red!(emu, "kernelbase!GlobalMemoryStatusEx ptr:0x{:x}", buf_ptr);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

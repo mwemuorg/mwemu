@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn putc(emu: &mut emu::Emu, api: &str) {
-    let ch = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let ch = api_try!(emu, call.arg(emu, 0));
     log_red!(
         emu,
         "wincrt!{} ch:'{}' (0x{:x})",
@@ -11,5 +14,5 @@ pub fn putc(emu: &mut emu::Emu, api: &str) {
         ch
     );
     helper::advance_tick(emu, 1);
-    emu.regs_mut().rax = ch & 0xff;
+    call.set_return(emu, ch & 0xff);
 }

@@ -1,5 +1,7 @@
 use super::find_window;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn FindWindowExA(emu: &mut emu::Emu) {
     find_window_ex(emu, "FindWindowExA", false);
@@ -10,7 +12,14 @@ pub fn FindWindowExW(emu: &mut emu::Emu) {
 }
 
 fn find_window_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let (parent, after) = (emu.regs().rcx, emu.regs().rdx);
-    let (class_ptr, window_ptr) = (emu.regs().r8, emu.regs().r9);
+    let call = WinApi(Stdcall);
+    let (parent, after) = (
+        api_try!(emu, call.arg(emu, 0)),
+        api_try!(emu, call.arg(emu, 1)),
+    );
+    let (class_ptr, window_ptr) = (
+        api_try!(emu, call.arg(emu, 2)),
+        api_try!(emu, call.arg(emu, 3)),
+    );
     find_window(emu, api, parent, after, class_ptr, window_ptr, wide);
 }

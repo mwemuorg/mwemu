@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::system::FORMAT_MESSAGE_ALLOCATE_BUFFER;
 
 pub fn FormatMessageA(emu: &mut emu::Emu) {
@@ -49,12 +50,13 @@ pub fn FormatMessageW(emu: &mut emu::Emu) {
 }
 
 fn format_message(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let flags = emu.regs().rcx as u32;
-    let _source = emu.regs().rdx;
-    let msg_id = emu.regs().r8 as u32;
-    let _lang_id = emu.regs().r9;
-    let lp_buffer = WinApiAbi::arg(emu, 4);
-    let n_size = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg_u32(emu, 0));
+    let _source = api_try!(emu, call.arg(emu, 1));
+    let msg_id = api_try!(emu, call.arg_u32(emu, 2));
+    let _lang_id = api_try!(emu, call.arg(emu, 3));
+    let lp_buffer = api_try!(emu, call.arg(emu, 4));
+    let n_size = api_try!(emu, call.arg(emu, 5));
     log_red!(
         emu,
         "kernel32!{api} flags:0x{:x} msgId:{} buf:0x{:x} sz:{}",
@@ -74,13 +76,13 @@ fn format_message(emu: &mut emu::Emu, api: &str, wide: bool) {
                     emu.maps.write_qword(lp_buffer, alloc);
                 }
             }
-            emu.regs_mut().rax = msg.len() as u64;
+            call.set_return(emu, msg.len() as u64);
         } else if lp_buffer != 0 {
             strings::write_string(emu, lp_buffer, &msg, wide);
-            emu.regs_mut().rax = msg.len() as u64;
+            call.set_return(emu, msg.len() as u64);
         } else {
             emu.set_last_error(87);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     } else {
         let msg = error_message(msg_id);
@@ -93,13 +95,13 @@ fn format_message(emu: &mut emu::Emu, api: &str, wide: bool) {
                     emu.maps.write_qword(lp_buffer, alloc);
                 }
             }
-            emu.regs_mut().rax = msg.len() as u64;
+            call.set_return(emu, msg.len() as u64);
         } else if lp_buffer != 0 {
             strings::write_string(emu, lp_buffer, &msg, wide);
-            emu.regs_mut().rax = msg.len() as u64;
+            call.set_return(emu, msg.len() as u64);
         } else {
             emu.set_last_error(87);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     }
 }

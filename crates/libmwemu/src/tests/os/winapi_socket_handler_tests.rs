@@ -870,13 +870,14 @@ fn ip_helper_adapter_queries_report_no_data_and_validate_parameters() {
 }
 
 #[test]
-fn ip_helper_unknown_exports_keep_the_existing_fallback() {
+fn ip_helper_unknown_exports_report_unsupported_calls() {
     helpers::setup();
     for is64 in [false, true] {
         let (mut emu, _) = helpers::prepare_winapi(is64);
         emu.cfg.skip_unimplemented = false;
         call_ip_helper(&mut emu, "UnsupportedIpHelperQuery", &[]);
-        assert!(emu.process_terminated);
+        assert!(emu.api_policy.stopped());
+        assert!(!emu.process_terminated);
     }
 }
 

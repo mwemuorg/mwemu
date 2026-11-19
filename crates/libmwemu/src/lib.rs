@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
@@ -53,6 +54,9 @@ pub(crate) use api::windows as winapi;
 pub(crate) use syscall::windows::ntapi;
 
 // Re-exports for external crates
+pub use api::windows::policy::{
+    ApiCall, ApiDisposition, ApiMode, ApiOutcome, ApiPolicy, ApiRoute, ApiStopReason,
+};
 pub use debug::console;
 pub use debug::gdb;
 pub use debug::script;

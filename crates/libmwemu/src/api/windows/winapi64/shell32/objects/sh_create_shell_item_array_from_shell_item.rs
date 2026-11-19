@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn SHCreateShellItemArrayFromShellItem(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "shell32!SHCreateShellItemArrayFromShellItem arg1:0x{:x} arg2:0x{:x}",
@@ -12,5 +15,5 @@ pub fn SHCreateShellItemArrayFromShellItem(emu: &mut emu::Emu) {
     );
     let handle = helper::handler_create("shcreateshellitemarrayfromshellitem");
     emu.set_last_error(0);
-    emu.regs_mut().rax = handle;
+    call.set_return(emu, handle);
 }

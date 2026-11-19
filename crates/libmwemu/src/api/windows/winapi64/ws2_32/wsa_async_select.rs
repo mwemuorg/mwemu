@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WSAAsyncSelect(emu: &mut emu::Emu) {
-    let sock = emu.regs().rcx;
-    let hwnd = emu.regs().rdx;
-    let msg = emu.regs().r8;
-    let events = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let hwnd = api_try!(emu, call.arg(emu, 1));
+    let msg = api_try!(emu, call.arg(emu, 2));
+    let events = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "ws2_32!WSAAsyncSelect sock:0x{:x} hwnd:0x{:x} msg:{} events:0x{:x}",
@@ -16,8 +19,8 @@ pub fn WSAAsyncSelect(emu: &mut emu::Emu) {
     );
     if !helper::socket_exist(sock) {
         emu.set_last_error(10038);
-        emu.regs_mut().rax = 0xFFFFFFFF;
+        call.set_return(emu, 0xFFFFFFFF);
     } else {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

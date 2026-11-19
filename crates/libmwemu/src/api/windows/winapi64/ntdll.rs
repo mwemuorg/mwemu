@@ -1,7 +1,7 @@
-use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::windows::common::{fallback, memory as memory_api, nt_api};
 use crate::emu;
 use crate::winapi::winapi64::kernel32;
-use crate::windows::constants::errors::*;
 
 mod file;
 mod heap;
@@ -23,7 +23,8 @@ pub use string::{RtlInitAnsiString, RtlInitUnicodeString};
 pub use sync::NtDelayExecution;
 
 pub fn try_dispatch(api: &str, emu: &mut emu::Emu) -> bool {
-    if memory_api::dispatch_nt(api, emu, Call::Api) {
+    let call = WinApi(Stdcall);
+    if memory_api::dispatch_nt(api, emu, call) {
         return true;
     }
     let normalized = nt_api::normalize(api);
@@ -41,8 +42,8 @@ pub(crate) fn dispatch(addr: u64, api: &str, emu: &mut emu::Emu) -> bool {
     if try_dispatch(api, emu) {
         return true;
     }
-    if let Some(words) = nt_api::signature(api) {
-        fallback::return_value(addr, api, words, STATUS_NOT_IMPLEMENTED, emu);
+    if nt_api::signature(api).is_some() {
+        fallback::unimplemented(addr, api, emu);
         return true;
     }
     false

@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SystemTimeToFileTime(emu: &mut emu::Emu) {
-    let in_ptr = emu.regs().rcx;
-    let out_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let in_ptr = api_try!(emu, call.arg(emu, 0));
+    let out_ptr = api_try!(emu, call.arg(emu, 1));
 
     log_red!(
         emu,
@@ -13,7 +16,7 @@ pub fn SystemTimeToFileTime(emu: &mut emu::Emu) {
 
     if in_ptr == 0 || out_ptr == 0 {
         emu.set_last_error(87);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
 
@@ -37,7 +40,7 @@ pub fn SystemTimeToFileTime(emu: &mut emu::Emu) {
     emu.maps.write_dword(out_ptr + 4, (filetime >> 32) as u32);
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 fn is_leap_year(y: u64) -> bool {

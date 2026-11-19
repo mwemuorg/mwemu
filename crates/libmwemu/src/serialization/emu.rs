@@ -8,10 +8,12 @@ use iced_x86::Instruction;
 use serde::{Deserialize, Serialize};
 
 use crate::api::banzai::Banzai;
+use crate::api::unix::ApiState;
+use crate::api::windows::policy::ApiPolicy;
 use crate::config::Config;
 use crate::debug::breakpoint::Breakpoints;
 use crate::eflags::Eflags;
-use crate::emu::Emu;
+use crate::emu::{Emu, LastOp};
 use crate::flags::Flags;
 use crate::hooks::Hooks;
 use crate::maps::Maps;
@@ -373,8 +375,11 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             ctrlc_console: Arc::new(atomic::AtomicU32::new(0)),
             now: now.to_instant(),
             force_break,
+            api_policy: ApiPolicy::default(),
+            unix_api: ApiState::default(),
             process_terminated: false,
             call_depth: 0,
+            host_call_return: None,
             ldr_init_done: false,
             force_reload,
             run_until_ret,
@@ -395,6 +400,10 @@ impl<M: Into<Maps>> From<SerializableEmu<M>> for Emu {
             macho64: None, // TODO: not yet serialized
             kernel: None,  // driver state is rebuilt by load_kernel_module, not dumped
             kernel_guard: false,
+            security_cookie_va: 0,
+            last_cmp: LastOp::EMPTY,
+            last_flag_op: LastOp::EMPTY,
+            last_ret: (0, 0),
             tls_callbacks,
             library_loaded: false,
             // Thread management

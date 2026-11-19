@@ -1,9 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn GetLocalTime(emu: &mut emu::Emu) {
-    let lp_system_time = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let lp_system_time = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "kernel32!GetLocalTime ptr: 0x{:x}", lp_system_time);
 
@@ -61,5 +63,5 @@ pub fn GetLocalTime(emu: &mut emu::Emu) {
     offset += 2;
     emu.maps.write_word(lp_system_time + offset, w_millis);
 
-    emu.stack_pop32(false);
+    call.cleanup_args(emu, 1);
 }

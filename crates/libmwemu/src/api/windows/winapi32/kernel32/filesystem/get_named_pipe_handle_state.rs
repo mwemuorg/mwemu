@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetNamedPipeHandleStateA(emu: &mut emu::Emu) {
-    let hNamedPipe = WinApiAbi::arg(emu, 0) as u32;
-    let _lpState = WinApiAbi::arg(emu, 1) as u32;
-    let _lpCurInstances = WinApiAbi::arg(emu, 2) as u32;
-    let _lpMaxCollectionCount = WinApiAbi::arg(emu, 3) as u32;
-    let _lpCollectDataTimeout = WinApiAbi::arg(emu, 4) as u32;
-    let lpUserName = WinApiAbi::arg(emu, 5) as u32;
-    let nMaxUserNameSize = WinApiAbi::arg(emu, 6) as u32;
+    let call = WinApi(Stdcall);
+    let hNamedPipe = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpState = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpCurInstances = api_try!(emu, call.arg_u32(emu, 2));
+    let _lpMaxCollectionCount = api_try!(emu, call.arg_u32(emu, 3));
+    let _lpCollectDataTimeout = api_try!(emu, call.arg_u32(emu, 4));
+    let lpUserName = api_try!(emu, call.arg_u32(emu, 5));
+    let nMaxUserNameSize = api_try!(emu, call.arg_u32(emu, 6));
 
     let hNamedPipe = emu.maps.read_string(hNamedPipe as u64);
     let lpUserName = emu.maps.read_string(lpUserName as u64);
@@ -23,21 +25,19 @@ pub fn GetNamedPipeHandleStateA(emu: &mut emu::Emu) {
         nMaxUserNameSize
     );
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..7 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 7);
 }
 
 pub fn GetNamedPipeHandleStateW(emu: &mut emu::Emu) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
-    let p2 = WinApiAbi::arg(emu, 2);
-    let p3 = WinApiAbi::arg(emu, 3);
-    let p4 = WinApiAbi::arg(emu, 4);
-    let p5 = WinApiAbi::arg(emu, 5);
-    let p6 = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
+    let p2 = api_try!(emu, call.arg(emu, 2));
+    let p3 = api_try!(emu, call.arg(emu, 3));
+    let p4 = api_try!(emu, call.arg(emu, 4));
+    let p5 = api_try!(emu, call.arg(emu, 5));
+    let p6 = api_try!(emu, call.arg(emu, 6));
     let s = if p0 != 0 && p0 > 0xffff {
         emu.maps.read_wide_string(p0)
     } else {
@@ -51,8 +51,6 @@ pub fn GetNamedPipeHandleStateW(emu: &mut emu::Emu) {
         p2,
         p3
     );
-    for _ in 0..7 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 7);
+    call.set_return(emu, 1);
 }

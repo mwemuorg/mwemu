@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn InternetSetCookieEx2(emu: &mut emu::Emu) {
-    let url_ptr = emu.regs().rcx;
-    let cookie_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let url_ptr = api_try!(emu, call.arg(emu, 0));
+    let cookie_ptr = api_try!(emu, call.arg(emu, 1));
     let url = if url_ptr != 0 {
         emu.maps.read_string(url_ptr)
     } else {
@@ -20,5 +23,5 @@ pub fn InternetSetCookieEx2(emu: &mut emu::Emu) {
         cookie
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0; // COOKIE_STATE_ACCEPT
+    call.set_return(emu, 0); // COOKIE_STATE_ACCEPT
 }

@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SleepConditionVariableSRW(emu: &mut emu::Emu) {
-    let cv = emu.regs().rcx;
-    let lock = emu.regs().rdx;
-    let ms = emu.regs().r8;
-    let flags = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let cv = api_try!(emu, call.arg(emu, 0));
+    let lock = api_try!(emu, call.arg(emu, 1));
+    let ms = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "kernel32!SleepConditionVariableSRW cv:0x{:x} lock:0x{:x} ms:{} flags:{}",
@@ -14,5 +17,5 @@ pub fn SleepConditionVariableSRW(emu: &mut emu::Emu) {
         flags
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

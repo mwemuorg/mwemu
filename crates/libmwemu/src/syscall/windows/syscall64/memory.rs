@@ -1,9 +1,10 @@
+use crate::api::abi::windows::WindowsAbi::WinSyscall;
 use crate::api::windows::common::memory as memory_api;
-use crate::api::windows::common::memory::Call;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
 use crate::syscall::windows::syscall64::sync::next_handle;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::kernel32::load_library;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
@@ -337,8 +338,9 @@ pub fn ntdll_heap_list_walk_fixup(emu: &mut Emu, ins: &Instruction, rip: u64) {
 /// `NtQueryVirtualMemory` — x64 register/stack layout matches the ntdll syscall stub
 /// (RCX..R9 + 5th/6th on stack at `rsp+0x28` / `rsp+0x30`).
 pub fn nt_query_virtual_memory(emu: &mut Emu) {
+    let call = WinSyscall;
     if emu.regs().r8 == 0 {
-        memory_api::dispatch_nt("NtQueryVirtualMemory", emu, Call::Syscall);
+        memory_api::dispatch_nt("NtQueryVirtualMemory", emu, call);
         return;
     }
 
@@ -548,34 +550,40 @@ pub fn nt_query_virtual_memory(emu: &mut Emu) {
 
 /// `NtAllocateVirtualMemory` — x64: RCX..R9 + 5th/6th at `[rsp+0x28]` / `[rsp+0x30]`.
 pub fn nt_allocate_virtual_memory(emu: &mut Emu) {
-    memory_api::dispatch_nt("NtAllocateVirtualMemory", emu, Call::Syscall);
+    let call = WinSyscall;
+    memory_api::dispatch_nt("NtAllocateVirtualMemory", emu, call);
 }
 
 /// `NtAllocateVirtualMemoryEx` — extended version with MEM_EXTENDED_PARAMETER support.
 /// Parameters: RCX ProcessHandle, RDX *BaseAddress, R8 *RegionSize, R9 AllocationType,
 /// [RSP+28h] Protect, [RSP+30h] ExtendedParameters, [RSP+38h] ExtendedParameterCount.
 pub fn nt_allocate_virtual_memory_ex(emu: &mut Emu) {
-    memory_api::dispatch_nt("NtAllocateVirtualMemoryEx", emu, Call::Syscall);
+    let call = WinSyscall;
+    memory_api::dispatch_nt("NtAllocateVirtualMemoryEx", emu, call);
 }
 
 /// `NtFreeVirtualMemory` — x64: RCX, RDX, R8, R9 (all in registers).
 pub fn nt_free_virtual_memory(emu: &mut Emu) {
-    memory_api::dispatch_nt("NtFreeVirtualMemory", emu, Call::Syscall);
+    let call = WinSyscall;
+    memory_api::dispatch_nt("NtFreeVirtualMemory", emu, call);
 }
 
 /// `NtProtectVirtualMemory` — x64: RCX..R9 + 5th (`OldProtect`) at `[rsp+0x28]`.
 pub fn nt_protect_virtual_memory(emu: &mut Emu) {
-    memory_api::dispatch_nt("NtProtectVirtualMemory", emu, Call::Syscall);
+    let call = WinSyscall;
+    memory_api::dispatch_nt("NtProtectVirtualMemory", emu, call);
 }
 
 /// `NtReadVirtualMemory` — x64: 5th arg (`NumberOfBytesRead`) at `[rsp+0x28]`.
 pub fn nt_read_virtual_memory(emu: &mut Emu) {
-    memory_api::dispatch_nt("NtReadVirtualMemory", emu, Call::Syscall);
+    let call = WinSyscall;
+    memory_api::dispatch_nt("NtReadVirtualMemory", emu, call);
 }
 
 /// `NtWriteVirtualMemory` — x64: 5th arg (`NumberOfBytesWritten`) at `[rsp+0x28]`.
 pub fn nt_write_virtual_memory(emu: &mut Emu) {
-    memory_api::dispatch_nt("NtWriteVirtualMemory", emu, Call::Syscall);
+    let call = WinSyscall;
+    memory_api::dispatch_nt("NtWriteVirtualMemory", emu, call);
 }
 
 /// `NtUnmapViewOfSection` — unmaps anonymous section views created by
@@ -796,17 +804,18 @@ fn map_file_section(emu: &mut Emu, dll: &str, requested_base: u64) -> Result<(u6
 }
 
 pub fn nt_map_view_of_section(emu: &mut Emu) {
-    let section_handle = Call::Syscall.arg(emu, 0);
+    let call = WinSyscall;
+    let section_handle = api_try!(emu, call.arg(emu, 0));
     if !emu.section_handles.contains_key(&section_handle)
         && !emu.file_section_names.contains_key(&section_handle)
     {
-        memory_api::dispatch_nt("NtMapViewOfSection", emu, Call::Syscall);
+        memory_api::dispatch_nt("NtMapViewOfSection", emu, call);
         return;
     }
     let process_handle = emu.regs().rdx;
     let base_addr_ptr = emu.regs().r8;
-    let view_size_ptr = Call::Syscall.arg(emu, 6);
-    let protect = Call::Syscall.arg(emu, 9) as u32;
+    let view_size_ptr = api_try!(emu, call.arg(emu, 6));
+    let protect = api_try!(emu, call.arg_u32(emu, 9));
 
     if !memory_api::writable_pointer(emu, base_addr_ptr)
         || !memory_api::writable_pointer(emu, view_size_ptr)
@@ -1140,8 +1149,12 @@ pub(crate) fn read_object_attributes_root_directory(emu: &Emu, addr: u64) -> u64
 }
 
 pub fn nt_create_section(emu: &mut Emu) {
-    if !emu.file_handles.contains_key(&Call::Syscall.arg(emu, 6)) {
-        memory_api::dispatch_nt("NtCreateSection", emu, Call::Syscall);
+    let call = WinSyscall;
+    if !emu
+        .file_handles
+        .contains_key(&api_try!(emu, call.arg(emu, 6)))
+    {
+        memory_api::dispatch_nt("NtCreateSection", emu, call);
         return;
     }
     let handle_out = emu.regs().rcx;

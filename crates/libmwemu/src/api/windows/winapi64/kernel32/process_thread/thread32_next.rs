@@ -1,16 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn Thread32Next(emu: &mut emu::Emu) {
-    let hndl = emu.regs().rcx;
-    let entry = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
+    let entry = api_try!(emu, call.arg(emu, 1));
 
     log_red!(emu, "kernel32!Thread32Next");
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = ERROR_NO_MORE_FILES;
+    call.set_return(emu, ERROR_NO_MORE_FILES);
 }

@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{
+    CallingConvention::Stdcall,
+    WindowsAbi::{WinApi, WinSyscall},
+};
 use crate::emu::Emu;
 use crate::tests::helpers::{call_winapi32, call_winapi64, setup};
-use crate::winapi::common::{
-    crt,
-    memory::{self, Call},
-};
+use crate::winapi::common::{crt, memory};
 use crate::{emu32, emu64};
 use std::{env, process::Command};
 
@@ -46,7 +47,7 @@ fn exercise_calls() {
                 assert!(memory::dispatch_nt(
                     "ZwProtectVirtualMemory",
                     emu,
-                    Call::Api
+                    WinApi(Stdcall)
                 ));
             },
             &[0x1234, 0, 0, 0x20, 0x4242],
@@ -92,7 +93,7 @@ fn exercise_calls() {
     assert!(memory::dispatch_nt(
         "NtAllocateVirtualMemoryEx",
         &mut emu,
-        Call::Syscall
+        WinSyscall
     ));
     assert_eq!(emu.regs().rax, 0xc0000008);
     assert_eq!(emu.regs().rsp, stack);

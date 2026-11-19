@@ -1,18 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn WSANSPIoctl(emu: &mut emu::Emu) {
-    let lookup_handle = emu.regs().rcx;
-    let control_code = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let lookup_handle = api_try!(emu, call.arg(emu, 0));
+    let control_code = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "ws2_32!WSANSPIoctl handle:0x{:x} code:0x{:x}",
         lookup_handle,
         control_code
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

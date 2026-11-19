@@ -1,19 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetMailslotInfo(emu: &mut emu::Emu) {
-    let _hMailslot = WinApiAbi::arg(emu, 0) as u32;
-    let _lpMaxMessageSize = WinApiAbi::arg(emu, 1) as u32;
-    let _lpNextSize = WinApiAbi::arg(emu, 2) as u32;
-    let _lpMessageCount = WinApiAbi::arg(emu, 3) as u32;
-    let _lpReadTimeout = WinApiAbi::arg(emu, 4) as u32;
+    let call = WinApi(Stdcall);
+    let _hMailslot = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpMaxMessageSize = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpNextSize = api_try!(emu, call.arg_u32(emu, 2));
+    let _lpMessageCount = api_try!(emu, call.arg_u32(emu, 3));
+    let _lpReadTimeout = api_try!(emu, call.arg_u32(emu, 4));
 
     log_red!(emu, "kernel32!GetMailslotInfo");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 5);
 }

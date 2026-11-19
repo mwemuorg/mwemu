@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn QueryPerformanceCounter(emu: &mut emu::Emu) {
-    let counter_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let counter_ptr = api_try!(emu, call.arg(emu, 0));
 
     // Use emu.tick directly, maybe scaled up to simulate higher frequency
     let counter_value = (emu.tick as u64) * 1000; // Scale to simulate ~1MHz frequency
@@ -14,5 +17,5 @@ pub fn QueryPerformanceCounter(emu: &mut emu::Emu) {
         counter_value
     );
 
-    emu.regs_mut().rax = 1; // Return TRUE
+    call.set_return(emu, 1); // Return TRUE
 }

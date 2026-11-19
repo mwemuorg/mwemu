@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn ToUnicodeEx(emu: &mut emu::Emu) {
-    let virt_key = emu.regs().rcx as u32;
-    let scan_code = emu.regs().rdx as u32;
-    let _lp_key_state = emu.regs().r8;
-    let pwsz_buff = emu.regs().r9;
-    let cch_buff = WinApiAbi::arg(emu, 4) as i32;
-    let _flags = WinApiAbi::arg(emu, 5);
-    let _hkl = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let virt_key = api_try!(emu, call.arg_u32(emu, 0));
+    let scan_code = api_try!(emu, call.arg_u32(emu, 1));
+    let _lp_key_state = api_try!(emu, call.arg(emu, 2));
+    let pwsz_buff = api_try!(emu, call.arg(emu, 3));
+    let cch_buff = api_try!(emu, call.arg_i32(emu, 4));
+    let _flags = api_try!(emu, call.arg(emu, 5));
+    let _hkl = api_try!(emu, call.arg(emu, 6));
     let ch = if (0x20..=0x7e).contains(&virt_key) {
         virt_key as u16
     } else {
@@ -27,5 +29,5 @@ pub fn ToUnicodeEx(emu: &mut emu::Emu) {
         scan_code,
         ch
     );
-    emu.regs_mut().rax = if ch != 0 { 1 } else { 0 };
+    call.set_return(emu, if ch != 0 { 1 } else { 0 });
 }

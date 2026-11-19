@@ -1,25 +1,23 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn OpenPrivateNamespaceA(emu: &mut emu::Emu) {
-    let _lpBoundaryDescriptor = WinApiAbi::arg(emu, 0) as u32;
-    let _lpAliasPrefix = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Stdcall);
+    let _lpBoundaryDescriptor = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpAliasPrefix = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "kernel32!OpenPrivateNamespaceA");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 2);
 }
 
 pub fn OpenPrivateNamespaceW(emu: &mut emu::Emu) {
-    for _ in 0..2u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    call.cleanup_args(emu, 2);
     log_red!(emu, "kernel32!OpenPrivateNamespaceW");
-    emu.regs_mut().rax = helper::handler_create("OpenPrivateNamespaceW");
+    call.set_return(emu, helper::handler_create("OpenPrivateNamespaceW"));
 }

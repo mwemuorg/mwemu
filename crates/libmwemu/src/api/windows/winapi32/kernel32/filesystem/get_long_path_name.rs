@@ -1,11 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetLongPathNameA(emu: &mut emu::Emu) {
-    let lpszShortPath = WinApiAbi::arg(emu, 0) as u32;
-    let lpszLongPath = WinApiAbi::arg(emu, 1) as u32;
-    let _cchBuffer = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let lpszShortPath = api_try!(emu, call.arg_u32(emu, 0));
+    let lpszLongPath = api_try!(emu, call.arg_u32(emu, 1));
+    let _cchBuffer = api_try!(emu, call.arg_u32(emu, 2));
 
     let lpszShortPath = emu.maps.read_string(lpszShortPath as u64);
     let lpszLongPath = emu.maps.read_string(lpszLongPath as u64);
@@ -17,17 +19,15 @@ pub fn GetLongPathNameA(emu: &mut emu::Emu) {
         lpszLongPath
     );
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 3);
 }
 
 pub fn GetLongPathNameW(emu: &mut emu::Emu) {
-    let short_path_ptr = WinApiAbi::arg(emu, 0);
-    let long_path_ptr = WinApiAbi::arg(emu, 1);
-    let buff = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let short_path_ptr = api_try!(emu, call.arg(emu, 0));
+    let long_path_ptr = api_try!(emu, call.arg(emu, 1));
+    let buff = api_try!(emu, call.arg(emu, 2));
 
     let short = emu.maps.read_wide_string(short_path_ptr);
 
@@ -44,9 +44,6 @@ pub fn GetLongPathNameW(emu: &mut emu::Emu) {
         emu.maps.write_wide_string(long_path_ptr, &base);
     }
 
-    emu.regs_mut().rax = short.len() as u64;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, short.len() as u64);
+    call.cleanup_args(emu, 3);
 }

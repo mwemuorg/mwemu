@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn ConvertStringSidToSidA(emu: &mut emu::Emu) {
     convert_string_sid_to_sid(emu, "ConvertStringSidToSidA", false);
 }
 
 fn convert_string_sid_to_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let str_sid_ptr = WinApiAbi::arg(emu, 0);
-    let pp_sid = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let str_sid_ptr = api_try!(emu, call.arg(emu, 0));
+    let pp_sid = api_try!(emu, call.arg(emu, 1));
     let sid_str = if str_sid_ptr != 0 && str_sid_ptr > 0xffff {
         strings::read_text(emu, str_sid_ptr, wide)
     } else {
@@ -33,10 +35,8 @@ fn convert_string_sid_to_sid(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
     log_red!(emu, "advapi32!{api} '{}'", sid_str);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 2);
+    call.set_return(emu, 1);
 }
 
 pub fn ConvertStringSidToSidW(emu: &mut emu::Emu) {

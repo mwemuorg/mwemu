@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::stdcall_ret;
 use crate::windows::constants::errors::*;
 
 pub(super) fn OleInitialize(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "ole32!OleInitialize");
-    emu.regs_mut().rax = S_OK;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, S_OK);
+    call.cleanup_args(emu, 1);
 }

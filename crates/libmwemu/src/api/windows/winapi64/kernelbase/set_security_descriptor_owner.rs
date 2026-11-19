@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SetSecurityDescriptorOwner(emu: &mut emu::Emu) {
-    let sd_ptr = emu.regs().rcx;
-    let owner_ptr = emu.regs().rdx;
-    let defaulted = emu.regs().r8 != 0;
+    let call = WinApi(Stdcall);
+    let sd_ptr = api_try!(emu, call.arg(emu, 0));
+    let owner_ptr = api_try!(emu, call.arg(emu, 1));
+    let defaulted = api_try!(emu, call.arg(emu, 2)) != 0;
     if sd_ptr != 0 {
         emu.maps.write_qword(sd_ptr + 12, owner_ptr);
         let mut control = emu.maps.read_word(sd_ptr + 2).unwrap_or(0);
@@ -21,5 +24,5 @@ pub fn SetSecurityDescriptorOwner(emu: &mut emu::Emu) {
         owner_ptr
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

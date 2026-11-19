@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SHSetFolderPathA(emu: &mut emu::Emu) {
     sh_set_folder_path(emu, "SHSetFolderPathA");
 }
 
 fn sh_set_folder_path(emu: &mut emu::Emu, api: &str) {
-    let arg1 = emu.regs().rcx as u32;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg_u32(emu, 0));
     log_red!(emu, "shell32!{api} arg1:0x{:x}", arg1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 pub fn SHSetFolderPathW(emu: &mut emu::Emu) {

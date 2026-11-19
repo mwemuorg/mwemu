@@ -196,7 +196,7 @@ enable_test_mode()
     # disable the test mode.
 disable_test_mode()
 
-    # Enable banzai fallback for APIs without full or partial handlers.
+    # Enable instruction skipping and x86 API cleanup fallback without changing API mode.
 enable_banzai_mode()
 
     # disable banzai mode.

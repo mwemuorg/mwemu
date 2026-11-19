@@ -1,18 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn WSAProviderCompleteAsyncCall(emu: &mut emu::Emu) {
-    let id = emu.regs().rcx;
-    let result = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let id = api_try!(emu, call.arg(emu, 0));
+    let result = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "ws2_32!WSAProviderCompleteAsyncCall id:0x{:x} result:{}",
         id,
         result
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

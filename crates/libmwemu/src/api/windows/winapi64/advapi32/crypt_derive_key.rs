@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::crypto::*;
 
 pub(super) fn CryptDeriveKey(emu: &mut emu::Emu) {
-    let _hprov = emu.regs().rcx;
-    let algid = emu.regs().rdx as u32;
-    let _hbase_data = emu.regs().r8;
-    let flags = emu.regs().r9 as u32;
-    let hkey_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let _hprov = api_try!(emu, call.arg(emu, 0));
+    let algid = api_try!(emu, call.arg_u32(emu, 1));
+    let _hbase_data = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
+    let hkey_ptr = api_try!(emu, call.arg(emu, 4));
 
     let alg = get_cryptoalgorithm_name(algid);
     let mut alg_len = get_crypto_key_len(algid);
@@ -27,5 +29,5 @@ pub(super) fn CryptDeriveKey(emu: &mut emu::Emu) {
         emu.maps.write_qword(hkey_ptr, handle);
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

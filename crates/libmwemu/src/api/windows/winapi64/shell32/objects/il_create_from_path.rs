@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn ILCreateFromPath(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "shell32!ILCreateFromPath arg1:0x{:x} arg2:0x{:x}",
@@ -12,7 +15,7 @@ pub fn ILCreateFromPath(emu: &mut emu::Emu) {
     );
     let handle = helper::handler_create("ilcreatefrompath");
     emu.set_last_error(0);
-    emu.regs_mut().rax = handle;
+    call.set_return(emu, handle);
 }
 
 pub fn ILCreateFromPathA(emu: &mut emu::Emu) {
@@ -24,16 +27,17 @@ pub fn ILCreateFromPathW(emu: &mut emu::Emu) {
 }
 
 fn il_create_from_path(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(emu, "shell32!{api} arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
     if wide {
         let handle = helper::handler_create("ilcreatefrompathw");
         emu.set_last_error(0);
-        emu.regs_mut().rax = handle;
+        call.set_return(emu, handle);
     } else {
         let handle = helper::handler_create("ilcreatefrompatha");
         emu.set_last_error(0);
-        emu.regs_mut().rax = handle;
+        call.set_return(emu, handle);
     }
 }

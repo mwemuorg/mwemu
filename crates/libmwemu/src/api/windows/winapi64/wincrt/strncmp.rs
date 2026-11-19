@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn strncmp(emu: &mut emu::Emu) {
-    let s1 = emu.regs().rcx;
-    let s2 = emu.regs().rdx;
-    let n = emu.regs().r8;
+    let call = WinApi(Cdecl);
+    let s1 = api_try!(emu, call.arg(emu, 0));
+    let s2 = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2));
     let mut i: u64 = 0;
     let mut res: i64 = 0;
     while i < n {
@@ -18,5 +21,5 @@ pub(super) fn strncmp(emu: &mut emu::Emu) {
         }
         i += 1;
     }
-    emu.regs_mut().rax = res as u64;
+    call.set_return(emu, res as u64);
 }

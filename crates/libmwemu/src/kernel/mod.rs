@@ -31,6 +31,9 @@ use std::collections::HashMap;
 
 use rs_header::elf::relocatable::{RelSection, RelSymbol};
 
+use crate::api::abi::set_integer_return;
+use crate::api::abi::unix::UnixApi;
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::kernel::guard::Finding;
@@ -906,15 +909,17 @@ impl Emu {
     /// logged and recorded, and `kernel_call` reports it as an error rather
     /// than returning whatever happened to be in `rax`.
     pub fn kernel_abort(&mut self, reason: String) {
+        let pc = self.pc();
+        let pos = self.pos;
         log::error!(
             "kernel: {} at 0x{:x} (step {}) — the call is aborted",
             reason,
-            self.pc(),
-            self.pos
+            pc,
+            pos
         );
         self.kernel_log_line(format!("ABORT: {}", reason));
         if let Some(k) = self.kernel.as_mut() {
-            k.abort = Some(reason);
+            k.abort = Some(format!("{} at 0x{:x} (step {})", reason, pc, pos));
         }
         self.stop();
     }
@@ -933,11 +938,7 @@ impl Emu {
 
     /// Set the return value of a kernel API, whichever architecture is active.
     pub fn set_kernel_ret(&mut self, value: u64) {
-        if self.cfg.arch.is_aarch64() {
-            self.regs_aarch64_mut().x[0] = value;
-        } else {
-            self.regs_mut().rax = value;
-        }
+        set_integer_return(self, value);
     }
 
     /// Read argument `idx` of a kernel API call in the kernel's own calling
@@ -945,24 +946,17 @@ impl Emu {
     /// Windows driver (rcx, rdx, r8, r9, then the stack above the 32-byte
     /// shadow space).
     pub fn kernel_arg(&self, idx: usize) -> u64 {
-        let is_windows = matches!(self.kernel.as_ref().map(|k| k.os), Some(KernelOs::Windows));
-        if is_windows && !self.cfg.arch.is_aarch64() {
-            let regs = self.regs();
-            return match idx {
-                0 => regs.rcx,
-                1 => regs.rdx,
-                2 => regs.r8,
-                3 => regs.r9,
-                // The gateway already popped the return address, so rsp points
-                // at the shadow space; stack argument N sits at
-                // [rsp + 0x20 + (N - 4) * 8].
-                n => self
-                    .maps
-                    .read_qword(regs.rsp + 0x20 + ((n as u64) - 4) * 8)
-                    .unwrap_or(0),
-            };
+        // Kernel fault policy is separate from user-mode Windows API stops.
+        match self.kernel.as_ref().map(|kernel| kernel.os) {
+            Some(KernelOs::Windows) => {
+                let call = WinApi(Stdcall);
+                call.arg(self, idx).unwrap_or(0)
+            }
+            _ => {
+                let call = UnixApi;
+                call.arg(self, idx).unwrap_or(0)
+            }
         }
-        crate::api::abi::ApiAbi::from_emu(self).arg(self, idx)
     }
 
     /// Turn the kernel API call being handled into a call of driver code.

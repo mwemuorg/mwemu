@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn crt_strtoul(emu: &mut emu::Emu) {
-    let nptr = emu.regs().rcx;
-    let endptr = emu.regs().rdx;
-    let base = emu.regs().r8 as u32;
+    let call = WinApi(Cdecl);
+    let nptr = api_try!(emu, call.arg(emu, 0));
+    let endptr = api_try!(emu, call.arg(emu, 1));
+    let base = api_try!(emu, call.arg_u32(emu, 2));
     let s = emu.maps.read_string(nptr);
     let trimmed = s.trim();
     let val = u64::from_str_radix(
@@ -23,5 +26,5 @@ pub(super) fn crt_strtoul(emu: &mut emu::Emu) {
         emu.maps.write_qword(endptr, nptr + s.len() as u64);
     }
     log_red!(emu, "wincrt!strtoul '{}' base:{} => {}", s, base, val);
-    emu.regs_mut().rax = val;
+    call.set_return(emu, val);
 }

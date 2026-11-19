@@ -1,19 +1,21 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegGetValueA(emu: &mut emu::Emu) {
     reg_get_value(emu, "RegGetValueA", false);
 }
 
 fn reg_get_value(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hkey = emu.regs().rcx;
-    let subkey_ptr = emu.regs().rdx;
-    let value_ptr = emu.regs().r8;
-    let flags = emu.regs().r9;
-    let type_ptr = WinApiAbi::arg(emu, 4);
-    let data_ptr = WinApiAbi::arg(emu, 5);
-    let size_ptr = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let hkey = api_try!(emu, call.arg(emu, 0));
+    let subkey_ptr = api_try!(emu, call.arg(emu, 1));
+    let value_ptr = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg(emu, 3));
+    let type_ptr = api_try!(emu, call.arg(emu, 4));
+    let data_ptr = api_try!(emu, call.arg(emu, 5));
+    let size_ptr = api_try!(emu, call.arg(emu, 6));
     let subkey = if subkey_ptr != 0 {
         strings::read_text(emu, subkey_ptr, wide)
     } else {
@@ -38,7 +40,7 @@ fn reg_get_value(emu: &mut emu::Emu, api: &str, wide: bool) {
     if size_ptr != 0 {
         emu.maps.write_dword(size_ptr, 0);
     }
-    emu.regs_mut().rax = 2; // ERROR_FILE_NOT_FOUND
+    call.set_return(emu, 2); // ERROR_FILE_NOT_FOUND
 }
 
 pub fn RegGetValueW(emu: &mut emu::Emu) {

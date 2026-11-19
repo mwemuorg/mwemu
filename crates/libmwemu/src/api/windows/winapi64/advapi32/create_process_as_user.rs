@@ -1,24 +1,26 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateProcessAsUserA(emu: &mut emu::Emu) {
     create_process_as_user(emu, "CreateProcessAsUserA", false);
 }
 
 fn create_process_as_user(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let _token = emu.regs().rcx;
-    let app_name_ptr = emu.regs().rdx;
-    let cmd_line_ptr = emu.regs().r8;
-    let _proc_attrs = emu.regs().r9;
-    let _thread_attrs = WinApiAbi::arg(emu, 4);
-    let _inherit_handles = WinApiAbi::arg(emu, 5);
-    let _creation_flags = WinApiAbi::arg(emu, 6);
-    let _env = WinApiAbi::arg(emu, 7);
-    let _cur_dir = WinApiAbi::arg(emu, 8);
-    let _startup_info = WinApiAbi::arg(emu, 9);
-    let proc_info = WinApiAbi::arg(emu, 10);
+    let call = WinApi(Stdcall);
+    let _token = api_try!(emu, call.arg(emu, 0));
+    let app_name_ptr = api_try!(emu, call.arg(emu, 1));
+    let cmd_line_ptr = api_try!(emu, call.arg(emu, 2));
+    let _proc_attrs = api_try!(emu, call.arg(emu, 3));
+    let _thread_attrs = api_try!(emu, call.arg(emu, 4));
+    let _inherit_handles = api_try!(emu, call.arg(emu, 5));
+    let _creation_flags = api_try!(emu, call.arg(emu, 6));
+    let _env = api_try!(emu, call.arg(emu, 7));
+    let _cur_dir = api_try!(emu, call.arg(emu, 8));
+    let _startup_info = api_try!(emu, call.arg(emu, 9));
+    let proc_info = api_try!(emu, call.arg(emu, 10));
     let app = if app_name_ptr != 0 && app_name_ptr > 0xffff {
         strings::read_text(emu, app_name_ptr, wide)
     } else {
@@ -40,7 +42,7 @@ fn create_process_as_user(emu: &mut emu::Emu, api: &str, wide: bool) {
         emu.maps.write_dword(proc_info + 20, fake_tid);
     }
     log_red!(emu, "advapi32!{api} app:'{}' cmd:'{}'", app, cmd);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn CreateProcessAsUserW(emu: &mut emu::Emu) {

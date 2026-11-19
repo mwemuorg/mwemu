@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn RegisterServiceCtrlHandlerExA(emu: &mut emu::Emu) {
     register_service_ctrl_handler_ex(emu, "RegisterServiceCtrlHandlerExA");
 }
 
 fn register_service_ctrl_handler_ex(emu: &mut emu::Emu, api: &str) {
-    let arg1 = WinApiAbi::arg(emu, 0) as u32;
-    let arg2 = WinApiAbi::arg(emu, 1) as u32;
-    let arg3 = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg_u32(emu, 0));
+    let arg2 = api_try!(emu, call.arg_u32(emu, 1));
+    let arg3 = api_try!(emu, call.arg_u32(emu, 2));
     log_red!(
         emu,
         "advapi32!{api} arg1:0x{:x} arg2:0x{:x} arg3:0x{:x}",
@@ -17,11 +19,9 @@ fn register_service_ctrl_handler_ex(emu: &mut emu::Emu, api: &str) {
         arg2,
         arg3
     );
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 3);
     let hndl = helper::handler_create(&format!("advapi32://{api}"));
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn RegisterServiceCtrlHandlerExW(emu: &mut emu::Emu) {

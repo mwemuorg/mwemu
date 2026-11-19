@@ -1,27 +1,29 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateFontA(emu: &mut emu::Emu) {
     create_font(emu, "CreateFontA", false);
 }
 
 fn create_font(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let height = emu.regs().rcx as i32;
-    let width = emu.regs().rdx as i32;
-    let escapement = emu.regs().r8 as i32;
-    let orientation = emu.regs().r9 as i32;
-    let weight = WinApiAbi::arg(emu, 4) as i32;
-    let italic = WinApiAbi::arg(emu, 5) as u32;
-    let underline = WinApiAbi::arg(emu, 6) as u32;
-    let strikeout = WinApiAbi::arg(emu, 7) as u32;
-    let charset = WinApiAbi::arg(emu, 8) as u32;
-    let out_precision = WinApiAbi::arg(emu, 9) as u32;
-    let clip_precision = WinApiAbi::arg(emu, 10) as u32;
-    let quality = WinApiAbi::arg(emu, 11) as u32;
-    let pitch_and_family = WinApiAbi::arg(emu, 12) as u32;
-    let face_ptr = WinApiAbi::arg(emu, 13);
+    let call = WinApi(Stdcall);
+    let height = api_try!(emu, call.arg_i32(emu, 0));
+    let width = api_try!(emu, call.arg_i32(emu, 1));
+    let escapement = api_try!(emu, call.arg_i32(emu, 2));
+    let orientation = api_try!(emu, call.arg_i32(emu, 3));
+    let weight = api_try!(emu, call.arg_i32(emu, 4));
+    let italic = api_try!(emu, call.arg_u32(emu, 5));
+    let underline = api_try!(emu, call.arg_u32(emu, 6));
+    let strikeout = api_try!(emu, call.arg_u32(emu, 7));
+    let charset = api_try!(emu, call.arg_u32(emu, 8));
+    let out_precision = api_try!(emu, call.arg_u32(emu, 9));
+    let clip_precision = api_try!(emu, call.arg_u32(emu, 10));
+    let quality = api_try!(emu, call.arg_u32(emu, 11));
+    let pitch_and_family = api_try!(emu, call.arg_u32(emu, 12));
+    let face_ptr = api_try!(emu, call.arg(emu, 13));
     let face_name = if face_ptr != 0 {
         strings::read_text(emu, face_ptr, wide)
     } else {
@@ -47,7 +49,7 @@ fn create_font(emu: &mut emu::Emu, api: &str, wide: bool) {
         clip_precision,
         pitch_and_family,
     );
-    emu.regs_mut().rax = helper::handler_create("gdi32://font");
+    call.set_return(emu, helper::handler_create("gdi32://font"));
 }
 
 pub fn CreateFontW(emu: &mut emu::Emu) {

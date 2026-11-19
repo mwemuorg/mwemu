@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn WSAEnumNetworkEvents(emu: &mut emu::Emu) {
-    let sock = WinApiAbi::arg(emu, 0);
-    let event = WinApiAbi::arg(emu, 1);
-    let net_events_ptr = WinApiAbi::arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let sock = api_try!(emu, call.arg(emu, 0));
+    let event = api_try!(emu, call.arg(emu, 1));
+    let net_events_ptr = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "ws2_32!WSAEnumNetworkEvents sock:0x{:x} event:0x{:x}",
@@ -17,8 +19,6 @@ pub fn WSAEnumNetworkEvents(emu: &mut emu::Emu) {
         }
         emu.maps.write_dword(net_events_ptr, 0x01 | 0x02 | 0x10);
     }
-    emu.regs_mut().rax = 0;
-    for _ in 0..3u32 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 0);
+    call.cleanup_args(emu, 3);
 }

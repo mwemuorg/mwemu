@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub(super) fn BeginPaint(emu: &mut emu::Emu) {
-    let hwnd = emu.regs().rcx;
-    let ps_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let ps_ptr = api_try!(emu, call.arg(emu, 1));
     let hdc = helper::handler_create("hdc://paint");
     if ps_ptr != 0 {
         // PAINTSTRUCT: hdc(8) + fErase(4) + rcPaint(16) + ...
@@ -21,5 +24,5 @@ pub(super) fn BeginPaint(emu: &mut emu::Emu) {
         hwnd,
         hdc
     );
-    emu.regs_mut().rax = hdc;
+    call.set_return(emu, hdc);
 }

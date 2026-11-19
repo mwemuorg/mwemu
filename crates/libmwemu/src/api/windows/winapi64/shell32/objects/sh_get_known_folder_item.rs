@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SHGetKnownFolderItem(emu: &mut emu::Emu) {
-    let rfid = emu.regs().rcx;
-    let flags = emu.regs().rdx;
-    let htoken = emu.regs().r8;
-    let riid = emu.regs().r9;
-    let ppv = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let rfid = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg(emu, 1));
+    let htoken = api_try!(emu, call.arg(emu, 2));
+    let riid = api_try!(emu, call.arg(emu, 3));
+    let ppv = api_try!(emu, call.arg(emu, 4));
     let hndl = helper::handler_create("IShellItem://knownfolder");
     if ppv != 0 {
         emu.maps.write_qword(ppv, hndl);
@@ -19,5 +21,5 @@ pub fn SHGetKnownFolderItem(emu: &mut emu::Emu) {
         hndl
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

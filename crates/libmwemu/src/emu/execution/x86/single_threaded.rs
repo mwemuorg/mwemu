@@ -159,6 +159,7 @@ impl Emu {
         super::assert_x86_arch(self, "run_single_threaded_x86");
         let is_x64 = self.cfg.is_x64();
 
+        self.check_api_stop()?;
         if self.process_terminated {
             return Err(MwemuError::new("process terminated (NtTerminateProcess)"));
         }
@@ -208,16 +209,11 @@ impl Emu {
                 // again; rcx/rsi/rdi already carry its progress.
                 self.rep = None;
 
-                // Outer-loop limit checks: must run BEFORE attempting to fetch code,
-                // otherwise PC sitting one past the end (e.g. after final loop iteration
-                // under run_to) errors out as "unmapped" instead of cleanly stopping.
-                // kishou_yusa: removed because there exists a check further ahead
-                /*
+                // A host-call return target need not contain executable bytes.
                 if let Some(limit_pc) = self.reached_outer_run_limit(pc, end_addr) {
                     std::hint::cold_path();
                     return Ok(limit_pc);
                 }
-                */
 
                 if let Err(error) =
                     ensure_instruction_cache_populated_x86(self, pc, &mut block, arch)
@@ -541,6 +537,7 @@ impl Emu {
                     let previous_fault_count = self.fault_count;
                     let emulation_ok = engine::emulate_instruction(self, &x86_ins, sz, false);
                     self.last_instruction_size = sz;
+                    self.check_api_stop()?;
 
                     if self.is_running.load(atomic::Ordering::Relaxed) == 0 {
                         return Ok(self.pc());
@@ -646,6 +643,7 @@ impl Emu {
                 }
             } // end running loop
 
+            self.check_api_stop()?;
             if self.is_break_on_api {
                 return Ok(0);
             }

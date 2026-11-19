@@ -1,7 +1,8 @@
 //! Process APIs: fork family, wait family and pid identity. The process model
 //! itself (snapshot/restore, zombies) lives in `threading::process`.
 use super::libc_extra::trace;
-use crate::api::abi::ApiAbi;
+use crate::api::abi::unix::UnixApi;
+use crate::api::unix::api_try;
 use crate::emu::Emu;
 use crate::threading::process::AtFork;
 
@@ -24,6 +25,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
 }
 
 fn api_fork(emu: &mut Emu, name: &str) {
+    let call = UnixApi;
     run_atfork(emu, AtForkPhase::Prepare);
     let parent = emu.processes.pid;
     let child = emu.fork_begin();
@@ -35,7 +37,7 @@ fn api_fork(emu: &mut Emu, name: &str) {
             name, parent, child
         ),
     );
-    ApiAbi::from_emu(emu).set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 /// Shared by the wait family: reap a child, store its status, return its pid
@@ -60,50 +62,52 @@ fn reap_into(emu: &mut Emu, name: &str, pid: i64, status_ptr: u64) -> u64 {
 }
 
 fn api_waitpid(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let pid = abi.arg(emu, 0) as i32 as i64;
-    let status_ptr = abi.arg(emu, 1);
+    let call = UnixApi;
+    let pid = api_try!(emu, call.arg_i32(emu, 0)) as i64;
+    let status_ptr = api_try!(emu, call.arg(emu, 1));
     let ret = reap_into(emu, "waitpid", pid, status_ptr);
-    abi.set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_wait(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let status_ptr = abi.arg(emu, 0);
+    let call = UnixApi;
+    let status_ptr = api_try!(emu, call.arg(emu, 0));
     let ret = reap_into(emu, "wait", -1, status_ptr);
-    abi.set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_wait4(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let pid = abi.arg(emu, 0) as i32 as i64;
-    let status_ptr = abi.arg(emu, 1);
-    let rusage = abi.arg(emu, 3);
+    let call = UnixApi;
+    let pid = api_try!(emu, call.arg_i32(emu, 0)) as i64;
+    let status_ptr = api_try!(emu, call.arg(emu, 1));
+    let rusage = api_try!(emu, call.arg(emu, 3));
     let ret = reap_into(emu, "wait4", pid, status_ptr);
     if rusage != 0 && ret != -1i64 as u64 {
         emu.maps.memset(rusage, 0, RUSAGE_SIZE as usize);
     }
-    abi.set_ret(emu, ret);
+    call.set_return(emu, ret);
 }
 
 fn api_getpid(emu: &mut Emu) {
+    let call = UnixApi;
     let pid = emu.processes.pid;
     trace(emu, &format!("getpid() -> {}", pid));
-    ApiAbi::from_emu(emu).set_ret(emu, pid);
+    call.set_return(emu, pid);
 }
 
 fn api_getppid(emu: &mut Emu) {
+    let call = UnixApi;
     let ppid = emu.processes.ppid;
     trace(emu, &format!("getppid() -> {}", ppid));
-    ApiAbi::from_emu(emu).set_ret(emu, ppid);
+    call.set_return(emu, ppid);
 }
 
 fn api_pthread_atfork(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
+    let call = UnixApi;
     let handlers = AtFork {
-        prepare: abi.arg(emu, 0),
-        parent: abi.arg(emu, 1),
-        child: abi.arg(emu, 2),
+        prepare: api_try!(emu, call.arg(emu, 0)),
+        parent: api_try!(emu, call.arg(emu, 1)),
+        child: api_try!(emu, call.arg(emu, 2)),
     };
     emu.processes.atfork.push(handlers);
     trace(
@@ -113,7 +117,7 @@ fn api_pthread_atfork(emu: &mut Emu) {
             handlers.prepare, handlers.parent, handlers.child
         ),
     );
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 pub(super) enum AtForkPhase {

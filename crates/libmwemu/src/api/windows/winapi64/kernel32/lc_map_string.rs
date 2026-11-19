@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::nls::*;
 
@@ -13,11 +14,12 @@ pub fn LCMapStringW(emu: &mut Emu) {
 }
 
 fn invoke(emu: &mut Emu, wide: bool, api: &str) {
-    let flags = emu.regs().rdx as u32;
-    let source = emu.regs().r8;
-    let source_length = emu.regs().r9 as i32;
-    let output = WinApiAbi::arg(emu, 4);
-    let capacity = WinApiAbi::arg(emu, 5) as i32;
+    let call = WinApi(Stdcall);
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let source = api_try!(emu, call.arg(emu, 2));
+    let source_length = api_try!(emu, call.arg_i32(emu, 3));
+    let output = api_try!(emu, call.arg(emu, 4));
+    let capacity = api_try!(emu, call.arg_i32(emu, 5));
     log_red!(
         emu,
         "kernel32!{} flags:0x{:x} source:0x{:x} length:{} capacity:{}",
@@ -28,13 +30,14 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
         capacity
     );
     let result = map_string(emu, flags, source, source_length, output, capacity, wide);
-    emu.regs_mut().rax = match result {
+    let return_value = match result {
         Ok(count) => count,
         Err(error) => {
             emu.set_last_error(error);
             0
         }
     };
+    call.set_return(emu, return_value);
 }
 
 fn map_string(
@@ -70,7 +73,7 @@ fn map_string(
     };
     if flags != 0 {
         if wide {
-            #[allow(clippy::chunks_exact_to_as_chunks)]
+            #[allow(unknown_lints, clippy::chunks_exact_to_as_chunks)]
             let words: Vec<u16> = bytes
                 .chunks_exact(size_of::<u16>())
                 .map(|b| u16::from_le_bytes([b[0], b[1]]))

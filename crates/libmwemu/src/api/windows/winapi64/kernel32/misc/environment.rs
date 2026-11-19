@@ -1,7 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
 use crate::winapi::common::strings;
 use crate::winapi::environment_store;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::system::*;
 
@@ -46,16 +48,20 @@ pub fn GetEnvironmentVariableW(emu: &mut emu::Emu) {
 }
 
 fn get_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let name = read_text(emu, emu.regs().rcx, wide);
-    let buffer = emu.regs().rdx;
-    let size = emu.regs().r8 as u32 as usize;
+    let call = WinApi(Stdcall);
+    let name = read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let buffer = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg_u32(emu, 2)) as usize;
     let value = environment_store::get(&emu.cfg, &name);
     log_red!(emu, "kernel32!{} `{}` = {:?}", api, name, value);
     match value {
-        Some(value) => emu.regs_mut().rax = write_text(emu, buffer, size, &value, wide),
+        Some(value) => {
+            let return_value = write_text(emu, buffer, size, &value, wide);
+            call.set_return(emu, return_value);
+        }
         None => {
             emu.set_last_error(ERROR_ENVVAR_NOT_FOUND);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     }
 }
@@ -75,17 +81,18 @@ pub fn SetEnvironmentVariableW(emu: &mut emu::Emu) {
 }
 
 fn set_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let name = read_text(emu, emu.regs().rcx, wide);
-    let value_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let name = read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let value_ptr = api_try!(emu, call.arg(emu, 1));
     let value = (value_ptr != 0).then(|| read_text(emu, value_ptr, wide));
     log_red!(emu, "kernel32!{} `{}` = {:?}", api, name, value);
     if name.is_empty() || name.contains('=') {
         emu.set_last_error(ERROR_INVALID_PARAMETER);
-        emu.regs_mut().rax = FALSE;
+        call.set_return(emu, FALSE);
         return;
     }
     environment_store::set(&emu.cfg, &name, value.as_deref());
-    emu.regs_mut().rax = TRUE;
+    call.set_return(emu, TRUE);
 }
 
 /*
@@ -104,9 +111,10 @@ pub fn ExpandEnvironmentStringsW(emu: &mut emu::Emu) {
 }
 
 fn expand(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let src = read_text(emu, emu.regs().rcx, wide);
-    let dst = emu.regs().rdx;
-    let size = emu.regs().r8 as u32 as usize;
+    let call = WinApi(Stdcall);
+    let src = read_text(emu, api_try!(emu, call.arg(emu, 0)), wide);
+    let dst = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg_u32(emu, 2)) as usize;
     let expanded = environment_store::expand(&emu.cfg, &src);
     log_red!(emu, "kernel32!{} `{}` = `{}`", api, src, expanded);
     // the result counts the terminator whether or not it was copied
@@ -114,7 +122,7 @@ fn expand(emu: &mut emu::Emu, api: &str, wide: bool) {
     if dst != 0 && needed <= size {
         write_text(emu, dst, size, &expanded, wide);
     }
-    emu.regs_mut().rax = needed as u64;
+    call.set_return(emu, needed as u64);
 }
 
 /* LPCH GetEnvironmentStrings(); LPWCH GetEnvironmentStringsW(); */
@@ -127,6 +135,7 @@ pub fn GetEnvironmentStringsW(emu: &mut emu::Emu) {
 }
 
 fn environment_block(emu: &mut emu::Emu, api: &str, wide: bool) {
+    let call = WinApi(Stdcall);
     let mut text = String::new();
     for (name, value) in environment_store::all(&emu.cfg) {
         text.push_str(&format!("{}={}\0", name, value));
@@ -139,7 +148,7 @@ fn environment_block(emu: &mut emu::Emu, api: &str, wide: bool) {
     };
     let Some(block) = emu.maps.alloc(bytes.len() as u64) else {
         emu.set_last_error(ERROR_NOT_ENOUGH_MEMORY);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     };
     let name = format!("environment_{:x}", block);
@@ -148,18 +157,19 @@ fn environment_block(emu: &mut emu::Emu, api: &str, wide: bool) {
         .create_map(&name, block, bytes.len() as u64, Permission::READ_WRITE)
         .is_err()
     {
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     }
     emu.maps.write_bytes(block, &bytes);
     log_red!(emu, "kernel32!{} = 0x{:x}", api, block);
-    emu.regs_mut().rax = block;
+    call.set_return(emu, block);
 }
 
 /* BOOL FreeEnvironmentStringsW(LPWCH penv); */
 pub fn FreeEnvironmentStrings(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let ptr = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "kernel32!FreeEnvironmentStrings 0x{:x}", ptr);
     emu.maps.dealloc(ptr);
-    emu.regs_mut().rax = TRUE;
+    call.set_return(emu, TRUE);
 }

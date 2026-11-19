@@ -1,18 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn StretchBlt(emu: &mut emu::Emu) {
-    let hdc_dest = emu.regs().rcx;
-    let x_dest = emu.regs().rdx as i32;
-    let y_dest = emu.regs().r8 as i32;
-    let w_dest = emu.regs().r9 as i32;
-    let h_dest = WinApiAbi::arg(emu, 4) as i32;
-    let hdc_src = WinApiAbi::arg(emu, 5);
-    let x_src = WinApiAbi::arg(emu, 6) as i32;
-    let y_src = WinApiAbi::arg(emu, 7) as i32;
-    let w_src = WinApiAbi::arg(emu, 8) as i32;
-    let h_src = WinApiAbi::arg(emu, 9) as i32;
-    let rop = WinApiAbi::arg(emu, 10) as u32;
+    let call = WinApi(Stdcall);
+    let hdc_dest = api_try!(emu, call.arg(emu, 0));
+    let x_dest = api_try!(emu, call.arg_i32(emu, 1));
+    let y_dest = api_try!(emu, call.arg_i32(emu, 2));
+    let w_dest = api_try!(emu, call.arg_i32(emu, 3));
+    let h_dest = api_try!(emu, call.arg_i32(emu, 4));
+    let hdc_src = api_try!(emu, call.arg(emu, 5));
+    let x_src = api_try!(emu, call.arg_i32(emu, 6));
+    let y_src = api_try!(emu, call.arg_i32(emu, 7));
+    let w_src = api_try!(emu, call.arg_i32(emu, 8));
+    let h_src = api_try!(emu, call.arg_i32(emu, 9));
+    let rop = api_try!(emu, call.arg_u32(emu, 10));
     log_red!(
         emu,
         "gdi32!StretchBlt dst:0x{:x} x:{} y:{} {}x{} src:0x{:x} x:{} y:{} {}x{} rop:0x{:x}",
@@ -29,5 +31,5 @@ pub fn StretchBlt(emu: &mut emu::Emu) {
         rop
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn wcsncpy(emu: &mut emu::Emu) {
-    let dst = emu.regs().rcx;
-    let src = emu.regs().rdx;
-    let n = emu.regs().r8 as usize;
+    let call = WinApi(Cdecl);
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let s = emu.maps.read_wide_string(src);
     let truncated: String = s.chars().take(n).collect();
     if dst != 0 {
@@ -16,5 +19,5 @@ pub fn wcsncpy(emu: &mut emu::Emu) {
         truncated,
         n
     );
-    emu.regs_mut().rax = dst;
+    call.set_return(emu, dst);
 }

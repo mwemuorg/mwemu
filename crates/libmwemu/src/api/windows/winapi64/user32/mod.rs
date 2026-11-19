@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64;
 use crate::winapi::window_table;
 use crate::windows::constants::errors::*;
@@ -1996,19 +1997,20 @@ BOOL UnregisterClassW(
 */
 /// Shared body of UnregisterClass{A,W}: TRUE in rax when the class was removed.
 fn unregister_class(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let class_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let class_ptr = api_try!(emu, call.arg(emu, 0));
     let name = class_arg(emu, class_ptr, wide).unwrap_or_default();
     log_red!(emu, "user32!{} class:'{}'", api, name);
     let error = match window_table::unregister_class(&name) {
         Ok(()) => {
-            emu.regs_mut().rax = 1;
+            call.set_return(emu, 1);
             return;
         }
         Err(window_table::UnregisterError::NotRegistered) => ERROR_CLASS_DOES_NOT_EXIST,
         Err(window_table::UnregisterError::HasWindows) => ERROR_CLASS_HAS_WINDOWS,
     };
     emu.set_last_error(error);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }
 
 /// WNDCLASS and WNDCLASSEX both keep lpszClassName at +0x40 on x64.
@@ -2016,19 +2018,20 @@ const WNDCLASS_CLASS_NAME_OFF: u64 = 0x40;
 
 /// Shared body of RegisterClass[Ex]{A,W}: returns the class ATOM in rax.
 fn register_class(emu: &mut emu::Emu, lpwndclass: u64, wide: bool) {
+    let call = WinApi(Stdcall);
     let name_ptr = match emu.maps.read_qword(lpwndclass + WNDCLASS_CLASS_NAME_OFF) {
         Some(ptr) if lpwndclass != 0 => ptr,
         _ => {
             emu.set_last_error(ERROR_INVALID_PARAMETER);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
     match class_arg(emu, name_ptr, wide) {
-        Some(name) => emu.regs_mut().rax = window_table::register_class(&name) as u64,
+        Some(name) => call.set_return(emu, window_table::register_class(&name) as u64),
         None => {
             emu.set_last_error(ERROR_INVALID_PARAMETER);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     }
 }
@@ -2118,6 +2121,7 @@ fn find_window(
     window_ptr: u64,
     wide: bool,
 ) {
+    let call = WinApi(Stdcall);
     let class_name = class_arg(emu, class_ptr, wide);
     let window_name = title_arg(emu, window_ptr, wide);
     let hwnd =
@@ -2134,13 +2138,17 @@ fn find_window(
         hwnd
     );
 
-    emu.regs_mut().rax = hwnd;
+    call.set_return(emu, hwnd);
 }
 
 /// Shared body of CreateWindowEx{A,W}: records the window, HWND in rax.
 fn create_window(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let (class_ptr, title_ptr) = (emu.regs().rdx, emu.regs().r8);
-    let parent = WinApiAbi::arg(emu, 8);
+    let call = WinApi(Stdcall);
+    let (class_ptr, title_ptr) = (
+        api_try!(emu, call.arg(emu, 1)),
+        api_try!(emu, call.arg(emu, 2)),
+    );
+    let parent = api_try!(emu, call.arg(emu, 8));
     let class = class_arg(emu, class_ptr, wide).unwrap_or_default();
     let title = title_arg(emu, title_ptr, wide).unwrap_or_default();
     let hwnd = window_table::create_window(parent, &class, &title);
@@ -2153,7 +2161,7 @@ fn create_window(emu: &mut emu::Emu, api: &str, wide: bool) {
         parent,
         hwnd
     );
-    emu.regs_mut().rax = hwnd;
+    call.set_return(emu, hwnd);
 }
 
 fn get_window_long_value(index: i32) -> u64 {
@@ -2170,10 +2178,11 @@ fn get_window_long_value(index: i32) -> u64 {
 
 /// POINT at rcx = the centre of the 1920x1080 desktop; TRUE in rax.
 fn write_cursor_pos(emu: &mut emu::Emu) {
-    let pt = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let pt = api_try!(emu, call.arg(emu, 0));
     if pt != 0 {
         emu.maps.write_dword(pt, 960);
         emu.maps.write_dword(pt + 4, 540);
     }
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

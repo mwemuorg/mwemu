@@ -1,16 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub(super) fn InternetSetOptionA(emu: &mut emu::Emu) {
     internet_set_option(emu, "InternetSetOptionA", false);
 }
 
 fn internet_set_option(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let inet_hndl = emu.regs().rcx;
-    let option = emu.regs().rdx;
-    let buffer = emu.regs().r8;
-    let len = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let inet_hndl = api_try!(emu, call.arg(emu, 0));
+    let option = api_try!(emu, call.arg(emu, 1));
+    let buffer = api_try!(emu, call.arg(emu, 2));
+    let len = api_try!(emu, call.arg(emu, 3));
 
     let mut buffer_content = "".to_string();
     if buffer != 0 {
@@ -30,7 +33,7 @@ fn internet_set_option(emu: &mut emu::Emu, api: &str, wide: bool) {
         log::trace!("\tinvalid handle.");
     }
 
-    emu.regs_mut().rax = 1; // true
+    call.set_return(emu, 1); // true
 }
 
 pub(super) fn InternetSetOptionW(emu: &mut emu::Emu) {

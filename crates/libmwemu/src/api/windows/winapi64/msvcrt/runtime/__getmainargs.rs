@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn __getmainargs(emu: &mut emu::Emu) {
-    let p_argc = emu.regs().rcx;
-    let p_argv = emu.regs().rdx;
-    let p_env = emu.regs().r8;
+    let call = WinApi(Cdecl);
+    let p_argc = api_try!(emu, call.arg(emu, 0));
+    let p_argv = api_try!(emu, call.arg(emu, 1));
+    let p_env = api_try!(emu, call.arg(emu, 2));
     log_red!(emu, "msvcrt!__getmainargs");
     if p_argc != 0 {
         emu.maps.write_qword(p_argc, 1);
@@ -14,5 +17,5 @@ pub fn __getmainargs(emu: &mut emu::Emu) {
     if p_env != 0 {
         emu.maps.write_qword(p_env, 0);
     }
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

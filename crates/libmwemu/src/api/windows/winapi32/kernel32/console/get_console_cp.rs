@@ -1,8 +1,9 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::stdcall_ret;
 
 pub fn GetConsoleCP(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "kernel32!GetConsoleCP");
-    emu.regs_mut().rax = 0x409;
-    stdcall_ret(emu, 0);
+    call.set_return(emu, 0x409);
+    call.cleanup_args(emu, 0);
 }

@@ -2,6 +2,7 @@ pub(crate) mod common;
 pub mod environment_store;
 pub mod export_index;
 pub mod helper;
+pub mod policy;
 pub mod profile_store;
 pub mod registry_store;
 pub mod winapi32;

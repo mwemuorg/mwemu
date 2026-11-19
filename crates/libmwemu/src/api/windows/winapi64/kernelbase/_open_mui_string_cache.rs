@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn _OpenMuiStringCache(emu: &mut emu::Emu) {
-    let param1 = emu.regs().rcx;
-    let param2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let param1 = api_try!(emu, call.arg(emu, 0));
+    let param2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "kernelbase!_OpenMuiStringCache {}:0x{:x} {}:0x{:x}",
@@ -12,5 +15,5 @@ pub fn _OpenMuiStringCache(emu: &mut emu::Emu) {
         param2
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // success
+    call.set_return(emu, 1); // success
 }

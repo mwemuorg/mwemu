@@ -1,5 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::crypto::*;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
@@ -90,12 +91,13 @@ pub(crate) fn strcat(emu: &mut emu::Emu, dst: u64, src: u64) -> u64 {
 }
 
 pub(crate) fn stricmp(emu: &mut emu::Emu, str1_ptr: u64, str2_ptr: u64) {
+    let call = WinApi(Stdcall);
     let str1 = emu.maps.read_string(str1_ptr);
     let str2 = emu.maps.read_string(str2_ptr);
 
     log_red!(emu, "ntdll!stricmp  '{}'=='{}'?", str1, str2);
 
-    emu.regs_mut().rax = if str1 == str2 { 0 } else { 1 };
+    call.set_return(emu, if str1 == str2 { 0 } else { 1 });
 }
 
 const COMPRESSION_ENGINE_MASK: u16 = 0xFF00;
@@ -528,12 +530,13 @@ pub(crate) fn rtl_decompress_buffer(
 }
 
 pub(crate) fn version_condition_mask(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     const VER_CONDITION_MASK: u64 = 7;
     const VER_NUM_BITS_PER_CONDITION: u32 = 3;
-    let mut mask = WinApiAbi::arg64(emu, 0);
+    let mut mask = api_try!(emu, call.arg_u64(emu, 0));
     let type_index = if emu.cfg.arch.is_64bits() { 1 } else { 2 };
-    let type_mask = WinApiAbi::arg(emu, type_index) as u32;
-    let condition = WinApiAbi::arg(emu, type_index + 1) & VER_CONDITION_MASK;
+    let type_mask = api_try!(emu, call.arg_u32(emu, type_index));
+    let condition = api_try!(emu, call.arg(emu, type_index + 1)) & VER_CONDITION_MASK;
     // The documented contract selects one OSVERSIONINFOEX member per call.
     if type_mask != 0 && condition != 0 {
         let member = type_mask.trailing_zeros();
@@ -548,6 +551,6 @@ pub(crate) fn version_condition_mask(emu: &mut emu::Emu) {
         condition,
         mask
     );
-    WinApiAbi::set_ret64(emu, mask);
-    WinApiAbi::stdcall_ret(emu, 4);
+    call.set_return_u64(emu, mask);
+    call.cleanup_args(emu, 4);
 }

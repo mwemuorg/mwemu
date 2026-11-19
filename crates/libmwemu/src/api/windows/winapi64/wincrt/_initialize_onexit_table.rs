@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn _initialize_onexit_table(emu: &mut emu::Emu) {
-    let table = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let table = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "wincrt!_initialize_onexit_table 0x{:x}", table);
 
@@ -11,5 +14,5 @@ pub(super) fn _initialize_onexit_table(emu: &mut emu::Emu) {
         emu.maps.write_qword(table + 16, 0); // _end
     }
 
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

@@ -1,14 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn FtpGetFileA(emu: &mut emu::Emu) {
     ftp_get_file(emu, "FtpGetFileA", false);
 }
 
 fn ftp_get_file(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let ftp_handle = emu.regs().rcx;
-    let remote_ptr = emu.regs().rdx;
-    let local_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let ftp_handle = api_try!(emu, call.arg(emu, 0));
+    let remote_ptr = api_try!(emu, call.arg(emu, 1));
+    let local_ptr = api_try!(emu, call.arg(emu, 2));
     let remote = if remote_ptr != 0 {
         strings::read_text(emu, remote_ptr, wide)
     } else {
@@ -27,7 +30,7 @@ fn ftp_get_file(emu: &mut emu::Emu, api: &str, wide: bool) {
         local
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn FtpGetFileW(emu: &mut emu::Emu) {

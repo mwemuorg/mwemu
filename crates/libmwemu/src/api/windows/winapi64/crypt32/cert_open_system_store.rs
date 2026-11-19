@@ -1,17 +1,20 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CertOpenSystemStore(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "crypt32!CertOpenSystemStore arg1:0x{:x} arg2:0x{:x}",
         arg1,
         arg2
     );
-    emu.regs_mut().rax = helper::handler_create("CertOpenSystemStore");
+    call.set_return(emu, helper::handler_create("CertOpenSystemStore"));
 }
 
 pub fn CertOpenSystemStoreA(emu: &mut emu::Emu) {
@@ -19,15 +22,16 @@ pub fn CertOpenSystemStoreA(emu: &mut emu::Emu) {
 }
 
 fn cert_open_system_store(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hprov = emu.regs().rcx;
-    let subsystem = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hprov = api_try!(emu, call.arg(emu, 0));
+    let subsystem = api_try!(emu, call.arg(emu, 1));
 
     let name = strings::read_text(emu, subsystem, wide);
 
     log_red!(emu, "crypt32!{api} subsystem: {}", name);
 
     let handle = helper::handler_create(&format!("cert_sys_store://{}", name));
-    emu.regs_mut().rax = handle;
+    call.set_return(emu, handle);
 }
 
 pub fn CertOpenSystemStoreW(emu: &mut emu::Emu) {

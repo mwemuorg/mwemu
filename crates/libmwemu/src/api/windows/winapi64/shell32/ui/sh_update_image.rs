@@ -1,15 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn SHUpdateImageA(emu: &mut emu::Emu) {
     sh_update_image(emu, "SHUpdateImageA");
 }
 
 fn sh_update_image(emu: &mut emu::Emu, api: &str) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx as u32;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(emu, "shell32!{api} arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub fn SHUpdateImageW(emu: &mut emu::Emu) {

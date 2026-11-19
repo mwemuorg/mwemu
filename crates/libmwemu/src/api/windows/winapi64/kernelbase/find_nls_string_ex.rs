@@ -1,12 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn FindNLSStringEx(emu: &mut emu::Emu) {
-    let locale_ptr = emu.regs().rcx;
-    let flags = emu.regs().rdx as u32;
-    let src_ptr = emu.regs().r8;
-    let src_count = emu.regs().r9 as i32;
-    let value_ptr = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let locale_ptr = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg_u32(emu, 1));
+    let src_ptr = api_try!(emu, call.arg(emu, 2));
+    let src_count = api_try!(emu, call.arg_i32(emu, 3));
+    let value_ptr = api_try!(emu, call.arg(emu, 4));
     let locale = if locale_ptr != 0 && locale_ptr > 0xffff {
         emu.maps.read_wide_string(locale_ptr)
     } else {
@@ -32,5 +34,5 @@ pub fn FindNLSStringEx(emu: &mut emu::Emu) {
         result
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = result as u64;
+    call.set_return(emu, result as u64);
 }

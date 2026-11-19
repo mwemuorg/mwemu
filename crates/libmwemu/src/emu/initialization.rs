@@ -4,7 +4,9 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::time::Instant;
 
-use crate::emu::{Emu, InstructionState};
+use crate::api::unix::ApiState;
+use crate::api::windows::policy::ApiPolicy;
+use crate::emu::{Emu, InstructionState, LastOp};
 use crate::err::MwemuError;
 use crate::maps::mem64::Permission;
 use crate::windows::peb::{peb32, peb64};
@@ -67,8 +69,11 @@ impl Emu {
             pos: 0,
             max_pos: None,
             force_break: false,
+            api_policy: ApiPolicy::default(),
+            unix_api: ApiState::default(),
             process_terminated: false,
             call_depth: 0,
+            host_call_return: None,
             ldr_init_done: false,
             force_reload: false,
             tls_callbacks: Vec::new(),
@@ -100,6 +105,10 @@ impl Emu {
             macho64: None,
             kernel: None,
             kernel_guard: false,
+            security_cookie_va: 0,
+            last_cmp: LastOp::EMPTY,
+            last_flag_op: LastOp::EMPTY,
+            last_ret: (0, 0),
             memory_operations: vec![],
             rep: None,
             tick: 0,

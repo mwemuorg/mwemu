@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn _wfopen(emu: &mut emu::Emu) {
-    let fname_ptr = WinApiAbi::arg(emu, 0);
-    let mode_ptr = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Cdecl);
+    let fname_ptr = api_try!(emu, call.arg(emu, 0));
+    let mode_ptr = api_try!(emu, call.arg(emu, 1));
     let fname = emu.maps.read_wide_string(fname_ptr);
     let mode = emu.maps.read_wide_string(mode_ptr);
     let hndl = helper::handler_create(&fname);
@@ -16,5 +18,5 @@ pub fn _wfopen(emu: &mut emu::Emu) {
         hndl
     );
 
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

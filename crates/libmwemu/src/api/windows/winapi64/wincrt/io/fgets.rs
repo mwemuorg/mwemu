@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn fgets(emu: &mut emu::Emu) {
-    let buf = emu.regs().rcx;
-    let max_count = emu.regs().rdx as i32;
-    let stream = emu.regs().r8;
+    let call = WinApi(Cdecl);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let max_count = api_try!(emu, call.arg_i32(emu, 1));
+    let stream = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "wincrt!fgets buf:0x{:x} max:{} stream:0x{:x}",
@@ -15,5 +18,5 @@ pub fn fgets(emu: &mut emu::Emu) {
         emu.maps.write_byte(buf, 0);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0;
+    call.set_return(emu, 0);
 }

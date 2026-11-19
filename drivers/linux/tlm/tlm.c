@@ -1,7 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 OR Apache-2.0
 /*
  * tlm — a deliberately vulnerable telemetry channel driver, used as the
  * reference target for mwemu's kernel-mode emulation.
+ *
+ * License note: this .ko is a test artefact that is loaded and executed
+ * exclusively inside the mwemu emulator (Apache-2.0), never by a real
+ * Linux kernel.  It is compiled against kernel headers only to produce
+ * a valid ELF that the emulator's loader can parse.
  *
  * It is written the way a real small driver is written: a refcounted object
  * kept in a kmem_cache, a linked list of live objects behind a mutex, an ioctl
@@ -444,7 +449,7 @@ static void __exit tlm_exit(void)
 module_init(tlm_init);
 module_exit(tlm_exit);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual Apache/GPL");
 MODULE_AUTHOR("mwemu");
 MODULE_DESCRIPTION("Deliberately vulnerable telemetry channel driver (mwemu test target)");
 MODULE_VERSION("1.0");

@@ -1,19 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CryptImportPublicKeyInfo(emu: &mut emu::Emu) {
-    let h_crypt_prov = WinApiAbi::arg(emu, 0);
-    let dw_cert_encoding = WinApiAbi::arg(emu, 1);
-    let p_info = WinApiAbi::arg(emu, 2);
-    let ph_key = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let h_crypt_prov = api_try!(emu, call.arg(emu, 0));
+    let dw_cert_encoding = api_try!(emu, call.arg(emu, 1));
+    let p_info = api_try!(emu, call.arg(emu, 2));
+    let ph_key = api_try!(emu, call.arg(emu, 3));
     log_red!(emu, "crypt32!CryptImportPublicKeyInfo 0x{:x}", h_crypt_prov);
     let hndl = helper::handler_create("CryptImportPublicKeyInfo");
     if ph_key != 0 {
         emu.maps.write_dword(ph_key, hndl as u32);
     }
-    emu.regs_mut().rax = 1;
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 4);
 }

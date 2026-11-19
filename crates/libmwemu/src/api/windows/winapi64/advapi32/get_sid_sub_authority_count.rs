@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetSidSubAuthorityCount(emu: &mut emu::Emu) {
-    let sid_ptr = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let sid_ptr = api_try!(emu, call.arg(emu, 0));
     if sid_ptr != 0 && emu.maps.is_mapped(sid_ptr) {
         let _ = emu.maps.read_dword(sid_ptr).unwrap_or(0);
     }
@@ -13,5 +16,5 @@ pub fn GetSidSubAuthorityCount(emu: &mut emu::Emu) {
         result
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = result;
+    call.set_return(emu, result);
 }

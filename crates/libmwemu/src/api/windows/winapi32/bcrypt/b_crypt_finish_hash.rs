@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::api::windows::common::crypto_state;
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub(super) fn BCryptFinishHash(emu: &mut emu::Emu) {
-    let h_hash = arg(emu, 0) as u64;
-    let pb_output = arg(emu, 1) as u64;
-    let cb_output = arg(emu, 2) as usize;
-    let _flags = arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let h_hash = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let pb_output = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let cb_output = api_try!(emu, call.arg_u32(emu, 2)) as usize;
+    let _flags = api_try!(emu, call.arg_u32(emu, 3));
 
     if let Some(digest) = crypto_state::get_hash_param(h_hash, crypto_state::HP_HASHVAL) {
         if pb_output != 0 {
@@ -29,6 +30,6 @@ pub(super) fn BCryptFinishHash(emu: &mut emu::Emu) {
         );
     }
 
-    emu.regs_mut().rax = STATUS_SUCCESS;
-    stdcall_ret(emu, 4);
+    call.set_return(emu, STATUS_SUCCESS);
+    call.cleanup_args(emu, 4);
 }

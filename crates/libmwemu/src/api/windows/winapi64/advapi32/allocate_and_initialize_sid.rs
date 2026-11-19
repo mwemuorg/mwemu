@@ -1,20 +1,22 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
-    let _id_authority = emu.regs().rcx;
-    let sub_count = (emu.regs().rdx as u8).min(8);
+    let call = WinApi(Stdcall);
+    let _id_authority = api_try!(emu, call.arg(emu, 0));
+    let sub_count = (api_try!(emu, call.arg_u8(emu, 1))).min(8);
     let sub_auths: [u32; 8] = [
-        emu.regs().r8 as u32,
-        emu.regs().r9 as u32,
-        WinApiAbi::arg(emu, 4) as u32,
-        WinApiAbi::arg(emu, 5) as u32,
-        WinApiAbi::arg(emu, 6) as u32,
-        WinApiAbi::arg(emu, 7) as u32,
-        WinApiAbi::arg(emu, 8) as u32,
-        WinApiAbi::arg(emu, 9) as u32,
+        api_try!(emu, call.arg_u32(emu, 2)),
+        api_try!(emu, call.arg_u32(emu, 3)),
+        api_try!(emu, call.arg_u32(emu, 4)),
+        api_try!(emu, call.arg_u32(emu, 5)),
+        api_try!(emu, call.arg_u32(emu, 6)),
+        api_try!(emu, call.arg_u32(emu, 7)),
+        api_try!(emu, call.arg_u32(emu, 8)),
+        api_try!(emu, call.arg_u32(emu, 9)),
     ];
-    let psid_ptr = WinApiAbi::arg(emu, 10);
+    let psid_ptr = api_try!(emu, call.arg(emu, 10));
     let sid_len = 8 + sub_count as u64 * 4;
     if let Some(base) = emu.maps.alloc(sid_len) {
         let name = format!("sid_{:x}", base);
@@ -40,5 +42,5 @@ pub fn AllocateAndInitializeSid(emu: &mut emu::Emu) {
         );
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

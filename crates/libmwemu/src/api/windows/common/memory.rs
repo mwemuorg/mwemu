@@ -1,4 +1,5 @@
 //! Shared Windows memory semantics. ABI adaptation is kept at the boundary.
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{
@@ -6,38 +7,13 @@ use crate::maps::virtual_memory::{
 };
 use crate::winapi::common::virtual_protect;
 use crate::winapi::common::{nt_api, sections, trace};
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
 use crate::windows::constants::process::*;
 
 const PAGE_MASK: u32 = 0xff;
 const PAGE_MODIFIERS: u32 = 0x4000_0700;
-
-#[derive(Clone, Copy)]
-pub(crate) enum Call {
-    Api,
-    Syscall,
-}
-
-impl Call {
-    pub(crate) fn arg(self, emu: &Emu, index: usize) -> u64 {
-        if matches!(self, Self::Syscall) && emu.cfg.arch.is_64bits() && index >= 4 {
-            emu.maps
-                .read_qword(emu.regs().rsp + 0x28 + (index as u64 - 4) * 8)
-                .unwrap_or(0)
-        } else {
-            WinApiAbi::arg(emu, index)
-        }
-    }
-
-    pub(crate) fn finish(self, emu: &mut Emu, value: u64, args: usize) {
-        WinApiAbi::set_ret(emu, value);
-        if matches!(self, Self::Api) {
-            WinApiAbi::stdcall_ret(emu, args);
-        }
-    }
-}
 
 pub(crate) fn pointer_size(emu: &Emu) -> u64 {
     if emu.cfg.arch.is_64bits() { 8 } else { 4 }
@@ -146,7 +122,7 @@ pub(crate) fn allocate(
             })?;
         return Ok((start, length));
     }
-    if length > emu.maps.max_alloc_size {
+    if flags & MEM_COMMIT != 0 && length > emu.maps.max_alloc_size {
         return Err(MemoryError::NoMemory);
     }
     let base = if address == 0 {
@@ -214,19 +190,20 @@ pub(crate) fn free(
 }
 
 pub(crate) fn virtual_alloc(emu: &mut Emu, remote: bool, numa: bool) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let offset = remote as usize;
     let count = 4 + offset + numa as usize;
-    if remote && !current_process(call.arg(emu, 0)) {
+    if remote && !current_process(api_try!(emu, call.arg(emu, 0))) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
-        call.finish(emu, 0, count);
+        call.set_return(emu, 0);
+        call.cleanup_args(emu, count);
         return;
     }
     let args = (
-        call.arg(emu, offset),
-        call.arg(emu, offset + 1),
-        call.arg(emu, offset + 2) as u32,
-        call.arg(emu, offset + 3) as u32,
+        api_try!(emu, call.arg(emu, offset)),
+        api_try!(emu, call.arg(emu, offset + 1)),
+        api_try!(emu, call.arg_u32(emu, offset + 2)),
+        api_try!(emu, call.arg_u32(emu, offset + 3)),
     );
     let result = allocate(emu, args.0, args.1, args.2, args.3);
     let value = match result {
@@ -236,23 +213,25 @@ pub(crate) fn virtual_alloc(emu: &mut Emu, remote: bool, numa: bool) {
             0
         }
     };
-    call.finish(emu, value, count);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, count);
 }
 
 pub(crate) fn virtual_free(emu: &mut Emu, remote: bool) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let offset = remote as usize;
     let count = 3 + offset;
-    if remote && !current_process(call.arg(emu, 0)) {
+    if remote && !current_process(api_try!(emu, call.arg(emu, 0))) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
-        call.finish(emu, 0, count);
+        call.set_return(emu, 0);
+        call.cleanup_args(emu, count);
         return;
     }
     let result = free(
         emu,
-        call.arg(emu, offset),
-        call.arg(emu, offset + 1),
-        call.arg(emu, offset + 2) as u32,
+        api_try!(emu, call.arg(emu, offset)),
+        api_try!(emu, call.arg(emu, offset + 1)),
+        api_try!(emu, call.arg_u32(emu, offset + 2)),
     );
     let value = match result {
         Ok(_) => 1,
@@ -261,23 +240,26 @@ pub(crate) fn virtual_free(emu: &mut Emu, remote: bool) {
             0
         }
     };
-    call.finish(emu, value, count);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, count);
 }
 
-pub(crate) fn nt_allocate(emu: &mut Emu, call: Call, extended: bool) {
-    let base_ptr = call.arg(emu, 1);
-    let size_ptr = call.arg(emu, if extended { 2 } else { 3 });
-    let flags = call.arg(emu, if extended { 3 } else { 4 }) as u32;
-    let protection = call.arg(emu, if extended { 4 } else { 5 }) as u32;
+pub(crate) fn nt_allocate(emu: &mut Emu, call: WindowsAbi, extended: bool) {
+    let process = api_try!(emu, call.arg(emu, 0));
+    let zero_bits = api_try!(emu, call.arg(emu, 2));
+    let base_ptr = api_try!(emu, call.arg(emu, 1));
+    let size_ptr = api_try!(emu, call.arg(emu, if extended { 2 } else { 3 }));
+    let flags = api_try!(emu, call.arg_u32(emu, if extended { 3 } else { 4 }));
+    let protection = api_try!(emu, call.arg_u32(emu, if extended { 4 } else { 5 }));
     let count = if extended { 7 } else { 6 };
     let result = (|| {
-        if !current_process(call.arg(emu, 0)) {
+        if !current_process(process) {
             return Err(STATUS_INVALID_HANDLE);
         }
         if !writable_pointer(emu, base_ptr) || !writable_pointer(emu, size_ptr) {
             return Err(STATUS_ACCESS_VIOLATION);
         }
-        if (!extended && call.arg(emu, 2) != 0) || (extended && call.arg(emu, 6) != 0) {
+        if !extended && zero_bits != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
         if permissions(protection).is_none() {
@@ -290,15 +272,17 @@ pub(crate) fn nt_allocate(emu: &mut Emu, call: Call, extended: bool) {
         write_pointer(emu, size_ptr, length);
         Ok(())
     })();
-    call.finish(emu, result.err().unwrap_or(0), count);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, count);
 }
 
-pub(crate) fn nt_free(emu: &mut Emu, call: Call) {
-    let base_ptr = call.arg(emu, 1);
-    let size_ptr = call.arg(emu, 2);
-    let flags = call.arg(emu, 3) as u32;
+pub(crate) fn nt_free(emu: &mut Emu, call: WindowsAbi) {
+    let process = api_try!(emu, call.arg(emu, 0));
+    let base_ptr = api_try!(emu, call.arg(emu, 1));
+    let size_ptr = api_try!(emu, call.arg(emu, 2));
+    let flags = api_try!(emu, call.arg_u32(emu, 3));
     let result = (|| {
-        if !current_process(call.arg(emu, 0)) {
+        if !current_process(process) {
             return Err(STATUS_INVALID_HANDLE);
         }
         if !writable_pointer(emu, base_ptr) || !writable_pointer(emu, size_ptr) {
@@ -311,7 +295,8 @@ pub(crate) fn nt_free(emu: &mut Emu, call: Call) {
         write_pointer(emu, size_ptr, length);
         Ok(())
     })();
-    call.finish(emu, result.err().unwrap_or(0), 4);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, 4);
 }
 
 pub(crate) fn query_size(emu: &Emu) -> u64 {
@@ -376,18 +361,19 @@ pub(crate) fn query(emu: &mut Emu, address: u64, output: u64, length: u64) -> Re
 }
 
 pub(crate) fn virtual_query(emu: &mut Emu, remote: bool) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let offset = remote as usize;
-    if remote && !current_process(call.arg(emu, 0)) {
+    if remote && !current_process(api_try!(emu, call.arg(emu, 0))) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
-        call.finish(emu, 0, 4);
+        call.set_return(emu, 0);
+        call.cleanup_args(emu, 4);
         return;
     }
     let result = query(
         emu,
-        call.arg(emu, offset),
-        call.arg(emu, offset + 1),
-        call.arg(emu, offset + 2),
+        api_try!(emu, call.arg(emu, offset)),
+        api_try!(emu, call.arg(emu, offset + 1)),
+        api_try!(emu, call.arg(emu, offset + 2)),
     );
     let value = match result {
         Ok(size) => size,
@@ -396,36 +382,42 @@ pub(crate) fn virtual_query(emu: &mut Emu, remote: bool) {
             0
         }
     };
-    call.finish(emu, value, 3 + offset);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 3 + offset);
 }
 
-pub(crate) fn nt_query(emu: &mut Emu, call: Call) {
-    let returned = call.arg(emu, 5);
+pub(crate) fn nt_query(emu: &mut Emu, call: WindowsAbi) {
+    let process = api_try!(emu, call.arg(emu, 0));
+    let address = api_try!(emu, call.arg(emu, 1));
+    let information_class = api_try!(emu, call.arg(emu, 2));
+    let output = api_try!(emu, call.arg(emu, 3));
+    let length = api_try!(emu, call.arg(emu, 4));
+    let returned = api_try!(emu, call.arg(emu, 5));
     let result = (|| {
-        if !current_process(call.arg(emu, 0)) {
+        if !current_process(process) {
             return Err(STATUS_INVALID_HANDLE);
         }
-        if call.arg(emu, 2) != 0 {
+        if information_class != 0 {
             return Err(STATUS_NOT_IMPLEMENTED);
         }
         if returned != 0 && !writable_pointer(emu, returned) {
             return Err(STATUS_ACCESS_VIOLATION);
         }
-        let size = query(emu, call.arg(emu, 1), call.arg(emu, 3), call.arg(emu, 4))?;
+        let size = query(emu, address, output, length)?;
         if returned != 0 {
             write_pointer(emu, returned, size);
         }
         Ok(())
     })();
-    call.finish(emu, result.err().unwrap_or(0), 6);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, 6);
 }
 
-fn transfer_memory(emu: &mut Emu, call: Call, write: bool) -> Result<(), u64> {
-    let process = call.arg(emu, 0);
-    let remote = call.arg(emu, 1);
-    let buffer = call.arg(emu, 2);
-    let size = call.arg(emu, 3);
-    let count = call.arg(emu, 4);
+fn transfer_memory(
+    emu: &mut Emu,
+    write: bool,
+    [process, remote, buffer, size, count]: [u64; 5],
+) -> Result<(), u64> {
     if !current_process(process) {
         return Err(STATUS_INVALID_HANDLE);
     }
@@ -450,7 +442,9 @@ fn transfer_memory(emu: &mut Emu, call: Call, write: bool) -> Result<(), u64> {
 }
 
 pub(crate) fn process_memory(emu: &mut Emu, write: bool) {
-    let result = transfer_memory(emu, Call::Api, write);
+    let call = WinApi(Stdcall);
+    let arguments = api_try!(emu, call.args(emu));
+    let result = transfer_memory(emu, write, arguments);
     if let Err(status) = result {
         let error = match status {
             STATUS_INVALID_HANDLE => ERROR_INVALID_HANDLE,
@@ -460,37 +454,43 @@ pub(crate) fn process_memory(emu: &mut Emu, write: bool) {
         };
         emu.set_last_error(error);
     }
-    Call::Api.finish(emu, result.is_ok() as u64, 5);
+    call.set_return(emu, result.is_ok() as u64);
+    call.cleanup_args(emu, 5);
 }
 
-pub(crate) fn nt_process_memory(emu: &mut Emu, call: Call, write: bool) {
-    let result = transfer_memory(emu, call, write);
-    call.finish(emu, result.err().unwrap_or(0), 5);
+pub(crate) fn nt_process_memory(emu: &mut Emu, call: WindowsAbi, write: bool) {
+    let arguments = api_try!(emu, call.args(emu));
+    let result = transfer_memory(emu, write, arguments);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, 5);
 }
 
 pub(crate) fn virtual_protect(emu: &mut Emu, remote: bool) {
-    let call = Call::Api;
+    let call = WinApi(Stdcall);
     let offset = remote as usize;
-    if remote && !current_process(call.arg(emu, 0)) {
+    if remote && !current_process(api_try!(emu, call.arg(emu, 0))) {
         emu.set_last_error(ERROR_INVALID_HANDLE);
-        call.finish(emu, 0, 5);
+        call.set_return(emu, 0);
+        call.cleanup_args(emu, 5);
         return;
     }
-    let address = call.arg(emu, offset);
-    let size = call.arg(emu, offset + 1);
-    let protection = call.arg(emu, offset + 2) as u32;
-    let old = call.arg(emu, offset + 3);
+    let address = api_try!(emu, call.arg(emu, offset));
+    let size = api_try!(emu, call.arg(emu, offset + 1));
+    let protection = api_try!(emu, call.arg_u32(emu, offset + 2));
+    let old = api_try!(emu, call.arg(emu, offset + 3));
     let ok = virtual_protect::protect_winapi(emu, address, size, protection, old);
-    call.finish(emu, ok as u64, 4 + offset);
+    call.set_return(emu, ok as u64);
+    call.cleanup_args(emu, 4 + offset);
 }
 
-pub(crate) fn nt_protect(emu: &mut Emu, call: Call) {
-    let base_ptr = call.arg(emu, 1);
-    let size_ptr = call.arg(emu, 2);
-    let protection = call.arg(emu, 3) as u32;
-    let old = call.arg(emu, 4);
+pub(crate) fn nt_protect(emu: &mut Emu, call: WindowsAbi) {
+    let process = api_try!(emu, call.arg(emu, 0));
+    let base_ptr = api_try!(emu, call.arg(emu, 1));
+    let size_ptr = api_try!(emu, call.arg(emu, 2));
+    let protection = api_try!(emu, call.arg_u32(emu, 3));
+    let old = api_try!(emu, call.arg(emu, 4));
     let result = (|| {
-        if !current_process(call.arg(emu, 0)) {
+        if !current_process(process) {
             return Err(STATUS_INVALID_HANDLE);
         }
         if !writable_pointer(emu, base_ptr)
@@ -511,7 +511,8 @@ pub(crate) fn nt_protect(emu: &mut Emu, call: Call) {
             .expect("validated protection range");
         Ok(())
     })();
-    call.finish(emu, result.err().unwrap_or(0), 5);
+    call.set_return(emu, result.err().unwrap_or(0));
+    call.cleanup_args(emu, 5);
 }
 
 pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
@@ -573,9 +574,9 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
     true
 }
 
-pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: Call) -> bool {
+pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: WindowsAbi) -> bool {
     let normalized = nt_api::normalize(api);
-    let (handler, parameters): (fn(&mut Emu, Call), &str) = match normalized.as_ref() {
+    let (handler, parameters): (fn(&mut Emu, WindowsAbi), &str) = match normalized.as_ref() {
         "NtAllocateVirtualMemory" => (
             |emu, call| nt_allocate(emu, call, false),
             "process base_ptr zero_bits size_ptr flags protection",
@@ -617,10 +618,10 @@ pub(crate) fn dispatch_nt(api: &str, emu: &mut Emu, call: Call) -> bool {
 }
 
 pub(crate) fn flush_instruction_cache(emu: &mut Emu, api: &str) {
-    let call = Call::Api;
-    let process = call.arg(emu, 0);
-    let base = call.arg(emu, 1);
-    let size = call.arg(emu, 2);
+    let call = WinApi(Stdcall);
+    let process = api_try!(emu, call.arg(emu, 0));
+    let base = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg(emu, 2));
     log_red!(
         emu,
         "{} process:0x{:x} base:0x{:x} size:0x{:x}",
@@ -636,5 +637,6 @@ pub(crate) fn flush_instruction_cache(emu: &mut Emu, api: &str) {
         emu.instruction_cache()
             .invalidate_range(base, size, BLOCK_LEN as u64);
     }
-    call.finish(emu, 1, 3);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 3);
 }

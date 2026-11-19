@@ -1,16 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn AdjustTokenPrivileges(emu: &mut emu::Emu) {
-    let token = arg(emu, 0);
-    let disable_all = arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let token = api_try!(emu, call.arg_u32(emu, 0));
+    let disable_all = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(
         emu,
         "advapi32!AdjustTokenPrivileges token=0x{:x} disableAll={}",
         token,
         disable_all
     );
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 6);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 6);
 }

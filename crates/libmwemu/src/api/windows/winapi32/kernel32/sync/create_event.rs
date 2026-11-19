@@ -1,28 +1,26 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateEventA(emu: &mut emu::Emu) {
-    let ev_attr_ptr = WinApiAbi::arg(emu, 0);
-    let bManualReset = WinApiAbi::arg(emu, 1) as u32;
-    let bInitialState = WinApiAbi::arg(emu, 2) as u32;
-    let name_ptr = WinApiAbi::arg(emu, 3);
+    let call = WinApi(Stdcall);
+    let ev_attr_ptr = api_try!(emu, call.arg(emu, 0));
+    let bManualReset = api_try!(emu, call.arg_u32(emu, 1));
+    let bInitialState = api_try!(emu, call.arg_u32(emu, 2));
+    let name_ptr = api_try!(emu, call.arg(emu, 3));
 
     let name = emu.maps.read_string(name_ptr);
 
     log_red!(emu, "kernel32!CreateEventA `{}`", name);
 
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.stack_pop32(false);
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 4);
+    call.set_return(emu, 1);
 }
 
 pub fn CreateEventW(emu: &mut emu::Emu) {
-    for _ in 0..4u32 {
-        emu.stack_pop32(false);
-    }
+    let call = WinApi(Stdcall);
+    call.cleanup_args(emu, 4);
     log_red!(emu, "kernel32!CreateEventW");
-    emu.regs_mut().rax = helper::handler_create("CreateEventW");
+    call.set_return(emu, helper::handler_create("CreateEventW"));
 }

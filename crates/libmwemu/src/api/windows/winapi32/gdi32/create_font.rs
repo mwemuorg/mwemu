@@ -1,16 +1,18 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateFontA(emu: &mut emu::Emu) {
     create_font(emu, "CreateFontA");
 }
 
 fn create_font(emu: &mut emu::Emu, api: &str) {
-    let arg1 = WinApiAbi::arg(emu, 0) as u32;
-    let arg2 = WinApiAbi::arg(emu, 1) as u32;
-    let arg3 = WinApiAbi::arg(emu, 2) as u32;
-    let arg4 = WinApiAbi::arg(emu, 3) as u32;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg_u32(emu, 0));
+    let arg2 = api_try!(emu, call.arg_u32(emu, 1));
+    let arg3 = api_try!(emu, call.arg_u32(emu, 2));
+    let arg4 = api_try!(emu, call.arg_u32(emu, 3));
     log_red!(
         emu,
         "gdi32!{api} arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x}",
@@ -19,12 +21,10 @@ fn create_font(emu: &mut emu::Emu, api: &str) {
         arg3,
         arg4
     );
-    for _ in 0..14u32 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 14);
     let hndl = helper::handler_create(&format!("gdi32://{api}"));
     assert!(hndl < 0x00000001_00000000);
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }
 
 pub fn CreateFontW(emu: &mut emu::Emu) {

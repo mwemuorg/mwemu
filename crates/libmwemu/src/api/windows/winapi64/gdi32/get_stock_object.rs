@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn GetStockObject(emu: &mut emu::Emu) {
-    let index = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let index = api_try!(emu, call.arg(emu, 0));
     let name = match index {
         0 => "WHITE_BRUSH",
         1 => "LTGRAY_BRUSH",
@@ -26,5 +29,5 @@ pub fn GetStockObject(emu: &mut emu::Emu) {
         _ => "UNKNOWN",
     };
     log_red!(emu, "gdi32!GetStockObject index:{} ({})", index, name);
-    emu.regs_mut().rax = helper::handler_create("gdi32://stock_object");
+    call.set_return(emu, helper::handler_create("gdi32://stock_object"));
 }

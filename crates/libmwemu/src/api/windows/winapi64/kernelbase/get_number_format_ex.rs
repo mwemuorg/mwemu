@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn GetNumberFormatEx(emu: &mut emu::Emu) {
-    let _locale_ptr = emu.regs().rcx;
-    let _flags = emu.regs().rdx;
-    let value_ptr = emu.regs().r8;
-    let _format_ptr = emu.regs().r9;
-    let buf_ptr = WinApiAbi::arg(emu, 4);
-    let buf_size = WinApiAbi::arg(emu, 5) as i32;
+    let call = WinApi(Stdcall);
+    let _locale_ptr = api_try!(emu, call.arg(emu, 0));
+    let _flags = api_try!(emu, call.arg(emu, 1));
+    let value_ptr = api_try!(emu, call.arg(emu, 2));
+    let _format_ptr = api_try!(emu, call.arg(emu, 3));
+    let buf_ptr = api_try!(emu, call.arg(emu, 4));
+    let buf_size = api_try!(emu, call.arg_i32(emu, 5));
     let value = if value_ptr != 0 {
         emu.maps.read_wide_string(value_ptr)
     } else {
@@ -23,5 +25,5 @@ pub fn GetNumberFormatEx(emu: &mut emu::Emu) {
         value
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = (value.len() + 1) as u64;
+    call.set_return(emu, (value.len() + 1) as u64);
 }

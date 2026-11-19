@@ -1,13 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn PathIsSameRootA(emu: &mut emu::Emu) {
     path_is_same_root(emu, "PathIsSameRootA", false);
 }
 
 fn path_is_same_root(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let path1_ptr = emu.regs().rcx;
-    let path2_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let path1_ptr = api_try!(emu, call.arg(emu, 0));
+    let path2_ptr = api_try!(emu, call.arg(emu, 1));
     let path1 = if path1_ptr != 0 {
         strings::read_text(emu, path1_ptr, wide)
     } else {
@@ -29,7 +32,7 @@ fn path_is_same_root(emu: &mut emu::Emu, api: &str, wide: bool) {
         same
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = if same { 1 } else { 0 };
+    call.set_return(emu, if same { 1 } else { 0 });
 }
 
 pub fn PathIsSameRootW(emu: &mut emu::Emu) {

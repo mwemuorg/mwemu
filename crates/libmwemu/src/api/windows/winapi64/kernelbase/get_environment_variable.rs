@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 
 pub fn GetEnvironmentVariableA(emu: &mut emu::Emu) {
     get_environment_variable(emu, "GetEnvironmentVariableA", false);
@@ -10,9 +12,10 @@ pub fn GetEnvironmentVariableW(emu: &mut emu::Emu) {
 }
 
 fn get_environment_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let name_ptr = emu.regs().rcx;
-    let buf_ptr = emu.regs().rdx;
-    let buf_size = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let name_ptr = api_try!(emu, call.arg(emu, 0));
+    let buf_ptr = api_try!(emu, call.arg(emu, 1));
+    let buf_size = api_try!(emu, call.arg(emu, 2));
     let name = strings::read_text(emu, name_ptr, wide);
     if wide {
         let value = match name.to_uppercase().as_str() {
@@ -35,12 +38,12 @@ fn get_environment_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
         };
         if value.is_empty() {
             emu.set_last_error(203);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         } else if buf_ptr != 0 && buf_size > 0 {
             strings::write_string(emu, buf_ptr, &value, wide);
-            emu.regs_mut().rax = value.len() as u64;
+            call.set_return(emu, value.len() as u64);
         } else {
-            emu.regs_mut().rax = value.len() as u64 + 1;
+            call.set_return(emu, value.len() as u64 + 1);
         }
         log_red!(emu, "kernelbase!{api} '{}' => '{}'", name, value);
     } else {
@@ -69,14 +72,14 @@ fn get_environment_variable(emu: &mut emu::Emu, api: &str, wide: bool) {
             log_red!(emu, "kernelbase!{api} '{}' => '{}'", name, val);
             if buf_ptr != 0 && buf_size > val.len() as u64 {
                 strings::write_string(emu, buf_ptr, val, wide);
-                emu.regs_mut().rax = val.len() as u64;
+                call.set_return(emu, val.len() as u64);
             } else {
-                emu.regs_mut().rax = val.len() as u64 + 1;
+                call.set_return(emu, val.len() as u64 + 1);
             }
         } else {
             log_red!(emu, "kernelbase!{api} '{}' => NOT FOUND", name);
             emu.set_last_error(203); // ERROR_ENVVAR_NOT_FOUND
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     }
 }

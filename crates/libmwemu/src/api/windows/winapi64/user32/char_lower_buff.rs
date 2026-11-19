@@ -1,4 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub(super) fn CharLowerBuffA(emu: &mut emu::Emu) {
     char_lower_buff(emu, "CharLowerBuffA", false);
@@ -9,8 +11,9 @@ pub(super) fn CharLowerBuffW(emu: &mut emu::Emu) {
 }
 
 fn char_lower_buff(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let buf = emu.regs().rcx;
-    let len = emu.regs().rdx as u32;
+    let call = WinApi(Stdcall);
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let len = api_try!(emu, call.arg_u32(emu, 1));
     log_red!(emu, "user32!{api} buf=0x{:x} len={}", buf, len);
     if wide {
         for i in 0..len as u64 {
@@ -30,5 +33,5 @@ fn char_lower_buff(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = len as u64;
+    call.set_return(emu, len as u64);
 }

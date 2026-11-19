@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn CreateWellKnownSid(emu: &mut emu::Emu) {
-    let well_known_sid_type = emu.regs().rcx as u32;
-    let domain_sid = emu.regs().rdx;
-    let p_sid = emu.regs().r8;
-    let cb_sid = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let well_known_sid_type = api_try!(emu, call.arg_u32(emu, 0));
+    let domain_sid = api_try!(emu, call.arg(emu, 1));
+    let p_sid = api_try!(emu, call.arg(emu, 2));
+    let cb_sid = api_try!(emu, call.arg(emu, 3));
 
     log_red!(
         emu,
@@ -19,7 +22,7 @@ pub fn CreateWellKnownSid(emu: &mut emu::Emu) {
         emu.maps.write_dword(cb_sid, sid_size);
         if provided < sid_size {
             emu.set_last_error(122); // ERROR_INSUFFICIENT_BUFFER
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         } else if p_sid != 0 {
             // Write a mock SID: revision=1, sub_auth_count=5, NT authority
             emu.maps.write_byte(p_sid, 1); // revision
@@ -36,13 +39,13 @@ pub fn CreateWellKnownSid(emu: &mut emu::Emu) {
             emu.maps.write_dword(p_sid + 20, 0);
             emu.maps.write_dword(p_sid + 24, 500);
             emu.set_last_error(0);
-            emu.regs_mut().rax = 1;
+            call.set_return(emu, 1);
         } else {
             emu.set_last_error(87); // ERROR_INVALID_PARAMETER
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
         }
     } else {
         emu.set_last_error(87);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
     }
 }

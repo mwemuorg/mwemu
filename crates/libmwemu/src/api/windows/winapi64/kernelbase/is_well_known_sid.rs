@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn IsWellKnownSid(emu: &mut emu::Emu) {
-    let sid = emu.regs().rcx;
-    let well_known_type = emu.regs().rdx as u32;
+    let call = WinApi(Stdcall);
+    let sid = api_try!(emu, call.arg(emu, 0));
+    let well_known_type = api_try!(emu, call.arg_u32(emu, 1));
     let result = if sid != 0 {
         let revision = emu.maps.read_byte(sid).unwrap_or(0);
         let sub_count = emu.maps.read_byte(sid + 1).unwrap_or(0);
@@ -27,8 +30,7 @@ pub fn IsWellKnownSid(emu: &mut emu::Emu) {
         well_known_type,
         result
     );
-    let h = emu.regs().rcx;
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = if result { 1 } else { 0 };
+    call.set_return(emu, if result { 1 } else { 0 });
 }

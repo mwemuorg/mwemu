@@ -1,4 +1,6 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn GetTextMetricsA(emu: &mut emu::Emu) {
     get_text_metrics(emu, "GetTextMetricsA", false);
@@ -9,8 +11,9 @@ pub fn GetTextMetricsW(emu: &mut emu::Emu) {
 }
 
 fn get_text_metrics(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let hdc = emu.regs().rcx;
-    let tm = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg(emu, 0));
+    let tm = api_try!(emu, call.arg(emu, 1));
     if wide {
         if tm != 0 {
             emu.maps.write_dword(tm, 16); // tmHeight
@@ -60,5 +63,5 @@ fn get_text_metrics(emu: &mut emu::Emu, api: &str, wide: bool) {
     }
 
     log_red!(emu, "gdi32!{api} hdc:0x{:x} tm:0x{:x}", hdc, tm);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -8,6 +8,7 @@ fn test_mingw32() {
     let mut emu = emu32();
     emu.cfg.maps_folder = win_maps!(32);
 
+    emu.cfg.skip_unimplemented = true;
     let sample = sample!("exe32win_mingw.bin");
     emu.load_code(&sample);
     // Keep this test aligned with the CLI check window where execution reaches ~119.

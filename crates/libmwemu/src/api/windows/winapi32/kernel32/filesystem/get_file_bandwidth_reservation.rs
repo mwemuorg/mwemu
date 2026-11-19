@@ -1,20 +1,19 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn GetFileBandwidthReservation(emu: &mut emu::Emu) {
-    let _hFile = WinApiAbi::arg(emu, 0) as u32;
-    let _lpPeriodMilliseconds = WinApiAbi::arg(emu, 1) as u32;
-    let _lpBytesPerPeriod = WinApiAbi::arg(emu, 2) as u32;
-    let _pDiscardable = WinApiAbi::arg(emu, 3) as u32;
-    let _lpTransferSize = WinApiAbi::arg(emu, 4) as u32;
-    let _lpNumOutstandingRequests = WinApiAbi::arg(emu, 5) as u32;
+    let call = WinApi(Stdcall);
+    let _hFile = api_try!(emu, call.arg_u32(emu, 0));
+    let _lpPeriodMilliseconds = api_try!(emu, call.arg_u32(emu, 1));
+    let _lpBytesPerPeriod = api_try!(emu, call.arg_u32(emu, 2));
+    let _pDiscardable = api_try!(emu, call.arg_u32(emu, 3));
+    let _lpTransferSize = api_try!(emu, call.arg_u32(emu, 4));
+    let _lpNumOutstandingRequests = api_try!(emu, call.arg_u32(emu, 5));
 
     log_red!(emu, "kernel32!GetFileBandwidthReservation");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..6 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 6);
 }

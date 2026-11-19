@@ -1,6 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 
 pub(super) fn IsThemeActive(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "** {} uxtheme!IsThemeActive", emu.pos);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

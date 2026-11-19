@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn MoveWindow(emu: &mut emu::Emu) {
-    let hwnd = emu.regs().rcx;
-    let x = emu.regs().rdx as i32;
-    let y = emu.regs().r8 as i32;
-    let width = emu.regs().r9 as i32;
-    let height = WinApiAbi::arg(emu, 4) as i32;
-    let repaint = WinApiAbi::arg(emu, 5);
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let x = api_try!(emu, call.arg_i32(emu, 1));
+    let y = api_try!(emu, call.arg_i32(emu, 2));
+    let width = api_try!(emu, call.arg_i32(emu, 3));
+    let height = api_try!(emu, call.arg_i32(emu, 4));
+    let repaint = api_try!(emu, call.arg(emu, 5));
     log_red!(
         emu,
         "user32!MoveWindow hwnd:0x{:x} x:{} y:{} w:{} h:{} repaint:{}",
@@ -18,10 +20,6 @@ pub fn MoveWindow(emu: &mut emu::Emu) {
         height,
         repaint
     );
-    let first_param = emu.regs().rcx;
-    if first_param != 0 && emu.maps.is_mapped(first_param) {
-        let _ = emu.maps.read_dword(first_param).unwrap_or(0);
-    }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

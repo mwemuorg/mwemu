@@ -1,6 +1,10 @@
 //! Guest-call diagnostics belong at the ABI boundary, outside the memory operations.
+use crate::api::abi::windows::{
+    CallingConvention::Stdcall,
+    WindowsAbi,
+    WindowsAbi::{WinApi, WinSyscall},
+};
 use crate::emu::Emu;
-use crate::winapi::common::memory::Call;
 use std::fmt::Write;
 
 pub(crate) fn api(
@@ -10,18 +14,19 @@ pub(crate) fn api(
     returns_value: bool,
     handler: impl FnOnce(&mut Emu),
 ) {
-    invoke(emu, Call::Api, name, parameters, returns_value, handler);
+    let call = WinApi(Stdcall);
+    invoke(emu, call, name, parameters, returns_value, handler);
 }
 
 pub(crate) fn invoke(
     emu: &mut Emu,
-    call: Call,
+    call: WindowsAbi,
     name: &str,
     parameters: &str,
     returns_value: bool,
     handler: impl FnOnce(&mut Emu),
 ) {
-    if !log::log_enabled!(log::Level::Trace) || (matches!(call, Call::Api) && emu.cfg.verbose < 1) {
+    if !log::log_enabled!(log::Level::Trace) || (matches!(call, WinApi(_)) && emu.cfg.verbose < 1) {
         handler(emu);
         return;
     }
@@ -31,20 +36,29 @@ pub(crate) fn invoke(
         if index != 0 {
             arguments.push_str(", ");
         }
-        write!(&mut arguments, "{parameter}: 0x{:x}", call.arg(emu, index)).unwrap();
+        match call.arg(emu, index) {
+            Ok(value) => {
+                let _ = write!(&mut arguments, "{parameter}: 0x{value:x}");
+            }
+            Err(error) => {
+                let _ = write!(&mut arguments, "{parameter}: <{:?}>", error.fault);
+            }
+        }
     }
     let number = emu.regs().rax;
     handler(emu);
-    let result = if returns_value {
+    let result = if emu.api_policy.stopped() {
+        " (stopped)".to_string()
+    } else if returns_value {
         format!(" = 0x{:x}", emu.regs().rax)
     } else {
         String::new()
     };
     match call {
-        Call::Api => {
+        WinApi(_) => {
             log_red!(emu, "{}({}){}", name, arguments, result);
         }
-        Call::Syscall => {
+        WinSyscall => {
             log_orange!(
                 emu,
                 "syscall 0x{:x}: {}({}){}",

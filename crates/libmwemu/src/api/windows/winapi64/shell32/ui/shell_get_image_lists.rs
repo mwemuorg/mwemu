@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn Shell_GetImageLists(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "shell32!Shell_GetImageLists arg1:0x{:x}", arg1);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 2;
+    call.set_return(emu, 2);
 }

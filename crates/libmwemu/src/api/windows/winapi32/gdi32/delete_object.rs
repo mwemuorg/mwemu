@@ -1,14 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn DeleteObject(emu: &mut emu::Emu) {
-    let obj = arg(emu, 0) as u64;
+    let call = WinApi(Stdcall);
+    let obj = api_try!(emu, call.arg_u32(emu, 0)) as u64;
     log_red!(emu, "gdi32!DeleteObject obj:0x{:x}", obj);
     if helper::handler_exist(obj) {
         helper::handler_close(obj);
     }
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 1);
 }

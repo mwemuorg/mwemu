@@ -1,14 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn SetWindowPos(emu: &mut emu::Emu) {
-    let arg1 = emu.regs().rcx;
-    let arg2 = emu.regs().rdx;
-    let arg3 = emu.regs().r8;
-    let arg4 = emu.regs().r9;
-    let arg5 = WinApiAbi::arg(emu, 4);
-    let arg6 = WinApiAbi::arg(emu, 5);
-    let arg7 = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let arg1 = api_try!(emu, call.arg(emu, 0));
+    let arg2 = api_try!(emu, call.arg(emu, 1));
+    let arg3 = api_try!(emu, call.arg(emu, 2));
+    let arg4 = api_try!(emu, call.arg(emu, 3));
+    let arg5 = api_try!(emu, call.arg(emu, 4));
+    let arg6 = api_try!(emu, call.arg(emu, 5));
+    let arg7 = api_try!(emu, call.arg(emu, 6));
     log_red!(
         emu,
         "user32!SetWindowPos arg1:0x{:x} arg2:0x{:x} arg3:0x{:x} arg4:0x{:x} arg5:0x{:x} arg6:0x{:x} arg7:0x{:x}",
@@ -20,5 +22,5 @@ pub(super) fn SetWindowPos(emu: &mut emu::Emu) {
         arg6,
         arg7
     );
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,6 +1,6 @@
 [package]
 name = "libmwemu"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 authors = ["sha0coder"]
 license = "Apache-2.0"
@@ -8,7 +8,7 @@ rust-version = "1.95"
 description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
 documentation = "https://docs.rs/libmwemu"
 homepage = "https://mwemu.github.io/"
-repository = "https://github.com/mwemuorg/libmwemu"
+repository = "https://github.com/mwemuorg/mwemu/tree/main/crates/libmwemu"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -31,7 +31,6 @@ bitcode = { version = "0.6.3", features = ["std", "serde"] }
 ahash = { version = "0.8.12", features = ["serde"] }
 bitfield = "0.19.1"
 ureq = { version = "2.10", default-features = false, features = ["tls"] }
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
 serde_arrays = "0.2.0"
 serde_json = "1"
 slab = { version = "0.4.10", features = ["serde"] }

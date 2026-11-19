@@ -1,8 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn QueryServiceStatus(emu: &mut emu::Emu) {
-    let hsvc = emu.regs().rcx;
-    let status_ptr = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let hsvc = api_try!(emu, call.arg(emu, 0));
+    let status_ptr = api_try!(emu, call.arg(emu, 1));
     if status_ptr != 0 {
         emu.maps.write_dword(status_ptr, 0x10);
         emu.maps.write_dword(status_ptr + 4, 4);
@@ -13,5 +16,5 @@ pub fn QueryServiceStatus(emu: &mut emu::Emu) {
         emu.maps.write_dword(status_ptr + 24, 0);
     }
     log_red!(emu, "advapi32!QueryServiceStatus svc:0x{:x}", hsvc);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

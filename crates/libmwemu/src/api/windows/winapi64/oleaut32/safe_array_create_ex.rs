@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::winapi::policy::api_try;
 
 pub fn SafeArrayCreateEx(emu: &mut emu::Emu) {
-    let vt = emu.regs().rcx as u16;
-    let dims = emu.regs().rdx as u32;
-    let rgsabound = emu.regs().r8;
-    let pvextra = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let vt = api_try!(emu, call.arg_u16(emu, 0));
+    let dims = api_try!(emu, call.arg_u32(emu, 1));
+    let rgsabound = api_try!(emu, call.arg(emu, 2));
+    let pvextra = api_try!(emu, call.arg(emu, 3));
     let elem_size: u64 = match vt {
         8 => 8,   // VT_BSTR
         12 => 16, // VT_VARIANT
@@ -22,7 +25,7 @@ pub fn SafeArrayCreateEx(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             emu.set_last_error(0);
-            emu.regs_mut().rax = 0;
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -51,5 +54,5 @@ pub fn SafeArrayCreateEx(emu: &mut emu::Emu) {
         sa
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = sa;
+    call.set_return(emu, sa);
 }

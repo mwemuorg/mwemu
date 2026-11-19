@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn CertFreeCertificateContext(emu: &mut emu::Emu) {
-    let cert_ctx = arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let cert_ctx = api_try!(emu, call.arg_u32(emu, 0));
 
     log_red!(
         emu,
@@ -11,6 +12,6 @@ pub fn CertFreeCertificateContext(emu: &mut emu::Emu) {
         cert_ctx
     );
 
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 1);
 }

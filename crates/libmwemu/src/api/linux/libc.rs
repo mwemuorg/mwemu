@@ -1,4 +1,6 @@
-use crate::api::abi::ApiAbi;
+use crate::api::abi::unix::{ArgumentError, UnixApi, VariadicConvention::SystemV};
+use crate::api::printf;
+use crate::api::unix::api_try;
 use crate::emu::Emu;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
@@ -8,6 +10,7 @@ const FAKE_PID: u64 = 1234;
 const FAKE_UID: u64 = 1000;
 
 pub fn gateway(symbol: &str, emu: &mut Emu) {
+    let call = UnixApi;
     match symbol {
         "__libc_start_main" => api_libc_start_main(emu),
         "__cxa_finalize" => api_cxa_finalize(emu),
@@ -68,7 +71,7 @@ pub fn gateway(symbol: &str, emu: &mut Emu) {
         "munmap" => api_munmap(emu),
         _ => {
             log::warn!("linuxapi libc: unimplemented API {} -- returning 0", symbol);
-            ApiAbi::from_emu(emu).set_ret(emu, 0);
+            call.set_return(emu, 0);
         }
     }
 }
@@ -83,20 +86,10 @@ fn trace(emu: &Emu, call: &str) {
     );
 }
 
-/// n-th variadic argument when the fixed arguments occupy `first` slots.
-/// Linux AAPCS64 keeps varargs in x0-x7 before spilling to the stack.
-fn vararg(emu: &Emu, first: usize, n: usize) -> u64 {
-    let idx = first + n;
-    if emu.cfg.arch.is_aarch64() && idx >= 8 {
-        let sp = emu.regs_aarch64().sp;
-        return emu.maps.read_qword(sp + (idx as u64 - 8) * 8).unwrap_or(0);
-    }
-    ApiAbi::from_emu(emu).arg(emu, idx)
-}
-
-fn format_printf(emu: &Emu, fmt_addr: u64, first: usize) -> String {
+fn format_printf(emu: &Emu, fmt_addr: u64, first: usize) -> Result<String, ArgumentError> {
+    let call = UnixApi;
     let fmt = emu.maps.read_string(fmt_addr);
-    crate::api::printf::format(emu, &fmt, &|e, n| vararg(e, first, n))
+    printf::format(emu, &fmt, &|e, n| call.integer_vararg(e, first, n, SystemV))
 }
 
 fn write_cstring(emu: &mut Emu, addr: u64, s: &[u8]) {
@@ -111,10 +104,10 @@ fn alloc_cstring(emu: &mut Emu, s: &str) -> u64 {
 }
 
 fn api_libc_start_main(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let main_fn = abi.arg(emu, 0);
-    let argc = abi.arg(emu, 1);
-    let argv = abi.arg(emu, 2);
+    let call = UnixApi;
+    let main_fn = api_try!(emu, call.arg(emu, 0));
+    let argc = api_try!(emu, call.arg(emu, 1));
+    let argv = api_try!(emu, call.arg(emu, 2));
     let envp = argv.wrapping_add((argc + 1) * 8);
 
     trace(
@@ -153,35 +146,35 @@ fn api_libc_start_main(emu: &mut Emu) {
 }
 
 fn api_printf(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let out = format_printf(emu, abi.arg(emu, 0), 1);
+    let call = UnixApi;
+    let out = api_try!(emu, format_printf(emu, api_try!(emu, call.arg(emu, 0)), 1));
     trace(emu, &format!("printf -> \"{}\"", out));
     emu.emulated_stdout.extend_from_slice(out.as_bytes());
-    abi.set_ret(emu, out.len() as u64);
+    call.set_return(emu, out.len() as u64);
 }
 
 fn api_fprintf(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let out = format_printf(emu, abi.arg(emu, 1), 2);
+    let call = UnixApi;
+    let out = api_try!(emu, format_printf(emu, api_try!(emu, call.arg(emu, 1)), 2));
     trace(emu, &format!("fprintf -> \"{}\"", out));
     emu.emulated_stdout.extend_from_slice(out.as_bytes());
-    abi.set_ret(emu, out.len() as u64);
+    call.set_return(emu, out.len() as u64);
 }
 
 fn api_sprintf(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
-    let out = format_printf(emu, abi.arg(emu, 1), 2);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let out = api_try!(emu, format_printf(emu, api_try!(emu, call.arg(emu, 1)), 2));
     trace(emu, &format!("sprintf(0x{:x}) -> \"{}\"", dst, out));
     write_cstring(emu, dst, out.as_bytes());
-    abi.set_ret(emu, out.len() as u64);
+    call.set_return(emu, out.len() as u64);
 }
 
 fn api_snprintf(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
-    let size = abi.arg(emu, 1) as usize;
-    let out = format_printf(emu, abi.arg(emu, 2), 3);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1)) as usize;
+    let out = api_try!(emu, format_printf(emu, api_try!(emu, call.arg(emu, 2)), 3));
     trace(
         emu,
         &format!("snprintf(0x{:x}, {}) -> \"{}\"", dst, size, out),
@@ -190,57 +183,58 @@ fn api_snprintf(emu: &mut Emu) {
         let n = out.len().min(size - 1);
         write_cstring(emu, dst, &out.as_bytes()[..n]);
     }
-    abi.set_ret(emu, out.len() as u64);
+    call.set_return(emu, out.len() as u64);
 }
 
 fn api_puts(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s = emu.maps.read_string(abi.arg(emu, 0));
+    let call = UnixApi;
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
     trace(emu, &format!("puts(\"{}\")", s));
     emu.emulated_stdout.extend_from_slice(s.as_bytes());
     emu.emulated_stdout.push(b'\n');
-    abi.set_ret(emu, s.len() as u64 + 1);
+    call.set_return(emu, s.len() as u64 + 1);
 }
 
 fn api_putchar(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let c = abi.arg(emu, 0) as u8;
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg_u8(emu, 0));
     trace(emu, &format!("putchar('{}')", c as char));
     emu.emulated_stdout.push(c);
-    abi.set_ret(emu, c as u64);
+    call.set_return(emu, c as u64);
 }
 
 fn api_fputs(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s = emu.maps.read_string(abi.arg(emu, 0));
+    let call = UnixApi;
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
     trace(emu, &format!("fputs(\"{}\")", s));
     emu.emulated_stdout.extend_from_slice(s.as_bytes());
-    abi.set_ret(emu, s.len() as u64);
+    call.set_return(emu, s.len() as u64);
 }
 
 fn api_fputc(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let c = abi.arg(emu, 0) as u8;
+    let call = UnixApi;
+    let c = api_try!(emu, call.arg_u8(emu, 0));
     trace(emu, &format!("fputc('{}')", c as char));
     emu.emulated_stdout.push(c);
-    abi.set_ret(emu, c as u64);
+    call.set_return(emu, c as u64);
 }
 
 fn api_fwrite(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let buf = abi.arg(emu, 0);
-    let size = abi.arg(emu, 1);
-    let nmemb = abi.arg(emu, 2);
+    let call = UnixApi;
+    let buf = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
+    let nmemb = api_try!(emu, call.arg(emu, 2));
     let total = size.saturating_mul(nmemb) as usize;
     let data = emu.maps.read_bytes(buf, total).to_vec();
     trace(emu, &format!("fwrite(0x{:x}, {}, {})", buf, size, nmemb));
     emu.emulated_stdout.extend_from_slice(&data);
-    abi.set_ret(emu, nmemb);
+    call.set_return(emu, nmemb);
 }
 
 fn api_fflush(emu: &mut Emu) {
+    let call = UnixApi;
     trace(emu, "fflush()");
-    ApiAbi::from_emu(emu).set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn flush_stdout(emu: &mut Emu) {
@@ -251,7 +245,8 @@ fn flush_stdout(emu: &mut Emu) {
 }
 
 fn api_exit(emu: &mut Emu) {
-    let status = ApiAbi::from_emu(emu).arg(emu, 0);
+    let call = UnixApi;
+    let status = api_try!(emu, call.arg(emu, 0));
     flush_stdout(emu);
     trace(emu, &format!("exit({})", status));
     emu.stop();
@@ -270,25 +265,27 @@ fn api_stack_chk_fail(emu: &mut Emu) {
 }
 
 fn api_cxa_finalize(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dso_handle = abi.arg(emu, 0);
+    let call = UnixApi;
+    let dso_handle = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("__cxa_finalize(0x{:x})", dso_handle));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_cxa_atexit(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let func = abi.arg(emu, 0);
+    let call = UnixApi;
+    let func = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("atexit(func=0x{:x})", func));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_gmon_start(emu: &mut Emu) {
+    let call = UnixApi;
     trace(emu, "__gmon_start__()");
-    ApiAbi::from_emu(emu).set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_errno_location(emu: &mut Emu) {
+    let call = UnixApi;
     let addr = match emu.maps.get_map_by_name(ERRNO_MAP) {
         Some(m) => m.get_base(),
         None => {
@@ -296,7 +293,7 @@ fn api_errno_location(emu: &mut Emu) {
                 Some(a) => a,
                 None => {
                     log::error!("Linux errno: out of memory");
-                    ApiAbi::from_emu(emu).set_ret(emu, 0);
+                    call.set_return(emu, 0);
                     return;
                 }
             };
@@ -306,14 +303,14 @@ fn api_errno_location(emu: &mut Emu) {
                 .is_err()
             {
                 log::error!("Linux errno: cannot create map");
-                ApiAbi::from_emu(emu).set_ret(emu, 0);
+                call.set_return(emu, 0);
                 return;
             }
             base
         }
     };
     trace(emu, &format!("__errno_location() -> 0x{:x}", addr));
-    ApiAbi::from_emu(emu).set_ret(emu, addr);
+    call.set_return(emu, addr);
 }
 
 fn linux_allocate(emu: &mut Emu, size: u64) -> u64 {
@@ -354,8 +351,8 @@ fn linux_release(emu: &mut Emu, addr: u64) {
 }
 
 fn api_malloc(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let size = abi.arg(emu, 0);
+    let call = UnixApi;
+    let size = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("malloc({})", size));
     if size > 0 {
         let base = if emu.cfg.memory_guard {
@@ -364,16 +361,16 @@ fn api_malloc(emu: &mut Emu) {
             linux_allocate(emu, size)
         };
         log::info!("  -> 0x{:x}", base);
-        abi.set_ret(emu, base);
+        call.set_return(emu, base);
     } else {
-        abi.set_ret(emu, 0);
+        call.set_return(emu, 0);
     }
 }
 
 fn api_calloc(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let count = abi.arg(emu, 0);
-    let size = abi.arg(emu, 1);
+    let call = UnixApi;
+    let count = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
     let total = count.saturating_mul(size);
     trace(emu, &format!("calloc({}, {})", count, size));
     if total > 0 {
@@ -385,22 +382,22 @@ fn api_calloc(emu: &mut Emu) {
             b
         };
         log::info!("  -> 0x{:x}", base);
-        abi.set_ret(emu, base);
+        call.set_return(emu, base);
     } else {
-        abi.set_ret(emu, 0);
+        call.set_return(emu, 0);
     }
 }
 
 fn api_realloc(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let ptr = abi.arg(emu, 0);
-    let size = abi.arg(emu, 1);
+    let call = UnixApi;
+    let ptr = api_try!(emu, call.arg(emu, 0));
+    let size = api_try!(emu, call.arg(emu, 1));
     trace(emu, &format!("realloc(0x{:x}, {})", ptr, size));
     if size == 0 {
         if ptr != 0 && emu.cfg.memory_guard {
             emu.kernel_free(ptr, "realloc");
         }
-        abi.set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
     let base = if emu.cfg.memory_guard {
@@ -422,11 +419,12 @@ fn api_realloc(emu: &mut Emu) {
         }
     }
     log::info!("  -> 0x{:x}", base);
-    abi.set_ret(emu, base);
+    call.set_return(emu, base);
 }
 
 fn api_free(emu: &mut Emu) {
-    let ptr = ApiAbi::from_emu(emu).arg(emu, 0);
+    let call = UnixApi;
+    let ptr = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("free(0x{:x})", ptr));
     if emu.cfg.memory_guard {
         emu.kernel_free(ptr, "free");
@@ -436,10 +434,10 @@ fn api_free(emu: &mut Emu) {
 }
 
 fn api_write(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let fd = abi.arg(emu, 0);
-    let buf = abi.arg(emu, 1);
-    let count = abi.arg(emu, 2);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
+    let buf = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg(emu, 2));
     let data = emu.maps.read_bytes(buf, count as usize).to_vec();
     trace(
         emu,
@@ -453,36 +451,36 @@ fn api_write(emu: &mut Emu) {
     if fd == 1 || fd == 2 {
         emu.emulated_stdout.extend_from_slice(&data);
     }
-    abi.set_ret(emu, count);
+    call.set_return(emu, count);
 }
 
 fn api_read(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let fd = abi.arg(emu, 0);
-    let count = abi.arg(emu, 2);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
+    let count = api_try!(emu, call.arg(emu, 2));
     trace(emu, &format!("read(fd={}, count={}) -> 0 (EOF)", fd, count));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_open(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let path = emu.maps.read_string(abi.arg(emu, 0));
-    let flags = abi.arg(emu, 1);
+    let call = UnixApi;
+    let path = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
+    let flags = api_try!(emu, call.arg(emu, 1));
     trace(emu, &format!("open(\"{}\", 0x{:x}) -> 3", path, flags));
-    abi.set_ret(emu, 3);
+    call.set_return(emu, 3);
 }
 
 fn api_close(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let fd = abi.arg(emu, 0);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("close(fd={})", fd));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_strlen(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s = emu.maps.read_string(abi.arg(emu, 0));
-    abi.set_ret(emu, s.len() as u64);
+    let call = UnixApi;
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
+    call.set_return(emu, s.len() as u64);
 }
 
 /// C-style comparison of at most `limit` bytes of two NUL-terminated strings.
@@ -498,54 +496,54 @@ fn compare_cstrings(a: &[u8], b: &[u8], limit: usize) -> i64 {
 }
 
 fn api_strcmp(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let a = emu.maps.read_string(abi.arg(emu, 0));
-    let b = emu.maps.read_string(abi.arg(emu, 1));
+    let call = UnixApi;
+    let a = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
+    let b = emu.maps.read_string(api_try!(emu, call.arg(emu, 1)));
     let r = compare_cstrings(a.as_bytes(), b.as_bytes(), usize::MAX);
-    abi.set_ret(emu, r as u64);
+    call.set_return(emu, r as u64);
 }
 
 fn api_strncmp(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let a = emu.maps.read_string(abi.arg(emu, 0));
-    let b = emu.maps.read_string(abi.arg(emu, 1));
-    let n = abi.arg(emu, 2) as usize;
+    let call = UnixApi;
+    let a = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
+    let b = emu.maps.read_string(api_try!(emu, call.arg(emu, 1)));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let r = compare_cstrings(a.as_bytes(), b.as_bytes(), n);
-    abi.set_ret(emu, r as u64);
+    call.set_return(emu, r as u64);
 }
 
 fn api_strcpy(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
-    let s = emu.maps.read_string(abi.arg(emu, 1));
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 1)));
     write_cstring(emu, dst, s.as_bytes());
-    abi.set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_strncpy(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
-    let s = emu.maps.read_string(abi.arg(emu, 1));
-    let n = abi.arg(emu, 2) as usize;
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 1)));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let mut buf = s.into_bytes();
     buf.resize(n, 0);
     emu.maps.write_bytes(dst, &buf);
-    abi.set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_strcat(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
     let end = dst + emu.maps.read_string(dst).len() as u64;
-    let s = emu.maps.read_string(abi.arg(emu, 1));
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 1)));
     write_cstring(emu, end, s.as_bytes());
-    abi.set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_strchr(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s_addr = abi.arg(emu, 0);
-    let c = abi.arg(emu, 1) as u8;
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
     let s = emu.maps.read_string(s_addr);
     let r = if c == 0 {
         s_addr + s.len() as u64
@@ -554,13 +552,13 @@ fn api_strchr(emu: &mut Emu) {
             .position(|b| b == c)
             .map_or(0, |i| s_addr + i as u64)
     };
-    abi.set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_strrchr(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s_addr = abi.arg(emu, 0);
-    let c = abi.arg(emu, 1) as u8;
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
     let s = emu.maps.read_string(s_addr);
     let r = if c == 0 {
         s_addr + s.len() as u64
@@ -569,35 +567,35 @@ fn api_strrchr(emu: &mut Emu) {
             .rposition(|b| b == c)
             .map_or(0, |i| s_addr + i as u64)
     };
-    abi.set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_strstr(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let hay_addr = abi.arg(emu, 0);
+    let call = UnixApi;
+    let hay_addr = api_try!(emu, call.arg(emu, 0));
     let hay = emu.maps.read_string(hay_addr);
-    let needle = emu.maps.read_string(abi.arg(emu, 1));
+    let needle = emu.maps.read_string(api_try!(emu, call.arg(emu, 1)));
     let r = hay.find(&needle).map_or(0, |i| hay_addr + i as u64);
-    abi.set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_strdup(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s = emu.maps.read_string(abi.arg(emu, 0));
+    let call = UnixApi;
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
     let r = alloc_cstring(emu, &s);
     trace(emu, &format!("strdup(\"{}\") -> 0x{:x}", s, r));
-    abi.set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_memcpy(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
-    let src = abi.arg(emu, 1);
-    let n = abi.arg(emu, 2) as usize;
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let src = api_try!(emu, call.arg(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     if !emu.maps.memcpy(dst, src, n) {
         log::warn!("linuxapi libc: memcpy from unmapped 0x{:x}", src);
     }
-    abi.set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_memmove(emu: &mut Emu) {
@@ -606,59 +604,62 @@ fn api_memmove(emu: &mut Emu) {
 }
 
 fn api_memset(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
-    let c = abi.arg(emu, 1) as u8;
-    let n = abi.arg(emu, 2) as usize;
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     emu.maps.memset(dst, c, n);
-    abi.set_ret(emu, dst);
+    call.set_return(emu, dst);
 }
 
 fn api_memcmp(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let n = abi.arg(emu, 2) as usize;
-    let a = emu.maps.read_bytes(abi.arg(emu, 0), n).to_vec();
-    let b = emu.maps.read_bytes(abi.arg(emu, 1), n);
+    let call = UnixApi;
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
+    let a = emu
+        .maps
+        .read_bytes(api_try!(emu, call.arg(emu, 0)), n)
+        .to_vec();
+    let b = emu.maps.read_bytes(api_try!(emu, call.arg(emu, 1)), n);
     let r = a
         .iter()
         .zip(b.iter())
         .find(|(x, y)| x != y)
         .map_or(0, |(x, y)| *x as i64 - *y as i64);
-    abi.set_ret(emu, r as u64);
+    call.set_return(emu, r as u64);
 }
 
 fn api_memchr(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let addr = abi.arg(emu, 0);
-    let c = abi.arg(emu, 1) as u8;
-    let n = abi.arg(emu, 2) as usize;
+    let call = UnixApi;
+    let addr = api_try!(emu, call.arg(emu, 0));
+    let c = api_try!(emu, call.arg_u8(emu, 1));
+    let n = api_try!(emu, call.arg(emu, 2)) as usize;
     let r = emu
         .maps
         .read_bytes(addr, n)
         .iter()
         .position(|&b| b == c)
         .map_or(0, |i| addr + i as u64);
-    abi.set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_bzero(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let dst = abi.arg(emu, 0);
-    let n = abi.arg(emu, 1) as usize;
+    let call = UnixApi;
+    let dst = api_try!(emu, call.arg(emu, 0));
+    let n = api_try!(emu, call.arg(emu, 1)) as usize;
     emu.maps.memset(dst, 0, n);
 }
 
 fn strtol_common(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s_addr = abi.arg(emu, 0);
-    let endptr = abi.arg(emu, 1);
-    let base = abi.arg(emu, 2) as u32;
+    let call = UnixApi;
+    let s_addr = api_try!(emu, call.arg(emu, 0));
+    let endptr = api_try!(emu, call.arg(emu, 1));
+    let base = api_try!(emu, call.arg_u32(emu, 2));
     let s = emu.maps.read_string(s_addr);
     let (val, used) = crate::api::strconv::parse_c_integer(s.as_bytes(), base);
     if endptr != 0 {
         emu.maps.write_qword(endptr, s_addr + used as u64);
     }
-    abi.set_ret(emu, val as u64);
+    call.set_return(emu, val as u64);
 }
 
 fn api_strtol(emu: &mut Emu) {
@@ -670,15 +671,15 @@ fn api_strtoul(emu: &mut Emu) {
 }
 
 fn api_atoi(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let s = emu.maps.read_string(abi.arg(emu, 0));
+    let call = UnixApi;
+    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
     let (val, _) = crate::api::strconv::parse_c_integer(s.as_bytes(), 10);
-    abi.set_ret(emu, val as u64);
+    call.set_return(emu, val as u64);
 }
 
 fn api_strerror(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let errnum = abi.arg(emu, 0) as i32;
+    let call = UnixApi;
+    let errnum = api_try!(emu, call.arg_i32(emu, 0));
     let msg = match errnum {
         0 => "Success",
         1 => "Operation not permitted",
@@ -690,67 +691,70 @@ fn api_strerror(emu: &mut Emu) {
         _ => "Unknown error",
     };
     let r = alloc_cstring(emu, msg);
-    abi.set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_getenv(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let name = emu.maps.read_string(abi.arg(emu, 0));
+    let call = UnixApi;
+    let name = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
     trace(emu, &format!("getenv(\"{}\") -> NULL", name));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_setlocale(emu: &mut Emu) {
+    let call = UnixApi;
     let r = alloc_cstring(emu, "C");
     trace(emu, "setlocale() -> \"C\"");
-    ApiAbi::from_emu(emu).set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_getpid(emu: &mut Emu) {
+    let call = UnixApi;
     trace(emu, &format!("getpid() -> {}", FAKE_PID));
-    ApiAbi::from_emu(emu).set_ret(emu, FAKE_PID);
+    call.set_return(emu, FAKE_PID);
 }
 
 fn api_getuid(emu: &mut Emu) {
+    let call = UnixApi;
     trace(emu, &format!("getuid() -> {}", FAKE_UID));
-    ApiAbi::from_emu(emu).set_ret(emu, FAKE_UID);
+    call.set_return(emu, FAKE_UID);
 }
 
 fn api_isatty(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let fd = abi.arg(emu, 0);
+    let call = UnixApi;
+    let fd = api_try!(emu, call.arg(emu, 0));
     let r = u64::from(fd <= 2);
     trace(emu, &format!("isatty({}) -> {}", fd, r));
-    abi.set_ret(emu, r);
+    call.set_return(emu, r);
 }
 
 fn api_ioctl(emu: &mut Emu) {
+    let call = UnixApi;
     const TIOCGWINSZ: u64 = 0x5413;
-    let abi = ApiAbi::from_emu(emu);
-    let fd = abi.arg(emu, 0);
-    let request = abi.arg(emu, 1);
-    let buf = abi.arg(emu, 2);
+    let fd = api_try!(emu, call.arg(emu, 0));
+    let request = api_try!(emu, call.arg(emu, 1));
+    let buf = api_try!(emu, call.arg(emu, 2));
     trace(emu, &format!("ioctl({}, 0x{:x})", fd, request));
     if request == TIOCGWINSZ && buf != 0 {
         emu.maps.write_word(buf, 24);
         emu.maps.write_word(buf + 2, 80);
         emu.maps.write_dword(buf + 4, 0);
-        abi.set_ret(emu, 0);
+        call.set_return(emu, 0);
         return;
     }
-    abi.set_ret(emu, -1i64 as u64);
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn api_signal(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let sig = abi.arg(emu, 0);
+    let call = UnixApi;
+    let sig = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("signal({}) -> SIG_DFL", sig));
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }
 
 fn api_time(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let tloc = abi.arg(emu, 0);
+    let call = UnixApi;
+    let tloc = api_try!(emu, call.arg(emu, 0));
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs());
@@ -758,12 +762,13 @@ fn api_time(emu: &mut Emu) {
         emu.maps.write_qword(tloc, now);
     }
     trace(emu, &format!("time() -> {}", now));
-    abi.set_ret(emu, now);
+    call.set_return(emu, now);
 }
 
 fn api_getopt(emu: &mut Emu) {
+    let call = UnixApi;
     trace(emu, "getopt() -> -1");
-    ApiAbi::from_emu(emu).set_ret(emu, -1i64 as u64);
+    call.set_return(emu, -1i64 as u64);
 }
 
 fn prot_to_permission(prot: u64) -> Permission {
@@ -775,16 +780,16 @@ fn prot_to_permission(prot: u64) -> Permission {
 }
 
 fn api_mmap(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let len = abi.arg(emu, 1);
-    let prot = abi.arg(emu, 2);
+    let call = UnixApi;
+    let len = api_try!(emu, call.arg(emu, 1));
+    let prot = api_try!(emu, call.arg(emu, 2));
     trace(emu, &format!("mmap(len=0x{:x}, prot=0x{:x})", len, prot));
     if len == 0 {
-        abi.set_ret(emu, u64::MAX);
+        call.set_return(emu, u64::MAX);
         return;
     }
     let Some(base) = emu.maps.alloc(len) else {
-        abi.set_ret(emu, u64::MAX);
+        call.set_return(emu, u64::MAX);
         return;
     };
     if emu
@@ -797,16 +802,16 @@ fn api_mmap(emu: &mut Emu) {
         )
         .is_err()
     {
-        abi.set_ret(emu, u64::MAX);
+        call.set_return(emu, u64::MAX);
         return;
     }
     log::info!("  -> 0x{:x}", base);
-    abi.set_ret(emu, base);
+    call.set_return(emu, base);
 }
 
 fn api_munmap(emu: &mut Emu) {
-    let abi = ApiAbi::from_emu(emu);
-    let addr = abi.arg(emu, 0);
+    let call = UnixApi;
+    let addr = api_try!(emu, call.arg(emu, 0));
     trace(emu, &format!("munmap(0x{:x})", addr));
     if let Some(mem) = emu.maps.get_mem_by_addr(addr)
         && mem.get_base() == addr
@@ -814,5 +819,5 @@ fn api_munmap(emu: &mut Emu) {
     {
         emu.maps.dealloc(addr);
     }
-    abi.set_ret(emu, 0);
+    call.set_return(emu, 0);
 }

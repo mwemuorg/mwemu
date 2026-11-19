@@ -1,7 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn RegQueryValueExA(emu: &mut emu::Emu) {
@@ -13,10 +13,11 @@ pub(super) fn RegQueryValueExW(emu: &mut emu::Emu) {
 }
 
 fn reg_query_value_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let value_ptr = arg(emu, 1) as u64;
-    let type_ptr = arg(emu, 3) as u64;
-    let data_ptr = arg(emu, 4) as u64;
-    let data_size_ptr = arg(emu, 5) as u64;
+    let call = WinApi(Stdcall);
+    let value_ptr = api_try!(emu, call.arg_u32(emu, 1)) as u64;
+    let type_ptr = api_try!(emu, call.arg_u32(emu, 3)) as u64;
+    let data_ptr = api_try!(emu, call.arg_u32(emu, 4)) as u64;
+    let data_size_ptr = api_try!(emu, call.arg_u32(emu, 5)) as u64;
     let value = if value_ptr != 0 {
         strings::read_text(emu, value_ptr, wide)
     } else {
@@ -39,6 +40,6 @@ fn reg_query_value_ex(emu: &mut emu::Emu, api: &str, wide: bool) {
         }
     }
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-    stdcall_ret(emu, 6);
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 6);
 }

@@ -1,7 +1,8 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::common::strings;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn InternetConnectA(emu: &mut emu::Emu) {
     internet_connect(emu, "InternetConnectA", false);
@@ -12,14 +13,15 @@ pub fn InternetConnectW(emu: &mut emu::Emu) {
 }
 
 fn internet_connect(emu: &mut emu::Emu, api: &str, wide: bool) {
-    let internet_hndl = emu.regs().rcx;
-    let server_ptr = emu.regs().rdx;
-    let port = emu.regs().r8;
-    let login_ptr = emu.regs().r9;
-    let passw_ptr = WinApiAbi::arg(emu, 4);
-    let service = WinApiAbi::arg(emu, 5);
-    let flags = WinApiAbi::arg(emu, 6);
-    let ctx = WinApiAbi::arg(emu, 7);
+    let call = WinApi(Stdcall);
+    let internet_hndl = api_try!(emu, call.arg(emu, 0));
+    let server_ptr = api_try!(emu, call.arg(emu, 1));
+    let port = api_try!(emu, call.arg(emu, 2));
+    let login_ptr = api_try!(emu, call.arg(emu, 3));
+    let passw_ptr = api_try!(emu, call.arg(emu, 4));
+    let service = api_try!(emu, call.arg(emu, 5));
+    let flags = api_try!(emu, call.arg(emu, 6));
+    let ctx = api_try!(emu, call.arg(emu, 7));
 
     let mut server = "".to_string();
     let mut login = "".to_string();
@@ -54,5 +56,5 @@ fn internet_connect(emu: &mut emu::Emu, api: &str, wide: bool) {
     }*/
 
     let uri = format!("{api}://{}:{}", server, port);
-    emu.regs_mut().rax = helper::handler_create(&uri); // connect handle
+    call.set_return(emu, helper::handler_create(&uri)); // connect handle
 }

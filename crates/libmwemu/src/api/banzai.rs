@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem;
 
 use csv::ReaderBuilder;
 use serde::{Deserialize, Serialize};
@@ -34,6 +35,19 @@ impl Banzai {
             }
             Err(error) => log::error!("banzai.csv not found in maps folder: {}", error),
         }
+    }
+
+    /// Fill metadata gaps without replacing runtime overrides or restored entries.
+    pub(crate) fn load_defaults(&mut self, path: &str) {
+        let overrides = mem::take(&mut self.api_params);
+        self.load(path);
+        self.api_params.extend(overrides);
+    }
+
+    pub(crate) fn stack_words(&self, api: &str) -> Option<u32> {
+        self.api_params
+            .get(api)
+            .and_then(|words| u32::try_from(*words).ok())
     }
 
     pub fn get_params(&self, unimplemented_api: &str) -> i32 {

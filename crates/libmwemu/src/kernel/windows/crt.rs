@@ -29,6 +29,32 @@ pub fn mapped_extent(emu: &Emu, addr: u64, len: u64) -> u64 {
     len
 }
 
+use crate::kernel::guard::{ChunkOrigin, FindingKind};
+
+fn check_invalid_address(emu: &mut Emu, rip: u64, addr: u64, len: u64, is_write: bool) {
+    const NULL_PAGE: u64 = 0x1000;
+    const NEAR_MAX: u64 = 0xfffffffffffffff0;
+    let invalid = !(NULL_PAGE..NEAR_MAX).contains(&addr) || !emu.maps.is_mapped(addr);
+    if !invalid {
+        return;
+    }
+    let dir = if is_write { "write to" } else { "read from" };
+    log::warn!(
+        "copy {} 0x{:x} ({} bytes): invalid address at 0x{:x}",
+        dir,
+        addr,
+        len,
+        rip
+    );
+    emu.kernel_report(
+        FindingKind::InvalidAddress,
+        rip,
+        addr,
+        len as u32,
+        ChunkOrigin::default(),
+    );
+}
+
 /// Copy `len` bytes, reporting either end that lands in a freed or
 /// out-of-bounds chunk.
 pub fn checked_copy(emu: &mut Emu, dst: u64, src: u64, len: u64) {
@@ -36,6 +62,8 @@ pub fn checked_copy(emu: &mut Emu, dst: u64, src: u64, len: u64) {
         return;
     }
     let rip = emu.pc();
+    check_invalid_address(emu, rip, src, len, false);
+    check_invalid_address(emu, rip, dst, len, true);
     emu.kernel_guard_range(rip, src, len, false);
     emu.kernel_guard_range(rip, dst, len, true);
     emu.kernel_guard_access(rip, src, len as u32, false);
@@ -431,6 +459,12 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
             emu.kernel_log_line(format!("{}{}", prefix, line));
             emu.set_kernel_ret(0);
         }
+        "AslLogCallPrintf" => {
+            let msg = emu.maps.read_string(emu.kernel_arg(3));
+            emu.kernel_log_line(format!("ACPI: {}", msg));
+            emu.set_kernel_ret(0);
+        }
+
         "DbgBreakPoint"
         | "DbgBreakPointWithStatus"
         | "DbgSetDebugFilterState"
@@ -945,12 +979,25 @@ pub fn dispatch(symbol: &str, emu: &mut Emu) -> bool {
         // SEH personality: only reached through exception dispatch, which
         // kernel mode does not model. Continue the search.
         "__C_specific_handler" | "_C_specific_handler" => emu.set_kernel_ret(1),
-        "__chkstk"
-        | "_chkstk"
-        | "__security_init_cookie"
-        | "_local_unwind"
-        | "__GSHandlerCheck" => {
+        "__chkstk" | "_chkstk" | "_local_unwind" | "__GSHandlerCheck" => {
             emu.set_kernel_ret(0);
+        }
+        "__security_init_cookie" => {
+            emu.set_kernel_ret(0);
+        }
+        "__security_check_cookie" | "_security_check_cookie" => {
+            let rcx = emu.regs().rcx;
+            if let Some(cookie) = emu.read_security_cookie()
+                && rcx != cookie
+            {
+                log::info!("--- STACK COOKIE CHECK FAILURE (intercepted) ---");
+                log::info!("  rcx=0x{:x}  __security_cookie=0x{:x}", rcx, cookie);
+                emu.kernel_abort(format!(
+                    "__security_check_cookie: mismatch 0x{:x} vs 0x{:x}",
+                    rcx, cookie
+                ));
+                return true;
+            }
         }
         "_purecall"
         | "__report_gsfailure"
@@ -998,6 +1045,7 @@ fn parse_int(s: &str, base: u32) -> (i64, usize) {
 }
 
 pub const SURFACE: &[&str] = &[
+    "AslLogCallPrintf",
     "DbgPrint",
     "DbgPrintEx",
     "vDbgPrintEx",

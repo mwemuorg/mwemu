@@ -1,17 +1,16 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn ULongAdd(emu: &mut emu::Emu) {
-    let _ulAugend = WinApiAbi::arg(emu, 0) as u32;
-    let _ulAddend = WinApiAbi::arg(emu, 1) as u32;
-    let _pulResult = WinApiAbi::arg(emu, 2) as u32;
+    let call = WinApi(Stdcall);
+    let _ulAugend = api_try!(emu, call.arg_u32(emu, 0));
+    let _ulAddend = api_try!(emu, call.arg_u32(emu, 1));
+    let _pulResult = api_try!(emu, call.arg_u32(emu, 2));
 
     log_red!(emu, "kernel32!ULongAdd");
 
-    emu.regs_mut().rax = ERROR_SUCCESS;
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
+    call.set_return(emu, ERROR_SUCCESS);
+    call.cleanup_args(emu, 3);
 }

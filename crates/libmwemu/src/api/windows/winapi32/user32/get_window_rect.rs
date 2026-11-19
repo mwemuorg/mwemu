@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub(super) fn GetWindowRect(emu: &mut emu::Emu) {
-    let rect = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let rect = api_try!(emu, call.arg_u32(emu, 1)) as u64;
     if rect != 0 {
         emu.maps.write_dword(rect, 0);
         emu.maps.write_dword(rect + 4, 0);
@@ -11,6 +12,6 @@ pub(super) fn GetWindowRect(emu: &mut emu::Emu) {
         emu.maps.write_dword(rect + 12, 1080);
     }
     log_red!(emu, "user32!GetWindowRect");
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 2);
 }

@@ -120,6 +120,9 @@ impl Emu {
 /// x86-family variant of `decode_and_execute`. Panics if the configured
 /// architecture is AArch64.
 pub(crate) fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
+    if emu.api_stopped() {
+        return (0, false);
+    }
     assert_x86_arch(emu, "decode_and_execute_x86");
     let pc = emu.pc();
 
@@ -184,6 +187,9 @@ pub(crate) fn decode_and_execute_x86(emu: &mut Emu) -> (usize, bool) {
 /// advances RIP (64-bit) or EIP (32-bit) by `sz` bytes. Panics on AArch64.
 #[inline]
 pub(crate) fn advance_pc_x86(emu: &mut Emu, sz: usize) {
+    if emu.api_stopped() {
+        return;
+    }
     assert_x86_arch(emu, "advance_pc_x86");
     if emu.force_reload {
         emu.force_reload = false;

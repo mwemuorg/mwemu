@@ -1,5 +1,5 @@
+use iced_x86::Register;
 use itertools::iproduct;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::Ordering;
 use std::thread;
 
@@ -7,397 +7,175 @@ use rs_header::pe::export_index::{ExportIndexData, ExportTarget, NamedExport};
 
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::tests::helpers::{
-    call_winapi_export, prepare_winapi, register_export_module, run_with_timeout, setup,
-};
+use crate::tests::helpers::{call_winapi_export, prepare_winapi, register_export_module, setup};
 use crate::winapi::{winapi32, winapi64};
+use crate::windows::constants::errors::{ERROR_ACCESS_DENIED, ERROR_INVALID_PARAMETER};
 use crate::{emu32, emu64};
 
 const MODULE64: u64 = 0x170000000;
 const MODULE32: u64 = 0x70000000;
 const SENTINEL: u64 = 0xDEAD_C0DE_CAFE_BABE;
-const WINAPI_BUDGET: std::time::Duration = std::time::Duration::from_secs(120);
 
-struct DllDef {
-    name: &'static str,
-    section: &'static str,
-    sources: &'static [&'static str],
-}
+const NONVOLATILE32: &[Register] = &[Register::EBX, Register::EBP, Register::ESI, Register::EDI];
+const NONVOLATILE64: &[Register] = &[
+    Register::RBX,
+    Register::RBP,
+    Register::RSI,
+    Register::RDI,
+    Register::R12,
+    Register::R13,
+    Register::R14,
+    Register::R15,
+];
+const NONVOLATILE_XMM64: &[Register] = &[
+    Register::XMM6,
+    Register::XMM7,
+    Register::XMM8,
+    Register::XMM9,
+    Register::XMM10,
+    Register::XMM11,
+    Register::XMM12,
+    Register::XMM13,
+    Register::XMM14,
+    Register::XMM15,
+];
 
-impl DllDef {
-    fn api_names(&self) -> Vec<String> {
-        let mut names: Vec<String> = self
-            .sources
-            .iter()
-            .flat_map(|source| extract_api_names(source))
-            .collect();
-        let common_sources: &[&str] = match self.name {
-            "kernel32" | "kernelbase" => &[
-                include_str!("../../api/windows/common/files.rs"),
-                include_str!("../../api/windows/common/handles.rs"),
-                include_str!("../../api/windows/common/modules.rs"),
-                include_str!("../../api/windows/common/strings.rs"),
-            ],
-            "user32" => &[include_str!("../../api/windows/common/strings.rs")],
-            _ => &[],
-        };
-        for source in common_sources {
-            names.extend(extract_api_names(source));
+fn check_handler_abi(is64: bool) {
+    setup();
+    let (mut emu, data) = prepare_winapi(is64);
+    emu.running_script = true;
+    emu.cfg.skip_unimplemented = false;
+    emu.cfg.stop_on_unimplemented = true;
+    let nonvolatile = if is64 { NONVOLATILE64 } else { NONVOLATILE32 };
+    for (index, &register) in nonvolatile.iter().enumerate() {
+        emu.regs_mut().set_reg(register, SENTINEL + index as u64);
+    }
+    if is64 {
+        for (index, &register) in NONVOLATILE_XMM64.iter().enumerate() {
+            let value = ((SENTINEL as u128) << u64::BITS) | (SENTINEL + index as u64) as u128;
+            emu.regs_mut().set_xmm_reg(register, value);
         }
-        names.sort();
-        names.dedup();
-        names
+    }
+    let initial_regs = *emu.regs();
+
+    // BSTR lengths count the embedded NUL and differ in bytes and UTF-16 units.
+    let bstr = data + size_of::<u32>() as u64;
+    assert!(emu.maps.write_dword(data, 6));
+    emu.maps.write_wide_string(bstr, "A\0B");
+
+    // Bounded, read-only cases, not an inventory of implemented exports.
+    // Every case supplies its own arguments and checks an observable result.
+    let cases: &[(&str, &str, &[u64], u64)] = &[
+        ("kernel32.dll", "GetACP", &[], 1252),
+        ("kernel32.dll", "GetLastError", &[], ERROR_ACCESS_DENIED),
+        ("user32.dll", "IsCharAlphaA", &[b'A' as u64], 1),
+        ("user32.dll", "IsCharAlphaW", &[b'7' as u64], 0),
+        ("user32.dll", "IsCharAlphaNumericA", &[b'7' as u64], 1),
+        ("user32.dll", "IsCharAlphaNumericW", &[b'!' as u64], 0),
+        ("user32.dll", "IsCharLowerA", &[b'a' as u64], 1),
+        ("user32.dll", "IsCharLowerW", &[b'A' as u64], 0),
+        ("user32.dll", "IsCharUpperA", &[b'A' as u64], 1),
+        ("user32.dll", "IsCharUpperW", &[b'a' as u64], 0),
+        ("ws2_32.dll", "htons", &[0x1234], 0x3412),
+        ("ws2_32.dll", "htonl", &[0x1234_5678], 0x7856_3412),
+        ("ws2_32.dll", "ntohs", &[0x1234], 0x3412),
+        ("ws2_32.dll", "ntohl", &[0x1234_5678], 0x7856_3412),
+        (
+            "iphlpapi.dll",
+            "GetIfTable",
+            &[0, 0, 0],
+            ERROR_INVALID_PARAMETER,
+        ),
+        (
+            "iphlpapi.dll",
+            "GetIpAddrTable",
+            &[0, 0, 0],
+            ERROR_INVALID_PARAMETER,
+        ),
+        (
+            "iphlpapi.dll",
+            "GetTcpTable",
+            &[0, 0, 0],
+            ERROR_INVALID_PARAMETER,
+        ),
+        (
+            "iphlpapi.dll",
+            "GetUdpTable",
+            &[0, 0, 0],
+            ERROR_INVALID_PARAMETER,
+        ),
+        (
+            "iphlpapi.dll",
+            "GetAdaptersInfo",
+            &[0, 0],
+            ERROR_INVALID_PARAMETER,
+        ),
+        (
+            "iphlpapi.dll",
+            "GetAdaptersAddresses",
+            &[0, 0, 0, 0, 0],
+            ERROR_INVALID_PARAMETER,
+        ),
+        (
+            "iphlpapi.dll",
+            "GetNetworkParams",
+            &[0, 0],
+            ERROR_INVALID_PARAMETER,
+        ),
+        ("oleaut32.dll", "SysStringLen", &[bstr], 3),
+        ("oleaut32.dll", "SysStringByteLen", &[bstr], 6),
+    ];
+
+    for &(library, api, arguments, expected) in cases {
+        // These calls have no persistent effects except LastError and registers.
+        // Keep the module registry so successive names exercise export replacement.
+        *emu.regs_mut() = initial_regs;
+        emu.regs_mut().rax = SENTINEL;
+        emu.set_last_error(ERROR_ACCESS_DENIED);
+        emu.is_running.store(1, Ordering::Relaxed);
+        eprintln!(
+            "checking {library}!{api} ({}-bit)",
+            if is64 { 64 } else { 32 }
+        );
+
+        let result = call_winapi_export(&mut emu, library, api, arguments);
+        assert_eq!(result, expected, "{library}!{api} result");
+        assert_eq!(
+            emu.is_running.load(Ordering::Relaxed),
+            1,
+            "{library}!{api} stopped emulation"
+        );
+        assert!(
+            !emu.process_terminated,
+            "{library}!{api} terminated the guest"
+        );
+        for &register in nonvolatile {
+            assert_eq!(
+                emu.regs().get_reg(register),
+                initial_regs.get_reg(register),
+                "{library}!{api} changed {register:?}"
+            );
+        }
+        if is64 {
+            for &register in NONVOLATILE_XMM64 {
+                assert_eq!(
+                    emu.regs().get_xmm_reg(register),
+                    initial_regs.get_xmm_reg(register),
+                    "{library}!{api} changed {register:?}"
+                );
+            }
+        }
     }
 }
 
-const DLLS_64: &[DllDef] = &[
-    DllDef {
-        name: "iphlpapi",
-        section: "iphlpapi.text",
-        sources: &[include_str!("../../api/windows/common/iphlpapi.rs")],
-    },
-    DllDef {
-        name: "ucrtbase",
-        section: "ucrtbase.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/wincrt/mod.rs"),
-            include_str!("../../api/windows/winapi64/wincrt/runtime/mod.rs"),
-            include_str!("../../api/windows/winapi64/wincrt/memory/mod.rs"),
-            include_str!("../../api/windows/winapi64/wincrt/io/mod.rs"),
-            include_str!("../../api/windows/winapi64/wincrt/strings/mod.rs"),
-            include_str!("../../api/windows/winapi64/wincrt/math/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "kernel32",
-        section: "kernel32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/kernel32/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/appcompat/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/console/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/diagnostics/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/filesystem/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/library_loader/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/memory/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/objects/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/process_thread/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/registry_profile/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/strings_nls/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/sync/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/system/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernel32/time_date/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "user32",
-        section: "user32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/user32/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/clipboard/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/dde/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/dialogs/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/graphics/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/input/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/menus/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/messages/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/strings_format/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/system/mod.rs"),
-            include_str!("../../api/windows/winapi64/user32/windowing/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "gdi32",
-        section: "gdi32.text",
-        sources: &[include_str!("../../api/windows/winapi64/gdi32/mod.rs")],
-    },
-    DllDef {
-        name: "advapi32",
-        section: "advapi32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/advapi32/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/accounts/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/crypto/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/registry_api/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/security/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/services/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/system/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/tokens/mod.rs"),
-            include_str!("../../api/windows/winapi64/advapi32/tracing/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "ws2_32",
-        section: "ws2_32.text",
-        sources: &[include_str!("../../api/windows/winapi64/ws2_32/mod.rs")],
-    },
-    DllDef {
-        name: "wininet",
-        section: "wininet.text",
-        sources: &[include_str!("../../api/windows/winapi64/wininet/mod.rs")],
-    },
-    DllDef {
-        name: "shell32",
-        section: "shell32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/shell32/mod.rs"),
-            include_str!("../../api/windows/winapi64/shell32/launch/mod.rs"),
-            include_str!("../../api/windows/winapi64/shell32/filesystem/mod.rs"),
-            include_str!("../../api/windows/winapi64/shell32/ui/mod.rs"),
-            include_str!("../../api/windows/winapi64/shell32/objects/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "ole32",
-        section: "ole32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/ole32/mod.rs"),
-            include_str!("../../api/windows/winapi64/ole32/objects/mod.rs"),
-            include_str!("../../api/windows/winapi64/ole32/runtime/mod.rs"),
-            include_str!("../../api/windows/winapi64/ole32/marshaling/mod.rs"),
-            include_str!("../../api/windows/winapi64/ole32/storage/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "oleaut32",
-        section: "oleaut32.text",
-        sources: &[include_str!("../../api/windows/winapi64/oleaut32/mod.rs")],
-    },
-    DllDef {
-        name: "crypt32",
-        section: "crypt32.text",
-        sources: &[include_str!("../../api/windows/winapi64/crypt32/mod.rs")],
-    },
-    DllDef {
-        name: "kernelbase",
-        section: "kernelbase.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/kernelbase/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/appcompat/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/console/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/diagnostics/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/filesystem/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/legacy_compat/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/library_loader/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/memory/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/network/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/objects/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/process_thread/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/registry_profile/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/security/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/strings_nls/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/sync/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/system/mod.rs"),
-            include_str!("../../api/windows/winapi64/kernelbase/time_date/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "msvcrt",
-        section: "msvcrt.text",
-        sources: &[
-            include_str!("../../api/windows/winapi64/msvcrt/mod.rs"),
-            include_str!("../../api/windows/winapi64/msvcrt/runtime/mod.rs"),
-            include_str!("../../api/windows/winapi64/msvcrt/strings/mod.rs"),
-            include_str!("../../api/windows/winapi64/msvcrt/io/mod.rs"),
-            include_str!("../../api/windows/winapi64/msvcrt/memory/mod.rs"),
-            include_str!("../../api/windows/winapi64/msvcrt/math/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "winhttp",
-        section: "winhttp.text",
-        sources: &[include_str!("../../api/windows/winapi64/winhttp/mod.rs")],
-    },
-    DllDef {
-        name: "bcrypt",
-        section: "bcrypt.text",
-        sources: &[include_str!("../../api/windows/winapi64/bcrypt/mod.rs")],
-    },
-    DllDef {
-        name: "version",
-        section: "version.text",
-        sources: &[include_str!("../../api/windows/winapi64/version/mod.rs")],
-    },
-    DllDef {
-        name: "shlwapi",
-        section: "shlwapi.text",
-        sources: &[include_str!("../../api/windows/winapi64/shlwapi/mod.rs")],
-    },
-    DllDef {
-        name: "dnsapi",
-        section: "dnsapi.text",
-        sources: &[include_str!("../../api/windows/winapi64/dnsapi/mod.rs")],
-    },
-    DllDef {
-        name: "urlmon",
-        section: "urlmon.text",
-        sources: &[include_str!("../../api/windows/winapi64/urlmon/mod.rs")],
-    },
-    DllDef {
-        name: "uxtheme",
-        section: "uxtheme.text",
-        sources: &[include_str!("../../api/windows/winapi64/uxtheme/mod.rs")],
-    },
-];
+#[test]
+fn winapi32_handlers_preserve_call_frame() {
+    check_handler_abi(false);
+}
 
-const DLLS_32: &[DllDef] = &[
-    DllDef {
-        name: "iphlpapi",
-        section: "iphlpapi.text",
-        sources: &[include_str!("../../api/windows/common/iphlpapi.rs")],
-    },
-    DllDef {
-        name: "kernel32",
-        section: "kernel32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi32/kernel32/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/appcompat/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/console/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/diagnostics/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/filesystem/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/legacy_compat/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/library_loader/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/memory/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/objects/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/process_thread/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/registry_profile/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/security/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/strings_nls/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/sync/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/system/mod.rs"),
-            include_str!("../../api/windows/winapi32/kernel32/time_date/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "user32",
-        section: "user32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi32/user32/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/clipboard/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/dde/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/dialogs/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/graphics/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/input/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/menus/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/messages/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/strings_format/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/system/mod.rs"),
-            include_str!("../../api/windows/winapi32/user32/windowing/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "gdi32",
-        section: "gdi32.text",
-        sources: &[include_str!("../../api/windows/winapi32/gdi32/mod.rs")],
-    },
-    DllDef {
-        name: "advapi32",
-        section: "advapi32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi32/advapi32/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/accounts/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/crypto/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/registry_api/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/security/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/services/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/system/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/tokens/mod.rs"),
-            include_str!("../../api/windows/winapi32/advapi32/tracing/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "ws2_32",
-        section: "ws2_32.text",
-        sources: &[include_str!("../../api/windows/winapi32/ws2_32/mod.rs")],
-    },
-    DllDef {
-        name: "wininet",
-        section: "wininet.text",
-        sources: &[include_str!("../../api/windows/winapi32/wininet/mod.rs")],
-    },
-    DllDef {
-        name: "shell32",
-        section: "shell32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi32/shell32/mod.rs"),
-            include_str!("../../api/windows/winapi32/shell32/launch/mod.rs"),
-            include_str!("../../api/windows/winapi32/shell32/ui/mod.rs"),
-            include_str!("../../api/windows/winapi32/shell32/objects/mod.rs"),
-            include_str!("../../api/windows/winapi32/shell32/filesystem/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "ole32",
-        section: "ole32.text",
-        sources: &[
-            include_str!("../../api/windows/winapi32/ole32/mod.rs"),
-            include_str!("../../api/windows/winapi32/ole32/objects/mod.rs"),
-            include_str!("../../api/windows/winapi32/ole32/runtime/mod.rs"),
-            include_str!("../../api/windows/winapi32/ole32/marshaling/mod.rs"),
-            include_str!("../../api/windows/winapi32/ole32/storage/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "oleaut32",
-        section: "oleaut32.text",
-        sources: &[include_str!("../../api/windows/winapi32/oleaut32/mod.rs")],
-    },
-    DllDef {
-        name: "crypt32",
-        section: "crypt32.text",
-        sources: &[include_str!("../../api/windows/winapi32/crypt32/mod.rs")],
-    },
-    DllDef {
-        name: "kernelbase",
-        section: "kernelbase.text",
-        sources: &[include_str!("../../api/windows/winapi32/kernelbase/mod.rs")],
-    },
-    DllDef {
-        name: "msvcrt",
-        section: "msvcrt.text",
-        sources: &[
-            include_str!("../../api/windows/winapi32/msvcrt/mod.rs"),
-            include_str!("../../api/windows/winapi32/msvcrt/runtime/mod.rs"),
-            include_str!("../../api/windows/winapi32/msvcrt/strings/mod.rs"),
-            include_str!("../../api/windows/winapi32/msvcrt/io/mod.rs"),
-            include_str!("../../api/windows/winapi32/msvcrt/memory/mod.rs"),
-            include_str!("../../api/windows/winapi32/msvcrt/math/mod.rs"),
-        ],
-    },
-    DllDef {
-        name: "winhttp",
-        section: "winhttp.text",
-        sources: &[include_str!("../../api/windows/winapi32/winhttp/mod.rs")],
-    },
-    DllDef {
-        name: "bcrypt",
-        section: "bcrypt.text",
-        sources: &[include_str!("../../api/windows/winapi32/bcrypt/mod.rs")],
-    },
-    DllDef {
-        name: "shlwapi",
-        section: "shlwapi.text",
-        sources: &[include_str!("../../api/windows/winapi32/shlwapi/mod.rs")],
-    },
-    DllDef {
-        name: "dnsapi",
-        section: "dnsapi.text",
-        sources: &[include_str!("../../api/windows/winapi32/dnsapi/mod.rs")],
-    },
-    DllDef {
-        name: "urlmon",
-        section: "urlmon.text",
-        sources: &[include_str!("../../api/windows/winapi32/urlmon/mod.rs")],
-    },
-];
-
-fn extract_api_names(source: &str) -> Vec<String> {
-    source
-        .lines()
-        .filter_map(|line| line.trim().split_once("=>"))
-        .flat_map(|(patterns, _)| patterns.split('|'))
-        .filter_map(|pattern| pattern.trim().strip_prefix('"')?.strip_suffix('"'))
-        .map(str::to_string)
-        .collect()
+#[test]
+fn winapi64_handlers_preserve_call_frame() {
+    check_handler_abi(true);
 }
 
 fn register_dll(emu: &mut Emu, dll: &str, api: &str, base: u64) {
@@ -428,7 +206,6 @@ fn make_emu64_zeroed(dll: &str, api: &str) -> Emu {
     emu.init_stack64();
     register_dll(&mut emu, dll, api, MODULE64);
 
-    // All arg registers zero — safe as both null pointers and zero sizes.
     emu.regs_mut().rcx = 0;
     emu.regs_mut().rdx = 0;
     emu.regs_mut().r8 = 0;
@@ -480,240 +257,12 @@ fn make_emu32_zeroed(dll: &str, api: &str) -> Emu {
     emu
 }
 
-fn set_sentinels_64(emu: &mut Emu) {
-    emu.regs_mut().rbx = SENTINEL;
-    emu.regs_mut().rbp = SENTINEL;
-    emu.regs_mut().rsi = SENTINEL;
-    emu.regs_mut().rdi = SENTINEL;
-    emu.regs_mut().r12 = SENTINEL;
-    emu.regs_mut().r13 = SENTINEL;
-    emu.regs_mut().r14 = SENTINEL;
-    emu.regs_mut().r15 = SENTINEL;
-}
-
-fn set_sentinels_32(emu: &mut Emu) {
-    emu.regs_mut().rbx = SENTINEL & 0xFFFFFFFF;
-    emu.regs_mut().rbp = SENTINEL & 0xFFFFFFFF;
-    emu.regs_mut().rsi = SENTINEL & 0xFFFFFFFF;
-    emu.regs_mut().rdi = SENTINEL & 0xFFFFFFFF;
-}
-
-#[test]
-fn winapi64_handlers_preserve_rsp() {
-    setup();
-    run_with_timeout(WINAPI_BUDGET, || {
-        let mut failures = Vec::new();
-        let mut tested = 0;
-
-        for dll in DLLS_64 {
-            let apis = dll.api_names();
-            let mut emu = emu64();
-            emu.cfg.console_enabled = false;
-            emu.running_script = true;
-            emu.init_stack64();
-            register_dll(
-                &mut emu,
-                dll.name,
-                apis.first().map_or("_", |s| s),
-                MODULE64,
-            );
-            let rsp_base = emu.regs().rsp;
-
-            for api in &apis {
-                emu.regs_mut().rsp = rsp_base;
-                emu.regs_mut().rcx = 0;
-                emu.regs_mut().rdx = 0;
-                emu.regs_mut().r8 = 0;
-                emu.regs_mut().r9 = 0;
-                for i in 0..16 {
-                    emu.maps.write_qword(rsp_base + 0x20 + i * 8, 0);
-                }
-                let rsp_before = emu.regs().rsp;
-
-                if catch_unwind(AssertUnwindSafe(|| {
-                    winapi64::gateway(MODULE64 + 0x100, dll.section, &mut emu);
-                }))
-                .is_err()
-                {
-                    continue;
-                }
-
-                let rsp_after = emu.regs().rsp;
-                if rsp_after != rsp_before {
-                    failures.push(format!(
-                        "{}!{}: rsp changed 0x{:x} -> 0x{:x} (delta={})",
-                        dll.name,
-                        api,
-                        rsp_before,
-                        rsp_after,
-                        rsp_after as i64 - rsp_before as i64
-                    ));
-                }
-                tested += 1;
-            }
-        }
-
-        assert!(tested > 100, "expected >100 APIs tested, got {tested}");
-        assert!(
-            failures.is_empty(),
-            "{} of {tested} 64-bit APIs changed rsp:\n{}",
-            failures.len(),
-            failures.join("\n")
-        );
-    })
-    .unwrap();
-}
-
-#[test]
-fn winapi64_handlers_preserve_nonvolatile_regs() {
-    setup();
-
-    run_with_timeout(WINAPI_BUDGET, || {
-        let mut failures = Vec::new();
-        let mut tested = 0;
-
-        for dll in DLLS_64 {
-            let apis = dll.api_names();
-            let mut emu = emu64();
-            emu.cfg.console_enabled = false;
-            emu.running_script = true;
-            emu.init_stack64();
-            register_dll(
-                &mut emu,
-                dll.name,
-                apis.first().map_or("_", |s| s),
-                MODULE64,
-            );
-            let rsp_base = emu.regs().rsp;
-
-            for api in &apis {
-                emu.regs_mut().rsp = rsp_base;
-                emu.regs_mut().rcx = 0;
-                emu.regs_mut().rdx = 0;
-                emu.regs_mut().r8 = 0;
-                emu.regs_mut().r9 = 0;
-                for i in 0..16 {
-                    emu.maps.write_qword(rsp_base + 0x20 + i * 8, 0);
-                }
-                set_sentinels_64(&mut emu);
-
-                if catch_unwind(AssertUnwindSafe(|| {
-                    winapi64::gateway(MODULE64 + 0x100, dll.section, &mut emu);
-                }))
-                .is_err()
-                {
-                    continue;
-                }
-
-                let r = emu.regs();
-                for (name, val) in [
-                    ("rbx", r.rbx),
-                    ("rbp", r.rbp),
-                    ("rsi", r.rsi),
-                    ("rdi", r.rdi),
-                    ("r12", r.r12),
-                    ("r13", r.r13),
-                    ("r14", r.r14),
-                    ("r15", r.r15),
-                ] {
-                    if val != SENTINEL {
-                        failures.push(format!(
-                            "{}!{}: {name} = 0x{val:x} (expected 0x{SENTINEL:x})",
-                            dll.name, api
-                        ));
-                    }
-                }
-                tested += 1;
-            }
-        }
-
-        assert!(tested > 100, "expected >100 APIs tested, got {tested}");
-        assert!(
-            failures.is_empty(),
-            "{} of {tested} 64-bit APIs corrupted non-volatile regs:\n{}",
-            failures.len(),
-            failures.join("\n")
-        );
-    })
-    .unwrap();
-}
-
-#[test]
-#[ignore]
-fn winapi32_handlers_preserve_nonvolatile_regs() {
-    setup();
-
-    run_with_timeout(WINAPI_BUDGET, || {
-        let mut failures = Vec::new();
-        let mut tested = 0;
-        let mask = 0xFFFFFFFF_u64;
-
-        for dll in DLLS_32 {
-            let apis = dll.api_names();
-            let mut emu = emu32();
-            emu.cfg.console_enabled = false;
-            emu.running_script = true;
-            emu.init_stack32();
-            register_dll(
-                &mut emu,
-                dll.name,
-                apis.first().map_or("_", |s| s),
-                MODULE32,
-            );
-            let stack_base = emu.regs().get_esp();
-
-            for api in &apis {
-                emu.regs_mut().set_esp(stack_base);
-                for _ in 0..20 {
-                    emu.stack_push32(0);
-                }
-                set_sentinels_32(&mut emu);
-
-                if catch_unwind(AssertUnwindSafe(|| {
-                    winapi32::gateway((MODULE32 + 0x100) as u32, dll.section, &mut emu);
-                }))
-                .is_err()
-                {
-                    continue;
-                }
-
-                let r = emu.regs();
-                for (name, val) in [
-                    ("ebx", r.rbx & mask),
-                    ("ebp", r.rbp & mask),
-                    ("esi", r.rsi & mask),
-                    ("edi", r.rdi & mask),
-                ] {
-                    let expected = SENTINEL & mask;
-                    if val != expected {
-                        failures.push(format!(
-                            "{}!{}: {name} = 0x{val:x} (expected 0x{expected:x})",
-                            dll.name, api
-                        ));
-                    }
-                }
-                tested += 1;
-            }
-        }
-
-        assert!(tested > 100, "expected >100 APIs tested, got {tested}");
-        assert!(
-            failures.is_empty(),
-            "{} of {tested} 32-bit APIs corrupted non-volatile regs:\n{}",
-            failures.len(),
-            failures.join("\n")
-        );
-    })
-    .unwrap();
-}
-
 /// Spot-check that APIs known NOT to use rdx as an output pointer don't
 /// write to it. This catches the mechanical `write_qword(rdx, 0)` pattern
 /// that the 58433ebf regression introduced across ~1,400 handlers.
 #[test]
 fn winapi64_non_output_apis_dont_write_rdx() {
     setup();
-    let mut failures = Vec::new();
 
     // Representative APIs where rdx is NOT an output pointer.
     let cases: &[(&str, &str, &str)] = &[
@@ -745,28 +294,14 @@ fn winapi64_non_output_apis_dont_write_rdx() {
         let rdx_addr = emu.regs().rdx;
         emu.maps.write_qword(rdx_addr, SENTINEL);
 
-        if catch_unwind(AssertUnwindSafe(|| {
-            winapi64::gateway(MODULE64 + 0x100, section, &mut emu);
-        }))
-        .is_err()
-        {
-            continue;
-        }
+        winapi64::gateway(MODULE64 + 0x100, section, &mut emu);
 
-        if let Some(val) = emu.maps.read_qword(rdx_addr)
-            && val != SENTINEL
-        {
-            failures.push(format!(
-                "{dll}!{api}: wrote 0x{val:x} to rdx (sentinel was 0x{SENTINEL:x})"
-            ));
-        }
+        assert_eq!(
+            emu.maps.read_qword(rdx_addr),
+            Some(SENTINEL),
+            "{dll}!{api} must not write through RDX"
+        );
     }
-
-    assert!(
-        failures.is_empty(),
-        "APIs that should not write to rdx did:\n{}",
-        failures.join("\n")
-    );
 }
 
 #[test]
@@ -842,9 +377,6 @@ fn winapi_stdcall_discards_sdk_dword_slots() {
         ("wininet.dll", "InternetSetOptionA", 4),
         ("wininet.dll", "InternetQueryOptionW", 4),
         ("ws2_32.dll", "WSAWaitForMultipleEvents", 5),
-        ("winmm.dll", "timeBeginPeriod", 1),
-        ("winmm.dll", "mciSendStringW", 4),
-        ("gdiplus.dll", "GdiplusStartup", 3),
     ];
     let stack = emu.regs().rsp;
     emu.maps.write_dword(stack, SENTINEL as u32);

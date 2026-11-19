@@ -1,15 +1,17 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CreateCursor(emu: &mut emu::Emu) {
-    let hinstance = emu.regs().rcx;
-    let x_hotspot = emu.regs().rdx as i32;
-    let y_hotspot = emu.regs().r8 as i32;
-    let width = emu.regs().r9 as i32;
-    let height = WinApiAbi::arg(emu, 4) as i32;
-    let and_plane = WinApiAbi::arg(emu, 5);
-    let xor_plane = WinApiAbi::arg(emu, 6);
+    let call = WinApi(Stdcall);
+    let hinstance = api_try!(emu, call.arg(emu, 0));
+    let x_hotspot = api_try!(emu, call.arg_i32(emu, 1));
+    let y_hotspot = api_try!(emu, call.arg_i32(emu, 2));
+    let width = api_try!(emu, call.arg_i32(emu, 3));
+    let height = api_try!(emu, call.arg_i32(emu, 4));
+    let and_plane = api_try!(emu, call.arg(emu, 5));
+    let xor_plane = api_try!(emu, call.arg(emu, 6));
     log_red!(
         emu,
         "user32!CreateCursor hinst:0x{:x} hot:({},{}) size:{}x{}",
@@ -20,5 +22,5 @@ pub fn CreateCursor(emu: &mut emu::Emu) {
         height
     );
     let hndl = helper::handler_create("user32://CreateCursor");
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

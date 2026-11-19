@@ -4,9 +4,9 @@ use std::cmp::Ordering;
 
 use chrono::{Datelike, Duration, NaiveDate, NaiveDateTime, Timelike};
 
+use crate::api::abi::windows::{ArgumentError, CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::winapi::common::memory::Call;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 const VARIANT_TRUE: i16 = -1;
@@ -46,10 +46,11 @@ impl FloatWidth {
         }
     }
 
-    fn read(self, emu: &Emu) -> f64 {
+    fn read(self, emu: &Emu) -> Result<f64, ArgumentError> {
+        let call = WinApi(Stdcall);
         match self {
-            Self::Single => WinApiAbi::f32_arg(emu, 0, 0) as f64,
-            Self::Double => WinApiAbi::f64_arg(emu, 0, 0),
+            Self::Single => call.arg_f32(emu, 0, 0).map(f64::from),
+            Self::Double => call.arg_f64(emu, 0, 0),
         }
     }
 }
@@ -122,8 +123,9 @@ fn output(emu: &mut Emu, pointer: u64, bytes: &[u8]) -> Result<(), u64> {
     Ok(())
 }
 
-fn after_float(emu: &Emu, index: usize, x86_word: usize) -> u64 {
-    WinApiAbi::arg(
+fn after_float(emu: &Emu, index: usize, x86_word: usize) -> Result<u64, ArgumentError> {
+    let call = WinApi(Stdcall);
+    call.arg(
         emu,
         if emu.cfg.arch.is_64bits() {
             index
@@ -134,8 +136,9 @@ fn after_float(emu: &Emu, index: usize, x86_word: usize) -> u64 {
 }
 
 pub(crate) fn convert(emu: &mut Emu, api: &str, width: FloatWidth, number: Number) {
-    let value = width.read(emu);
-    let destination = after_float(emu, 1, width.words());
+    let call = WinApi(Stdcall);
+    let value = api_try!(emu, width.read(emu));
+    let destination = api_try!(emu, after_float(emu, 1, width.words()));
     let result = numeric_bytes(value, number).and_then(|bytes| output(emu, destination, &bytes));
     log_red!(
         emu,
@@ -145,15 +148,20 @@ pub(crate) fn convert(emu: &mut Emu, api: &str, width: FloatWidth, number: Numbe
         destination,
         result
     );
-    Call::Api.finish(emu, result.err().unwrap_or(S_OK), width.words() + 1);
+    call.set_return(emu, result.err().unwrap_or(S_OK));
+    call.cleanup_args(emu, width.words() + 1);
 }
 
 /// Locale-dependent formatting and full DECIMAL rounding remain unmodelled.
 /// Read the correct FP ABI and fail without modifying the caller's output.
 pub(crate) fn unsupported_conversion(emu: &mut Emu, api: &str, width: FloatWidth, locale: bool) {
-    let value = width.read(emu);
+    let call = WinApi(Stdcall);
+    let value = api_try!(emu, width.read(emu));
     let pointer_index = if locale { 3 } else { 1 };
-    let destination = after_float(emu, pointer_index, width.words() + pointer_index - 1);
+    let destination = api_try!(
+        emu,
+        after_float(emu, pointer_index, width.words() + pointer_index - 1)
+    );
     log_red!(
         emu,
         "oleaut32!{} {} destination:0x{:x} not implemented",
@@ -161,7 +169,8 @@ pub(crate) fn unsupported_conversion(emu: &mut Emu, api: &str, width: FloatWidth
         value,
         destination
     );
-    Call::Api.finish(emu, E_NOTIMPL, width.words() + pointer_index);
+    call.set_return(emu, E_NOTIMPL);
+    call.cleanup_args(emu, width.words() + pointer_index);
 }
 
 fn compare(left: f64, right: f64) -> u64 {
@@ -174,19 +183,23 @@ fn compare(left: f64, right: f64) -> u64 {
 }
 
 pub(crate) fn compare_single(emu: &mut Emu) {
-    let left = WinApiAbi::f32_arg(emu, 0, 0) as f64;
-    let right = WinApiAbi::f64_arg(emu, 1, 1);
+    let call = WinApi(Stdcall);
+    let left = api_try!(emu, call.arg_f32(emu, 0, 0)) as f64;
+    let right = api_try!(emu, call.arg_f64(emu, 1, 1));
     let value = compare(left, right);
     log_red!(emu, "oleaut32!VarR4CmpR8 {} {} => {}", left, right, value);
-    Call::Api.finish(emu, value, 3);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn compare_currency(emu: &mut Emu) {
-    let left = WinApiAbi::arg64(emu, 0) as i64 as f64 / CURRENCY_SCALE;
-    let right = WinApiAbi::f64_arg(emu, 1, 2);
+    let call = WinApi(Stdcall);
+    let left = api_try!(emu, call.arg_i64(emu, 0)) as f64 / CURRENCY_SCALE;
+    let right = api_try!(emu, call.arg_f64(emu, 1, 2));
     let value = compare(left, right);
     log_red!(emu, "oleaut32!VarCyCmpR8 {} {} => {}", left, right, value);
-    Call::Api.finish(emu, value, 4);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 4);
 }
 
 fn read_decimal(emu: &Emu, address: u64) -> Option<f64> {
@@ -211,8 +224,9 @@ fn read_decimal(emu: &Emu, address: u64) -> Option<f64> {
 }
 
 pub(crate) fn compare_decimal(emu: &mut Emu) {
-    let address = WinApiAbi::arg(emu, 0);
-    let right = WinApiAbi::f64_arg(emu, 1, 1);
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
+    let right = api_try!(emu, call.arg_f64(emu, 1, 1));
     let value =
         read_decimal(emu, address).map_or(HRESULT_E_INVALID_ARG, |left| compare(left, right));
     log_red!(
@@ -222,13 +236,15 @@ pub(crate) fn compare_decimal(emu: &mut Emu) {
         right,
         value
     );
-    Call::Api.finish(emu, value, 3);
+    call.set_return(emu, value);
+    call.cleanup_args(emu, 3);
 }
 
 pub(crate) fn power(emu: &mut Emu) {
-    let left = WinApiAbi::f64_arg(emu, 0, 0);
-    let right = WinApiAbi::f64_arg(emu, 1, 2);
-    let destination = after_float(emu, 2, 4);
+    let call = WinApi(Stdcall);
+    let left = api_try!(emu, call.arg_f64(emu, 0, 0));
+    let right = api_try!(emu, call.arg_f64(emu, 1, 2));
+    let destination = api_try!(emu, after_float(emu, 2, 4));
     let value = left.powf(right);
     let result = if value.is_finite() {
         output(emu, destination, &value.to_le_bytes())
@@ -236,13 +252,15 @@ pub(crate) fn power(emu: &mut Emu) {
         Err(DISP_E_OVERFLOW)
     };
     log_red!(emu, "oleaut32!VarR8Pow {} {} => {:?}", left, right, result);
-    Call::Api.finish(emu, result.err().unwrap_or(S_OK), 5);
+    call.set_return(emu, result.err().unwrap_or(S_OK));
+    call.cleanup_args(emu, 5);
 }
 
 pub(crate) fn round(emu: &mut Emu) {
-    let value = WinApiAbi::f64_arg(emu, 0, 0);
-    let decimals = after_float(emu, 1, 2) as i32;
-    let destination = after_float(emu, 2, 3);
+    let call = WinApi(Stdcall);
+    let value = api_try!(emu, call.arg_f64(emu, 0, 0));
+    let decimals = api_try!(emu, after_float(emu, 1, 2)) as i32;
+    let destination = api_try!(emu, after_float(emu, 2, 3));
     let result = if decimals < 0 {
         Err(HRESULT_E_INVALID_ARG)
     } else {
@@ -262,7 +280,8 @@ pub(crate) fn round(emu: &mut Emu) {
         decimals,
         result
     );
-    Call::Api.finish(emu, result.err().unwrap_or(S_OK), 4);
+    call.set_return(emu, result.err().unwrap_or(S_OK));
+    call.cleanup_args(emu, 4);
 }
 
 fn variant_date(value: f64) -> Option<NaiveDateTime> {
@@ -296,14 +315,18 @@ fn system_time_bytes(date: NaiveDateTime) -> Vec<u8> {
 }
 
 pub(crate) fn to_system_time(emu: &mut Emu, unpacked: bool) {
-    let value = WinApiAbi::f64_arg(emu, 0, 0);
-    let destination = after_float(
+    let call = WinApi(Stdcall);
+    let value = api_try!(emu, call.arg_f64(emu, 0, 0));
+    let destination = api_try!(
         emu,
-        if unpacked { 2 } else { 1 },
-        if unpacked { 3 } else { 2 },
+        after_float(
+            emu,
+            if unpacked { 2 } else { 1 },
+            if unpacked { 3 } else { 2 },
+        )
     );
     let flags = if unpacked {
-        after_float(emu, 1, 2) as u32
+        api_try!(emu, after_float(emu, 1, 2)) as u32
     } else {
         0
     };
@@ -338,13 +361,15 @@ pub(crate) fn to_system_time(emu: &mut Emu, unpacked: bool) {
     } else {
         result.is_ok() as u64
     };
-    Call::Api.finish(emu, status, if unpacked { 4 } else { 3 });
+    call.set_return(emu, status);
+    call.cleanup_args(emu, if unpacked { 4 } else { 3 });
 }
 
 pub(crate) fn to_dos_time(emu: &mut Emu) {
-    let value = WinApiAbi::f64_arg(emu, 0, 0);
-    let date_pointer = after_float(emu, 1, 2);
-    let time_pointer = after_float(emu, 2, 3);
+    let call = WinApi(Stdcall);
+    let value = api_try!(emu, call.arg_f64(emu, 0, 0));
+    let date_pointer = api_try!(emu, after_float(emu, 1, 2));
+    let time_pointer = api_try!(emu, after_float(emu, 2, 3));
     let result = variant_date(value)
         .filter(|d| (DOS_YEAR_START..=DOS_YEAR_END).contains(&d.year()))
         .ok_or(HRESULT_E_INVALID_ARG)
@@ -375,5 +400,6 @@ pub(crate) fn to_dos_time(emu: &mut Emu) {
         value,
         result
     );
-    Call::Api.finish(emu, result.is_ok() as u64, 4);
+    call.set_return(emu, result.is_ok() as u64);
+    call.cleanup_args(emu, 4);
 }

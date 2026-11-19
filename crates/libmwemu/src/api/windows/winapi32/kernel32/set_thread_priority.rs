@@ -1,13 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn SetThreadPriority(emu: &mut emu::Emu) {
-    let p0 = WinApiAbi::arg(emu, 0);
-    let p1 = WinApiAbi::arg(emu, 1);
+    let call = WinApi(Stdcall);
+    let p0 = api_try!(emu, call.arg(emu, 0));
+    let p1 = api_try!(emu, call.arg(emu, 1));
     log_red!(emu, "kernel32!SetThreadPriority p1:0x{:x}", p1);
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 2);
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

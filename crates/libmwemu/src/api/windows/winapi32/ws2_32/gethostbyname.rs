@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 use crate::windows::structures::Hostent;
 
 pub fn gethostbyname(emu: &mut emu::Emu) {
-    let name = emu.maps.read_string(arg(emu, 0) as u64);
+    let call = WinApi(Stdcall);
+    let name = emu
+        .maps
+        .read_string(api_try!(emu, call.arg_u32(emu, 0)) as u64);
     log_red!(emu, "ws2_32!gethostbyname `{}`", name);
     // One block holds the hostent, the address and the name string; the
     // resolved address is a fixed 1.2.3.4 so callers get a well-formed result.
@@ -13,8 +16,8 @@ pub fn gethostbyname(emu: &mut emu::Emu) {
         Some(a) => a,
         None => {
             log::error!("ws2_32!gethostbyname: out of memory");
-            emu.stack_pop32(false);
-            emu.regs_mut().rax = 0;
+            call.cleanup_args(emu, 1);
+            call.set_return(emu, 0);
             return;
         }
     };
@@ -24,8 +27,8 @@ pub fn gethostbyname(emu: &mut emu::Emu) {
         .is_err()
     {
         log::error!("ws2_32!gethostbyname: cannot create hostent map");
-        emu.stack_pop32(false);
-        emu.regs_mut().rax = 0;
+        call.cleanup_args(emu, 1);
+        call.set_return(emu, 0);
         return;
     }
     let name_addr = block + 1024 - 100;
@@ -41,6 +44,6 @@ pub fn gethostbyname(emu: &mut emu::Emu) {
     emu.maps.write_word(hostent + 10, 4);
     emu.maps.write_dword(hostent + 12, (block + 8) as u32);
     let _ = Hostent::size();
-    emu.regs_mut().rax = hostent;
-    stdcall_ret(emu, 1);
+    call.set_return(emu, hostent);
+    call.cleanup_args(emu, 1);
 }

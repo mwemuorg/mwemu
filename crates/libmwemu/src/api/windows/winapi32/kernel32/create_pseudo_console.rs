@@ -1,9 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
-use crate::winapi::winapi32::stdcall_ret;
 
 pub fn CreatePseudoConsole(emu: &mut emu::Emu) {
+    let call = WinApi(Stdcall);
     log_red!(emu, "kernel32!CreatePseudoConsole");
-    emu.regs_mut().rax = helper::handler_create("CreatePseudoConsole");
-    stdcall_ret(emu, 5);
+    call.set_return(emu, helper::handler_create("CreatePseudoConsole"));
+    call.cleanup_args(emu, 5);
 }

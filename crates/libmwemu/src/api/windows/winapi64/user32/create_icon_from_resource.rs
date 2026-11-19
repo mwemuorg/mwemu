@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn CreateIconFromResource(emu: &mut emu::Emu) {
-    let presbits = emu.regs().rcx;
-    let dw_res_size = emu.regs().rdx as u32;
-    let is_icon = emu.regs().r8 as u32;
-    let dw_ver = emu.regs().r9 as u32;
+    let call = WinApi(Stdcall);
+    let presbits = api_try!(emu, call.arg(emu, 0));
+    let dw_res_size = api_try!(emu, call.arg_u32(emu, 1));
+    let is_icon = api_try!(emu, call.arg_u32(emu, 2));
+    let dw_ver = api_try!(emu, call.arg_u32(emu, 3));
     log_red!(
         emu,
         "user32!CreateIconFromResource data:0x{:x} size:{} icon:{} ver:0x{:x}",
@@ -15,5 +18,5 @@ pub fn CreateIconFromResource(emu: &mut emu::Emu) {
         dw_ver
     );
     let hndl = helper::handler_create("user32://CreateIconFromResource");
-    emu.regs_mut().rax = hndl;
+    call.set_return(emu, hndl);
 }

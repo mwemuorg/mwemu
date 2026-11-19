@@ -1,10 +1,13 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn AddAccessAllowedAce(emu: &mut emu::Emu) {
-    let acl_ptr = emu.regs().rcx;
-    let ace_revision = emu.regs().rdx as u32;
-    let access_mask = emu.regs().r8 as u32;
-    let sid_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let acl_ptr = api_try!(emu, call.arg(emu, 0));
+    let ace_revision = api_try!(emu, call.arg_u32(emu, 1));
+    let access_mask = api_try!(emu, call.arg_u32(emu, 2));
+    let sid_ptr = api_try!(emu, call.arg(emu, 3));
     if acl_ptr != 0 && sid_ptr != 0 {
         let sub_count = emu.maps.read_byte(sid_ptr + 1).unwrap_or(1) as u32;
         let sid_len = 8 + sub_count * 4;
@@ -38,5 +41,5 @@ pub fn AddAccessAllowedAce(emu: &mut emu::Emu) {
         sid_ptr
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

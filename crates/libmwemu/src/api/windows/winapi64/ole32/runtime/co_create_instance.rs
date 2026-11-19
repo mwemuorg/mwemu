@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::winapi::winapi64::ole32::read_guid_string;
 
 pub fn CoCreateInstance(emu: &mut emu::Emu) {
-    let rclsid = emu.regs().rcx;
-    let _punk_outer = emu.regs().rdx;
-    let dw_cls_context = emu.regs().r8;
-    let riid = emu.regs().r9;
-    let ppv = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let rclsid = api_try!(emu, call.arg(emu, 0));
+    let _punk_outer = api_try!(emu, call.arg(emu, 1));
+    let dw_cls_context = api_try!(emu, call.arg(emu, 2));
+    let riid = api_try!(emu, call.arg(emu, 3));
+    let ppv = api_try!(emu, call.arg(emu, 4));
 
     let clsid_str = if rclsid != 0 {
         read_guid_string(emu, rclsid)
@@ -34,5 +36,5 @@ pub fn CoCreateInstance(emu: &mut emu::Emu) {
     }
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = 0x80040154; // REGDB_E_CLASSNOTREG
+    call.set_return(emu, 0x80040154); // REGDB_E_CLASSNOTREG
 }

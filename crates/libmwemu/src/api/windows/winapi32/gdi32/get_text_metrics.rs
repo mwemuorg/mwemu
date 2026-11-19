@@ -1,15 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn GetTextMetricsA(emu: &mut emu::Emu) {
     get_text_metrics(emu, "GetTextMetricsA");
 }
 
 fn get_text_metrics(emu: &mut emu::Emu, api: &str) {
-    let hdc = arg(emu, 0);
-    let tm = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let hdc = api_try!(emu, call.arg_u32(emu, 0));
+    let tm = api_try!(emu, call.arg_u32(emu, 1)) as u64;
     if tm != 0 {
         emu.maps.write_dword(tm, 16); // tmHeight
         emu.maps.write_dword(tm + 4, 13); // tmAscent
@@ -20,11 +20,9 @@ fn get_text_metrics(emu: &mut emu::Emu, api: &str) {
         emu.maps.write_dword(tm + 24, 14); // tmMaxCharWidth
     }
 
-    let arg1 = WinApiAbi::arg(emu, 0);
-    let arg2 = WinApiAbi::arg(emu, 1);
-    log_red!(emu, "gdi32!{api} arg1:0x{:x} arg2:0x{:x}", arg1, arg2);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 2);
+    log_red!(emu, "gdi32!{api} hdc:0x{:x} tm:0x{:x}", hdc, tm);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 2);
 }
 
 pub fn GetTextMetricsW(emu: &mut emu::Emu) {

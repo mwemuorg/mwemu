@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn _strupr(emu: &mut emu::Emu, api: &str) {
-    let s_ptr = emu.regs().rcx;
+    let call = WinApi(Cdecl);
+    let s_ptr = api_try!(emu, call.arg(emu, 0));
     let s = emu.maps.read_string(s_ptr);
     let upper = s.to_ascii_uppercase();
     if s_ptr != 0 {
@@ -9,5 +12,5 @@ pub fn _strupr(emu: &mut emu::Emu, api: &str) {
     }
     log_red!(emu, "msvcrt!{} '{}' => '{}'", api, s, upper);
     emu.set_last_error(0);
-    emu.regs_mut().rax = s_ptr;
+    call.set_return(emu, s_ptr);
 }

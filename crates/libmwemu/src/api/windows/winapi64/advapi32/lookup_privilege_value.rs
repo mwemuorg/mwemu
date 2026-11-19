@@ -1,22 +1,26 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn LookupPrivilegeValueA(emu: &mut emu::Emu) {
-    let system_ptr = emu.regs().rcx;
-    let name_ptr = emu.regs().rdx;
-    let luid_ptr = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let system_ptr = api_try!(emu, call.arg(emu, 0));
+    let name_ptr = api_try!(emu, call.arg(emu, 1));
+    let luid_ptr = api_try!(emu, call.arg(emu, 2));
     let name = emu.maps.read_string(name_ptr);
     if luid_ptr != 0 {
         emu.maps.write_dword(luid_ptr, 20);
         emu.maps.write_dword(luid_ptr + 4, 0);
     }
     log_red!(emu, "advapi32!LookupPrivilegeValueA name:'{}'", name);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }
 
 pub(super) fn LookupPrivilegeValueW(emu: &mut emu::Emu) {
-    let ptr_sysname = emu.regs().rcx;
-    let ptr_name = emu.regs().rdx;
-    let ptr_uid = emu.regs().r8;
+    let call = WinApi(Stdcall);
+    let ptr_sysname = api_try!(emu, call.arg(emu, 0));
+    let ptr_name = api_try!(emu, call.arg(emu, 1));
+    let ptr_uid = api_try!(emu, call.arg(emu, 2));
 
     let sysname = emu.maps.read_wide_string(ptr_sysname);
     let name = emu.maps.read_wide_string(ptr_name);
@@ -42,5 +46,5 @@ pub(super) fn LookupPrivilegeValueW(emu: &mut emu::Emu) {
         emu.maps.write_qword(ptr_uid, luid);
     }
 
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

@@ -1,9 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn __FC_Unsubscribe(emu: &mut emu::Emu) {
-    let param1 = emu.regs().rcx;
-    let param2 = emu.regs().rdx;
+    let call = WinApi(Stdcall);
+    let param1 = api_try!(emu, call.arg(emu, 0));
+    let param2 = api_try!(emu, call.arg(emu, 1));
     log_red!(
         emu,
         "kernelbase!__FC_Unsubscribe {}:0x{:x} {}:0x{:x}",
@@ -12,10 +15,10 @@ pub fn __FC_Unsubscribe(emu: &mut emu::Emu) {
         "param2",
         param2
     );
-    let h = emu.regs().rcx;
+    let h = api_try!(emu, call.arg(emu, 0));
     if helper::handler_exist(h) {
         helper::handler_close(h);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1; // success
+    call.set_return(emu, 1); // success
 }

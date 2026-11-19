@@ -1,7 +1,7 @@
-use crate::api::windows::common::{fallback, memory as memory_api, memory::Call, nt_api};
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
+use crate::api::windows::common::{fallback, memory as memory_api, nt_api};
 use crate::emu;
 use crate::winapi::winapi32::kernel32;
-use crate::windows::constants::errors::*;
 
 mod file;
 mod heap;
@@ -17,9 +17,10 @@ pub use heap::{RtlAllocateHeap, RtlReAllocateHeap};
 pub use misc::RtlDecompressBuffer;
 
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
+    let call = WinApi(Stdcall);
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    if memory_api::dispatch_nt(api, emu, Call::Api) {
+    if memory_api::dispatch_nt(api, emu, call) {
         return String::new();
     }
     // Normalize all Zw aliases, then give real implementations priority.
@@ -36,9 +37,5 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         return String::new();
     }
 
-    // A known NT signature has a defined failure result even in strict mode.
-    if let Some(words) = nt_api::signature(dispatch_name) {
-        return fallback::return_value(addr, api, words, STATUS_NOT_IMPLEMENTED, emu);
-    }
     fallback::unimplemented(addr, api, emu)
 }

@@ -1,11 +1,14 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 
 pub fn WSAAsyncGetServByPort(emu: &mut emu::Emu) {
-    let hwnd = emu.regs().rcx;
-    let msg = emu.regs().rdx as u32;
-    let port = emu.regs().r8 as u32;
-    let proto_ptr = emu.regs().r9;
+    let call = WinApi(Stdcall);
+    let hwnd = api_try!(emu, call.arg(emu, 0));
+    let msg = api_try!(emu, call.arg_u32(emu, 1));
+    let port = api_try!(emu, call.arg_u32(emu, 2));
+    let proto_ptr = api_try!(emu, call.arg(emu, 3));
     log_red!(
         emu,
         "ws2_32!WSAAsyncGetServByPort hwnd:0x{:x} port:{}",
@@ -13,5 +16,5 @@ pub fn WSAAsyncGetServByPort(emu: &mut emu::Emu) {
         port
     );
     let handle = helper::handler_create("wsa_async_task");
-    emu.regs_mut().rax = handle;
+    call.set_return(emu, handle);
 }

@@ -1,6 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 
 pub fn WriteConsoleA(emu: &mut Emu) {
@@ -12,10 +13,12 @@ pub fn WriteConsoleW(emu: &mut Emu) {
 }
 
 fn invoke(emu: &mut Emu, wide: bool, api: &str) {
-    let input = emu.regs().rdx;
-    let count = emu.regs().r8 as u32;
-    let written = emu.regs().r9;
-    let reserved = WinApiAbi::arg(emu, 4);
+    let call = WinApi(Stdcall);
+    let argument_0 = api_try!(emu, call.arg(emu, 0));
+    let input = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, call.arg_u32(emu, 2));
+    let written = api_try!(emu, call.arg(emu, 3));
+    let reserved = api_try!(emu, call.arg(emu, 4));
     let size = count as usize
         * if wide {
             size_of::<u16>()
@@ -26,7 +29,7 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
         emu,
         "kernel32!{} handle:0x{:x} input:0x{:x} count:{}",
         api,
-        emu.regs().rcx,
+        argument_0,
         input,
         count
     );
@@ -42,5 +45,5 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
     if error != ERROR_SUCCESS {
         emu.set_last_error(error);
     }
-    emu.regs_mut().rax = (error == ERROR_SUCCESS) as u64;
+    call.set_return(emu, (error == ERROR_SUCCESS) as u64);
 }

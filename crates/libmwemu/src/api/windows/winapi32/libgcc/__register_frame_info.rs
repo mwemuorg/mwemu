@@ -1,10 +1,12 @@
+use crate::api::abi::windows::{CallingConvention::Cdecl, WindowsAbi::WinApi};
 use crate::emu;
 use crate::maps::mem64::Permission;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub(super) fn __register_frame_info(emu: &mut emu::Emu) {
-    let p1 = WinApiAbi::arg(emu, 0) as u32;
-    let p2 = WinApiAbi::arg(emu, 1) as u32;
+    let call = WinApi(Cdecl);
+    let p1 = api_try!(emu, call.arg_u32(emu, 0));
+    let p2 = api_try!(emu, call.arg_u32(emu, 1));
 
     log_red!(emu, "libgcc!__register_frame_info {:x} {:x}", p1, p2);
 
@@ -20,9 +22,7 @@ pub(super) fn __register_frame_info(emu: &mut emu::Emu) {
                     "libgcc!__register_frame_info: cannot create glob1 map: {}",
                     e
                 );
-                for _ in 0..2 {
-                    emu.stack_pop32(false);
-                }
+                call.cleanup_args(emu, 2);
                 return;
             }
         },
@@ -30,8 +30,6 @@ pub(super) fn __register_frame_info(emu: &mut emu::Emu) {
 
     mem.write_dword(0x40E198, 0x6e940000);
 
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
-    emu.regs_mut().rax = 1;
+    call.cleanup_args(emu, 2);
+    call.set_return(emu, 1);
 }

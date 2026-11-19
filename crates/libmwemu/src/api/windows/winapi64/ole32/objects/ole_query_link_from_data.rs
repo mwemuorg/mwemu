@@ -1,7 +1,10 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
+use crate::winapi::policy::api_try;
 
 pub fn OleQueryLinkFromData(emu: &mut emu::Emu) {
-    let pdata_src = emu.regs().rcx;
+    let call = WinApi(Stdcall);
+    let pdata_src = api_try!(emu, call.arg(emu, 0));
     log_red!(
         emu,
         "ole32!OleQueryLinkFromData pSrcDataObj:0x{:x}",
@@ -11,5 +14,5 @@ pub fn OleQueryLinkFromData(emu: &mut emu::Emu) {
         let _ = emu.maps.read_qword(pdata_src).unwrap_or(0);
     }
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
+    call.set_return(emu, 1);
 }

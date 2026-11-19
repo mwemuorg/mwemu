@@ -1,24 +1,27 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
-use crate::winapi::common::memory::Call;
 use crate::winapi::common::sections;
 use crate::winapi::helper;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 use crate::windows::constants::process::*;
 
 pub(crate) fn current_handle(emu: &mut Emu, api: &str, thread: bool) {
+    let call = WinApi(Stdcall);
     let handle = if thread {
         NT_CURRENT_THREAD
     } else {
         NT_CURRENT_PROCESS
     };
     log_red!(emu, "{} => 0x{:x}", api, handle);
-    Call::Api.finish(emu, handle, 0);
+    call.set_return(emu, handle);
+    call.cleanup_args(emu, 0);
 }
 
 pub(crate) fn standard_handle(emu: &mut Emu, api: &str) {
-    let call = Call::Api;
-    let selector = call.arg(emu, 0) as u32;
+    let call = WinApi(Stdcall);
+    let selector = api_try!(emu, call.arg_u32(emu, 0));
     let uri = match selector {
         STD_INPUT_HANDLE => Some("stdio://stdin"),
         STD_OUTPUT_HANDLE => Some("stdio://stdout"),
@@ -32,17 +35,19 @@ pub(crate) fn standard_handle(emu: &mut Emu, api: &str) {
         INVALID_HANDLE_VALUE_64
     };
     log_red!(emu, "{} selector:0x{:x} => 0x{:x}", api, selector, handle);
-    call.finish(emu, handle, 1);
+    call.set_return(emu, handle);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn close_handle(emu: &mut Emu, api: &str) {
-    let call = Call::Api;
-    let handle = call.arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let handle = api_try!(emu, call.arg(emu, 0));
     log_red!(emu, "{} handle:0x{:x}", api, handle);
     if !sections::close(emu, handle) && !emu.handle_management.close_handle(handle) {
         helper::handler_close(handle);
     }
-    call.finish(emu, 1, 1);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 1);
 }
 
 pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {

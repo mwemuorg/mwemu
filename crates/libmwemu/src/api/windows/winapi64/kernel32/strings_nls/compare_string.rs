@@ -1,13 +1,15 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
+use crate::winapi::policy::api_try;
 
 pub fn CompareStringA(emu: &mut emu::Emu) {
-    let locale = emu.regs().rcx;
-    let flags = emu.regs().rdx;
-    let s1_ptr = emu.regs().r8;
-    let _len1 = emu.regs().r9 as i32;
-    let s2_ptr = WinApiAbi::arg(emu, 4);
-    let _len2 = WinApiAbi::arg(emu, 5) as i32;
+    let call = WinApi(Stdcall);
+    let locale = api_try!(emu, call.arg(emu, 0));
+    let flags = api_try!(emu, call.arg(emu, 1));
+    let s1_ptr = api_try!(emu, call.arg(emu, 2));
+    let _len1 = api_try!(emu, call.arg_i32(emu, 3));
+    let s2_ptr = api_try!(emu, call.arg(emu, 4));
+    let _len2 = api_try!(emu, call.arg_i32(emu, 5));
     let str1 = emu.maps.read_string(s1_ptr);
     let str2 = if s2_ptr != 0 {
         emu.maps.read_string(s2_ptr)
@@ -34,7 +36,7 @@ pub fn CompareStringA(emu: &mut emu::Emu) {
         str2,
         ret
     );
-    emu.regs_mut().rax = ret;
+    call.set_return(emu, ret);
 }
 
 /*
@@ -49,13 +51,14 @@ int CompareStringW(
 */
 
 pub fn CompareStringW(emu: &mut emu::Emu) {
-    let locale = emu.regs().rcx;
-    let dw_cmp_flags = emu.regs().rdx;
-    let lp_string1 = emu.regs().r8;
-    let cch_count1 = emu.regs().r9 as i32; // ✅ Fixed: no multiplication
+    let call = WinApi(Stdcall);
+    let locale = api_try!(emu, call.arg(emu, 0));
+    let dw_cmp_flags = api_try!(emu, call.arg(emu, 1));
+    let lp_string1 = api_try!(emu, call.arg(emu, 2));
+    let cch_count1 = api_try!(emu, call.arg_i32(emu, 3)); // ✅ Fixed: no multiplication
 
-    let lp_string2 = WinApiAbi::arg(emu, 4);
-    let cch_count2 = WinApiAbi::arg(emu, 5) as i32;
+    let lp_string2 = api_try!(emu, call.arg(emu, 4));
+    let cch_count2 = api_try!(emu, call.arg_i32(emu, 5));
 
     log_red!(
         emu,
@@ -111,5 +114,5 @@ pub fn CompareStringW(emu: &mut emu::Emu) {
     log::trace!("\t\t'{}' == '{}'  ={}", s1, s2, result);
 
     emu.set_last_error(0);
-    emu.regs_mut().rax = result as u64;
+    call.set_return(emu, result as u64);
 }

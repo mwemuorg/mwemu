@@ -1,5 +1,7 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::winapi::common::strings;
+use crate::winapi::policy::api_try;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::files::*;
 
@@ -12,9 +14,10 @@ pub fn QueryDosDeviceW(emu: &mut Emu) {
 }
 
 fn invoke(emu: &mut Emu, wide: bool, api: &str) {
-    let input = emu.regs().rcx;
-    let output = emu.regs().rdx;
-    let capacity = emu.regs().r8 as u32;
+    let call = WinApi(Stdcall);
+    let input = api_try!(emu, call.arg(emu, 0));
+    let output = api_try!(emu, call.arg(emu, 1));
+    let capacity = api_try!(emu, call.arg_u32(emu, 2));
     let device = strings::read_text(emu, input, wide);
     log_red!(
         emu,
@@ -30,7 +33,7 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
         SYSTEM_VOLUME_DEVICE
     } else {
         emu.set_last_error(ERROR_FILE_NOT_FOUND);
-        emu.regs_mut().rax = 0;
+        call.set_return(emu, 0);
         return;
     };
     let bytes = strings::encode_text(&format!("{text}\0\0"), wide);
@@ -40,7 +43,7 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
         } else {
             size_of::<u8>()
         };
-    emu.regs_mut().rax = if (capacity as usize) < count || output == 0 {
+    let return_value = if (capacity as usize) < count || output == 0 {
         emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
         0
     } else if !emu.maps.validate_write_range(output, bytes.len() as u64)
@@ -51,4 +54,5 @@ fn invoke(emu: &mut Emu, wide: bool, api: &str) {
     } else {
         count as u64
     };
+    call.set_return(emu, return_value);
 }

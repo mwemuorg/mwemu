@@ -6,7 +6,7 @@ use std::{
 use crate::emu::Emu;
 use crate::serialization::emu::SerializableEmu;
 use crate::serialization::legacy_maps::{LegacySerializableMaps, RangeMem64};
-use crate::serialization::native::NativeSnapshot;
+use crate::serialization::native::{NativeSnapshot, NativeSnapshotV3, NativeSnapshotV4};
 
 pub mod emu;
 mod fpu;
@@ -14,11 +14,13 @@ mod instant;
 mod legacy_maps;
 pub mod maps;
 mod minidump;
-mod native;
+pub(crate) mod native;
 mod pe32;
 mod pe64;
 mod thread_context;
 
+const NATIVE_V5_MAGIC: &[u8; 8] = b"MWEMU\0\x05\0";
+const NATIVE_V4_MAGIC: &[u8; 8] = b"MWEMU\0\x04\0";
 const NATIVE_V3_MAGIC: &[u8; 8] = b"MWEMU\0\x03\0";
 const NATIVE_V2_MAGIC: &[u8; 8] = b"MWEMU\0\x02\0";
 
@@ -27,14 +29,20 @@ pub struct Serialization;
 impl Serialization {
     pub fn serialize(emu: &Emu) -> Vec<u8> {
         let serialized = NativeSnapshot::from(emu);
-        let mut data = NATIVE_V3_MAGIC.to_vec();
+        let mut data = NATIVE_V5_MAGIC.to_vec();
         data.extend(bitcode::serialize(&serialized).unwrap());
         data
     }
 
     pub fn deserialize(data: &[u8]) -> Emu {
-        if let Some(payload) = data.strip_prefix(NATIVE_V3_MAGIC) {
+        if let Some(payload) = data.strip_prefix(NATIVE_V5_MAGIC) {
             let state: NativeSnapshot = bitcode::deserialize(payload).unwrap();
+            state.into()
+        } else if let Some(payload) = data.strip_prefix(NATIVE_V4_MAGIC) {
+            let state: NativeSnapshotV4 = bitcode::deserialize(payload).unwrap();
+            state.into()
+        } else if let Some(payload) = data.strip_prefix(NATIVE_V3_MAGIC) {
+            let state: NativeSnapshotV3 = bitcode::deserialize(payload).unwrap();
             state.into()
         } else if let Some(payload) = data.strip_prefix(NATIVE_V2_MAGIC) {
             let state: SerializableEmu<LegacySerializableMaps<RangeMem64>> =

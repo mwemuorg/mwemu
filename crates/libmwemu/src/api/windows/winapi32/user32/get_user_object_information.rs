@@ -1,11 +1,11 @@
+use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu;
-use crate::winapi::helper::WinApiAbi;
-use crate::winapi::winapi32::arg;
-use crate::winapi::winapi32::stdcall_ret;
+use crate::winapi::policy::api_try;
 
 pub fn GetUserObjectInformationA(emu: &mut emu::Emu) {
-    let a0 = arg(emu, 0) as u64;
-    let a1 = arg(emu, 1) as u64;
+    let call = WinApi(Stdcall);
+    let a0 = api_try!(emu, call.arg_u32(emu, 0)) as u64;
+    let a1 = api_try!(emu, call.arg_u32(emu, 1)) as u64;
     log_red!(
         emu,
         "user32!GetUserObjectInformationA arg0:0x{:x} arg1:0x{:x}",
@@ -13,22 +13,21 @@ pub fn GetUserObjectInformationA(emu: &mut emu::Emu) {
         a1
     );
     emu.set_last_error(0);
-    emu.regs_mut().rax = 1;
-    stdcall_ret(emu, 5);
+    call.set_return(emu, 1);
+    call.cleanup_args(emu, 5);
 }
 
 pub(super) fn GetUserObjectInformationW(emu: &mut emu::Emu) {
-    let hndl = WinApiAbi::arg(emu, 0);
-    let nidx = WinApiAbi::arg(emu, 0);
-    let out_vinfo = WinApiAbi::arg(emu, 0);
-    let nlen = WinApiAbi::arg(emu, 0);
-    let out_len = WinApiAbi::arg(emu, 0);
+    let call = WinApi(Stdcall);
+    let hndl = api_try!(emu, call.arg(emu, 0));
+    let nidx = api_try!(emu, call.arg(emu, 0));
+    let out_vinfo = api_try!(emu, call.arg(emu, 0));
+    let nlen = api_try!(emu, call.arg(emu, 0));
+    let out_len = api_try!(emu, call.arg(emu, 0));
 
     log_red!(emu, "user32!GetUserObjectInformationW");
 
-    for _ in 0..5 {
-        emu.stack_pop32(false);
-    }
+    call.cleanup_args(emu, 5);
 
-    emu.regs_mut().rax = 1; // get handler
+    call.set_return(emu, 1); // get handler
 }
