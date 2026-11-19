@@ -1,4 +1,5 @@
 use crate::emu;
+use crate::syscall::linux::constants::errors::{EBADF, ENOSYS};
 use crate::syscall::linux::constants::syscalls::*;
 
 use crate::winapi::helper;
@@ -7,8 +8,17 @@ use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
+const F_GETFD: u32 = 1;
+const F_GETFL: u32 = 3;
+const STDIN_FILENO: u32 = 0;
+const STDOUT_FILENO: u32 = 1;
+const STDERR_FILENO: u32 = 2;
+const O_RDONLY: u64 = 0;
+const O_WRONLY: u64 = 1;
+
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
+        NR64_FCNTL => fcntl(emu),
         NR64_READ => handle_syscall64_read(emu),
         NR64_PREAD64 => handle_syscall64_pread64(emu),
         NR64_WRITEV => handle_syscall64_writev(emu),
@@ -460,5 +470,24 @@ pub(super) fn handle_syscall64_lseek(emu: &mut emu::Emu) {
         whence,
         new,
         emu.colors.nc
+    );
+}
+
+fn fcntl(emu: &mut emu::Emu) {
+    let fd = emu.regs().rdi as u32;
+    let cmd = emu.regs().rsi as u32;
+    // Standard streams are always open in this model. Other descriptors do
+    // not yet track fcntl flags; do not invent their state or accept setters.
+    emu.regs_mut().rax = match (fd, cmd) {
+        (STDIN_FILENO..=STDERR_FILENO, F_GETFD) => 0,
+        (STDIN_FILENO, F_GETFL) => O_RDONLY,
+        (STDOUT_FILENO | STDERR_FILENO, F_GETFL) => O_WRONLY,
+        (STDIN_FILENO..=STDERR_FILENO, _) => ENOSYS,
+        _ if helper::handler_exist(fd as u64) || helper::socket_exist(fd as u64) => ENOSYS,
+        _ => EBADF,
+    };
+    log::trace!(
+        "syscall fcntl(fd:{fd} cmd:{cmd}) ={}",
+        emu.regs().rax as i64
     );
 }

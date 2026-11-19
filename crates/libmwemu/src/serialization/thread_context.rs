@@ -141,6 +141,7 @@ impl From<SerializableThreadContext> for ThreadContext {
             wake_tick: serialized.wake_tick,
             blocked_on_cs: serialized.blocked_on_cs,
             clear_child_tid: serialized.clear_child_tid,
+            signal_stack: Default::default(),
             handle: serialized.handle,
             exit_value: None,
             joining: None,

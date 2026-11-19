@@ -7,6 +7,7 @@ use crate::emu::object_handle::{HandleManagement, MemoryHandles};
 use crate::kernel::heap::KernelHeap;
 use crate::maps::heap_allocation::{O1Heap, O1HeapSnapshot};
 use crate::serialization::emu::SerializableEmu;
+use crate::threading::context::SignalStack;
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct NativeSnapshotV3 {
@@ -74,12 +75,12 @@ impl From<NativeSnapshotV4> for Emu {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct NativeSnapshot {
+pub(crate) struct NativeSnapshotV5 {
     state: NativeSnapshotV4,
     unix_api: ApiState,
 }
 
-impl From<&Emu> for NativeSnapshot {
+impl From<&Emu> for NativeSnapshotV5 {
     fn from(emu: &Emu) -> Self {
         Self {
             state: NativeSnapshotV4::from(emu),
@@ -88,10 +89,39 @@ impl From<&Emu> for NativeSnapshot {
     }
 }
 
+impl From<NativeSnapshotV5> for Emu {
+    fn from(snapshot: NativeSnapshotV5) -> Self {
+        let mut emu: Emu = snapshot.state.into();
+        emu.unix_api = snapshot.unix_api;
+        emu
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct NativeSnapshot {
+    state: NativeSnapshotV5,
+    signal_stacks: Vec<SignalStack>,
+}
+
+impl From<&Emu> for NativeSnapshot {
+    fn from(emu: &Emu) -> Self {
+        Self {
+            state: NativeSnapshotV5::from(emu),
+            signal_stacks: emu
+                .threads
+                .iter()
+                .map(|thread| thread.signal_stack)
+                .collect(),
+        }
+    }
+}
+
 impl From<NativeSnapshot> for Emu {
     fn from(snapshot: NativeSnapshot) -> Self {
         let mut emu: Emu = snapshot.state.into();
-        emu.unix_api = snapshot.unix_api;
+        for (thread, stack) in emu.threads.iter_mut().zip(snapshot.signal_stacks) {
+            thread.signal_stack = stack;
+        }
         emu
     }
 }

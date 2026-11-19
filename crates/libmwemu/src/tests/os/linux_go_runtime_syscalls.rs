@@ -4,7 +4,14 @@
 //! clone + futex + per-thread exit, vfork + execve + wait4, and the netpoll
 //! fds (epoll, eventfd, pipe) plus clock_gettime.
 
+use crate::maps::mem64::Permission;
+use crate::serialization::Serialization;
+use crate::serialization::native::NativeSnapshotV5;
+use crate::syscall::linux::constants::errors::{EBADF, EFAULT, EINVAL, ENOMEM, ENOSYS, EPERM};
 use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::constants::system::{
+    MINSIGSTKSZ, SS_AUTODISARM, SS_DISABLE, SS_ONSTACK,
+};
 use crate::syscall::linux::syscall64;
 use crate::tests::helpers;
 use crate::*;
@@ -528,4 +535,164 @@ fn socket_operation_on_eventfd_returns_enotsock() {
     emu.regs_mut().rdi = fd;
     syscall64::gateway(&mut emu);
     assert_eq!(result, -LINUX_ENOTSOCK);
+}
+
+fn syscall(emu: &mut emu::Emu, number: u64, args: &[u64]) -> u64 {
+    let mut registers = [0; 6];
+    registers[..args.len()].copy_from_slice(args);
+    let regs = emu.regs_mut();
+    regs.rax = number;
+    [regs.rdi, regs.rsi, regs.rdx, regs.r10, regs.r8, regs.r9] = registers;
+    syscall64::gateway(emu);
+    emu.regs().rax
+}
+
+#[test]
+fn fcntl_standard_stream_queries_and_unsupported_commands() {
+    const F_GETFD: u64 = 1;
+    const F_SETFD: u64 = 2;
+    const F_GETFL: u64 = 3;
+    const F_SETFL: u64 = 4;
+    const O_RDONLY: u64 = 0;
+    const O_WRONLY: u64 = 1;
+    helpers::setup();
+    let mut emu = emu64();
+    for (fd, mode) in [(0, O_RDONLY), (1, O_WRONLY), (2, O_WRONLY)] {
+        assert_eq!(syscall(&mut emu, NR64_FCNTL, &[fd, F_GETFD]), 0);
+        assert_eq!(syscall(&mut emu, NR64_FCNTL, &[fd, F_GETFL]), mode);
+        for command in [F_SETFD, F_SETFL, u64::MAX] {
+            assert_eq!(syscall(&mut emu, NR64_FCNTL, &[fd, command, 1]), ENOSYS);
+        }
+    }
+    assert_eq!(syscall(&mut emu, NR64_FCNTL, &[u64::MAX, F_GETFD]), EBADF);
+    let fd = syscall(&mut emu, NR64_EVENTFD2, &[]);
+    assert_eq!(syscall(&mut emu, NR64_FCNTL, &[fd, F_GETFD]), ENOSYS);
+    assert_eq!(syscall(&mut emu, NR64_CLOSE, &[fd]), 0);
+    assert_eq!(syscall(&mut emu, NR64_FCNTL, &[fd, F_GETFD]), EBADF);
+}
+
+const SIGNAL_DATA: u64 = 0x80000;
+const SIGNAL_OUTPUT: u64 = SIGNAL_DATA + 0x100;
+const SIGNAL_STACK: u64 = 0x90000;
+const SIGNAL_STACK_SIZE: u64 = 0x4000;
+
+fn signal_emu() -> emu::Emu {
+    helpers::setup();
+    let mut emu = emu64();
+    emu.maps
+        .create_map(
+            "signal data",
+            SIGNAL_DATA,
+            0x1000,
+            Permission::READ | Permission::WRITE,
+        )
+        .unwrap();
+    emu
+}
+
+fn write_signal_stack(emu: &mut emu::Emu, flags: u32, size: u64) {
+    assert!(emu.maps.write_qword(SIGNAL_DATA, SIGNAL_STACK));
+    assert!(emu.maps.write_dword(SIGNAL_DATA + 8, flags));
+    assert!(emu.maps.write_qword(SIGNAL_DATA + 16, size));
+}
+
+fn assert_signal_stack(emu: &emu::Emu, pointer: u64, flags: u32, size: u64) {
+    assert_eq!(emu.maps.read_qword(SIGNAL_OUTPUT), Some(pointer));
+    assert_eq!(emu.maps.read_dword(SIGNAL_OUTPUT + 8), Some(flags));
+    assert_eq!(emu.maps.read_dword(SIGNAL_OUTPUT + 12), Some(0), "padding");
+    assert_eq!(emu.maps.read_qword(SIGNAL_OUTPUT + 16), Some(size));
+}
+
+#[test]
+fn sigaltstack_query_registration_and_disable() {
+    let mut emu = signal_emu();
+    assert!(emu.maps.write_byte(SIGNAL_OUTPUT + 24, 0xa5));
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[0, SIGNAL_OUTPUT]), 0);
+    assert_signal_stack(&emu, 0, SS_DISABLE, 0);
+    write_signal_stack(&mut emu, SS_AUTODISARM, SIGNAL_STACK_SIZE);
+    assert_eq!(
+        syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA, SIGNAL_OUTPUT]),
+        0
+    );
+    assert_signal_stack(&emu, 0, SS_DISABLE, 0);
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[0, SIGNAL_OUTPUT]), 0);
+    assert_signal_stack(&emu, SIGNAL_STACK, SS_AUTODISARM, SIGNAL_STACK_SIZE);
+    write_signal_stack(&mut emu, SS_DISABLE, 1);
+    assert_eq!(
+        syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA, SIGNAL_OUTPUT]),
+        0
+    );
+    assert_signal_stack(&emu, SIGNAL_STACK, SS_AUTODISARM, SIGNAL_STACK_SIZE);
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[0, SIGNAL_OUTPUT]), 0);
+    assert_signal_stack(&emu, 0, SS_DISABLE, 0);
+    assert_eq!(emu.maps.read_byte(SIGNAL_OUTPUT + 24), Some(0xa5));
+}
+
+#[test]
+fn sigaltstack_errors_preserve_state_except_failed_old_stack_copy() {
+    let mut emu = signal_emu();
+    for (flags, size, error) in [
+        (SS_DISABLE | SS_ONSTACK, SIGNAL_STACK_SIZE, EINVAL),
+        (0, MINSIGSTKSZ - 1, ENOMEM),
+    ] {
+        write_signal_stack(&mut emu, flags, size);
+        assert_eq!(
+            syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA, SIGNAL_OUTPUT]),
+            error
+        );
+        assert_eq!(emu.current_thread().signal_stack.size, 0);
+    }
+    for pointer in [u64::MAX, SIGNAL_DATA + 0x1000 - 8] {
+        assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[pointer]), EFAULT);
+        assert_eq!(emu.current_thread().signal_stack.size, 0);
+    }
+    write_signal_stack(&mut emu, 0, SIGNAL_STACK_SIZE);
+    assert_eq!(
+        syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA, u64::MAX]),
+        EFAULT
+    );
+    assert_eq!(emu.current_thread().signal_stack.size, SIGNAL_STACK_SIZE);
+    emu.regs_mut().rsp = SIGNAL_STACK + 8;
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[0, SIGNAL_OUTPUT]), 0);
+    assert_signal_stack(&emu, SIGNAL_STACK, SS_ONSTACK, SIGNAL_STACK_SIZE);
+    write_signal_stack(&mut emu, SS_DISABLE, 0);
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA]), EPERM);
+    assert_eq!(emu.current_thread().signal_stack.size, SIGNAL_STACK_SIZE);
+}
+
+#[test]
+fn sigaltstack_is_per_thread_and_clone_resets_shared_vm_stack() {
+    const CLONE_VM: u64 = 0x100;
+    const CLONE_VFORK: u64 = 0x4000;
+    let mut emu = signal_emu();
+    write_signal_stack(&mut emu, 0, SIGNAL_STACK_SIZE);
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA]), 0);
+    let parent = emu.current_thread().signal_stack;
+    syscall(&mut emu, NR64_CLONE, &[CLONE_VM]);
+    assert_eq!(emu.threads[1].signal_stack.size, 0);
+    assert_eq!(emu.current_thread().signal_stack, parent);
+    syscall(&mut emu, NR64_CLONE, &[CLONE_VM | CLONE_VFORK]);
+    assert_eq!(emu.threads[2].signal_stack, parent);
+    emu.current_thread_id = 1;
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[0, SIGNAL_OUTPUT]), 0);
+    assert_signal_stack(&emu, 0, SS_DISABLE, 0);
+    write_signal_stack(&mut emu, SS_AUTODISARM, MINSIGSTKSZ);
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA]), 0);
+    assert_eq!(emu.threads[0].signal_stack, parent);
+}
+
+#[test]
+fn sigaltstack_survives_thread_snapshot() {
+    let mut emu = signal_emu();
+    write_signal_stack(&mut emu, SS_AUTODISARM, SIGNAL_STACK_SIZE);
+    assert_eq!(syscall(&mut emu, NR64_SIGALTSTACK, &[SIGNAL_DATA]), 0);
+    let restored = Serialization::deserialize(&Serialization::serialize(&emu));
+    assert_eq!(
+        restored.current_thread().signal_stack,
+        emu.current_thread().signal_stack
+    );
+    let mut legacy = b"MWEMU\0\x05\0".to_vec();
+    legacy.extend(bitcode::serialize(&NativeSnapshotV5::from(&emu)).unwrap());
+    let restored = Serialization::deserialize(&legacy);
+    assert_eq!(restored.current_thread().signal_stack.size, 0);
 }

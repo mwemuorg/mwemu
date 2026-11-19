@@ -144,6 +144,9 @@ fn clone(emu: &mut emu::Emu) {
     child.wake_tick = 0;
     child.blocked_on_cs = None;
     child.handle = 0;
+    if flags & CLONE_VFORK == 0 {
+        child.signal_stack = Default::default();
+    }
     child.clear_child_tid = if flags & CLONE_CHILD_CLEARTID != 0 {
         child_tid_ptr
     } else {
