@@ -832,7 +832,7 @@ mod tests {
         fs::create_dir_all(&windows_dir).unwrap();
         assert!(drive_c.exists());
         assert!(windows_dir.exists());
-        
+
         let windows_path = fs.local_to_windows_path(&windows_dir);
         assert!(windows_path.is_ok());
         let unpack_windows_path = windows_path.unwrap();

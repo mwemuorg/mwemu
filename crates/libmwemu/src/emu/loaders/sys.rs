@@ -25,6 +25,8 @@ use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::kernel::{KernelOs, windows};
 
+use super::format::{FormatLoader, LoadInput, apply_entry_point_override, enter_kernel_init};
+
 const IMAGE_SUBSYSTEM_NATIVE: u16 = 1;
 const IMAGE_FILE_MACHINE_AMD64: u16 = 0x8664;
 const IMAGE_SCN_MEM_EXECUTE: u32 = 0x2000_0000;
@@ -308,5 +310,24 @@ impl Emu {
         self.pe64 = Some(image);
         self.pe64_raw = Some(raw);
         Ok(base)
+    }
+}
+
+/// Loader for a Windows kernel driver (native-subsystem PE32+).
+///
+/// A driver has no user-mode entry point: it is linked into the emulated
+/// kernel and entered at `DriverEntry`, the way the loader would.
+pub(crate) struct PeSysDriver;
+
+impl FormatLoader for PeSysDriver {
+    fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
+        log::trace!("PE64 kernel driver detected.");
+        emu.maps.clear();
+        emu.load_sys_driver(input.path)
+            .map_err(|err| MwemuError::new(&format!("cannot load driver: {err}")))?;
+
+        enter_kernel_init(emu);
+        apply_entry_point_override(emu);
+        Ok(())
     }
 }
