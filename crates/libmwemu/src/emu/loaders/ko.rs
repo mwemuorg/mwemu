@@ -24,6 +24,8 @@ use crate::emu::Emu;
 use crate::err::MwemuError;
 use crate::kernel::KernelOs;
 
+use super::format::{FormatLoader, LoadInput, enter_kernel_init};
+
 /// Offset of `name[]` inside `struct module` on 64-bit: `state` (4 + 4 pad)
 /// followed by `struct list_head list` (16).
 const MODULE_NAME_OFFSET: u64 = 24;
@@ -229,5 +231,24 @@ impl Emu {
             .module_symbol(name)
             .ok_or_else(|| MwemuError::new(&format!("module has no symbol '{}'", name)))?;
         self.kernel_call(addr, args)
+    }
+}
+
+/// Loader for a Linux kernel module (ET_REL).
+///
+/// A module has no entry point: it is linked into the emulated kernel and
+/// entered at its `init` function, the way `insmod` would.
+pub(crate) struct Elf64Relocatable;
+
+impl FormatLoader for Elf64Relocatable {
+    fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
+        log::trace!("elf64 relocatable (kernel module) detected.");
+        emu.load_kernel_module(input.path)
+            .map_err(|err| MwemuError::new(&format!("cannot load kernel module: {err}")))?;
+
+        // Return address for init: the halt pad, so a plain
+        // `mwemu -f driver.ko` stops when insmod would return.
+        enter_kernel_init(emu);
+        Ok(())
     }
 }

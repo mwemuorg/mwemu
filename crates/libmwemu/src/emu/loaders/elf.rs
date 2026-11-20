@@ -3,10 +3,14 @@ use crate::windows::constants::memory::*;
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::arch::{Arch, OperatingSystem};
 use crate::emu::Emu;
+use crate::err::MwemuError;
 
 use rs_header::elf::ElfError;
 use rs_header::elf::elf64::Elf64;
+
+use super::format::{FormatLoader, LoadInput, apply_entry_point_override};
 
 /// Read an ELF64 off disk and parse it through rs-header. Plain I/O here; all
 /// byte interpretation lives in rs-header.
@@ -478,5 +482,42 @@ impl Emu {
         candidates
             .into_iter()
             .find(|candidate| Path::new(candidate).exists())
+    }
+}
+
+/// Loader for a 64-bit Linux ELF executable on x86_64.
+pub(crate) struct Elf64X64;
+
+impl FormatLoader for Elf64X64 {
+    fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
+        emu.os = OperatingSystem::Linux;
+        emu.cfg.arch = Arch::X86_64;
+        emu.maps.clear();
+
+        log::trace!("elf64 x86_64 detected.");
+        emu.load_elf64(input.path);
+
+        apply_entry_point_override(emu);
+        Ok(())
+    }
+}
+
+/// Loader for a 64-bit Linux ELF executable on AArch64.
+pub(crate) struct Elf64Aarch64;
+
+impl FormatLoader for Elf64Aarch64 {
+    fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
+        emu.os = OperatingSystem::Linux;
+        emu.cfg.arch = Arch::Aarch64;
+        emu.maps.is_64bits = true;
+        emu.maps.clear();
+
+        log::trace!("elf64 aarch64 detected.");
+        // load_elf64 handles thread conversion (via init_linux64_aarch64)
+        // and sets PC via set_pc()
+        emu.load_elf64(input.path);
+
+        apply_entry_point_override(emu);
+        Ok(())
     }
 }

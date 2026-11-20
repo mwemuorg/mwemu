@@ -833,9 +833,11 @@ mod tests {
         assert!(drive_c.exists());
         assert!(windows_dir.exists());
 
-        let windows_path = fs.local_to_windows_path(&windows_dir).unwrap();
-        assert_eq!(windows_path.get_drive(), Some('c'));
-        assert_eq!(windows_path.leaf(), Some("windows"));
+        let windows_path = fs.local_to_windows_path(&windows_dir);
+        assert!(windows_path.is_ok());
+        let unpack_windows_path = windows_path.unwrap();
+        assert_eq!(unpack_windows_path.get_drive(), Some('c'));
+        assert_eq!(unpack_windows_path.leaf(), Some("windows"));
     }
 
     #[test]

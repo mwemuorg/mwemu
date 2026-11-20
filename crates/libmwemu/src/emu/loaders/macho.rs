@@ -1,8 +1,14 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
 
+use crate::arch::Arch;
 use crate::emu::Emu;
+use crate::err::MwemuError;
 use crate::loaders::macho::macho64::Macho64;
+
+use super::format::{
+    FormatLoader, LoadInput, apply_entry_point_override, enter_kernel_init, set_maps_folder,
+};
 
 impl Emu {
     /// Load a 64-bit Mach-O binary.
@@ -391,5 +397,72 @@ impl Emu {
             .collect();
 
         (base, exports)
+    }
+}
+
+/// Loader for a 64-bit macOS Mach-O on AArch64.
+pub(crate) struct MachoAarch64;
+
+impl FormatLoader for MachoAarch64 {
+    fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
+        emu.cfg.arch = Arch::Aarch64;
+        emu.maps.is_64bits = true;
+        emu.maps.clear();
+        // CLI may have built the emu with x86 defaults; switch the
+        // decode state machinery to AArch64 so the run loop doesn't
+        // hit `unreachable!()` decoding ARM bytes against
+        // `ArchState::X86`.
+        emu.ensure_arch_state_aarch64();
+
+        // Switch to the macOS dylib folder for arm64. The CLI defaults
+        // `cfg.maps_folder` to `maps/windows/...` before knowing the
+        // binary is a Mach-O, so override when we still see a Windows
+        // path or no path at all.
+        set_maps_folder(emu, "macos", "aarch64", true);
+
+        log::trace!("macho64 aarch64 detected.");
+        emu.load_macho64(input.path);
+
+        apply_entry_point_override(emu);
+        Ok(())
+    }
+}
+
+/// Loader for a 64-bit macOS Mach-O on x86_64.
+pub(crate) struct MachoX64;
+
+impl FormatLoader for MachoX64 {
+    fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
+        emu.cfg.arch = Arch::X86_64;
+        emu.maps.is_64bits = true;
+        emu.maps.clear();
+
+        // Set maps folder for macOS dylibs (try repo root, then relative from crate)
+        set_maps_folder(emu, "macos", "x86_64", false);
+
+        log::trace!("macho64 x86_64 detected.");
+        emu.load_macho64(input.path);
+
+        apply_entry_point_override(emu);
+        Ok(())
+    }
+}
+
+/// Loader for a macOS kernel extension.
+///
+/// A kext has no entry point: it is linked into the emulated kernel and
+/// entered at its `start` function, the way `kextload` would.
+pub(crate) struct MachoKext;
+
+impl FormatLoader for MachoKext {
+    fn load(&self, emu: &mut Emu, input: &LoadInput<'_>) -> Result<(), MwemuError> {
+        emu.maps.clear();
+        log::trace!("macho64 kext detected.");
+        emu.load_kext_macho64(input.path)
+            .map_err(|err| MwemuError::new(&format!("cannot load kext: {err}")))?;
+
+        enter_kernel_init(emu);
+        apply_entry_point_override(emu);
+        Ok(())
     }
 }

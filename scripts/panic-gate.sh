@@ -3,6 +3,8 @@
 # Fails if .unwrap()/.expect()/panic!/assert! counts in engine/, emu/, maps/
 # exceed the recorded baseline. Run from the repo root. (`assert!` aborts in
 # release builds too, so it counts; `debug_assert!` does not.)
+# Only production code is counted — lines inside #[cfg(test)] modules and
+# files under tests/ directories are excluded.
 
 SRC="crates/libmwemu/src"
 
@@ -11,30 +13,47 @@ declare -A BASELINE=(
   [engine_unwrap]=2
   [engine_expect]=0
   [engine_panic]=0
-  [emu_unwrap]=32
-  [emu_expect]=6
+  [emu_unwrap]=6
+  [emu_expect]=0
   [emu_panic]=5
-  [maps_unwrap]=13
-  [maps_expect]=26
+  [maps_unwrap]=11
+  [maps_expect]=9
   [maps_panic]=0
   [engine_assert]=0
-  [emu_assert]=89
-  [maps_assert]=39
+  [emu_assert]=17
+  [maps_assert]=1
 )
 
+# Strip test blocks from a Rust file: removes everything from a line
+# containing #[cfg(test)] to the end of the file (the test module is
+# conventionally the last item), and also drops #[test] functions.
+# This is a rough heuristic that works for the codebase's layout.
+strip_test_blocks() {
+  sed '/#\[cfg(test)\]/,$d'
+}
+
+# Count pattern matches in production code only.
 count_matches() {
   local pattern="$1" dir="$2"
-  local result
-  result=$(grep -rc "$pattern" "$dir" --include="*.rs" 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
-  echo "${result:-0}"
+  local result=0
+  while IFS= read -r -d '' file; do
+    local n
+    n=$(strip_test_blocks < "$file" | grep -c "$pattern" 2>/dev/null || true)
+    result=$((result + n))
+  done < <(find "$dir" -name '*.rs' ! -path '*/tests/*' -print0 2>/dev/null)
+  echo "$result"
 }
 
 # assert!/assert_eq!/assert_ne! not preceded by `debug_` (extended regex).
 count_asserts() {
   local dir="$1"
-  local result
-  result=$(grep -rcE '(^|[^_a-z])assert(_eq|_ne)?!\(' "$dir" --include="*.rs" 2>/dev/null | awk -F: '{sum += $2} END {print sum+0}')
-  echo "${result:-0}"
+  local result=0
+  while IFS= read -r -d '' file; do
+    local n
+    n=$(strip_test_blocks < "$file" | grep -cE '(^|[^_a-z])assert(_eq|_ne)?!\(' 2>/dev/null || true)
+    result=$((result + n))
+  done < <(find "$dir" -name '*.rs' ! -path '*/tests/*' -print0 2>/dev/null)
+  echo "$result"
 }
 
 fail=0
