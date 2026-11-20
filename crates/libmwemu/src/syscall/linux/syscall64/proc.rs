@@ -1,22 +1,18 @@
-use crate::debug::console::Console;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::unsupported;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
-        NR64_RESTART_SYSCALL => handle_syscall64_restart(emu),
-        NR64_FORK => handle_syscall64_fork(emu),
-        NR64_KILL => handle_syscall64_kill(emu),
-        NR64_DUP => handle_syscall64_dup(emu),
-        NR64_DUP2 => handle_syscall64_dup2(emu),
+        NR64_RESTART_SYSCALL => unsupported(emu, "restart_syscall"),
+        NR64_FORK => unsupported(emu, "fork"),
+        NR64_KILL => unsupported(emu, "kill"),
+        NR64_DUP => unsupported(emu, "dup"),
+        NR64_DUP2 => unsupported(emu, "dup2"),
         _ => return false,
     }
 
     true
-}
-
-pub(super) fn handle_syscall64_restart(emu: &mut emu::Emu) {
-    super::trace_syscall64(emu, "restart_syscall");
 }
 
 pub(super) fn handle_syscall64_exit(emu: &mut emu::Emu) {
@@ -28,46 +24,4 @@ pub(super) fn handle_syscall64_exit(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     emu.stop();
-}
-
-pub(super) fn handle_syscall64_fork(emu: &mut emu::Emu) {
-    super::trace_syscall64(emu, "fork");
-    Console::spawn_console(emu);
-}
-
-pub(super) fn handle_syscall64_kill(emu: &mut emu::Emu) {
-    let pid = emu.regs().rdi;
-    let sig = emu.regs().rsi;
-    log::trace!(
-        "{}** {} syscall kill() pid: {} sig: {} {}",
-        emu.colors.light_red,
-        emu.pos,
-        pid,
-        sig,
-        emu.colors.nc
-    );
-}
-
-pub(super) fn handle_syscall64_dup(emu: &mut emu::Emu) {
-    let fd = emu.regs().rdi;
-    log::trace!(
-        "{}** {} syscall dup() fd: {} {}",
-        emu.colors.light_red,
-        emu.pos,
-        fd,
-        emu.colors.nc
-    );
-}
-
-pub(super) fn handle_syscall64_dup2(emu: &mut emu::Emu) {
-    let old_fd = emu.regs().rdi;
-    let new_fd = emu.regs().rsi;
-    log::trace!(
-        "{}** {} syscall dup2() oldfd: {} newfd: {} {}",
-        emu.colors.light_red,
-        emu.pos,
-        old_fd,
-        new_fd,
-        emu.colors.nc
-    );
 }

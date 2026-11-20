@@ -1,16 +1,22 @@
+use super::proc::handle_syscall64_exit;
+use super::trace_syscall64;
+use crate::api::abi::set_integer_return;
+use crate::arch::Arch;
 use crate::emu;
 use crate::maps::mem64::Permission;
+use crate::syscall::linux;
 use crate::syscall::linux::constants::errors::*;
 use crate::syscall::linux::constants::syscalls::*;
 use crate::syscall::linux::constants::system::*;
 
 use crate::winapi::helper; // TODO: why not winapi64 helper?
 
-use crate::windows::structures;
 use std::fs as stdfs;
 use std::fs::File;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
+
+use crate::windows::structures;
 
 /// Unix file-metadata fields a Linux guest's `stat`/`statx` expects. We extract
 /// them cross-platform so the Linux-syscall code also *compiles* on non-Unix
@@ -92,11 +98,11 @@ pub(super) fn dispatch(emu: &mut emu::Emu) {
 }
 
 fn trace_simple_syscall64(emu: &mut emu::Emu, name: &str) {
-    super::trace_syscall64(emu, &format!("{name}()"));
+    trace_syscall64(emu, &format!("{name}()"));
 }
 
 fn trace_socketcall64(emu: &mut emu::Emu, name: &str) {
-    super::trace_syscall64(emu, &format!("socketcall {name}()"));
+    trace_syscall64(emu, &format!("socketcall {name}()"));
 }
 
 fn format_trace_args(args: &[(&str, String)]) -> String {
@@ -118,11 +124,11 @@ fn format_trace_args(args: &[(&str, String)]) -> String {
 }
 
 pub(super) fn trace_syscall64_args(emu: &mut emu::Emu, name: &str, args: &[(&str, String)]) {
-    super::trace_syscall64(emu, &format!("{name}{}", format_trace_args(args)));
+    trace_syscall64(emu, &format!("{name}{}", format_trace_args(args)));
 }
 
 fn trace_socketcall64_args(emu: &mut emu::Emu, name: &str, args: &[(&str, String)]) {
-    super::trace_syscall64(
+    trace_syscall64(
         emu,
         &format!("socketcall {name}{}", format_trace_args(args)),
     );
@@ -133,87 +139,17 @@ fn trace_legacy_syscall64(emu: &mut emu::Emu, name: &str) {
 }
 
 fn trace_bad_syscall64(emu: &mut emu::Emu, nr: u64) {
-    super::trace_syscall64(emu, &format!("bad_nr(0x{nr:x})"));
+    trace_syscall64(emu, &format!("bad_nr(0x{nr:x})"));
 }
 fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
     match emu.regs().rax {
-        NR64_RESTART_SYSCALL => super::proc::handle_syscall64_restart(emu),
-
         NR64_EXIT_GROUP => {
-            super::proc::handle_syscall64_exit(emu);
+            handle_syscall64_exit(emu);
         }
 
-        NR64_FORK => super::proc::handle_syscall64_fork(emu),
-
-        NR64_READ => super::fs::handle_syscall64_read(emu),
-
-        NR64_WRITE => super::fs::handle_syscall64_write(emu),
-
-        // getrandom(buf, buflen, flags): fill `buflen` bytes and return the
-        // count. Without this the unimplemented-syscall fallback leaves rax = the
-        // syscall number (318), which glibc/std reads as "318 bytes written" and
-        // then indexes past a smaller buffer (panic: range start 318 of len 16).
-        NR64_GETRANDOM => {
-            let buf = emu.regs().rdi;
-            let count = emu.regs().rsi;
-            // Deterministic, non-zero-ish fill (functional, not cryptographic).
-            for i in 0..count {
-                emu.maps.write_byte(buf + i, (0x9e * (i + 1)) as u8);
-            }
-            log::trace!(
-                "{}** {} syscall getrandom(buf:0x{:x} len:{}) ={} {}",
-                emu.colors.light_red,
-                emu.pos,
-                buf,
-                count,
-                count,
-                emu.colors.nc
-            );
-            emu.regs_mut().rax = count;
-        }
-
-        /*
-        constants::NR64_WRITEV => {
-            let fd = emu.regs().rdi;
-            let buff = emu.regs().rsi;
-            let sz = emu.regs().rdx;
-            emu.regs_mut().rax = sz;
-            log::trace!(
-                "{}** {} syscall write() fd: {} buf: 0x{:x} sz: {} {}",
-                emu.colors.light_red, emu.pos, fd, buff, sz, emu.colors.nc
-            );
-            if fd == 1 {
-                let s = emu.maps.read_string(buff);
-                log::trace!("stdout: `{}`", s)
-            }
-            if fd == 2 {
-                let s = emu.maps.read_string(buff);
-                log::trace!("stderr: `{}`", s)
-            }
-        }*/
-        NR64_OPEN => super::fs::handle_syscall64_open(emu),
-
-        NR64_OPENAT => super::fs::handle_syscall64_openat(emu),
-
-        NR64_CLOSE => super::fs::handle_syscall64_close(emu),
-
-        NR64_BRK => super::memory::handle_syscall64_brk(emu),
-
-        NR64_EXECVE => super::fs::handle_syscall64_execve(emu),
-
-        NR64_CHDIR => super::fs::handle_syscall64_chdir(emu),
-
-        NR64_CHMOD => super::fs::handle_syscall64_chmod(emu),
-
-        NR64_LSEEK => super::fs::handle_syscall64_lseek(emu),
-
-        NR64_KILL => super::proc::handle_syscall64_kill(emu),
-
-        NR64_DUP => super::proc::handle_syscall64_dup(emu),
-
-        NR64_DUP2 => super::proc::handle_syscall64_dup2(emu),
-
-        NR64_SOCKET => super::net::handle_syscall64_socket(emu),
+        // getrandom(buf, buflen, flags): fill the requested bytes and return
+        // their count so the result stays within the caller's buffer.
+        NR64_GETRANDOM => linux::getrandom(emu, Arch::X86_64),
 
         NR64_BIND => {
             let sock = emu.regs().rdi;
@@ -595,19 +531,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             trace_syscall64_args(emu, "arch_prctl", &[("op", op)]);
         }
 
-        NR64_UNAME => {
-            emu.regs_mut().rax = 0;
-            let ptr = emu.regs().rdi;
-
-            if emu.maps.is_valid_ptr(ptr) {
-                emu.maps.write_bytes(ptr, &UTSNAME);
-                emu.regs_mut().rax = 0;
-            } else {
-                emu.regs_mut().rax = EINVAL;
-            }
-
-            trace_syscall64_args(emu, "uname", &[("buf", format!("0x{ptr:x}"))]);
-        }
+        NR64_UNAME => linux::uname(emu, Arch::X86_64),
 
         NR64_ACCESS => {
             let filename = emu.maps.read_string(emu.regs().rdi);
@@ -934,14 +858,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             emu.regs_mut().rax = sym_link_dest.as_os_str().len() as u64;
         }
 
-        // Single-threaded emulation: these calls succeed trivially. Leaving
-        // them in the "unimplemented" catch-all returns the syscall number in
-        // rax, which glibc reads as a bogus result (e.g. "the futex facility
-        // returned an unexpected error code" then an abort loop).
-        NR64_GETPID => {
-            emu.regs_mut().rax = 1000;
-            trace_simple_syscall64(emu, "getpid");
-        }
+        // Partial process models for single-threaded emulation.
         NR64_TGKILL | NR64_TKILL => {
             emu.regs_mut().rax = 0;
             trace_simple_syscall64(emu, "tgkill");
@@ -979,40 +896,9 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             );
         }
 
-        NR64_NANOSLEEP => super::memory::handle_syscall64_nanosleep(emu),
-
-        NR64_MREMAP => super::memory::handle_syscall64_mremap(emu),
-
-        // Identity syscalls: report a normal unprivileged user (uid/gid 1000)
-        // so programs like `id` resolve a real /etc/passwd entry instead of
-        // treating the raw syscall number left in rax as the uid.
-        NR64_GETUID | NR64_GETEUID | NR64_GETGID | NR64_GETEGID => {
-            emu.regs_mut().rax = 1000;
-            trace_simple_syscall64(emu, "getid");
-        }
-
-        // getresuid/getresgid: write real/effective/saved ids (all 1000).
-        NR64_GETRESUID | NR64_GETRESGID => {
-            let (a, b, c) = (emu.regs().rdi, emu.regs().rsi, emu.regs().rdx);
-            for p in [a, b, c] {
-                if p != 0 {
-                    emu.maps.write_dword(p, 1000);
-                }
-            }
-            emu.regs_mut().rax = 0;
-            trace_simple_syscall64(emu, "getresid");
-        }
-
-        // getgroups(size, list): one supplementary group (1000).
-        NR64_GETGROUPS => {
-            let size = emu.regs().rdi;
-            let list = emu.regs().rsi;
-            if size >= 1 && list != 0 {
-                emu.maps.write_dword(list, 1000);
-            }
-            emu.regs_mut().rax = 1;
-            trace_simple_syscall64(emu, "getgroups");
-        }
+        NR64_GETUID | NR64_GETEUID | NR64_GETGID | NR64_GETEGID => linux::get_identity(emu),
+        NR64_GETRESUID | NR64_GETRESGID => linux::get_res_ids(emu, Arch::X86_64, false),
+        NR64_GETGROUPS => linux::get_groups(emu, Arch::X86_64, false),
 
         _ => {
             const SYS64_SYSCALL_NAMES: &[&str] = syscall_names![
@@ -1383,6 +1269,7 @@ fn dispatch_legacy_syscall64(emu: &mut emu::Emu) {
             } else {
                 trace_legacy_syscall64(emu, SYS64_SYSCALL_NAMES[emu.regs().rax as usize]);
             }
+            set_integer_return(emu, ENOSYS);
         }
     }
 }

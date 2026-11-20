@@ -1,4 +1,6 @@
+use crate::emu::Emu;
 use crate::emu::object_handle::windows_path::WindowsPath;
+use crate::winapi::winapi64::kernel32::main_module_path;
 use crate::windows::constants::files::*;
 pub use crate::windows::constants::files::{
     CREATE_ALWAYS, CREATE_NEW, FILE_ATTRIBUTE_ARCHIVE, FILE_ATTRIBUTE_COMPRESSED,
@@ -16,16 +18,16 @@ pub use crate::windows::constants::security::{
     GENERIC_ALL, GENERIC_EXECUTE, GENERIC_READ, GENERIC_WRITE,
 };
 
-use ahash::{AHashMap, HashMap, HashSet, HashSetExt};
-use dunce::canonicalize;
-use soft_canonicalize::soft_canonicalize;
 use std::fs::File;
-use std::io;
 use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::SystemTime;
-use std::{env, fs};
+use std::{env, fs, io};
+
+use ahash::{AHashMap, HashMap, HashSet, HashSetExt};
+use dunce::canonicalize;
+use soft_canonicalize::soft_canonicalize;
 
 /*
 * Example of used:
@@ -69,6 +71,132 @@ struct FileHandleManagement {
 
 pub static FILE_SYSTEM: OnceLock<FileSystem> = OnceLock::new();
 
+pub(crate) fn guest_file_metadata(name: &str) -> io::Result<fs::Metadata> {
+    let fs = FILE_SYSTEM
+        .get()
+        .ok_or_else(|| io::Error::from(ErrorKind::NotFound))?;
+    let guest = WindowsPath::from_string(name);
+    let path = fs
+        .translate(&guest)
+        .map_err(|error| io::Error::other(error.to_string()))?;
+    match fs::symlink_metadata(&path) {
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            let parent = fs
+                .translate(&guest.parent())
+                .map_err(|error| io::Error::other(error.to_string()))?;
+            if parent.is_dir() {
+                Err(error)
+            } else {
+                Err(ErrorKind::NotADirectory.into())
+            }
+        }
+        result => result,
+    }
+}
+
+/// Resolve the parent in the guest jail and keep the leaf as a directory entry.
+pub(crate) fn guest_operation_path(name: &str, write: bool) -> io::Result<PathBuf> {
+    let fs = FILE_SYSTEM.get().ok_or(ErrorKind::NotFound)?;
+    let guest = WindowsPath::from_string(name);
+    let leaf = guest
+        .leaf()
+        .filter(|s| !s.is_empty())
+        .ok_or(ErrorKind::PermissionDenied)?;
+    if !write {
+        return fs
+            .translate(&guest)
+            .map_err(|e| io::Error::other(e.to_string()));
+    }
+    if !guest.is_absolute() || fs.root().as_os_str().is_empty() || fs.mappings.contains_key(&guest)
+    {
+        return Err(ErrorKind::PermissionDenied.into());
+    }
+    let parent = fs.root().join(guest.parent().to_portable_path());
+    let parent = fs::canonicalize(parent).map_err(|e| {
+        if e.kind() == ErrorKind::NotFound {
+            io::Error::from(ErrorKind::NotADirectory)
+        } else {
+            e
+        }
+    })?;
+    let root = fs::canonicalize(fs.root())?;
+    if !parent.starts_with(&root) || !parent.is_dir() {
+        return Err(ErrorKind::PermissionDenied.into());
+    }
+    let path = parent.join(leaf);
+    // Windows opens DOS device names and alternate streams outside ordinary directory-entry semantics.
+    let stem = leaf
+        .split('.')
+        .next()
+        .unwrap_or(leaf)
+        .trim_end()
+        .to_ascii_uppercase();
+    let device = matches!(
+        stem.as_str(),
+        "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$"
+    ) || stem
+        .strip_prefix("COM")
+        .or_else(|| stem.strip_prefix("LPT"))
+        .is_some_and(|n| {
+            matches!(
+                n,
+                "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "¹" | "²" | "³"
+            )
+        });
+    if device
+        || leaf.ends_with([' ', '.'])
+        || leaf.contains([':', '/', '\\'])
+        || Path::new(leaf).components().count() != 1
+    {
+        return Err(ErrorKind::PermissionDenied.into());
+    }
+    Ok(path)
+}
+
+/// Enumerate guest-visible entries, including individually mapped files whose
+/// parent need not exist on the host. A mapping takes precedence over the jail.
+pub(crate) fn guest_directory_entries(name: &str) -> io::Result<Vec<(String, fs::Metadata)>> {
+    let fs = FILE_SYSTEM.get().ok_or(ErrorKind::NotFound)?;
+    let guest = WindowsPath::from_string(name);
+    let directory = fs
+        .translate(&guest)
+        .map_err(|e| io::Error::other(e.to_string()))?;
+    let mut entries = std::collections::BTreeMap::new();
+    fs.access_mapped_entries(&guest, |path, backing| {
+        if let Some(name) = path.leaf()
+            && let Ok(metadata) = fs::symlink_metadata(backing)
+        {
+            entries.insert(name.to_lowercase(), (name.to_owned(), metadata));
+        }
+    });
+    match directory.read_dir() {
+        Ok(children) => {
+            for item in children {
+                let item = item?;
+                if let Some(name) = item.file_name().to_str()
+                    && let std::collections::btree_map::Entry::Vacant(slot) =
+                        entries.entry(name.to_lowercase())
+                {
+                    slot.insert((name.to_owned(), fs::symlink_metadata(item.path())?));
+                }
+            }
+            if name.trim_end_matches('\\').len() > 2 {
+                for (leaf, path) in [(".", guest.clone()), ("..", guest.parent())] {
+                    if let Ok(meta) = guest_file_metadata(&path.to_string()) {
+                        entries.insert(leaf.to_owned(), (leaf.to_owned(), meta));
+                    }
+                }
+            }
+        }
+        Err(error) if error.kind() == ErrorKind::NotFound && !entries.is_empty() => {}
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            return Err(ErrorKind::NotADirectory.into());
+        }
+        Err(error) => return Err(error),
+    }
+    Ok(entries.into_values().collect())
+}
+
 pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> {
     init_file_system_with_mappings(file_root, Vec::new())
 }
@@ -77,10 +205,10 @@ pub fn init_file_system<P: AsRef<Path>>(file_root: Option<P>) -> io::Result<()> 
 /// image visible at the guest path its loader entry reports, so code that
 /// opens its own module file (GetModuleFileName + CreateFile) reads the real
 /// bytes. Call after the binary is loaded.
-pub fn init_guest_file_system(emu: &crate::emu::Emu) -> io::Result<()> {
+pub fn init_guest_file_system(emu: &Emu) -> io::Result<()> {
     let mut mappings = Vec::new();
     if !emu.cfg.filename.is_empty() {
-        let guest = crate::winapi::winapi64::kernel32::main_module_path(emu);
+        let guest = main_module_path(emu);
         let host = canonicalize(&emu.cfg.filename)?;
         let guest = WindowsPath::from_path(&guest).map_err(io::Error::other)?;
         mappings.push((guest, host));
@@ -172,6 +300,23 @@ impl FileHandle {
         flags_and_attributes: u32,
         sharing_mode: u32,
     ) -> Result<FileHandle, Box<dyn std::error::Error>> {
+        Self::open(
+            name,
+            access_mode,
+            creation_disposition,
+            flags_and_attributes,
+            sharing_mode,
+        )
+        .map(|(file, _)| file)
+    }
+
+    pub(crate) fn open(
+        name: String,
+        access_mode: u32,
+        creation_disposition: u32,
+        flags_and_attributes: u32,
+        sharing_mode: u32,
+    ) -> Result<(Self, bool), Box<dyn std::error::Error>> {
         let windows_path = WindowsPath::from_path(&name)?;
         let resolved_path = FILE_SYSTEM
             .get()
@@ -183,19 +328,17 @@ impl FileHandle {
                 )
             })?;
 
-        // For creation modes that may create a new file, ensure parent directory exists
-        if matches!(
-            creation_disposition as usize,
-            CREATE_NEW | CREATE_ALWAYS | OPEN_ALWAYS
-        ) && let Some(parent) = resolved_path.parent()
-        {
-            let _ = fs::create_dir_all(parent);
-        }
-
         // Reading is always allowed on the host side; writing needs a write
         // access right or a disposition that creates or truncates.
         const WRITE_ACCESS: u32 = GENERIC_WRITE | GENERIC_ALL | FILE_WRITE_DATA | FILE_APPEND_DATA;
+        let allow_directory = flags_and_attributes as usize & FILE_FLAG_BACKUP_SEMANTICS != 0
+            && creation_disposition as usize == OPEN_EXISTING;
         let mut options = File::options();
+        #[cfg(windows)]
+        if allow_directory {
+            use std::os::windows::fs::OpenOptionsExt;
+            options.custom_flags(FILE_FLAG_BACKUP_SEMANTICS as u32);
+        }
         options.read(true).write(
             access_mode & WRITE_ACCESS != 0
                 || matches!(
@@ -203,12 +346,17 @@ impl FileHandle {
                     CREATE_NEW | CREATE_ALWAYS | OPEN_ALWAYS | TRUNCATE_EXISTING
                 ),
         );
-        match creation_disposition as usize {
-            CREATE_NEW => options.create_new(true),
-            CREATE_ALWAYS => options.create(true).truncate(true),
-            OPEN_EXISTING => &mut options,
-            OPEN_ALWAYS => options.create(true),
-            TRUNCATE_EXISTING => options.truncate(true),
+        #[cfg(windows)]
+        if access_mode & FILE_WRITE_ATTRIBUTES != 0
+            && access_mode & WRITE_ACCESS == 0
+            && creation_disposition as usize == OPEN_EXISTING
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            options.access_mode(access_mode);
+        }
+        let reports_existing = match creation_disposition as usize {
+            CREATE_ALWAYS | OPEN_ALWAYS => true,
+            CREATE_NEW | OPEN_EXISTING | TRUNCATE_EXISTING => false,
             _ => {
                 return Err(Box::new(io::Error::new(
                     ErrorKind::InvalidInput,
@@ -216,33 +364,57 @@ impl FileHandle {
                 )));
             }
         };
-        let file_result = options.open(&resolved_path);
-        let opened_file = file_result?;
+        let mut opened_existing = false;
+        let opened = if reports_existing {
+            match options.clone().create_new(true).open(&resolved_path) {
+                Err(error) if error.kind() == ErrorKind::AlreadyExists => {
+                    opened_existing = true;
+                    options
+                        .truncate(creation_disposition as usize == CREATE_ALWAYS)
+                        .open(&resolved_path)
+                }
+                result => result,
+            }
+        } else {
+            options
+                .create_new(creation_disposition as usize == CREATE_NEW)
+                .truncate(creation_disposition as usize == TRUNCATE_EXISTING)
+                .open(&resolved_path)
+        };
+        let opened_file = opened.map_err(|error| {
+            if error.kind() == ErrorKind::NotFound
+                && resolved_path.parent().is_some_and(|p| !p.is_dir())
+            {
+                io::Error::from(ErrorKind::NotADirectory)
+            } else {
+                error
+            }
+        })?;
 
         let metadata = opened_file.metadata()?;
         let is_dir = metadata.is_dir();
-        if is_dir {
-            return Err(Box::new(io::Error::new(
-                ErrorKind::InvalidInput,
-                "Calling handle other than File isn't support yet",
-            )));
+        if is_dir && !allow_directory {
+            return Err(io::Error::from(ErrorKind::PermissionDenied).into());
         }
         let file = Some(opened_file);
         let file_size = metadata.len();
-        Ok(FileHandle {
-            name,
-            path: resolved_path,
-            is_dir,
-            file,
-            access_mode,
-            creation_disposition,
-            flags_and_attributes,
-            file_position: 0,
-            sharing_mode,
-            is_valid: true, // Assume valid upon creation
-            is_eof: false,  // Assume not at EOF initially
-            file_size,
-        })
+        Ok((
+            FileHandle {
+                name,
+                path: resolved_path,
+                is_dir,
+                file,
+                access_mode,
+                creation_disposition,
+                flags_and_attributes,
+                file_position: 0,
+                sharing_mode,
+                is_valid: true, // Assume valid upon creation
+                is_eof: false,  // Assume not at EOF initially
+                file_size,
+            },
+            opened_existing,
+        ))
     }
 
     /// Read backing bytes without changing the guest file position.
@@ -347,7 +519,7 @@ impl FileHandle {
         // Other cleanup if necessary
     }
 
-    fn open_file(&self) -> io::Result<&File> {
+    pub(crate) fn open_file(&self) -> io::Result<&File> {
         self.file
             .as_ref()
             .filter(|_| self.is_valid)
@@ -371,11 +543,19 @@ impl FileHandle {
     }
 
     pub fn set_end_of_file(&mut self) -> io::Result<()> {
+        self.set_length(self.file_position)
+    }
+
+    pub(crate) fn set_length(&mut self, length: u64) -> io::Result<()> {
         self.require_access(GENERIC_WRITE | GENERIC_ALL | FILE_WRITE_DATA)?;
-        self.open_file()?.set_len(self.file_position)?;
-        self.file_size = self.file_position;
-        self.is_eof = true;
+        self.open_file()?.set_len(length)?;
+        self.file_size = length;
+        self.is_eof = self.file_position >= length;
         Ok(())
+    }
+
+    pub(crate) fn guest_name(&self) -> &str {
+        &self.name
     }
 
     /// Current size of the file.
@@ -403,6 +583,7 @@ impl FileHandle {
         accessed: Option<SystemTime>,
         written: Option<SystemTime>,
     ) -> io::Result<()> {
+        self.require_access(GENERIC_WRITE | GENERIC_ALL | FILE_WRITE_ATTRIBUTES)?;
         let mut times = fs::FileTimes::new();
         if let Some(time) = accessed {
             times = times.set_accessed(time);

@@ -1,11 +1,27 @@
 pub const PROV_RSA_FULL: u32 = 1;
+
+pub const HP_ALGID: u32 = 1;
+pub const HP_HASHVAL: u32 = 2;
+pub const HP_HASHSIZE: u32 = 4;
+
+pub const KP_ALGID: u32 = 7;
+pub const KP_BLOCKLEN: u32 = 8;
+pub const KP_KEYLEN: u32 = 9;
+
 pub const COMPRESSION_FORMAT_LZNT1: u16 = 2;
 pub const COMPRESSION_ENGINE_MAXIMUM: u16 = 0x0100;
 pub const COMPRESSION_FORMAT_XPRESS: u16 = 0x0003;
 pub const COMPRESSION_FORMAT_XPRESS_HUFF: u16 = 0x0004;
+
+pub const CERT_STORE_PROV_MEMORY: u64 = 2;
+pub const CERT_STORE_PROV_SYSTEM_A: u64 = 9;
 pub const CERT_STORE_PROV_SYSTEM_W: u64 = 10;
+
 pub const X509_ASN_ENCODING: u32 = 1;
 pub const PKCS_7_ASN_ENCODING: u32 = 0x0001_0000;
+
+pub const CRYPT_STRING_NOCRLF: u64 = 0x4000_0000;
+pub const CRYPT_STRING_NOCR: u64 = 0x8000_0000;
 pub const CRYPT_STRING_BASE64: u64 = 1;
 pub const CRYPT_STRING_HEX: u64 = 4;
 pub const CRYPT_STRING_BASE64HEADER: u64 = 0x00000000;
@@ -14,14 +30,23 @@ pub const CRYPT_STRING_BASE64_ANY: u64 = 0x00000006;
 pub const CRYPT_STRING_ANY: u64 = 0x00000007;
 pub const CRYPT_STRING_HEX_ANY: u64 = 0x00000008;
 pub const CRYPT_STRING_HEXRAW: u64 = 0x0000000c;
-// CryptAquireContext Flags
+
+// CryptAcquireContext flags
+pub const CRYPT_MACHINE_DEFAULT: u32 = 1;
+pub const CRYPT_USER_DEFAULT: u32 = 2;
+pub const CRYPT_EXPORTABLE: u32 = 1;
+pub const PLAINTEXTKEYBLOB: u8 = 8;
+pub const PP_NAME: u32 = 4;
+pub const PP_PROVTYPE: u32 = 16;
+
 pub const CRYPT_VERIFYCONTEXT: u32 = 0xF0000000;
 pub const CRYPT_NEWKEYSET: u32 = 0x00000008;
 pub const CRYPT_DELETEKEYSET: u32 = 0x00000010;
 pub const CRYPT_MACHINE_KEYSET: u32 = 0x00000020;
 pub const CRYPT_SILENT: u32 = 0x00000040;
 pub const CRYPT_DEFAULT_CONTAINER_OPTIONAL: u32 = 0x00000080;
-// Crypto Algorithms
+
+// CryptoAPI algorithm identifiers
 pub const CALG_3DES: u32 = 0x00006603;
 pub const CALG_3DES_112: u32 = 0x00006609;
 pub const CALG_AES: u32 = 0x00006611;
@@ -72,111 +97,86 @@ pub const CALG_SSL3_SHAMD5: u32 = 0x00008008;
 pub const CALG_TEK: u32 = 0x0000660b;
 pub const CALG_TLS1_MASTER: u32 = 0x00004c06;
 pub const CALG_TLS1PRF: u32 = 0x0000800a;
+
 pub fn get_cryptoalgorithm_name(value: u32) -> &'static str {
     match value {
-        0x00006603 => "CALG_3DES",
-        0x00006609 => "CALG_3DES_112",
-        0x00006611 => "CALG_AES",
-        0x0000660e => "CALG_AES_128",
-        0x0000660f => "CALG_AES_192",
-        0x00006610 => "CALG_AES_256",
-        0x0000aa03 => "CALG_AGREEDKEY_ANY",
-        0x0000660c => "CALG_CYLINK_MEK",
-        0x00006601 => "CALG_DES",
-        0x00006604 => "CALG_DESX",
-        0x0000aa02 => "CALG_DH_EPHEM",
-        0x0000aa01 => "CALG_DH_SF",
-        0x00002200 => "CALG_DSS_SIGN",
-        0x0000aa05 => "CALG_ECDH",
-        0x0000ae06 => "CALG_ECDH_EPHEM",
-        0x00002203 => "CALG_ECDSA",
-        0x0000a001 => "CALG_ECMQV",
-        0x0000800b => "CALG_HASH_REPLACE_OWF",
-        0x0000a003 => "CALG_HUGHES_MD5",
-        0x00008009 => "CALG_HMAC",
-        0x0000aa04 => "CALG_KEA_KEYX",
-        0x00008005 => "CALG_MAC",
-        0x00008001 => "CALG_MD2",
-        0x00008002 => "CALG_MD4",
-        0x00008003 => "CALG_MD5",
-        0x00002000 => "CALG_NO_SIGN",
-        0xffffffff => "CALG_OID_INFO_CNG_ONLY",
-        0xfffffffe => "CALG_OID_INFO_PARAMETERS",
-        0x00004c04 => "CALG_PCT1_MASTER",
-        0x00006602 => "CALG_RC2",
-        0x00006801 => "CALG_RC4",
-        0x0000660d => "CALG_RC5",
-        0x0000a400 => "CALG_RSA_KEYX",
-        0x00002400 => "CALG_RSA_SIGN",
-        0x00004c07 => "CALG_SCHANNEL_ENC_KEY",
-        0x00004c03 => "CALG_SCHANNEL_MAC_KEY",
-        0x00004c02 => "CALG_SCHANNEL_MASTER_HASH",
-        0x00006802 => "CALG_SEAL",
-        0x00008004 => "CALG_SHA",
-        0x0000800c => "CALG_SHA_256",
-        0x0000800d => "CALG_SHA_384",
-        0x0000800e => "CALG_SHA_512",
-        0x0000660a => "CALG_SKIPJACK",
-        0x00004c05 => "CALG_SSL2_MASTER",
-        0x00004c01 => "CALG_SSL3_MASTER",
-        0x00008008 => "CALG_SSL3_SHAMD5",
-        0x0000660b => "CALG_TEK",
-        0x00004c06 => "CALG_TLS1_MASTER",
-        0x0000800a => "CALG_TLS1PRF",
+        CALG_3DES => "CALG_3DES",
+        CALG_3DES_112 => "CALG_3DES_112",
+        CALG_AES => "CALG_AES",
+        CALG_AES_128 => "CALG_AES_128",
+        CALG_AES_192 => "CALG_AES_192",
+        CALG_AES_256 => "CALG_AES_256",
+        CALG_AGREEDKEY_ANY => "CALG_AGREEDKEY_ANY",
+        CALG_CYLINK_MEK => "CALG_CYLINK_MEK",
+        CALG_DES => "CALG_DES",
+        CALG_DESX => "CALG_DESX",
+        CALG_DH_EPHEM => "CALG_DH_EPHEM",
+        CALG_DH_SF => "CALG_DH_SF",
+        CALG_DSS_SIGN => "CALG_DSS_SIGN",
+        CALG_ECDH => "CALG_ECDH",
+        CALG_ECDH_EPHEM => "CALG_ECDH_EPHEM",
+        CALG_ECDSA => "CALG_ECDSA",
+        CALG_ECMQV => "CALG_ECMQV",
+        CALG_HASH_REPLACE_OWF => "CALG_HASH_REPLACE_OWF",
+        CALG_HUGHES_MD5 => "CALG_HUGHES_MD5",
+        CALG_HMAC => "CALG_HMAC",
+        CALG_KEA_KEYX => "CALG_KEA_KEYX",
+        CALG_MAC => "CALG_MAC",
+        CALG_MD2 => "CALG_MD2",
+        CALG_MD4 => "CALG_MD4",
+        CALG_MD5 => "CALG_MD5",
+        CALG_NO_SIGN => "CALG_NO_SIGN",
+        CALG_OID_INFO_CNG_ONLY => "CALG_OID_INFO_CNG_ONLY",
+        CALG_OID_INFO_PARAMETERS => "CALG_OID_INFO_PARAMETERS",
+        CALG_PCT1_MASTER => "CALG_PCT1_MASTER",
+        CALG_RC2 => "CALG_RC2",
+        CALG_RC4 => "CALG_RC4",
+        CALG_RC5 => "CALG_RC5",
+        CALG_RSA_KEYX => "CALG_RSA_KEYX",
+        CALG_RSA_SIGN => "CALG_RSA_SIGN",
+        CALG_SCHANNEL_ENC_KEY => "CALG_SCHANNEL_ENC_KEY",
+        CALG_SCHANNEL_MAC_KEY => "CALG_SCHANNEL_MAC_KEY",
+        CALG_SCHANNEL_MASTER_HASH => "CALG_SCHANNEL_MASTER_HASH",
+        CALG_SEAL => "CALG_SEAL",
+        CALG_SHA => "CALG_SHA",
+        CALG_SHA_256 => "CALG_SHA_256",
+        CALG_SHA_384 => "CALG_SHA_384",
+        CALG_SHA_512 => "CALG_SHA_512",
+        CALG_SKIPJACK => "CALG_SKIPJACK",
+        CALG_SSL2_MASTER => "CALG_SSL2_MASTER",
+        CALG_SSL3_MASTER => "CALG_SSL3_MASTER",
+        CALG_SSL3_SHAMD5 => "CALG_SSL3_SHAMD5",
+        CALG_TEK => "CALG_TEK",
+        CALG_TLS1_MASTER => "CALG_TLS1_MASTER",
+        CALG_TLS1PRF => "CALG_TLS1PRF",
         _ => "Unknown Algorithm",
     }
 }
+
+/// Fixed key length in bytes. Zero denotes a variable length or an unknown algorithm.
 pub fn get_crypto_key_len(value: u32) -> usize {
     match value {
-        0x00006603 => 24, // CALG_3DES
-        0x00006609 => 14, // CALG_3DES_112
-        0x00006611 => 0,  // CALG_AES, variable: 128, 192, or 256 bits (set dynamically)
-        0x0000660e => 16, // CALG_AES_128
-        0x0000660f => 24, // CALG_AES_192
-        0x00006610 => 32, // CALG_AES_256
-        0x0000aa03 => 0,  // CALG_AGREEDKEY_ANY, variable
-        0x0000660c => 0,  // CALG_CYLINK_MEK, variable
-        0x00006601 => 8,  // CALG_DES
-        0x00006604 => 8,  // CALG_DESX
-        0x0000aa02 => 0,  // CALG_DH_EPHEM, variable
-        0x0000aa01 => 0,  // CALG_DH_SF, variable
-        0x00002200 => 0,  // CALG_DSS_SIGN, variable
-        0x0000aa05 => 0,  // CALG_ECDH, variable
-        0x0000ae06 => 0,  // CALG_ECDH_EPHEM, variable
-        0x00002203 => 0,  // CALG_ECDSA, variable
-        0x0000a001 => 0,  // CALG_ECMQV, variable
-        0x0000800b => 0,  // CALG_HASH_REPLACE_OWF, variable
-        0x0000a003 => 0,  // CALG_HUGHES_MD5, variable
-        0x00008009 => 0,  // CALG_HMAC, variable
-        0x0000aa04 => 0,  // CALG_KEA_KEYX, variable
-        0x00008005 => 0,  // CALG_MAC, variable
-        0x00008001 => 0,  // CALG_MD2, variable
-        0x00008002 => 0,  // CALG_MD4, variable
-        0x00008003 => 0,  // CALG_MD5, variable
-        0x00002000 => 0,  // CALG_NO_SIGN, variable
-        0xffffffff => 0,  // CALG_OID_INFO_CNG_ONLY, variable
-        0xfffffffe => 0,  // CALG_OID_INFO_PARAMETERS, variable
-        0x00004c04 => 0,  // CALG_PCT1_MASTER, variable
-        0x00006602 => 8,  // CALG_RC2
-        0x00006801 => 0,  // CALG_RC4, variable length
-        0x0000660d => 0,  // CALG_RC5, variable
-        0x0000a400 => 0,  // CALG_RSA_KEYX, variable
-        0x00002400 => 0,  // CALG_RSA_SIGN, variable
-        0x00004c07 => 0,  // CALG_SCHANNEL_ENC_KEY, variable
-        0x00004c03 => 0,  // CALG_SCHANNEL_MAC_KEY, variable
-        0x00004c02 => 0,  // CALG_SCHANNEL_MASTER_HASH, variable
-        0x00006802 => 0,  // CALG_SEAL, variable
-        0x00008004 => 0,  // CALG_SHA, variable
-        0x0000800c => 0,  // CALG_SHA_256, variable
-        0x0000800d => 0,  // CALG_SHA_384, variable
-        0x0000800e => 0,  // CALG_SHA_512, variable
-        0x0000660a => 0,  // CALG_SKIPJACK, variable
-        0x00004c05 => 0,  // CALG_SSL2_MASTER, variable
-        0x00004c01 => 0,  // CALG_SSL3_MASTER, variable
-        0x00008008 => 0,  // CALG_SSL3_SHAMD5, variable
-        0x0000660b => 0,  // CALG_TEK, variable
-        0x00004c06 => 0,  // CALG_TLS1_MASTER, variable
-        0x0000800a => 0,  // CALG_TLS1PRF, variable
-        _ => 0,           // Unknown Algorithm or variable length
+        CALG_DES | CALG_DESX | CALG_RC2 => 8,
+        CALG_3DES_112 => 14,
+        CALG_AES_128 => 16,
+        CALG_3DES | CALG_AES_192 => 24,
+        CALG_AES_256 => 32,
+        _ => 0,
     }
 }
+
+pub const CRYPTPROTECT_UI_FORBIDDEN: u32 = 0x1;
+
+pub const BCRYPT_BLOCK_PADDING: u32 = 0x1;
+pub const BCRYPT_RC4_ALG_HANDLE: u64 = 0x71;
+pub const BCRYPT_HMAC_SHA1_ALG_HANDLE: u64 = 0xa1;
+pub const BCRYPT_HMAC_SHA256_ALG_HANDLE: u64 = 0xb1;
+pub const BCRYPT_3DES_CBC_ALG_HANDLE: u64 = 0x141;
+pub const BCRYPT_AES_CBC_ALG_HANDLE: u64 = 0x1a1;
+pub const BCRYPT_MD5_ALG_HANDLE: u64 = 0x21;
+pub const BCRYPT_SHA1_ALG_HANDLE: u64 = 0x31;
+pub const BCRYPT_SHA256_ALG_HANDLE: u64 = 0x41;
+pub const BCRYPT_ALG_HANDLE_HMAC_FLAG: u32 = 0x8;
+pub const BCRYPT_RNG_ALG_HANDLE: u64 = 0x81;
+pub const BCRYPT_RNG_USE_ENTROPY_IN_BUFFER: u32 = 0x1;
+pub const BCRYPT_USE_SYSTEM_PREFERRED_RNG: u32 = 0x2;

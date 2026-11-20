@@ -1,12 +1,6 @@
 use crate::emu::Emu;
-use crate::winapi::common::{fallback, iphlpapi};
-use crate::winapi::winapi64::kernel32;
+use crate::winapi::libraries;
 
-pub fn gateway(addr: u64, emu: &mut Emu) -> String {
-    let api = kernel32::guess_api_name(emu, addr);
-    let api = api.split("!").last().unwrap_or(&api);
-    if iphlpapi::dispatch(api, emu) {
-        return String::new();
-    }
-    fallback::unimplemented(addr, api, emu)
+pub fn gateway(address: u64, emu: &mut Emu) -> String {
+    libraries::gateway("iphlpapi", address, emu)
 }

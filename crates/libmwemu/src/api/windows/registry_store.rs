@@ -11,8 +11,12 @@
     configuration manager. String values are stored as UTF-16, as on Windows.
 */
 
-use lazy_static::lazy_static;
-use std::sync::Mutex;
+use std::sync::LazyLock;
+
+use crate::winapi::common::security::{process_user_sid, sid_string};
+use serde::{Deserialize, Serialize};
+
+static CURRENT_USER_SID: LazyLock<String> = LazyLock::new(|| sid_string(&process_user_sid()));
 
 pub const REG_NONE: u32 = 0;
 pub const REG_SZ: u32 = 1;
@@ -45,12 +49,13 @@ pub fn predefined_path(hkey: u64) -> Option<&'static str> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Value {
     pub kind: u32,
     pub data: Vec<u8>,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
 struct Key {
     path: String,
     values: Vec<(String, Value)>,
@@ -70,10 +75,6 @@ pub struct KeyInfo {
     pub values: u32,
     pub max_value_name_len: u32,
     pub max_value_len: u32,
-}
-
-lazy_static! {
-    static ref KEYS: Mutex<Vec<Key>> = Mutex::new(seed());
 }
 
 const ROOTS: &[&str] = &[
@@ -151,7 +152,18 @@ pub fn dword(v: u32) -> Value {
 
 /// `parent\sub` with separators normalized; an empty `sub` is `parent` itself.
 pub fn join(parent: &str, sub: &str) -> String {
-    let parts: Vec<&str> = sub.split('\\').filter(|p| !p.is_empty()).collect();
+    let mut parts = sub.split('\\').filter(|p| !p.is_empty()).peekable();
+    let parent = if parent.eq_ignore_ascii_case("HKEY_USERS")
+        && parts
+            .peek()
+            .is_some_and(|s| s.eq_ignore_ascii_case(&CURRENT_USER_SID))
+    {
+        parts.next();
+        "HKEY_CURRENT_USER"
+    } else {
+        parent
+    };
+    let parts: Vec<_> = parts.collect();
     if parts.is_empty() {
         parent.to_string()
     } else {
@@ -176,131 +188,157 @@ fn insert_path(keys: &mut Vec<Key>, path: &str) -> bool {
     if find(keys, path).is_some() {
         return false;
     }
-    if let Some(parent) = parent_of(path) {
-        insert_path(keys, parent);
-    }
-    keys.push(Key {
-        path: path.to_string(),
-        values: Vec::new(),
-    });
-    true
-}
-
-pub fn key_exists(path: &str) -> bool {
-    find(&KEYS.lock().unwrap(), path).is_some()
-}
-
-/// Create the key (and missing parents) unless it exists; true when created.
-/// None when the root is not a predefined key.
-pub fn create_key(path: &str) -> Option<bool> {
-    let mut keys = KEYS.lock().unwrap();
-    let root = path.split('\\').next().unwrap_or("");
-    find(&keys, root)?;
-    Some(insert_path(&mut keys, path))
-}
-
-/// Delete a key without subkeys, or with `recursive` the key and its subtree.
-pub fn delete_key(path: &str, recursive: bool) -> Result<(), DeleteError> {
-    let mut keys = KEYS.lock().unwrap();
-    find(&keys, path).ok_or(DeleteError::NotFound)?;
-    let prefix = format!("{}\\", path.to_ascii_lowercase());
-    let in_subtree = |k: &Key| k.path.to_ascii_lowercase().starts_with(&prefix);
-    if !recursive && keys.iter().any(in_subtree) {
-        return Err(DeleteError::HasSubkeys);
-    }
-    keys.retain(|k| !k.path.eq_ignore_ascii_case(path) && !in_subtree(k));
-    Ok(())
-}
-
-/// Remove every value and subkey of `path`, keeping the key.
-pub fn clear_key(path: &str) -> bool {
-    let mut keys = KEYS.lock().unwrap();
-    let prefix = format!("{}\\", path.to_ascii_lowercase());
-    keys.retain(|k| !k.path.to_ascii_lowercase().starts_with(&prefix));
-    match find_mut(&mut keys, path) {
-        Some(key) => {
-            key.values.clear();
-            true
+    let mut missing = Vec::new();
+    let mut next = Some(path);
+    while let Some(current) = next {
+        if find(keys, current).is_some() {
+            break;
         }
-        None => false,
+        missing.push(current);
+        next = parent_of(current);
     }
-}
-
-/// Set a value; false when the key does not exist. "" is the default value.
-pub fn set_value(path: &str, name: &str, value: Value) -> bool {
-    let mut keys = KEYS.lock().unwrap();
-    let Some(key) = find_mut(&mut keys, path) else {
-        return false;
-    };
-    match key
-        .values
-        .iter_mut()
-        .find(|(n, _)| n.eq_ignore_ascii_case(name))
-    {
-        Some((_, v)) => *v = value,
-        None => key.values.push((name.to_string(), value)),
-    }
+    keys.extend(missing.into_iter().rev().map(|path| Key {
+        path: path.to_owned(),
+        values: Vec::new(),
+    }));
     true
 }
 
-pub fn get_value(path: &str, name: &str) -> Option<Value> {
-    let keys = KEYS.lock().unwrap();
-    find(&keys, path)?
-        .values
-        .iter()
-        .find(|(n, _)| n.eq_ignore_ascii_case(name))
-        .map(|(_, v)| v.clone())
+/// Registry keys and values owned by one emulator.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Registry {
+    keys: Vec<Key>,
 }
 
-/// Remove a value; false when the key or value does not exist.
-pub fn delete_value(path: &str, name: &str) -> bool {
-    let mut keys = KEYS.lock().unwrap();
-    let Some(key) = find_mut(&mut keys, path) else {
-        return false;
-    };
-    let before = key.values.len();
-    key.values.retain(|(n, _)| !n.eq_ignore_ascii_case(name));
-    key.values.len() != before
+impl Default for Registry {
+    fn default() -> Self {
+        Self { keys: seed() }
+    }
 }
 
-/// Names of the direct subkeys of `path`, in creation order.
-pub fn subkeys(path: &str) -> Vec<String> {
-    let keys = KEYS.lock().unwrap();
-    keys.iter()
-        .filter(|k| parent_of(&k.path).is_some_and(|p| p.eq_ignore_ascii_case(path)))
-        .map(|k| k.path.rsplit('\\').next().unwrap_or("").to_string())
-        .collect()
-}
+impl Registry {
+    pub fn key_exists(&self, path: &str) -> bool {
+        find(&self.keys, path).is_some()
+    }
 
-/// The `index`-th value of `path`, in creation order.
-pub fn value_at(path: &str, index: usize) -> Option<(String, Value)> {
-    let keys = KEYS.lock().unwrap();
-    find(&keys, path)?.values.get(index).cloned()
-}
+    /// Create the key (and missing parents) unless it exists; true when created.
+    /// None when the root is not a predefined key.
+    pub fn create_key(&mut self, path: &str) -> Option<bool> {
+        let keys = &mut self.keys;
+        let root = path.split('\\').next().unwrap_or("");
+        find(keys, root)?;
+        Some(insert_path(keys, path))
+    }
 
-pub fn key_info(path: &str) -> Option<KeyInfo> {
-    let subkeys = subkeys(path);
-    let keys = KEYS.lock().unwrap();
-    let key = find(&keys, path)?;
-    Some(KeyInfo {
-        subkeys: subkeys.len() as u32,
-        max_subkey_len: subkeys
-            .iter()
-            .map(|s| s.encode_utf16().count() as u32)
-            .max()
-            .unwrap_or(0),
-        values: key.values.len() as u32,
-        max_value_name_len: key
+    /// Delete a key without subkeys, or with `recursive` the key and its subtree.
+    pub fn delete_key(&mut self, path: &str, recursive: bool) -> Result<(), DeleteError> {
+        let keys = &mut self.keys;
+        find(keys, path).ok_or(DeleteError::NotFound)?;
+        let prefix = format!("{}\\", path.to_ascii_lowercase());
+        let in_subtree = |k: &Key| k.path.to_ascii_lowercase().starts_with(&prefix);
+        if !recursive && keys.iter().any(in_subtree) {
+            return Err(DeleteError::HasSubkeys);
+        }
+        keys.retain(|k| !k.path.eq_ignore_ascii_case(path) && !in_subtree(k));
+        Ok(())
+    }
+
+    /// Remove every value and subkey of `path`, keeping the key.
+    pub fn clear_key(&mut self, path: &str) -> bool {
+        let keys = &mut self.keys;
+        let prefix = format!("{}\\", path.to_ascii_lowercase());
+        keys.retain(|k| !k.path.to_ascii_lowercase().starts_with(&prefix));
+        match find_mut(keys, path) {
+            Some(key) => {
+                key.values.clear();
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Set a value; false when the key does not exist. "" is the default value.
+    pub fn set_value(&mut self, path: &str, name: &str, value: Value) -> bool {
+        let keys = &mut self.keys;
+        let Some(key) = find_mut(keys, path) else {
+            return false;
+        };
+        match key
+            .values
+            .iter_mut()
+            .find(|(n, _)| n.eq_ignore_ascii_case(name))
+        {
+            Some((_, v)) => *v = value,
+            None => key.values.push((name.to_string(), value)),
+        }
+        true
+    }
+
+    pub fn get_value(&self, path: &str, name: &str) -> Option<Value> {
+        self.named_value(path, name).map(|(_, v)| v.clone())
+    }
+
+    pub(crate) fn named_value(&self, path: &str, name: &str) -> Option<&(String, Value)> {
+        find(&self.keys, path)?
             .values
             .iter()
-            .map(|(n, _)| n.encode_utf16().count() as u32)
-            .max()
-            .unwrap_or(0),
-        max_value_len: key
-            .values
-            .iter()
-            .map(|(_, v)| v.data.len() as u32)
-            .max()
-            .unwrap_or(0),
-    })
+            .find(|(n, _)| n.eq_ignore_ascii_case(name))
+    }
+
+    /// Remove a value; false when the key or value does not exist.
+    pub fn delete_value(&mut self, path: &str, name: &str) -> bool {
+        let keys = &mut self.keys;
+        let Some(key) = find_mut(keys, path) else {
+            return false;
+        };
+        let before = key.values.len();
+        key.values.retain(|(n, _)| !n.eq_ignore_ascii_case(name));
+        key.values.len() != before
+    }
+
+    /// Names of the direct subkeys of `path`, in creation order.
+    pub fn subkeys(&self, path: &str) -> Vec<String> {
+        let keys = &self.keys;
+        keys.iter()
+            .filter(|k| parent_of(&k.path).is_some_and(|p| p.eq_ignore_ascii_case(path)))
+            .map(|k| k.path.rsplit('\\').next().unwrap_or("").to_string())
+            .chain(
+                (path.eq_ignore_ascii_case("HKEY_USERS") && self.key_exists("HKEY_CURRENT_USER"))
+                    .then(|| CURRENT_USER_SID.clone()),
+            )
+            .collect()
+    }
+
+    /// The `index`-th value of `path`, in creation order.
+    pub fn value_at(&self, path: &str, index: usize) -> Option<(String, Value)> {
+        let keys = &self.keys;
+        find(keys, path)?.values.get(index).cloned()
+    }
+
+    pub fn key_info(&self, path: &str) -> Option<KeyInfo> {
+        let subkeys = self.subkeys(path);
+        let keys = &self.keys;
+        let key = find(keys, path)?;
+        Some(KeyInfo {
+            subkeys: subkeys.len() as u32,
+            max_subkey_len: subkeys
+                .iter()
+                .map(|s| s.encode_utf16().count() as u32)
+                .max()
+                .unwrap_or(0),
+            values: key.values.len() as u32,
+            max_value_name_len: key
+                .values
+                .iter()
+                .map(|(n, _)| n.encode_utf16().count() as u32)
+                .max()
+                .unwrap_or(0),
+            max_value_len: key
+                .values
+                .iter()
+                .map(|(_, v)| v.data.len() as u32)
+                .max()
+                .unwrap_or(0),
+        })
+    }
 }

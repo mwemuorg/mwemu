@@ -1,75 +1,37 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
 use crate::winapi::winapi64::kernelbase;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
-        "CveEventWrite" => kernelbase::CveEventWrite(emu),
-        "WaitOnAddress" => kernelbase::WaitOnAddress(emu),
-        "WakeByAddressAll" => kernelbase::WakeByAddressAll(emu),
-        "WakeByAddressSingle" => kernelbase::WakeByAddressSingle(emu),
+    dispatch_api!(api, {
         "AcquireSRWLockExclusive" => kernelbase::AcquireSRWLockExclusive(emu),
         "AcquireSRWLockShared" => kernelbase::AcquireSRWLockShared(emu),
-        "CancelWaitableTimer" => kernelbase::CancelWaitableTimer(emu),
-        "CreateEventA" => kernelbase::CreateEventA(emu),
-        "CreateEventExA" => kernelbase::CreateEventExA(emu),
-        "CreateEventExW" => kernelbase::CreateEventExW(emu),
-        "CreateEventW" => kernelbase::CreateEventW(emu),
-        "CreateMutexA" => kernelbase::CreateMutexA(emu),
-        "CreateMutexExA" => kernelbase::CreateMutexExA(emu),
-        "CreateMutexExW" => kernelbase::CreateMutexExW(emu),
-        "CreateMutexW" => kernelbase::CreateMutexW(emu),
-        "CreateSemaphoreExW" => kernelbase::CreateSemaphoreExW(emu),
-        "CreateSemaphoreW" => kernelbase::CreateSemaphoreW(emu),
-        "CreateWaitableTimerExW" => kernelbase::CreateWaitableTimerExW(emu),
-        "CreateWaitableTimerW" => kernelbase::CreateWaitableTimerW(emu),
         "DeleteCriticalSection" => kernelbase::DeleteCriticalSection(emu),
-        "DeleteSynchronizationBarrier" => kernelbase::DeleteSynchronizationBarrier(emu),
         "EnterCriticalSection" => kernelbase::EnterCriticalSection(emu),
-        "EnterSynchronizationBarrier" => kernelbase::EnterSynchronizationBarrier(emu),
         "InitOnceBeginInitialize" => kernelbase::InitOnceBeginInitialize(emu),
         "InitOnceComplete" => kernelbase::InitOnceComplete(emu),
         "InitOnceExecuteOnce" => kernelbase::InitOnceExecuteOnce(emu),
         "InitOnceInitialize" => kernelbase::InitOnceInitialize(emu),
         "InitializeConditionVariable" => kernelbase::InitializeConditionVariable(emu),
         "InitializeCriticalSection" => kernelbase::InitializeCriticalSection(emu),
-        "InitializeCriticalSectionAndSpinCount" => {
-            kernelbase::InitializeCriticalSectionAndSpinCount(emu)
-        }
+        "InitializeCriticalSectionAndSpinCount" => kernelbase::InitializeCriticalSectionAndSpinCount(emu),
         "InitializeCriticalSectionEx" => kernelbase::InitializeCriticalSectionEx(emu),
         "InitializeSListHead" => kernelbase::InitializeSListHead(emu),
         "InitializeSRWLock" => kernelbase::InitializeSRWLock(emu),
-        "InitializeSynchronizationBarrier" => kernelbase::InitializeSynchronizationBarrier(emu),
         "InterlockedFlushSList" => kernelbase::InterlockedFlushSList(emu),
         "InterlockedPopEntrySList" => kernelbase::InterlockedPopEntrySList(emu),
         "InterlockedPushEntrySList" => kernelbase::InterlockedPushEntrySList(emu),
         "InterlockedPushListSList" => kernelbase::InterlockedPushListSList(emu),
         "InterlockedPushListSListEx" => kernelbase::InterlockedPushListSListEx(emu),
         "LeaveCriticalSection" => kernelbase::LeaveCriticalSection(emu),
-        "LeaveCriticalSectionWhenCallbackReturns" => {
-            kernelbase::LeaveCriticalSectionWhenCallbackReturns(emu)
-        }
-        "OpenEventA" => kernelbase::OpenEventA(emu),
-        "OpenEventW" => kernelbase::OpenEventW(emu),
-        "OpenMutexW" => kernelbase::OpenMutexW(emu),
-        "OpenSemaphoreW" => kernelbase::OpenSemaphoreW(emu),
-        "OpenWaitableTimerW" => kernelbase::OpenWaitableTimerW(emu),
-        "PulseEvent" => kernelbase::PulseEvent(emu),
+        "LeaveCriticalSectionWhenCallbackReturns" => kernelbase::LeaveCriticalSectionWhenCallbackReturns(emu),
         "QueryDepthSList" => kernelbase::QueryDepthSList(emu),
-        "ReleaseMutex" => kernelbase::ReleaseMutex(emu),
         "ReleaseMutexWhenCallbackReturns" => kernelbase::ReleaseMutexWhenCallbackReturns(emu),
         "ReleaseSRWLockExclusive" => kernelbase::ReleaseSRWLockExclusive(emu),
         "ReleaseSRWLockShared" => kernelbase::ReleaseSRWLockShared(emu),
-        "ReleaseSemaphore" => kernelbase::ReleaseSemaphore(emu),
-        "ReleaseSemaphoreWhenCallbackReturns" => {
-            kernelbase::ReleaseSemaphoreWhenCallbackReturns(emu)
-        }
-        "ResetEvent" => kernelbase::ResetEvent(emu),
+        "ReleaseSemaphoreWhenCallbackReturns" => kernelbase::ReleaseSemaphoreWhenCallbackReturns(emu),
         "SetCriticalSectionSpinCount" => kernelbase::SetCriticalSectionSpinCount(emu),
-        "SetEvent" => kernelbase::SetEvent(emu),
         "SetEventWhenCallbackReturns" => kernelbase::SetEventWhenCallbackReturns(emu),
-        "SetWaitableTimer" => kernelbase::SetWaitableTimer(emu),
-        "SetWaitableTimerEx" => kernelbase::SetWaitableTimerEx(emu),
-        "SignalObjectAndWait" => kernelbase::SignalObjectAndWait(emu),
         "Sleep" => kernelbase::Sleep(emu),
         "SleepConditionVariableCS" => kernelbase::SleepConditionVariableCS(emu),
         "SleepConditionVariableSRW" => kernelbase::SleepConditionVariableSRW(emu),
@@ -77,11 +39,6 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "TryAcquireSRWLockExclusive" => kernelbase::TryAcquireSRWLockExclusive(emu),
         "TryAcquireSRWLockShared" => kernelbase::TryAcquireSRWLockShared(emu),
         "TryEnterCriticalSection" => kernelbase::TryEnterCriticalSection(emu),
-        "UnregisterWaitEx" => kernelbase::UnregisterWaitEx(emu),
-        "WaitForMultipleObjects" => kernelbase::WaitForMultipleObjects(emu),
-        "WaitForMultipleObjectsEx" => kernelbase::WaitForMultipleObjectsEx(emu),
-        "WaitForSingleObject" => kernelbase::WaitForSingleObject(emu),
-        "WaitForSingleObjectEx" => kernelbase::WaitForSingleObjectEx(emu),
         "WaitForThreadpoolIoCallbacks" => kernelbase::WaitForThreadpoolIoCallbacks(emu),
         "WaitForThreadpoolTimerCallbacks" => kernelbase::WaitForThreadpoolTimerCallbacks(emu),
         "WaitForThreadpoolWaitCallbacks" => kernelbase::WaitForThreadpoolWaitCallbacks(emu),
@@ -94,7 +51,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "InterlockedExchange" => kernelbase::InterlockedExchange(emu),
         "InterlockedExchangeAdd" => kernelbase::InterlockedExchangeAdd(emu),
         "InterlockedIncrement" => kernelbase::InterlockedIncrement(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

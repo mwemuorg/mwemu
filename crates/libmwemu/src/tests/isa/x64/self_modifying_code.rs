@@ -4,11 +4,12 @@
 //! they decrypt a buffer with `rep movs`/`movdqu`/an API call and jump into it.
 //! Every store path that can land in executable memory is covered here.
 
-use crate::tests::helpers::{call_winapi_export as call, prepare_winapi as prepare};
-use crate::winapi::helper;
-use crate::*;
 use iced_x86::{Decoder, DecoderOptions};
 use itertools::iproduct;
+
+use crate::tests::helpers::{call_winapi_export as call, prepare_winapi as prepare};
+use crate::windows::constants::process::PROCESS_QUERY_INFORMATION;
+use crate::*;
 
 fn run_code(code: &[u8]) -> Emu {
     let mut emu = emu64();
@@ -177,7 +178,13 @@ fn flushing_instruction_cache_preserves_handles_and_invalidates_decoded_code() {
         [false, true]
     ) {
         let (mut emu, data) = prepare(is64);
-        let process = helper::handler_create("process://flush-cache-regression");
+        let pid = call(&mut emu, library, "GetCurrentProcessId", &[]);
+        let process = call(
+            &mut emu,
+            library,
+            "OpenProcess",
+            &[PROCESS_QUERY_INFORMATION as u64, 0, pid],
+        );
         let mut decoder = Decoder::with_ip(
             if is64 { 64 } else { 32 },
             &[0x90],
@@ -196,8 +203,15 @@ fn flushing_instruction_cache_preserves_handles_and_invalidates_decoded_code() {
             ),
             1
         );
-        assert!(helper::handler_exist(process));
+        assert_eq!(
+            emu.handle_management.process_handle_id(process),
+            Some(pid as u32)
+        );
         assert!(!emu.instruction_cache().lookup_entry(data, 0));
-        assert!(helper::handler_close(process));
+        assert_eq!(call(&mut emu, library, "CloseHandle", &[process]), 1);
+        assert_eq!(
+            call(&mut emu, library, "FlushInstructionCache", &[process, 0, 0]),
+            0
+        );
     }
 }

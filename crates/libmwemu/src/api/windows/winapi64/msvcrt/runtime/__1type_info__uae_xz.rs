@@ -12,7 +12,7 @@ pub fn __1type_info__UAE_XZ(emu: &mut emu::Emu) {
     };
     log_red!(
         emu,
-        "msvcrt!~type_info this:0x{:x} vtable:0x{:x}",
+        "msvcrt!~type_info this=0x{:x} vtable=0x{:x}",
         this_ptr,
         vtable
     );

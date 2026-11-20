@@ -8,7 +8,7 @@ pub fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
 
     log_red!(
         emu,
-        "kernel32!SetUnhandledExceptionFilter  callback: 0x{:x}",
+        "kernel32!SetUnhandledExceptionFilter  callback=0x{:x}",
         callback
     );
 

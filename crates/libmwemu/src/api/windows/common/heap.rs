@@ -5,8 +5,9 @@ use crate::emu::object_handle::HeapHandle;
 use crate::exception::types::ExceptionType;
 use crate::kernel::heap::Region;
 use crate::maps::mem64::Permission;
+use crate::winapi::common::memory::{self, pointer_size, write_pointer};
 use crate::winapi::common::trace;
-use crate::winapi::policy::api_try;
+use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
 
@@ -357,6 +358,8 @@ pub(crate) fn local_realloc_api(emu: &mut Emu) {
 
 pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
     let (handler, parameters, returns_value): (fn(&mut Emu), &str, bool) = match api {
+        "GetProcessHeap" => (GetProcessHeap, "", true),
+        "GetProcessHeaps" => (|emu| process_heaps(emu, false), "count heaps", true),
         "HeapAlloc" | "RtlAllocateHeap" => (alloc_api, "heap flags size", true),
         "HeapFree" | "RtlFreeHeap" => (free_api, "heap flags address", true),
         "HeapReAlloc" | "RtlReAllocateHeap" => (realloc_api, "heap flags address size", true),
@@ -372,4 +375,125 @@ pub(crate) fn dispatch(api: &str, emu: &mut Emu) -> bool {
     };
     trace::api(emu, api, parameters, returns_value, handler);
     true
+}
+
+fn process_heap(emu: &mut Emu) -> u64 {
+    let key = emu.handle_management.get_or_insert_process_heap();
+    if let Some(base) = emu.handle_management.heap_base_addr(key) {
+        return base;
+    }
+    let base = emu.heap_mut().base();
+    emu.handle_management.set_heap_base_addr(key, base);
+    base
+}
+pub fn GetProcessHeap(emu: &mut Emu) {
+    let call = WinApi(Stdcall);
+    let base = process_heap(emu);
+    log_red!(emu, "GetProcessHeap base={base:#x}");
+    call.set_return(emu, base);
+}
+pub(crate) fn process_heaps(emu: &mut Emu, native: bool) {
+    let call = WinApi(Stdcall);
+    let count = api_try!(emu, call.arg_u32(emu, 0)) as usize;
+    let out = api_try!(emu, call.arg(emu, 1));
+    process_heap(emu);
+    let keys = emu.handle_management.heap_handle_keys();
+    let total = keys.len();
+    let width = pointer_size(emu);
+    let value = if count < total {
+        total
+    } else if out != 0 && emu.maps.validate_write_range(out, total as u64 * width) {
+        for (i, key) in keys.into_iter().enumerate() {
+            let address = emu
+                .handle_management
+                .heap_base_addr(key)
+                .unwrap_or(u64::from(key));
+            write_pointer(emu, out + i as u64 * width, address);
+        }
+        total
+    } else {
+        if !native {
+            emu.set_last_error(ERROR_NOACCESS);
+        }
+        0
+    };
+    log_red!(
+        emu,
+        "{} count={count} output={out:#x} total={total}",
+        if native {
+            "RtlGetProcessHeaps"
+        } else {
+            "GetProcessHeaps"
+        }
+    );
+    call.set_return(emu, value as u64);
+    call.cleanup_args(emu, 2);
+}
+
+pub fn GetProcessHeaps(emu: &mut Emu) {
+    process_heaps(emu, false);
+}
+
+pub(crate) fn local_lock(emu: &mut Emu, api: &str) {
+    let call = WinApi(Stdcall);
+    let address = api_try!(emu, call.arg(emu, 0));
+    let valid = owned_size(emu, 0, address).is_some();
+    let result = if !valid {
+        emu.set_last_error(ERROR_INVALID_HANDLE);
+        if api == "GlobalFlags" {
+            GMEM_INVALID_HANDLE
+        } else {
+            0
+        }
+    } else if matches!(api, "LocalLock" | "GlobalLock") {
+        address
+    } else if api == "GlobalUnlock" {
+        1
+    } else if api == "GlobalFlags" {
+        0
+    } else {
+        emu.set_last_error(ERROR_NOT_LOCKED);
+        0
+    };
+    log_red!(emu, "{api} address={address:#x}");
+    call.set_return(emu, result);
+    call.cleanup_args(emu, 1);
+}
+
+pub(crate) fn query_compatibility(emu: &mut Emu, library: &str) {
+    let call = WinApi(Stdcall);
+    let [handle, class, info, size, returned] = api_try!(emu, call.args(emu));
+    // Only HeapCompatibilityInformation is meaningful for the guest's standard allocator.
+    if class as u32 != 0 {
+        policy::unsupported(emu, library, "HeapQueryInformation", emu.pc());
+        return;
+    }
+    let result = (|| {
+        if handle == 0 || alloc_context(emu, handle).is_none() {
+            return Err(ERROR_INVALID_HANDLE);
+        }
+        if returned != 0 && !memory::writable_pointer(emu, returned) {
+            return Err(ERROR_NOACCESS);
+        }
+        if size < 4 {
+            if returned != 0 {
+                memory::write_pointer(emu, returned, 4);
+            }
+            return Err(ERROR_INSUFFICIENT_BUFFER);
+        }
+        if info == 0 || !emu.maps.validate_write_range(info, 4) {
+            return Err(ERROR_NOACCESS);
+        }
+        emu.maps.write_dword(info, 0);
+        if returned != 0 {
+            memory::write_pointer(emu, returned, 4);
+        }
+        Ok(())
+    })();
+    if let Err(error) = result {
+        emu.set_last_error(error);
+    }
+    log_red!(emu, "HeapQueryInformation heap={handle:#x}");
+    call.set_return(emu, u64::from(result.is_ok()));
+    call.cleanup_args(emu, 5);
 }

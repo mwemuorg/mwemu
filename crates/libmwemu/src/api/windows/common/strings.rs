@@ -53,7 +53,7 @@ pub(crate) fn char_next(emu: &mut Emu, api: &str, wide: bool, extended: bool) {
     } else {
         next_ansi(emu, current, code_page)
     };
-    log_red!(emu, "{} current:0x{:x} => 0x{:x}", api, current, next);
+    log_red!(emu, "{} current=0x{:x} => 0x{:x}", api, current, next);
     call.set_return(emu, next);
     call.cleanup_args(emu, if extended { 3 } else { 1 });
 }
@@ -84,7 +84,7 @@ pub(crate) fn char_prev(emu: &mut Emu, api: &str, wide: bool, extended: bool) {
     };
     log_red!(
         emu,
-        "{} start:0x{:x} current:0x{:x} => 0x{:x}",
+        "{} start=0x{:x} current=0x{:x} => 0x{:x}",
         api,
         start,
         current,
@@ -105,7 +105,7 @@ pub(crate) fn dbcs_lead_byte(emu: &mut Emu, api: &str, extended: bool) {
     let result = is_lead_byte(code_page, byte);
     log_red!(
         emu,
-        "{} cp:{} byte:0x{:02x} => {}",
+        "{} cp={} byte=0x{:02x} => {}",
         api,
         code_page,
         byte,
@@ -250,7 +250,7 @@ pub(crate) fn classify_character(emu: &mut Emu, api: &str, wide: bool, class: Ch
         CharacterClass::Lowercase => ch.is_lowercase(),
         CharacterClass::Uppercase => ch.is_uppercase(),
     });
-    log_red!(emu, "{} character:0x{:x} => {}", api, value, result);
+    log_red!(emu, "{} character=0x{:x} => {}", api, value, result);
     call.set_return(emu, result as u64);
     call.cleanup_args(emu, 1);
 }
@@ -295,7 +295,7 @@ pub(crate) fn computer_name(emu: &mut Emu, api: &str, wide: bool) {
     let result = write_computer_name(emu, buffer, size, wide);
     log_red!(
         emu,
-        "{} buffer:0x{:x} size:0x{:x} => {:?}",
+        "{} buffer=0x{:x} size=0x{:x} => {:?}",
         api,
         buffer,
         size,
@@ -309,6 +309,13 @@ pub(crate) fn computer_name(emu: &mut Emu, api: &str, wide: bool) {
 }
 
 pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
+    let kernel_export = matches!(
+        api,
+        "GetComputerNameA" | "GetComputerNameW" | "IsDBCSLeadByte" | "IsDBCSLeadByteEx"
+    );
+    if (library == "user32" && kernel_export) || (library == "kernel32" && !kernel_export) {
+        return false;
+    }
     let handler: fn(&mut Emu, &str) = match api {
         "GetComputerNameA" => |emu, name| computer_name(emu, name, false),
         "GetComputerNameW" => |emu, name| computer_name(emu, name, true),
@@ -356,6 +363,19 @@ pub(crate) fn read_text(emu: &Emu, address: u64, wide: bool) -> String {
         emu.maps.read_wide_string(address)
     } else {
         emu.maps.read_string(address)
+    }
+}
+
+pub(crate) fn read_text_checked(emu: &Emu, address: u64, wide: bool) -> Option<String> {
+    let bytes = string_bytes(emu, address, wide, None)?;
+    if wide {
+        let units: Vec<u16> = bytes
+            .chunks_exact(2)
+            .map(|word| u16::from_le_bytes([word[0], word[1]]))
+            .collect();
+        Some(String::from_utf16_lossy(&units))
+    } else {
+        Some(String::from_utf8_lossy(&bytes).into_owned())
     }
 }
 
@@ -479,7 +499,7 @@ pub(crate) fn calendar_info(emu: &mut Emu, api: &str, wide: bool) {
     };
     log_red!(
         emu,
-        "{} locale:0x{:x} calendar:{} kind:0x{:x} capacity:{} => {}",
+        "{} locale=0x{:x} calendar={} kind=0x{:x} capacity={} => {}",
         api,
         locale,
         calendar,
@@ -499,7 +519,12 @@ fn code_unit_size(wide: bool) -> usize {
     }
 }
 
-fn string_bytes(emu: &Emu, address: u64, wide: bool, limit: Option<usize>) -> Option<Vec<u8>> {
+pub(crate) fn string_bytes(
+    emu: &Emu,
+    address: u64,
+    wide: bool,
+    limit: Option<usize>,
+) -> Option<Vec<u8>> {
     // Match the existing map string readers' scan limit.
     const MAX_STRING_BYTES: usize = 1_000_000;
     if address == 0 {
@@ -558,7 +583,7 @@ pub(crate) fn concatenate(emu: &mut Emu, api: &str, wide: bool) {
     };
     log_red!(
         emu,
-        "{} destination:0x{:x} source:0x{:x} => 0x{:x}",
+        "{} destination=0x{:x} source=0x{:x} => 0x{:x}",
         api,
         destination,
         source,
@@ -586,7 +611,7 @@ pub(crate) fn copy_string(emu: &mut Emu, api: &str, wide: bool, bounded: bool) {
     };
     log_red!(
         emu,
-        "{} destination:0x{:x} source:0x{:x} capacity:{:?} => 0x{:x}",
+        "{} destination=0x{:x} source=0x{:x} capacity={:?} => 0x{:x}",
         api,
         destination,
         source,
@@ -603,7 +628,7 @@ pub(crate) fn string_length(emu: &mut Emu, api: &str, wide: bool) {
     let length = string_bytes(emu, source, wide, None)
         .map(|bytes| bytes.len() / code_unit_size(wide))
         .unwrap_or(0);
-    log_red!(emu, "{} source:0x{:x} => {}", api, source, length);
+    log_red!(emu, "{} source=0x{:x} => {}", api, source, length);
     call.set_return(emu, length as u64);
     call.cleanup_args(emu, 1);
 }
@@ -735,6 +760,86 @@ pub(crate) fn wsprintf(emu: &mut Emu, api: &str, wide: bool) {
         }
     }
     let written = write_text(emu, destination, BUFFER_CHARACTERS, &result, wide);
-    log_red!(emu, "user32!{} format:'{}' => '{}'", api, format, result);
+    log_red!(
+        emu,
+        "user32!{} format='{}' result='{}'",
+        api,
+        format,
+        result
+    );
     call.set_return(emu, written.saturating_sub(1));
+}
+
+pub(crate) fn bad_string_pointer(emu: &mut Emu, api: &str) {
+    let call = WinApi(Stdcall);
+    let [ptr, max] = api_try!(emu, call.args(emu));
+    let wide = api.ends_with('W');
+    let unit = if wide { 2 } else { 1 };
+    let mut at = ptr;
+    let mut bad = false;
+    for _ in 0..max {
+        let value = if wide {
+            emu.maps.read_word(at)
+        } else {
+            emu.maps.read_byte(at).map(u16::from)
+        };
+        match value {
+            Some(0) => break,
+            Some(_) => {}
+            None => {
+                bad = true;
+                break;
+            }
+        }
+        let Some(next) = at.checked_add(unit) else {
+            bad = true;
+            break;
+        };
+        at = next;
+    }
+    log_red!(emu, "{api} ptr={ptr:#x} max={max}");
+    call.set_return(emu, u64::from(bad));
+    call.cleanup_args(emu, 2);
+}
+
+pub(crate) fn computer_name_ex(emu: &mut Emu, api: &str) {
+    let call = WinApi(Stdcall);
+    let kind = api_try!(emu, call.arg_u32(emu, 0));
+    let out = api_try!(emu, call.arg(emu, 1));
+    let size = api_try!(emu, call.arg(emu, 2));
+    let wide = api.ends_with('W');
+    let result = if kind > 7 {
+        Err(ERROR_INVALID_PARAMETER)
+    } else if kind % 4 == 2 {
+        let capacity = emu.maps.read_dword(size);
+        let width = if wide { 2 } else { 1 };
+        if capacity.is_none() || size == 0 || !emu.maps.validate_write_range(size, 4) {
+            Err(ERROR_NOACCESS)
+        } else if capacity == Some(0) {
+            emu.maps.write_dword(size, 1);
+            Err(ERROR_MORE_DATA)
+        } else if out == 0
+            || !emu.maps.validate_write_range(out, width)
+            || !emu.maps.write_bytes(out, &[0u8; 2][..width as usize])
+        {
+            Err(ERROR_NOACCESS)
+        } else {
+            emu.maps.write_dword(size, 0);
+            Ok(())
+        }
+    } else {
+        write_computer_name(emu, out, size, wide).map_err(|e| {
+            if e == ERROR_BUFFER_OVERFLOW {
+                ERROR_MORE_DATA
+            } else {
+                e
+            }
+        })
+    };
+    log_red!(emu, "{api} format={kind}");
+    if let Err(e) = result {
+        emu.set_last_error(e);
+    }
+    call.set_return(emu, u64::from(result.is_ok()));
+    call.cleanup_args(emu, 3);
 }

@@ -334,10 +334,64 @@ pub fn nt_query_system_information(emu: &mut Emu) {
         }
     };
     let ret_len_ptr = emu.regs().r9;
+    query_system_information(emu, class, info, len, ret_len_ptr);
+}
+
+pub(crate) fn query_system_information(
+    emu: &mut Emu,
+    class: u64,
+    info: u64,
+    len: u32,
+    ret_len_ptr: u64,
+) {
+    if !emu.cfg.arch.is_64bits() {
+        const BASIC_INFO_SIZE_32: u32 = 44;
+        if matches!(
+            class,
+            SYSTEM_BASIC_INFORMATION | SYSTEM_EMULATION_BASIC_INFORMATION
+        ) {
+            if !validate_modeled_output_buffer(emu, info, len, ret_len_ptr, BASIC_INFO_SIZE_32) {
+                return;
+            }
+            let mut basic = [0; BASIC_INFO_SIZE_32 as usize];
+            for (offset, value) in [
+                (8, 0x1000u32),
+                (12, 0x10_0000),
+                (24, 0x1_0000),
+                (28, 0x1_0000),
+                (32, 0x7ffe_ffff),
+                (36, 1),
+            ] {
+                basic[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
+            }
+            basic[40] = 1;
+            let ok = emu.maps.write_bytes(info, &basic)
+                && write_return_length(emu, ret_len_ptr, BASIC_INFO_SIZE_32);
+            emu.regs_mut().rax = if ok {
+                STATUS_SUCCESS
+            } else {
+                STATUS_ACCESS_VIOLATION
+            };
+            return;
+        }
+        if !matches!(
+            class,
+            SYSTEM_DEVICE_INFORMATION
+                | SYSTEM_TIME_OF_DAY_INFORMATION
+                | SYSTEM_KERNEL_DEBUGGER_INFORMATION
+        ) {
+            emu.regs_mut().rax = if write_return_length(emu, ret_len_ptr, 0) {
+                STATUS_NOT_SUPPORTED
+            } else {
+                STATUS_ACCESS_VIOLATION
+            };
+            return;
+        }
+    }
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtQuerySystemInformation class: 0x{:x}, buf: 0x{:x}, len: 0x{:x}, ret_len: 0x{:x}",
+        "syscall 0x{:x}: NtQuerySystemInformation class=0x{:x}, buf=0x{:x}, len=0x{:x}, ret_len=0x{:x}",
         WIN64_NTQUERYSYSTEMINFORMATION,
         class,
         info,
@@ -884,21 +938,6 @@ pub fn nt_query_system_information(emu: &mut Emu) {
     }
 }
 
-/// `NtManageHotPatch` — RCX `HotPatchInfo` (pointer to struct).
-/// Stub: hot-patching is not supported in the emulator.
-pub fn nt_manage_hot_patch(emu: &mut Emu) {
-    let info = emu.regs().rcx;
-
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtManageHotPatch info: 0x{:x}",
-        WIN64_NTMANAGEHOTPATCH,
-        info
-    );
-
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
 /// `NtQueryDebugFilterState(ComponentId, Level)` — returns FALSE (0) to indicate
 /// that debug output is suppressed for this component/level (no debugger attached).
 pub fn nt_query_debug_filter_state(emu: &mut Emu) {
@@ -906,122 +945,10 @@ pub fn nt_query_debug_filter_state(emu: &mut Emu) {
     let level = emu.regs().rdx;
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtQueryDebugFilterState component: 0x{:x}, level: 0x{:x}",
+        "syscall 0x{:x}: NtQueryDebugFilterState component=0x{:x}, level=0x{:x}",
         WIN64_NTQUERYDEBUGFILTERSTATE,
         component,
         level
     );
     emu.regs_mut().rax = 0; // FALSE — debug output suppressed
-}
-
-/// `NtTraceEvent` — stub; ETW tracing is not emulated.
-pub fn nt_trace_event(emu: &mut Emu) {
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtTraceEvent (stub)",
-        WIN64_NTTRACEEVENT
-    );
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-/// `NtQueryInformationTransactionManager` — syscall 0x15a.
-/// x64: RCX=`TransactionManagerHandle`, RDX=`InformationClass`,
-///      R8=`Buffer`, R9=`BufferLength`, `[rsp+0x28]`=`ReturnLength` (PULONG).
-///
-/// Kernel Transaction Manager (KTM) query. Called by ntdll during loader init
-/// to probe transaction support. We handle the two most common classes and
-/// return STATUS_INVALID_INFO_CLASS for everything else.
-///
-/// Information classes:
-///   0 = TransactionManagerBasicInformation  — GUID(16) + VirtualClock(8) = 24 bytes
-///   1 = TransactionManagerLogInformation    — GUID(16) = 16 bytes
-pub fn nt_query_information_transaction_manager(emu: &mut Emu) {
-    let _handle = emu.regs().rcx;
-    let info_class = emu.regs().rdx;
-    let buffer = emu.regs().r8;
-    let buffer_len = emu.regs().r9;
-    let rsp = emu.regs().rsp;
-    let return_length_ptr = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
-
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtQueryInformationTransactionManager class: {} buf: 0x{:x} len: {}",
-        WIN64_NTQUERYINFORMATIONTRANSACTIONMANAGER,
-        info_class,
-        buffer,
-        buffer_len
-    );
-
-    let needed: u32 = match info_class {
-        0 => 24, // GUID(16) + LARGE_INTEGER(8)
-        1 => 16, // GUID(16)
-        _ => {
-            emu.regs_mut().rax = STATUS_INVALID_INFO_CLASS;
-            return;
-        }
-    };
-
-    if !write_return_length(emu, return_length_ptr, needed) {
-        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
-        return;
-    }
-
-    if buffer == 0 || buffer_len < u64::from(needed) {
-        emu.regs_mut().rax = STATUS_BUFFER_TOO_SMALL;
-        return;
-    }
-
-    // Zero-fill the output — no real KTM state to return.
-    if !bulk_write_zero(emu, buffer, needed) {
-        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
-        return;
-    }
-
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-/// `NtQueryIoCompletion` — syscall 0x15e.
-/// RCX=IoCompletionHandle, RDX=IoCompletionInformationClass,
-/// R8=IoCompletionInformation (out), R9=IoCompletionInformationLength,
-/// [rsp+0x28]=ReturnLength (out PULONG).
-///
-/// IoCompletionBasicInformation (class 0) returns a single ULONG Depth.
-/// Since we do not track real I/O completion ports, return STATUS_INVALID_HANDLE
-/// so callers fall back gracefully rather than receiving STATUS_NOT_IMPLEMENTED.
-pub fn nt_query_io_completion(emu: &mut Emu) {
-    let handle = emu.regs().rcx;
-    let info_class = emu.regs().rdx;
-    let buffer = emu.regs().r8;
-    let buffer_len = emu.regs().r9;
-    let rsp = emu.regs().rsp;
-    let return_length_ptr = emu.maps.read_qword(rsp + 0x28).unwrap_or(0);
-
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtQueryIoCompletion handle: 0x{:x}, class: {}, buf: 0x{:x}, len: {}",
-        WIN64_NTQUERYIOCOMPLETION,
-        handle,
-        info_class,
-        buffer,
-        buffer_len,
-    );
-
-    // IoCompletionBasicInformation (0): single ULONG Depth.
-    // Accept any class and return zeroed output — callers interpret 0 as "no queued items".
-    const NEEDED: u64 = 4; // sizeof(ULONG)
-    let _ = write_return_length(emu, return_length_ptr, NEEDED as u32);
-
-    if buffer == 0 || buffer_len < NEEDED {
-        emu.regs_mut().rax = STATUS_BUFFER_TOO_SMALL;
-        return;
-    }
-
-    if !emu.maps.is_mapped(buffer) {
-        emu.regs_mut().rax = STATUS_ACCESS_VIOLATION;
-        return;
-    }
-
-    // Depth = 0: completion port exists but has no queued items.
-    let _ = emu.maps.write_dword(buffer, 0);
-    emu.regs_mut().rax = STATUS_SUCCESS;
 }

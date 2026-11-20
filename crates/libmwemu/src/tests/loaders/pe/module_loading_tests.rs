@@ -1,18 +1,20 @@
-use crate::windows::constants::errors::*;
-use crate::windows::constants::memory::*;
-use crate::windows::constants::process::*;
 use std::collections::HashSet;
 use std::path::Path;
 
 use itertools::iproduct;
 
+use crate::ApiMode;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{Allocation, MemoryKind, PageState};
 use crate::tests::helpers::{
     self, WINAPI_MODULE_BASE, call_winapi_export as call, prepare_winapi as prepare,
 };
-use crate::winapi::{helper, winapi64};
+use crate::winapi::common::file_names::read_path;
+use crate::winapi::policy::{ApiDisposition, ApiStopReason};
+use crate::windows::constants::errors::*;
+use crate::windows::constants::memory::*;
+use crate::windows::constants::process::*;
 use crate::windows::structures;
 use crate::{emu32, emu64};
 
@@ -329,6 +331,11 @@ fn module_handles_are_image_bases_and_extended_outputs_have_pointer_width() {
                 0,
                 ERROR_INVALID_PARAMETER,
             ),
+            (
+                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS as u64,
+                0,
+                ERROR_INVALID_PARAMETER,
+            ),
             (UNKNOWN_MODULE_FLAG, 0, ERROR_INVALID_PARAMETER),
         ] {
             emu.maps.write_qword(output, u64::MAX);
@@ -350,7 +357,7 @@ fn module_file_names_honor_capacity_and_report_utf16_lengths() {
     ) {
         let (mut emu, data) = prepare(is64);
         emu.base = 0x0040_0000;
-        emu.cfg.exe_name = if wide { "test-🦀.exe" } else { "test.exe" }.into();
+        emu.cfg.exe_name = if wide { "test-🦀.exe" } else { "café.exe" }.into();
         let path = format!("C:\\{}", emu.cfg.exe_name);
         let name = if wide {
             "GetModuleFileNameW"
@@ -360,7 +367,7 @@ fn module_file_names_honor_capacity_and_report_utf16_lengths() {
         let length = if wide {
             path.encode_utf16().count()
         } else {
-            path.len()
+            path.chars().count()
         };
         let width = if wide { 2 } else { 1 };
         for capacity in [0, 1, 4, length, length + 1, length + 8] {
@@ -390,7 +397,8 @@ fn module_file_names_honor_capacity_and_report_utf16_lengths() {
         let actual = if wide {
             emu.maps.read_wide_string(data)
         } else {
-            emu.maps.read_string(data)
+            assert_eq!(emu.maps.read_byte(data + 6), Some(0xe9));
+            read_path(&emu, data, false).unwrap()
         };
         assert_eq!(actual, path);
         assert_eq!(call(&mut emu, library, name, &[0xdead, data, 256]), 0);
@@ -455,37 +463,45 @@ fn get_module_handle_32() {
 }
 
 #[test]
-fn free_library_64() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let ret = helpers::call_winapi64(&mut emu, winapi64::kernel32::FreeLibrary, &[0x7FF00000]);
-    assert_eq!(ret, 1, "FreeLibrary must return TRUE");
+fn free_library_rejects_unknown_modules_and_preserves_pinned_system_images() {
+    for wide in [false, true] {
+        let (mut emu, _) = prepare(wide);
+        let lib = "kernel32.dll";
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, lib, "FreeLibrary", &[0x7ff00000]),
+            0
+        );
+        assert_eq!(emu.get_last_error(), ERROR_MOD_NOT_FOUND);
+        let base = emu.export_indexes.get_by_name(lib).unwrap().base;
+        assert_eq!(
+            helpers::call_winapi_export(&mut emu, lib, "FreeLibrary", &[base]),
+            1
+        );
+        assert!(emu.export_indexes.get_by_base(base).is_some());
+    }
 }
 
 #[test]
-fn free_library() {
-    helpers::setup();
-    let mut emu = emu64();
-
-    let ret = helpers::call_winapi64(&mut emu, winapi64::kernel32::FreeLibrary, &[0x7FF00000]);
-    assert_eq!(ret, 1, "FreeLibrary should return TRUE");
-}
-
-#[test]
-fn wide_resource_and_activation_handlers_are_reachable_on_x64() {
+fn resource_updates_and_activation_contexts_use_policy() {
     let (mut emu, data) = prepare(true);
-    let path = r"C:\guest-resource.dll";
-    emu.maps.write_wide_string(data, path);
-    let resource = call(&mut emu, "kernel32.dll", "BeginUpdateResourceW", &[data, 0]);
-    assert_ne!(resource, 0);
-    assert_eq!(helper::handler_get_uri(resource), path);
-    assert_eq!(
-        call(&mut emu, "kernel32.dll", "CloseHandle", &[resource]),
-        1
-    );
-    // The existing activation-context model creates a handle without parsing ACTCTX.
-    let context = call(&mut emu, "kernel32.dll", "CreateActCtxW", &[data]);
-    assert!(helper::handler_exist(context));
-    helper::handler_close(context);
+    emu.maps.write_wide_string(data, r"C:\guest-resource.dll");
+    emu.set_api_mode(ApiMode::Strict);
+    for (api, args) in [
+        ("BeginUpdateResourceW", &[data, 0][..]),
+        ("CreateActCtxW", &[data][..]),
+    ] {
+        helpers::call_winapi64(
+            &mut emu,
+            |emu| helpers::invoke_winapi_export(emu, "kernel32.dll", api),
+            args,
+        );
+        assert_eq!(
+            emu.api_policy
+                .last_outcome
+                .as_ref()
+                .map(|outcome| &outcome.disposition),
+            Some(&ApiDisposition::Stopped(ApiStopReason::StrictPolicy))
+        );
+        emu.api_policy.clear_outcome();
+    }
 }

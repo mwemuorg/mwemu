@@ -10,8 +10,13 @@
 //! `wait4` reports it exited 0. Go's runtime (M threads, notes and
 //! semaphores on futexes) is the reference workload.
 
+use super::misc::trace_syscall64_args;
+use super::proc::handle_syscall64_exit;
+use super::trace_syscall64;
+use crate::arch::Arch;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::{self, current_tid};
 
 const CLONE_VM: u64 = 0x100;
 const CLONE_VFORK: u64 = 0x4000;
@@ -44,19 +49,16 @@ pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
         NR64_WAITID => waitid(emu),
         // No pidfds: Go (1.23+) and glibc fall back to wait4/waitid on ENOSYS.
         NR64_PIDFD_OPEN => ret0_named(emu, ENOSYS, "pidfd_open"),
-        NR64_GETTID => gettid(emu),
-        NR64_GETPPID => ret0_named(emu, 1, "getppid"),
+        NR64_GETPID => linux::getpid(emu),
+        NR64_GETTID => linux::gettid(emu),
+        NR64_GETPPID => linux::getppid(emu),
         NR64_PRCTL => ret0_named(emu, 0, "prctl"),
         NR64_DUP3 => dup3(emu),
-        NR64_SET_TID_ADDRESS => set_tid_address(emu),
+        NR64_SET_TID_ADDRESS => linux::set_tid_address(emu, Arch::X86_64),
         NR64_SCHED_YIELD => sched_yield(emu),
         _ => return false,
     }
     true
-}
-
-fn current_tid(emu: &emu::Emu) -> u64 {
-    emu.threads[emu.current_thread_id].id
 }
 
 /// Threads still able to run or be woken (an exited thread stays in the
@@ -108,7 +110,7 @@ fn retire_current_thread(emu: &mut emu::Emu) {
 
 fn ret0_named(emu: &mut emu::Emu, rax: u64, name: &str) {
     emu.regs_mut().rax = rax;
-    super::trace_syscall64(emu, name);
+    trace_syscall64(emu, name);
 }
 
 /// clone(flags, child_stack, parent_tid, child_tid, tls): with CLONE_VM the
@@ -126,7 +128,7 @@ fn clone(emu: &mut emu::Emu) {
 
     if flags & CLONE_VM == 0 {
         emu.regs_mut().rax = 1001;
-        super::misc::trace_syscall64_args(
+        trace_syscall64_args(
             emu,
             "clone",
             &[(
@@ -144,6 +146,9 @@ fn clone(emu: &mut emu::Emu) {
     child.wake_tick = 0;
     child.blocked_on_cs = None;
     child.handle = 0;
+    if flags & CLONE_VFORK == 0 {
+        child.signal_stack = Default::default();
+    }
     child.clear_child_tid = if flags & CLONE_CHILD_CLEARTID != 0 {
         child_tid_ptr
     } else {
@@ -174,7 +179,7 @@ fn clone(emu: &mut emu::Emu) {
     emu.cfg.enable_threading = true;
     emu.regs_mut().rax = tid;
 
-    super::misc::trace_syscall64_args(
+    trace_syscall64_args(
         emu,
         "clone",
         &[
@@ -221,7 +226,7 @@ fn futex(emu: &mut emu::Emu) {
     };
     emu.regs_mut().rax = rax;
 
-    super::misc::trace_syscall64_args(
+    trace_syscall64_args(
         emu,
         "futex",
         &[
@@ -237,13 +242,13 @@ fn futex(emu: &mut emu::Emu) {
 /// process like exit_group.
 fn exit_thread(emu: &mut emu::Emu) {
     if live_threads(emu) <= 1 {
-        super::proc::handle_syscall64_exit(emu);
+        handle_syscall64_exit(emu);
         return;
     }
     let status = emu.regs().rdi;
     let tid = current_tid(emu);
     retire_current_thread(emu);
-    super::misc::trace_syscall64_args(
+    trace_syscall64_args(
         emu,
         "exit",
         &[("tid", tid.to_string()), ("status", status.to_string())],
@@ -274,7 +279,7 @@ fn execve(emu: &mut emu::Emu) {
     let path = emu.maps.read_string(emu.regs().rdi);
     let argv = read_string_array(emu, emu.regs().rsi);
     log::info!("execve: {} {:?}", path, argv);
-    super::misc::trace_syscall64_args(
+    trace_syscall64_args(
         emu,
         "execve",
         &[("path", path), ("argv", format!("{argv:?}"))],
@@ -308,7 +313,7 @@ fn wait4(emu: &mut emu::Emu) {
         emu.maps.write_dword(status_ptr, 0);
     }
     emu.regs_mut().rax = tid;
-    super::misc::trace_syscall64_args(emu, "wait4", &[("pid", tid.to_string())]);
+    trace_syscall64_args(emu, "wait4", &[("pid", tid.to_string())]);
 }
 
 /// waitid(idtype, id, *siginfo, options, *rusage): like `wait4`, the child
@@ -327,7 +332,7 @@ fn waitid(emu: &mut emu::Emu) {
         emu.maps.write_dword(info + 24, 0); // si_status
     }
     emu.regs_mut().rax = 0;
-    super::misc::trace_syscall64_args(emu, "waitid", &[("id", id.to_string())]);
+    trace_syscall64_args(emu, "waitid", &[("id", id.to_string())]);
 }
 
 /// dup3(oldfd, newfd, flags): descriptors are not rewired (stdout stays the
@@ -336,27 +341,15 @@ fn dup3(emu: &mut emu::Emu) {
     let old = emu.regs().rdi;
     let new = emu.regs().rsi;
     emu.regs_mut().rax = new;
-    super::misc::trace_syscall64_args(
+    trace_syscall64_args(
         emu,
         "dup3",
         &[("oldfd", old.to_string()), ("newfd", new.to_string())],
     );
 }
 
-fn gettid(emu: &mut emu::Emu) {
-    emu.regs_mut().rax = current_tid(emu);
-    super::trace_syscall64(emu, "gettid");
-}
-
-fn set_tid_address(emu: &mut emu::Emu) {
-    let ptr = emu.regs().rdi;
-    emu.threads[emu.current_thread_id].clear_child_tid = ptr;
-    emu.regs_mut().rax = current_tid(emu);
-    super::misc::trace_syscall64_args(emu, "set_tid_address", &[("tidptr", format!("0x{ptr:x}"))]);
-}
-
 fn sched_yield(emu: &mut emu::Emu) {
     yield_current(emu);
     emu.regs_mut().rax = 0;
-    super::trace_syscall64(emu, "sched_yield");
+    trace_syscall64(emu, "sched_yield");
 }

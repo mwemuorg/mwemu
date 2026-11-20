@@ -14,24 +14,26 @@
 //! explicitly by [`Emu::run_module_init`] / [`Emu::run_driver_entry`], which
 //! also builds the `DRIVER_OBJECT` the driver expects.
 
+use goblin::pe::section_table::{IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE};
+use goblin::pe::subsystem::IMAGE_SUBSYSTEM_NATIVE;
 use rs_header::elf::relocatable::{RelSection, RelSymbol};
 use rs_header::pe::export_index::build_image_export_index;
 use rs_header::pe::pe64::PE64;
 use rs_header::pe::readers::{read_c_string, read_u64_le};
-use rs_header::pe::shared::IMAGE_DIRECTORY_ENTRY_EXPORT;
+use rs_header::pe::shared::{
+    IMAGE_DIRECTORY_ENTRY_EXPORT, IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG, IMAGE_FILE_MACHINE_AMD64,
+};
 
+use super::format::{FormatLoader, LoadInput, apply_entry_point_override, enter_kernel_init};
+use super::pe::image_regions;
 use crate::arch::Arch;
 use crate::emu::Emu;
 use crate::err::MwemuError;
-use crate::kernel::{KernelOs, windows};
+use crate::kernel::{KernelOs, ModuleImage, windows};
 
-use super::format::{FormatLoader, LoadInput, apply_entry_point_override, enter_kernel_init};
-
-const IMAGE_SUBSYSTEM_NATIVE: u16 = 1;
-const IMAGE_FILE_MACHINE_AMD64: u16 = 0x8664;
-const IMAGE_SCN_MEM_EXECUTE: u32 = 0x2000_0000;
-const IMAGE_SCN_MEM_READ: u32 = 0x4000_0000;
-const IMAGE_SCN_MEM_WRITE: u32 = 0x8000_0000;
+const SECURITY_COOKIE_OFFSET: u64 = 0x58;
+// Win64 stack-cookie checks require the most significant 16 bits to be zero.
+const DRIVER_SECURITY_COOKIE: u64 = 0x0000_454d_5521_4d57;
 
 /// Libraries only a kernel-mode image imports.
 const KERNEL_LIBRARIES: &[&str] = &[
@@ -90,9 +92,6 @@ impl Emu {
     /// `__security_init_cookie` fast-fails (code 6) if it still finds the
     /// compile-time default. A fixed value keeps runs reproducible.
     fn init_security_cookie(&mut self, image: &PE64, base: u64) {
-        const IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG: usize = 10;
-        const SECURITY_COOKIE_OFFSET: u64 = 0x58;
-        const COOKIE: u64 = 0x4d57_454d_5521_4d57; // high 16 bits must be non-zero or __security_init_cookie overwrites it
         let Some(dir) = image
             .opt
             .data_directory
@@ -111,7 +110,7 @@ impl Emu {
             return;
         }
         if let Some(mem) = self.maps.get_mem_by_addr_mut(cookie_va) {
-            mem.force_write_qword(cookie_va, COOKIE);
+            mem.force_write_qword(cookie_va, DRIVER_SECURITY_COOKIE);
             self.security_cookie_va = cookie_va;
             log::debug!("security cookie seeded at 0x{:x}", cookie_va);
         }
@@ -168,7 +167,7 @@ impl Emu {
         // --- map the image ---------------------------------------------------
         let layout = image.image_layout();
         let span = layout.mapped_size();
-        let regions = super::pe::image_regions(&stem, &raw, layout);
+        let regions = image_regions(&stem, &raw, layout);
         self.maps
             .map_image(base, span, &regions)
             .map_err(|e| MwemuError::new(&format!("cannot map {}: {}", filename, e)))?;
@@ -291,7 +290,7 @@ impl Emu {
             );
         }
 
-        let module = crate::kernel::ModuleImage {
+        let module = ModuleImage {
             name: stem,
             base,
             size: span,

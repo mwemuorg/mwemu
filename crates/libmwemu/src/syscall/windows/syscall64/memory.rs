@@ -1,14 +1,18 @@
+use super::registry;
 use crate::api::abi::windows::WindowsAbi::WinSyscall;
 use crate::api::windows::common::memory as memory_api;
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 use crate::maps::virtual_memory::{ALLOCATION_GRANULARITY, PAGE_SIZE, align_up};
 use crate::syscall::windows::syscall64::sync::next_handle;
-use crate::winapi::policy::api_try;
+use crate::winapi::common::process::require_memory_access;
+use crate::winapi::policy::{self, api_try};
 use crate::winapi::winapi64::kernel32::load_library;
 use crate::windows::constants::errors::*;
 use crate::windows::constants::memory::*;
+use crate::windows::constants::process::PROCESS_VM_OPERATION;
 use crate::windows::constants::syscalls::*;
+use goblin::pe::optional_header::{MAGIC_32, MAGIC_64};
 
 use crate::windows::structures::MemoryBasicInformation64;
 use iced_x86::{Instruction, Mnemonic, OpKind, Register};
@@ -73,8 +77,8 @@ fn pe_size_of_image(raw: &[u8]) -> Option<u64> {
     }
     let magic = u16::from_le_bytes(raw[magic_off..magic_off + 2].try_into().ok()?);
     let soi_off = match magic {
-        0x20b => pe_off + 0x50, // PE32+
-        0x10b => pe_off + 0x50, // PE32
+        MAGIC_64 => pe_off + 0x50, // PE32+
+        MAGIC_32 => pe_off + 0x50, // PE32
         _ => return None,
     };
     if raw.len() < soi_off + 4 {
@@ -125,14 +129,14 @@ fn map_pe_as_section_view(
     let magic_off = pe_off + 0x18;
     let magic = u16::from_le_bytes(raw.get(magic_off..magic_off + 2)?.try_into().ok()?);
     let (opt_hdr_size, section_table_off) = match magic {
-        0x20b => (0xf0usize, pe_off + 0x18 + 0xf0), // PE32+ optional header = 240 bytes
-        0x10b => (0xe0usize, pe_off + 0x18 + 0xe0), // PE32
+        MAGIC_64 => (0xf0usize, pe_off + 0x18 + 0xf0), // PE32+ optional header = 240 bytes
+        MAGIC_32 => (0xe0usize, pe_off + 0x18 + 0xe0), // PE32
         _ => return None,
     };
     let _ = opt_hdr_size;
     let size_of_headers_off = match magic {
-        0x20b => pe_off + 0x54,
-        0x10b => pe_off + 0x54,
+        MAGIC_64 => pe_off + 0x54,
+        MAGIC_32 => pe_off + 0x54,
         _ => return None,
     };
     let size_of_headers = u32::from_le_bytes(
@@ -182,7 +186,7 @@ fn apply_pe_relocations(emu: &mut Emu, base: u64, raw: &[u8]) {
         .get(magic_off..magic_off + 2)
         .map(|b| u16::from_le_bytes(b.try_into().unwrap_or([0; 2])))
         .unwrap_or(0);
-    if magic != 0x20b {
+    if magic != MAGIC_64 {
         return;
     }
 
@@ -354,7 +358,7 @@ pub fn nt_query_virtual_memory(emu: &mut Emu) {
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtQueryVirtualMemory process: 0x{:x}, base: 0x{:x}, class: 0x{:x}, out: 0x{:x}, len: 0x{:x}, ret_len_ptr: 0x{:x}",
+        "syscall 0x{:x}: NtQueryVirtualMemory process=0x{:x}, base=0x{:x}, class=0x{:x}, out=0x{:x}, len=0x{:x}, ret_len_ptr=0x{:x}",
         WIN64_NTQUERYVIRTUALMEMORY,
         process_handle,
         base_address,
@@ -600,23 +604,23 @@ pub fn nt_unmap_view_of_section(emu: &mut Emu) {
         .unwrap_or("<unmapped>")
         .to_string();
 
-    if !memory_api::current_process(process_handle) {
+    if let Err(status) = require_memory_access(emu, process_handle, PROCESS_VM_OPERATION) {
         log_orange!(
             emu,
-            "syscall 0x{:x}: NtUnmapViewOfSection h: 0x{:x} base: 0x{:x} [{}] → ACCESS_DENIED",
+            "syscall 0x{:x}: NtUnmapViewOfSection handle=0x{:x} base=0x{:x} [{}] rejected",
             WIN64_NTUNMAPVIEWOFSECTION,
             process_handle,
             base,
             map_name,
         );
-        emu.regs_mut().rax = STATUS_ACCESS_DENIED;
+        emu.regs_mut().rax = status;
         return;
     }
 
     if map_name.starts_with("section_view_") {
         log_orange!(
             emu,
-            "syscall 0x{:x}: NtUnmapViewOfSection h: 0x{:x} base: 0x{:x} [{}] → unmapped",
+            "syscall 0x{:x}: NtUnmapViewOfSection handle=0x{:x} base=0x{:x} [{}] → unmapped",
             WIN64_NTUNMAPVIEWOFSECTION,
             process_handle,
             base,
@@ -627,7 +631,7 @@ pub fn nt_unmap_view_of_section(emu: &mut Emu) {
     } else {
         log_orange!(
             emu,
-            "syscall 0x{:x}: NtUnmapViewOfSection h: 0x{:x} base: 0x{:x} [{}] → kept (DLL image)",
+            "syscall 0x{:x}: NtUnmapViewOfSection handle=0x{:x} base=0x{:x} [{}] → kept (DLL image)",
             WIN64_NTUNMAPVIEWOFSECTION,
             process_handle,
             base,
@@ -841,7 +845,7 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtMapViewOfSection sh: 0x{:x} base_ptr: 0x{:x} req_base: 0x{:x} size: 0x{:x} prot: 0x{:x}",
+        "syscall 0x{:x}: NtMapViewOfSection sh=0x{:x} base_ptr=0x{:x} req_base=0x{:x} size=0x{:x} prot=0x{:x}",
         WIN64_NTMAPVIEWOFSECTION,
         section_handle,
         base_addr_ptr,
@@ -850,8 +854,8 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
         protect,
     );
 
-    if !memory_api::current_process(process_handle) {
-        emu.regs_mut().rax = STATUS_ACCESS_DENIED;
+    if let Err(status) = require_memory_access(emu, process_handle, PROCESS_VM_OPERATION) {
+        emu.regs_mut().rax = status;
         return;
     }
 
@@ -901,101 +905,20 @@ pub fn nt_map_view_of_section(emu: &mut Emu) {
         return;
     }
 
-    let perm = memory_api::permissions(protect).unwrap_or(Permission::READ_WRITE);
+    call.set_return(emu, STATUS_INVALID_IMAGE_FORMAT);
+}
 
-    let mapped_base = if requested_base >= 0x10000 && !emu.maps.is_mapped(requested_base) {
-        let name = format!("section_view_{:x}", requested_base);
-        match emu.maps.create_map(&name, requested_base, size, perm) {
-            Ok(_) => requested_base,
-            Err(_) => {
-                let base = emu.maps.lib64_alloc(size).unwrap_or(0);
-                if base != 0 {
-                    let name2 = format!("section_view_{:x}", base);
-                    let _ = emu.maps.create_map(&name2, base, size, perm);
-                }
-                base
-            }
-        }
-    } else {
-        let base = emu.maps.lib64_alloc(size).unwrap_or(0);
-        if base != 0 {
-            let name = format!("section_view_{:x}", base);
-            emu.maps.create_map(&name, base, size, perm);
-        }
-        base
+pub fn nt_open_section(emu: &mut Emu) {
+    let call = WinSyscall;
+    let [handle_out, desired_access, obj_attr] = api_try!(emu, call.args(emu));
+    let (root_dir, section_name, _) = match registry::object_attributes(emu, obj_attr) {
+        Ok(attributes) => attributes,
+        Err(status) => return call.set_return(emu, status),
     };
 
-    if mapped_base == 0 {
-        emu.regs_mut().rax = STATUS_NO_MEMORY;
-        return;
-    }
-
-    if base_addr_ptr != 0 && emu.maps.is_mapped(base_addr_ptr) {
-        let _ = emu.maps.write_qword(base_addr_ptr, mapped_base);
-    }
-    if view_size_ptr != 0 && emu.maps.is_mapped(view_size_ptr) {
-        let _ = emu.maps.write_qword(view_size_ptr, size);
-    }
-
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-/// `NtAllocateUserPhysicalPagesEx` — syscall 0x76.
-/// x64: RCX=`ProcessHandle`, RDX=`NumberOfPages` (PULONG_PTR in/out),
-///      R8=`UserPfnArray` (PULONG_PTR), R9=`ExtendedParameters`,
-///      `[rsp+0x28]`=`ExtendedParameterCount` (ULONG).
-///
-/// AWE physical-page allocation requires SE_LOCK_MEMORY_PRIVILEGE.
-/// Return STATUS_PRIVILEGE_NOT_HELD so ntdll falls back to non-AWE heap.
-pub fn nt_allocate_user_physical_pages_ex(emu: &mut Emu) {
-    let process_handle = emu.regs().rcx;
-    let num_pages_ptr = emu.regs().rdx;
-    let _pfn_array = emu.regs().r8;
-    let num_pages = emu.maps.read_qword(num_pages_ptr).unwrap_or(0);
-
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtAllocateUserPhysicalPagesEx h: 0x{:x} num_pages: {}",
-        WIN64_NTALLOCATEUSERPHYSICALPAGESEX,
-        process_handle,
-        num_pages
-    );
-
-    // Return SUCCESS with 0 pages allocated (physical memory unavailable in emulator).
-    // Writing 0 back to *NumberOfPages tells ntdll no pages were actually allocated,
-    // so the segment heap falls back to non-AWE mode without treating it as fatal.
-    if num_pages_ptr != 0 && emu.maps.is_mapped(num_pages_ptr) {
-        let _ = emu.maps.write_qword(num_pages_ptr, 0);
-    }
-
-    emu.regs_mut().rax = STATUS_SUCCESS;
-}
-
-/// `NtCreateSection` — syscall 0x4a.
-/// RCX=SectionHandle (out), RDX=DesiredAccess, R8=ObjectAttributes,
-/// R9=MaximumSize (PLARGE_INTEGER), [rsp+0x28]=SectionPageProtection,
-/// [rsp+0x30]=AllocationAttributes, [rsp+0x38]=FileHandle.
-///
-/// Returns a fake handle. Section objects are used by the loader to map
-/// DLL images; we don't need real semantics since mapping is handled
-/// by NtMapViewOfSection stubs.
-/// `NtOpenSection` — open a handle to an existing named section object.
-///
-/// x64: RCX=SectionHandle(out), RDX=DesiredAccess, R8=ObjectAttributes.
-/// Writes a fake handle and returns STATUS_SUCCESS.
-/// If the section name is a KnownDll path (e.g. `\KnownDlls\kernel32.dll`),
-/// store `handle → dll_name` so NtMapViewOfSection can load real PE content.
-pub fn nt_open_section(emu: &mut Emu) {
-    let handle_out = emu.regs().rcx;
-    let desired_access = emu.regs().rdx;
-    let obj_attr = emu.regs().r8;
-
-    // Parse ObjectAttributes → UNICODE_STRING → section name.
-    let section_name = read_object_attributes_name(emu, obj_attr);
-
-    log_orange!(
-        emu,
-        "syscall 0x{:x}: NtOpenSection handle_out: 0x{:x}, access: 0x{:x}, obj_attr: 0x{:x} name: {:?}",
+        "syscall 0x{:x}: NtOpenSection handle_out=0x{:x}, access=0x{:x}, obj_attr=0x{:x} name={:?}",
         WIN64_NTOPENSECTION,
         handle_out,
         desired_access,
@@ -1013,8 +936,17 @@ pub fn nt_open_section(emu: &mut Emu) {
     //   2. Relative open:  ObjectName = `kernel32.dll`, RootDirectory = handle from
     //      a previous `NtOpenDirectoryObject("\KnownDlls")`. ntdll's LdrpFindKnownDll
     //      uses this form, so we must resolve it too.
-    let root_dir = read_object_attributes_root_directory(emu, obj_attr);
-    let is_known_dll_dir = root_dir != 0 && emu.known_dll_dir_handles.contains(&root_dir);
+    let is_known_dll_dir = if root_dir == 0 {
+        false
+    } else {
+        match registry::known_dll_directory(emu, root_dir) {
+            Ok(_) => true,
+            Err(status) => {
+                WinSyscall.set_return(emu, status);
+                return;
+            }
+        }
+    };
     let dll_name = if is_known_dll_dir {
         if !section_name.is_empty() {
             Some(section_name.to_lowercase())
@@ -1062,14 +994,6 @@ pub fn nt_open_section(emu: &mut Emu) {
         }
     }
 
-    let h = next_handle();
-    let _ = emu.maps.write_qword(handle_out, h);
-
-    // Track as KnownDll if either explicitly a KnownDll path, or the name
-    // matches an already-loaded DLL (.pe map exists).  The hot-patch code
-    // opens sections by bare name (e.g. "KERNELBASE.dll") without the
-    // \KnownDlls\ prefix; returning the loaded .pe base for these avoids a
-    // zeroed-memory mapping that fails the MZ check later.
     let effective_dll = dll_name.or_else(|| {
         let lc = section_name.to_lowercase();
         if lc.ends_with(".dll") {
@@ -1082,16 +1006,13 @@ pub fn nt_open_section(emu: &mut Emu) {
         None
     });
 
-    if let Some(dll_name) = effective_dll {
-        log::trace!(
-            "NtOpenSection: tracking KnownDll handle 0x{:x} -> {}",
-            h,
-            dll_name
-        );
-        emu.section_handles.insert(h, dll_name);
-    }
-
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    let Some(dll_name) = effective_dll else {
+        return call.set_return(emu, STATUS_OBJECT_NAME_NOT_FOUND);
+    };
+    let handle = next_handle();
+    emu.maps.write_qword(handle_out, handle);
+    emu.section_handles.insert(handle, dll_name);
+    WinSyscall.set_return(emu, STATUS_SUCCESS);
 }
 
 /// Extract the DLL filename from a KnownDlls section path, e.g.:
@@ -1157,18 +1078,25 @@ pub fn nt_create_section(emu: &mut Emu) {
         memory_api::dispatch_nt("NtCreateSection", emu, call);
         return;
     }
-    let handle_out = emu.regs().rcx;
-    let desired_access = emu.regs().rdx;
-    let object_attributes = emu.regs().r8;
-    let max_size = emu.regs().r9;
-    let rsp = emu.regs().rsp;
-    let page_protection = emu.maps.read_dword(rsp + 0x28).unwrap_or(0);
-    let alloc_attributes = emu.maps.read_dword(rsp + 0x30).unwrap_or(0);
-    let file_handle = emu.maps.read_qword(rsp + 0x38).unwrap_or(0);
+    let [
+        handle_out,
+        desired_access,
+        object_attributes,
+        max_size,
+        page_protection,
+        alloc_attributes,
+        file_handle,
+    ] = api_try!(emu, call.args(emu));
+    if alloc_attributes as u32 != SEC_IMAGE || object_attributes != 0 || max_size != 0 {
+        return policy::unsupported_with_abi(emu, "ntdll", "NtCreateSection", emu.pc(), call);
+    }
+    if memory_api::permissions(page_protection as u32).is_none() {
+        return call.set_return(emu, STATUS_INVALID_PAGE_PROTECTION);
+    }
 
     log_orange!(
         emu,
-        "syscall 0x{:x}: NtCreateSection handle_out: 0x{:x}, access: 0x{:x}, max_size: 0x{:x}, prot: 0x{:x}, alloc: 0x{:x}, file: 0x{:x}",
+        "syscall 0x{:x}: NtCreateSection handle_out=0x{:x}, access=0x{:x}, max_size=0x{:x}, prot=0x{:x}, alloc=0x{:x}, file=0x{:x}",
         WIN64_NTCREATESECTION,
         handle_out,
         desired_access,
@@ -1178,19 +1106,14 @@ pub fn nt_create_section(emu: &mut Emu) {
         file_handle,
     );
 
-    if handle_out == 0 || !emu.maps.is_mapped(handle_out) {
-        emu.regs_mut().rax = STATUS_INVALID_PARAMETER;
-        return;
+    if !emu.maps.validate_write_range(handle_out, 8) {
+        return call.set_return(emu, STATUS_ACCESS_VIOLATION);
     }
-
-    let h = next_handle();
-    // Inherit the DLL name into file_section_names so NtMapViewOfSection can
-    // create a section_view with real PE content.
-    if file_handle != 0
-        && let Some(dll_name) = emu.file_handles.get(&file_handle).cloned()
-    {
-        emu.file_section_names.insert(h, dll_name);
-    }
-    let _ = emu.maps.write_qword(handle_out, h);
-    emu.regs_mut().rax = STATUS_SUCCESS;
+    let Some(dll_name) = emu.file_handles.get(&file_handle).cloned() else {
+        return call.set_return(emu, STATUS_INVALID_HANDLE);
+    };
+    let handle = next_handle();
+    emu.file_section_names.insert(handle, dll_name);
+    emu.maps.write_qword(handle_out, handle);
+    call.set_return(emu, STATUS_SUCCESS);
 }

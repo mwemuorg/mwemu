@@ -48,13 +48,13 @@ impl<A: fmt::Debug> fmt::Display for ArgumentError<A> {
 impl<A: fmt::Debug> std::error::Error for ArgumentError<A> {}
 
 /// Attach adapter context to checked memory reads without choosing a platform policy.
-struct CallFrame<'a, A> {
+pub(crate) struct CallFrame<'a, A> {
     emu: &'a Emu,
     abi: A,
 }
 
 impl<'a, A: Copy> CallFrame<'a, A> {
-    fn new(emu: &'a Emu, abi: A) -> Self {
+    pub(crate) fn new(emu: &'a Emu, abi: A) -> Self {
         Self { emu, abi }
     }
 
@@ -80,10 +80,19 @@ impl<'a, A: Copy> CallFrame<'a, A> {
         offset: Option<usize>,
         size: usize,
     ) -> Result<u64, ArgumentError<A>> {
+        self.memory_arg(index, self.emu.sp(), offset, size)
+    }
+
+    pub(crate) fn memory_arg(
+        &self,
+        index: usize,
+        base: u64,
+        offset: Option<usize>,
+        size: usize,
+    ) -> Result<u64, ArgumentError<A>> {
         let emu = self.emu;
         let overflow = || self.error(index, size, None, ArgumentFault::AddressOverflow);
-        let address = emu
-            .sp()
+        let address = base
             .checked_add(offset.ok_or_else(overflow)? as u64)
             .ok_or_else(overflow)?;
         let last = address
