@@ -22,14 +22,14 @@ git -C "$REPO_ROOT" fetch origin "pull/${PR}/head:pr-${PR}"
 echo "==> Creating worktree at ${WORKTREE}..."
 git -C "$REPO_ROOT" worktree add "$WORKTREE" "pr-${PR}"
 
-echo "==> Linking maps and test data..."
+echo "==> Copying maps and test data..."
 if [ -d "$REPO_ROOT/maps" ] && [[ "$WORKTREE" == /tmp/mwemu-pr-* ]]; then
     rm -rf "$WORKTREE/maps"
-    ln -s "$REPO_ROOT/maps" "$WORKTREE/maps"
+    cp -r "$REPO_ROOT/maps" "$WORKTREE/maps"
 fi
 if [ -d "$REPO_ROOT/test" ] && [[ "$WORKTREE" == /tmp/mwemu-pr-* ]]; then
     rm -rf "$WORKTREE/test"
-    ln -s "$REPO_ROOT/test" "$WORKTREE/test"
+    cp -r "$REPO_ROOT/test" "$WORKTREE/test"
 fi
 
 echo "==> Running cargo nextest..."
