@@ -104,14 +104,14 @@ fn ensure_arguments(emu: &mut Emu, runtime: Runtime) -> Result<u64, i32> {
             bytes.extend(encoding.terminated(units));
         }
     }
-    let base = emu.maps.alloc(bytes.len() as u64).ok_or(ENOMEM)?;
+    let map = emu
+        .maps
+        .alloc_rw_pages(&name, bytes.len() as u64)
+        .ok_or(ENOMEM)?;
+    let base = map.get_base();
     for (cell, offset) in pointers {
         bytes[cell..cell + width].copy_from_slice(&(base + offset as u64).to_le_bytes()[..width]);
     }
-    let map = emu
-        .maps
-        .create_map(&name, base, bytes.len() as u64, Permission::READ_WRITE)
-        .map_err(|_| ENOMEM)?;
     map.write_bytes(base, &bytes);
     Ok(base)
 }
@@ -263,12 +263,10 @@ pub(crate) fn command_string(emu: &mut Emu, wide: bool) -> Option<u64> {
     }
     units.push(0);
     let bytes = if wide { Encoding::Wide } else { Encoding::Ansi }.encode(&units);
-    let len = bytes.len() as u64;
-    let base = emu.maps.alloc(len)?;
-    emu.maps
-        .create_map(name, base, len, Permission::READ_WRITE)
-        .ok()?;
-    emu.maps.write_bytes(base, &bytes).then_some(base)
+    let map = emu.maps.alloc_rw_pages(name, bytes.len() as u64)?;
+    let base = map.get_base();
+    map.write_bytes(base, &bytes);
+    Some(base)
 }
 
 pub fn GetCommandLineA(emu: &mut Emu) {

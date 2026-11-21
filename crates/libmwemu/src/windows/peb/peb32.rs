@@ -1,4 +1,4 @@
-use super::command_line;
+use super::{command_line, map_wide_string};
 use crate::debug::console::Console;
 use crate::emu;
 use crate::maps::mem64::Permission;
@@ -51,12 +51,8 @@ pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
     let filename_len = (emu.cfg.filename.encode_utf16().count() as u64 + 1) * 2;
     let cmdline_len = (params.encode_utf16().count() as u64 + 1) * 2;
 
-    let filename = emu
-        .maps
-        .map("file_name", filename_len, Permission::READ_WRITE);
-    let cmdline = emu
-        .maps
-        .map("command_line", cmdline_len, Permission::READ_WRITE);
+    let filename = map_wide_string(&mut emu.maps, "file_name", &emu.cfg.filename, filename_len);
+    let cmdline = map_wide_string(&mut emu.maps, "command_line", &params, cmdline_len);
 
     params_struct.image_path_name.length = (filename_len - 2) as u16;
     params_struct.image_path_name.maximum_length = filename_len as u16;
@@ -65,9 +61,6 @@ pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
     params_struct.command_line.length = (cmdline_len - 2) as u16;
     params_struct.command_line.maximum_length = cmdline_len as u16;
     params_struct.command_line.buffer = cmdline as u32;
-
-    emu.maps.write_wide_string(filename, &emu.cfg.filename);
-    emu.maps.write_wide_string(cmdline, &params);
 
     params_struct.save(addr, &mut emu.maps);
 

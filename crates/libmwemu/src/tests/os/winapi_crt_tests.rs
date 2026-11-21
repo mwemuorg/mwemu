@@ -12,6 +12,7 @@ use crate::winapi::environment_store::Encoding;
 use crate::winapi::policy::ApiDisposition;
 use crate::winapi::{winapi32, winapi64};
 use crate::windows::constants::crt::*;
+use crate::windows::peb::{peb32, peb64};
 
 const ERROR_MARKER: u64 = 0x1234;
 const CRT_LIBRARIES: [&str; 2] = ["msvcrt.dll", "ucrtbase.dll"];
@@ -972,6 +973,17 @@ fn crt_descriptors_share_stream_ownership_and_binary_file_effects() {
     }
 }
 
+fn assert_terminator_is_vector_readable(emu: &Emu, terminator: u64) {
+    for width in [16, 32] {
+        let start = terminator & !(width as u64 - 1);
+        let bytes = emu
+            .maps
+            .try_read_bytes(start, width)
+            .expect("read aligned vector containing the terminator");
+        assert_eq!(bytes[(terminator - start) as usize], 0);
+    }
+}
+
 #[test]
 fn crt_startup_arguments_keep_native_pointer_layers_and_snapshot_state() {
     for is64 in [false, true] {
@@ -994,6 +1006,9 @@ fn crt_startup_arguments_keep_native_pointer_layers_and_snapshot_state() {
                     .enumerate()
                 {
                     let address = read_pointer(&emu, table + index as u64 * width).unwrap();
+                    let units: Vec<_> = expected.encode_utf16().collect();
+                    let length = Encoding::from_wide(wide).encode(&units).len() as u64;
+                    assert_terminator_is_vector_readable(&emu, address + length);
                     if wide {
                         assert_eq!(emu.maps.read_wide_string(address), expected);
                     } else if expected == "é" {
@@ -1437,10 +1452,20 @@ fn ucrt_imports_and_exports_preserve_crt_widths_state_and_caller_owned_arguments
 
 #[test]
 fn command_line_pointers_agree_across_kernel_dlls_and_crt_accessors() {
-    for is64 in [false, true] {
+    for (is64, initialized) in iproduct!([false, true], [false, true]) {
         let (mut emu, _) = helpers::prepare_winapi(is64);
-        emu.cfg.filename = "C:\\My Tools\\tést.exe".into();
+        emu.cfg.exe_name = "tést tool.exe".into();
+        emu.cfg.filename = r"C:\tést tool.exe".into();
         emu.cfg.arguments = "-v".into();
+        if initialized {
+            if is64 {
+                peb64::init_arguments(&mut emu);
+            } else {
+                peb32::init_arguments(&mut emu);
+            }
+        }
+        let expected = r#""C:\tést tool.exe" -v"#;
+        let units: Vec<_> = expected.encode_utf16().collect();
         for (api, accessor, wide) in [
             ("GetCommandLineW", "__p__wcmdln", true),
             ("GetCommandLineA", "__p__acmdln", false),
@@ -1452,13 +1477,10 @@ fn command_line_pointers_agree_across_kernel_dlls_and_crt_accessors() {
             );
             let cell = call_crt(&mut emu, "ucrtbase.dll", accessor, &[]);
             assert_eq!(read_pointer(&emu, cell), Some(value));
-            let encoding = if wide { Encoding::Wide } else { Encoding::Ansi };
-            assert_eq!(
-                encoding.read(&emu, value).unwrap(),
-                "\"C:\\My Tools\\tést.exe\" -v"
-                    .encode_utf16()
-                    .collect::<Vec<_>>()
-            );
+            let encoding = Encoding::from_wide(wide);
+            assert_eq!(encoding.read(&emu, value).unwrap(), units);
+            let length = encoding.encode(&units).len() as u64;
+            assert_terminator_is_vector_readable(&emu, value + length);
         }
     }
 }

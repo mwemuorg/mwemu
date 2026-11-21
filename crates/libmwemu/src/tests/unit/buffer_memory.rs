@@ -1,6 +1,7 @@
 use crate::emu::Emu;
 use crate::maps::buffers::BufferKind;
 use crate::maps::mem64::Permission;
+use crate::maps::virtual_memory::PAGE_SIZE;
 use crate::serialization::Serialization;
 use crate::tests::helpers::{call_winapi_export, call_winapi32, call_winapi64, prepare_winapi};
 use crate::winapi::common::{bstr, buffers, crt, memory_ops};
@@ -114,13 +115,29 @@ fn crt_reallocation_preserves_old_block_on_failure_and_releases_size_zero() {
 
 #[test]
 fn aligned_free_releases_the_original_owner_for_small_and_large_blocks() {
-    for (is64, size, alignment) in iproduct!([false, true], [257, 0x10000], [16, 0x1000, 0x10000]) {
+    for (is64, size, alignment) in iproduct!([false, true], [257, 0x10001], [16, 0x1000, 0x10000]) {
         let mut emu = prepare(is64);
         let address = call(&mut emu, crt::aligned_malloc, &[size, alignment], true);
         assert_ne!(address, 0);
         assert_eq!(address % alignment, 0);
         let owner = emu.maps.buffers[&address];
-        assert!(emu.maps.write_byte(address + size - 1, 0xab));
+        let last = address + size - 1;
+        assert!(emu.maps.write_byte(last, 0xab));
+        assert_eq!(
+            buffers::size(&emu, address, BufferKind::Aligned),
+            Some(size)
+        );
+        const AVX_BYTES: usize = 32;
+        let lane = last & !(AVX_BYTES as u64 - 1);
+        assert_eq!(
+            emu.maps.try_read_bytes(lane, AVX_BYTES).unwrap()[(last - lane) as usize],
+            0xab
+        );
+        if !owner.arena {
+            let end = emu.maps.get_mem_by_addr(owner.base).unwrap().get_bottom();
+            assert!(end.is_multiple_of(PAGE_SIZE));
+            assert!(emu.maps.try_read_bytes(end - 1, 2).is_none());
+        }
         call(&mut emu, crt::aligned_free, &[address], true);
         assert!(buffers::size(&emu, address, BufferKind::Aligned).is_none());
         if owner.arena {

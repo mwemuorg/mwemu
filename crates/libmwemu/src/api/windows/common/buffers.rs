@@ -2,7 +2,7 @@
 use crate::emu::Emu;
 use crate::maps::buffers::{BufferAllocation, BufferKind};
 use crate::maps::mem64::Permission;
-use crate::maps::virtual_memory::align_up;
+use crate::maps::virtual_memory::{PAGE_SIZE, align_up};
 use crate::winapi::common::{heap, memory};
 use crate::windows::constants::errors::{E_OUTOFMEMORY, E_POINTER, S_OK};
 
@@ -29,10 +29,11 @@ pub(crate) fn allocate(
     let base = if arena {
         heap::heap_allocate(emu, 0, total)?
     } else {
-        let base = emu.maps.alloc(total)?;
+        let span = align_up(total, PAGE_SIZE)?;
+        let base = emu.maps.alloc(span)?;
         let name = emu.maps.unique_map_name(&format!("buffer_{base:x}"));
         emu.maps
-            .create_map(&name, base, total, Permission::READ_WRITE)
+            .create_map(&name, base, span, Permission::READ_WRITE)
             .ok()?;
         base
     };
