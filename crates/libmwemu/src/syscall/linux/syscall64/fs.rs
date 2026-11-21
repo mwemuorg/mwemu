@@ -1,5 +1,9 @@
+use crate::api::abi::unix::LinuxSyscall;
+use crate::arch::Arch;
 use crate::emu;
 use crate::syscall::linux::constants::syscalls::*;
+use crate::syscall::linux::io;
+use crate::syscall::linux::unsupported;
 
 use crate::winapi::helper;
 
@@ -9,18 +13,18 @@ use std::path::Path;
 
 pub(super) fn dispatch(emu: &mut emu::Emu) -> bool {
     match emu.regs().rax {
+        NR64_FCNTL => io::fcntl(emu, Arch::X86_64),
         NR64_READ => handle_syscall64_read(emu),
         NR64_PREAD64 => handle_syscall64_pread64(emu),
-        NR64_WRITEV => handle_syscall64_writev(emu),
+        NR64_WRITEV => io::writev(emu, Arch::X86_64),
         NR64_GETDENTS64 => handle_syscall64_getdents64(emu),
         NR64_IOCTL => handle_syscall64_ioctl(emu),
-        NR64_WRITE => handle_syscall64_write(emu),
+        NR64_WRITE => io::write(emu, Arch::X86_64),
         NR64_OPEN => handle_syscall64_open(emu),
         NR64_OPENAT => handle_syscall64_openat(emu),
         NR64_CLOSE => handle_syscall64_close(emu),
-        NR64_EXECVE => handle_syscall64_execve(emu),
-        NR64_CHDIR => handle_syscall64_chdir(emu),
-        NR64_CHMOD => handle_syscall64_chmod(emu),
+        NR64_CHDIR => unsupported(emu, "chdir"),
+        NR64_CHMOD => unsupported(emu, "chmod"),
         NR64_LSEEK => handle_syscall64_lseek(emu),
         _ => return false,
     }
@@ -128,50 +132,6 @@ pub(super) fn handle_syscall64_getdents64(emu: &mut emu::Emu) {
     emu.regs_mut().rax = n;
 }
 
-pub(super) fn handle_syscall64_writev(emu: &mut emu::Emu) {
-    use std::io::Write;
-    let fd = emu.regs().rdi;
-    let iov = emu.regs().rsi;
-    let iovcnt = emu.regs().rdx;
-
-    let mut data: Vec<u8> = Vec::new();
-    for i in 0..iovcnt {
-        let entry = iov + i * 16;
-        let ptr = emu.maps.read_qword(entry).unwrap_or(0);
-        let len = emu.maps.read_qword(entry + 8).unwrap_or(0);
-        if ptr != 0 {
-            for k in 0..len {
-                data.push(emu.maps.read_byte(ptr + k).unwrap_or(0));
-            }
-        }
-    }
-
-    let total = data.len() as u64;
-    if !cfg!(test) {
-        match fd {
-            1 => {
-                let _ = std::io::stdout().write_all(&data);
-                let _ = std::io::stdout().flush();
-            }
-            2 => {
-                let _ = std::io::stderr().write_all(&data);
-                let _ = std::io::stderr().flush();
-            }
-            _ => {}
-        }
-    }
-    log::trace!(
-        "{}** {} syscall writev(fd:{} iovcnt:{}) ={} {}",
-        emu.colors.light_red,
-        emu.pos,
-        fd,
-        iovcnt,
-        total,
-        emu.colors.nc
-    );
-    emu.regs_mut().rax = total;
-}
-
 pub(super) fn handle_syscall64_pread64(emu: &mut emu::Emu) {
     let fd = emu.regs().rdi;
     let buff = emu.regs().rsi;
@@ -219,7 +179,9 @@ pub(super) fn handle_syscall64_read(emu: &mut emu::Emu) {
     let buff = emu.regs().rsi;
     let sz = emu.regs().rdx;
 
-    if helper::handler_exist(fd) {
+    if let Some(result) = io::read_descriptor(emu, Arch::X86_64, u64::from(fd as u32), buff, sz) {
+        emu.regs_mut().rax = result;
+    } else if helper::handler_exist(fd) {
         let filepath = helper::handler_get_uri(fd);
         // Sequential read of any host file, honouring a per-fd cursor so
         // successive read()s advance (config files, ELF headers, etc.).
@@ -244,12 +206,8 @@ pub(super) fn handle_syscall64_read(emu: &mut emu::Emu) {
             c.borrow_mut().insert(fd, off + n);
         });
         emu.regs_mut().rax = n;
-    } else if fd == 0 {
-        // stdin with no backing input: report EOF so a shell's read loop ends
-        // cleanly instead of spinning on fabricated data.
-        emu.regs_mut().rax = 0;
     } else {
-        emu.regs_mut().rax = sz;
+        emu.regs_mut().rax = io::unbacked_read(fd as u32);
     }
 
     log::trace!(
@@ -262,43 +220,6 @@ pub(super) fn handle_syscall64_read(emu: &mut emu::Emu) {
         emu.regs().rax,
         emu.colors.nc
     );
-}
-
-pub(super) fn handle_syscall64_write(emu: &mut emu::Emu) {
-    use std::io::Write;
-    let fd = emu.regs().rdi;
-    let buff = emu.regs().rsi;
-    let sz = emu.regs().rdx;
-
-    // Read exactly `sz` bytes (the data may contain NULs/newlines) and forward
-    // stdout/stderr to the host so the program's real output is visible.
-    let mut data: Vec<u8> = Vec::with_capacity(sz.min(0x100000) as usize);
-    for i in 0..sz {
-        data.push(emu.maps.read_byte(buff + i).unwrap_or(0));
-    }
-    if !cfg!(test) {
-        match fd {
-            1 => {
-                let _ = std::io::stdout().write_all(&data);
-                let _ = std::io::stdout().flush();
-            }
-            2 => {
-                let _ = std::io::stderr().write_all(&data);
-                let _ = std::io::stderr().flush();
-            }
-            _ => {}
-        }
-    }
-    log::trace!(
-        "{}** {} syscall write(fd:{} buf:0x{:x} sz:{}) {}",
-        emu.colors.light_red,
-        emu.pos,
-        fd,
-        buff,
-        sz,
-        emu.colors.nc
-    );
-    emu.regs_mut().rax = sz;
 }
 
 pub(super) fn handle_syscall64_open(emu: &mut emu::Emu) {
@@ -350,73 +271,14 @@ pub(super) fn handle_syscall64_openat(emu: &mut emu::Emu) {
 }
 
 pub(super) fn handle_syscall64_close(emu: &mut emu::Emu) {
-    let fd = emu.regs().rdi;
-
-    if fd <= 2 {
-        // Standard streams (stdin/stdout/stderr) are always open; glibc's
-        // close_stdout atexit hook calls close(1) during cleanup and reports a
-        // bogus "write error" if it sees a failure. Return success.
-        emu.regs_mut().rax = 0;
-    } else if helper::handler_exist(fd) {
-        helper::handler_close(fd);
-        // fd ids get recycled — drop per-fd cursors so a future open() of the
-        // same id starts fresh (a stale offset corrupts e.g. the next ELF read).
-        READ_CURSOR.with(|c| {
-            c.borrow_mut().remove(&fd);
-        });
-        GETDENTS_CURSOR.with(|c| {
-            c.borrow_mut().remove(&fd);
-        });
-        emu.regs_mut().rax = 0;
-    } else {
-        helper::socket_close(fd);
-        emu.regs_mut().rax = 0xffffffff_ffffffff;
+    let call = LinuxSyscall;
+    let [fd, ..] = call.args(emu);
+    io::close(emu, Arch::X86_64);
+    if emu.regs().rax == 0 {
+        let fd = u64::from(fd as u32);
+        READ_CURSOR.with(|c| c.borrow_mut().remove(&fd));
+        GETDENTS_CURSOR.with(|c| c.borrow_mut().remove(&fd));
     }
-
-    log::trace!(
-        "{}** {} syscall close(fd:{}) ={} {}",
-        emu.colors.light_red,
-        emu.pos,
-        fd,
-        emu.regs().rax,
-        emu.colors.nc
-    );
-}
-
-pub(super) fn handle_syscall64_execve(emu: &mut emu::Emu) {
-    let cmd = emu.maps.read_string(emu.regs().rdi);
-    log::trace!(
-        "{}** {} syscall execve()  cmd: {} {}",
-        emu.colors.light_red,
-        emu.pos,
-        cmd,
-        emu.colors.nc
-    );
-    emu.regs_mut().rax = 0;
-}
-
-pub(super) fn handle_syscall64_chdir(emu: &mut emu::Emu) {
-    let path = emu.maps.read_string(emu.regs().rdi);
-    log::trace!(
-        "{}** {} syscall chdir() path: {} {}",
-        emu.colors.light_red,
-        emu.pos,
-        path,
-        emu.colors.nc
-    );
-}
-
-pub(super) fn handle_syscall64_chmod(emu: &mut emu::Emu) {
-    let file_path = emu.maps.read_string(emu.regs().rdi);
-    let perm = emu.regs().rsi;
-    log::trace!(
-        "{}** {} syscall chmod() file: {} perm: {} {}",
-        emu.colors.light_red,
-        emu.pos,
-        file_path,
-        perm,
-        emu.colors.nc
-    );
 }
 
 pub(super) fn handle_syscall64_lseek(emu: &mut emu::Emu) {

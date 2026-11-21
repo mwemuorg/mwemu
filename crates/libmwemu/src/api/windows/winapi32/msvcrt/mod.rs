@@ -2,7 +2,8 @@ use crate::api::windows::common::fallback;
 use crate::emu;
 use crate::maps::buffers::BufferKind;
 use crate::winapi::common::buffers;
-use crate::winapi::common::crt;
+use crate::winapi::common::crt::{self, Runtime::Msvcrt};
+use crate::winapi::common::crt_stdio;
 use crate::winapi::winapi32::kernel32;
 //use crate::endpoint;
 
@@ -19,46 +20,11 @@ pub use runtime::*;
 pub use strings::*;
 
 mod str_cmp_ca;
+use crate::api::windows::libraries::msvcrt::memory::free;
+use crate::api::windows::libraries::msvcrt::memory::malloc;
+use crate::api::windows::libraries::msvcrt::memory::realloc;
+use crate::api::windows::libraries::msvcrt::runtime::_lock;
 use str_cmp_ca::StrCmpCA;
-mod __p___argc;
-use __p___argc::__p___argc;
-mod __p___argv;
-use __p___argv::__p___argv;
-mod __p__acmdln;
-use __p__acmdln::__p__acmdln;
-mod __p__global_int;
-use __p__global_int::__p__global_int;
-mod __set_app_type;
-use __set_app_type::__set_app_type;
-mod _errno;
-use _errno::_errno;
-mod _initterm;
-use _initterm::_initterm;
-mod _initterm_e;
-use _initterm_e::_initterm_e;
-mod _lock;
-use _lock::_lock;
-mod _onexit;
-use _onexit::_onexit;
-mod exit;
-use exit::exit;
-mod fclose;
-use fclose::fclose;
-mod fflush;
-use fflush::fflush;
-mod fopen;
-use fopen::fopen;
-mod free;
-use free::free;
-mod fwrite;
-use fwrite::fwrite;
-mod malloc;
-use malloc::malloc;
-mod realloc;
-use realloc::realloc;
-mod strtok;
-use strtok::strtok;
-
 /// Allocates from the O1Heap arena for small sizes, maps a dedicated
 /// region otherwise (same threshold as kernel32!HeapAlloc).
 fn allocate_memory(emu: &mut emu::Emu, size: u64) -> Option<u64> {
@@ -75,7 +41,14 @@ fn release(emu: &mut emu::Emu, addr: u64) {
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = kernel32::guess_api_name(emu, addr);
     let api = api.split("!").last().unwrap_or(&api);
-    if crt::dispatch(api, emu) {
+    gateway_by_name(api, addr, emu)
+}
+
+pub fn gateway_by_name(api: &str, addr: u32, emu: &mut emu::Emu) -> String {
+    if crt::dispatch(api, emu)
+        || crt::dispatch_runtime(api, emu, Msvcrt)
+        || crt_stdio::gateway(api, emu, Msvcrt)
+    {
         return String::new();
     }
     if runtime::dispatch(api, addr, emu)

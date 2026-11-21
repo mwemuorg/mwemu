@@ -1,11 +1,18 @@
+use crate::api::dispatch_api;
 use crate::emu::Emu;
+use crate::winapi::libraries::kernel32::system::{timeGetDevCaps, timeGetTime};
 use crate::winapi::winapi64::kernel32;
 
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
+        "timeGetDevCaps" => timeGetDevCaps(emu),
+        "timeGetTime" => timeGetTime(emu),
+        "CompareFileTime" => kernel32::CompareFileTime(emu),
+        "DosDateTimeToFileTime" => kernel32::DosDateTimeToFileTime(emu),
+        "FileTimeToDosDateTime" => kernel32::FileTimeToDosDateTime(emu),
+        "FileTimeToLocalFileTime" => kernel32::FileTimeToLocalFileTime(emu),
+        "LocalFileTimeToFileTime" => kernel32::LocalFileTimeToFileTime(emu),
         "FileTimeToSystemTime" => kernel32::FileTimeToSystemTime(emu),
-        "GetFileTime" => kernel32::GetFileTime(emu),
-        "SetFileTime" => kernel32::SetFileTime(emu),
         "GetLocalTime" => kernel32::GetLocalTime(emu),
         "GetSystemTime" => kernel32::GetSystemTime(emu),
         "GetSystemTimeAsFileTime" => kernel32::GetSystemTimeAsFileTime(emu),
@@ -22,7 +29,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetDateFormatW" => kernel32::GetDateFormatW(emu),
         "GetTimeFormatA" => kernel32::GetTimeFormatA(emu),
         "GetTimeFormatW" => kernel32::GetTimeFormatW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

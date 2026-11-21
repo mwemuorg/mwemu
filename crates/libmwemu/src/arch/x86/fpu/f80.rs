@@ -16,6 +16,11 @@ pub const BCD_SIGN_NEGATIVE: u8 = 0x0B;
 pub const F64_EXP_BIAS: i32 = 1023;
 pub const F80_EXP_BIAS: i32 = 16383;
 pub const MANTISSA_BITS: u32 = 64;
+const F64_FRACTION_BITS: u32 = f64::MANTISSA_DIGITS - 1;
+const F64_FRACTION_MASK: u64 = (1 << F64_FRACTION_BITS) - 1;
+const F64_MAX_EXPONENT: u64 = (F64_EXP_BIAS as u64) * 2 + 1;
+const F64_ALIGNMENT: u32 = MANTISSA_BITS - f64::MANTISSA_DIGITS;
+
 pub const SIGN_SHIFT: u32 = 79;
 pub const EXP_SHIFT: u32 = 64;
 pub const INT_BIT_SHIFT: u32 = 63;
@@ -305,7 +310,7 @@ impl F80 {
     }
 
     pub fn bit_integer(&self) -> bool {
-        (self.st & INT_BIT_MASK) & 1 == 1
+        self.st & INT_BIT_MASK != 0
     }
 
     pub fn is_denormal(&self) -> bool {
@@ -315,14 +320,12 @@ impl F80 {
 
     pub fn is_infinite(&self) -> bool {
         let exponent = (self.st >> 64) & 0x7FFF;
-        let mantissa = self.st & ((1u128 << 64) - 1);
-        exponent == 0x7FFF && mantissa == 0
+        exponent == EXP_MASK && self.get_fraction() == 0
     }
 
     pub fn is_nan(&self) -> bool {
         let exponent = (self.st >> 64) & 0x7FFF;
-        let mantissa = self.st & MANTISSA_MASK;
-        exponent == 0x7FFF && mantissa != 0
+        exponent == EXP_MASK && self.get_fraction() != 0
     }
 
     pub fn to_bcd_packed(&self) -> [u8; 10] {
@@ -416,62 +419,62 @@ impl F80 {
 
     pub fn set_f64(&mut self, value: f64) {
         let bits = value.to_bits();
-        let sign = (bits >> 63) & 1;
-        let exp = ((bits >> 52) & 0x7FF) as u16;
-        let mantissa = bits & 0xFFFFFFFFFFFFF;
-
-        let st = if exp == 0 {
-            // Subnormal or zero in f64 → represent as 0.0 en FPU
-            (sign as u128) << 79
-        } else if exp == 0x7FF {
-            // Inf o NaN
-            let is_nan = mantissa != 0;
-            let extended_exp = 0x7FFFu128;
-            let extended_mantissa = (mantissa as u128) << 11;
-            let nan_bit = if is_nan { 1u128 << 62 } else { 0 }; // QNaN bit (optional)
-            ((sign as u128) << 79) | (extended_exp << 64) | extended_mantissa | nan_bit
+        let sign = if value.is_sign_negative() {
+            SIGN_MASK
         } else {
-            // Normal number
-            let adjusted_exp = (exp as i32 - F64_EXP_BIAS) + F80_EXP_BIAS;
-            let extended_exp = adjusted_exp as u128;
-            let full_mantissa = ((1u64 << 52) | mantissa) as u128; // add implicit bit
-            let extended_mantissa = full_mantissa << 11; // 63 bits align
-            ((sign as u128) << 79) | (extended_exp << 64) | extended_mantissa
+            0
         };
-
-        self.set(st); // masked setter
+        let exponent = ((bits >> F64_FRACTION_BITS) & F64_MAX_EXPONENT) as i32;
+        let fraction = bits & F64_FRACTION_MASK;
+        let (exponent, significand) = match (exponent, fraction) {
+            (0, 0) => (0, 0),
+            (0, fraction) => {
+                let shift = fraction.leading_zeros();
+                let exponent =
+                    F80_EXP_BIAS + 1 - F64_EXP_BIAS + F64_ALIGNMENT as i32 - shift as i32;
+                (exponent as u128, fraction << shift)
+            }
+            (exp, _) if exp == F64_MAX_EXPONENT as i32 => {
+                (EXP_MASK, INT_BIT_MASK64 | (fraction << F64_ALIGNMENT))
+            }
+            _ => (
+                (exponent - F64_EXP_BIAS + F80_EXP_BIAS) as u128,
+                INT_BIT_MASK64 | (fraction << F64_ALIGNMENT),
+            ),
+        };
+        self.set(sign | (exponent << EXP_SHIFT) | u128::from(significand));
     }
 
     pub fn get_f64(&self) -> f64 {
-        let value = self.get();
-        let sign = ((value >> 79) & 1) as u64;
-        let exp = ((value >> 64) & 0x7FFF) as u16;
-        let mantissa = value & 0xFFFFFFFFFFFFFFFF;
-
-        let f64_bits: u64 = if exp == 0 {
-            // Zero or denormal extended → 0.0
-            sign << 63
-        } else if exp == 0x7FFF {
-            // Inf or NaN
-            let f64_mantissa = (mantissa >> 11) as u64;
-            let nan_mask = if f64_mantissa != 0 { 1 << 51 } else { 0 }; // set QNaN bit if needed
-            (sign << 63) | (0x7FF << 52) | f64_mantissa | nan_mask
+        let sign = if self.get_sign() { 1u64 << 63 } else { 0 };
+        let exponent = i32::from(self.get_exponent());
+        let significand = self.get() & MANTISSA_MASK;
+        let magnitude = if exponent == 0 {
+            0
+        } else if exponent == EXP_MASK as i32 {
+            let fraction = self.get_fraction();
+            let mut payload = fraction >> F64_ALIGNMENT;
+            if payload == 0 && fraction != 0 {
+                payload = 1;
+            }
+            (F64_MAX_EXPONENT << F64_FRACTION_BITS) | payload
         } else {
-            let unbiased_exp = exp as i32 - F80_EXP_BIAS;
-            let f64_exp = unbiased_exp + F64_EXP_BIAS;
-
-            if f64_exp <= 0 {
-                // Subnormal in f64 → round to 0.0
-                sign << 63
-            } else if f64_exp >= 0x7FF {
-                // Exponent too large → ∞
-                (sign << 63) | (0x7FF << 52)
+            let biased = exponent - F80_EXP_BIAS + F64_EXP_BIAS;
+            if biased >= F64_MAX_EXPONENT as i32 {
+                F64_MAX_EXPONENT << F64_FRACTION_BITS
             } else {
-                let f64_mantissa = ((mantissa >> 11) & 0xFFFFFFFFFFFFF) as u64;
-                (sign << 63) | ((f64_exp as u64) << 52) | f64_mantissa
+                let shift = F64_ALIGNMENT as i32 + (1 - biased).max(0);
+                if shift > MANTISSA_BITS as i32 {
+                    0
+                } else {
+                    let high = significand >> shift;
+                    let half = 1u128 << (shift - 1);
+                    let low = significand & ((half << 1) - 1);
+                    let rounded = high + u128::from(low > half || (low == half && high & 1 != 0));
+                    (((biased - 1).max(0) as u64) << F64_FRACTION_BITS) + rounded as u64
+                }
             }
         };
-
-        f64::from_bits(f64_bits)
+        f64::from_bits(sign | magnitude)
     }
 }

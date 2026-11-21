@@ -1,4 +1,3 @@
-use crate::serialization::native::NativeSnapshotV4;
 use minidump::{Minidump, MinidumpModuleList, Module};
 use tempdir::TempDir;
 
@@ -6,8 +5,9 @@ use crate::api::windows::policy::ApiMode;
 use crate::arch::Arch;
 use crate::maps::mem64::Permission;
 use crate::serialization::Serialization;
-use crate::serialization::native::NativeSnapshotV3;
+use crate::serialization::native::{NativeSnapshotV3, NativeSnapshotV4};
 use crate::tests::helpers;
+use crate::{emu_aarch64, emu32, emu64};
 
 const ELF64_AARCH64_ADD: &[u8] = include_bytes!("../fixtures/elf64_aarch64_add.bin");
 
@@ -24,7 +24,7 @@ fn test_x86_64_native_serialization_roundtrip() {
         .spawn(|| {
             helpers::setup();
 
-            let mut emu = crate::emu64();
+            let mut emu = emu64();
             emu.regs_mut().rax = 0x1122_3344_5566_7788;
             emu.regs_mut().rbx = 0xAABB_CCDD_EEFF_0011;
             emu.regs_mut().rsp = 0x200800;
@@ -54,7 +54,7 @@ fn test_x86_64_native_serialization_roundtrip() {
 
 #[test]
 fn test_emu_config_preserved() {
-    let mut emu = crate::emu64();
+    let mut emu = emu64();
 
     emu.cfg.verbose = 3;
     emu.cfg.arch = Arch::X86_64;
@@ -66,7 +66,7 @@ fn test_emu_config_preserved() {
 
 #[test]
 fn test_emu_registers_basic() {
-    let mut emu = crate::emu64();
+    let mut emu = emu64();
 
     // Set up some state
     emu.regs_mut().rax = 0x123456789ABCDEF0;
@@ -81,7 +81,7 @@ fn test_emu_registers_basic() {
 
 #[test]
 fn test_emu_32bit_registers() {
-    let mut emu = crate::emu32();
+    let mut emu = emu32();
 
     emu.regs_mut().set_eax(0x12345678);
     emu.regs_mut().set_ebx(0xABCDEF00);
@@ -105,7 +105,7 @@ fn test_x64_minidump_roundtrip() {
     let temp_dir = TempDir::new("mwemu_minidump_x64").unwrap();
     let dump_path = temp_dir.path().join("sample64.dmp");
 
-    let mut emu = crate::emu64();
+    let mut emu = emu64();
     emu.filename = "sample.exe".to_string();
     emu.cfg.exe_name = "sample.exe".to_string();
 
@@ -159,7 +159,7 @@ fn test_x86_minidump_roundtrip() {
     let temp_dir = TempDir::new("mwemu_minidump_x86").unwrap();
     let dump_path = temp_dir.path().join("sample32.dmp");
 
-    let mut emu = crate::emu32();
+    let mut emu = emu32();
     emu.filename = "sample32.exe".to_string();
     emu.cfg.exe_name = "sample32.exe".to_string();
 
@@ -200,7 +200,7 @@ fn test_aarch64_minidump_roundtrip() {
     let temp_dir = TempDir::new("mwemu_minidump_aarch64_rt").unwrap();
     let dump_path = temp_dir.path().join("sample_aarch64.dmp");
 
-    let mut emu = crate::emu_aarch64();
+    let mut emu = emu_aarch64();
     emu.init_cpu();
     emu.filename = "sample_aarch64.exe".to_string();
 
@@ -261,7 +261,7 @@ fn test_aarch64_native_serialization_fixture_roundtrip() {
                 ELF64_AARCH64_ADD,
             );
 
-            let mut emu = crate::emu_aarch64();
+            let mut emu = emu_aarch64();
             emu.load_code(path.to_str().unwrap());
 
             emu.step();
@@ -294,7 +294,7 @@ fn test_aarch64_minidump_fixture_roundtrip() {
             let temp_dir = TempDir::new("mwemu_minidump_aarch64_future").unwrap();
             let dump_path = temp_dir.path().join("elf64_aarch64_add.dmp");
 
-            let mut emu = crate::emu_aarch64();
+            let mut emu = emu_aarch64();
             emu.load_code(sample_path.to_str().unwrap());
 
             emu.step();
@@ -316,7 +316,7 @@ fn test_aarch64_minidump_fixture_roundtrip() {
 #[test]
 fn native_v3_snapshot_preserves_banzai_without_selecting_api_mode() {
     for skip in [false, true] {
-        let mut emu = crate::emu64();
+        let mut emu = emu64();
         emu.cfg.skip_unimplemented = skip;
         emu.regs_mut().rax = 42;
         let mut bytes = b"MWEMU\0\x03\0".to_vec();
@@ -330,7 +330,7 @@ fn native_v3_snapshot_preserves_banzai_without_selecting_api_mode() {
 
 #[test]
 fn native_v4_snapshot_loads_without_unix_fault_state() {
-    let mut emu = crate::emu64();
+    let mut emu = emu64();
     emu.set_api_mode(ApiMode::SimulateFail);
     emu.regs_mut().rax = 42;
     let mut bytes = b"MWEMU\0\x04\0".to_vec();
@@ -339,4 +339,19 @@ fn native_v4_snapshot_loads_without_unix_fault_state() {
     assert_eq!(restored.regs().rax, 42);
     assert_eq!(restored.api_mode(), ApiMode::SimulateFail);
     assert!(restored.unix_api.fault.is_none());
+}
+
+#[test]
+fn experimental_native_snapshot_versions_are_rejected() {
+    for version in 6..=10 {
+        let mut header = *b"MWEMU\0\0\0";
+        header[6] = version;
+        let error = std::panic::catch_unwind(|| Serialization::deserialize(&header))
+            .err()
+            .unwrap();
+        assert_eq!(
+            error.downcast_ref::<&str>(),
+            Some(&"unsupported native snapshot version")
+        );
+    }
 }

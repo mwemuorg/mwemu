@@ -1,23 +1,193 @@
-/*
-    Environment block of the emulated process.
-
-    Get/SetEnvironmentVariable, ExpandEnvironmentStrings and
-    GetEnvironmentStrings share it, so a variable the process sets is seen
-    again and one it never set is absent. It starts with the variables a
-    Windows user session has, built from the configured user and host names
-    and the same profile paths the shell folder APIs return. Names compare
-    case-insensitively, like Windows.
-*/
-
-use lazy_static::lazy_static;
-use std::sync::Mutex;
+//! Per-emulator process environment. Names use one-to-one Unicode uppercase matching.
+use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
+use crate::emu::Emu;
+use crate::winapi::common::memory::read_array;
+use crate::windows::constants::errors::*;
+use crate::windows::constants::nls::{IBM_437_HIGH, WINDOWS_1252_HIGH};
 
-const PROFILE: &str = "C:\\Users\\User";
+pub(crate) const PROFILE: &str = "C:\\Users\\User";
+pub(crate) const MAX_ENVIRONMENT_STRING: usize = 32767;
 
-lazy_static! {
-    static ref VARIABLES: Mutex<Option<Vec<(String, String)>>> = Mutex::new(None);
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct Environment {
+    pub(crate) variables: Vec<(Vec<u16>, Vec<u16>)>,
+}
+
+impl Environment {
+    pub(crate) fn from_config(cfg: &Config) -> Self {
+        Self {
+            variables: defaults(cfg)
+                .into_iter()
+                .map(|(name, value)| {
+                    (
+                        name.encode_utf16().collect(),
+                        value.encode_utf16().collect(),
+                    )
+                })
+                .collect(),
+        }
+    }
+
+    pub(crate) fn position(&self, name: &[u16]) -> Option<usize> {
+        self.variables.iter().position(|(key, _)| {
+            key.iter()
+                .copied()
+                .map(uppercase_unit)
+                .eq(name.iter().copied().map(uppercase_unit))
+        })
+    }
+
+    pub(crate) fn get(&self, name: &[u16]) -> Option<&[u16]> {
+        self.position(name).map(|i| self.variables[i].1.as_slice())
+    }
+
+    pub(crate) fn set(&mut self, name: Vec<u16>, value: Option<Vec<u16>>) {
+        match (self.position(&name), value) {
+            (Some(i), Some(value)) => self.variables[i].1 = value,
+            (None, Some(value)) => self.variables.push((name, value)),
+            (Some(i), None) => {
+                self.variables.remove(i);
+            }
+            (None, None) => {}
+        }
+    }
+
+    pub(crate) fn expand(&self, text: &[u16], limit: usize) -> Option<Vec<u16>> {
+        let mut result = Vec::new();
+        let mut rest = text;
+        while let Some(start) = rest.iter().position(|&unit| unit == b'%' as u16) {
+            result.extend_from_slice(&rest[..start]);
+            let after = &rest[start + 1..];
+            let Some(end) = after.iter().position(|&unit| unit == b'%' as u16) else {
+                rest = &rest[start..];
+                break;
+            };
+            let name = &after[..end];
+            let value = self
+                .get(name)
+                .filter(|_| !name.is_empty())
+                .unwrap_or(&rest[start..start + end + 2]);
+            if result.len().checked_add(value.len())? > limit {
+                return None;
+            }
+            result.extend_from_slice(value);
+            rest = &after[end + 1..];
+        }
+        if result.len().checked_add(rest.len())? > limit {
+            return None;
+        }
+        result.extend_from_slice(rest);
+        Some(result)
+    }
+}
+
+fn uppercase_unit(unit: u16) -> u16 {
+    let Some(ch) = char::from_u32(unit as u32) else {
+        return unit;
+    };
+    let mut upper = ch.to_uppercase();
+    match (upper.next(), upper.next()) {
+        (Some(value), None) if value.len_utf16() == 1 => value as u16,
+        _ => unit,
+    }
+}
+
+pub(crate) fn valid_name(name: &[u16]) -> bool {
+    !name.is_empty() && !name.contains(&(b'=' as u16))
+}
+
+pub(crate) fn process(emu: &mut Emu) -> &mut Environment {
+    emu.environment
+        .get_or_insert_with(|| Environment::from_config(&emu.cfg))
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum Encoding {
+    Ansi,
+    Oem,
+    Wide,
+}
+
+impl Encoding {
+    pub(crate) fn local_computer(self, emu: &Emu, address: u64) -> Result<bool, u64> {
+        if address == 0 {
+            return Ok(true);
+        }
+        let name = String::from_utf16_lossy(&self.read(emu, address)?);
+        Ok(name.is_empty()
+            || name
+                .trim_start_matches('\\')
+                .eq_ignore_ascii_case(&emu.cfg.host_name))
+    }
+
+    pub(crate) fn from_wide(wide: bool) -> Self {
+        if wide { Self::Wide } else { Self::Ansi }
+    }
+    pub(crate) fn width(self) -> usize {
+        if matches!(self, Self::Wide) { 2 } else { 1 }
+    }
+
+    pub(crate) fn decode_byte(self, byte: u8) -> u16 {
+        match self {
+            Self::Ansi if (0x80..0xa0).contains(&byte) => WINDOWS_1252_HIGH[(byte - 0x80) as usize],
+            Self::Oem if byte >= 0x80 => IBM_437_HIGH[(byte - 0x80) as usize],
+            _ => byte as u16,
+        }
+    }
+
+    pub(crate) fn read(self, emu: &Emu, address: u64) -> Result<Vec<u16>, u64> {
+        let mut value = Vec::new();
+        for index in 0..=MAX_ENVIRONMENT_STRING {
+            let at = address
+                .checked_add((index * self.width()) as u64)
+                .ok_or(ERROR_NOACCESS)?;
+            let unit = if matches!(self, Self::Wide) {
+                u16::from_le_bytes(read_array(emu, at).ok_or(ERROR_NOACCESS)?)
+            } else {
+                let byte = emu.maps.read_byte(at).ok_or(ERROR_NOACCESS)?;
+                self.decode_byte(byte)
+            };
+            if unit == 0 {
+                return Ok(value);
+            }
+            value.push(unit);
+        }
+        Err(ERROR_INVALID_PARAMETER)
+    }
+
+    pub(crate) fn encode(self, value: &[u16]) -> Vec<u8> {
+        if matches!(self, Self::Wide) {
+            return value.iter().flat_map(|unit| unit.to_le_bytes()).collect();
+        }
+        char::decode_utf16(value.iter().copied())
+            .map(|ch| {
+                let scalar = ch.map(u32::from).unwrap_or(u32::MAX);
+                if scalar < 0x80 {
+                    scalar as u8
+                } else if matches!(self, Self::Oem) {
+                    IBM_437_HIGH
+                        .iter()
+                        .position(|&unit| unit as u32 == scalar)
+                        .map_or(b'?', |i| i as u8 + 0x80)
+                } else if (0xa0..=0xff).contains(&scalar) {
+                    scalar as u8
+                } else {
+                    WINDOWS_1252_HIGH
+                        .iter()
+                        .position(|&unit| unit as u32 == scalar)
+                        .map_or(b'?', |i| i as u8 + 0x80)
+                }
+            })
+            .collect()
+    }
+
+    pub(crate) fn terminated(self, value: &[u16]) -> Vec<u8> {
+        let mut bytes = self.encode(value);
+        bytes.resize(bytes.len() + self.width(), 0);
+        bytes
+    }
 }
 
 fn defaults(cfg: &Config) -> Vec<(String, String)> {
@@ -45,7 +215,10 @@ fn defaults(cfg: &Config) -> Vec<(String, String)> {
             "PATHEXT",
             ".COM;.EXE;.BAT;.CMD;.VBS;.JS;.WSF;.MSC".to_string(),
         ),
-        ("PROCESSOR_ARCHITECTURE", "AMD64".to_string()),
+        (
+            "PROCESSOR_ARCHITECTURE",
+            if cfg.arch.is_64bits() { "AMD64" } else { "x86" }.to_string(),
+        ),
         ("ProgramData", "C:\\ProgramData".to_string()),
         ("ProgramFiles", "C:\\Program Files".to_string()),
         ("ProgramFiles(x86)", "C:\\Program Files (x86)".to_string()),
@@ -62,67 +235,4 @@ fn defaults(cfg: &Config) -> Vec<(String, String)> {
     .into_iter()
     .map(|(k, v)| (k.to_string(), v))
     .collect()
-}
-
-fn with_variables<T>(cfg: &Config, f: impl FnOnce(&mut Vec<(String, String)>) -> T) -> T {
-    let mut guard = VARIABLES.lock().unwrap();
-    f(guard.get_or_insert_with(|| defaults(cfg)))
-}
-
-pub fn get(cfg: &Config, name: &str) -> Option<String> {
-    with_variables(cfg, |vars| {
-        vars.iter()
-            .find(|(k, _)| k.eq_ignore_ascii_case(name))
-            .map(|(_, v)| v.clone())
-    })
-}
-
-/// Set a variable; None removes it.
-pub fn set(cfg: &Config, name: &str, value: Option<&str>) {
-    with_variables(cfg, |vars| {
-        let idx = vars.iter().position(|(k, _)| k.eq_ignore_ascii_case(name));
-        match (idx, value) {
-            (Some(i), Some(v)) => vars[i].1 = v.to_string(),
-            (None, Some(v)) => vars.push((name.to_string(), v.to_string())),
-            (Some(i), None) => {
-                vars.remove(i);
-            }
-            (None, None) => {}
-        }
-    })
-}
-
-/// Every variable, in the order they were defined.
-pub fn all(cfg: &Config) -> Vec<(String, String)> {
-    with_variables(cfg, |vars| vars.clone())
-}
-
-/// Replace each `%NAME%` with its value; unknown names stay as written.
-pub fn expand(cfg: &Config, text: &str) -> String {
-    let mut out = String::new();
-    let mut rest = text;
-    while let Some(start) = rest.find('%') {
-        out.push_str(&rest[..start]);
-        let after = &rest[start + 1..];
-        match after.find('%') {
-            Some(end) => {
-                let name = &after[..end];
-                match get(cfg, name).filter(|_| !name.is_empty()) {
-                    Some(value) => out.push_str(&value),
-                    None => {
-                        out.push('%');
-                        out.push_str(name);
-                        out.push('%');
-                    }
-                }
-                rest = &after[end + 1..];
-            }
-            None => {
-                out.push_str(&rest[start..]);
-                rest = "";
-            }
-        }
-    }
-    out.push_str(rest);
-    out
 }

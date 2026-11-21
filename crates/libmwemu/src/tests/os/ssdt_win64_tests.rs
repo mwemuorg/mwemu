@@ -1,4 +1,5 @@
 use crate::tests::helpers;
+use crate::winapi::policy::ApiMode;
 use crate::*;
 use iced_x86::Mnemonic;
 use std::cell::RefCell;
@@ -253,7 +254,8 @@ fn ssdt_ldr_initialize_thunk() {
         return;
     }
     emu.cfg.emulate_winapi = true; // --ssdt
-    emu.cfg.skip_unimplemented = true; // --banzai: skip unimplemented, keep going
+    emu.cfg.skip_unimplemented = true;
+    emu.set_api_mode(ApiMode::SimulateSuccess);
     emu.maps.set_banzai(true);
 
     let sample = sample!("exe64win_msgbox.bin");

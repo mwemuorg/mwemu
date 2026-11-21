@@ -1,4 +1,8 @@
-use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use serde::de::{Error, SeqAccess, Visitor};
+use serde::ser::SerializeTuple;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 // Helper constants and functions
 const TLB_GLOBAL_PAGE: u32 = 0x80000000; // Example value
@@ -46,8 +50,52 @@ impl TLBEntry {
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct TLB {
-    #[serde(with = "serde_arrays")]
-    entry: [TLBEntry; TLB_SIZE],
+    #[serde(
+        serialize_with = "serialize_entries",
+        deserialize_with = "deserialize_entries"
+    )]
+    entry: Box<[TLBEntry]>,
+}
+
+// Published snapshots encode the TLB as a fixed tuple. Decode straight into
+// heap storage so serde never puts the 2,048-entry table on the caller's stack.
+fn serialize_entries<S: Serializer>(
+    entries: &[TLBEntry],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let mut tuple = serializer.serialize_tuple(TLB_SIZE)?;
+    for entry in entries {
+        tuple.serialize_element(entry)?;
+    }
+    tuple.end()
+}
+
+fn deserialize_entries<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Box<[TLBEntry]>, D::Error> {
+    struct Entries;
+
+    impl<'de> Visitor<'de> for Entries {
+        type Value = Box<[TLBEntry]>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(formatter, "{TLB_SIZE} TLB entries")
+        }
+
+        fn visit_seq<A: SeqAccess<'de>>(self, mut sequence: A) -> Result<Self::Value, A::Error> {
+            let mut entries = Vec::with_capacity(TLB_SIZE);
+            for index in 0..TLB_SIZE {
+                entries.push(
+                    sequence
+                        .next_element()?
+                        .ok_or_else(|| A::Error::invalid_length(index, &self))?,
+                );
+            }
+            Ok(entries.into_boxed_slice())
+        }
+    }
+
+    deserializer.deserialize_tuple(TLB_SIZE, Entries)
 }
 
 impl Default for TLB {
@@ -59,7 +107,7 @@ impl Default for TLB {
 impl TLB {
     pub fn new() -> Self {
         Self {
-            entry: std::array::from_fn(|_| TLBEntry::new()),
+            entry: vec![TLBEntry::new(); TLB_SIZE].into_boxed_slice(),
         }
     }
 

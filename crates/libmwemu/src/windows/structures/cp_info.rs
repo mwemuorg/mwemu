@@ -1,5 +1,6 @@
 use crate::maps::Maps;
 
+#[repr(C)]
 #[derive(Debug)]
 pub struct CpInfo {
     pub max_char_size: u32,
@@ -40,21 +41,20 @@ impl CpInfo {
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
-        maps.write_dword(addr, self.max_char_size);
+        self.save_fields(addr, maps);
+    }
 
-        // Write default char array
-        for i in 0..2 {
-            maps.write_byte(addr + 4 + i as u64, self.default_char[i]);
-        }
-
-        // Write lead byte array
-        for i in 0..12 {
-            maps.write_byte(addr + 6 + i as u64, self.lead_byte[i]);
-        }
+    pub(crate) fn save_fields(&self, addr: u64, maps: &mut Maps) -> bool {
+        // GetCPInfo writes the 18 data bytes. The trailing alignment bytes are unspecified.
+        let mut bytes = [0; 18];
+        bytes[..4].copy_from_slice(&self.max_char_size.to_le_bytes());
+        bytes[4..6].copy_from_slice(&self.default_char);
+        bytes[6..].copy_from_slice(&self.lead_byte);
+        maps.validate_write_range(addr, bytes.len() as u64) && maps.write_bytes(addr, &bytes)
     }
 
     pub fn size() -> usize {
-        18 // 4 bytes for max_char_size + 2 bytes for default_char + 12 bytes for lead_byte
+        size_of::<Self>()
     }
 
     pub fn print(&self) {

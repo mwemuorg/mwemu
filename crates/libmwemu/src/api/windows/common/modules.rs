@@ -2,9 +2,9 @@ use crate::api::abi::windows::{CallingConvention::Stdcall, WindowsAbi::WinApi};
 use crate::emu::Emu;
 use crate::maps::virtual_memory::MemoryKind;
 use crate::winapi::common::memory::{writable_pointer, write_pointer};
-use crate::winapi::common::strings;
-use crate::winapi::helper;
-use crate::winapi::policy::api_try;
+use crate::winapi::common::ntdll::read_unicode_string;
+use crate::winapi::common::{file_names, strings};
+use crate::winapi::policy::{self, api_try};
 use crate::windows::constants::errors::*;
 use crate::windows::constants::process::*;
 
@@ -94,8 +94,12 @@ fn module_base(emu: &mut Emu, name_ptr: u64, wide: bool, from_address: bool) -> 
             .filter(|allocation| allocation.kind == MemoryKind::Image)
             .map(|allocation| allocation.base);
     }
-    let name = strings::read_text(emu, name_ptr, wide);
-    let name = normalize_library_name(&name, true)?;
+    let name = file_names::read_path(emu, name_ptr, wide).ok()?;
+    find_loaded_module(emu, &name)
+}
+
+fn find_loaded_module(emu: &mut Emu, name: &str) -> Option<u64> {
+    let name = normalize_library_name(name, true)?;
     if let Some(module) = emu.export_indexes.get_by_name(&name) {
         return Some(module.base);
     }
@@ -134,7 +138,11 @@ pub(crate) fn get_module_handle(emu: &mut Emu, api: &str, wide: bool, extended: 
         | GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
     let incompatible = GET_MODULE_HANDLE_EX_FLAG_PIN | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
     let valid_output = !extended || (output != 0 && writable_pointer(emu, output));
-    let result = if flags & !allowed != 0 || flags & incompatible == incompatible || !valid_output {
+    let result = if flags & !allowed != 0
+        || flags & incompatible == incompatible
+        || flags & GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS != 0 && name == 0
+        || !valid_output
+    {
         Err(ERROR_INVALID_PARAMETER)
     } else {
         module_base(
@@ -157,7 +165,7 @@ pub(crate) fn get_module_handle(emu: &mut Emu, api: &str, wide: bool, extended: 
     }
     log_red!(
         emu,
-        "{} name/address:0x{:x} flags:0x{:x} => 0x{:x}",
+        "{} name/address=0x{:x} flags=0x{:x} => 0x{:x}",
         api,
         name,
         flags,
@@ -189,7 +197,7 @@ pub(crate) fn get_module_file_name(emu: &mut Emu, api: &str, wide: bool) {
     let path = module_path(emu, handle);
     log_red!(
         emu,
-        "{} module:0x{:x} output:0x{:x} capacity:{} => {:?}",
+        "{} module=0x{:x} output=0x{:x} capacity={} => {:?}",
         api,
         handle,
         output,
@@ -200,31 +208,17 @@ pub(crate) fn get_module_file_name(emu: &mut Emu, api: &str, wide: bool) {
         if capacity == 0 {
             return Err(ERROR_INSUFFICIENT_BUFFER);
         }
-        let units: Vec<u16> = if wide {
-            path.encode_utf16().collect()
-        } else {
-            path.bytes().map(u16::from).collect()
-        };
-        let count = units.len().min(capacity - 1);
-        let mut bytes = Vec::with_capacity(
-            (count + 1)
-                * if wide {
-                    size_of::<u16>()
-                } else {
-                    size_of::<u8>()
-                },
-        );
-        for unit in units[..count].iter().copied().chain([0]) {
-            if wide {
-                bytes.extend_from_slice(&unit.to_le_bytes());
-            } else {
-                bytes.push(unit as u8);
-            }
-        }
+        let encoding = file_names::encoding(emu, wide);
+        let mut bytes = encoding.encode(&path.encode_utf16().collect::<Vec<_>>());
+        let width = encoding.width();
+        let length = bytes.len() / width;
+        let count = length.min(capacity - 1);
+        bytes.truncate(count * width);
+        bytes.resize(bytes.len() + width, 0);
         if output == 0 || !emu.maps.write_bytes(output, &bytes) {
             return Err(ERROR_INVALID_PARAMETER);
         }
-        if units.len() >= capacity {
+        if length >= capacity {
             emu.set_last_error(ERROR_INSUFFICIENT_BUFFER);
             Ok(capacity as u64)
         } else {
@@ -256,24 +250,126 @@ pub(crate) fn dispatch(api: &str, library: &str, emu: &mut Emu) -> bool {
     true
 }
 
-pub(crate) fn snapshot_next(emu: &mut Emu, api: &str) {
+pub(crate) fn native_module(emu: &mut Emu, lookup: bool) {
+    const LDR_GET_DLL_HANDLE_EX_UNCHANGED_REFCOUNT: u32 = 1;
     let call = WinApi(Stdcall);
-    let snapshot = api_try!(emu, call.arg(emu, 0));
-    let entry = api_try!(emu, call.arg(emu, 1));
-    let error = if helper::handler_exist(snapshot) {
-        ERROR_NO_MORE_FILES
+    let flags = if lookup {
+        api_try!(emu, call.arg_u32(emu, 0))
     } else {
-        ERROR_INVALID_HANDLE
+        0
     };
+    let first = usize::from(lookup);
+    let path = api_try!(emu, call.arg(emu, first));
+    let attributes = api_try!(emu, call.arg(emu, first + 1));
+    let descriptor = api_try!(emu, call.arg(emu, first + 2));
+    let out = api_try!(emu, call.arg(emu, first + 3));
+    let api = if lookup {
+        "LdrGetDllHandleEx"
+    } else {
+        "LdrLoadDll"
+    };
+    let result = (|| {
+        if out == 0 || !writable_pointer(emu, out) {
+            return Err(STATUS_ACCESS_VIOLATION);
+        }
+        if path != 0 || flags & !LDR_GET_DLL_HANDLE_EX_UNCHANGED_REFCOUNT != 0 {
+            return Err(STATUS_NOT_SUPPORTED);
+        }
+        if attributes != 0
+            && emu
+                .maps
+                .read_dword(attributes)
+                .ok_or(STATUS_ACCESS_VIOLATION)?
+                != 0
+        {
+            return Err(STATUS_NOT_SUPPORTED);
+        }
+        let name = read_unicode_string(emu, descriptor)?;
+        let basename = normalize_library_name(&name, true).ok_or(STATUS_DLL_NOT_FOUND)?;
+        let base = find_loaded_module(emu, &basename)
+            .or_else(|| {
+                if lookup {
+                    return None;
+                }
+                let base = emu.link_library(&basename);
+                (base != 0).then_some(base)
+            })
+            .ok_or(STATUS_DLL_NOT_FOUND)?;
+        write_pointer(emu, out, base)
+            .then_some(())
+            .ok_or(STATUS_ACCESS_VIOLATION)
+    })();
+    log_red!(emu, "ntdll!{api} name={descriptor:#x} result={result:?}");
+    call.set_return(emu, result.err().unwrap_or(STATUS_SUCCESS));
+    call.cleanup_args(emu, first + 4);
+}
+
+pub(crate) fn load(emu: &mut Emu, library: &str, api: &str) {
+    let call = WinApi(Stdcall);
+    let name_ptr = api_try!(emu, call.arg(emu, 0));
+    let extended = api.starts_with("LoadLibraryEx");
+    let file = if extended {
+        api_try!(emu, call.arg(emu, 1))
+    } else {
+        0
+    };
+    let flags = if extended {
+        api_try!(emu, call.arg_u32(emu, 2))
+    } else {
+        0
+    };
+    let name = strings::read_text_checked(emu, name_ptr, api.ends_with('W'));
     log_red!(
         emu,
-        "{} snapshot:0x{:x} entry:0x{:x} => {}",
-        api,
-        snapshot,
-        entry,
-        error
+        "{library}!{api} filename={name:?} file={file:#x} flags={flags:#x}"
     );
-    emu.set_last_error(error);
-    call.set_return(emu, 0);
-    call.cleanup_args(emu, 2);
+    if flags != 0 {
+        policy::unsupported(emu, library, api, emu.pc());
+        return;
+    }
+    let base = if name_ptr == 0 || file != 0 {
+        emu.set_last_error(ERROR_INVALID_PARAMETER);
+        0
+    } else if let Some(name) = name {
+        let base = emu.link_library(&name);
+        if base == 0 {
+            emu.set_last_error(ERROR_MOD_NOT_FOUND);
+        }
+        base
+    } else {
+        emu.set_last_error(ERROR_NOACCESS);
+        0
+    };
+    call.set_return(emu, base);
+    call.cleanup_args(emu, if extended { 3 } else { 1 });
+}
+
+pub(crate) fn free(emu: &mut Emu, library: &str) {
+    let call = WinApi(Stdcall);
+    let module = api_try!(emu, call.arg(emu, 0));
+    log_red!(emu, "{library}!FreeLibrary module={module:#x}");
+    let indexed = emu.export_indexes.get_by_base(module);
+    if indexed.is_some_and(|index| {
+        matches!(
+            index.normalized_name.as_str(),
+            "ntdll" | "kernel32" | "kernelbase"
+        )
+    }) {
+        // Windows pins its base system DLLs for the lifetime of the process.
+        call.set_return(emu, 1);
+    } else if module != 0
+        && (module == emu.base
+            || indexed.is_some()
+            || emu
+                .maps
+                .allocation_at(module)
+                .is_some_and(|a| a.base == module && a.kind == MemoryKind::Image))
+    {
+        policy::unsupported(emu, library, "FreeLibrary", emu.pc());
+        return;
+    } else {
+        emu.set_last_error(ERROR_MOD_NOT_FOUND);
+        call.set_return(emu, 0);
+    }
+    call.cleanup_args(emu, 1);
 }

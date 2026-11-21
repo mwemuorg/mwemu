@@ -1,8 +1,10 @@
 //! Additional libSystem (libc/pthread) stubs for macOS binaries. Nothing here
 //! modifies the host: mutating filesystem calls only pretend to succeed.
 use crate::api::abi::unix::UnixApi;
-use crate::api::strconv::{parse_c_float, parse_c_integer};
-use crate::api::unix::api_try;
+use crate::api::dispatch_api;
+use crate::api::macos::libsystem::allocate_memory;
+use crate::api::strconv::{integer, parse_c_float};
+use crate::api::unix::{api_try, memory};
 use crate::emu::Emu;
 use crate::maps::mem64::Permission;
 
@@ -14,16 +16,12 @@ const UTSNAME_FIELD: u64 = 256;
 /// Dispatch `symbol` if it is implemented here. Returns false otherwise.
 pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
     let name = symbol.strip_prefix('_').unwrap_or(symbol);
-    match name {
-        "strtol" | "strtoll" | "strtoq" | "strtoul" | "strtoull" | "strtouq" => api_strtol(emu),
-        "atoi" | "atol" | "atoll" => api_atoi(emu),
+    dispatch_api!(name, {
+        "atoi" | "atol" | "atoll" | "strtol" | "strtoll" | "strtoimax" | "strtoul" | "strtoull" | "strtoumax" | "strtoq" | "strtouq" => integer(emu, name),
         "strtod" | "atof" => api_strtod(emu, name == "strtod"),
-        "strnlen" => api_strnlen(emu),
-        "strcasecmp" => api_strcasecmp(emu, usize::MAX),
-        "strncasecmp" => api_strncasecmp(emu),
         "strndup" => api_strndup(emu),
-        "toupper" => api_change_case(emu, true),
-        "tolower" => api_change_case(emu, false),
+        "toupper" => change_case(emu, true),
+        "tolower" => change_case(emu, false),
         "abs" => api_abs(emu, true),
         "labs" | "llabs" => api_abs(emu, false),
         "getcwd" => api_getcwd(emu),
@@ -50,9 +48,10 @@ pub fn gateway(symbol: &str, emu: &mut Emu) -> bool {
         "uname" => api_uname(emu),
         "sigaction" | "sigprocmask" | "sigemptyset" | "sigaddset" => api_return(emu, name, 0),
         "pthread_once" => api_pthread_once(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }
 
 pub(super) fn trace(emu: &Emu, call: &str) {
@@ -86,28 +85,6 @@ fn write_cstring(emu: &mut Emu, addr: u64, s: &[u8]) {
     emu.maps.write_byte(addr + s.len() as u64, 0);
 }
 
-fn api_strtol(emu: &mut Emu) {
-    let call = UnixApi;
-    let s_addr = api_try!(emu, call.arg(emu, 0));
-    let endptr = api_try!(emu, call.arg(emu, 1));
-    let base = api_try!(emu, call.arg_u32(emu, 2));
-    let s = emu.maps.read_string(s_addr);
-    let (val, used) = parse_c_integer(s.as_bytes(), base);
-    if endptr != 0 {
-        emu.maps.write_qword(endptr, s_addr + used as u64);
-    }
-    trace(emu, &format!("strtol(\"{}\", base={}) -> {}", s, base, val));
-    call.set_return(emu, val as u64);
-}
-
-fn api_atoi(emu: &mut Emu) {
-    let call = UnixApi;
-    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
-    let (val, _) = parse_c_integer(s.as_bytes(), 10);
-    trace(emu, &format!("atoi(\"{}\") -> {}", s, val));
-    call.set_return(emu, val as u64);
-}
-
 /// Floating-point results are returned in d0 (AArch64) or xmm0 (x86_64).
 fn set_fp_ret(emu: &mut Emu, val: f64) {
     if emu.cfg.arch.is_aarch64() {
@@ -134,62 +111,26 @@ fn api_strtod(emu: &mut Emu, has_endptr: bool) {
     set_fp_ret(emu, val);
 }
 
-fn api_strnlen(emu: &mut Emu) {
-    let call = UnixApi;
-    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
-    let max = api_try!(emu, call.arg(emu, 1)) as usize;
-    call.set_return(emu, s.len().min(max) as u64);
-}
-
-fn api_strncasecmp(emu: &mut Emu) {
-    let call = UnixApi;
-    let count = api_try!(emu, call.arg(emu, 2)) as usize;
-    api_strcasecmp(emu, count);
-}
-
-fn api_strcasecmp(emu: &mut Emu, limit: usize) {
-    let call = UnixApi;
-    let a = emu
-        .maps
-        .read_string(api_try!(emu, call.arg(emu, 0)))
-        .to_ascii_lowercase();
-    let b = emu
-        .maps
-        .read_string(api_try!(emu, call.arg(emu, 1)))
-        .to_ascii_lowercase();
-    let (a, b) = (a.as_bytes(), b.as_bytes());
-    let mut r: i64 = 0;
-    for i in 0..limit {
-        let (ca, cb) = (
-            a.get(i).copied().unwrap_or(0),
-            b.get(i).copied().unwrap_or(0),
-        );
-        if ca != cb || ca == 0 {
-            r = ca as i64 - cb as i64;
-            break;
-        }
-    }
-    call.set_return(emu, r as u64);
-}
-
 fn api_strndup(emu: &mut Emu) {
     let call = UnixApi;
-    let s = emu.maps.read_string(api_try!(emu, call.arg(emu, 0)));
-    let n = (api_try!(emu, call.arg(emu, 1)) as usize).min(s.len());
-    let addr = match super::libsystem::allocate_memory(emu, n as u64 + 1) {
-        Some(a) => a,
-        None => {
-            log::error!("macOS strndup: out of memory (n={})", n);
-            call.set_return(emu, 0);
-            return;
-        }
-    };
-    write_cstring(emu, addr, &s.as_bytes()[..n]);
-    trace(emu, &format!("strndup(\"{}\", {}) -> 0x{:x}", s, n, addr));
-    call.set_return(emu, addr);
+    let source = api_try!(emu, call.arg(emu, 0));
+    let limit = api_try!(emu, call.arg(emu, 1));
+    let count = api_try!(emu, memory::length(emu, source, limit));
+    let destination = allocate_memory(emu, count + 1).unwrap_or(0);
+    trace(
+        emu,
+        &format!("strndup(0x{source:x}, {limit}) -> 0x{destination:x}"),
+    );
+    if destination != 0 {
+        api_try!(
+            emu,
+            memory::terminated_copy(emu, destination, source, count)
+        );
+    }
+    call.set_return(emu, destination);
 }
 
-fn api_change_case(emu: &mut Emu, upper: bool) {
+pub(super) fn change_case(emu: &mut Emu, upper: bool) {
     let call = UnixApi;
     let c = api_try!(emu, call.arg_u32(emu, 0));
     let r = match u8::try_from(c) {

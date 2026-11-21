@@ -1,16 +1,16 @@
-use crate::emu::Emu;
-use crate::winapi::winapi64::kernel32;
-
-mod profile_string;
-pub use profile_string::{
+pub use crate::winapi::libraries::kernel32::entry_points::kernel32::{
     GetPrivateProfileIntA, GetPrivateProfileIntW, GetPrivateProfileStringA,
     GetPrivateProfileStringW, GetProfileIntA, GetProfileIntW, GetProfileStringA, GetProfileStringW,
     WritePrivateProfileStringA, WritePrivateProfileStringW, WriteProfileStringA,
     WriteProfileStringW,
 };
 
+use crate::api::dispatch_api;
+use crate::emu::Emu;
+use crate::winapi::winapi64::kernel32;
+
 pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
-    match api {
+    dispatch_api!(api, {
         "GetPrivateProfileStringA" => kernel32::GetPrivateProfileStringA(emu),
         "GetPrivateProfileStringW" => kernel32::GetPrivateProfileStringW(emu),
         "GetProfileStringA" => kernel32::GetProfileStringA(emu),
@@ -23,7 +23,8 @@ pub(super) fn dispatch(api: &str, addr: u64, emu: &mut Emu) -> bool {
         "GetPrivateProfileIntW" => kernel32::GetPrivateProfileIntW(emu),
         "GetProfileIntA" => kernel32::GetProfileIntA(emu),
         "GetProfileIntW" => kernel32::GetProfileIntW(emu),
-        _ => return false,
-    }
-    true
+    },
+        handled(()) => true,
+        fallback => false,
+    )
 }

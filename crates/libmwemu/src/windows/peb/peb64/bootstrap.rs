@@ -1,10 +1,9 @@
 use crate::emu;
+use crate::maps::Maps;
 use crate::maps::mem64::Permission;
+use crate::windows::peb::command_line;
 use crate::windows::peb::peb64::ldr::create_ldr_entry;
-use crate::windows::structures::PEB64;
-use crate::windows::structures::PebLdrData64;
-use crate::windows::structures::RtlUserProcessParameters64;
-use crate::windows::structures::TEB64;
+use crate::windows::structures::{PEB64, PebLdrData64, RtlUserProcessParameters64, TEB64};
 
 /// `PEB+0x90` (`system_dependent_07`): ntdll reads this as a pointer in loader / API-set helpers.
 /// Real CSRSS/kernel fills it; under emulation `LdrInitializeThunk` (and related code) often leaves
@@ -400,14 +399,13 @@ pub fn init_arguments(emu: &mut emu::Emu) -> u64 {
     // the parser leave the freshly-allocated BaseDllName.Buffer untouched
     // and the next `RtlHashUnicodeString` faults inside ntdll.
     let image_path = format!("C:\\{}", emu.cfg.exe_name);
-    let mut cmdline_str = image_path.clone();
-    cmdline_str.push_str(&emu.cfg.arguments);
+    let cmdline_str = command_line(&image_path, &emu.cfg.arguments);
 
     // UNICODE_STRING.Length is bytes WITHOUT trailing NUL; MaximumLength
     // is the buffer capacity INCLUDING space for the NUL terminator.
-    let image_bytes = image_path.len() as u64 * 2;
+    let image_bytes = image_path.encode_utf16().count() as u64 * 2;
     let image_maxlen = image_bytes + 2;
-    let cmd_bytes = cmdline_str.len() as u64 * 2;
+    let cmd_bytes = cmdline_str.encode_utf16().count() as u64 * 2;
     let cmd_maxlen = cmd_bytes + 2;
 
     let filename = emu
@@ -484,7 +482,8 @@ pub fn init_peb(emu: &mut emu::Emu) {
         return;
     }
     emu.maps.memset(teb_addr, 0, TEB64::map_size());
-    let teb = TEB64::new(peb_addr);
+    let mut teb = TEB64::new(peb_addr);
+    teb.thread_id = emu.current_thread().id;
     teb.save(emu.maps.get_mem_mut("teb"));
 
     ensure_teb_activation_context_stack(emu);
@@ -511,7 +510,7 @@ fn init_process_heap(emu: &mut emu::Emu) -> u64 {
     }
     emu.maps.memset(h, 0, heap_sz as usize);
 
-    let self_list = |maps: &mut crate::maps::Maps, addr: u64| {
+    let self_list = |maps: &mut Maps, addr: u64| {
         maps.write_qword(addr, addr);
         maps.write_qword(addr + 8, addr);
     };
@@ -592,7 +591,8 @@ pub fn init_peb_teb_empty(emu: &mut emu::Emu) {
         return;
     }
     emu.maps.memset(teb_addr, 0, TEB64::map_size());
-    let teb = TEB64::new(peb_addr);
+    let mut teb = TEB64::new(peb_addr);
+    teb.thread_id = emu.current_thread().id;
     teb.save(emu.maps.get_mem_mut("teb"));
 
     ensure_teb_activation_context_stack(emu);

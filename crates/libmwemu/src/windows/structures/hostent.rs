@@ -6,7 +6,6 @@ pub struct Hostent {
     pub addr_type: u16,
     pub length: u16,
     pub addr_list: u64,
-    // (gdb) 0x7ffff7fa0b60 -> 0x5555555595d0 -> 0x5555555595cc -> IP
 }
 
 impl Default for Hostent {
@@ -27,11 +26,19 @@ impl Hostent {
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
-        maps.write_qword(addr, self.hname);
-        maps.write_qword(addr + 8, self.alias_list);
-        maps.write_word(addr + 16, self.addr_type);
-        maps.write_word(addr + 20, self.length);
-        maps.write_qword(addr + 24, self.addr_list);
+        if maps.is_64bits {
+            maps.write_qword(addr, self.hname);
+            maps.write_qword(addr + 8, self.alias_list);
+            maps.write_word(addr + 16, self.addr_type);
+            maps.write_word(addr + 18, self.length);
+            maps.write_qword(addr + 24, self.addr_list);
+        } else {
+            maps.write_dword(addr, self.hname as u32);
+            maps.write_dword(addr + 4, self.alias_list as u32);
+            maps.write_word(addr + 8, self.addr_type);
+            maps.write_word(addr + 10, self.length);
+            maps.write_dword(addr + 12, self.addr_list as u32);
+        }
     }
 
     pub fn size() -> usize {

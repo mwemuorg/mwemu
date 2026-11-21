@@ -30,32 +30,19 @@ pub mod rtl;
 pub mod structs;
 pub mod sync;
 
+use crate::maps::mem64::Permission;
+pub use crate::windows::constants::errors::{
+    STATUS_ACCESS_DENIED, STATUS_ACCESS_VIOLATION, STATUS_BUFFER_OVERFLOW, STATUS_BUFFER_TOO_SMALL,
+    STATUS_END_OF_FILE, STATUS_INFO_LENGTH_MISMATCH, STATUS_INVALID_DEVICE_REQUEST,
+    STATUS_INVALID_INFO_CLASS, STATUS_INVALID_PARAMETER, STATUS_NO_MEMORY, STATUS_NO_MORE_ENTRIES,
+    STATUS_NO_MORE_FILES, STATUS_NOT_FOUND, STATUS_NOT_IMPLEMENTED, STATUS_NOT_SUPPORTED,
+    STATUS_OBJECT_NAME_COLLISION, STATUS_OBJECT_NAME_NOT_FOUND, STATUS_PENDING, STATUS_SUCCESS,
+    STATUS_TIMEOUT, STATUS_UNSUCCESSFUL,
+};
 use std::collections::HashMap;
 
 use crate::emu::Emu;
 use crate::kernel::heap::Region;
-
-pub const STATUS_SUCCESS: u64 = 0;
-pub const STATUS_PENDING: u64 = 0x103;
-pub const STATUS_TIMEOUT: u64 = 0x102;
-pub const STATUS_NO_MORE_ENTRIES: u64 = 0x8000001A;
-pub const STATUS_NO_MORE_FILES: u64 = 0x80000006;
-pub const STATUS_BUFFER_OVERFLOW: u64 = 0x80000005;
-pub const STATUS_UNSUCCESSFUL: u64 = 0xC0000001;
-pub const STATUS_NOT_IMPLEMENTED: u64 = 0xC0000002;
-pub const STATUS_INVALID_INFO_CLASS: u64 = 0xC0000003;
-pub const STATUS_INFO_LENGTH_MISMATCH: u64 = 0xC0000004;
-pub const STATUS_ACCESS_VIOLATION: u64 = 0xC0000005;
-pub const STATUS_INVALID_PARAMETER: u64 = 0xC000000D;
-pub const STATUS_INVALID_DEVICE_REQUEST: u64 = 0xC0000010;
-pub const STATUS_END_OF_FILE: u64 = 0xC0000011;
-pub const STATUS_NO_MEMORY: u64 = 0xC0000017;
-pub const STATUS_ACCESS_DENIED: u64 = 0xC0000022;
-pub const STATUS_BUFFER_TOO_SMALL: u64 = 0xC0000023;
-pub const STATUS_OBJECT_NAME_NOT_FOUND: u64 = 0xC0000034;
-pub const STATUS_OBJECT_NAME_COLLISION: u64 = 0xC0000035;
-pub const STATUS_NOT_SUPPORTED: u64 = 0xC00000BB;
-pub const STATUS_NOT_FOUND: u64 = 0xC0000225;
 
 /// A device object the driver created through `IoCreateDevice`.
 #[derive(Debug, Clone)]
@@ -423,12 +410,10 @@ pub fn alloc_user_buffer(emu: &mut Emu, size: u64, label: &str) -> u64 {
     // A guard page between buffers so an overrun faults instead of bleeding.
     k.win.user_next += size + 0x1000;
     let name = format!("user.{}.{:x}", label, addr);
-    match emu.maps.create_map(
-        &name,
-        addr,
-        size,
-        crate::maps::mem64::Permission::READ_WRITE,
-    ) {
+    match emu
+        .maps
+        .create_map(&name, addr, size, Permission::READ_WRITE)
+    {
         Ok(m) => {
             m.write_bytes(addr, &vec![0u8; size as usize]);
             addr
@@ -440,10 +425,8 @@ pub fn alloc_user_buffer(emu: &mut Emu, size: u64, label: &str) -> u64 {
     }
 }
 
-/// Every symbol this surface implements, grouped by subsystem. Everything
-/// listed is handled by a real implementation or a modelled success; an
-/// import outside this list still resolves to a stub that returns 0 and is
-/// reported in `KernelEnv::unimplemented` when called.
+/// Export names declared by the dispatchers, grouped by subsystem.
+/// Unhandled imports use the Windows API policy when called.
 pub const SURFACE: &[(&str, &[&str])] = &[
     ("alloc", pool::SURFACE),
     ("io", io::SURFACE),
@@ -456,5 +439,11 @@ pub const SURFACE: &[(&str, &[&str])] = &[
 
 /// True when the symbol has an implementation (or a deliberate model).
 pub fn is_implemented(name: &str) -> bool {
-    SURFACE.iter().any(|(_, names)| names.contains(&name))
+    pool::has_handler(name)
+        || io::has_handler(name)
+        || mm::has_handler(name)
+        || rtl::has_handler(name)
+        || sync::has_handler(name)
+        || crt::has_handler(name)
+        || misc::has_handler(name)
 }
